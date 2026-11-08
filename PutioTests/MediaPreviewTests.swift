@@ -1,7 +1,9 @@
 import ImageIO
+import os
 import UniformTypeIdentifiers
 import XCTest
 @testable import Putio
+import PutioSDK
 
 final class MediaPreviewSessionTests: XCTestCase {
     // A preview URL carries the OAuth token, so a cached response would keep it in the cache key.
@@ -87,6 +89,117 @@ final class ImagePreviewDecoderTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return data as Data
     }
+}
+
+final class FilePreviewFailureTests: XCTestCase {
+    private enum Preview: String, CaseIterable {
+        case pdf, image
+    }
+
+    private let deleted = "The original version of this file has been deleted from your put.io account."
+
+    func testAMissingDownloadSaysTheFileWasDeleted() throws {
+        for preview in Preview.allCases {
+            try assertPreview(preview, answeredWith: 404, failsWith: deleted)
+        }
+    }
+
+    func testAServerErrorSaysTheFetchFailed() throws {
+        try assertPreview(.pdf, answeredWith: 500, failsWith: "An error occurred while fetching the PDF")
+        try assertPreview(.image, answeredWith: 500, failsWith: "An error occurred while fetching the image")
+    }
+
+    private func assertPreview(
+        _ preview: Preview,
+        answeredWith statusCode: Int,
+        failsWith message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let fileID = preview == .pdf ? 500_000_001 : 400_000_001
+        PreviewDownloadStub.answer(with: statusCode)
+        let configuration = MediaPreviewSession.configuration(environment: [:])
+        configuration.protocolClasses = [PreviewDownloadStub.self]
+        let session = URLSession(configuration: configuration)
+        addTeardownBlock { session.invalidateAndCancel() }
+
+        let viewController = try makePreview(preview, fileID: fileID, session: session)
+        let navigation = try pushOnWindow(viewController)
+
+        let alert = try waitForAlert(on: viewController, titled: "Oops!")
+        XCTAssertEqual(alert.message, message, preview.rawValue, file: file, line: line)
+        XCTAssertEqual(alert.actions.map(\.title), ["Go Back"], preview.rawValue, file: file, line: line)
+        XCTAssertEqual(PreviewDownloadStub.requestedPaths.last, "/v2/files/\(fileID)/download", preview.rawValue, file: file, line: line)
+
+        try chooseAlertAction("Go Back", in: alert)
+        let returned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in navigation.topViewController !== viewController }, object: nil)
+        wait(for: [returned], timeout: 5)
+        XCTAssertEqual(navigation.viewControllers.count, 1, preview.rawValue, file: file, line: line)
+    }
+
+    private func makePreview(_ preview: Preview, fileID: Int, session: URLSession) throws -> UIViewController {
+        let file = try makeFile(id: fileID, preview: preview)
+        switch preview {
+        case .pdf:
+            let storyboard = UIStoryboard(name: "PDF", bundle: Bundle(for: PDFViewController.self))
+            let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "PDFVC") as? PDFViewController)
+            viewController.file = file
+            viewController.previewSession = session
+            return viewController
+        case .image:
+            let storyboard = UIStoryboard(name: "Image", bundle: Bundle(for: ImageViewController.self))
+            let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "ImageVC") as? ImageViewController)
+            viewController.file = file
+            viewController.previewSession = session
+            return viewController
+        }
+    }
+
+    private func makeFile(id: Int, preview: Preview) throws -> PutioFile {
+        let payload: [String: Any] = [
+            "id": id,
+            "name": preview == .pdf ? "Document.pdf" : "Photo.jpg",
+            "icon": "file",
+            "parent_id": 0,
+            "file_type": preview == .pdf ? "PDF" : "IMAGE",
+            "content_type": preview == .pdf ? "application/pdf" : "image/jpeg",
+            "size": 1024,
+            "created_at": "2026-04-20T00:00:00Z",
+            "updated_at": "2026-04-20T00:00:00Z",
+            "is_shared": false
+        ]
+        return try JSONDecoder().decode(PutioFile.self, from: JSONSerialization.data(withJSONObject: payload))
+    }
+}
+
+private final class PreviewDownloadStub: URLProtocol {
+    private static let state = OSAllocatedUnfairLock(initialState: (statusCode: 200, paths: [String]()))
+
+    static var requestedPaths: [String] { state.withLock { $0.paths } }
+
+    static func answer(with statusCode: Int) {
+        state.withLock { $0 = (statusCode, []) }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else { return }
+        let statusCode = Self.state.withLock { state -> Int in
+            state.paths.append(url.path)
+            return state.statusCode
+        }
+        guard let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: ["Content-Type": "application/json"]) else {
+            return
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(#"{"status":"ERROR","status_code":\#(statusCode)}"#.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 /// Answers every request with a small response any cache may keep for an hour.

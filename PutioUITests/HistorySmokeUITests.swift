@@ -18,11 +18,11 @@ final class HistorySmokeUITests: XCTestCase {
         app.tabItem("History").tap()
 
         let table = app.tables["putio-history-table"]
-        XCTAssertTrue(table.waitForExistence(timeout: 5))
+        XCTAssertTrue(table.appears(within: 5))
 
         let uploadCell = table.staticTexts["Tears of Steel.mp4"]
         XCTAssertTrue(
-            uploadCell.waitForExistence(timeout: 5),
+            uploadCell.appears(within: 5),
             "history events should render on first open without pull-to-refresh"
         )
         XCTAssertTrue(table.staticTexts["Cosmos Laundromat"].exists)

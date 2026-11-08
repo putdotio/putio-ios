@@ -51,15 +51,28 @@ final class VideoConversionSessionTests: XCTestCase {
 
     private final class DelegateSpy: VideoConversionViewControllerDelegate {
         var finishedFiles: [PutioFile] = []
+        var dismissalsBeforeFinish = 0
 
         func videoConversionFinished(for file: PutioFile, intention: VideoConversionIntention) {
             finishedFiles.append(file)
         }
 
-        func videoConversionControllerDismissedBeforeFinish() {}
+        func videoConversionControllerDismissedBeforeFinish() {
+            dismissalsBeforeFinish += 1
+        }
     }
 
     private let error = PutioSDKError.offline("/files/42/mp4")
+    private let serverError = PutioSDKError(
+        request: PutioSDKErrorRequestInformation(
+            config: PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/files/42/mp4", method: .post)
+        ),
+        statusCode: 500,
+        errorType: "E2E_FORCED_FAILURE",
+        message: "Forced failure",
+        underlyingError: URLError(.badServerResponse)
+    )
+    private let somethingWentWrong = "Something went wrong\nPlease try again later"
 
     func testStartFailureFailsWithoutPolling() {
         let harness = Harness()
@@ -329,6 +342,122 @@ final class VideoConversionSessionTests: XCTestCase {
             "\(NSLocalizedString("This video couldn't be converted", comment: ""))\n\(NSLocalizedString("Please try again later", comment: ""))"
         )
         XCTAssertEqual(viewController.navigationItem.rightBarButtonItem?.title, NSLocalizedString("Retry", comment: ""))
+    }
+
+    func testEveryFailedRequestSaysSomethingWentWrongAndOffersRetry() throws {
+        let failures: [(String, (Harness) -> Void)] = [
+            ("start", { harness in
+                harness.startCompletions[0](.failure(self.serverError))
+            }),
+            ("status, after the bounded retries", { harness in
+                harness.startCompletions[0](.success(()))
+                for _ in 1...VideoConversionSession.maxStatusRetries {
+                    harness.statusCompletions.last?(.failure(self.serverError))
+                    XCTAssertEqual(harness.pendingPolls.count, 1)
+                    harness.firePoll()
+                }
+                harness.statusCompletions.last?(.failure(self.serverError))
+            }),
+            ("converted file", { harness in
+                harness.startCompletions[0](.success(()))
+                harness.respondToStatus(.completed, percentDone: 1)
+                harness.fileCompletions[0](.failure(self.serverError))
+            })
+        ]
+
+        for (request, fail) in failures {
+            let harness = Harness()
+            let delegate = DelegateSpy()
+            let viewController = try makeViewController(session: harness.session, delegate: delegate)
+            viewController.loadViewIfNeeded()
+
+            fail(harness)
+
+            XCTAssertEqual(viewController.statusLabel.text, somethingWentWrong, request)
+            XCTAssertTrue(viewController.progressView.isHidden, request)
+            XCTAssertEqual(viewController.navigationItem.rightBarButtonItem?.title, "Retry", request)
+            XCTAssertTrue(delegate.finishedFiles.isEmpty, request)
+        }
+    }
+
+    func testCloseAfterAFailureDismissesWithoutFinishing() throws {
+        let harness = Harness()
+        let delegate = DelegateSpy()
+        let (root, viewController) = try presentConversion(session: harness.session, delegate: delegate)
+        harness.startCompletions[0](.failure(serverError))
+        XCTAssertEqual(viewController.navigationItem.rightBarButtonItem?.title, "Retry")
+
+        try tapClose(on: viewController)
+
+        waitUntil { root.presentedViewController == nil }
+        XCTAssertNil(root.presentedViewController)
+        XCTAssertTrue(delegate.finishedFiles.isEmpty)
+        XCTAssertEqual(delegate.dismissalsBeforeFinish, 1)
+    }
+
+    func testClosingBeforeTheStartResponseNeverContinuesToPlayback() throws {
+        let harness = Harness()
+        let delegate = DelegateSpy()
+        let (root, viewController) = try presentConversion(session: harness.session, delegate: delegate)
+
+        try tapClose(on: viewController)
+        waitUntil { root.presentedViewController == nil }
+        harness.startCompletions[0](.success(()))
+        harness.respondToStatus(.completed, percentDone: 1)
+        harness.fileCompletions.first?(.success(try makePutioFile()))
+
+        XCTAssertNil(root.presentedViewController)
+        XCTAssertTrue(harness.statusCompletions.isEmpty)
+        XCTAssertTrue(harness.fileCompletions.isEmpty)
+        XCTAssertTrue(delegate.finishedFiles.isEmpty)
+    }
+
+    private func makeViewController(session: VideoConversionSession, delegate: DelegateSpy) throws -> VideoConversionViewController {
+        let storyboard = UIStoryboard(name: "VideoConversion", bundle: Bundle(for: VideoConversionViewController.self))
+        let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "VideoConversionVC") as? VideoConversionViewController)
+        viewController.file = try makePutioFile()
+        viewController.intention = .play
+        viewController.delegate = delegate
+        viewController.session = session
+        return viewController
+    }
+
+    private func presentConversion(
+        session: VideoConversionSession,
+        delegate: DelegateSpy
+    ) throws -> (UIViewController, VideoConversionViewController) {
+        let storyboard = UIStoryboard(name: "VideoConversion", bundle: Bundle(for: VideoConversionViewController.self))
+        let navigation = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "VideoConversionNC") as? UINavigationController)
+        let viewController = try XCTUnwrap(navigation.viewControllers.first as? VideoConversionViewController)
+        viewController.file = try makePutioFile()
+        viewController.intention = .play
+        viewController.delegate = delegate
+        viewController.session = session
+
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        let root = UIViewController()
+        window.rootViewController = root
+        window.isHidden = false
+        addTeardownBlock { window.isHidden = true }
+
+        let presented = expectation(description: "presented")
+        root.present(navigation, animated: false) { presented.fulfill() }
+        wait(for: [presented], timeout: 5)
+        return (root, viewController)
+    }
+
+    private func tapClose(on viewController: VideoConversionViewController) throws {
+        let close = try XCTUnwrap(viewController.navigationItem.leftBarButtonItem)
+        let action = try XCTUnwrap(close.action)
+        XCTAssertTrue(UIApplication.shared.sendAction(action, to: close.target, from: close, for: nil))
+    }
+
+    private func waitUntil(timeout: TimeInterval = 5, _ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
     }
 
     private func assertFailure(

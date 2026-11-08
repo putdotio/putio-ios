@@ -150,6 +150,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func connect(window: UIWindow) {
         self.window = window
+        if PutioE2EEnvironment.isAnimationDisabled {
+            UIView.setAnimationsEnabled(false)
+            window.layer.speed = PutioE2EEnvironment.animationSpeed
+        }
         if Self.isRunningUnitTests {
             window.rootViewController = UIViewController()
         }

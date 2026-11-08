@@ -45,10 +45,11 @@ PUTIO_IOS_SOPS_FILE=/path/to/ios.sops.env mise run secrets-setup
 
 ```bash
 open Putio.xcworkspace
-mise run verify-fast     # generated assets, strings, workspace sanity
-mise run verify          # unit tests, unsigned simulator build
-mise run e2e-simulator   # mocked XCUITests
-mise run run-simulator   # signed build on a visible simulator
+mise run verify-fast         # generated assets, strings, workspace sanity
+mise run verify              # unit tests, unsigned simulator build
+mise run e2e-simulator       # mocked XCUITests
+mise run screenshots-verify  # screenshot walk against the screen baselines
+mise run run-simulator       # signed build on a visible simulator
 ```
 
 - `verify` is the gate before handoff.
@@ -65,11 +66,16 @@ mise run run-simulator   # signed build on a visible simulator
 
 `PUTIO_E2E_MOCK_API=1` in a test's launch environment serves fixture-backed SDK
 responses. The other `PUTIO_E2E_*` switches are read in
-[`PutioE2EMockURLProtocol.swift`](Putio/Common/API/PutioE2EMockURLProtocol.swift)
-and [`AppDelegate.swift`](Putio/AppDelegate.swift).
+[`PutioE2EMockURLProtocol.swift`](Putio/Common/API/PutioE2EMockURLProtocol.swift),
+[`PutioE2EEnvironment.swift`](Putio/Common/API/PutioE2EEnvironment.swift),
+and [`AppDelegate.swift`](Putio/AppDelegate.swift). Mocked runs disable UIKit
+animations unless the test sets `PUTIO_E2E_ANIMATIONS=1`, as the screenshot
+walk does.
 
 ### Visual baselines
 
+- `e2e-simulator` skips the screenshot walk; `mise run screenshots-verify`
+  asserts it. Run it after a change to any walked screen.
 - After an intentional visual change, run `mise run screenshots-record` and
   commit the image diff.
 - Scope a run to one screen with xcodebuild's `-only-testing:` syntax:

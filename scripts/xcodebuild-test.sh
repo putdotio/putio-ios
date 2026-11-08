@@ -4,6 +4,11 @@
 # Usage:
 #   scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify
 #
+# --parallel-workers N runs test classes on N clones of the simulator.
+# --only-testing and --skip-testing take one xcodebuild test identifier each.
+#
+# A test that runs past its allowance fails instead of hanging the run.
+#
 # The simulator is ephemeral and deleted on exit, so parallel worktrees never
 # collide. PUTIO_SIMULATOR_ID targets a specific device instead, and that one is
 # never deleted.
@@ -20,6 +25,9 @@ XCCONFIG=Config/Verify.xcconfig
 scheme=""
 bundle=""
 label=""
+workers=""
+only_testing=""
+skip_testing=""
 
 fatal() {
     echo "xcodebuild-test: $*" >&2
@@ -43,6 +51,21 @@ while [ $# -gt 0 ]; do
             label="$2"
             shift 2
             ;;
+        --parallel-workers)
+            [ $# -ge 2 ] || fatal "--parallel-workers needs a value"
+            workers="$2"
+            shift 2
+            ;;
+        --only-testing)
+            [ $# -ge 2 ] || fatal "--only-testing needs a value"
+            only_testing="$2"
+            shift 2
+            ;;
+        --skip-testing)
+            [ $# -ge 2 ] || fatal "--skip-testing needs a value"
+            skip_testing="$2"
+            shift 2
+            ;;
         -h|--help)
             # Print the comment header and stop at the first line that is not
             # one, rather than a fixed range that trimming the header turns into
@@ -60,6 +83,10 @@ done
 [ -n "$scheme" ] || fatal "--scheme is required"
 [ -n "$bundle" ] || fatal "--result-bundle is required"
 [ -n "$label" ] || fatal "--label is required"
+case "$workers" in
+    "") ;;
+    *[!0-9]*|0) fatal "--parallel-workers must be a positive integer; got '$workers'" ;;
+esac
 
 # The Makefile hardcoded this path; a flag can be mistyped, and the run starts by
 # rm -rf'ing whatever it names. Only accept a relative .xcresult path.
@@ -73,16 +100,20 @@ case "$bundle" in
 esac
 
 ephemeral_id=""
+boot_pid=""
 if [ -n "${PUTIO_SIMULATOR_ID:-}" ]; then
     device_id="$PUTIO_SIMULATOR_ID"
     echo "Using simulator from PUTIO_SIMULATOR_ID: $device_id"
 else
-    device_id="$(./scripts/simctl-ephemeral-device.sh --label "$label")" || exit 1
+    device_id="$(./scripts/simctl-ephemeral-device.sh --label "$label" --no-boot)" || exit 1
     ephemeral_id="$device_id"
     echo "Using ephemeral simulator: $device_id"
+    ./scripts/simctl-ephemeral-device.sh --boot "$device_id" &
+    boot_pid=$!
 fi
 
 cleanup() {
+    [ -z "$boot_pid" ] || wait "$boot_pid" 2>/dev/null || true
     if [ -n "$ephemeral_id" ]; then
         xcrun simctl shutdown "$ephemeral_id" >/dev/null 2>&1 || true
         xcrun simctl delete "$ephemeral_id" >/dev/null 2>&1 || true
@@ -98,8 +129,26 @@ xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -configuration Debug \
     -xcconfig "$XCCONFIG" -destination "$destination" -onlyUsePackageVersionsFromResolvedFile \
     build-for-testing -quiet
 
+if [ -n "$boot_pid" ]; then
+    wait "$boot_pid" || fatal "booting $device_id failed"
+    boot_pid=""
+fi
+
+set -- -collect-test-diagnostics never -enableCodeCoverage NO \
+    -test-timeouts-enabled YES -default-test-execution-time-allowance 120 \
+    -maximum-test-execution-time-allowance 300
+if [ -n "$workers" ]; then
+    set -- "$@" -parallel-testing-enabled YES -parallel-testing-worker-count "$workers"
+fi
+if [ -n "$only_testing" ]; then
+    set -- "$@" "-only-testing:$only_testing"
+fi
+if [ -n "$skip_testing" ]; then
+    set -- "$@" "-skip-testing:$skip_testing"
+fi
+
 echo "Test results will be written to $bundle"
 TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="${PUTIO_RECORD_SNAPSHOTS:-0}" \
     xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -configuration Debug \
     -xcconfig "$XCCONFIG" -destination "$destination" test-without-building \
-    -resultBundlePath "$bundle" -quiet
+    -resultBundlePath "$bundle" "$@" -quiet

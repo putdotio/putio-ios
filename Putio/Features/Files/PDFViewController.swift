@@ -4,6 +4,7 @@ import PutioSDK
 
 class PDFViewController: UIViewController {
     var file: PutioFile?
+    var previewSession = MediaPreviewSession.shared
     private var request: URLSessionDataTask?
     private var openSignpost: PerfSignpost.Interval?
 
@@ -61,7 +62,7 @@ class PDFViewController: UIViewController {
 
         let url = file.getDownloadURL(downloadToken: api.mediaToken)
 
-        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        request = previewSession.dataTask(with: url) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
             guard let data = MediaPreviewSession.body(data, of: response) else {

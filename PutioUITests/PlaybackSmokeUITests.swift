@@ -1,19 +1,34 @@
 import XCTest
 
+private func launchFixtureApp(
+    offlineRoutes: String? = nil,
+    failRoutes: String? = nil,
+    upgradingFrom258: Bool = false,
+    animated: Bool = false
+) -> XCUIApplication {
+    let app = XCUIApplication()
+    app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
+    app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
+    app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
+    app.launchEnvironment["PUTIO_E2E_OFFLINE_ROUTES"] = offlineRoutes
+    app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
+    app.launchEnvironment["PUTIO_E2E_UPGRADING_FROM_258"] = upgradingFrom258 ? "1" : nil
+    app.launchEnvironment["PUTIO_E2E_ANIMATIONS"] = animated ? "1" : nil
+    app.launch()
+    return app
+}
+
+private extension XCTestCase {
+    func attachScreenshot(of app: XCUIApplication, named name: String) {
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+}
+
 final class PlaybackSmokeUITests: XCTestCase {
     private static let offlineBootstrap = "GET /v2/account/info,GET /v2/config"
-
-    private func launchFixtureApp(offlineRoutes: String? = nil, failRoutes: String? = nil, upgradingFrom258: Bool = false) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
-        app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
-        app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
-        app.launchEnvironment["PUTIO_E2E_OFFLINE_ROUTES"] = offlineRoutes
-        app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
-        app.launchEnvironment["PUTIO_E2E_UPGRADING_FROM_258"] = upgradingFrom258 ? "1" : nil
-        app.launch()
-        return app
-    }
 
     // Without a Realm user, only the update from 2.58.0 skips the account. Any
     // other failed bootstrap lands on Login, so a broken mocked one fails loudly.
@@ -28,7 +43,7 @@ final class PlaybackSmokeUITests: XCTestCase {
             let route = offlineRoutes ?? failRoutes ?? ""
 
             let alert = app.alerts["Couldn't load your account"]
-            XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
+            XCTAssertTrue(alert.appears(within: 20), route)
             XCTAssertEqual(app.alerts.count, 1, route)
             XCTAssertTrue(alert.buttons["Retry"].exists, route)
             if failRoutes == "GET /v2/config" {
@@ -39,11 +54,11 @@ final class PlaybackSmokeUITests: XCTestCase {
             }
 
             alert.buttons["Retry"].tap()
-            XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
+            XCTAssertTrue(alert.appears(within: 20), route)
             XCTAssertEqual(app.alerts.count, 1, route)
 
             alert.buttons["Cancel"].tap()
-            XCTAssertTrue(alert.waitForNonExistence(timeout: 5), route)
+            XCTAssertTrue(alert.disappears(within: 5), route)
             XCTAssertTrue(app.buttons["Log in"].exists, route)
             XCTAssertFalse(app.tabItem("Files").exists)
             app.terminate()
@@ -57,7 +72,7 @@ final class PlaybackSmokeUITests: XCTestCase {
         guard app.waitForSignedInTabBar() else { return }
 
         app.tabItem("Downloads").tap()
-        XCTAssertTrue(app.tables["putio-downloads-table"].cells["putio-download-42"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.tables["putio-downloads-table"].cells["putio-download-42"].appears(within: 10))
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Offline upgrade launch without a cached user"
@@ -65,27 +80,25 @@ final class PlaybackSmokeUITests: XCTestCase {
         add(screenshot)
     }
 
-    func testMockedPlaybackResumeFlow() {
-        let app = launchFixtureApp()
+    func testMockedPlaybackResumeFlowWithAnimations() {
+        let app = launchFixtureApp(animated: true)
 
         guard app.waitForSignedInTabBar() else { return }
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
-        XCTAssertTrue(movie.waitForExistence(timeout: 10))
+        XCTAssertTrue(movie.appears(within: 10))
 
         movie.tap()
 
         let resumeDialog = app.alerts["Where would you like to start?"]
-        XCTAssertTrue(resumeDialog.waitForExistence(timeout: 5))
+        XCTAssertTrue(resumeDialog.appears(within: 5))
         XCTAssertTrue(resumeDialog.staticTexts["Last saved timestamp for this video is 00:02:05"].exists)
 
         resumeDialog.buttons["Continue watching"].tap()
 
         let player = app.otherElements["putio-video-player"]
-        XCTAssertTrue(player.waitForExistence(timeout: 5))
+        XCTAssertTrue(player.appears(within: 5))
 
-        let playerReady = NSPredicate(format: "value == %@", "ready")
-        expectation(for: playerReady, evaluatedWith: player)
-        waitForExpectations(timeout: 10)
+        XCTAssertTrue(player.reaches(NSPredicate(format: "value == %@", "ready"), within: 10), "the player should report ready")
     }
 
     func testAudioPlaybackSpeedCanChange() {
@@ -93,72 +106,54 @@ final class PlaybackSmokeUITests: XCTestCase {
 
         guard app.waitForSignedInTabBar() else { return }
         let song = app.tables["putio-files-table"].cells["putio-file-43"]
-        XCTAssertTrue(song.waitForExistence(timeout: 10))
+        XCTAssertTrue(song.appears(within: 10))
         song.tap()
-        XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["10:00"].appears(within: 15))
 
         let speedButton = app.buttons["Playback speed"]
-        XCTAssertTrue(speedButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(speedButton.appears(within: 5))
         XCTAssertEqual(speedButton.value as? String, "1×")
 
         speedButton.tap()
         let fasterRate = app.buttons["1.5×"]
-        XCTAssertTrue(fasterRate.waitForExistence(timeout: 5))
+        XCTAssertTrue(fasterRate.appears(within: 5))
         fasterRate.tap()
 
         XCTAssertEqual(speedButton.value as? String, "1.5×")
     }
 
-    func testFilesScreenLoadsWithFixtureData() {
+}
+
+final class LibrarySmokeUITests: XCTestCase {
+    func testFilesAndAccountScreensLoadAndConcurrencyPickerUpdatesCaption() {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
-        XCTAssertTrue(movie.waitForExistence(timeout: 10))
+        XCTAssertTrue(movie.appears(within: 10))
         XCTAssertFalse(app.descendants(matching: .any)["putio-account-notice"].exists, "an active account sees no notice")
-
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Files Phosphor icons"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-    }
-
-    func testAccountScreenLoadsWithFixtureData() {
-        let app = launchFixtureApp()
-        guard app.waitForSignedInTabBar() else { return }
+        attachScreenshot(of: app, named: "Files Phosphor icons")
 
         app.tabItem("Account").tap()
 
-        XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
         XCTAssertTrue(app.staticTexts["Default sort option for files"].exists)
         XCTAssertTrue(app.staticTexts["Choose your proxy"].exists)
         XCTAssertTrue(app.staticTexts["Two-factor authentication"].exists)
-
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = "Account Phosphor icons"
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
-    }
-
-    func testDownloadConcurrencyPickerUpdatesAccountCaption() {
-        let app = launchFixtureApp()
-        guard app.waitForSignedInTabBar() else { return }
-
-        app.tabItem("Account").tap()
-        XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
+        attachScreenshot(of: app, named: "Account Phosphor icons")
 
         let setting = app.cells.containing(
             .staticText,
             identifier: "Simultaneous downloads"
         ).firstMatch
-        XCTAssertTrue(setting.waitForExistence(timeout: 5))
+        XCTAssertTrue(setting.appears(within: 5))
         XCTAssertTrue(setting.staticTexts["3 at a time"].exists)
         setting.tap()
 
         let picker = app.alerts["Simultaneous downloads"]
-        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        XCTAssertTrue(picker.appears(within: 5))
         picker.buttons["1 at a time"].tap()
 
-        XCTAssertTrue(setting.staticTexts["1 at a time"].waitForExistence(timeout: 5))
+        XCTAssertTrue(setting.staticTexts["1 at a time"].appears(within: 5))
     }
 
     func testDownloadsMultiSelectDeletesCompletedItemsAndLeavesActiveDownload() {
@@ -170,7 +165,7 @@ final class PlaybackSmokeUITests: XCTestCase {
         let firstDownload = downloadsTable.cells["putio-download-42"]
         let secondDownload = downloadsTable.cells["putio-download-71"]
         let activeDownload = downloadsTable.cells["putio-download-72"]
-        XCTAssertTrue(firstDownload.waitForExistence(timeout: 10))
+        XCTAssertTrue(firstDownload.appears(within: 10))
         XCTAssertTrue(secondDownload.exists)
         XCTAssertTrue(activeDownload.exists)
         XCTAssertEqual(
@@ -179,27 +174,27 @@ final class PlaybackSmokeUITests: XCTestCase {
         )
 
         app.buttons["Select completed downloads"].tap()
-        XCTAssertTrue(app.navigationBars["Select Items"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Select Items"].appears(within: 5))
 
         activeDownload.tap()
         XCTAssertTrue(app.navigationBars["Select Items"].exists, "active downloads must not become selected")
 
         firstDownload.tap()
         secondDownload.tap()
-        XCTAssertTrue(app.navigationBars["2 Items"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["2 Items"].appears(within: 5))
 
         firstDownload.tap()
-        XCTAssertTrue(app.navigationBars["1 Item"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["1 Item"].appears(within: 5))
         firstDownload.tap()
-        XCTAssertTrue(app.navigationBars["2 Items"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["2 Items"].appears(within: 5))
 
         app.buttons["Delete 2 selected downloads"].tap()
         let confirmation = app.sheets["Delete 2 Downloads?"]
-        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        XCTAssertTrue(confirmation.appears(within: 5))
         confirmation.buttons["Delete"].tap()
 
-        XCTAssertTrue(firstDownload.waitForNonExistence(timeout: 10))
-        XCTAssertTrue(secondDownload.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(firstDownload.disappears(within: 10))
+        XCTAssertTrue(secondDownload.disappears(within: 10))
         XCTAssertTrue(activeDownload.exists)
         XCTAssertTrue(app.navigationBars["Downloads"].exists)
     }

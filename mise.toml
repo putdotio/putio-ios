@@ -85,8 +85,12 @@ run = [
 ]
 
 [tasks.e2e-simulator]
-description = "Build and run the mocked end-to-end suite"
-run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-simulator.xcresult --label e2e"
+description = "Build and run the mocked end-to-end suite, without the screenshot walk"
+run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-simulator.xcresult --label e2e --parallel-workers 2 --skip-testing PutioUITests/ScreenshotWalkUITests"
+
+[tasks.screenshots-verify]
+description = "Assert the screenshot walk against the committed screen baselines"
+run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/screenshots-verify.xcresult --label walk --only-testing PutioUITests/ScreenshotWalkUITests"
 
 # The counts are the tripwire for a walk that silently dropped baselines. They
 # live here once; the tier tasks delegate. Scope a run by appending the script's
