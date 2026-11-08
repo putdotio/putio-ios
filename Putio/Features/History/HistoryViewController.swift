@@ -96,6 +96,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
             heading: NSLocalizedString("Your history is empty", comment: ""),
             description: NSLocalizedString("There will be information when things start happening.", comment: "")
         )
+        emptyView.isUserInteractionEnabled = false
         stateMachine.addView(emptyView, forState: "empty")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
@@ -106,6 +107,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
             heading: NSLocalizedString("Oops", comment: ""),
             description: NSLocalizedString("An error occurred, please try again :(", comment: "")
         )
+        errorView.isUserInteractionEnabled = false
         stateMachine.addView(errorView, forState: "error")
     }
 
@@ -170,6 +172,7 @@ extension HistoryViewController: HistoryViewModelDelegate {
 
         case .empty:
             tableView.refreshControl?.endRefreshing()
+            tableView.reloadData()
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
 
         case .loaded:

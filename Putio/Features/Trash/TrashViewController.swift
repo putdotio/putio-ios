@@ -20,6 +20,7 @@ class TrashViewController: UIViewController, StatefulViewController {
 
         tableView.delegate = self
         tableView.dataSource = self
+        tableView.accessibilityIdentifier = "putio-trash-table"
         tableView.refreshControl = UIRefreshControl()
         tableView.refreshControl?.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
         tableView.refreshControl?.tintColor = UIColor.Putio.Neutral.textSecondary
@@ -52,6 +53,7 @@ class TrashViewController: UIViewController, StatefulViewController {
             heading: NSLocalizedString("Your trash is empty", comment: ""),
             description: NSLocalizedString("Items you move to trash will appear here.", comment: "")
         )
+        emptyView.isUserInteractionEnabled = false
         stateMachine.addView(emptyView, forState: "empty")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
@@ -59,6 +61,7 @@ class TrashViewController: UIViewController, StatefulViewController {
             heading: NSLocalizedString("Oops", comment: ""),
             description: NSLocalizedString("An error occurred, please try again :(", comment: "")
         )
+        errorView.isUserInteractionEnabled = false
         stateMachine.addView(errorView, forState: "error")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
@@ -356,9 +359,12 @@ extension TrashViewController: TrashViewModelDelegate {
             stateMachine.transitionToState(.none)
 
         case .empty:
+            tableView.refreshControl?.endRefreshing()
+            tableView.reloadData()
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
 
         case .failure:
+            tableView.refreshControl?.endRefreshing()
             stateMachine.transitionToState(.view("error"), animated: false, completion: nil)
 
         default:

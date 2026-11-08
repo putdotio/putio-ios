@@ -941,6 +941,99 @@ final class NavigationLocalizationTests: XCTestCase {
         viewController.tableView(tableView, didSelectRowAt: staleRow)
     }
 
+    func testMoveFilesRowCallbacksIgnoreRowsGoneBeforeTheTableUpdates() throws {
+        let viewController = MoveFilesViewController()
+        let navigationController = UINavigationController(rootViewController: viewController)
+        viewController.files = [
+            try makeFolder(id: 41, name: "Movies", sortBy: "NAME_ASC"),
+            try makeFolder(id: 42, name: "Series", sortBy: "NAME_ASC")
+        ]
+        let tableView = UITableView()
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "moveFileReuse")
+        tableView.dataSource = viewController
+        tableView.reloadData()
+        XCTAssertEqual(tableView.numberOfRows(inSection: 0), 2)
+
+        viewController.files.removeLast()
+        let staleRow = IndexPath(row: 1, section: 0)
+
+        XCTAssertNil(viewController.tableView(tableView, cellForRowAt: staleRow).textLabel?.text)
+        viewController.tableView(tableView, didSelectRowAt: staleRow)
+        XCTAssertEqual(navigationController.viewControllers.count, 1)
+    }
+
+    func testTrashReloadsTheTableAndStopsRefreshingWhenTheListEmpties() throws {
+        let viewController = TrashViewController()
+        let tableView = UITableView()
+        let tableViewHeader = UIView()
+        viewController.tableView = tableView
+        viewController.tableViewHeader = tableViewHeader
+        viewController.loadViewIfNeeded()
+
+        let refreshControl = RecordingRefreshControl()
+        tableView.refreshControl = refreshControl
+
+        viewController.viewModel.files = [try makeTrashFile(id: 77)]
+        XCTAssertEqual(tableView.numberOfRows(inSection: 0), 1)
+        viewController.viewModel.state = .refreshing
+        refreshControl.endRefreshingCalls = 0
+
+        viewController.viewModel.files = []
+
+        XCTAssertEqual(tableView.numberOfRows(inSection: 0), 0)
+        XCTAssertEqual(refreshControl.endRefreshingCalls, 1)
+    }
+
+    func testHistoryReloadsTheTableWhenClearingEmptiesIt() throws {
+        let event = try makeHistoryEvent(id: 9001)
+        let viewController = HistoryViewController()
+        viewController.viewModel = HistoryViewModel(
+            fetchEventsRequest: { completion in completion(.success([event])) },
+            clearEventsRequest: { completion in completion(.success(())) }
+        )
+        let tableView = UITableView()
+        viewController.tableView = tableView
+        viewController.loadViewIfNeeded()
+
+        viewController.viewModel.fetchEvents()
+        XCTAssertEqual(tableView.numberOfSections, 1)
+
+        viewController.viewModel.removeAllEvents()
+
+        XCTAssertEqual(tableView.numberOfSections, 0)
+    }
+
+    private final class RecordingRefreshControl: UIRefreshControl {
+        var endRefreshingCalls = 0
+
+        override func endRefreshing() {
+            endRefreshingCalls += 1
+            super.endRefreshing()
+        }
+    }
+
+    private func makeTrashFile(id: Int) throws -> PutioTrashFile {
+        let data = try JSONSerialization.data(withJSONObject: [
+            "id": id,
+            "name": "Trashed.mp4",
+            "icon": "video",
+            "parent_id": 0,
+            "file_type": "VIDEO",
+            "size": 1024,
+            "created_at": "2026-04-20T00:00:00Z",
+            "updated_at": "2026-04-20T00:00:00Z",
+            "is_shared": false,
+            "deleted_at": "2026-04-21T00:00:00Z",
+            "expiration_date": "2026-05-21T00:00:00Z"
+        ])
+        return try JSONDecoder().decode(PutioTrashFile.self, from: data)
+    }
+
+    private func makeHistoryEvent(id: Int) throws -> PutioHistoryEvent {
+        let json = #"{"id": \#(id), "user_id": 1, "type": "upload", "created_at": "2026-04-20T00:00:00Z"}"#
+        return try JSONDecoder().decode(PutioHistoryEvent.self, from: Data(json.utf8))
+    }
+
     private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
         let cell = DownloadsTableViewCell()
         let icon = UIImageView()

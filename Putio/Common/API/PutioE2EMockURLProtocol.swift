@@ -102,6 +102,18 @@ private enum PutioE2EMockAPI {
             rememberPrivacySettings(from: request)
         }
 
+        if let list = listsEmptiedBy[routeKey] {
+            answersSinceEmptying.withLock { $0[list] = 0 }
+        }
+
+        if let emptiedList = emptiedLists[routeKey], let answered = answersSinceEmptying.withLock({ answers -> Int? in
+            guard let answered = answers[routeKey] else { return nil }
+            answers[routeKey] = answered + 1
+            return answered
+        }) {
+            return emptiedList.answersBeforeRefill.indices.contains(answered) ? emptiedList.answersBeforeRefill[answered] : emptiedList.refilled
+        }
+
         if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
             return Fixture(response)
         }
@@ -163,6 +175,72 @@ private enum PutioE2EMockAPI {
 
     private static let ok = #"{"status":"OK"}"#
 
+    private static let listsEmptiedBy: [String: String] = [
+        "POST /v2/trash/empty": "GET /v2/trash/list",
+        "POST /v2/events/delete": "GET /v2/events/list"
+    ]
+
+    private struct EmptiedList {
+        let answersBeforeRefill: [Fixture]
+        let refilled: Fixture
+    }
+
+    private static let emptiedLists: [String: EmptiedList] = [
+        "GET /v2/trash/list": EmptiedList(
+            answersBeforeRefill: [Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#)],
+            refilled: Fixture(body: trashListAfterEmptying)
+        ),
+        "GET /v2/events/list": EmptiedList(
+            answersBeforeRefill: [],
+            refilled: Fixture(body: historyEventsAfterClearing)
+        )
+    ]
+
+    private static let answersSinceEmptying = OSAllocatedUnfairLock(initialState: [String: Int]())
+
+    private static let trashListAfterEmptying = """
+    {
+      "status": "OK",
+      "cursor": null,
+      "total": 1,
+      "trash_size": 1503238553,
+      "files": [
+        {
+          "id": 71,
+          "name": "Sintel.mp4",
+          "icon": "video",
+          "parent_id": 0,
+          "size": 1503238553,
+          "created_at": "2026-04-24T10:00:00Z",
+          "updated_at": "2026-04-24T10:00:00Z",
+          "file_type": "VIDEO",
+          "is_shared": false,
+          "sort_by": "NAME_ASC",
+          "deleted_at": "2026-07-15T10:00:00Z",
+          "expiration_date": "2026-08-15T10:00:00Z"
+        }
+      ]
+    }
+    """
+
+    private static let historyEventsAfterClearing = """
+    {
+      "status": "OK",
+      "has_more": false,
+      "events": [
+        {
+          "id": 9004,
+          "user_id": 1001,
+          "type": "upload",
+          "created_at": "2026-07-15T10:00:00Z",
+          "file_id": 71,
+          "file_name": "Sintel.mp4",
+          "file_size": 1503238553
+        }
+      ]
+    }
+    """
+
     // Without the flag the account has already answered, so no other test meets
     // the prompt.
     private static let isProductAnalyticsPromptUnanswered =
@@ -174,6 +252,7 @@ private enum PutioE2EMockAPI {
         "PUT /v2/config/dismissed.product_analytics_prompt": Fixture(body: ok),
         "POST /v2/account/settings": Fixture(body: ok),
         "GET /v2/files/list": Fixture(body: filesList),
+        "POST /v2/files/move": Fixture(body: #"{"status":"OK","errors":[]}"#),
         "GET /v2/files/42": Fixture(body: fileDetails),
         "GET /v2/files/42/start-from": Fixture(body: #"{"start_from":125}"#),
         "POST /v2/files/42/start-from/set": Fixture(body: ok),
@@ -184,7 +263,9 @@ private enum PutioE2EMockAPI {
         "POST /v2/files/42/mp4": Fixture(body: ok),
         "POST /v2/ifttt-client/event": Fixture(body: ok),
         "GET /v2/events/list": Fixture(body: historyEvents),
+        "POST /v2/events/delete": Fixture(body: ok),
         "GET /v2/trash/list": Fixture(body: trashList),
+        "POST /v2/trash/empty": Fixture(body: ok),
         "GET /v2/tunnel/routes": Fixture(body: tunnelRoutes),
         "GET /v2/oauth/grants": Fixture(body: grants),
         "GET /v2/files/43": Fixture(body: audioFileDetails),

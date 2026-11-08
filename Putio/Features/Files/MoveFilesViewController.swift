@@ -54,6 +54,11 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         navigationItem.title = file?.name ?? NSLocalizedString("Your Files", comment: "")
     }
 
+    func file(at indexPath: IndexPath) -> PutioFile? {
+        guard files.indices.contains(indexPath.row) else { return nil }
+        return files[indexPath.row]
+    }
+
     func canMove(to file: PutioFile) -> Bool {
         return !file.isShared && !file.isSharedRoot && !filesToMove.contains(where: { (fileToMove) -> Bool in
             fileToMove.id == file.id
@@ -160,7 +165,11 @@ extension MoveFilesViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "moveFileReuse", for: indexPath)
-        let file = files[indexPath.row]
+
+        guard let file = file(at: indexPath) else {
+            InternalFailurePresenter.log("Unable to access move destination row \(indexPath.row) for cell", context: "MoveFilesViewController.cellForRow.file")
+            return UITableViewCell()
+        }
 
         cell.imageView?.image = PutioIcon.folderFill.image(pointSize: 20, scaledFor: tableView.traitCollection)
         cell.imageView?.contentMode = .scaleAspectFit
@@ -184,8 +193,7 @@ extension MoveFilesViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: false)
 
-        let file = files[indexPath.row]
-        guard canMove(to: file) else { return }
+        guard let file = file(at: indexPath), canMove(to: file) else { return }
 
         let next = UIStoryboard(name: "MoveFiles", bundle: nil).instantiateViewController(withIdentifier: "MoveVC") as! MoveFilesViewController
         next.delegate = self.delegate
