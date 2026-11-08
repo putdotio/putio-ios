@@ -707,9 +707,15 @@ final class SentryTelemetryTests: XCTestCase {
             scope.setContext(value: ["url": url], key: "request")
         }
         let lifecycle = NotificationCenter()
-        let timings = DownloadStartTimings(notificationCenter: lifecycle)
-        let (firstByte, failed, cancelled, suspended, restarted) = (9_005_501, 9_005_502, 9_005_503, 9_005_504, 9_005_505)
+        var inBackground = false
+        let timings = DownloadStartTimings(notificationCenter: lifecycle, isInBackground: { inBackground })
+        let (firstByte, failed, cancelled, suspended, restarted, wokenInBackground) =
+            (9_005_501, 9_005_502, 9_005_503, 9_005_504, 9_005_505, 9_005_506)
 
+        inBackground = true
+        timings.begin(id: wokenInBackground)
+        inBackground = false
+        timings.end(id: wokenInBackground, outcome: .succeeded)
         timings.begin(id: firstByte)
         timings.end(id: firstByte, outcome: .succeeded)
         timings.end(id: firstByte, outcome: .succeeded)

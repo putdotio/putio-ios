@@ -317,8 +317,13 @@ enum DownloadSupport {
 final class DownloadStartTimings {
     private var intervals = [Int: PerfSignpost.Interval]()
     private var backgroundObserver: NSObjectProtocol?
+    private let isInBackground: () -> Bool
 
-    init(notificationCenter: NotificationCenter = .default) {
+    init(
+        notificationCenter: NotificationCenter = .default,
+        isInBackground: @escaping () -> Bool = { UIApplication.shared.applicationState == .background }
+    ) {
+        self.isInBackground = isInBackground
         backgroundObserver = notificationCenter.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
@@ -330,6 +335,7 @@ final class DownloadStartTimings {
 
     func begin(id: Int) {
         end(id: id, outcome: .cancelled)
+        guard !isInBackground() else { return }
         intervals[id] = PerfSignpost.begin(.downloadStart)
     }
 

@@ -342,12 +342,13 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
         log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
 
         guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
-        startTimings.end(id: downloadId, outcome: .succeeded)
-        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
         guard acceptedFileExtension(for: downloadTask) != nil else {
+            startTimings.end(id: downloadId, outcome: .failed)
             downloadTask.cancel()
             return
         }
+        startTimings.end(id: downloadId, outcome: .succeeded)
+        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
 
