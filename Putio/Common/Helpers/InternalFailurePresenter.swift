@@ -1,7 +1,25 @@
+import os
 import UIKit
 
 enum InternalFailurePresenter {
-    static func log(_ message: String) {
+    typealias ReportedContexts = OSAllocatedUnfairLock<Set<String>>
+
+    private static let reportedContexts = ReportedContexts(initialState: [])
+
+    static func log(_ message: String, context: StaticString, error: Error? = nil) {
+        log(message, context: context, error: error, reportingOnceIn: reportedContexts)
+    }
+
+    static func log(_ message: String, context: StaticString, error: Error?, reportingOnceIn reported: ReportedContexts) {
+        logLocally(message)
+        let context = context.description
+        guard SentryTelemetry.isCapturing,
+              reported.withLock({ $0.insert(context).inserted })
+        else { return }
+        SentryTelemetry.capture(.internalFailure, error: error, context: context)
+    }
+
+    static func logLocally(_ message: String) {
         Putio.log.error("[InternalFailure] \(message)")
     }
 
@@ -12,7 +30,7 @@ enum InternalFailurePresenter {
         message: String = NSLocalizedString("Something unexpected happened. Please try again.", comment: "")
     ) {
         guard let presenter = presenter else {
-            log("Unable to present alert: \(title) — \(message)")
+            log("Unable to present alert: \(title) — \(message)", context: "InternalFailurePresenter.present")
             return
         }
 
@@ -27,10 +45,11 @@ enum InternalFailurePresenter {
         on presenter: UIViewController?,
         screen: AnalyticsEvent.Screen,
         logMessage: String,
+        context: StaticString,
         title: String = NSLocalizedString("Oops", comment: ""),
         message: String = NSLocalizedString("Something unexpected happened. Please try again.", comment: "")
     ) {
-        log(logMessage)
+        log(logMessage, context: context)
         present(on: presenter, screen: screen, title: title, message: message)
     }
 }

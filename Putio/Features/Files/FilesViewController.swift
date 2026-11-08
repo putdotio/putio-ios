@@ -19,7 +19,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "FilesViewController.downloads") else {
-            InternalFailurePresenter.log("Unable to load downloads collection")
+            InternalFailurePresenter.log("Unable to load downloads collection", context: "FilesViewController.downloads")
             return nil
         }
 
@@ -29,7 +29,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     lazy var userSettings: UserSettings = {
         guard let realm = PutioRealm.open(context: "FilesViewController.userSettings"),
               let settings = realm.objects(User.self).first?.settings else {
-            InternalFailurePresenter.log("Unable to load UserSettings for FilesViewController")
+            InternalFailurePresenter.log("Unable to load UserSettings for FilesViewController", context: "FilesViewController.userSettings")
             return UserSettings()
         }
 

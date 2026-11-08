@@ -30,7 +30,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "DownloadsViewController.downloads") else {
-            InternalFailurePresenter.log("Unable to load downloads collection")
+            InternalFailurePresenter.log("Unable to load downloads collection", context: "DownloadsViewController.downloads")
             return nil
         }
 

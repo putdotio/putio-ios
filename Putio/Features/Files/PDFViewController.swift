@@ -46,7 +46,7 @@ class PDFViewController: UIViewController {
     func loadPlaceholderPDF() {
         guard let url = Bundle.main.url(forResource: "blank", withExtension: "pdf"),
               let pdfDocument = PDFDocument(url: url) else {
-            InternalFailurePresenter.log("Unable to load placeholder PDF")
+            InternalFailurePresenter.log("Unable to load placeholder PDF", context: "PDFViewController.loadPlaceholderPDF")
             return
         }
 

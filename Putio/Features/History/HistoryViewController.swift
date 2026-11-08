@@ -222,12 +222,12 @@ extension HistoryViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "historyReuse", for: indexPath) as? HistoryTableViewCell else {
-            InternalFailurePresenter.log("Unable to dequeue HistoryTableViewCell")
+            InternalFailurePresenter.log("Unable to dequeue HistoryTableViewCell", context: "HistoryViewController.cellForRow.dequeue")
             return UITableViewCell()
         }
 
         guard let event = event(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access history row \(indexPath.row) in section \(indexPath.section) for cell")
+            InternalFailurePresenter.log("Unable to access history row \(indexPath.row) in section \(indexPath.section) for cell", context: "HistoryViewController.cellForRow.event")
             return UITableViewCell()
         }
 
@@ -265,7 +265,7 @@ extension HistoryViewController: UITableViewDelegate {
 extension HistoryViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
+            return InternalFailurePresenter.log("PiP start received for unexpected player controller", context: "HistoryViewController.pipStart")
         }
 
         videoPlayerViewController.handlePictureInPictureDidStart()
@@ -273,7 +273,7 @@ extension HistoryViewController: AVPlayerViewControllerDelegate {
 
     func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
+            InternalFailurePresenter.log("PiP restore received for unexpected player controller", context: "HistoryViewController.pipRestore")
             completionHandler(false)
             return
         }

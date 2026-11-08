@@ -11,6 +11,7 @@ enum SentryTelemetry {
         case diagnosticsCheck = "diagnostics_check"
         case downloadedAssetDeletion = "downloaded_asset_deletion"
         case downloadsObservation = "downloads_observation"
+        case internalFailure = "internal_failure"
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
         case realmWrite = "realm_write"
@@ -184,7 +185,7 @@ enum SentryTelemetry {
                 // Nothing to delete on an install that never ran 2.58.0.
             } catch {
                 deleted = false
-                InternalFailurePresenter.log("SentryTelemetry: legacy cache not deleted: \(error.localizedDescription)")
+                InternalFailurePresenter.logLocally("SentryTelemetry: legacy cache not deleted: \(error.localizedDescription)")
             }
         }
         return deleted
@@ -244,7 +245,7 @@ enum SentryTelemetry {
             } catch let error as CocoaError where error.code == .fileNoSuchFile {
                 // Deleted by an earlier switch-off; every launch while off lands here.
             } catch {
-                InternalFailurePresenter.log("SentryTelemetry: cache not deleted: \(error.localizedDescription)")
+                InternalFailurePresenter.logLocally("SentryTelemetry: cache not deleted: \(error.localizedDescription)")
             }
         }
     }

@@ -86,7 +86,7 @@ enum PutioIcon: String, CaseIterable {
 
     var image: UIImage? {
         guard let image = UIImage(named: assetName) else {
-            InternalFailurePresenter.log("Missing Phosphor icon asset: \(assetName)")
+            InternalFailurePresenter.log("Missing Phosphor icon asset: \(assetName)", context: "PutioIcon.image")
             return nil
         }
         return image

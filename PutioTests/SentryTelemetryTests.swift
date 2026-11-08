@@ -388,6 +388,46 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent().map(\.tags), [["category": "realm_open", "context": context]])
     }
 
+    func testInternalFailuresReportOncePerSiteWithAStaticContextOnly() throws {
+        let previous = SentryTelemetry.isCapturing
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        let reported = InternalFailurePresenter.ReportedContexts(initialState: [])
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let leak = "Synthetic Feature Title /Documents/\(fileName)"
+        let cause = NSError(
+            domain: NSCocoaErrorDomain,
+            code: CocoaError.Code.fileWriteNoPermission.rawValue,
+            userInfo: [NSFilePathErrorKey: "/Documents/\(fileName)"]
+        )
+        func logFailure(row: Int) {
+            InternalFailurePresenter.log(
+                "Unable to access file row \(row) for \(fileName)",
+                context: "SentryTelemetryTests.internalFailure",
+                error: cause,
+                reportingOnceIn: reported
+            )
+        }
+
+        SentryTelemetry.isCapturing = false
+        logFailure(row: 7)
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        logFailure(row: 7)
+        logFailure(row: 8)
+        InternalFailurePresenter.logLocally("SentryTelemetry: cache not deleted: \(leak)")
+        SentryTelemetry.capture(.internalFailure, context: leak)
+
+        XCTAssertEqual(sent().map(\.tags), [
+            ["category": "internal_failure", "context": "SentryTelemetryTests.internalFailure"],
+            ["category": "internal_failure"],
+        ])
+        XCTAssertEqual(sent().first?.exceptions?.first?.value, "internal_failure")
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.domain, NSCocoaErrorDomain)
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.code, CocoaError.Code.fileWriteNoPermission.rawValue)
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
+        XCTAssertFalse(json.contains(fileName), "\(fileName) left the device: \(json)")
+    }
+
     func testSDKFailureReasons() {
         let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/account/info", method: .get)
         let request = PutioSDKErrorRequestInformation(config: config)

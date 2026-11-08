@@ -224,7 +224,7 @@ class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {
         let presentation = HistoryEventPresentation.build(from: event)
         if presentation == nil {
-            InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
+            InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)", context: "HistoryTableViewCell.configure")
         }
         titleLabel.text = presentation?.text ?? NSLocalizedString("No title", comment: "")
         detailLabel.text = presentation?.detailText ?? ""

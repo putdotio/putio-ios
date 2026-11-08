@@ -76,7 +76,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
         }
 
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "settingsReuse", for: indexPath) as? SettingsTableViewCell else {
-            InternalFailurePresenter.log("Unable to dequeue SettingsTableViewCell")
+            InternalFailurePresenter.log("Unable to dequeue SettingsTableViewCell", context: "SettingsTableViewController.cellForRow")
             return UITableViewCell()
         }
 

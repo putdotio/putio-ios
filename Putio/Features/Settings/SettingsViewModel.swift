@@ -194,7 +194,7 @@ class SettingsViewModel {
 
     @objc func update() {
         guard holdsLiveSession else {
-            return InternalFailurePresenter.log("SettingsViewModel outlived the session it was built for")
+            return InternalFailurePresenter.log("SettingsViewModel outlived the session it was built for", context: "SettingsViewModel.update")
         }
         updateSelectedSortState()
         sections = buildSections()

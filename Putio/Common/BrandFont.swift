@@ -34,7 +34,9 @@ enum BrandFont {
                     .map(\.lastPathComponent)
                     .joined(separator: ", ")
                 InternalFailurePresenter.log(
-                    "BrandFont: registration failed for [\(failed)]: \(error.localizedDescription)"
+                    "BrandFont: registration failed for [\(failed)]: \(error.localizedDescription)",
+                    context: "BrandFont.registerIfAvailable",
+                    error: error
                 )
             }
             return true // keep registering the remaining faces
