@@ -89,7 +89,7 @@ final class DownloadQueueController {
     private var pendingAccountChangeDeletes = 0
     private var startsAfterAccountChange = false
     private let deleteDownload: DownloadOperation
-    private let removeDownloadRecord: (Int, Download.FileType) -> Void
+    private let removeDownloadAndLocalFile: DownloadOperation
 
     init(
         deleteDownload: @escaping DownloadOperation = { id, fileType, completion in
@@ -98,15 +98,15 @@ final class DownloadQueueController {
             case .video: VideoDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
             }
         },
-        removeDownloadRecord: @escaping (Int, Download.FileType) -> Void = { id, fileType in
+        removeDownloadAndLocalFile: @escaping DownloadOperation = { id, fileType, completion in
             switch fileType {
-            case .audio: AudioDownloadManager.sharedInstance.removeDownloadRecord(id: id)
-            case .video: VideoDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+            case .audio: AudioDownloadManager.sharedInstance.removeDownloadAndLocalFile(id: id, completion: completion)
+            case .video: VideoDownloadManager.sharedInstance.removeDownloadAndLocalFile(id: id, completion: completion)
             }
         }
     ) {
         self.deleteDownload = deleteDownload
-        self.removeDownloadRecord = removeDownloadRecord
+        self.removeDownloadAndLocalFile = removeDownloadAndLocalFile
     }
 
     func restoreBackgroundSessions() {
@@ -163,9 +163,9 @@ final class DownloadQueueController {
             self.pendingAccountChangeDeletes += downloads.count
             downloads.forEach { id, fileType in
                 self.deleteDownload(id, fileType) { didDelete in
-                    self.onMain {
-                        if !didDelete { self.removeDownloadRecord(id, fileType) }
-                        self.accountChangeDeleteDidFinish()
+                    guard !didDelete else { return self.onMain { self.accountChangeDeleteDidFinish() } }
+                    self.removeDownloadAndLocalFile(id, fileType) { _ in
+                        self.onMain { self.accountChangeDeleteDidFinish() }
                     }
                 }
             }

@@ -180,6 +180,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         }
     }
 
+    func removeDownloadAndLocalFile(id: Int, completion: @escaping (Bool) -> Void) {
+        deletion(for: id).discard(removeRecord: { self.removeDownloadRecord(id: id) }, completion: completion)
+    }
+
     private func deletion(for id: Int) -> DownloadSupport.Deletion {
         dispatchPrecondition(condition: .onQueue(.main))
         log.verbose(["VDM: deleteDownload", id])

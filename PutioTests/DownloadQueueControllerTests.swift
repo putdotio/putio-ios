@@ -144,10 +144,10 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
 
     func testStartWaitsForEveryAccountChangeDelete() {
         var pendingDeletes = [Int: (Bool) -> Void]()
-        var removedRecordIDs = [Int]()
+        var pendingRemovals = [Int: (Bool) -> Void]()
         let controller = DownloadQueueController(
             deleteDownload: { id, _, completion in pendingDeletes[id] = completion },
-            removeDownloadRecord: { id, _ in removedRecordIDs.append(id) }
+            removeDownloadAndLocalFile: { id, _, completion in pendingRemovals[id] = completion }
         )
 
         controller.clearDownloadsForAccountChange()
@@ -158,7 +158,9 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         pendingDeletes[401]?(true)
         XCTAssertFalse(controller.isEnabled)
         pendingDeletes[402]?(false)
-        XCTAssertEqual(removedRecordIDs, [402])
+        XCTAssertEqual(Set(pendingRemovals.keys), [402])
+        XCTAssertFalse(controller.isEnabled)
+        pendingRemovals[402]?(true)
         XCTAssertTrue(controller.isEnabled)
     }
 
@@ -166,7 +168,7 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         var pendingDeletes = [(Bool) -> Void]()
         let controller = DownloadQueueController(
             deleteDownload: { _, _, completion in pendingDeletes.append(completion) },
-            removeDownloadRecord: { _, _ in }
+            removeDownloadAndLocalFile: { _, _, completion in completion(true) }
         )
 
         controller.clearDownloadsForAccountChange()

@@ -214,6 +214,18 @@ enum DownloadSupport {
             }
         }
 
+        func discard(removeRecord: @escaping () -> Bool, completion: @escaping (Bool) -> Void) {
+            deletionQueue.async {
+                let fileResult = autoreleasepool(invoking: deleteLocalFile)
+                DispatchQueue.main.async {
+                    if fileResult == .failed || fileResult == .unresolvedLocation {
+                        SentryTelemetry.capture(.downloadedAssetDeletion, context: "DownloadSupport.Deletion.discard")
+                    }
+                    completion(removeRecord())
+                }
+            }
+        }
+
         private var runsOnDeletionQueue: Bool {
             switch state {
             case .completed, .failed, .stopped: return true
