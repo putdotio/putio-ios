@@ -201,7 +201,7 @@ final class NavigationLocalizationTests: XCTestCase {
     func testAuthAppsContextualDeleteActionUsesLocalizedRevokeTitle() {
         let viewController = AuthAppsTableViewController(style: .insetGrouped)
 
-        let action = viewController.contextualDeleteAction(forRowAtIndexPath: IndexPath(row: 0, section: 0))
+        let action = viewController.contextualDeleteAction(forGrantID: 1)
 
         XCTAssertEqual(action.title, NSLocalizedString("Revoke", comment: ""))
         XCTAssertEqual(action.backgroundColor, UIColor.Putio.Red.solid)
