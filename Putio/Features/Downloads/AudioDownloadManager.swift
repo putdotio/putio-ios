@@ -112,20 +112,17 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        guard let download = Download(file: file, url: "") else { return }
-        guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
-
-        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
-            realm.add(download, update: .all)
-        }
-        guard didWrite else { return }
-
         discardDownload(id: file.id)
-        ProductAnalytics.capture(.downloadStarted(.audio))
-        DownloadQueueController.sharedInstance.downloadWasQueued()
+        DownloadSupport.createRecord(
+            id: file.id,
+            context: "AudioDownloadManager.createDownload",
+            makeDownload: { Download(file: file, url: "") },
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.audio)) }
+        )
     }
 
     func cancelDownload(id: Int) {
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
         guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.cancelDownload.write") {
@@ -141,6 +138,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         deletion(for: id).perform { didDelete in
             self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
@@ -167,6 +165,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "AudioDownloadManager.removeDownloadRecord"

@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 import RealmSwift
 import UIKit
 
@@ -84,6 +85,8 @@ final class DownloadQueueController {
 
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
     private var tasklessStartIDs = Set<Int>()
+    private var creationsByID = [Int: RecordCreation]()
+    private let creationGenerations = OSAllocatedUnfairLock(initialState: CreationGenerations())
     private var hasReconciledRestoredDownloads = false
     private(set) var isEnabled = false
     private var pendingAccountChangeDeletes = 0
@@ -143,6 +146,7 @@ final class DownloadQueueController {
     func clearDownloadsForAccountChange() {
         onMain {
             self.isEnabled = false
+            self.creationGenerations.withLock { $0.account += 1 }
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
             let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
             let locations = downloads.map { id, fileType -> DownloadSupport.LocalFileLocation in
@@ -196,6 +200,46 @@ final class DownloadQueueController {
             self.restoreBackgroundSessions()
             self.schedule()
         }
+    }
+
+    func recordCreationWillStart(id: Int) -> RecordCreationToken {
+        dispatchPrecondition(condition: .onQueue(.main))
+        creationsByID[id, default: RecordCreation()].pending += 1
+        return creationGenerations.withLock { $0.token(for: id) }
+    }
+
+    func isRecordCreationCurrent(_ token: RecordCreationToken) -> Bool {
+        creationGenerations.withLock { $0.token(for: token.id) == token }
+    }
+
+    func invalidateRecordCreations(id: Int) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard creationsByID[id] != nil else { return }
+        creationGenerations.withLock { $0.byID[id, default: 0] += 1 }
+    }
+
+    func recordCreationDidFinish(id: Int, didWrite: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard var creation = creationsByID[id] else { return }
+        creation.pending -= 1
+        creation.didWrite = creation.didWrite || didWrite
+        guard creation.pending == 0 else {
+            creationsByID[id] = creation
+            return
+        }
+        creationsByID.removeValue(forKey: id)
+        creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
+        if creation.didWrite {
+            downloadWasQueued()
+        } else if isInFlightWithoutTask(id: id) {
+            startFailed(id: id)
+        }
+    }
+
+    private func isInFlightWithoutTask(id: Int) -> Bool {
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.recordCreation"),
+              let state = realm.object(ofType: Download.self, forPrimaryKey: id)?.state else { return false }
+        return state == .starting || state == .active
     }
 
     func managerDidFinish() {
@@ -308,9 +352,9 @@ final class DownloadQueueController {
         let audioManager = AudioDownloadManager.sharedInstance
         let videoManager = VideoDownloadManager.sharedInstance
         let taskIDs = audioManager.activeDownloadIDs.union(videoManager.activeDownloadIDs)
-        let items = realm.objects(Download.self).map {
-            DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
-        }
+        let items = realm.objects(Download.self)
+            .filter { self.creationsByID[$0.id] == nil }
+            .map { DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast) }
         let stateIDs = Set(items.compactMap { item in
             (item.state == .starting || item.state == .active) && !self.tasklessStartIDs.contains(item.id)
                 ? item.id
@@ -348,6 +392,26 @@ final class DownloadQueueController {
         } else {
             DispatchQueue.main.async(execute: work)
         }
+    }
+}
+
+private struct RecordCreation {
+    var pending = 0
+    var didWrite = false
+}
+
+struct RecordCreationToken: Equatable {
+    let id: Int
+    let account: Int
+    let record: Int
+}
+
+private struct CreationGenerations {
+    var account = 0
+    var byID = [Int: Int]()
+
+    func token(for id: Int) -> RecordCreationToken {
+        RecordCreationToken(id: id, account: account, record: byID[id, default: 0])
     }
 }
 

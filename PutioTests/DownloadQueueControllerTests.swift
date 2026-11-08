@@ -1,4 +1,5 @@
 import Foundation
+import os
 import PutioSDK
 import RealmSwift
 import UIKit
@@ -549,6 +550,140 @@ final class AudioDownloadManagerTests: XCTestCase {
         try Data("audio".utf8).write(to: location)
         return location
     }
+}
+
+final class DownloadCreationTests: XCTestCase {
+    private var originalConfiguration: Realm.Configuration!
+    private var realm: Realm!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        originalConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
+        realm = try Realm()
+    }
+
+    override func tearDown() {
+        realm = nil
+        Realm.Configuration.defaultConfiguration = originalConfiguration
+        super.tearDown()
+    }
+
+    func testVideoCreateDownloadDoesNotWaitOnTheRealmWriteLock() throws {
+        try assertCreateDownloadLeavesMainThread(id: 9_004_991, fileType: "VIDEO") {
+            VideoDownloadManager.sharedInstance.createDownload(from: $0)
+        }
+    }
+
+    func testAudioCreateDownloadDoesNotWaitOnTheRealmWriteLock() throws {
+        try assertCreateDownloadLeavesMainThread(id: 9_004_992, fileType: "AUDIO") {
+            AudioDownloadManager.sharedInstance.createDownload(from: $0)
+        }
+    }
+
+    private func assertCreateDownloadLeavesMainThread(
+        id: Int,
+        fileType: String,
+        create: (PutioFile) -> Void,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let putioFile = try makePutioFile(id: id, fileType: fileType)
+        let configuration = Realm.Configuration.defaultConfiguration
+        let lockHeld = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let released = DispatchSemaphore(value: 0)
+        let holderOutcome = OSAllocatedUnfairLock(initialState: WriteLockHolderOutcome.openFailed)
+        Thread {
+            defer { released.signal() }
+            guard let holder = try? Realm(configuration: configuration) else { lockHeld.signal(); return }
+            holder.beginWrite()
+            lockHeld.signal()
+            let outcome: WriteLockHolderOutcome = release.wait(timeout: .now() + 3) == .timedOut ? .timedOut : .released
+            try? holder.commitWrite()
+            holderOutcome.withLock { $0 = outcome }
+        }.start()
+        lockHeld.wait()
+
+        create(putioFile)
+
+        release.signal()
+        released.wait()
+        XCTAssertEqual(holderOutcome.withLock { $0 }, .released, "createDownload waited on the Realm write lock on the main thread", file: file, line: line)
+        DownloadSupport.recordQueue.sync {}
+        realm.refresh()
+        XCTAssertNotNil(
+            realm.object(ofType: Download.self, forPrimaryKey: id),
+            "createDownload left its Realm write for a later main-thread turn",
+            file: file,
+            line: line
+        )
+        drainMainQueue()
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+    }
+
+    func testAccountChangeDropsADownloadStillBeingCreated() throws {
+        let id = 9_004_993
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let writeMayRun = DispatchSemaphore(value: 0)
+        DownloadSupport.recordQueue.async { writeMayRun.wait() }
+
+        VideoDownloadManager.sharedInstance.createDownload(from: putioFile)
+        DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
+        writeMayRun.signal()
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+    }
+
+    func testCancellingDropsARedownloadStillBeingCreated() throws {
+        let id = 9_004_994
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        let writeMayRun = DispatchSemaphore(value: 0)
+        DownloadSupport.recordQueue.async { writeMayRun.wait() }
+
+        VideoDownloadManager.sharedInstance.createDownload(from: putioFile)
+        VideoDownloadManager.sharedInstance.cancelDownload(id: id)
+        writeMayRun.signal()
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
+    }
+
+    private func drainMainQueue() {
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 10)
+    }
+
+    private func makePutioFile(id: Int, fileType: String) throws -> PutioFile {
+        try JSONDecoder().decode(PutioFile.self, from: JSONSerialization.data(withJSONObject: [
+            "id": id,
+            "name": "Episode",
+            "icon": "file",
+            "parent_id": 1,
+            "file_type": fileType,
+            "size": 1024,
+            "created_at": "2026-04-20T00:00:00Z",
+            "updated_at": "2026-04-20T00:00:00Z",
+            "is_shared": false,
+            "start_from": 0
+        ]))
+    }
+}
+
+private enum WriteLockHolderOutcome {
+    case openFailed
+    case released
+    case timedOut
 }
 
 private final class StubAudioURLProtocol: URLProtocol {

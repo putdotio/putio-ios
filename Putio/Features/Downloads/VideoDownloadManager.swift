@@ -146,21 +146,18 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     func createDownload(from file: PutioFile) {
         log.verbose(["VDM: createDownload", file.id])
-        guard let download = Download(file: file, url: "") else { return }
-        guard let realm = DownloadSupport.realm(context: "VideoDownloadManager.createDownload") else { return }
-
-        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.createDownload.write") {
-            realm.add(download, update: .all)
-        }
-        guard didWrite else { return }
-
         discardDownload(id: file.id)
-        ProductAnalytics.capture(.downloadStarted(.video))
-        DownloadQueueController.sharedInstance.downloadWasQueued()
+        DownloadSupport.createRecord(
+            id: file.id,
+            context: "VideoDownloadManager.createDownload",
+            makeDownload: { Download(file: file, url: "") },
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.video)) }
+        )
     }
 
     func cancelDownload(id: Int) {
         log.verbose(["VDM: cancelDownload", id])
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
         guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.cancelDownload.write") {
@@ -174,6 +171,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         deletion(for: id).perform { didDelete in
             self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
@@ -201,6 +199,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "VideoDownloadManager.removeDownloadRecord"
