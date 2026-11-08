@@ -600,9 +600,21 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertNil(beforeBreadcrumb(trail[0]), "a breadcrumb was kept while diagnostics were off")
     }
 
-    func testTabSelectionsLeaveTheirTabInTheTrail() throws {
+    func testTheTrailShowsEveryTabTheUserLandsOn() throws {
         let sent = try startRecordingSentEvents()
         allowCapture()
+        let previousRealm = Realm.Configuration.defaultConfiguration
+        let deeplinkReadiness = DeeplinkManager.sharedInstance.isReadyToHandleURL
+        addTeardownBlock {
+            Realm.Configuration.defaultConfiguration = previousRealm
+            DeeplinkManager.sharedInstance.isReadyToHandleURL = deeplinkReadiness
+        }
+        let configuration = Realm.Configuration(inMemoryIdentifier: UUID().uuidString)
+        Realm.Configuration.defaultConfiguration = configuration
+        let realm = try XCTUnwrap(PutioRealm.open(context: "SentryTelemetryTests.tabs", configuration: configuration))
+        let user = Putio.User()
+        user.settings = UserSettings()
+        XCTAssertTrue(PutioRealm.write(realm, context: "SentryTelemetryTests.tabs.user") { realm.add(user) })
         let tabs = MainTabBarController()
         tabs.viewControllers = MainTabBarController.Tab.allCases.map { tab in
             let navigationController = UINavigationController(rootViewController: UIViewController())
@@ -610,15 +622,22 @@ final class SentryTelemetryTests: XCTestCase {
             return navigationController
         }
         tabs.loadViewIfNeeded()
+        tabs.cachedViewControllers = tabs.viewControllers
         let downloads = try XCTUnwrap(tabs.viewControllers?.first { $0.tabBarItem.tag == MainTabBarController.Tab.downloads.rawValue })
 
+        tabs.selectedViewController = downloads
         tabs.delegate?.tabBarController?(tabs, didSelect: downloads)
-        tabs.setSelectedTab(.account)
+        tabs.delegate?.tabBarController?(tabs, didSelect: downloads)
+        tabs.setSelectedTab(.history)
+        XCTAssertNotNil(tabs.userSettings)
+        XCTAssertTrue(PutioRealm.write(realm, context: "SentryTelemetryTests.tabs.history") { user.settings?.historyEnabled = false })
+        tabs.updateHistoryTabVisibility()
+        XCTAssertEqual(tabs.viewControllers?.count, MainTabBarController.Tab.allCases.count - 1)
         SentryTelemetry.capture(.diagnosticsCheck)
 
         let report = try XCTUnwrap(sent().first { $0.tags?["category"] == "diagnostics_check" })
         let actions = (report.breadcrumbs ?? []).filter { $0.category.hasPrefix("putio.") }
-        XCTAssertEqual(actions.map { $0.data as? [String: String] }, [["tab": "downloads"], ["tab": "settings"]])
+        XCTAssertEqual(actions.map { $0.data as? [String: String] }, [["tab": "files"], ["tab": "downloads"], ["tab": "history"], ["tab": "downloads"]])
     }
 
     func testSampledTimingsSendOnlyStaticTransactions() throws {

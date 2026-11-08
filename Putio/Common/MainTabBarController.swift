@@ -29,6 +29,8 @@ class MainTabBarController: UITabBarController {
 
     var notificationToken: NotificationToken?
 
+    private var recordedTab: Tab?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.Surface.appBg
@@ -118,6 +120,17 @@ class MainTabBarController: UITabBarController {
     func setSelectedTab(_ tab: Tab) {
         guard let index = getTabBarItemIndex(for: tab) else { return }
         selectedIndex = index
+        recordSelection(of: selectedViewController)
+    }
+
+    override func setViewControllers(_ viewControllers: [UIViewController]?, animated: Bool) {
+        super.setViewControllers(viewControllers, animated: animated)
+        recordSelection(of: selectedViewController)
+    }
+
+    private func recordSelection(of viewController: UIViewController?) {
+        guard let tab = viewController.flatMap({ Tab(rawValue: $0.tabBarItem.tag) }), tab != recordedTab else { return }
+        recordedTab = tab
         SentryTelemetry.record(.tabSelected(tab))
     }
 
@@ -147,7 +160,6 @@ class MainTabBarController: UITabBarController {
 
 extension MainTabBarController: UITabBarControllerDelegate {
     func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
-        guard let tab = Tab(rawValue: viewController.tabBarItem.tag) else { return }
-        SentryTelemetry.record(.tabSelected(tab))
+        recordSelection(of: viewController)
     }
 }
