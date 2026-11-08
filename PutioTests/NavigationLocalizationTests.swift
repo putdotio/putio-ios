@@ -339,40 +339,6 @@ final class NavigationLocalizationTests: XCTestCase {
         wait(for: [finished], timeout: 5)
     }
 
-    func testBlockingDeletionWaitsForPendingBackgroundDeletion() {
-        let finished = expectation(description: "background deletion finished")
-        let release = DispatchSemaphore(value: 0)
-        var order = [String]()
-        let lock = NSLock()
-        func record(_ step: String) {
-            lock.lock()
-            order.append(step)
-            lock.unlock()
-        }
-
-        makeDeletion(
-            state: .completed,
-            deleteLocalFile: {
-                release.wait()
-                record("background")
-                return .removed
-            }
-        ).perform { _ in finished.fulfill() }
-
-        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) { release.signal() }
-        let didDelete = makeDeletion(
-            state: .completed,
-            deleteLocalFile: {
-                record("blocking")
-                return .alreadyMissing
-            }
-        ).perform()
-
-        XCTAssertTrue(didDelete)
-        XCTAssertEqual(order, ["background", "blocking"])
-        wait(for: [finished], timeout: 5)
-    }
-
     func testActiveDownloadDeletionCancelsOnMainBeforeReturning() {
         var cancelledOnMain: Bool?
         var didDelete: Bool?

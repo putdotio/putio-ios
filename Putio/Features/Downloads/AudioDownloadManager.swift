@@ -140,13 +140,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         DownloadQueueController.sharedInstance.managerDidFinish()
     }
 
-    @discardableResult
-    func deleteDownload(id: Int) -> Bool {
-        let didDelete = deletion(for: id).perform()
-        finishDeletion(id: id, didDelete: didDelete)
-        return didDelete
-    }
-
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
         deletion(for: id).perform { didDelete in
             self.finishDeletion(id: id, didDelete: didDelete)
@@ -232,7 +225,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
-    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
+    func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
         let location = DownloadSupport.localFileLocation(
             from: UserDefaults.standard.object(forKey: String(downloadId)),
             as: String.self,

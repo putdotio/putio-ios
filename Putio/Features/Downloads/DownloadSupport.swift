@@ -164,6 +164,21 @@ enum DownloadSupport {
         }
     }
 
+    static func moveAsideForDeletion(_ location: LocalFileLocation) -> LocalFileLocation {
+        guard case .resolved(let url) = location else { return location }
+        let asideURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+        do {
+            try FileManager.default.moveItem(at: url, to: asideURL)
+            return .resolved(asideURL)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return .none
+        } catch {
+            log.error("[DownloadSupport] moveAsideForDeletion: \(error.localizedDescription)")
+            return .unresolved
+        }
+    }
+
     static func performDeletion(
         state: Download.State?,
         cancelActiveDownload: () -> Void,
@@ -209,11 +224,6 @@ enum DownloadSupport {
         let currentState: () -> RecordLookup
         let deleteRecord: (_ expectedState: Download.State?) -> Bool
         let localFileDeletionDidSucceed: () -> Void
-
-        func perform() -> Bool {
-            guard runsOnDeletionQueue else { return performNow() }
-            return deletionQueue.sync { autoreleasepool(invoking: performFinished) }
-        }
 
         func perform(completion: @escaping (Bool) -> Void) {
             guard runsOnDeletionQueue else { return completion(performNow()) }
