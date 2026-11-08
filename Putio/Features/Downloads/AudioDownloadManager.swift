@@ -112,17 +112,16 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        guard let download = Download(file: file, url: "") else { return }
-        guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
-
-        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
-            realm.add(download, update: .all)
-        }
-        guard didWrite else { return }
-
-        discardDownload(id: file.id)
-        ProductAnalytics.capture(.downloadStarted(.audio))
-        DownloadQueueController.sharedInstance.downloadWasQueued()
+        DownloadSupport.createRecord(
+            context: "AudioDownloadManager.createDownload",
+            makeDownload: { Download(file: file, url: "") },
+            completion: { didWrite in
+                guard didWrite else { return }
+                self.discardDownload(id: file.id)
+                ProductAnalytics.capture(.downloadStarted(.audio))
+                DownloadQueueController.sharedInstance.downloadWasQueued()
+            }
+        )
     }
 
     func cancelDownload(id: Int) {

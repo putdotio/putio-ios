@@ -146,17 +146,16 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     func createDownload(from file: PutioFile) {
         log.verbose(["VDM: createDownload", file.id])
-        guard let download = Download(file: file, url: "") else { return }
-        guard let realm = DownloadSupport.realm(context: "VideoDownloadManager.createDownload") else { return }
-
-        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.createDownload.write") {
-            realm.add(download, update: .all)
-        }
-        guard didWrite else { return }
-
-        discardDownload(id: file.id)
-        ProductAnalytics.capture(.downloadStarted(.video))
-        DownloadQueueController.sharedInstance.downloadWasQueued()
+        DownloadSupport.createRecord(
+            context: "VideoDownloadManager.createDownload",
+            makeDownload: { Download(file: file, url: "") },
+            completion: { didWrite in
+                guard didWrite else { return }
+                self.discardDownload(id: file.id)
+                ProductAnalytics.capture(.downloadStarted(.video))
+                DownloadQueueController.sharedInstance.downloadWasQueued()
+            }
+        )
     }
 
     func cancelDownload(id: Int) {

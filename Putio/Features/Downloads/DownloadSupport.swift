@@ -37,6 +37,27 @@ enum DownloadSupport {
         }
     }
 
+    static let recordQueue = DispatchQueue(label: "com.putio.downloads.records", qos: .userInitiated)
+
+    static func createRecord(
+        context: String,
+        makeDownload: @escaping () -> Download?,
+        completion: @escaping (Bool) -> Void
+    ) {
+        recordQueue.async {
+            let didWrite = autoreleasepool { () -> Bool in
+                guard let download = makeDownload(), let realm = realm(context: context) else { return false }
+                return write(realm, context: "\(context).write") {
+                    realm.add(download, update: .all)
+                }
+            }
+            DispatchQueue.main.async {
+                if didWrite { realm(context: "\(context).refresh")?.refresh() }
+                completion(didWrite)
+            }
+        }
+    }
+
     static func performWithOneRetry(_ operation: () -> Bool) -> Bool {
         if operation() { return true }
         return operation()
