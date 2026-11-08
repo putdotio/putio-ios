@@ -3,6 +3,7 @@ import GoogleCast
 import os
 import RealmSwift
 import Sentry
+import UIKit
 import XCTest
 @testable import Putio
 @testable import PutioSDK
@@ -528,7 +529,7 @@ final class SentryTelemetryTests: XCTestCase {
         }
     }
 
-    func testBreadcrumbsKeepScreensLifecycleAndPutioRequestsOnly() throws {
+    func testBreadcrumbsKeepScreensLifecyclePutioRequestsAndActionsOnly() throws {
         let title = "Synthetic Feature Title"
         let fileName = "Synthetic.Feature.Title.2001.mkv"
         let token = "synthetic-token-5f1c9e"
@@ -560,7 +561,13 @@ final class SentryTelemetryTests: XCTestCase {
             crumb("touch", message: "playTapped:", data: ["title": title]),
             crumb("device.event", data: ["action": "BATTERY_STATE_CHANGE"]),
             crumb("sentry.event", message: title, data: [:]),
-            crumb("putio.\(title)", message: title, data: [:])
+            crumb("putio.\(title)", message: title, data: [:]),
+            crumb("putio.tab", message: "Selected tab", data: ["tab": "downloads"]),
+            crumb("putio.tab", message: "Selected \(fileName)", data: ["tab": "downloads"]),
+            crumb("putio.tab", message: "Selected tab", data: ["tab": "downloads", "file_id": NSNumber(value: 987_654_321), "path": "/Documents/\(fileName)"]),
+            crumb("putio.tab", message: "Selected tab", data: ["tab": title]),
+            crumb("putio.tab", message: "Selected tab", data: [:]),
+            crumb("putio.playback", message: "Selected tab", data: ["tab": "downloads", "url": "https://media.example.invalid/hls/master.m3u8?oauth_token=\(token)"])
         ]
 
         allowCapture()
@@ -576,18 +583,61 @@ final class SentryTelemetryTests: XCTestCase {
 
         for crumbs in try [kept, sentTrail(kept), sentTrail(trail)] {
             let json = String(decoding: try JSONSerialization.data(withJSONObject: crumbs.map { $0.serialize() }), as: UTF8.self)
-            for leaked in [title, fileName, token, "/v2/files", "media.example.invalid", "playTapped"] {
+            for leaked in [title, fileName, token, "/v2/files", "/Documents", "987654321", "media.example.invalid", "playTapped"] {
                 XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
             }
-            XCTAssertEqual(crumbs.map(\.category), ["ui.lifecycle", "app.lifecycle", "http"])
+            XCTAssertEqual(crumbs.map(\.category), ["ui.lifecycle", "app.lifecycle", "http", "putio.tab"])
             XCTAssertEqual(crumbs.first?.data as? [String: String], ["screen": "FilesViewController", "parentViewController": "MainTabBarController"])
-            XCTAssertEqual(crumbs.last?.data?["host"] as? String, "api.put.io")
-            XCTAssertEqual(crumbs.last?.data?["method"] as? String, "GET")
-            XCTAssertEqual(crumbs.last?.data?["status_code"] as? Int, 404)
+            let request = try XCTUnwrap(crumbs.first { $0.category == "http" })
+            XCTAssertEqual(request.data?["host"] as? String, "api.put.io")
+            XCTAssertEqual(request.data?["method"] as? String, "GET")
+            XCTAssertEqual(request.data?["status_code"] as? Int, 404)
+            XCTAssertEqual(crumbs.last?.message, "Selected tab")
+            XCTAssertEqual(crumbs.last?.data as? [String: String], ["tab": "downloads"])
         }
 
         SentryTelemetry.isCapturing = false
         XCTAssertNil(beforeBreadcrumb(trail[0]), "a breadcrumb was kept while diagnostics were off")
+    }
+
+    func testTheTrailShowsEveryTabTheUserLandsOn() throws {
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        let previousRealm = Realm.Configuration.defaultConfiguration
+        let deeplinkReadiness = DeeplinkManager.sharedInstance.isReadyToHandleURL
+        addTeardownBlock {
+            Realm.Configuration.defaultConfiguration = previousRealm
+            DeeplinkManager.sharedInstance.isReadyToHandleURL = deeplinkReadiness
+        }
+        let configuration = Realm.Configuration(inMemoryIdentifier: UUID().uuidString)
+        Realm.Configuration.defaultConfiguration = configuration
+        let realm = try XCTUnwrap(PutioRealm.open(context: "SentryTelemetryTests.tabs", configuration: configuration))
+        let user = Putio.User()
+        user.settings = UserSettings()
+        XCTAssertTrue(PutioRealm.write(realm, context: "SentryTelemetryTests.tabs.user") { realm.add(user) })
+        let tabs = MainTabBarController()
+        tabs.viewControllers = MainTabBarController.Tab.allCases.map { tab in
+            let navigationController = UINavigationController(rootViewController: UIViewController())
+            navigationController.tabBarItem = UITabBarItem(title: nil, image: nil, tag: tab.rawValue)
+            return navigationController
+        }
+        tabs.loadViewIfNeeded()
+        tabs.cachedViewControllers = tabs.viewControllers
+        let downloads = try XCTUnwrap(tabs.viewControllers?.first { $0.tabBarItem.tag == MainTabBarController.Tab.downloads.rawValue })
+
+        tabs.selectedViewController = downloads
+        tabs.delegate?.tabBarController?(tabs, didSelect: downloads)
+        tabs.delegate?.tabBarController?(tabs, didSelect: downloads)
+        tabs.setSelectedTab(.history)
+        XCTAssertNotNil(tabs.userSettings)
+        XCTAssertTrue(PutioRealm.write(realm, context: "SentryTelemetryTests.tabs.history") { user.settings?.historyEnabled = false })
+        tabs.updateHistoryTabVisibility()
+        XCTAssertEqual(tabs.viewControllers?.count, MainTabBarController.Tab.allCases.count - 1)
+        SentryTelemetry.capture(.diagnosticsCheck)
+
+        let report = try XCTUnwrap(sent().first { $0.tags?["category"] == "diagnostics_check" })
+        let actions = (report.breadcrumbs ?? []).filter { $0.category.hasPrefix("putio.") }
+        XCTAssertEqual(actions.map { $0.data as? [String: String] }, [["tab": "files"], ["tab": "downloads"], ["tab": "history"], ["tab": "downloads"]])
     }
 
     func testSampledTimingsSendOnlyStaticTransactions() throws {

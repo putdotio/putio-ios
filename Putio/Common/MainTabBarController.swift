@@ -3,7 +3,7 @@ import Intercom
 import RealmSwift
 
 class MainTabBarController: UITabBarController {
-    enum Tab: Int {
+    enum Tab: Int, CaseIterable {
         case files
         case history
         case downloads
@@ -29,9 +29,12 @@ class MainTabBarController: UITabBarController {
 
     var notificationToken: NotificationToken?
 
+    private var recordedTab: Tab?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.Surface.appBg
+        delegate = self
         userSettings = loadUserSettings()
         configureTabBarIcons()
         configureNavigationControllers()
@@ -117,6 +120,18 @@ class MainTabBarController: UITabBarController {
     func setSelectedTab(_ tab: Tab) {
         guard let index = getTabBarItemIndex(for: tab) else { return }
         selectedIndex = index
+        recordSelection(of: selectedViewController)
+    }
+
+    override func setViewControllers(_ viewControllers: [UIViewController]?, animated: Bool) {
+        super.setViewControllers(viewControllers, animated: animated)
+        recordSelection(of: selectedViewController)
+    }
+
+    private func recordSelection(of viewController: UIViewController?) {
+        guard let tab = viewController.flatMap({ Tab(rawValue: $0.tabBarItem.tag) }), tab != recordedTab else { return }
+        recordedTab = tab
+        SentryTelemetry.record(.tabSelected(tab))
     }
 
     func updateHistoryTabVisibility() {
@@ -140,5 +155,11 @@ class MainTabBarController: UITabBarController {
         guard let accountTab = getTabBarItem(for: .account) else { return }
         let count = Intercom.unreadConversationCount()
         accountTab.badgeValue = count > 0 ? String(count) : nil
+    }
+}
+
+extension MainTabBarController: UITabBarControllerDelegate {
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        recordSelection(of: viewController)
     }
 }
