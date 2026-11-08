@@ -40,20 +40,27 @@ enum DownloadSupport {
     static let recordQueue = DispatchQueue(label: "com.putio.downloads.records", qos: .userInitiated)
 
     static func createRecord(
-        context: String,
+        id: Int,
+        context: PutioRealm.Context,
         makeDownload: @escaping () -> Download?,
-        completion: @escaping (Bool) -> Void
+        didCreate: @escaping () -> Void
     ) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        let queueController = DownloadQueueController.sharedInstance
+        queueController.recordCreationWillStart(id: id)
         recordQueue.async {
             let didWrite = autoreleasepool { () -> Bool in
                 guard let download = makeDownload(), let realm = realm(context: context) else { return false }
-                return write(realm, context: "\(context).write") {
+                return write(realm, context: context.appending("write")) {
                     realm.add(download, update: .all)
                 }
             }
             DispatchQueue.main.async {
-                if didWrite { realm(context: "\(context).refresh")?.refresh() }
-                completion(didWrite)
+                if didWrite {
+                    realm(context: context.appending("refresh"))?.refresh()
+                    didCreate()
+                }
+                queueController.recordCreationDidFinish(id: id)
             }
         }
     }

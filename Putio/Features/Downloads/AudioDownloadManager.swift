@@ -113,13 +113,12 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         guard file.type == .audio else { return }
 
         DownloadSupport.createRecord(
+            id: file.id,
             context: "AudioDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
-            completion: { didWrite in
-                guard didWrite else { return }
+            didCreate: {
                 self.discardDownload(id: file.id)
                 ProductAnalytics.capture(.downloadStarted(.audio))
-                DownloadQueueController.sharedInstance.downloadWasQueued()
             }
         )
     }

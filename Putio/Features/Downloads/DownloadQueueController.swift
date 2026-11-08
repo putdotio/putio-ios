@@ -84,6 +84,7 @@ final class DownloadQueueController {
 
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
     private var tasklessStartIDs = Set<Int>()
+    private var creatingIDs = Set<Int>()
     private var hasReconciledRestoredDownloads = false
     private(set) var isEnabled = false
     private var pendingAccountChangeDeletes = 0
@@ -198,6 +199,17 @@ final class DownloadQueueController {
         }
     }
 
+    func recordCreationWillStart(id: Int) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        creatingIDs.insert(id)
+    }
+
+    func recordCreationDidFinish(id: Int) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        creatingIDs.remove(id)
+        downloadWasQueued()
+    }
+
     func managerDidFinish() {
         onMain { self.schedule() }
     }
@@ -308,9 +320,9 @@ final class DownloadQueueController {
         let audioManager = AudioDownloadManager.sharedInstance
         let videoManager = VideoDownloadManager.sharedInstance
         let taskIDs = audioManager.activeDownloadIDs.union(videoManager.activeDownloadIDs)
-        let items = realm.objects(Download.self).map {
-            DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
-        }
+        let items = realm.objects(Download.self)
+            .filter { !self.creatingIDs.contains($0.id) }
+            .map { DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast) }
         let stateIDs = Set(items.compactMap { item in
             (item.state == .starting || item.state == .active) && !self.tasklessStartIDs.contains(item.id)
                 ? item.id

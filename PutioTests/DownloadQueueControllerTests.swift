@@ -593,14 +593,15 @@ final class DownloadCreationTests: XCTestCase {
         let lockHeld = DispatchSemaphore(value: 0)
         let release = DispatchSemaphore(value: 0)
         let released = DispatchSemaphore(value: 0)
-        let releasedByTimeout = OSAllocatedUnfairLock(initialState: false)
+        let holderOutcome = OSAllocatedUnfairLock(initialState: WriteLockHolderOutcome.openFailed)
         Thread {
+            defer { released.signal() }
             guard let holder = try? Realm(configuration: configuration) else { lockHeld.signal(); return }
             holder.beginWrite()
             lockHeld.signal()
-            releasedByTimeout.withLock { $0 = release.wait(timeout: .now() + 3) == .timedOut }
+            let outcome: WriteLockHolderOutcome = release.wait(timeout: .now() + 3) == .timedOut ? .timedOut : .released
             try? holder.commitWrite()
-            released.signal()
+            holderOutcome.withLock { $0 = outcome }
         }.start()
         lockHeld.wait()
 
@@ -608,12 +609,13 @@ final class DownloadCreationTests: XCTestCase {
 
         release.signal()
         released.wait()
-        XCTAssertFalse(releasedByTimeout.withLock { $0 }, "createDownload waited on the Realm write lock on the main thread", file: file, line: line)
-        let stored = XCTNSPredicateExpectation(
-            predicate: NSPredicate { [realm] _, _ in realm?.object(ofType: Download.self, forPrimaryKey: id) != nil },
-            object: nil
-        )
-        wait(for: [stored], timeout: 10)
+        XCTAssertEqual(holderOutcome.withLock { $0 }, .released, "createDownload waited on the Realm write lock on the main thread", file: file, line: line)
+        DownloadSupport.recordQueue.sync {}
+        let completed = expectation(description: "createRecord completion ran on main")
+        DispatchQueue.main.async { completed.fulfill() }
+        wait(for: [completed], timeout: 10)
+        realm.refresh()
+        XCTAssertNotNil(realm.object(ofType: Download.self, forPrimaryKey: id), file: file, line: line)
         addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
     }
 
@@ -631,6 +633,12 @@ final class DownloadCreationTests: XCTestCase {
             "start_from": 0
         ]))
     }
+}
+
+private enum WriteLockHolderOutcome {
+    case openFailed
+    case released
+    case timedOut
 }
 
 private final class StubAudioURLProtocol: URLProtocol {
