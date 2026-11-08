@@ -734,6 +734,9 @@ final class SentryTelemetryTests: XCTestCase {
         let transactions = { sent().filter { $0.type == "transaction" } }
         let arrived = expectation(for: NSPredicate { _, _ in transactions().count >= 6 }, evaluatedWith: nil)
         wait(for: [arrived], timeout: 10)
+        let extra = expectation(for: NSPredicate { _, _ in transactions().count > 6 }, evaluatedWith: nil)
+        extra.isInverted = true
+        wait(for: [extra], timeout: 2)
         drainMainQueue()
 
         let payloads = transactions().map { $0.serialize() }

@@ -439,7 +439,6 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: didCompleteWithError task: ", task.taskIdentifier])
 
         guard let id = withActiveDownloadsMap({ $0[task] }) else { return }
-        startTimings.end(id: id, outcome: error == nil ? .succeeded : .failed)
         lastProgressUpdateTime.removeValue(forKey: id)
         log.verbose(["VDM: didCompleteWithError task.id: ", id])
 
@@ -450,6 +449,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
                     context: "VideoDownloadManager.didComplete.missingRecord"
                 )
             }
+            startTimings.end(id: id, outcome: error == nil ? .succeeded : .failed)
             _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
             DownloadQueueController.sharedInstance.managerDidFinish()
             return
@@ -479,6 +479,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             )
         }
 
+        startTimings.end(id: id, outcome: didFail ? .failed : .succeeded)
         log.verbose("VDM: didCompleteWithError: writing to realm")
         let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
             download.state = didFail ? .failed : .completed

@@ -302,7 +302,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let id = downloadID(for: task, error: error) else { return }
-        startTimings.end(id: id, outcome: error == nil ? .succeeded : .failed)
+        startTimings.end(id: id, outcome: (artifactSaveErrors[task] ?? error) == nil ? .succeeded : .failed)
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
             artifactSaveErrors.removeValue(forKey: task)
