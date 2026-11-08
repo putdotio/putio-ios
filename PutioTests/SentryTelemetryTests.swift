@@ -391,15 +391,29 @@ final class SentryTelemetryTests: XCTestCase {
     func testInternalFailuresReportOncePerSiteWithAStaticContextOnly() throws {
         let previous = SentryTelemetry.isCapturing
         addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        let reported = InternalFailurePresenter.ReportedContexts(initialState: [])
         let fileName = "Synthetic.Feature.Title.2001.mkv"
         let leak = "Synthetic Feature Title /Documents/\(fileName)"
+        let cause = NSError(
+            domain: NSCocoaErrorDomain,
+            code: CocoaError.Code.fileWriteNoPermission.rawValue,
+            userInfo: [NSFilePathErrorKey: "/Documents/\(fileName)"]
+        )
+        func logFailure(row: Int) {
+            InternalFailurePresenter.log(
+                "Unable to access file row \(row) for \(fileName)",
+                context: "SentryTelemetryTests.internalFailure",
+                error: cause,
+                reportingOnceIn: reported
+            )
+        }
 
         SentryTelemetry.isCapturing = false
-        InternalFailurePresenter.log("Unable to access file row 7 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
+        logFailure(row: 7)
         let sent = try startRecordingSentEvents()
         allowCapture()
-        InternalFailurePresenter.log("Unable to access file row 7 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
-        InternalFailurePresenter.log("Unable to access file row 8 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
+        logFailure(row: 7)
+        logFailure(row: 8)
         InternalFailurePresenter.logLocally("SentryTelemetry: cache not deleted: \(leak)")
         SentryTelemetry.capture(.internalFailure, context: leak)
 
@@ -408,6 +422,8 @@ final class SentryTelemetryTests: XCTestCase {
             ["category": "internal_failure"],
         ])
         XCTAssertEqual(sent().first?.exceptions?.first?.value, "internal_failure")
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.domain, NSCocoaErrorDomain)
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.code, CocoaError.Code.fileWriteNoPermission.rawValue)
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
         XCTAssertFalse(json.contains(fileName), "\(fileName) left the device: \(json)")
     }

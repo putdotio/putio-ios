@@ -35,7 +35,8 @@ enum BrandFont {
                     .joined(separator: ", ")
                 InternalFailurePresenter.log(
                     "BrandFont: registration failed for [\(failed)]: \(error.localizedDescription)",
-                    context: "BrandFont.registerIfAvailable"
+                    context: "BrandFont.registerIfAvailable",
+                    error: error
                 )
             }
             return true // keep registering the remaining faces

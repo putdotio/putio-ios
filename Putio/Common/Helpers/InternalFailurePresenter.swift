@@ -2,15 +2,21 @@ import os
 import UIKit
 
 enum InternalFailurePresenter {
-    private static let reportedContexts = OSAllocatedUnfairLock(initialState: Set<String>())
+    typealias ReportedContexts = OSAllocatedUnfairLock<Set<String>>
 
-    static func log(_ message: String, context: StaticString) {
+    private static let reportedContexts = ReportedContexts(initialState: [])
+
+    static func log(_ message: String, context: StaticString, error: Error? = nil) {
+        log(message, context: context, error: error, reportingOnceIn: reportedContexts)
+    }
+
+    static func log(_ message: String, context: StaticString, error: Error?, reportingOnceIn reported: ReportedContexts) {
         logLocally(message)
         let context = context.description
         guard SentryTelemetry.isCapturing,
-              reportedContexts.withLock({ $0.insert(context).inserted })
+              reported.withLock({ $0.insert(context).inserted })
         else { return }
-        SentryTelemetry.capture(.internalFailure, context: context)
+        SentryTelemetry.capture(.internalFailure, error: error, context: context)
     }
 
     static func logLocally(_ message: String) {

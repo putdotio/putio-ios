@@ -12,7 +12,7 @@ struct Acknowledgement: Decodable {
         do {
             return try PropertyListDecoder().decode([Acknowledgement].self, from: Data(contentsOf: url))
         } catch {
-            InternalFailurePresenter.log("Acknowledgements.plist did not decode: \(error.localizedDescription)", context: "Acknowledgement.bundled.decode")
+            InternalFailurePresenter.log("Acknowledgements.plist did not decode: \(error.localizedDescription)", context: "Acknowledgement.bundled.decode", error: error)
             return []
         }
     }
