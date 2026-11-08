@@ -96,6 +96,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
             heading: NSLocalizedString("Your history is empty", comment: ""),
             description: NSLocalizedString("There will be information when things start happening.", comment: "")
         )
+        emptyView.isUserInteractionEnabled = false
         stateMachine.addView(emptyView, forState: "empty")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()

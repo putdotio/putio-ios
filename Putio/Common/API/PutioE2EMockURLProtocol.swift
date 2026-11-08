@@ -103,11 +103,15 @@ private enum PutioE2EMockAPI {
         }
 
         if let list = listsEmptiedBy[routeKey] {
-            emptiedLists.withLock { _ = $0.insert(list) }
+            answersSinceEmptying.withLock { $0[list] = 0 }
         }
 
-        if let emptyList = emptyLists[routeKey], emptiedLists.withLock({ $0.contains(routeKey) }) {
-            return emptyList
+        if let emptiedList = emptiedLists[routeKey], let answered = answersSinceEmptying.withLock({ answers -> Int? in
+            guard let answered = answers[routeKey] else { return nil }
+            answers[routeKey] = answered + 1
+            return answered
+        }) {
+            return answered < emptiedList.emptyAnswers ? emptiedList.empty : emptiedList.refilled
         }
 
         if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
@@ -176,12 +180,69 @@ private enum PutioE2EMockAPI {
         "POST /v2/events/delete": "GET /v2/events/list"
     ]
 
-    private static let emptyLists: [String: Fixture] = [
-        "GET /v2/trash/list": Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#),
-        "GET /v2/events/list": Fixture(body: #"{"status":"OK","has_more":false,"events":[]}"#)
+    private struct EmptiedList {
+        let emptyAnswers: Int
+        let empty: Fixture
+        let refilled: Fixture
+    }
+
+    private static let emptiedLists: [String: EmptiedList] = [
+        "GET /v2/trash/list": EmptiedList(
+            emptyAnswers: 1,
+            empty: Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#),
+            refilled: Fixture(body: trashListAfterEmptying)
+        ),
+        "GET /v2/events/list": EmptiedList(
+            emptyAnswers: 0,
+            empty: Fixture(body: #"{"status":"OK","has_more":false,"events":[]}"#),
+            refilled: Fixture(body: historyEventsAfterClearing)
+        )
     ]
 
-    private static let emptiedLists = OSAllocatedUnfairLock(initialState: Set<String>())
+    private static let answersSinceEmptying = OSAllocatedUnfairLock(initialState: [String: Int]())
+
+    private static let trashListAfterEmptying = """
+    {
+      "status": "OK",
+      "cursor": null,
+      "total": 1,
+      "trash_size": 1503238553,
+      "files": [
+        {
+          "id": 71,
+          "name": "Sintel.mp4",
+          "icon": "video",
+          "parent_id": 0,
+          "size": 1503238553,
+          "created_at": "2026-04-24T10:00:00Z",
+          "updated_at": "2026-04-24T10:00:00Z",
+          "file_type": "VIDEO",
+          "is_shared": false,
+          "sort_by": "NAME_ASC",
+          "deleted_at": "2026-07-15T10:00:00Z",
+          "expiration_date": "2026-08-15T10:00:00Z"
+        }
+      ]
+    }
+    """
+
+    private static let historyEventsAfterClearing = """
+    {
+      "status": "OK",
+      "has_more": false,
+      "events": [
+        {
+          "id": 9004,
+          "user_id": 1001,
+          "type": "upload",
+          "created_at": "2026-07-15T10:00:00Z",
+          "file_id": 71,
+          "file_name": "Sintel.mp4",
+          "file_size": 1503238553
+        }
+      ]
+    }
+    """
 
     // Without the flag the account has already answered, so no other test meets
     // the prompt.

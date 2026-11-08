@@ -962,7 +962,7 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(navigationController.viewControllers.count, 1)
     }
 
-    func testTrashReloadsTheTableWhenTheListEmpties() throws {
+    func testTrashReloadsTheTableAndStopsRefreshingWhenTheListEmpties() throws {
         let viewController = TrashViewController()
         let tableView = UITableView()
         let tableViewHeader = UIView()
@@ -970,12 +970,18 @@ final class NavigationLocalizationTests: XCTestCase {
         viewController.tableViewHeader = tableViewHeader
         viewController.loadViewIfNeeded()
 
+        let refreshControl = RecordingRefreshControl()
+        tableView.refreshControl = refreshControl
+
         viewController.viewModel.files = [try makeTrashFile(id: 77)]
         XCTAssertEqual(tableView.numberOfRows(inSection: 0), 1)
+        viewController.viewModel.state = .refreshing
+        refreshControl.endRefreshingCalls = 0
 
         viewController.viewModel.files = []
 
         XCTAssertEqual(tableView.numberOfRows(inSection: 0), 0)
+        XCTAssertEqual(refreshControl.endRefreshingCalls, 1)
     }
 
     func testHistoryReloadsTheTableWhenClearingEmptiesIt() throws {
@@ -995,6 +1001,15 @@ final class NavigationLocalizationTests: XCTestCase {
         viewController.viewModel.removeAllEvents()
 
         XCTAssertEqual(tableView.numberOfSections, 0)
+    }
+
+    private final class RecordingRefreshControl: UIRefreshControl {
+        var endRefreshingCalls = 0
+
+        override func endRefreshing() {
+            endRefreshingCalls += 1
+            super.endRefreshing()
+        }
     }
 
     private func makeTrashFile(id: Int) throws -> PutioTrashFile {

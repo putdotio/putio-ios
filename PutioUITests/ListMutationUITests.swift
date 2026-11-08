@@ -70,7 +70,13 @@ final class ListMutationUITests: XCTestCase {
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
         confirmation.buttons["Yes, empty trash"].tap()
 
-        assertEmptyAfterPullToRefresh(app, emptyState: "Your trash is empty", staleRow: trashedFile)
+        assertPullToRefreshAfterEmptying(
+            app,
+            table: app.tables["putio-trash-table"],
+            emptyState: "Your trash is empty",
+            staleRow: trashedFile,
+            arrivedRow: app.staticTexts["Sintel.mp4"]
+        )
     }
 
     func testClearingHistoryLeavesNoStaleRows() {
@@ -89,13 +95,21 @@ final class ListMutationUITests: XCTestCase {
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
         confirmation.buttons["Clear"].tap()
 
-        assertEmptyAfterPullToRefresh(app, emptyState: "Your history is empty", staleRow: event)
+        assertPullToRefreshAfterEmptying(
+            app,
+            table: app.tables["putio-history-table"],
+            emptyState: "Your history is empty",
+            staleRow: event,
+            arrivedRow: app.tables["putio-history-table"].staticTexts["Sintel.mp4"]
+        )
     }
 
-    private func assertEmptyAfterPullToRefresh(
+    private func assertPullToRefreshAfterEmptying(
         _ app: XCUIApplication,
+        table: XCUIElement,
         emptyState: String,
         staleRow: XCUIElement,
+        arrivedRow: XCUIElement,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
@@ -103,10 +117,12 @@ final class ListMutationUITests: XCTestCase {
         XCTAssertTrue(placeholder.waitForExistence(timeout: 10), "the empty state should show", file: file, line: line)
         XCTAssertFalse(staleRow.exists, "the emptied table should drop its rows", file: file, line: line)
 
-        app.swipeDown(velocity: .slow)
+        table.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1))
+            .press(forDuration: 0.1, thenDragTo: table.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)), withVelocity: .slow, thenHoldForDuration: 0.3)
 
+        XCTAssertTrue(arrivedRow.waitForExistence(timeout: 10), "the pull should refresh the table under the empty state", file: file, line: line)
         XCTAssertEqual(app.state, .runningForeground, file: file, line: line)
-        XCTAssertTrue(placeholder.waitForExistence(timeout: 10), "the empty state should stay after a refresh", file: file, line: line)
+        XCTAssertFalse(placeholder.exists, "the refreshed list should replace the empty state", file: file, line: line)
         XCTAssertFalse(staleRow.exists, "a refresh should not bring stale rows back", file: file, line: line)
     }
 }
