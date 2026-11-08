@@ -85,9 +85,29 @@ final class DownloadQueueController {
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
     private var tasklessStartIDs = Set<Int>()
     private var hasReconciledRestoredDownloads = false
-    private var isEnabled = false
+    private(set) var isEnabled = false
+    private var pendingAccountChangeDeletes = 0
+    private var startsAfterAccountChange = false
+    private let deleteDownload: DownloadOperation
+    private let removeDownloadRecord: (Int, Download.FileType) -> Void
 
-    private init() {}
+    init(
+        deleteDownload: @escaping DownloadOperation = { id, fileType, completion in
+            switch fileType {
+            case .audio: AudioDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
+            case .video: VideoDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
+            }
+        },
+        removeDownloadRecord: @escaping (Int, Download.FileType) -> Void = { id, fileType in
+            switch fileType {
+            case .audio: AudioDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+            case .video: VideoDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+            }
+        }
+    ) {
+        self.deleteDownload = deleteDownload
+        self.removeDownloadRecord = removeDownloadRecord
+    }
 
     func restoreBackgroundSessions() {
         onMain {
@@ -101,6 +121,10 @@ final class DownloadQueueController {
 
     func start() {
         onMain {
+            guard self.pendingAccountChangeDeletes == 0 else {
+                self.startsAfterAccountChange = true
+                return
+            }
             self.isEnabled = true
             self.restoreBackgroundSessions()
             if self.didRestoreBothManagers {
@@ -113,6 +137,7 @@ final class DownloadQueueController {
     func pause() {
         onMain {
             self.isEnabled = false
+            self.startsAfterAccountChange = false
             guard self.restoredIDsByType[.video] != nil else { return }
             let pendingIDs = VideoDownloadManager.sharedInstance.pendingStartIDs
             guard !pendingIDs.isEmpty,
@@ -134,17 +159,24 @@ final class DownloadQueueController {
         onMain {
             self.isEnabled = false
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
-            Array(realm.objects(Download.self)).forEach { download in
-                switch download.fileType {
-                case .audio:
-                    let manager = AudioDownloadManager.sharedInstance
-                    if !manager.deleteDownload(id: download.id) { _ = manager.removeDownloadRecord(id: download.id) }
-                case .video:
-                    let manager = VideoDownloadManager.sharedInstance
-                    if !manager.deleteDownload(id: download.id) { _ = manager.removeDownloadRecord(id: download.id) }
+            let downloads = realm.objects(Download.self).map { ($0.id, $0.fileType) }
+            self.pendingAccountChangeDeletes += downloads.count
+            downloads.forEach { id, fileType in
+                self.deleteDownload(id, fileType) { didDelete in
+                    self.onMain {
+                        if !didDelete { self.removeDownloadRecord(id, fileType) }
+                        self.accountChangeDeleteDidFinish()
+                    }
                 }
             }
         }
+    }
+
+    private func accountChangeDeleteDidFinish() {
+        pendingAccountChangeDeletes -= 1
+        guard pendingAccountChangeDeletes == 0, startsAfterAccountChange else { return }
+        startsAfterAccountChange = false
+        start()
     }
 
     func managerDidRestore(_ fileType: Download.FileType, activeIDs: Set<Int>) {

@@ -206,11 +206,6 @@ enum DownloadSupport {
         let deleteRecord: (_ expectedState: Download.State?) -> Bool
         let localFileDeletionDidSucceed: () -> Void
 
-        func perform() -> Bool {
-            guard runsOnDeletionQueue else { return performNow() }
-            return deletionQueue.sync { autoreleasepool(invoking: performFinished) }
-        }
-
         func perform(completion: @escaping (Bool) -> Void) {
             guard runsOnDeletionQueue else { return completion(performNow()) }
             deletionQueue.async {

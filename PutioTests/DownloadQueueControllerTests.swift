@@ -115,6 +115,70 @@ final class DownloadQueueLifecyclePolicyTests: XCTestCase {
     }
 }
 
+final class DownloadQueueAccountChangeTests: XCTestCase {
+    private var originalConfiguration: Realm.Configuration!
+    private var realm: Realm!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        originalConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
+        realm = try Realm()
+        try realm.write {
+            for (id, fileType) in [(401, Download.FileType.video), (402, .audio)] {
+                let download = Download()
+                download.id = id
+                download.fileType = fileType
+                download.state = .completed
+                download.createdAt = Date()
+                realm.add(download)
+            }
+        }
+    }
+
+    override func tearDown() {
+        realm = nil
+        Realm.Configuration.defaultConfiguration = originalConfiguration
+        super.tearDown()
+    }
+
+    func testStartWaitsForEveryAccountChangeDelete() {
+        var pendingDeletes = [Int: (Bool) -> Void]()
+        var removedRecordIDs = [Int]()
+        let controller = DownloadQueueController(
+            deleteDownload: { id, _, completion in pendingDeletes[id] = completion },
+            removeDownloadRecord: { id, _ in removedRecordIDs.append(id) }
+        )
+
+        controller.clearDownloadsForAccountChange()
+        controller.start()
+
+        XCTAssertEqual(Set(pendingDeletes.keys), [401, 402])
+        XCTAssertFalse(controller.isEnabled)
+        pendingDeletes[401]?(true)
+        XCTAssertFalse(controller.isEnabled)
+        pendingDeletes[402]?(false)
+        XCTAssertEqual(removedRecordIDs, [402])
+        XCTAssertTrue(controller.isEnabled)
+    }
+
+    func testPauseDuringAccountChangeKeepsTheQueueStopped() {
+        var pendingDeletes = [(Bool) -> Void]()
+        let controller = DownloadQueueController(
+            deleteDownload: { _, _, completion in pendingDeletes.append(completion) },
+            removeDownloadRecord: { _, _ in }
+        )
+
+        controller.clearDownloadsForAccountChange()
+        controller.start()
+        controller.pause()
+        pendingDeletes.forEach { $0(true) }
+
+        XCTAssertEqual(pendingDeletes.count, 2)
+        XCTAssertFalse(controller.isEnabled)
+    }
+}
+
 final class DownloadPersistencePolicyTests: XCTestCase {
     func testPersistenceRetriesOnceAndReturnsFinalResult() {
         var attempts = 0
