@@ -109,7 +109,10 @@ final class ProductAnalyticsGate {
         /// that began before consent.
         var hasSentOpen = false
         var consentOpenedAt: Date?
+        var backgroundedAt: Date?
     }
+
+    private static let postHogSessionIdleTimeout: TimeInterval = 30 * 60
 
     /// Events from before the first answer of this launch, such as the cold
     /// launch's `app_opened`, or of a foreground. Dropped if that answer is off.
@@ -122,6 +125,7 @@ final class ProductAnalyticsGate {
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
     private var foregroundEntry: AnalyticsEvent.Entry?
+    private var openedAccountID: Int?
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -174,7 +178,9 @@ final class ProductAnalyticsGate {
             guard environment.token != nil, environment.isEligible else { return }
             let at = environment.now()
             switch event {
-            case .appOpened(let entry, _): foregroundEntry = entry
+            case .appOpened(let entry, _):
+                foregroundEntry = entry
+                openedAccountID = nil
             case .appBackgrounded: foregroundEntry = nil
             default: break
             }
@@ -229,6 +235,10 @@ final class ProductAnalyticsGate {
 
     private func sendConsentOpen() {
         guard let foregroundEntry, let running, !running.hasSentOpen else { return }
+        guard openedAccountID != running.accountID else {
+            self.running?.hasSentOpen = true
+            return
+        }
         let consentAt = environment.now()
         send(.appOpened(foregroundEntry, route: environment.route(running.accountID)), at: consentAt)
         self.running?.consentOpenedAt = consentAt
@@ -294,10 +304,19 @@ final class ProductAnalyticsGate {
         var event = event
         switch event {
         case .appOpened:
+            if let backgroundedAt = running.backgroundedAt, timestamp.timeIntervalSince(backgroundedAt) > Self.postHogSessionIdleTimeout {
+                running.sdk.startSession()
+            }
+            running.backgroundedAt = nil
             running.hasSentOpen = true
             running.consentOpenedAt = nil
+            openedAccountID = running.accountID
         case .appBackgrounded:
-            guard running.hasSentOpen else { return }
+            running.backgroundedAt = timestamp
+            guard running.hasSentOpen else {
+                self.running = running
+                return
+            }
             if let consentOpenedAt = running.consentOpenedAt {
                 event = .appBackgrounded(.init(seconds: timestamp.timeIntervalSince(consentOpenedAt)))
                 running.consentOpenedAt = nil

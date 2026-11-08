@@ -3,6 +3,7 @@ import GoogleCast
 import os
 import PostHog
 @testable import PutioSDK
+import UIKit
 import XCTest
 @testable import Putio
 
@@ -362,6 +363,59 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "resume")
         XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
+    func testARetryForTheSameAccountSendsNoSecondOpen() throws {
+        let (gate, token) = makeGate()
+        gate.capture(.appOpened(.direct))
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.appBackgrounded(.under1m))
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual(events.map { $0["distinct_id"] as? String }, ["1001", "1001"])
+    }
+
+    func testAnotherAccountAfterARetryGetsItsOwnOpen() throws {
+        let (gate, token) = makeGate()
+        gate.capture(.appOpened(.direct))
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        gate.update(accountID: 1002, productAnalyticsEnabled: true)
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_opened"])
+        XCTAssertEqual(events.map { $0["distinct_id"] as? String }, ["1001", "1002"])
+    }
+
+    func testAResumeAfterHalfAnHourAwayOpensInANewSession() throws {
+        var clock = Date().addingTimeInterval(-3600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.appOpened(.direct))
+        clock += 60
+        gate.capture(.appBackgrounded(.from1mTo5m))
+        _ = try waitForEvents(token: token, count: 2)
+
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        addTeardownBlock { NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil) }
+        try XCTUnwrap(gate.runningSDK).endSession()
+        clock = Date()
+        gate.awaitAnswer()
+        gate.capture(.appOpened(.resume))
+        gate.keepAnswer()
+        let events = try waitForEvents(token: token, count: 3)
+
+        let sessions = events.map { ($0["properties"] as? [String: Any])?["$session_id"] as? String }
+        let earlier = try XCTUnwrap(sessions[0])
+        let resumed = try XCTUnwrap(sessions[2], "the resume open left without a session")
+        XCTAssertNotEqual(resumed, earlier)
     }
 
     func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
