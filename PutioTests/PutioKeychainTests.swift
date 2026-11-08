@@ -277,6 +277,97 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(privacyValues(viewModel), [false, true])
     }
 
+    func testPrivacyControlsPageSwitchesSaveThroughPutioAndTheAccountRowFollows() throws {
+        var patches: [PutioAccountSettingsPatch] = []
+        let viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { update, completion in
+                if case .patch(let patch) = update { patches.append(patch) }
+                completion(.success(()))
+            },
+            markProductAnalyticsPromptAnsweredRequest: { $0(.success(())) },
+            applyDiagnostics: { _ in },
+            applyProductAnalytics: { _, _ in }
+        )
+        let account = attachSpy(to: viewModel)
+        account.viewModel = viewModel
+        let navigation = UINavigationController(rootViewController: account)
+        account.loadViewIfNeeded()
+
+        let row = try accountCell(titled: "Privacy controls", in: account)
+        XCTAssertEqual(row.cell.detailTextLabel?.text, "Diagnostics on · Product analytics off")
+        account.tableView(account.tableView, didSelectRowAt: row.indexPath)
+
+        let page = try XCTUnwrap(navigation.topViewController as? PrivacyControlsViewController)
+        page.loadViewIfNeeded()
+        XCTAssertEqual(page.navigationItem.title, "Privacy controls")
+        let texts = pageTexts(page)
+        for copy in [
+            "Always on",
+            "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices.",
+            "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens.",
+            "Privacy policy",
+            "Services we use"
+        ] {
+            XCTAssertTrue(texts.contains(copy), copy)
+        }
+        XCTAssertEqual(try switchValue("Diagnostics", on: page), true)
+        XCTAssertEqual(try switchValue("Product analytics", on: page), false)
+
+        try flipSwitch("Diagnostics", on: page)
+        XCTAssertEqual(patches.map(\.diagnosticsEnabled), [false])
+        XCTAssertEqual(try switchValue("Diagnostics", on: page), false)
+
+        try flipSwitch("Product analytics", on: page)
+        XCTAssertEqual(patches.map(\.productAnalyticsEnabled), [nil, true])
+        XCTAssertEqual(try switchValue("Product analytics", on: page), true)
+
+        navigation.popViewController(animated: false)
+        XCTAssertEqual(try accountCell(titled: "Privacy controls", in: account).cell.detailTextLabel?.text, "Diagnostics off · Product analytics on")
+    }
+
+    private func accountCell(titled title: String, in account: SettingsTableViewController) throws -> (cell: UITableViewCell, indexPath: IndexPath) {
+        let visible = account.viewModel.sections.map { $0.items.filter(\.visible) }
+        let section = try XCTUnwrap(visible.firstIndex { $0.contains { $0.title == title } }, title)
+        let row = try XCTUnwrap(visible[section].firstIndex { $0.title == title }, title)
+        let indexPath = IndexPath(row: row, section: section)
+        return (account.tableView(account.tableView, cellForRowAt: indexPath), indexPath)
+    }
+
+    private func pageCells(_ page: PrivacyControlsViewController) -> [UITableViewCell] {
+        let tableView = page.tableView!
+        return (0..<page.numberOfSections(in: tableView)).flatMap { section in
+            (0..<page.tableView(tableView, numberOfRowsInSection: section)).map { row in
+                page.tableView(tableView, cellForRowAt: IndexPath(row: row, section: section))
+            }
+        }
+    }
+
+    private func pageTexts(_ page: PrivacyControlsViewController) -> Set<String> {
+        let tableView = page.tableView!
+        let cellTexts = pageCells(page).flatMap { cell in
+            [cell.textLabel?.text, cell.detailTextLabel?.text, (cell.accessoryView as? UILabel)?.text].compactMap { $0 }
+        }
+        let footers = (0..<page.numberOfSections(in: tableView)).compactMap { page.tableView(tableView, titleForFooterInSection: $0) }
+        return Set(cellTexts + footers)
+    }
+
+    private func pageSwitch(_ title: String, on page: PrivacyControlsViewController) throws -> (cell: UITableViewCell, control: UISwitch) {
+        let cell = try XCTUnwrap(pageCells(page).first { $0.textLabel?.text == title }, title)
+        return (cell, try XCTUnwrap(cell.accessoryView as? UISwitch, title))
+    }
+
+    private func switchValue(_ title: String, on page: PrivacyControlsViewController) throws -> Bool {
+        try pageSwitch(title, on: page).control.isOn
+    }
+
+    private func flipSwitch(_ title: String, on page: PrivacyControlsViewController) throws {
+        let row = try pageSwitch(title, on: page)
+        row.control.isOn.toggle()
+        withExtendedLifetime(row.cell) {
+            row.control.sendActions(for: .valueChanged)
+        }
+    }
+
     func testSignedInScreensAreReleasedWhenTheAppLeavesThem() throws {
         let deeplinkReadiness = DeeplinkManager.sharedInstance.isReadyToHandleURL
         addTeardownBlock { DeeplinkManager.sharedInstance.isReadyToHandleURL = deeplinkReadiness }

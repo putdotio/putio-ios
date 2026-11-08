@@ -4,6 +4,7 @@ import PutioSDK
 
 class ImageViewController: UIViewController {
     var file: PutioFile?
+    var previewSession = MediaPreviewSession.shared
     private var request: URLSessionDataTask?
     private var openSignpost: PerfSignpost.Interval?
 
@@ -43,7 +44,7 @@ class ImageViewController: UIViewController {
         // viewDidLoad runs before this view joins a window.
         let maxPixelSize = ImagePreviewDecoder.maxPixelSize(on: navigationController?.view.window ?? view.window)
 
-        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        request = previewSession.dataTask(with: url) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
             guard let data = MediaPreviewSession.body(data, of: response) else {

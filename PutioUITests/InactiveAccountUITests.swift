@@ -18,7 +18,7 @@ final class InactiveAccountUITests: XCTestCase {
         guard app.waitForSignedInTabBar() else { return }
 
         let notice = app.staticTexts["putio-account-notice"]
-        XCTAssertTrue(notice.waitForExistence(timeout: 5))
+        XCTAssertTrue(notice.appears(within: 5))
         XCTAssertEqual(
             notice.label,
             "\(title), Your files are still here, but they are scheduled to be deleted in 14 days. Renew your plan at put.io to keep your files."
@@ -26,26 +26,26 @@ final class InactiveAccountUITests: XCTestCase {
         attachScreenshot(of: app, named: "Inactive account notice")
 
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
-        XCTAssertTrue(movie.waitForExistence(timeout: 10), "browsing stays available")
+        XCTAssertTrue(movie.appears(within: 10), "browsing stays available")
         movie.tap()
 
         let alert = app.alerts[title]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        XCTAssertTrue(alert.appears(within: 5))
         XCTAssertFalse(app.otherElements["putio-video-player"].exists)
         attachScreenshot(of: app, named: "Inactive account playback alert")
 
         alert.buttons["Close"].tap()
-        XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(alert.disappears(within: 5))
         XCTAssertFalse(app.otherElements["putio-video-player"].exists)
 
         app.tabItem("Downloads").tap()
         XCTAssertTrue(notice.exists, "the notice follows every signed-in tab")
         let download = app.tables["putio-downloads-table"].cells["putio-download-42"]
-        XCTAssertTrue(download.waitForExistence(timeout: 10))
+        XCTAssertTrue(download.appears(within: 10))
         download.tap()
 
         XCTAssertTrue(
-            app.otherElements["putio-video-player"].waitForExistence(timeout: 5),
+            app.otherElements["putio-video-player"].appears(within: 5),
             "a downloaded file still plays"
         )
         XCTAssertFalse(app.alerts[title].exists)

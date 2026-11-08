@@ -40,6 +40,7 @@ final class PerformanceUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchEnvironment = [
             "PUTIO_E2E_MOCK_API": "1",
+            "PUTIO_E2E_ANIMATIONS": "1",
             "PUTIO_E2E_ACCESS_TOKEN": "e2e-token",
             "PUTIO_E2E_RESET_STATE": "1",
             "PUTIO_E2E_FIXTURE": "large",

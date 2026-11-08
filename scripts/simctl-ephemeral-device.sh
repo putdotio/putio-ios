@@ -7,11 +7,24 @@
 #
 # --device-type overrides the device while keeping the runtime, so the iPad
 # store-capture lane pins one runtime with everything else.
+#
+# --no-boot prints the id before booting, so a caller can build while
+# `--boot <id>` boots the device and pins its status bar.
 
 set -eu
 
 label="ephemeral"
 device_type_override=""
+boot=1
+boot_only=""
+
+boot_and_pin() {
+  xcrun simctl bootstatus "$1" -b >/dev/null
+  xcrun simctl status_bar "$1" override \
+    --time "9:41" \
+    --batteryState charged --batteryLevel 100 \
+    --cellularBars 4 --wifiBars 3 --operatorName "" >&2
+}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -25,12 +38,26 @@ while [ "$#" -gt 0 ]; do
       device_type_override="$2"
       shift 2
       ;;
+    --no-boot)
+      boot=0
+      shift
+      ;;
+    --boot)
+      [ "$#" -ge 2 ] || { echo "--boot needs a device id" >&2; exit 2; }
+      boot_only="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown argument: $1" >&2
       exit 2
       ;;
   esac
 done
+
+if [ -n "$boot_only" ]; then
+  boot_and_pin "$boot_only"
+  exit 0
+fi
 
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"
 ios_major="27"
@@ -116,10 +143,8 @@ plutil -replace AppleICUForce24HourTime -bool false "$global_preferences"
 
 # Boot and pin the status bar so screenshots are deterministic for
 # snapshot baselines (fixed clock, full battery and signal).
-xcrun simctl bootstatus "$device_id" -b >/dev/null
-xcrun simctl status_bar "$device_id" override \
-  --time "9:41" \
-  --batteryState charged --batteryLevel 100 \
-  --cellularBars 4 --wifiBars 3 --operatorName "" >&2
+if [ "$boot" = 1 ]; then
+  boot_and_pin "$device_id"
+fi
 
 echo "$device_id"

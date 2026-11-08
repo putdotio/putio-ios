@@ -186,6 +186,10 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                     self.stateMachine.transitionToState(.none)
                 }
 
+                if self is FilesRootViewController, let startFile = PutioE2EEnvironment.takeStartFile(from: data.children) {
+                    self.presentFile(startFile)
+                }
+
             case .failure(let error):
                 switch error.type {
                 case .httpError(let statusCode, _):

@@ -10,7 +10,7 @@ extension XCUIApplication {
         file: StaticString = #filePath,
         line: UInt = #line
     ) -> Bool {
-        if tabItem("Files").waitForExistence(timeout: timeout) {
+        if tabItem("Files").appears(within: timeout) {
             return true
         }
 
@@ -33,5 +33,21 @@ extension XCUIApplication {
     func tabItem(_ name: String) -> XCUIElement {
         let scoped = tabBars.buttons[name]
         return scoped.exists ? scoped : buttons[name].firstMatch
+    }
+}
+
+extension XCUIElement {
+    func appears(within timeout: TimeInterval) -> Bool {
+        exists || waitForExistence(timeout: timeout)
+    }
+
+    func disappears(within timeout: TimeInterval) -> Bool {
+        !exists || waitForNonExistence(timeout: timeout)
+    }
+
+    func reaches(_ predicate: NSPredicate, within timeout: TimeInterval) -> Bool {
+        if predicate.evaluate(with: self) { return true }
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: self)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

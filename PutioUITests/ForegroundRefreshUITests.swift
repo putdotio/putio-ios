@@ -2,6 +2,7 @@ import XCTest
 
 final class ForegroundRefreshUITests: XCTestCase {
     private let foldersPushed = 3
+    private let stabilityWindow: TimeInterval = 1
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -18,48 +19,74 @@ final class ForegroundRefreshUITests: XCTestCase {
 
         guard app.waitForSignedInTabBar() else { return }
         let downloadsFolder = app.cells["putio-file-101"]
-        XCTAssertTrue(downloadsFolder.waitForExistence(timeout: 10))
-        var requests = settledFilesListRequests(app)
+        XCTAssertTrue(downloadsFolder.appears(within: 10))
+        let probe = app.otherElements["putio-perf-probe"]
+        XCTAssertTrue(probe.appears(within: 5), "the mocked API installs the request probe")
+        var requests = stableRequestCount(probe)
 
         for _ in 0..<foldersPushed {
             downloadsFolder.tap()
-            let afterPush = settledFilesListRequests(app)
-            XCTAssertEqual(afterPush - requests, 1, "each pushed folder fetches its listing once")
-            requests = afterPush
-            XCTAssertTrue(downloadsFolder.waitForExistence(timeout: 10))
+            assertRequests(probe, reach: requests + 1, "each pushed folder fetches its listing once")
+            requests += 1
+            XCTAssertTrue(downloadsFolder.appears(within: 10))
         }
         for _ in 0..<foldersPushed {
             app.navigationBars.buttons.element(boundBy: 0).tap()
-            XCTAssertTrue(downloadsFolder.waitForExistence(timeout: 10))
+            XCTAssertTrue(downloadsFolder.appears(within: 10))
         }
-        let beforeBackground = settledFilesListRequests(app)
+        let beforeBackground = stableRequestCount(probe)
 
         XCUIDevice.shared.press(.home)
         XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        XCTAssertEqual(settledFilesListRequests(app) - beforeBackground, 1, "only the visible folder refetches on foreground")
+        assertRequests(probe, reach: beforeBackground + 1, "only the visible folder refetches on foreground")
     }
 
-    private func filesListRequests(_ app: XCUIApplication) -> Int {
-        let probe = app.otherElements["putio-perf-probe"]
-        XCTAssertTrue(probe.waitForExistence(timeout: 5), "the mocked API installs the request probe")
-        let value = (probe.value as? String ?? "").replacingOccurrences(of: "files-list-requests=", with: "")
-        return Int(value) ?? -1
+    private func requestCount(_ probe: XCUIElement) -> Int {
+        Self.requestCount(of: probe.value)
     }
 
-    private func settledFilesListRequests(_ app: XCUIApplication) -> Int {
-        var last = filesListRequests(app)
-        var unchangedReads = 0
-        var reads = 0
-        while unchangedReads < 4, reads < 40 {
-            Thread.sleep(forTimeInterval: 0.5)
-            let current = filesListRequests(app)
-            unchangedReads = current == last ? unchangedReads + 1 : 0
-            last = current
-            reads += 1
+    private static func requestCount(of value: Any?) -> Int {
+        let digits = (value as? String ?? "").replacingOccurrences(of: "files-list-requests=", with: "")
+        return Int(digits) ?? -1
+    }
+
+    private func countChanges(_ probe: XCUIElement, from count: Int, within timeout: TimeInterval) -> Bool {
+        let changed = NSPredicate { element, _ in
+            Self.requestCount(of: (element as? XCUIElement)?.value) != count
         }
-        return last
+        return probe.reaches(changed, within: timeout)
+    }
+
+    private func stableRequestCount(_ probe: XCUIElement) -> Int {
+        var count = requestCount(probe)
+        var windows = 0
+        while windows < 10, countChanges(probe, from: count, within: stabilityWindow) {
+            count = requestCount(probe)
+            windows += 1
+        }
+        return count
+    }
+
+    private func assertRequests(
+        _ probe: XCUIElement,
+        reach expected: Int,
+        _ message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let reached = NSPredicate { element, _ in
+            Self.requestCount(of: (element as? XCUIElement)?.value) >= expected
+        }
+        XCTAssertTrue(probe.reaches(reached, within: 10), "\(message): never reached \(expected) requests", file: file, line: line)
+        XCTAssertEqual(requestCount(probe), expected, message, file: file, line: line)
+        XCTAssertFalse(
+            countChanges(probe, from: expected, within: stabilityWindow),
+            "\(message): got \(requestCount(probe)) requests, expected \(expected)",
+            file: file,
+            line: line
+        )
     }
 }
