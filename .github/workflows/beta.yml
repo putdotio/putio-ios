@@ -46,7 +46,7 @@ jobs:
   beta:
     name: Upload beta build
     needs: validate-ref
-    runs-on: macos-latest
+    runs-on: xcode-27
     environment: release
     timeout-minutes: 75
     permissions:
@@ -62,10 +62,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Select latest stable Xcode
+      - name: Select Xcode 27
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "27"
 
       - name: Install mise
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
