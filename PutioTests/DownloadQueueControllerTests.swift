@@ -878,6 +878,38 @@ final class DownloadCreationTests: XCTestCase {
         XCTAssertEqual(createdCount, 1)
     }
 
+    func testDeletingAStaleCreationKeepsARedownloadCommittedBeforeTheDeleteRuns() throws {
+        let id = 9_005_000
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        let deletionMayRun = DispatchSemaphore(value: 0)
+        DownloadSupport.deletionQueue.async { deletionMayRun.wait() }
+        let deleted = expectation(description: "deletion finished")
+        var didDelete = false
+        VideoDownloadManager.sharedInstance.deleteDownload(id: id) {
+            didDelete = $0
+            deleted.fulfill()
+        }
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        deletionMayRun.signal()
+        wait(for: [deleted], timeout: 10)
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .queued)
+        XCTAssertEqual(createdCount, 1)
+    }
+
     private func createVideoRecord(id: Int, file: PutioFile, didCreate: @escaping () -> Void) -> Bool {
         DownloadSupport.createRecord(
             id: id,

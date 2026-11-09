@@ -258,7 +258,22 @@ final class DownloadQueueController {
     }
 
     func isRecordCreationCurrent(_ token: RecordCreationToken) -> Bool {
-        creationGenerations.withLock { !$0.isAccountCleanupPending && $0.token(for: token.id) == token }
+        creationGenerations.withLock { $0.isCurrent(token) }
+    }
+
+    func claimRecordWrite(_ token: RecordCreationToken, createdAt: Date?) -> Bool {
+        creationGenerations.withLock {
+            guard $0.isCurrent(token) else { return false }
+            $0.writers[token.id] = createdAt.map { RecordWriter(token: token, createdAt: $0) }
+            return true
+        }
+    }
+
+    func isRecordWrittenByCurrentCreation(_ download: Download) -> Bool {
+        creationGenerations.withLock { generations in
+            guard let writer = generations.writers[download.id] else { return false }
+            return writer.createdAt == download.createdAt && generations.isCurrent(writer.token)
+        }
     }
 
     @discardableResult
@@ -304,7 +319,10 @@ final class DownloadQueueController {
     private func finishRecordCreations(id: Int) {
         guard let creation = creationsByID[id], creation.pending == 0, creation.pendingDeletions == 0 else { return }
         creationsByID.removeValue(forKey: id)
-        creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
+        creationGenerations.withLock {
+            $0.byID.removeValue(forKey: id)
+            $0.writers.removeValue(forKey: id)
+        }
         if creation.leftStaleRecord {
             removeStaleRecord(id: id, keepsRow: creation.deletionFailed)
         } else if creation.didWrite {
@@ -515,13 +533,23 @@ struct RecordCreationToken: Equatable {
     let record: Int
 }
 
+private struct RecordWriter {
+    let token: RecordCreationToken
+    let createdAt: Date
+}
+
 private struct CreationGenerations {
     var account = 0
     var isAccountCleanupPending = false
     var byID = [Int: Int]()
+    var writers = [Int: RecordWriter]()
 
     func token(for id: Int) -> RecordCreationToken {
         RecordCreationToken(id: id, account: account, record: byID[id, default: 0])
+    }
+
+    func isCurrent(_ token: RecordCreationToken) -> Bool {
+        !isAccountCleanupPending && self.token(for: token.id) == token
     }
 }
 
