@@ -79,7 +79,7 @@ jobs:
             echo "$listing commits whatsNew; Release writes What's New" >&2
             exit 1
           fi
-          build_number="$(date -u +%y%m%d%H%M)"
+          build_number="$(./scripts/build-number.sh)"
           {
             echo "PUTIO_RELEASE_VERSION=$RELEASE_VERSION"
             echo "PUTIO_RELEASE_BUILD_NUMBER=$build_number"
