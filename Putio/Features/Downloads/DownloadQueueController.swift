@@ -164,7 +164,7 @@ final class DownloadQueueController {
         }
     }
 
-    func clearDownloadsForAccountChange() {
+    func clearDownloadsForAccountChange(onCleared: @escaping () -> Void = {}) {
         onMain {
             self.isEnabled = false
             self.creationGenerations.withLock {
@@ -172,7 +172,9 @@ final class DownloadQueueController {
                 $0.isAccountCleanupPending = true
             }
             self.defaults.set(true, forKey: Self.accountChangeCleanupPendingKey)
-            self.clearAccountDownloads()
+            if self.clearAccountDownloads() {
+                onCleared()
+            }
         }
     }
 

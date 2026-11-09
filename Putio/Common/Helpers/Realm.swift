@@ -48,6 +48,24 @@ class PutioRealm {
         setFlag(value, forKey: upgradingFromShipped258Key, defaults: defaults)
     }
 
+    private static let downloadsHaveNoAccountKey = "PutioRealm.downloadsHaveNoAccount"
+
+    static func downloadsHaveNoAccount(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: downloadsHaveNoAccountKey)
+    }
+
+    static func setDownloadsHaveNoAccount(_ value: Bool, defaults: UserDefaults = .standard) {
+        setFlag(value, forKey: downloadsHaveNoAccountKey, defaults: defaults)
+    }
+
+    static func endShipped258Session(realm: Realm?, defaults: UserDefaults = .standard) {
+        let downloadsMayHaveNoAccount = realm.map { $0.objects(User.self).isEmpty && !$0.objects(Download.self).isEmpty } ?? true
+        if isUpgradingFromShipped258(defaults: defaults), downloadsMayHaveNoAccount {
+            setDownloadsHaveNoAccount(true, defaults: defaults)
+        }
+        setUpgradingFromShipped258(false, defaults: defaults)
+    }
+
     private static func setFlag(_ value: Bool, forKey key: String, defaults: UserDefaults) {
         if value {
             defaults.set(true, forKey: key)

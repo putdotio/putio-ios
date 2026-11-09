@@ -26,8 +26,10 @@ final class OfflineVideoPlaybackPositionSynchronizer {
         },
         canAttemptSync: { NetworkReachability.sharedInstance.getIsReachable() },
         currentAccountID: {
-            PutioRealm.open(context: "OfflineVideoPlaybackPositionSynchronizer.currentAccount")?
+            let cachedUserID = PutioRealm.open(context: "OfflineVideoPlaybackPositionSynchronizer.currentAccount")?
                 .objects(User.self).first?.id
+            let tokenOwnerID = PutioKeychain.sharedInstance.tokenOwnerID
+            return DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(tokenOwnerID: tokenOwnerID, cachedUserID: cachedUserID) ? cachedUserID : nil
         },
         fetchRemotePosition: { fileID, completion in
             api.getStartFrom(fileID: fileID) { result in
