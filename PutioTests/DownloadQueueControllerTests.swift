@@ -762,6 +762,53 @@ final class DownloadCreationTests: XCTestCase {
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
     }
 
+    func testDeletingARedownloadBetweenItsCommitAndCompletionRemovesIt() throws {
+        let id = 9_004_995
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .failed)
+        let deleted = expectation(description: "deletion finished")
+        VideoDownloadManager.sharedInstance.deleteDownload(id: id) { _ in deleted.fulfill() }
+        wait(for: [deleted], timeout: 10)
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertEqual(createdCount, 0)
+    }
+
+    func testAccountChangeBetweenCommitAndCompletionCapturesNothing() throws {
+        let id = 9_004_996
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertEqual(createdCount, 0)
+    }
+
+    private func createVideoRecord(id: Int, file: PutioFile, didCreate: @escaping () -> Void) -> Bool {
+        DownloadSupport.createRecord(
+            id: id,
+            context: "DownloadCreationTests",
+            makeDownload: { Download(file: file, url: "") },
+            didCreate: didCreate
+        )
+    }
+
     private func drainMainQueue() {
         let drained = expectation(description: "main queue drained")
         DispatchQueue.main.async { drained.fulfill() }

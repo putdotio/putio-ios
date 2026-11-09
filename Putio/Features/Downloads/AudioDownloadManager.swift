@@ -117,11 +117,12 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         guard file.type == .audio else { return false }
 
         discardDownload(id: file.id)
+        let session = AccountNoticeStore.shared.session
         return DownloadSupport.createRecord(
             id: file.id,
             context: "AudioDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
-            didCreate: { ProductAnalytics.capture(.downloadStarted(.audio)) }
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.audio), startedIn: session) }
         )
     }
 

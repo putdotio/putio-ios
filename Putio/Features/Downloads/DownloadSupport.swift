@@ -62,11 +62,17 @@ enum DownloadSupport {
                 return didCommit && isCurrent
             }
             DispatchQueue.main.async {
+                var isQueued = false
                 if didWrite {
                     realm(context: context.appending("refresh"))?.refresh()
-                    didCreate()
+                    isQueued = queueController.isRecordCreationCurrent(token)
+                    if isQueued {
+                        didCreate()
+                    } else {
+                        _ = deleteRecord(id: id, context: context.appending("stale"), ifStateIs: .queued)
+                    }
                 }
-                queueController.recordCreationDidFinish(id: id, didWrite: didWrite)
+                queueController.recordCreationDidFinish(id: id, didWrite: isQueued)
             }
         }
         return true

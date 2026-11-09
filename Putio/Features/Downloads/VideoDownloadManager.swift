@@ -154,11 +154,12 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) -> Bool {
         log.verbose(["VDM: createDownload", file.id])
         discardDownload(id: file.id)
+        let session = AccountNoticeStore.shared.session
         return DownloadSupport.createRecord(
             id: file.id,
             context: "VideoDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
-            didCreate: { ProductAnalytics.capture(.downloadStarted(.video)) }
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.video), startedIn: session) }
         )
     }
 
