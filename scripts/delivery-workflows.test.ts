@@ -230,7 +230,7 @@ printf '%s\\n' "\${args//$'\\n'/\\\\n}" >> "$GH_LOG"
 case "$*" in
   *"--method POST"*"/git/tags"*) echo '{"sha":"t1"}' ;;
   *"--method POST"*) echo '{}' ;;
-  *"/git/ref/tags/"*) [ -n "$FAKE_REF" ] || { echo "Not Found" >&2; exit 1; }; printf '%s\\n' "$FAKE_REF" ;;
+  *"/git/ref/tags/"*) [ -n "$FAKE_REF" ] || { echo '{"message":"Not Found","status":"404"}'; echo "gh: Not Found (HTTP 404)" >&2; exit 1; }; printf '%s\\n' "$FAKE_REF" ;;
   *"/git/tags/"*) printf '%s\\n' "$FAKE_TAG" ;;
   *"/branches/main"*) printf '%s\\n' "$FAKE_BRANCH" ;;
   *"/compare/"*) printf '{"status":"%s"}\\n' "$FAKE_COMPARE" ;;
