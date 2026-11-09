@@ -112,11 +112,12 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
     }
 
-    func createDownload(from file: PutioFile) {
-        guard file.type == .audio else { return }
+    @discardableResult
+    func createDownload(from file: PutioFile) -> Bool {
+        guard file.type == .audio else { return false }
 
         discardDownload(id: file.id)
-        DownloadSupport.createRecord(
+        return DownloadSupport.createRecord(
             id: file.id,
             context: "AudioDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
