@@ -56,7 +56,7 @@ enum DownloadSupport {
                 guard let download = makeDownload(), let realm = realm(context: context) else { return false }
                 var isCurrent = false
                 let didCommit = write(realm, context: context.appending("write")) {
-                    isCurrent = queueController.isRecordCreationCurrent(token)
+                    isCurrent = queueController.claimRecordWrite(token)
                     guard isCurrent else { return }
                     realm.add(download, update: .all)
                 }
@@ -87,7 +87,12 @@ enum DownloadSupport {
         return true
     }
 
-    static func deleteRecord(id: Int, context: PutioRealm.Context, ifStateIsIn expectedStates: Set<Download.State>? = nil) -> Bool {
+    static func deleteRecord(
+        id: Int,
+        context: PutioRealm.Context,
+        ifStateIsIn expectedStates: Set<Download.State>? = nil,
+        keepingCurrentCreation: Bool = false
+    ) -> Bool {
         guard let realm = realm(context: context) else { return false }
         guard realm.object(ofType: Download.self, forPrimaryKey: id) != nil else {
             return true
@@ -98,6 +103,7 @@ enum DownloadSupport {
             guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
             stateMatched = expectedStates?.contains(download.state) ?? true
             guard stateMatched else { return }
+            guard !keepingCurrentCreation || !DownloadQueueController.sharedInstance.isRecordWrittenByCurrentCreation(id: id) else { return }
             realm.delete(download)
         }
         return didWrite && stateMatched
@@ -329,7 +335,7 @@ enum DownloadSupport {
                 return realm.object(ofType: Download.self, forPrimaryKey: id).map { .stored($0.state) } ?? .missing
             },
             deleteRecord: { expectedStates in
-                deleteRecord(id: id, context: context, ifStateIsIn: expectedStates)
+                deleteRecord(id: id, context: context, ifStateIsIn: expectedStates, keepingCurrentCreation: supersedesCreation)
             },
             localFileDeletionDidSucceed: {
                 UserDefaults.standard.removeObject(forKey: String(id))

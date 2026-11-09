@@ -258,7 +258,21 @@ final class DownloadQueueController {
     }
 
     func isRecordCreationCurrent(_ token: RecordCreationToken) -> Bool {
-        creationGenerations.withLock { !$0.isAccountCleanupPending && $0.token(for: token.id) == token }
+        creationGenerations.withLock { $0.isCurrent(token) }
+    }
+
+    func claimRecordWrite(_ token: RecordCreationToken) -> Bool {
+        creationGenerations.withLock {
+            guard $0.isCurrent(token) else { return false }
+            $0.writers[token.id] = token
+            return true
+        }
+    }
+
+    func isRecordWrittenByCurrentCreation(id: Int) -> Bool {
+        creationGenerations.withLock { generations in
+            generations.writers[id].map { generations.isCurrent($0) } ?? false
+        }
     }
 
     @discardableResult
@@ -304,7 +318,10 @@ final class DownloadQueueController {
     private func finishRecordCreations(id: Int) {
         guard let creation = creationsByID[id], creation.pending == 0, creation.pendingDeletions == 0 else { return }
         creationsByID.removeValue(forKey: id)
-        creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
+        creationGenerations.withLock {
+            $0.byID.removeValue(forKey: id)
+            $0.writers.removeValue(forKey: id)
+        }
         if creation.leftStaleRecord {
             removeStaleRecord(id: id, keepsRow: creation.deletionFailed)
         } else if creation.didWrite {
@@ -519,9 +536,14 @@ private struct CreationGenerations {
     var account = 0
     var isAccountCleanupPending = false
     var byID = [Int: Int]()
+    var writers = [Int: RecordCreationToken]()
 
     func token(for id: Int) -> RecordCreationToken {
         RecordCreationToken(id: id, account: account, record: byID[id, default: 0])
+    }
+
+    func isCurrent(_ token: RecordCreationToken) -> Bool {
+        !isAccountCleanupPending && self.token(for: token.id) == token
     }
 }
 
