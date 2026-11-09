@@ -3,6 +3,7 @@ set -euo pipefail
 
 app="${1:?usage: scripts/check-embedded-frameworks.sh <app-path>}"
 binary="$app/$(basename "$app" .app)"
+linked="$(otool -L "$binary")"
 
 missing=0
 while IFS= read -r framework; do
@@ -10,6 +11,6 @@ while IFS= read -r framework; do
     echo "$app links @rpath/$framework but does not embed it" >&2
     missing=1
   fi
-done < <(otool -L "$binary" | awk '$1 ~ /^@rpath\// { sub("^@rpath/", "", $1); print $1 }' | sort -u)
+done < <(awk '$1 ~ /^@rpath\// { sub("^@rpath/", "", $1); print $1 }' <<<"$linked" | sort -u)
 
 exit "$missing"
