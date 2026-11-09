@@ -56,7 +56,7 @@ enum DownloadSupport {
                 guard let download = makeDownload(), let realm = realm(context: context) else { return false }
                 var isCurrent = false
                 let didCommit = write(realm, context: context.appending("write")) {
-                    isCurrent = queueController.claimRecordWrite(token)
+                    isCurrent = queueController.claimRecordWrite(token, createdAt: download.createdAt)
                     guard isCurrent else { return }
                     realm.add(download, update: .all)
                 }
@@ -103,7 +103,7 @@ enum DownloadSupport {
             guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
             stateMatched = expectedStates?.contains(download.state) ?? true
             guard stateMatched else { return }
-            guard !keepingCurrentCreation || !DownloadQueueController.sharedInstance.isRecordWrittenByCurrentCreation(id: id) else { return }
+            guard !keepingCurrentCreation || !DownloadQueueController.sharedInstance.isRecordWrittenByCurrentCreation(download) else { return }
             realm.delete(download)
         }
         return didWrite && stateMatched

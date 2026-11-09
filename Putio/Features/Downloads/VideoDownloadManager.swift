@@ -180,10 +180,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
         let supersedesCreation = DownloadQueueController.sharedInstance.recordDeletionWillStart(id: id)
         deletion(for: id, supersedesCreation: supersedesCreation).perform { didDelete in
+            self.finishDeletion(id: id, didDelete: didDelete)
             if supersedesCreation {
                 DownloadQueueController.sharedInstance.recordDeletionDidFinish(id: id, didDelete: didDelete)
             }
-            self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
         }
     }

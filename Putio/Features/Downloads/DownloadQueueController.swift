@@ -261,17 +261,18 @@ final class DownloadQueueController {
         creationGenerations.withLock { $0.isCurrent(token) }
     }
 
-    func claimRecordWrite(_ token: RecordCreationToken) -> Bool {
+    func claimRecordWrite(_ token: RecordCreationToken, createdAt: Date?) -> Bool {
         creationGenerations.withLock {
             guard $0.isCurrent(token) else { return false }
-            $0.writers[token.id] = token
+            $0.writers[token.id] = createdAt.map { RecordWriter(token: token, createdAt: $0) }
             return true
         }
     }
 
-    func isRecordWrittenByCurrentCreation(id: Int) -> Bool {
+    func isRecordWrittenByCurrentCreation(_ download: Download) -> Bool {
         creationGenerations.withLock { generations in
-            generations.writers[id].map { generations.isCurrent($0) } ?? false
+            guard let writer = generations.writers[download.id] else { return false }
+            return writer.createdAt == download.createdAt && generations.isCurrent(writer.token)
         }
     }
 
@@ -532,11 +533,16 @@ struct RecordCreationToken: Equatable {
     let record: Int
 }
 
+private struct RecordWriter {
+    let token: RecordCreationToken
+    let createdAt: Date
+}
+
 private struct CreationGenerations {
     var account = 0
     var isAccountCleanupPending = false
     var byID = [Int: Int]()
-    var writers = [Int: RecordCreationToken]()
+    var writers = [Int: RecordWriter]()
 
     func token(for id: Int) -> RecordCreationToken {
         RecordCreationToken(id: id, account: account, record: byID[id, default: 0])
