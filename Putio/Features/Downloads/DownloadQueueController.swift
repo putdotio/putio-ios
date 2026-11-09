@@ -269,6 +269,21 @@ final class DownloadQueueController {
         return true
     }
 
+    func recordDeletionWillStart(id: Int) -> Bool {
+        guard invalidateRecordCreations(id: id) else { return false }
+        creationsByID[id]?.pendingDeletions += 1
+        return true
+    }
+
+    func recordDeletionDidFinish(id: Int, didDelete: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard var creation = creationsByID[id] else { return }
+        creation.pendingDeletions -= 1
+        if !didDelete { creation.deletionFailed = true }
+        creationsByID[id] = creation
+        finishRecordCreations(id: id)
+    }
+
     func recordCreationDidFinish(id: Int, outcome: RecordCreationOutcome) {
         dispatchPrecondition(condition: .onQueue(.main))
         guard var creation = creationsByID[id] else { return }
@@ -282,14 +297,16 @@ final class DownloadQueueController {
         case .notWritten:
             break
         }
-        guard creation.pending == 0 else {
-            creationsByID[id] = creation
-            return
-        }
+        creationsByID[id] = creation
+        finishRecordCreations(id: id)
+    }
+
+    private func finishRecordCreations(id: Int) {
+        guard let creation = creationsByID[id], creation.pending == 0, creation.pendingDeletions == 0 else { return }
         creationsByID.removeValue(forKey: id)
         creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
         if creation.leftStaleRecord {
-            removeStaleRecord(id: id)
+            removeStaleRecord(id: id, keepsRow: creation.deletionFailed)
         } else if creation.didWrite {
             downloadWasQueued()
         } else if !creationGenerations.withLock({ $0.isAccountCleanupPending }), isInFlightWithoutTask(id: id) {
@@ -297,11 +314,11 @@ final class DownloadQueueController {
         }
     }
 
-    private func removeStaleRecord(id: Int) {
+    private func removeStaleRecord(id: Int, keepsRow: Bool) {
         DownloadSupport.recordQueue.async {
             let context: PutioRealm.Context = "DownloadQueueController.staleRecordCreation"
             let didRemove = autoreleasepool { () -> Bool in
-                if DownloadSupport.deleteRecord(id: id, context: context, ifStateIsIn: [.queued]) { return true }
+                if !keepsRow, DownloadSupport.deleteRecord(id: id, context: context, ifStateIsIn: [.queued]) { return true }
                 guard let realm = DownloadSupport.realm(context: context.appending("stop")) else { return false }
                 return DownloadSupport.write(realm, context: context.appending("stop.write")) {
                     guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
@@ -482,6 +499,8 @@ private struct RecordCreation {
     var pending = 0
     var didWrite = false
     var leftStaleRecord = false
+    var pendingDeletions = 0
+    var deletionFailed = false
 }
 
 enum RecordCreationOutcome {

@@ -799,6 +799,33 @@ final class DownloadCreationTests: XCTestCase {
         XCTAssertEqual(createdCount, 0)
     }
 
+    func testAFailedDeleteOfARedownloadBetweenItsCommitAndCompletionKeepsTheRow() throws {
+        let id = 9_004_999
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        UserDefaults.standard.set("unresolvable bookmark", forKey: String(id))
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) {})
+        DownloadSupport.recordQueue.sync {}
+        let deleted = expectation(description: "deletion finished")
+        var didDelete = true
+        VideoDownloadManager.sharedInstance.deleteDownload(id: id) {
+            didDelete = $0
+            deleted.fulfill()
+        }
+        wait(for: [deleted], timeout: 10)
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
+        XCTAssertNotNil(UserDefaults.standard.object(forKey: String(id)))
+    }
+
     func testASignOutBetweenCommitAndCompletionCapturesNothing() throws {
         let id = 9_004_998
         let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
