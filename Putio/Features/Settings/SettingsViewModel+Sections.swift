@@ -144,6 +144,17 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
+                    title: NSLocalizedString("Rotate videos to landscape", comment: ""),
+                    type: .toggle,
+                    icon: .deviceRotate,
+                    value: config.autoRotateVideo,
+                    action: { [weak self] in
+                        guard let self else { return }
+                        self.saveAutoRotateVideo(!self.config.autoRotateVideo)
+                    },
+                    visible: UIDevice.current.userInterfaceIdiom == .phone
+                ),
+                SettingsModel.SectionItem(
                     title: NSLocalizedString("Show subtitles", comment: ""),
                     type: .toggle,
                     icon: .closedCaptioning,

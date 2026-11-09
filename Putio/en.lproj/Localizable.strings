@@ -658,6 +658,9 @@
 /* No comment provided by engineer. */
 "Revoke" = "Revoke";
 
+/* No comment provided by engineer. */
+"Rotate videos to landscape" = "Rotate videos to landscape";
+
 /* Audio player controls. */
 "Rewind 15 seconds" = "Rewind 15 seconds";
 

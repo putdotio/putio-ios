@@ -45,18 +45,21 @@ extension PutioListTrashResponse {
 struct AppConfig: Decodable {
     enum CodingKeys: String, CodingKey {
         case chromecastPlaybackType = "chromecast_playback_type"
+        case autoRotateVideo = "auto_rotate_video"
         // One flat key, dot included. put.io keeps it per OAuth app, so an
         // answer given on the web doesn't reach this app.
         case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
     }
 
     let chromecastPlaybackType: PutioChromecastPlaybackType
+    let autoRotateVideo: Bool
     let productAnalyticsPromptAnswered: Bool
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawValue = try container.decodeIfPresent(String.self, forKey: .chromecastPlaybackType)
         chromecastPlaybackType = rawValue.flatMap(PutioChromecastPlaybackType.init(rawValue:)) ?? .hls
+        autoRotateVideo = (try? container.decodeIfPresent(Bool.self, forKey: .autoRotateVideo)) ?? true
 
         do {
             productAnalyticsPromptAnswered = try container.decodeIfPresent(Bool.self, forKey: .productAnalyticsPromptAnswered) ?? false
@@ -130,6 +133,15 @@ extension PutioSDK {
     ) {
         complete(completion) {
             try await self.setConfigValue(key: AppConfig.CodingKeys.chromecastPlaybackType.rawValue, playbackType)
+        }
+    }
+
+    func setAutoRotateVideo(
+        _ enabled: Bool,
+        _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void
+    ) {
+        complete(completion) {
+            try await self.setConfigValue(key: AppConfig.CodingKeys.autoRotateVideo.rawValue, enabled)
         }
     }
 

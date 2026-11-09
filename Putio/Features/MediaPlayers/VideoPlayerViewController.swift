@@ -32,6 +32,17 @@ class VideoPlayerViewController: AVPlayerViewController {
         return true
     }
 
+    private lazy var holdsLandscape: Bool = UIDevice.current.userInterfaceIdiom == .phone
+        && realm?.objects(UserConfig.self).first?.autoRotateVideo ?? true
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        holdsLandscape ? .landscape : super.supportedInterfaceOrientations
+    }
+
+    override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation {
+        holdsLandscape ? .landscapeRight : super.preferredInterfaceOrientationForPresentation
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         view.accessibilityIdentifier = "putio-video-player"

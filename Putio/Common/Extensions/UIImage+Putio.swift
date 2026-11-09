@@ -37,6 +37,7 @@ enum PutioIcon: String, CaseIterable {
     case cloudArrowDown = "cloud-arrow-down-regular"
     case cloudArrowDownFill = "cloud-arrow-down-fill"
     case cloudArrowUp = "cloud-arrow-up-regular"
+    case deviceRotate = "device-rotate-regular"
     case devices = "devices-regular"
     case dotsThreeCircle = "dots-three-circle-regular"
     case downloadSimple = "download-simple-regular"
