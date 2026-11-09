@@ -3,20 +3,23 @@ import XCTest
 @testable import Putio
 
 final class FilesSelectionTests: XCTestCase {
-    func testSelectAllSelectsEveryRowOfALargeListAndDeselectClearsThem() throws {
+    func testSelectAllButtonSelectsEveryRowOfALargeListAndDeselectAllClearsThem() throws {
         let fileCount = 5_000
         FilesListStub.answerFilesList(with: fileCount, in: self)
         let folder = try pushLoadedFolder(onto: makeFilesNavigation(), listing: fileCount)
 
         folder.startEditing()
-        folder.toggleSelectAll()
+        let button = try XCTUnwrap(folder.navigationItem.leftBarButtonItem)
+        XCTAssertEqual(button.title, "Select All")
+
+        try tap(button)
 
         XCTAssertEqual(folder.tableView.indexPathsForSelectedRows?.count, fileCount)
-        XCTAssertTrue(folder.allSelected)
+        XCTAssertEqual(folder.navigationItem.leftBarButtonItem?.title, "Deselect All")
 
-        folder.toggleSelectAll()
+        try tap(button)
 
         XCTAssertEqual(folder.tableView.indexPathsForSelectedRows ?? [], [])
-        XCTAssertFalse(folder.allSelected)
+        XCTAssertEqual(folder.navigationItem.leftBarButtonItem?.title, "Select All")
     }
 }

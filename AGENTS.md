@@ -32,9 +32,9 @@ in `Putio/Common`.
   uploads to App Store Connect, Screenshots replaces the live listing images
   unless it runs as a dry run, and Submit sends a build to App Review. Dispatch
   them only when asked ([workflows](.github/workflows)).
-- **Baselines.** Record them only on the ephemeral simulator that `verify` and
-  `e2e-simulator` create. A device picked with `PUTIO_SIMULATOR_ID=<udid>`
-  keeps its own locale.
+- **Baselines.** Record them only with `mise run screenshots-record`, on the
+  ephemeral simulator it creates. A device picked with
+  `PUTIO_SIMULATOR_ID=<udid>` keeps its own locale.
 
 ## Verification
 

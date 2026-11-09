@@ -146,6 +146,25 @@ final class ClearDataScreenTests: XCTestCase {
         XCTAssertEqual(AccountClearStub.requests, 1)
     }
 
+    func testFailedClearSaysSoAndKeepsTheScreenOpenForAnotherTry() throws {
+        AccountClearStub.start(in: self, failing: true)
+        let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: ClearDataTableViewController.self))
+        let screen = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "ClearData") as? ClearDataTableViewController)
+        let navigation = try pushOnWindow(screen)
+        let clear = try XCTUnwrap(screen.navigationItem.rightBarButtonItem)
+        try select("Trash", in: screen)
+
+        try tap(clear)
+        try chooseAlertAction("Clear", in: try waitForAlert(on: screen, titled: "Clear the selected data?"))
+
+        let failure = try waitForAlert(on: screen, titled: "Network error")
+        XCTAssertEqual(failure.message, "Please check your internet connection and try again.")
+        XCTAssertEqual(failure.actions.map(\.title), ["OK"])
+        XCTAssertEqual(AccountClearStub.requests, 1)
+        XCTAssertIdentical(navigation.topViewController, screen, "a failed clear should stay on the screen")
+        XCTAssertTrue(clear.isEnabled, "a failed clear should leave Clear available for another try")
+    }
+
     private func select(_ title: String, in screen: ClearDataTableViewController) throws {
         let tableView = screen.tableView!
         let row = try XCTUnwrap((0..<tableView.numberOfRows(inSection: 0)).first { row in
@@ -154,19 +173,17 @@ final class ClearDataScreenTests: XCTestCase {
         screen.tableView(tableView, didSelectRowAt: IndexPath(row: row, section: 0))
     }
 
-    private func tap(_ item: UIBarButtonItem) throws {
-        let action = try XCTUnwrap(item.action)
-        XCTAssertTrue(UIApplication.shared.sendAction(action, to: item.target, from: item, for: nil))
-    }
 }
 
 private final class AccountClearStub: URLProtocol {
     private static let sent = OSAllocatedUnfairLock(initialState: 0)
+    private static let failsClear = OSAllocatedUnfairLock(initialState: false)
 
     static var requests: Int { sent.withLock { $0 } }
 
-    static func start(in testCase: XCTestCase) {
+    static func start(in testCase: XCTestCase, failing: Bool = false) {
         sent.withLock { $0 = 0 }
+        failsClear.withLock { $0 = failing }
         URLProtocol.registerClass(AccountClearStub.self)
         testCase.addTeardownBlock { URLProtocol.unregisterClass(AccountClearStub.self) }
     }
@@ -188,6 +205,10 @@ private final class AccountClearStub: URLProtocol {
         }
 
         Self.sent.withLock { $0 += 1 }
+        if Self.failsClear.withLock({ $0 }) {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(#"{"status":"OK"}"#.utf8))
         client?.urlProtocolDidFinishLoading(self)
@@ -207,6 +228,11 @@ extension XCTestCase {
         navigation.pushViewController(viewController, animated: false)
         navigation.view.layoutIfNeeded()
         return navigation
+    }
+
+    func tap(_ item: UIBarButtonItem) throws {
+        let action = try XCTUnwrap(item.action)
+        XCTAssertTrue(UIApplication.shared.sendAction(action, to: item.target, from: item, for: nil))
     }
 
     func waitForAlert(on viewController: UIViewController, titled title: String, timeout: TimeInterval = 10) throws -> UIAlertController {

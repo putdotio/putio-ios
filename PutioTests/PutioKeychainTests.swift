@@ -277,28 +277,34 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(privacyValues(viewModel), [false, true])
     }
 
-    func testPrivacyControlsPageSwitchesSaveThroughPutioAndTheAccountRowFollows() throws {
+    func testPrivacyControlsRowOpensThePageWhoseSwitchesSaveThroughPutioAndTheAccountRowFollows() throws {
         var patches: [PutioAccountSettingsPatch] = []
+        var pendingSave: ((Result<Void, PutioSDKError>) -> Void)?
         let viewModel = SettingsViewModel(
             saveAccountSettingsRequest: { update, completion in
                 if case .patch(let patch) = update { patches.append(patch) }
-                completion(.success(()))
+                pendingSave = completion
             },
             markProductAnalyticsPromptAnsweredRequest: { $0(.success(())) },
             applyDiagnostics: { _ in },
-            applyProductAnalytics: { _, _ in }
+            applyProductAnalytics: { _, _ in },
+            fetchAccountInfoRequest: { _ in }
         )
-        let account = attachSpy(to: viewModel)
+        let account = try storyboardAccount()
         account.viewModel = viewModel
-        let navigation = UINavigationController(rootViewController: account)
-        account.loadViewIfNeeded()
+        let navigation = try pushOnWindow(account)
 
-        let row = try accountCell(titled: "Privacy controls", in: account)
+        let row = try XCTUnwrap(displayedCell(titled: "Privacy controls", in: account.tableView), "Account should show a Privacy controls row")
         XCTAssertEqual(row.cell.detailTextLabel?.text, "Diagnostics on · Product analytics off")
-        account.tableView(account.tableView, didSelectRowAt: row.indexPath)
+        XCTAssertNil(displayedCell(titled: "Always on", in: account.tableView), "the controls live on their own page")
+        account.tableView.delegate?.tableView?(account.tableView, didSelectRowAt: row.indexPath)
 
+        let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (navigation.topViewController as? PrivacyControlsViewController)?.viewIfLoaded?.window != nil
+                && navigation.transitionCoordinator == nil
+        }, object: nil)
+        wait(for: [shown], timeout: 5)
         let page = try XCTUnwrap(navigation.topViewController as? PrivacyControlsViewController)
-        page.loadViewIfNeeded()
         XCTAssertEqual(page.navigationItem.title, "Privacy controls")
         let texts = pageTexts(page)
         for copy in [
@@ -314,58 +320,80 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(try switchValue("Product analytics", on: page), false)
 
         try flipSwitch("Diagnostics", on: page)
+        try finishSave(&pendingSave, on: page)
         XCTAssertEqual(patches.map(\.diagnosticsEnabled), [false])
         XCTAssertEqual(try switchValue("Diagnostics", on: page), false)
 
         try flipSwitch("Product analytics", on: page)
+        try finishSave(&pendingSave, on: page)
         XCTAssertEqual(patches.map(\.productAnalyticsEnabled), [nil, true])
         XCTAssertEqual(try switchValue("Product analytics", on: page), true)
 
         navigation.popViewController(animated: false)
-        XCTAssertEqual(try accountCell(titled: "Privacy controls", in: account).cell.detailTextLabel?.text, "Diagnostics off · Product analytics on")
+        account.view.layoutIfNeeded()
+        let updated = try XCTUnwrap(displayedCell(titled: "Privacy controls", in: account.tableView))
+        XCTAssertEqual(updated.cell.detailTextLabel?.text, "Diagnostics off · Product analytics on")
     }
 
-    private func accountCell(titled title: String, in account: SettingsTableViewController) throws -> (cell: UITableViewCell, indexPath: IndexPath) {
-        let visible = account.viewModel.sections.map { $0.items.filter(\.visible) }
-        let section = try XCTUnwrap(visible.firstIndex { $0.contains { $0.title == title } }, title)
-        let row = try XCTUnwrap(visible[section].firstIndex { $0.title == title }, title)
-        let indexPath = IndexPath(row: row, section: section)
-        return (account.tableView(account.tableView, cellForRowAt: indexPath), indexPath)
+    private func storyboardAccount() throws -> SettingsTableViewController {
+        let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: SettingsTableViewController.self))
+        let tabBar = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? UITabBarController)
+        let tab = try XCTUnwrap(tabBar.viewControllers?.compactMap { $0 as? UINavigationController }.first { $0.viewControllers.first is SettingsTableViewController })
+        let account = try XCTUnwrap(tab.viewControllers.first as? SettingsTableViewController)
+        tab.viewControllers = []
+        return account
     }
 
-    private func pageCells(_ page: PrivacyControlsViewController) -> [UITableViewCell] {
-        let tableView = page.tableView!
-        return (0..<page.numberOfSections(in: tableView)).flatMap { section in
-            (0..<page.tableView(tableView, numberOfRowsInSection: section)).map { row in
-                page.tableView(tableView, cellForRowAt: IndexPath(row: row, section: section))
+    private func finishSave(_ pendingSave: inout ((Result<Void, PutioSDKError>) -> Void)?, on page: PrivacyControlsViewController) throws {
+        _ = try waitForAlert(on: page, titled: "Saving...")
+        try XCTUnwrap(pendingSave, "the switch should send its setting to put.io")(.success(()))
+        pendingSave = nil
+        let saved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in page.presentedViewController == nil }, object: nil)
+        wait(for: [saved], timeout: 5)
+    }
+
+    private func displayedCell(titled title: String, in tableView: UITableView) -> (cell: UITableViewCell, indexPath: IndexPath)? {
+        for indexPath in displayedIndexPaths(in: tableView) {
+            tableView.scrollToRow(at: indexPath, at: .middle, animated: false)
+            tableView.layoutIfNeeded()
+            if let cell = tableView.cellForRow(at: indexPath), cell.textLabel?.text == title {
+                return (cell, indexPath)
             }
+        }
+        return nil
+    }
+
+    private func displayedIndexPaths(in tableView: UITableView) -> [IndexPath] {
+        (0..<tableView.numberOfSections).flatMap { section in
+            (0..<tableView.numberOfRows(inSection: section)).map { IndexPath(row: $0, section: section) }
         }
     }
 
     private func pageTexts(_ page: PrivacyControlsViewController) -> Set<String> {
         let tableView = page.tableView!
-        let cellTexts = pageCells(page).flatMap { cell in
-            [cell.textLabel?.text, cell.detailTextLabel?.text, (cell.accessoryView as? UILabel)?.text].compactMap { $0 }
+        let cellTexts = displayedIndexPaths(in: tableView).flatMap { indexPath -> [String] in
+            tableView.scrollToRow(at: indexPath, at: .middle, animated: false)
+            tableView.layoutIfNeeded()
+            guard let cell = tableView.cellForRow(at: indexPath) else { return [] }
+            return [cell.textLabel?.text, cell.detailTextLabel?.text, (cell.accessoryView as? UILabel)?.text].compactMap { $0 }
         }
-        let footers = (0..<page.numberOfSections(in: tableView)).compactMap { page.tableView(tableView, titleForFooterInSection: $0) }
+        let footers = (0..<tableView.numberOfSections).compactMap { page.tableView(tableView, titleForFooterInSection: $0) }
         return Set(cellTexts + footers)
     }
 
-    private func pageSwitch(_ title: String, on page: PrivacyControlsViewController) throws -> (cell: UITableViewCell, control: UISwitch) {
-        let cell = try XCTUnwrap(pageCells(page).first { $0.textLabel?.text == title }, title)
-        return (cell, try XCTUnwrap(cell.accessoryView as? UISwitch, title))
+    private func pageSwitch(_ title: String, on page: PrivacyControlsViewController) throws -> UISwitch {
+        let row = try XCTUnwrap(displayedCell(titled: title, in: page.tableView), title)
+        return try XCTUnwrap(row.cell.accessoryView as? UISwitch, title)
     }
 
     private func switchValue(_ title: String, on page: PrivacyControlsViewController) throws -> Bool {
-        try pageSwitch(title, on: page).control.isOn
+        try pageSwitch(title, on: page).isOn
     }
 
     private func flipSwitch(_ title: String, on page: PrivacyControlsViewController) throws {
-        let row = try pageSwitch(title, on: page)
-        row.control.isOn.toggle()
-        withExtendedLifetime(row.cell) {
-            row.control.sendActions(for: .valueChanged)
-        }
+        let control = try pageSwitch(title, on: page)
+        control.isOn.toggle()
+        control.sendActions(for: .valueChanged)
     }
 
     func testSignedInScreensAreReleasedWhenTheAppLeavesThem() throws {
