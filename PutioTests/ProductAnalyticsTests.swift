@@ -217,11 +217,12 @@ final class ProductAnalyticsTests: XCTestCase {
         _ = try waitForEvents(token: token, count: 1)
         gate.capture(.screenViewed(.files))
         let events = try waitForEvents(token: token, count: 2)
-        try waitForConfig(token: token)
+        try waitForRemoteConfig(XCTUnwrap(gate.runningSDK))
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "screen_viewed"])
         XCTAssertEqual(Set(events.map { $0["distinct_id"] as? String }), ["1001"])
         let paths = requests(token: token).compactMap(\.url?.path)
+        XCTAssertTrue(paths.contains("/array/\(token)/config"), "\(paths)")
         XCTAssertTrue(paths.contains("/batch"), "\(paths)")
         XCTAssertFalse(paths.contains { $0.hasPrefix("/flags") || $0.contains("push_subscriptions") }, "\(paths)")
         XCTAssertTrue(requests(token: token).allSatisfy { $0.url?.host == "burrow.put.io" })
@@ -236,7 +237,7 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         gate.capture(.screenViewed(.files))
         _ = try waitForEvents(token: token, count: 1)
-        try waitForConfig(token: token)
+        try waitForRemoteConfig(XCTUnwrap(gate.runningSDK))
         XCTAssertTrue(FileManager.default.fileExists(atPath: gate.storageDirectory(token: token).path))
 
         gate.settingDidSave(enabled: false)
@@ -501,7 +502,9 @@ final class ProductAnalyticsTests: XCTestCase {
         let (killed, token) = makeGate()
         killed.update(accountID: 1001, productAnalyticsEnabled: true)
         // As if the process died while capturing: the SDK's storage stays behind.
-        try XCTUnwrap(killed.runningSDK).close()
+        let killedSDK = try XCTUnwrap(killed.runningSDK)
+        try waitForRemoteConfig(killedSDK)
+        killedSDK.close()
 
         let (relaunched, _) = makeGate(token: token)
         relaunched.update(accountID: 1002, productAnalyticsEnabled: true)
@@ -825,15 +828,17 @@ final class ProductAnalyticsTests: XCTestCase {
         return sent
     }
 
-    private func waitForConfig(token: String) throws {
-        let path = "/array/\(token)/config"
+    private func waitForRemoteConfig(_ sdk: PostHogSDK) throws {
+        var loaded = false
+        let subscription = sdk.onFeatureFlags { _ in loaded = true }
+        defer { subscription.unsubscribe() }
         let deadline = Date().addingTimeInterval(Self.aWaitTimedOut ? 10 : 90)
-        while !requests(token: token).contains(where: { $0.url?.path == path }), Date() < deadline {
+        while !loaded, Date() < deadline {
             spinRunLoop(seconds: 0.05)
         }
-        guard requests(token: token).contains(where: { $0.url?.path == path }) else {
+        guard loaded else {
             Self.aWaitTimedOut = true
-            throw MissingEvents(description: "no config request: \(requests(token: token).map(\.url))")
+            throw MissingEvents(description: "no /config reply: \(RecordingURLProtocol.requests.map(\.url))")
         }
     }
 
@@ -869,6 +874,7 @@ private final class RecordingURLProtocol: URLProtocol {
     }
 
     private static let configDelay: TimeInterval = 0.5
+    private var isStopped = false
     private static let recorded = OSAllocatedUnfairLock(uncheckedState: [Request]())
     private static let holds = OSAllocatedUnfairLock(uncheckedState: Holds())
 
@@ -921,7 +927,8 @@ private final class RecordingURLProtocol: URLProtocol {
     }
 
     @objc private func respond() {
-        guard let url = request.url,
+        guard !isStopped,
+              let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])
         else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -929,7 +936,9 @@ private final class RecordingURLProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        isStopped = true
+    }
 
     private static func read(_ stream: InputStream) -> Data {
         stream.open()
