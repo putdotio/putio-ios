@@ -146,27 +146,52 @@ final class ClearDataScreenTests: XCTestCase {
         XCTAssertEqual(AccountClearStub.requests, 1)
     }
 
+    func testFailedClearSaysSoAndKeepsTheScreenOpenForAnotherTry() throws {
+        AccountClearStub.start(in: self, failing: true)
+        let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: ClearDataTableViewController.self))
+        let screen = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "ClearData") as? ClearDataTableViewController)
+        let navigation = try pushOnWindow(screen)
+        let clear = try XCTUnwrap(screen.navigationItem.rightBarButtonItem)
+        try select("Trash", in: screen)
+
+        try tap(clear)
+        try chooseAlertAction("Clear", in: try waitForAlert(on: screen, titled: "Clear the selected data?"))
+
+        let failure = try waitForAlert(on: screen, titled: "Network error")
+        XCTAssertEqual(failure.message, "Please check your internet connection and try again.")
+        XCTAssertEqual(failure.actions.map(\.title), ["OK"])
+        XCTAssertEqual(AccountClearStub.requests, 1)
+        XCTAssertIdentical(navigation.topViewController, screen, "a failed clear should stay on the screen")
+
+        let dismissed = expectation(description: "error alert dismissed")
+        screen.dismiss(animated: false) { dismissed.fulfill() }
+        wait(for: [dismissed], timeout: 5)
+        try tap(try XCTUnwrap(screen.navigationItem.rightBarButtonItem))
+        let retry = try waitForAlert(on: screen, titled: "Clear the selected data?")
+        XCTAssertEqual(retry.message, "This permanently deletes Trash from your put.io account. It can't be undone.")
+        try chooseAlertAction("Clear", in: retry)
+        _ = try waitForAlert(on: screen, titled: "Network error")
+        XCTAssertEqual(AccountClearStub.requests, 2, "the retry should send the request again")
+    }
+
     private func select(_ title: String, in screen: ClearDataTableViewController) throws {
-        let tableView = screen.tableView!
+        let tableView = try XCTUnwrap(screen.tableView)
         let row = try XCTUnwrap((0..<tableView.numberOfRows(inSection: 0)).first { row in
             screen.tableView(tableView, cellForRowAt: IndexPath(row: row, section: 0)).textLabel?.text == title
         }, title)
-        screen.tableView(tableView, didSelectRowAt: IndexPath(row: row, section: 0))
-    }
-
-    private func tap(_ item: UIBarButtonItem) throws {
-        let action = try XCTUnwrap(item.action)
-        XCTAssertTrue(UIApplication.shared.sendAction(action, to: item.target, from: item, for: nil))
+        try tapRow(at: IndexPath(row: row, section: 0), in: tableView)
     }
 }
 
 private final class AccountClearStub: URLProtocol {
     private static let sent = OSAllocatedUnfairLock(initialState: 0)
+    private static let failsClear = OSAllocatedUnfairLock(initialState: false)
 
     static var requests: Int { sent.withLock { $0 } }
 
-    static func start(in testCase: XCTestCase) {
+    static func start(in testCase: XCTestCase, failing: Bool = false) {
         sent.withLock { $0 = 0 }
+        failsClear.withLock { $0 = failing }
         URLProtocol.registerClass(AccountClearStub.self)
         testCase.addTeardownBlock { URLProtocol.unregisterClass(AccountClearStub.self) }
     }
@@ -188,6 +213,10 @@ private final class AccountClearStub: URLProtocol {
         }
 
         Self.sent.withLock { $0 += 1 }
+        if Self.failsClear.withLock({ $0 }) {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(#"{"status":"OK"}"#.utf8))
         client?.urlProtocolDidFinishLoading(self)
@@ -207,6 +236,30 @@ extension XCTestCase {
         navigation.pushViewController(viewController, animated: false)
         navigation.view.layoutIfNeeded()
         return navigation
+    }
+
+    func tap(_ item: UIBarButtonItem) throws {
+        let action = try XCTUnwrap(item.isEnabled ? item.action : nil, "\(item.title ?? "button") is disabled, so a user can't tap it")
+        XCTAssertTrue(UIApplication.shared.sendAction(action, to: item.target, from: item, for: nil))
+    }
+
+    func tapRow(at indexPath: IndexPath, in tableView: UITableView) throws {
+        XCTAssertNotNil(tableView.window, "the table must be on screen to take a tap")
+        XCTAssertTrue(tableView.isEditing ? tableView.allowsSelectionDuringEditing : tableView.allowsSelection, "the table doesn't take row taps")
+        tableView.scrollToRow(at: indexPath, at: .middle, animated: false)
+        tableView.layoutIfNeeded()
+        let cell = try XCTUnwrap(tableView.cellForRow(at: indexPath), "row \(indexPath) isn't displayed")
+        XCTAssertTrue(cell.isUserInteractionEnabled && !cell.isHidden, "row \(indexPath) can't be touched")
+        XCTAssertTrue(tableView.delegate?.tableView?(tableView, shouldHighlightRowAt: indexPath) ?? true, "row \(indexPath) refuses the touch")
+        let willSelect: IndexPath?
+        if let delegate = tableView.delegate, let ask = delegate.tableView(_:willSelectRowAt:) {
+            willSelect = ask(tableView, indexPath)
+        } else {
+            willSelect = indexPath
+        }
+        let selected = try XCTUnwrap(willSelect, "row \(indexPath) refuses selection")
+        tableView.selectRow(at: selected, animated: false, scrollPosition: .none)
+        tableView.delegate?.tableView?(tableView, didSelectRowAt: selected)
     }
 
     func waitForAlert(on viewController: UIViewController, titled title: String, timeout: TimeInterval = 10) throws -> UIAlertController {

@@ -2,26 +2,36 @@ import XCTest
 
 final class FilePreviewUITests: XCTestCase {
     private let largeImage = 400_000_001
-    private let document = 500_000_001
+    private let chainHeadFolder = 100_000_001
+    private let pdfRowsInChainHead = "putio-file-500010"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     func testLargeImageOpens() {
-        assertPreviewOpens(file: largeImage, titled: "Perf fixture photo 8064x6048.jpg")
+        let app = launch(opening: largeImage)
+
+        XCTAssertTrue(app.navigationBars["Perf fixture photo 8064x6048.jpg"].appears(within: 60), "the large fixture root should list and open the file")
+        assertPreviewShows(in: app)
     }
 
-    func testLargePDFOpens() {
-        assertPreviewOpens(file: document, titled: "Perf fixture document 300 pages.pdf")
+    func testTappingAPDFRowOpensItsPreview() {
+        let app = launch(opening: chainHeadFolder)
+        let row = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", pdfRowsInChainHead)).firstMatch
+        XCTAssertTrue(row.appears(within: 60), "the opened folder should list a PDF")
+        for _ in 0..<5 where !row.isHittable {
+            app.tables.firstMatch.swipeUp()
+        }
+        let name = row.label
+
+        row.tap()
+
+        XCTAssertTrue(app.navigationBars[name].appears(within: 10), "tapping the row should open \(name)")
+        assertPreviewShows(in: app)
     }
 
-    private func assertPreviewOpens(
-        file id: Int,
-        titled title: String,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) {
+    private func launch(opening id: Int) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment = [
             "PUTIO_E2E_MOCK_API": "1",
@@ -31,8 +41,10 @@ final class FilePreviewUITests: XCTestCase {
             "PUTIO_E2E_OPEN_FILE": String(id)
         ]
         app.launch()
+        return app
+    }
 
-        XCTAssertTrue(app.navigationBars[title].appears(within: 60), "the large fixture root should list and open the file", file: file, line: line)
+    private func assertPreviewShows(in app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(app.staticTexts["Fetching File"].disappears(within: 60), "the loader should hide", file: file, line: line)
         XCTAssertTrue(app.descendants(matching: .any)["putio-preview-content"].appears(within: 5), "the file should show", file: file, line: line)
         XCTAssertFalse(app.alerts.firstMatch.exists, "the preview should not report an error", file: file, line: line)

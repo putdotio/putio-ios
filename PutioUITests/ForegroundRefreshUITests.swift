@@ -2,7 +2,8 @@ import XCTest
 
 final class ForegroundRefreshUITests: XCTestCase {
     private let foldersPushed = 3
-    private let stabilityWindow: TimeInterval = 1
+    private static let stabilityWindow: TimeInterval = 1
+    private let lateDuplicateWindow: TimeInterval = 4
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -22,7 +23,7 @@ final class ForegroundRefreshUITests: XCTestCase {
         XCTAssertTrue(downloadsFolder.appears(within: 10))
         let probe = app.otherElements["putio-perf-probe"]
         XCTAssertTrue(probe.appears(within: 5), "the mocked API installs the request probe")
-        var requests = stableRequestCount(probe)
+        guard var requests = stableRequestCount(probe) else { return }
 
         for _ in 0..<foldersPushed {
             downloadsFolder.tap()
@@ -34,14 +35,19 @@ final class ForegroundRefreshUITests: XCTestCase {
             app.navigationBars.buttons.element(boundBy: 0).tap()
             XCTAssertTrue(downloadsFolder.appears(within: 10))
         }
-        let beforeBackground = stableRequestCount(probe)
+        guard let beforeBackground = stableRequestCount(probe) else { return }
 
         XCUIDevice.shared.press(.home)
         XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10))
         app.activate()
         XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10))
 
-        assertRequests(probe, reach: beforeBackground + 1, "only the visible folder refetches on foreground")
+        assertRequests(
+            probe,
+            reach: beforeBackground + 1,
+            holdingFor: lateDuplicateWindow,
+            "only the visible folder refetches on foreground"
+        )
     }
 
     private func requestCount(_ probe: XCUIElement) -> Int {
@@ -54,25 +60,31 @@ final class ForegroundRefreshUITests: XCTestCase {
     }
 
     private func countChanges(_ probe: XCUIElement, from count: Int, within timeout: TimeInterval) -> Bool {
-        let changed = NSPredicate { element, _ in
-            Self.requestCount(of: (element as? XCUIElement)?.value) != count
-        }
-        return probe.reaches(changed, within: timeout)
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if requestCount(probe) != count { return true }
+        } while Date() < deadline
+        return false
     }
 
-    private func stableRequestCount(_ probe: XCUIElement) -> Int {
+    private func stableRequestCount(
+        _ probe: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> Int? {
         var count = requestCount(probe)
-        var windows = 0
-        while windows < 10, countChanges(probe, from: count, within: stabilityWindow) {
+        for _ in 0..<10 {
+            guard countChanges(probe, from: count, within: Self.stabilityWindow) else { return count }
             count = requestCount(probe)
-            windows += 1
         }
-        return count
+        XCTFail("the files list request count never settled; last read \(count)", file: file, line: line)
+        return nil
     }
 
     private func assertRequests(
         _ probe: XCUIElement,
         reach expected: Int,
+        holdingFor window: TimeInterval = stabilityWindow,
         _ message: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -83,7 +95,7 @@ final class ForegroundRefreshUITests: XCTestCase {
         XCTAssertTrue(probe.reaches(reached, within: 10), "\(message): never reached \(expected) requests", file: file, line: line)
         XCTAssertEqual(requestCount(probe), expected, message, file: file, line: line)
         XCTAssertFalse(
-            countChanges(probe, from: expected, within: stabilityWindow),
+            countChanges(probe, from: expected, within: window),
             "\(message): got \(requestCount(probe)) requests, expected \(expected)",
             file: file,
             line: line
