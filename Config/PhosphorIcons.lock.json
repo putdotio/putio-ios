@@ -266,6 +266,13 @@
       "sha256": "8d1dbb7e10ccbbba9a0995b3909dfdc9a264912880232b41d0b1c02d40d3b659"
     },
     {
+      "name": "device-rotate",
+      "weight": "regular",
+      "asset_name": "device-rotate-regular",
+      "source_path": "package/assets/regular/device-rotate.svg",
+      "sha256": "20b73f3fe8e7ae46afc1a7d2da0b3abb56f0846c1f10ca72005df557697746ce"
+    },
+    {
       "name": "closed-captioning",
       "weight": "regular",
       "asset_name": "closed-captioning-regular",

@@ -92,6 +92,11 @@ final class PlaybackSmokeUITests: XCTestCase {
         let resumeDialog = app.alerts["Where would you like to start?"]
         XCTAssertTrue(resumeDialog.appears(within: 5))
         XCTAssertTrue(resumeDialog.staticTexts["Last saved timestamp for this video is 00:02:05"].exists)
+        let landscape = NSPredicate { element, _ in
+            guard let frame = (element as? XCUIElement)?.frame else { return false }
+            return frame.width > frame.height
+        }
+        XCTAssertTrue(app.windows.firstMatch.reaches(landscape, within: 5), "video playback should hold landscape")
 
         resumeDialog.buttons["Continue watching"].tap()
 

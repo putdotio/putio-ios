@@ -210,6 +210,19 @@ extension SettingsViewModel {
         )
     }
 
+    func saveAutoRotateVideo(_ isEnabled: Bool) {
+        performRemoteMutation(
+            mutation: { completion in
+                api.setAutoRotateVideo(isEnabled) { result in
+                    completion(result.map { _ in () })
+                }
+            },
+            onSuccess: { _ in
+                self.config.autoRotateVideo = isEnabled
+            }
+        )
+    }
+
     func toggleOptimisticUsage() {
         let value = !settings.showOptimisticUsage
         saveAccountSettings(.patch(PutioAccountSettingsPatch(showOptimisticUsage: value)), changing: .showOptimisticUsage, to: .init(value)) {

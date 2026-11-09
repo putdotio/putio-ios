@@ -221,7 +221,10 @@ run_tier() {
 
     [ -d "$bundle" ] || fatal "$tier produced no result bundle; the run failed before testing."
 
-    xcrun xcresulttool get test-results tests --path "$bundle" | node scripts/verify-snapshot-recording.ts \
+    results="$(mktemp)"
+    xcrun xcresulttool get test-results tests --path "$bundle" > "$results" \
+        || fatal "$tier result bundle could not be read."
+    node scripts/verify-snapshot-recording.ts < "$results" \
         || fatal "$tier had failures beyond record-mode snapshot assertions; baselines may be incomplete."
 
     # xcodebuild exits 0 for a -only-testing: identifier that matches nothing, so

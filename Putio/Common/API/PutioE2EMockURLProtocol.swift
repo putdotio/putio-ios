@@ -250,6 +250,7 @@ private enum PutioE2EMockAPI {
         "POST /v2/account/clear": Fixture(body: ok),
         "GET /v2/config": Fixture(body: config),
         "PUT /v2/config/dismissed.product_analytics_prompt": Fixture(body: ok),
+        "PUT /v2/config/auto_rotate_video": Fixture(body: ok),
         "POST /v2/account/settings": Fixture(body: ok),
         "GET /v2/files/list": Fixture(body: filesList),
         "POST /v2/files/move": Fixture(body: #"{"status":"OK","errors":[]}"#),
@@ -438,22 +439,19 @@ private enum PutioE2EMockAPI {
         """
     }
 
-    private static let config = isProductAnalyticsPromptUnanswered
-        ? """
-        {
-          "config": {
-            "chromecast_playback_type": "hls"
-          }
+    private static let rotatesVideo =
+        ProcessInfo.processInfo.environment["PUTIO_E2E_AUTO_ROTATE_VIDEO"] != "0"
+
+    private static let config: String = {
+        var entries = [#""chromecast_playback_type": "hls""#]
+        if !isProductAnalyticsPromptUnanswered {
+            entries.append(#""dismissed.product_analytics_prompt": true"#)
         }
-        """
-        : """
-        {
-          "config": {
-            "chromecast_playback_type": "hls",
-            "dismissed.product_analytics_prompt": true
-          }
+        if !rotatesVideo {
+            entries.append(#""auto_rotate_video": false"#)
         }
-        """
+        return #"{ "config": { "# + entries.joined(separator: ", ") + " } }"
+    }()
 
     private static let filesList = """
     {

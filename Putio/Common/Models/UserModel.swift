@@ -74,9 +74,11 @@ class UserSettings: Object {
 
 class UserConfig: Object {
     @objc dynamic var chromecastPlaybackType: String = "hls"
+    @objc dynamic var autoRotateVideo: Bool = true
 
     convenience init?(config: AppConfig) {
         self.init()
         self.chromecastPlaybackType = config.chromecastPlaybackType.rawValue
+        self.autoRotateVideo = config.autoRotateVideo
     }
 }

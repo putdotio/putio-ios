@@ -15,10 +15,13 @@ final class ScreenshotWalkUITests: XCTestCase {
     private var snapshotDirectoryOverride: String? {
         ProcessInfo.processInfo.environment["PUTIO_SNAPSHOT_DIR"]
     }
-    private func launchFixtureApp(loggedIn: Bool = true, failRoutes: String? = nil) -> XCUIApplication {
+    private func launchFixtureApp(loggedIn: Bool = true, failRoutes: String? = nil, rotatesVideo: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         app.launchEnvironment["PUTIO_E2E_ANIMATIONS"] = "1"
+        if !rotatesVideo {
+            app.launchEnvironment["PUTIO_E2E_AUTO_ROTATE_VIDEO"] = "0"
+        }
         if loggedIn {
             app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
         }
@@ -92,7 +95,7 @@ final class ScreenshotWalkUITests: XCTestCase {
     }
 
     private func walkVideoPlayer() {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(rotatesVideo: false)
 
         guard app.waitForSignedInTabBar() else { return }
 

@@ -43,6 +43,7 @@
     { "name": "caret-right", "weight": "regular" },
     { "name": "network", "weight": "regular" },
     { "name": "screencast", "weight": "regular" },
+    { "name": "device-rotate", "weight": "regular" },
     { "name": "closed-captioning", "weight": "regular" },
     { "name": "subtitles", "weight": "regular" },
     { "name": "shield-check", "weight": "regular" },

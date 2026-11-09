@@ -30,6 +30,19 @@ final class UserConfigTests: XCTestCase {
         XCTAssertEqual(try decode(cases[3].json).chromecastPlaybackType, .mp4)
     }
 
+    func testAutoRotateVideoIsOnUnlessReadablyOff() throws {
+        let cases: [(json: String, enabled: Bool)] = [
+            (#"{}"#, true),
+            (#"{"auto_rotate_video":true}"#, true),
+            (#"{"auto_rotate_video":false}"#, false),
+            (#"{"auto_rotate_video":"no","chromecast_playback_type":"mp4"}"#, true)
+        ]
+
+        for (json, enabled) in cases {
+            XCTAssertEqual(UserConfig(config: try decode(json))?.autoRotateVideo, enabled, json)
+        }
+    }
+
     private func decode(_ json: String) throws -> AppConfig {
         try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
     }
