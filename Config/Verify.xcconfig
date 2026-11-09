@@ -16,3 +16,5 @@ PUTIO_BUNDLE_BRAND_FONTS = YES
 // Playback fixtures for the mocked e2e walk. Only set here, so a distributed
 // build never carries them (see Putio/E2EMedia/ATTRIBUTION.md).
 PUTIO_BUNDLE_E2E_MEDIA = YES
+
+COMPILATION_CACHE_ENABLE_CACHING = YES
