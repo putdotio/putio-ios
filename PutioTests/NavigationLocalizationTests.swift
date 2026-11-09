@@ -969,6 +969,91 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(tableView.numberOfSections, 0)
     }
 
+    func testHistoryOfflineRefreshClearsHiddenRowsAndLetsPullToRefreshReachTheTable() throws {
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/events/list", method: .get)
+        let offline = PutioSDKError(request: PutioSDKErrorRequestInformation(config: config), error: URLError(.notConnectedToInternet))
+        var results: [Result<[PutioHistoryEvent], PutioSDKError>] = [.success([try makeHistoryEvent(id: 9002)]), .failure(offline)]
+        let viewController = HistoryViewController()
+        viewController.viewModel = HistoryViewModel(fetchEventsRequest: { completion in completion(results.removeFirst()) })
+        let tableView = UITableView()
+        viewController.tableView = tableView
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        tableView.frame = viewController.view.bounds
+        viewController.view.addSubview(tableView)
+
+        viewController.viewModel.fetchEvents()
+        XCTAssertEqual(tableView.numberOfSections, 1)
+
+        viewController.viewModel.refetchEvents()
+        waitForSubview(OfflineStatusView.self, in: viewController.view)
+
+        XCTAssertEqual(tableView.numberOfSections, 0, "rows stayed tappable under the offline view")
+        let touched = viewController.view.hitTest(CGPoint(x: 195, y: 422), with: nil)
+        XCTAssertTrue(touched?.isDescendant(of: tableView) == true, "the offline view swallowed the pull: \(String(describing: touched))")
+    }
+
+    func testMoveFilesShowsARetryableOfflineStateWhenTheFolderLoadFails() throws {
+        FilesListStub.answerFilesList(with: 2, after: [.offline], in: self)
+        let viewController = try presentMoveFiles()
+
+        waitForState(OfflineStatusView.self, in: viewController)
+        XCTAssertFalse(viewController.moveButton.isEnabled)
+
+        try XCTUnwrap(viewController.tableView.refreshControl).sendActions(for: .valueChanged)
+
+        waitForRows(2, in: viewController)
+        XCTAssertTrue(viewController.moveButton.isEnabled)
+    }
+
+    func testMoveFilesRefreshFailureShowsTheErrorStateWithoutHiddenRows() throws {
+        FilesListStub.answerFilesList(with: 2, after: [nil, .serverError], in: self)
+        let viewController = try presentMoveFiles()
+        waitForRows(2, in: viewController)
+
+        try XCTUnwrap(viewController.tableView.refreshControl).sendActions(for: .valueChanged)
+
+        waitForState(EmptyStateView.self, in: viewController)
+        XCTAssertEqual(viewController.tableView.numberOfRows(inSection: 0), 0)
+        XCTAssertFalse(viewController.moveButton.isEnabled)
+
+        try XCTUnwrap(viewController.tableView.refreshControl).sendActions(for: .valueChanged)
+
+        waitForRows(2, in: viewController)
+    }
+
+    private func presentMoveFiles() throws -> MoveFilesViewController {
+        let storyboard = UIStoryboard(name: "MoveFiles", bundle: Bundle(for: MoveFilesViewController.self))
+        let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "MoveVC") as? MoveFilesViewController)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = UINavigationController(rootViewController: viewController)
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        viewController.view.layoutIfNeeded()
+        return viewController
+    }
+
+    private func waitForState<View: UIView>(_ type: View.Type, in viewController: MoveFilesViewController) {
+        let shown = expectation(for: NSPredicate { _, _ in
+            viewController.view.subviews.contains { $0 is View }
+                && !viewController.view.subviews.contains { $0 is LoaderView }
+        }, evaluatedWith: nil)
+        wait(for: [shown], timeout: 10)
+    }
+
+    private func waitForRows(_ count: Int, in viewController: MoveFilesViewController) {
+        let loaded = expectation(for: NSPredicate { _, _ in
+            viewController.tableView.numberOfRows(inSection: 0) == count
+                && !viewController.view.subviews.contains { $0 is OfflineStatusView || $0 is EmptyStateView || $0 is LoaderView }
+        }, evaluatedWith: nil)
+        wait(for: [loaded], timeout: 10)
+    }
+
+    private func waitForSubview<View: UIView>(_ type: View.Type, in container: UIView) {
+        let shown = expectation(for: NSPredicate { _, _ in container.subviews.contains { $0 is View } }, evaluatedWith: nil)
+        wait(for: [shown], timeout: 10)
+    }
+
     private final class RecordingRefreshControl: UIRefreshControl {
         var endRefreshingCalls = 0
 

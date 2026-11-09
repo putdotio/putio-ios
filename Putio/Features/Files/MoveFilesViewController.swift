@@ -24,6 +24,8 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
 
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.refreshControl = UIRefreshControl()
+        tableView.refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
 
         configureAppearance()
         fetchData()
@@ -32,6 +34,19 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     func configureStateMachine() {
         let loaderView = LoaderView.instantiateFromInterfaceBuilder()
         stateMachine.addView(loaderView, forState: "loading")
+
+        let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
+        offlineStatusView.isUserInteractionEnabled = false
+        stateMachine.addView(offlineStatusView, forState: "offline")
+
+        let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
+        errorView.isUserInteractionEnabled = false
+        stateMachine.addView(errorView, forState: "error")
+
         stateMachine.transitionToState(.view("loading"), animated: false, completion: nil)
     }
 
@@ -70,13 +85,17 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         createFolderButton.isEnabled = isEnabled
     }
 
-    func fetchData() {
+    func fetchData(showsLoader: Bool = true) {
         let fileID = file?.id ?? 0
 
-        stateMachine.transitionToState(.view("loading"))
+        if showsLoader {
+            stateMachine.transitionToState(.view("loading"))
+        }
         updateActionButtonStates(isEnabled: false)
 
         api.getFiles(parentID: fileID, query: PutioFilesListQuery(contentType: "application/x-directory"), completion: { result in
+            self.tableView.refreshControl?.endRefreshing()
+
             switch result {
             case .success(let data):
                 self.file = data.parent
@@ -98,10 +117,22 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
                 self.updateActionButtonStates(isEnabled: data.parent != nil)
                 self.tableView.reloadData()
 
-            case .failure:
-                break
+            case .failure(let error):
+                self.files = []
+                self.tableView.backgroundView = nil
+                self.tableView.reloadData()
+
+                if case .networkError = error.type {
+                    self.stateMachine.transitionToState(.view("offline"), animated: false, completion: nil)
+                } else {
+                    self.stateMachine.transitionToState(.view("error"), animated: false, completion: nil)
+                }
             }
         })
+    }
+
+    @objc func refresh() {
+        fetchData(showsLoader: false)
     }
 
     @IBAction func cancelButtonPressed(_ sender: Any) {

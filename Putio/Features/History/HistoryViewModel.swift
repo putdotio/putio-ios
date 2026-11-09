@@ -169,6 +169,7 @@ class HistoryViewModel {
                 self.events = events
 
             case .failure(let error):
+                self.sections = []
                 self.state = .failure(error: error)
             }
         }
