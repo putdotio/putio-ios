@@ -108,6 +108,8 @@ final class DownloadQueueController {
         self.scheduleFileDeletion = scheduleFileDeletion
         self.deleteDownloadRecords = deleteDownloadRecords
         self.defaults = defaults
+        let cleanupPending = defaults.bool(forKey: Self.accountChangeCleanupPendingKey)
+        creationGenerations.withLock { $0.isAccountCleanupPending = cleanupPending }
     }
 
     func restoreBackgroundSessions() {
@@ -162,7 +164,10 @@ final class DownloadQueueController {
     func clearDownloadsForAccountChange() {
         onMain {
             self.isEnabled = false
-            self.creationGenerations.withLock { $0.account += 1 }
+            self.creationGenerations.withLock {
+                $0.account += 1
+                $0.isAccountCleanupPending = true
+            }
             self.defaults.set(true, forKey: Self.accountChangeCleanupPendingKey)
             self.clearAccountDownloads()
         }
@@ -184,6 +189,7 @@ final class DownloadQueueController {
         }
         guard deleteDownloadRecords(realm) else { return false }
         defaults.removeObject(forKey: Self.accountChangeCleanupPendingKey)
+        creationGenerations.withLock { $0.isAccountCleanupPending = false }
         downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
         let pendingFiles = locations.map { DownloadSupport.moveAsideForDeletion($0) }
         pendingAccountChangeDeletes += pendingFiles.count
@@ -231,7 +237,7 @@ final class DownloadQueueController {
     }
 
     func isRecordCreationCurrent(_ token: RecordCreationToken) -> Bool {
-        creationGenerations.withLock { $0.token(for: token.id) == token }
+        creationGenerations.withLock { !$0.isAccountCleanupPending && $0.token(for: token.id) == token }
     }
 
     func invalidateRecordCreations(id: Int) {
@@ -430,6 +436,7 @@ struct RecordCreationToken: Equatable {
 
 private struct CreationGenerations {
     var account = 0
+    var isAccountCleanupPending = false
     var byID = [Int: Int]()
 
     func token(for id: Int) -> RecordCreationToken {

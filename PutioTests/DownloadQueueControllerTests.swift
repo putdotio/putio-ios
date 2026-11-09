@@ -223,8 +223,14 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
 
         recordDeletesFail = false
         let relaunched = makeController()
+        let creationDuringPendingCleanup = relaunched.recordCreationWillStart(id: 403)
+        XCTAssertFalse(relaunched.isRecordCreationCurrent(creationDuringPendingCleanup))
+        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
         relaunched.start()
         XCTAssertEqual(heldDeletes.count, 2)
+        let creationAfterCleanup = relaunched.recordCreationWillStart(id: 403)
+        XCTAssertTrue(relaunched.isRecordCreationCurrent(creationAfterCleanup))
+        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
         XCTAssertFalse(relaunched.isEnabled)
         runHeldDelete(at: 0)
         runHeldDelete(at: 1)
