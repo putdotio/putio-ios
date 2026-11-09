@@ -299,7 +299,7 @@ final class SettingsViewModelTests: XCTestCase {
         for title in ["Strictly necessary", "Diagnostics", "Product analytics"] {
             XCTAssertNil(displayedCell(titled: title, in: account.tableView), "\(title) lives on the Privacy controls page")
         }
-        account.tableView.delegate?.tableView?(account.tableView, didSelectRowAt: row.indexPath)
+        try tapRow(at: row.indexPath, in: account.tableView)
 
         let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             (navigation.topViewController as? PrivacyControlsViewController)?.viewIfLoaded?.window != nil

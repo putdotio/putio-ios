@@ -17,7 +17,7 @@ final class FilesSelectionTests: XCTestCase {
         XCTAssertEqual(folder.tableView.indexPathsForSelectedRows?.count, fileCount)
         XCTAssertEqual(folder.navigationItem.leftBarButtonItem?.title, "Deselect All")
 
-        try tap(button)
+        try tap(try XCTUnwrap(folder.navigationItem.leftBarButtonItem))
 
         XCTAssertEqual(folder.tableView.indexPathsForSelectedRows ?? [], [])
         XCTAssertEqual(folder.navigationItem.leftBarButtonItem?.title, "Select All")
