@@ -59,8 +59,8 @@ jobs:
             echo "Submit runs only from protected main, not $RUN_REF" >&2
             exit 1
           fi
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "version must look like 3.0.1 and build_number must be an integer" >&2
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]{1,6}(\.[0-9]{1,6}){0,2}$ ]]; then
+            echo "version must look like 3.0.1 and build_number like 261109.1543" >&2
             exit 1
           fi
 

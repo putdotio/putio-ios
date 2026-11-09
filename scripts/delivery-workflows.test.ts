@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -206,6 +206,8 @@ test("release refuses a version without a listing, or with a committed whatsNew,
   const status = async (localization: unknown) => {
     const dir = await tempDir(t);
     await mkdir(join(dir, "metadata/version/3.0.1"), { recursive: true });
+    await mkdir(join(dir, "scripts"));
+    await cp(fileURLToPath(new URL("build-number.sh", import.meta.url)), join(dir, "scripts/build-number.sh"));
     if (localization !== undefined) await writeFile(join(dir, "metadata/version/3.0.1/en-US.json"), JSON.stringify(localization));
     for (const file of ["env", "output"]) await writeFile(join(dir, file), "");
     return spawnSync("bash", ["-eo", "pipefail", "-c", run], {
@@ -255,21 +257,21 @@ const runWithGh = async (t: test.TestContext, run: string, env: Record<string, s
 
 test("release tags with an annotated tag that names the uploaded build", async (t) => {
   const run = await stepRun("release.yml", "tag", "Create v${{ inputs.version }}");
-  const env = { RELEASE_VERSION: "3.0.1", SHA, BUILD_NUMBER: "2610191230" };
+  const env = { RELEASE_VERSION: "3.0.1", SHA, BUILD_NUMBER: "261019.1230" };
 
   const created = await runWithGh(t, run, { ...env, FAKE_REF: "" });
   assert.equal(created.status, 0, created.stderr);
   const tagPost = created.calls.find((call) => call.includes("--method POST") && call.includes("/git/tags"));
   assert.ok(tagPost, "creates a tag object");
   assert.match(tagPost, new RegExp(`object=${SHA}`));
-  assert.match(tagPost, /message=put\.io 3\.0\.1\\n\\nBuild-Number: 2610191230$/m);
+  assert.match(tagPost, /message=put\.io 3\.0\.1\\n\\nBuild-Number: 261019.1230$/m);
   assert.ok(created.calls.some((call) => call.includes("ref=refs/tags/v3.0.1") && call.includes("sha=t1")), "the ref points at the tag object");
 
-  const rerun = await runWithGh(t, run, { ...env, FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "2610191230") });
+  const rerun = await runWithGh(t, run, { ...env, FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "261019.1230") });
   assert.equal(rerun.status, 0, rerun.stderr);
   assert.equal(rerun.calls.some((call) => call.includes("--method POST")), false, "a re-run of the same build changes nothing");
 
-  const refusals: [string, string][] = [[annotatedRef, tagObject("b".repeat(40), "2610191230")], [annotatedRef, tagObject(SHA, "2610181200")], [lightweightRef, ""]];
+  const refusals: [string, string][] = [[annotatedRef, tagObject("b".repeat(40), "261019.1230")], [annotatedRef, tagObject(SHA, "261018.1200")], [lightweightRef, ""]];
   for (const [ref, tag] of refusals) {
     const refused = await runWithGh(t, run, { ...env, FAKE_REF: ref, FAKE_TAG: tag });
     assert.equal(refused.status, 1, `${ref} ${tag}`);
@@ -281,8 +283,8 @@ test("submit takes the commit an annotated Release tag on protected main names f
   const run = await stepRun("submit.yml", "validate-tag", "Resolve the release tag on protected main");
   const head = "c".repeat(40);
   const valid = {
-    RUN_REF: "refs/heads/main", VERSION: "3.0.1", BUILD_NUMBER: "2610191230",
-    FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "2610191230"),
+    RUN_REF: "refs/heads/main", VERSION: "3.0.1", BUILD_NUMBER: "261019.1230",
+    FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "261019.1230"),
     FAKE_BRANCH: JSON.stringify({ protected: true, commit: { sha: head } }), FAKE_COMPARE: "ahead",
   };
   const submit = async (overrides: Record<string, string>) => {
@@ -302,10 +304,10 @@ test("submit takes the commit an annotated Release tag on protected main names f
   const refusals: [string, Record<string, string>, RegExp][] = [
     ["a missing tag", { FAKE_REF: "" }, /does not exist/],
     ["a lightweight tag", { FAKE_REF: lightweightRef }, /not an annotated Release tag/],
-    ["a tag object named for another version", { FAKE_TAG: tagObject(SHA, "2610191230").replace('"v3.0.1"', '"v3.0.2"') }, /not the tag Release creates/],
-    ["a tag message Release didn't write", { FAKE_TAG: tagObject(SHA, "2610191230").replace("put.io 3.0.1", "hand-made") }, /not the tag Release creates/],
-    ["a wrong Build-Number", { FAKE_TAG: tagObject(SHA, "2610181200") }, /does not name build/],
-    ["a longer Build-Number", { FAKE_TAG: tagObject(SHA, "26101912300") }, /does not name build/],
+    ["a tag object named for another version", { FAKE_TAG: tagObject(SHA, "261019.1230").replace('"v3.0.1"', '"v3.0.2"') }, /not the tag Release creates/],
+    ["a tag message Release didn't write", { FAKE_TAG: tagObject(SHA, "261019.1230").replace("put.io 3.0.1", "hand-made") }, /not the tag Release creates/],
+    ["a wrong Build-Number", { FAKE_TAG: tagObject(SHA, "261018.1200") }, /does not name build/],
+    ["a longer Build-Number", { FAKE_TAG: tagObject(SHA, "261019.12300") }, /does not name build/],
     ["a tagged commit behind no main head", { FAKE_COMPARE: "diverged" }, /not on protected main/],
     ["a tagged commit ahead of main", { FAKE_COMPARE: "behind" }, /not on protected main/],
     ["an unprotected main", { FAKE_BRANCH: JSON.stringify({ protected: false, commit: { sha: head } }) }, /not protected/],

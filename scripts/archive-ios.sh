@@ -15,7 +15,7 @@ build_number="$2"
 ipa_path="$3"
 dsym_dir="$4"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "marketing version must look like 3.0.0" >&2; exit 64; }
-[[ "$build_number" =~ ^[0-9]+$ ]] || { echo "build number must be an integer" >&2; exit 64; }
+[[ "$build_number" =~ ^[0-9]{1,6}(\.[0-9]{1,6}){0,2}$ ]] || { echo "build number must be up to three dotted parts of at most 6 digits, or Google Cast aborts at launch" >&2; exit 64; }
 
 : "${PUTIO_APP_IDENTIFIER:?}" "${PUTIO_DEVELOPMENT_TEAM:?}" "${PUTIO_PRIMARY_APP_ICON:?}"
 profile="${PUTIO_PROVISIONING_PROFILE_UUID:?}"

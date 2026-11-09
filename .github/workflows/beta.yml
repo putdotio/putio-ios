@@ -137,7 +137,7 @@ jobs:
             exit 1
           fi
 
-          PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
+          PUTIO_BETA_BUILD_NUMBER="$(./scripts/build-number.sh)"
           PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
           PUTIO_BETA_WAIT_TIMEOUT_DURATION="$(( PROCESSING_TIMEOUT_MINUTES * 60 ))"
           export PUTIO_BETA_BUILD_NUMBER
