@@ -197,9 +197,12 @@ enum DownloadSupport {
         }
     }
 
-    static func moveAsideForDeletion(_ location: LocalFileLocation) -> LocalFileLocation {
+    static func moveAsideForDeletion(
+        _ location: LocalFileLocation,
+        asideDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> LocalFileLocation {
         guard case .resolved(let url) = location else { return location }
-        let asideURL = FileManager.default.temporaryDirectory
+        let asideURL = asideDirectory
             .appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
         do {
             try FileManager.default.moveItem(at: url, to: asideURL)
@@ -208,7 +211,7 @@ enum DownloadSupport {
             return .none
         } catch {
             log.error("[DownloadSupport] moveAsideForDeletion: \(error.localizedDescription)")
-            return .unresolved
+            return location
         }
     }
 

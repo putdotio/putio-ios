@@ -121,6 +121,9 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
     private var originalConfiguration: Realm.Configuration!
     private var realm: Realm!
     private var heldDeletes = [() -> Void]()
+    private var recordDeletesFail = false
+    private var defaultsSuiteName: String!
+    private var defaults: UserDefaults!
     private var audioURL: URL {
         DownloadSupport.absoluteDocumentsURL(for: audioPath)!
     }
@@ -130,6 +133,8 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         originalConfiguration = Realm.Configuration.defaultConfiguration
         Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
         realm = try Realm()
+        defaultsSuiteName = "DownloadQueueAccountChangeTests-\(UUID().uuidString)"
+        defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsSuiteName))
         try realm.write {
             for (id, fileType) in [(401, Download.FileType.video), (402, .audio)] {
                 realm.add(makeDownload(id: id, fileType: fileType))
@@ -143,6 +148,8 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         try? FileManager.default.removeItem(at: audioURL)
         UserDefaults.standard.removeObject(forKey: "402")
         heldDeletes = []
+        defaults.removePersistentDomain(forName: defaultsSuiteName)
+        defaults = nil
         realm = nil
         Realm.Configuration.defaultConfiguration = originalConfiguration
         super.tearDown()
@@ -201,8 +208,60 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: audioURL), Data("replacement".utf8))
     }
 
+    func testFailedRecordDeleteKeepsFilesAndTheQueueStoppedUntilCleanupSucceeds() {
+        recordDeletesFail = true
+        let controller = makeController()
+
+        controller.clearDownloadsForAccountChange()
+        controller.start()
+
+        XCTAssertTrue(heldDeletes.isEmpty)
+        XCTAssertFalse(controller.isEnabled)
+        XCTAssertEqual(realm.objects(Download.self).count, 2)
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "402"), audioPath)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+
+        recordDeletesFail = false
+        let relaunched = makeController()
+        relaunched.start()
+        XCTAssertEqual(heldDeletes.count, 2)
+        XCTAssertFalse(relaunched.isEnabled)
+        runHeldDelete(at: 0)
+        runHeldDelete(at: 1)
+
+        realm.refresh()
+        XCTAssertTrue(relaunched.isEnabled)
+        XCTAssertTrue(realm.objects(Download.self).isEmpty)
+        XCTAssertNil(UserDefaults.standard.object(forKey: "402"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
+    func testFailedMoveAsideDeletesTheFileInPlace() throws {
+        let readOnlyDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AccountChangeAside-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: readOnlyDirectory, withIntermediateDirectories: false)
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: readOnlyDirectory.path)
+        addTeardownBlock {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: readOnlyDirectory.path)
+            try? FileManager.default.removeItem(at: readOnlyDirectory)
+        }
+
+        let location = DownloadSupport.moveAsideForDeletion(.resolved(audioURL), asideDirectory: readOnlyDirectory)
+
+        XCTAssertEqual(DownloadSupport.deleteLocalFile(at: location, context: #function), .removed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
     private func makeController() -> DownloadQueueController {
-        DownloadQueueController(scheduleFileDeletion: { [unowned self] in heldDeletes.append($0) })
+        DownloadQueueController(
+            scheduleFileDeletion: { [unowned self] in heldDeletes.append($0) },
+            deleteDownloadRecords: { [unowned self] realm in
+                !recordDeletesFail && DownloadSupport.write(realm, context: "DownloadQueueAccountChangeTests") {
+                    realm.delete(realm.objects(Download.self))
+                }
+            },
+            defaults: defaults
+        )
     }
 
     private func makeDownload(id: Int, fileType: Download.FileType) -> Download {

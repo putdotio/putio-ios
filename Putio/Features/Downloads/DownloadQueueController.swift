@@ -92,9 +92,22 @@ final class DownloadQueueController {
     private var pendingAccountChangeDeletes = 0
     private var startsAfterAccountChange = false
     private let scheduleFileDeletion: (@escaping () -> Void) -> Void
+    private let deleteDownloadRecords: (Realm) -> Bool
+    private let defaults: UserDefaults
+    private static let accountChangeCleanupPendingKey = "DownloadQueueController.accountChangeCleanupPending"
 
-    init(scheduleFileDeletion: @escaping (@escaping () -> Void) -> Void = { DownloadSupport.deletionQueue.async(execute: $0) }) {
+    init(
+        scheduleFileDeletion: @escaping (@escaping () -> Void) -> Void = { DownloadSupport.deletionQueue.async(execute: $0) },
+        deleteDownloadRecords: @escaping (Realm) -> Bool = { realm in
+            DownloadSupport.write(realm, context: "DownloadQueueController.accountChange.write") {
+                realm.delete(realm.objects(Download.self))
+            }
+        },
+        defaults: UserDefaults = .standard
+    ) {
         self.scheduleFileDeletion = scheduleFileDeletion
+        self.deleteDownloadRecords = deleteDownloadRecords
+        self.defaults = defaults
     }
 
     func restoreBackgroundSessions() {
@@ -109,6 +122,9 @@ final class DownloadQueueController {
 
     func start() {
         onMain {
+            if self.defaults.bool(forKey: Self.accountChangeCleanupPendingKey) {
+                guard self.clearAccountDownloads() else { return }
+            }
             guard self.pendingAccountChangeDeletes == 0 else {
                 self.startsAfterAccountChange = true
                 return
@@ -147,36 +163,42 @@ final class DownloadQueueController {
         onMain {
             self.isEnabled = false
             self.creationGenerations.withLock { $0.account += 1 }
-            guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
-            let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
-            let locations = downloads.map { id, fileType -> DownloadSupport.LocalFileLocation in
-                switch fileType {
-                case .audio:
-                    AudioDownloadManager.sharedInstance.discardDownload(id: id)
-                    return AudioDownloadManager.sharedInstance.getLocalFileLocation(for: id)
-                case .video:
-                    VideoDownloadManager.sharedInstance.discardDownload(id: id)
-                    return VideoDownloadManager.sharedInstance.getLocalFileLocation(for: id)
-                }
+            self.defaults.set(true, forKey: Self.accountChangeCleanupPendingKey)
+            self.clearAccountDownloads()
+        }
+    }
+
+    @discardableResult
+    private func clearAccountDownloads() -> Bool {
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return false }
+        let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
+        let locations = downloads.map { id, fileType -> DownloadSupport.LocalFileLocation in
+            switch fileType {
+            case .audio:
+                AudioDownloadManager.sharedInstance.discardDownload(id: id)
+                return AudioDownloadManager.sharedInstance.getLocalFileLocation(for: id)
+            case .video:
+                VideoDownloadManager.sharedInstance.discardDownload(id: id)
+                return VideoDownloadManager.sharedInstance.getLocalFileLocation(for: id)
             }
-            DownloadSupport.write(realm, context: "DownloadQueueController.accountChange.write") {
-                realm.delete(realm.objects(Download.self))
-            }
-            downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
-            let pendingFiles = locations.map(DownloadSupport.moveAsideForDeletion)
-            self.pendingAccountChangeDeletes += pendingFiles.count
-            pendingFiles.forEach { location in
-                self.scheduleFileDeletion {
-                    let result = DownloadSupport.deleteLocalFile(at: location, context: "DownloadQueueController.accountChange")
-                    DispatchQueue.main.async {
-                        if result == .failed || result == .unresolvedLocation {
-                            SentryTelemetry.capture(.downloadedAssetDeletion, context: "DownloadQueueController.accountChange")
-                        }
-                        self.accountChangeDeleteDidFinish()
+        }
+        guard deleteDownloadRecords(realm) else { return false }
+        defaults.removeObject(forKey: Self.accountChangeCleanupPendingKey)
+        downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
+        let pendingFiles = locations.map { DownloadSupport.moveAsideForDeletion($0) }
+        pendingAccountChangeDeletes += pendingFiles.count
+        pendingFiles.forEach { location in
+            scheduleFileDeletion {
+                let result = DownloadSupport.deleteLocalFile(at: location, context: "DownloadQueueController.accountChange")
+                DispatchQueue.main.async {
+                    if result == .failed || result == .unresolvedLocation {
+                        SentryTelemetry.capture(.downloadedAssetDeletion, context: "DownloadQueueController.accountChange")
                     }
+                    self.accountChangeDeleteDidFinish()
                 }
             }
         }
+        return true
     }
 
     private func accountChangeDeleteDidFinish() {
