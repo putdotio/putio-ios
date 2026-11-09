@@ -51,6 +51,7 @@ jobs:
     timeout-minutes: 75
     permissions:
       contents: read
+      actions: read
       pull-requests: read
       id-token: write
 
@@ -87,7 +88,23 @@ jobs:
           mise run fonts-setup
           mise run verify-fonts
 
+      - name: Find a passing CI verify on this commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.validate-ref.outputs.sha }}
+        run: |
+          verified=false
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push&status=success" --jq '.workflow_runs[].id'); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '.jobs[] | select(.name == "Verify iOS app" and .conclusion == "success") | .id' | grep -q .; then
+              verified=true
+              echo "CI run $run already verified $SHA"
+            fi
+          done
+          echo "verified=$verified" >> "$GITHUB_OUTPUT"
+
       - name: Verify repository
+        if: steps.ci.outputs.verified != 'true'
         run: mise run verify
 
       - name: Write tester notes
