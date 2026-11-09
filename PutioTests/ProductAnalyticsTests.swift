@@ -217,6 +217,7 @@ final class ProductAnalyticsTests: XCTestCase {
         _ = try waitForEvents(token: token, count: 1)
         gate.capture(.screenViewed(.files))
         let events = try waitForEvents(token: token, count: 2)
+        try waitForRemoteConfig(XCTUnwrap(gate.runningSDK))
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "screen_viewed"])
         XCTAssertEqual(Set(events.map { $0["distinct_id"] as? String }), ["1001"])
@@ -233,6 +234,7 @@ final class ProductAnalyticsTests: XCTestCase {
 
     func testOptOutStopsCaptureAndDeletesEverythingTheSDKStored() throws {
         let (gate, token) = makeGate()
+        RecordingURLProtocol.hold(.config(token: token))
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         gate.capture(.screenViewed(.files))
         _ = try waitForEvents(token: token, count: 1)
@@ -242,8 +244,11 @@ final class ProductAnalyticsTests: XCTestCase {
         let sent = requests(token: token).count
         allEvents.forEach(gate.capture)
         spinRunLoop(seconds: 1)
+        RecordingURLProtocol.release(.config(token: token))
+        spinRunLoop(seconds: 1)
 
-        XCTAssertEqual(requests(token: token).count, sent, "a request left after the opt-out")
+        let late = requests(token: token).dropFirst(sent).compactMap(\.url?.path)
+        XCTAssertEqual(late.filter { $0 != "/array/\(token)/config" }, [], "a request left after the opt-out")
         XCTAssertFalse(gate.isCapturing)
         XCTAssertNil(gate.runningSDK)
         XCTAssertFalse(FileManager.default.fileExists(atPath: gate.storageDirectory(token: token).path))
@@ -368,7 +373,7 @@ final class ProductAnalyticsTests: XCTestCase {
 
     func testARetryForTheSameAccountSendsNoSecondOpen() throws {
         let (gate, token) = makeGate()
-        RecordingURLProtocol.holdBatches(token: token)
+        RecordingURLProtocol.hold(.batches(token: token))
         gate.capture(.appOpened(.direct))
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         _ = try waitForEvents(token: token, count: 1)
@@ -376,7 +381,7 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.signOut(after: .sessionLoad)
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         gate.capture(.appBackgrounded(.under1m))
-        RecordingURLProtocol.releaseBatches(token: token)
+        RecordingURLProtocol.release(.batches(token: token))
         let events = try waitForEvents(token: token, count: 2)
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
@@ -818,10 +823,28 @@ final class ProductAnalyticsTests: XCTestCase {
         let sent = sentEvents(token: token)
         guard sent.count >= count else {
             Self.aWaitTimedOut = true
-            throw MissingEvents(description: "\(sent.count) of \(count) events sent: \(requests(token: token).map(\.url))")
+            let stored = FileManager.default.subpaths(atPath: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "").appending(path: token).path)
+            throw MissingEvents(description: "\(sent.count) of \(count) events sent: \(requests(token: token).map(\.url)), stored: \(stored ?? [])")
         }
         XCTAssertEqual(sent.count, count, "\(requests(token: token).map(\.url))")
         return sent
+    }
+
+    private func waitForRemoteConfig(_ sdk: PostHogSDK) throws {
+        var loaded: PostHogFeatureFlagsLoaded?
+        let subscription = sdk.onFeatureFlags { loaded = $0 }
+        defer { subscription.unsubscribe() }
+        let deadline = Date().addingTimeInterval(Self.aWaitTimedOut ? 10 : 90)
+        while loaded == nil, Date() < deadline {
+            spinRunLoop(seconds: 0.05)
+        }
+        guard let loaded else {
+            Self.aWaitTimedOut = true
+            throw MissingEvents(description: "no /config reply: \(RecordingURLProtocol.requests.map(\.url))")
+        }
+        guard !loaded.errorsLoading else {
+            throw MissingEvents(description: "the /config load failed: \(RecordingURLProtocol.requests.map(\.url))")
+        }
     }
 
     private struct MissingEvents: Error, CustomStringConvertible {
@@ -850,11 +873,18 @@ private final class RecordingURLProtocol: URLProtocol {
         let mode: RunLoop.Mode
     }
 
-    private struct Holds {
-        var tokens: Set<String> = []
-        var loads: [String: [HeldLoad]] = [:]
+    enum Hold: Hashable {
+        case batches(token: String)
+        case config(token: String)
     }
 
+    private struct Holds {
+        var active: Set<Hold> = []
+        var loads: [Hold: [HeldLoad]] = [:]
+    }
+
+    private static let configDelay: TimeInterval = 0.5
+    private var isStopped = false
     private static let recorded = OSAllocatedUnfairLock(uncheckedState: [Request]())
     private static let holds = OSAllocatedUnfairLock(uncheckedState: Holds())
 
@@ -862,14 +892,14 @@ private final class RecordingURLProtocol: URLProtocol {
         recorded.withLock { $0 }
     }
 
-    static func holdBatches(token: String) {
-        holds.withLockUnchecked { _ = $0.tokens.insert(token) }
+    static func hold(_ hold: Hold) {
+        holds.withLockUnchecked { _ = $0.active.insert(hold) }
     }
 
-    static func releaseBatches(token: String) {
+    static func release(_ hold: Hold) {
         let released = holds.withLockUnchecked { holds in
-            holds.tokens.remove(token)
-            return holds.loads.removeValue(forKey: token) ?? []
+            holds.active.remove(hold)
+            return holds.loads.removeValue(forKey: hold) ?? []
         }
         for held in released {
             held.load.perform(#selector(respond), on: held.thread, with: nil, waitUntilDone: false, modes: [held.mode.rawValue])
@@ -888,17 +918,32 @@ private final class RecordingURLProtocol: URLProtocol {
     override func startLoading() {
         let recorded = Request(url: request.url, body: request.httpBody ?? request.httpBodyStream.map(Self.read))
         Self.recorded.withLock { $0.append(recorded) }
-        let token = recorded.json?["api_key"] as? String
+        let isConfig = recorded.url?.path.hasSuffix("/config") == true
+        let hold: Hold? = if isConfig {
+            recorded.url.flatMap { $0.pathComponents.dropLast().last }.map { .config(token: $0) }
+        } else {
+            (recorded.json?["api_key"] as? String).map { .batches(token: $0) }
+        }
+        let thread = Thread.current
+        let mode = RunLoop.current.currentMode ?? .default
         let isHeld = Self.holds.withLockUnchecked { holds in
-            guard let token, holds.tokens.contains(token) else { return false }
-            holds.loads[token, default: []].append(HeldLoad(load: self, thread: .current, mode: RunLoop.current.currentMode ?? .default))
+            guard let hold, holds.active.contains(hold) else { return false }
+            holds.loads[hold, default: []].append(HeldLoad(load: self, thread: thread, mode: mode))
             return true
         }
-        if !isHeld { respond() }
+        if isHeld { return }
+        if isConfig {
+            DispatchQueue.global().asyncAfter(deadline: .now() + Self.configDelay) { [self] in
+                perform(#selector(respond), on: thread, with: nil, waitUntilDone: false, modes: [mode.rawValue])
+            }
+        } else {
+            respond()
+        }
     }
 
     @objc private func respond() {
-        guard let url = request.url,
+        guard !isStopped,
+              let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])
         else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
@@ -906,7 +951,9 @@ private final class RecordingURLProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        isStopped = true
+    }
 
     private static func read(_ stream: InputStream) -> Data {
         stream.open()
