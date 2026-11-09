@@ -225,12 +225,12 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         let relaunched = makeController()
         let creationDuringPendingCleanup = relaunched.recordCreationWillStart(id: 403)
         XCTAssertFalse(relaunched.isRecordCreationCurrent(creationDuringPendingCleanup))
-        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
+        relaunched.recordCreationDidFinish(id: 403, outcome: .notWritten)
         relaunched.start()
         XCTAssertEqual(heldDeletes.count, 2)
         let creationAfterCleanup = relaunched.recordCreationWillStart(id: 403)
         XCTAssertTrue(relaunched.isRecordCreationCurrent(creationAfterCleanup))
-        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
+        relaunched.recordCreationDidFinish(id: 403, outcome: .notWritten)
         XCTAssertFalse(relaunched.isEnabled)
         runHeldDelete(at: 0)
         runHeldDelete(at: 1)
@@ -264,7 +264,7 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
 
         XCTAssertFalse(controller.prepareRecordCreation())
         _ = controller.recordCreationWillStart(id: 401)
-        controller.recordCreationDidFinish(id: 401, didWrite: false)
+        controller.recordCreationDidFinish(id: 401, outcome: .notWritten)
         realm.refresh()
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 401)?.state, .active)
 
@@ -272,7 +272,7 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         XCTAssertTrue(controller.prepareRecordCreation())
         let creation = controller.recordCreationWillStart(id: 403)
         XCTAssertTrue(controller.isRecordCreationCurrent(creation))
-        controller.recordCreationDidFinish(id: 403, didWrite: false)
+        controller.recordCreationDidFinish(id: 403, outcome: .notWritten)
         runHeldDelete(at: 0)
         runHeldDelete(at: 1)
 
@@ -798,6 +798,24 @@ final class DownloadCreationTests: XCTestCase {
         realm.refresh()
         XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
         XCTAssertEqual(createdCount, 0)
+    }
+
+    func testAStaleCreationKeepsANewerCreationsRecord() throws {
+        let id = 9_004_997
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .queued)
+        XCTAssertEqual(createdCount, 1)
     }
 
     private func createVideoRecord(id: Int, file: PutioFile, didCreate: @escaping () -> Void) -> Bool {

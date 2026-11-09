@@ -267,21 +267,48 @@ final class DownloadQueueController {
         creationGenerations.withLock { $0.byID[id, default: 0] += 1 }
     }
 
-    func recordCreationDidFinish(id: Int, didWrite: Bool) {
+    func recordCreationDidFinish(id: Int, outcome: RecordCreationOutcome) {
         dispatchPrecondition(condition: .onQueue(.main))
         guard var creation = creationsByID[id] else { return }
         creation.pending -= 1
-        creation.didWrite = creation.didWrite || didWrite
+        switch outcome {
+        case .queued:
+            creation.didWrite = true
+            creation.leftStaleRecord = false
+        case .stale:
+            creation.leftStaleRecord = true
+        case .notWritten:
+            break
+        }
         guard creation.pending == 0 else {
             creationsByID[id] = creation
             return
         }
         creationsByID.removeValue(forKey: id)
         creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
-        if creation.didWrite {
+        if creation.leftStaleRecord {
+            removeStaleRecord(id: id)
+        } else if creation.didWrite {
             downloadWasQueued()
         } else if !creationGenerations.withLock({ $0.isAccountCleanupPending }), isInFlightWithoutTask(id: id) {
             startFailed(id: id)
+        }
+    }
+
+    private func removeStaleRecord(id: Int) {
+        let context: PutioRealm.Context = "DownloadQueueController.staleRecordCreation"
+        guard !DownloadSupport.deleteRecord(id: id, context: context, ifStateIs: .queued) else { return }
+        guard let realm = DownloadSupport.realm(context: context.appending("stop")),
+              DownloadSupport.write(realm, context: context.appending("stop.write"), updates: {
+                  guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
+                        download.state == .queued else { return }
+                  download.state = .stopped
+              }) else {
+            InternalFailurePresenter.log(
+                "Kept a queued record for a download whose creation went stale",
+                context: "DownloadQueueController.staleRecordCreation"
+            )
+            return
         }
     }
 
@@ -447,6 +474,13 @@ final class DownloadQueueController {
 private struct RecordCreation {
     var pending = 0
     var didWrite = false
+    var leftStaleRecord = false
+}
+
+enum RecordCreationOutcome {
+    case notWritten
+    case queued
+    case stale
 }
 
 struct RecordCreationToken: Equatable {
