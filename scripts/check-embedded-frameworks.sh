@@ -2,7 +2,7 @@
 set -euo pipefail
 
 app="${1:?usage: scripts/check-embedded-frameworks.sh <app-path>}"
-binary="$app/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+binary="$app/$(basename "$app" .app)"
 
 missing=0
 while IFS= read -r framework; do

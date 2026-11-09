@@ -84,6 +84,10 @@ run = [
     "mise run verify-acknowledgements",
 ]
 
+[tasks.release-launch]
+description = "Build Release on an ephemeral simulator and check that it launches"
+run = "./scripts/release-launch.sh"
+
 [tasks.e2e-simulator]
 description = "Build and run the mocked end-to-end suite, without the screenshot walk"
 run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-simulator.xcresult --label e2e --parallel-workers 2 --skip-testing PutioUITests/ScreenshotWalkUITests"
