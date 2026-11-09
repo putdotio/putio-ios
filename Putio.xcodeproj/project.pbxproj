@@ -14,6 +14,7 @@
 		5A0F00000000000000000301 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000201 /* Sentry-Dynamic */; };
 		5A0F00000000000000000302 /* Intercom in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000202 /* Intercom */; };
 		5A0F00000000000000000303 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000203 /* PostHog */; };
+		5A0F00000000000000000310 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000204 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		5A0F00000000000000000304 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000204 /* RealmSwift */; };
 		5A0F00000000000000000305 /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000205 /* KeychainAccess */; };
 		5A0F00000000000000000306 /* PutioSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000206 /* PutioSDK */; };
@@ -225,6 +226,20 @@
 			remoteInfo = Putio;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5A0F00000000000000000400 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				5A0F00000000000000000310 /* RealmSwift in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5A0F00000000000000000405 /* AcknowledgementsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcknowledgementsTests.swift; sourceTree = "<group>"; };
@@ -998,6 +1013,7 @@
 				ACEF62E71F9A26AA0026B25E /* Frameworks */,
 				ACEF62E81F9A26AA0026B25E /* Resources */,
 				5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Conditional Resources */,
+				5A0F00000000000000000400 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
