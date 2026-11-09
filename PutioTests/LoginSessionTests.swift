@@ -1,4 +1,6 @@
 import AuthenticationServices
+import os
+import RealmSwift
 import XCTest
 @testable import Putio
 @testable import PutioSDK
@@ -129,6 +131,58 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertTrue(keepsSession(cachedUserID: 1, keychain: keychain))
     }
 
+    func testAnOwnerlessTokenOfAnotherAccountDropsTheCachedAccountOnItsFirstOnlineLaunch() throws {
+        let (appDelegate, realm) = try makeOwnerlessLaunch(cachedUserID: 1, token: "token-b", answeringAccountID: 2, answersConfig: false)
+        let download = Download()
+        download.id = 501
+        try realm.write { realm.add(download) }
+
+        appDelegate.fetchUser(token: "token-b")
+
+        waitForRoot(LoginViewController.self, in: appDelegate)
+        realm.refresh()
+        XCTAssertTrue(realm.objects(User.self).isEmpty)
+        XCTAssertTrue(realm.objects(UserConfig.self).isEmpty)
+        XCTAssertTrue(realm.objects(Download.self).isEmpty)
+        XCTAssertEqual(appDelegate.keychain.tokenOwnerID, 2)
+    }
+
+    func testAnOwnerlessTokenOfTheCachedAccountStartsTheQueueOnItsFirstOnlineLaunch() throws {
+        let (appDelegate, realm) = try makeOwnerlessLaunch(cachedUserID: 1, token: "token-a", answeringAccountID: 1, answersConfig: false)
+        DownloadQueueController.sharedInstance.pause()
+        addTeardownBlock { DownloadQueueController.sharedInstance.pause() }
+
+        appDelegate.fetchUser(token: "token-a")
+
+        waitForRoot(RootContainerViewController.self, in: appDelegate)
+        let started = expectation(for: NSPredicate { _, _ in DownloadQueueController.sharedInstance.isEnabled }, evaluatedWith: nil)
+        wait(for: [started], timeout: 10)
+        realm.refresh()
+        XCTAssertEqual(realm.objects(User.self).first?.id, 1)
+        XCTAssertEqual(appDelegate.keychain.tokenOwnerID, 1)
+    }
+
+    func testTheSignInAfterThe258SessionDeletesTheDownloadsNoAccountOwns() throws {
+        let (appDelegate, realm) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-b", answeringAccountID: 2, answersConfig: true)
+        let download = Download()
+        download.id = 501
+        try realm.write { realm.add(download) }
+        PutioRealm.setUpgradingFromShipped258(true)
+        addTeardownBlock {
+            PutioRealm.setUpgradingFromShipped258(false)
+            PutioRealm.setDownloadsHaveNoAccount(false)
+            DownloadQueueController.sharedInstance.pause()
+        }
+
+        appDelegate.authenticate(token: "token-b")
+
+        waitForRoot(RootContainerViewController.self, in: appDelegate)
+        realm.refresh()
+        XCTAssertTrue(realm.objects(Download.self).isEmpty)
+        XCTAssertEqual(realm.objects(User.self).first?.id, 2)
+        XCTAssertFalse(PutioRealm.downloadsHaveNoAccount())
+    }
+
     func testTheRestoredSessionFrom258KeepsItsSessionWithoutACachedUser() {
         XCTAssertTrue(SessionLoadFallback.keepsSession(cachedUserID: nil, tokenOwnerID: nil, signedOutAccountID: 1, restoresShipped258Session: true))
         XCTAssertFalse(SessionLoadFallback.keepsSession(cachedUserID: nil, tokenOwnerID: nil, signedOutAccountID: nil, restoresShipped258Session: false))
@@ -200,6 +254,46 @@ final class LoginSessionTests: XCTestCase {
         return keychain
     }
 
+    private func makeOwnerlessLaunch(cachedUserID: Int?, token: String, answeringAccountID: Int, answersConfig: Bool) throws -> (AppDelegate, Realm) {
+        let previousConfiguration = Realm.Configuration.defaultConfiguration
+        var configuration = PutioRealm.configuration()
+        configuration.inMemoryIdentifier = "LoginSessionTests.\(UUID().uuidString)"
+        Realm.Configuration.defaultConfiguration = configuration
+        let realm = try Realm(configuration: configuration)
+        if let cachedUserID {
+            let user = User()
+            user.id = cachedUserID
+            try realm.write {
+                realm.add(user)
+                realm.add(UserConfig())
+            }
+        }
+
+        let appDelegate = AppDelegate()
+        appDelegate.keychain = makeKeychain()
+        appDelegate.keychain.setToken(token)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        appDelegate.window = window
+
+        let previousToken = api.mediaToken
+        api.setToken(token: token)
+        AccountStub.answer(accountID: answeringAccountID, answersConfig: answersConfig, in: self)
+        addTeardownBlock {
+            window.isHidden = true
+            api.setToken(token: previousToken)
+            realm.invalidate()
+            Realm.Configuration.defaultConfiguration = previousConfiguration
+        }
+        return (appDelegate, realm)
+    }
+
+    private func waitForRoot<Root: UIViewController>(_ root: Root.Type, in appDelegate: AppDelegate) {
+        let presented = expectation(for: NSPredicate { _, _ in
+            appDelegate.window?.rootViewController is Root
+        }, evaluatedWith: nil)
+        wait(for: [presented], timeout: 10)
+    }
+
     private func keepsSession(cachedUserID: Int?, tokenOwnerID: Int?) -> Bool {
         SessionLoadFallback.keepsSession(cachedUserID: cachedUserID, tokenOwnerID: tokenOwnerID, signedOutAccountID: nil, restoresShipped258Session: false)
     }
@@ -259,5 +353,67 @@ final class LoginSessionTests: XCTestCase {
             events.append(.logout)
             loggedInUserID = nil
         }
+    }
+}
+
+private final class AccountStub: URLProtocol {
+    private struct Answers {
+        var accountID = 0
+        var answersConfig = false
+    }
+
+    private static let answers = OSAllocatedUnfairLock(initialState: Answers())
+
+    override static func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == "api.put.io"
+    }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let url = request.url, let body = Self.body(for: url.path),
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
+        else {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    private static func body(for path: String) -> Data? {
+        answers.withLock { answers in
+            switch path {
+            case "/v2/account/info":
+                return accountInfo(id: answers.accountID)
+            case "/v2/config":
+                return answers.answersConfig ? Data(#"{"config":{"chromecast_playback_type":"hls","dismissed.product_analytics_prompt":true}}"#.utf8) : nil
+            default:
+                return nil
+            }
+        }
+    }
+
+    override func stopLoading() {}
+
+    static func answer(accountID: Int, answersConfig: Bool, in testCase: XCTestCase) {
+        answers.withLock { $0 = Answers(accountID: accountID, answersConfig: answersConfig) }
+        URLProtocol.registerClass(AccountStub.self)
+        testCase.addTeardownBlock { URLProtocol.unregisterClass(AccountStub.self) }
+    }
+
+    private static func accountInfo(id: Int) -> Data {
+        Data("""
+        {"info": {"user_id": \(id), "username": "account-\(id)", "mail": "account-\(id)@example.com", "avatar_url": "https://static.put.io/avatar.png",
+          "user_hash": "hash-\(id)", "features": {}, "download_token": "download-token-\(id)", "trash_size": 0, "account_active": true, "account_status": "active",
+          "is_sub_account": false, "files_will_be_deleted_at": "", "password_last_changed_at": "", "disk": {"avail": 1, "size": 2, "used": 1},
+          "settings": {"tunnel_route_name": "default", "next_episode": true, "start_from": true, "history_enabled": true, "trash_enabled": true,
+            "sort_by": "NAME_ASC", "show_optimistic_usage": false, "two_factor_enabled": false, "hide_subtitles": false,
+            "dont_autoselect_subtitles": false, "diagnostics_enabled": false, "product_analytics_enabled": false}}}
+        """.utf8)
     }
 }

@@ -192,6 +192,7 @@ final class DownloadQueueController {
         }
         guard deleteDownloadRecords(realm) else { return false }
         defaults.removeObject(forKey: Self.accountChangeCleanupPendingKey)
+        PutioRealm.setDownloadsHaveNoAccount(false, defaults: defaults)
         creationGenerations.withLock { $0.isAccountCleanupPending = false }
         downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
         let pendingFiles = locations.map { DownloadSupport.moveAsideForDeletion($0) }
