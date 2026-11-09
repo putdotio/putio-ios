@@ -96,11 +96,26 @@ extension FilesViewController: MoveFilesViewControllerDelegate {
     }
 }
 
+extension FilesViewController {
+    func createDownload(from file: PutioFile) {
+        let didAccept = file.type == .video
+            ? VideoDownloadManager.sharedInstance.createDownload(from: file)
+            : AudioDownloadManager.sharedInstance.createDownload(from: file)
+        guard !didAccept else { return }
+        InternalFailurePresenter.present(
+            on: self,
+            screen: .files,
+            title: NSLocalizedString("Downloads Unavailable", comment: ""),
+            message: NSLocalizedString("Downloads from your previous account couldn't be removed yet. Try again in a moment.", comment: "")
+        )
+    }
+}
+
 extension FilesViewController: VideoConversionViewControllerDelegate {
     func videoConversionFinished(for file: PutioFile, intention: VideoConversionIntention) {
         switch intention {
         case .download:
-            VideoDownloadManager.sharedInstance.createDownload(from: file)
+            createDownload(from: file)
         case .play:
             presentFile(file)
         }

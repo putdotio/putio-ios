@@ -45,9 +45,10 @@ enum DownloadSupport {
         context: PutioRealm.Context,
         makeDownload: @escaping () -> Download?,
         didCreate: @escaping () -> Void
-    ) {
+    ) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
         let queueController = DownloadQueueController.sharedInstance
+        guard queueController.prepareRecordCreation() else { return false }
         let token = queueController.recordCreationWillStart(id: id)
         recordQueue.async {
             let didWrite = autoreleasepool { () -> Bool in
@@ -68,6 +69,7 @@ enum DownloadSupport {
                 queueController.recordCreationDidFinish(id: id, didWrite: didWrite)
             }
         }
+        return true
     }
 
     static func performWithOneRetry(_ operation: () -> Bool) -> Bool {

@@ -125,7 +125,10 @@ final class DownloadQueueController {
     func start() {
         onMain {
             if self.defaults.bool(forKey: Self.accountChangeCleanupPendingKey) {
-                guard self.clearAccountDownloads() else { return }
+                guard self.clearAccountDownloads() else {
+                    self.startsAfterAccountChange = true
+                    return
+                }
             }
             guard self.pendingAccountChangeDeletes == 0 else {
                 self.startsAfterAccountChange = true
@@ -207,6 +210,23 @@ final class DownloadQueueController {
         return true
     }
 
+    func prepareRecordCreation() -> Bool {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard creationGenerations.withLock({ $0.isAccountCleanupPending }) else { return true }
+        guard clearAccountDownloads() else {
+            InternalFailurePresenter.log(
+                "Refused a new download while the previous account's downloads await cleanup",
+                context: "DownloadQueueController.prepareRecordCreation.cleanupPending"
+            )
+            return false
+        }
+        if startsAfterAccountChange, pendingAccountChangeDeletes == 0 {
+            startsAfterAccountChange = false
+            start()
+        }
+        return true
+    }
+
     private func accountChangeDeleteDidFinish() {
         pendingAccountChangeDeletes -= 1
         guard pendingAccountChangeDeletes == 0, startsAfterAccountChange else { return }
@@ -259,7 +279,7 @@ final class DownloadQueueController {
         creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
         if creation.didWrite {
             downloadWasQueued()
-        } else if isInFlightWithoutTask(id: id) {
+        } else if !creationGenerations.withLock({ $0.isAccountCleanupPending }), isInFlightWithoutTask(id: id) {
             startFailed(id: id)
         }
     }

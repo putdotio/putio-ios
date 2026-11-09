@@ -206,12 +206,7 @@ extension FilesViewController {
             }
         } else {
             action = UIContextualAction(style: .normal, title: NSLocalizedString("Download", comment: "")) { _, _, handler in
-                if file.type == .video {
-                    VideoDownloadManager.sharedInstance.createDownload(from: file)
-                } else {
-                    AudioDownloadManager.sharedInstance.createDownload(from: file)
-                }
-
+                self.createDownload(from: file)
                 handler(true)
             }
         }

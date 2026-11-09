@@ -242,6 +242,32 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
     }
 
+    func testPendingCleanupRefusesNewDownloadsUntilARetrySucceeds() throws {
+        recordDeletesFail = true
+        let controller = makeController()
+        controller.clearDownloadsForAccountChange()
+        controller.start()
+        try realm.write { realm.object(ofType: Download.self, forPrimaryKey: 401)?.state = .active }
+
+        XCTAssertFalse(controller.prepareRecordCreation())
+        _ = controller.recordCreationWillStart(id: 401)
+        controller.recordCreationDidFinish(id: 401, didWrite: false)
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 401)?.state, .active)
+
+        recordDeletesFail = false
+        XCTAssertTrue(controller.prepareRecordCreation())
+        let creation = controller.recordCreationWillStart(id: 403)
+        XCTAssertTrue(controller.isRecordCreationCurrent(creation))
+        controller.recordCreationDidFinish(id: 403, didWrite: false)
+        runHeldDelete(at: 0)
+        runHeldDelete(at: 1)
+
+        realm.refresh()
+        XCTAssertTrue(realm.objects(Download.self).isEmpty)
+        XCTAssertTrue(controller.isEnabled)
+    }
+
     func testFailedMoveAsideDeletesTheFileInPlace() throws {
         let readOnlyDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AccountChangeAside-\(UUID().uuidString)", isDirectory: true)

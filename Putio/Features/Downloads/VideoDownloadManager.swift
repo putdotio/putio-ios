@@ -150,10 +150,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         })
     }
 
-    func createDownload(from file: PutioFile) {
+    @discardableResult
+    func createDownload(from file: PutioFile) -> Bool {
         log.verbose(["VDM: createDownload", file.id])
         discardDownload(id: file.id)
-        DownloadSupport.createRecord(
+        return DownloadSupport.createRecord(
             id: file.id,
             context: "VideoDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
