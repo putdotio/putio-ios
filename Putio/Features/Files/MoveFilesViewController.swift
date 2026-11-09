@@ -19,8 +19,6 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     var files: [PutioFile] = []
     var filesToMove: [PutioFile] = []
 
-    private var fetchGeneration = 0
-
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -89,8 +87,6 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
 
     func fetchData(showsLoader: Bool = true) {
         let fileID = file?.id ?? 0
-        fetchGeneration += 1
-        let generation = fetchGeneration
 
         if showsLoader {
             stateMachine.transitionToState(.view("loading"))
@@ -98,8 +94,6 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         updateActionButtonStates(isEnabled: false)
 
         api.getFiles(parentID: fileID, query: PutioFilesListQuery(contentType: "application/x-directory"), completion: { result in
-            guard generation == self.fetchGeneration else { return }
-
             self.tableView.refreshControl?.endRefreshing()
 
             switch result {
@@ -124,6 +118,10 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
                 self.tableView.reloadData()
 
             case .failure(let error):
+                self.files = []
+                self.tableView.backgroundView = nil
+                self.tableView.reloadData()
+
                 if case .networkError = error.type {
                     self.stateMachine.transitionToState(.view("offline"), animated: false, completion: nil)
                 } else {

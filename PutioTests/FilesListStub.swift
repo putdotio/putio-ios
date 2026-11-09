@@ -5,8 +5,13 @@ import XCTest
 @testable import Putio
 
 final class FilesListStub: URLProtocol {
+    enum Failure {
+        case offline
+        case serverError
+    }
+
     private static let listedFiles = OSAllocatedUnfairLock(initialState: 0)
-    private static let failingListings = OSAllocatedUnfairLock(initialState: 0)
+    private static let failures = OSAllocatedUnfairLock(initialState: [Failure?]())
 
     override static func canInit(with request: URLRequest) -> Bool {
         request.url?.host == "api.put.io"
@@ -17,20 +22,29 @@ final class FilesListStub: URLProtocol {
     }
 
     override func startLoading() {
-        guard let url = request.url, url.path == "/v2/files/list",
-              !Self.failingListings.withLock({ remaining in
-                  guard remaining > 0 else { return false }
-                  remaining -= 1
-                  return true
-              }),
-              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
-        else {
+        guard let url = request.url, url.path == "/v2/files/list" else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
         }
 
+        switch Self.failures.withLock({ $0.isEmpty ? nil : $0.removeFirst() }) {
+        case .offline:
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        case .serverError:
+            respond(url: url, statusCode: 500, body: Data(#"{"error_type": "INTERNAL_ERROR", "status_code": 500}"#.utf8))
+        case nil:
+            respond(url: url, statusCode: 200, body: Self.listing(fileCount: Self.listedFiles.withLock { $0 }))
+        }
+    }
+
+    private func respond(url: URL, statusCode: Int, body: Data) {
+        guard let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: ["Content-Type": "application/json"]) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.listing(fileCount: Self.listedFiles.withLock { $0 }))
+        client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
     }
 
@@ -66,9 +80,9 @@ final class FilesListStub: URLProtocol {
         """
     }
 
-    static func answerFilesList(with fileCount: Int, failingFirst failures: Int = 0, in testCase: XCTestCase) {
+    static func answerFilesList(with fileCount: Int, after scriptedFailures: [Failure?] = [], in testCase: XCTestCase) {
         listedFiles.withLock { $0 = fileCount }
-        failingListings.withLock { $0 = failures }
+        failures.withLock { $0 = scriptedFailures }
         URLProtocol.registerClass(FilesListStub.self)
         testCase.addTeardownBlock { URLProtocol.unregisterClass(FilesListStub.self) }
     }

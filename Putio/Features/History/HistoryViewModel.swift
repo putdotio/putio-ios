@@ -68,8 +68,6 @@ class HistoryViewModel {
 
     var sections: [HistorySection] = []
 
-    private var fetchGeneration = 0
-
     init(
         fetchEventsRequest: @escaping FetchEventsRequest = { completion in
             api.getHistoryEvents(completion: completion)
@@ -165,16 +163,13 @@ class HistoryViewModel {
     }
 
     private func fetchData() {
-        fetchGeneration += 1
-        let generation = fetchGeneration
         fetchEventsRequest { result in
-            guard generation == self.fetchGeneration else { return }
-
             switch result {
             case .success(let events):
                 self.events = events
 
             case .failure(let error):
+                self.sections = []
                 self.state = .failure(error: error)
             }
         }

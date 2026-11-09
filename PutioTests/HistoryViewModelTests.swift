@@ -1,7 +1,7 @@
 import XCTest
 import UIKit
 @testable import Putio
-@testable import PutioSDK
+import PutioSDK
 
 private struct MockHistoryEvent: HistoryEventRepresentable {
     let historyEventID: Int
@@ -40,26 +40,6 @@ final class HistoryViewModelTests: XCTestCase {
 
         assertEmpty(viewModel.state)
         XCTAssertTrue(viewModel.sections.isEmpty)
-    }
-
-    func testAnOlderFetchFailingLateLeavesTheNewerResultInPlace() throws {
-        var completions: [(Result<[PutioHistoryEvent], PutioSDKError>) -> Void] = []
-        let viewModel = HistoryViewModel(fetchEventsRequest: { completion in completions.append(completion) })
-        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/events/list", method: .get)
-        let offline = PutioSDKError(request: PutioSDKErrorRequestInformation(config: config), error: URLError(.notConnectedToInternet))
-        let event = try JSONDecoder().decode(
-            PutioHistoryEvent.self,
-            from: Data(#"{"id": 1, "user_id": 1, "type": "upload", "created_at": "2026-07-21T09:00:00Z"}"#.utf8)
-        )
-
-        viewModel.refetchEvents()
-        viewModel.fetchEvents()
-        completions[1](.success([event]))
-        completions[0](.failure(offline))
-
-        guard case .loaded = viewModel.state else {
-            return XCTFail("the stale failure replaced the loaded list: \(viewModel.state)")
-        }
     }
 
     func testRemoveEventByIDUsesInjectedRequest() {

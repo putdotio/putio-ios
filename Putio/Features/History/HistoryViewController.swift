@@ -184,6 +184,7 @@ extension HistoryViewController: HistoryViewModelDelegate {
 
         case .failure(let error):
             tableView.refreshControl?.endRefreshing()
+            tableView.reloadData()
             switch error.type {
             case .networkError:
                 setClearAllButtonEnabled(false)
