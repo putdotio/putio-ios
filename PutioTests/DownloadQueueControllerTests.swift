@@ -225,12 +225,12 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         let relaunched = makeController()
         let creationDuringPendingCleanup = relaunched.recordCreationWillStart(id: 403)
         XCTAssertFalse(relaunched.isRecordCreationCurrent(creationDuringPendingCleanup))
-        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
+        relaunched.recordCreationDidFinish(id: 403, outcome: .notWritten)
         relaunched.start()
         XCTAssertEqual(heldDeletes.count, 2)
         let creationAfterCleanup = relaunched.recordCreationWillStart(id: 403)
         XCTAssertTrue(relaunched.isRecordCreationCurrent(creationAfterCleanup))
-        relaunched.recordCreationDidFinish(id: 403, didWrite: false)
+        relaunched.recordCreationDidFinish(id: 403, outcome: .notWritten)
         XCTAssertFalse(relaunched.isEnabled)
         runHeldDelete(at: 0)
         runHeldDelete(at: 1)
@@ -264,7 +264,7 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
 
         XCTAssertFalse(controller.prepareRecordCreation())
         _ = controller.recordCreationWillStart(id: 401)
-        controller.recordCreationDidFinish(id: 401, didWrite: false)
+        controller.recordCreationDidFinish(id: 401, outcome: .notWritten)
         realm.refresh()
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 401)?.state, .active)
 
@@ -272,7 +272,7 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         XCTAssertTrue(controller.prepareRecordCreation())
         let creation = controller.recordCreationWillStart(id: 403)
         XCTAssertTrue(controller.isRecordCreationCurrent(creation))
-        controller.recordCreationDidFinish(id: 403, didWrite: false)
+        controller.recordCreationDidFinish(id: 403, outcome: .notWritten)
         runHeldDelete(at: 0)
         runHeldDelete(at: 1)
 
@@ -760,6 +760,131 @@ final class DownloadCreationTests: XCTestCase {
 
         realm.refresh()
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
+    }
+
+    func testDeletingARedownloadBetweenItsCommitAndCompletionRemovesIt() throws {
+        let id = 9_004_995
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        let partialAsset = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DownloadCreationTests-\(UUID().uuidString).movpkg", isDirectory: true)
+        try FileManager.default.createDirectory(at: partialAsset, withIntermediateDirectories: true)
+        UserDefaults.standard.set(try partialAsset.bookmarkData(), forKey: String(id))
+        addTeardownBlock {
+            UserDefaults.standard.removeObject(forKey: String(id))
+            try? FileManager.default.removeItem(at: partialAsset)
+        }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .failed)
+        let deleted = expectation(description: "deletion finished")
+        var didDelete = false
+        VideoDownloadManager.sharedInstance.deleteDownload(id: id) {
+            didDelete = $0
+            deleted.fulfill()
+        }
+        wait(for: [deleted], timeout: 10)
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertTrue(didDelete)
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: partialAsset.path))
+        XCTAssertNil(UserDefaults.standard.object(forKey: String(id)))
+        XCTAssertEqual(createdCount, 0)
+    }
+
+    func testAFailedDeleteOfARedownloadBetweenItsCommitAndCompletionKeepsTheRow() throws {
+        let id = 9_004_999
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        UserDefaults.standard.set("unresolvable bookmark", forKey: String(id))
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) {})
+        DownloadSupport.recordQueue.sync {}
+        let deleted = expectation(description: "deletion finished")
+        var didDelete = true
+        VideoDownloadManager.sharedInstance.deleteDownload(id: id) {
+            didDelete = $0
+            deleted.fulfill()
+        }
+        wait(for: [deleted], timeout: 10)
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertFalse(didDelete)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
+        XCTAssertNotNil(UserDefaults.standard.object(forKey: String(id)))
+    }
+
+    func testASignOutBetweenCommitAndCompletionCapturesNothing() throws {
+        let id = 9_004_998
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        AccountNoticeStore.shared.clear()
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .queued)
+        XCTAssertEqual(createdCount, 0)
+    }
+
+    func testAccountChangeBetweenCommitAndCompletionCapturesNothing() throws {
+        let id = 9_004_996
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertEqual(createdCount, 0)
+    }
+
+    func testAStaleCreationKeepsANewerCreationsRecord() throws {
+        let id = 9_004_997
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        var createdCount = 0
+
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
+        XCTAssertTrue(createVideoRecord(id: id, file: putioFile) { createdCount += 1 })
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+        DownloadSupport.recordQueue.sync {}
+
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .queued)
+        XCTAssertEqual(createdCount, 1)
+    }
+
+    private func createVideoRecord(id: Int, file: PutioFile, didCreate: @escaping () -> Void) -> Bool {
+        DownloadSupport.createRecord(
+            id: id,
+            context: "DownloadCreationTests",
+            makeDownload: { Download(file: file, url: "") },
+            didCreate: didCreate
+        )
     }
 
     private func drainMainQueue() {

@@ -142,18 +142,22 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
-        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
-        deletion(for: id).perform { didDelete in
+        let supersedesCreation = DownloadQueueController.sharedInstance.recordDeletionWillStart(id: id)
+        deletion(for: id, supersedesCreation: supersedesCreation).perform { didDelete in
+            if supersedesCreation {
+                DownloadQueueController.sharedInstance.recordDeletionDidFinish(id: id, didDelete: didDelete)
+            }
             self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
         }
     }
 
-    private func deletion(for id: Int) -> DownloadSupport.Deletion {
+    private func deletion(for id: Int, supersedesCreation: Bool) -> DownloadSupport.Deletion {
         dispatchPrecondition(condition: .onQueue(.main))
         return DownloadSupport.deletion(
             id: id,
             state: getDownloadFromDatabase(id: id)?.state,
+            supersedesCreation: supersedesCreation,
             context: "AudioDownloadManager.deleteDownload",
             cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) }

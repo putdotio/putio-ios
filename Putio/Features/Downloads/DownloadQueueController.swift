@@ -261,27 +261,78 @@ final class DownloadQueueController {
         creationGenerations.withLock { !$0.isAccountCleanupPending && $0.token(for: token.id) == token }
     }
 
-    func invalidateRecordCreations(id: Int) {
+    @discardableResult
+    func invalidateRecordCreations(id: Int) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
-        guard creationsByID[id] != nil else { return }
+        guard creationsByID[id] != nil else { return false }
         creationGenerations.withLock { $0.byID[id, default: 0] += 1 }
+        return true
     }
 
-    func recordCreationDidFinish(id: Int, didWrite: Bool) {
+    func recordDeletionWillStart(id: Int) -> Bool {
+        guard invalidateRecordCreations(id: id) else { return false }
+        creationsByID[id]?.pendingDeletions += 1
+        return true
+    }
+
+    func recordDeletionDidFinish(id: Int, didDelete: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard var creation = creationsByID[id] else { return }
+        creation.pendingDeletions -= 1
+        if !didDelete { creation.deletionFailed = true }
+        creationsByID[id] = creation
+        finishRecordCreations(id: id)
+    }
+
+    func recordCreationDidFinish(id: Int, outcome: RecordCreationOutcome) {
         dispatchPrecondition(condition: .onQueue(.main))
         guard var creation = creationsByID[id] else { return }
         creation.pending -= 1
-        creation.didWrite = creation.didWrite || didWrite
-        guard creation.pending == 0 else {
-            creationsByID[id] = creation
-            return
+        switch outcome {
+        case .queued:
+            creation.didWrite = true
+            creation.leftStaleRecord = false
+        case .stale:
+            creation.leftStaleRecord = true
+        case .notWritten:
+            break
         }
+        creationsByID[id] = creation
+        finishRecordCreations(id: id)
+    }
+
+    private func finishRecordCreations(id: Int) {
+        guard let creation = creationsByID[id], creation.pending == 0, creation.pendingDeletions == 0 else { return }
         creationsByID.removeValue(forKey: id)
         creationGenerations.withLock { _ = $0.byID.removeValue(forKey: id) }
-        if creation.didWrite {
+        if creation.leftStaleRecord {
+            removeStaleRecord(id: id, keepsRow: creation.deletionFailed)
+        } else if creation.didWrite {
             downloadWasQueued()
         } else if !creationGenerations.withLock({ $0.isAccountCleanupPending }), isInFlightWithoutTask(id: id) {
             startFailed(id: id)
+        }
+    }
+
+    private func removeStaleRecord(id: Int, keepsRow: Bool) {
+        DownloadSupport.recordQueue.async {
+            let context: PutioRealm.Context = "DownloadQueueController.staleRecordCreation"
+            let didRemove = autoreleasepool { () -> Bool in
+                if !keepsRow, DownloadSupport.deleteRecord(id: id, context: context, ifStateIsIn: [.queued]) { return true }
+                guard let realm = DownloadSupport.realm(context: context.appending("stop")) else { return false }
+                return DownloadSupport.write(realm, context: context.appending("stop.write")) {
+                    guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
+                          download.state == .queued else { return }
+                    download.state = .stopped
+                }
+            }
+            guard !didRemove else { return }
+            DispatchQueue.main.async {
+                InternalFailurePresenter.log(
+                    "Kept a queued record for a download whose creation went stale",
+                    context: "DownloadQueueController.staleRecordCreation"
+                )
+            }
         }
     }
 
@@ -447,6 +498,15 @@ final class DownloadQueueController {
 private struct RecordCreation {
     var pending = 0
     var didWrite = false
+    var leftStaleRecord = false
+    var pendingDeletions = 0
+    var deletionFailed = false
+}
+
+enum RecordCreationOutcome {
+    case notWritten
+    case queued
+    case stale
 }
 
 struct RecordCreationToken: Equatable {
