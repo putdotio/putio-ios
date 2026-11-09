@@ -162,7 +162,16 @@ final class ClearDataScreenTests: XCTestCase {
         XCTAssertEqual(failure.actions.map(\.title), ["OK"])
         XCTAssertEqual(AccountClearStub.requests, 1)
         XCTAssertIdentical(navigation.topViewController, screen, "a failed clear should stay on the screen")
-        XCTAssertTrue(clear.isEnabled, "a failed clear should leave Clear available for another try")
+
+        let dismissed = expectation(description: "error alert dismissed")
+        screen.dismiss(animated: false) { dismissed.fulfill() }
+        wait(for: [dismissed], timeout: 5)
+        try tap(clear)
+        let retry = try waitForAlert(on: screen, titled: "Clear the selected data?")
+        XCTAssertEqual(retry.message, "This permanently deletes Trash from your put.io account. It can't be undone.")
+        try chooseAlertAction("Clear", in: retry)
+        _ = try waitForAlert(on: screen, titled: "Network error")
+        XCTAssertEqual(AccountClearStub.requests, 2, "the retry should send the request again")
     }
 
     private func select(_ title: String, in screen: ClearDataTableViewController) throws {

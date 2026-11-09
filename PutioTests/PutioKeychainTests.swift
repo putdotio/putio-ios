@@ -296,7 +296,9 @@ final class SettingsViewModelTests: XCTestCase {
 
         let row = try XCTUnwrap(displayedCell(titled: "Privacy controls", in: account.tableView), "Account should show a Privacy controls row")
         XCTAssertEqual(row.cell.detailTextLabel?.text, "Diagnostics on · Product analytics off")
-        XCTAssertNil(displayedCell(titled: "Always on", in: account.tableView), "the controls live on their own page")
+        for title in ["Strictly necessary", "Diagnostics", "Product analytics"] {
+            XCTAssertNil(displayedCell(titled: title, in: account.tableView), "\(title) lives on the Privacy controls page")
+        }
         account.tableView.delegate?.tableView?(account.tableView, didSelectRowAt: row.indexPath)
 
         let shown = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
