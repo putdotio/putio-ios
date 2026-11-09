@@ -988,7 +988,7 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertTrue(touched?.isDescendant(of: tableView) == true, "the offline view swallowed the pull: \(String(describing: touched))")
     }
 
-    func testMoveFilesShowsARetryableErrorWhenTheFolderLoadFails() throws {
+    func testMoveFilesShowsARetryableOfflineStateWhenTheFolderLoadFails() throws {
         FilesListStub.answerFilesList(with: 2, failingFirst: 1, in: self)
         let storyboard = UIStoryboard(name: "MoveFiles", bundle: Bundle(for: MoveFilesViewController.self))
         let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "MoveVC") as? MoveFilesViewController)
@@ -999,13 +999,10 @@ final class NavigationLocalizationTests: XCTestCase {
         viewController.view.layoutIfNeeded()
 
         let failed = expectation(for: NSPredicate { _, _ in
-            viewController.view.subviews.contains { $0 is EmptyStateView }
+            viewController.view.subviews.contains { $0 is OfflineStatusView }
                 && !viewController.view.subviews.contains { $0 is LoaderView }
         }, evaluatedWith: nil)
         wait(for: [failed], timeout: 10)
-        let errorView = viewController.view.subviews.compactMap { $0 as? EmptyStateView }.first
-        XCTAssertEqual(errorView?.headingLabel.text, NSLocalizedString("Oops", comment: ""))
-        XCTAssertEqual(errorView?.descriptionLabel.text, NSLocalizedString("An error occurred, please try again :(", comment: ""))
         XCTAssertFalse(viewController.moveButton.isEnabled)
 
         let refreshControl = try XCTUnwrap(viewController.tableView.refreshControl)
@@ -1013,7 +1010,7 @@ final class NavigationLocalizationTests: XCTestCase {
 
         let loaded = expectation(for: NSPredicate { _, _ in
             viewController.tableView.numberOfRows(inSection: 0) == 2
-                && !viewController.view.subviews.contains { $0 is EmptyStateView || $0 is LoaderView }
+                && !viewController.view.subviews.contains { $0 is OfflineStatusView || $0 is LoaderView }
         }, evaluatedWith: nil)
         wait(for: [loaded], timeout: 10)
         XCTAssertTrue(viewController.moveButton.isEnabled)
