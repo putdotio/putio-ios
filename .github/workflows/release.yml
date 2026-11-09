@@ -332,8 +332,15 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$RELEASE_VERSION"
-          ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" 2>/dev/null || true)"
-          if [ -n "$ref" ]; then
+          if ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" 2>/dev/null)"; then
+            exists=true
+          elif [ "$(jq -r .status <<< "$ref" 2>/dev/null)" = 404 ]; then
+            exists=false
+          else
+            echo "could not look up $tag" >&2
+            exit 1
+          fi
+          if [ "$exists" = true ]; then
             if [ "$(jq -r .object.type <<< "$ref")" != tag ]; then
               echo "$tag already exists without a build number" >&2
               exit 1
