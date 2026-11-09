@@ -255,7 +255,7 @@ final class NavigationLocalizationTests: XCTestCase {
         let finished = expectation(description: "deletion finished")
         var diskWorkRanOnMain = [Bool]()
         var deletedLocalFile = false
-        var expectedStates = [Download.State?]()
+        var expectedStates = [Set<Download.State>?]()
 
         makeDeletion(
             state: .completed,
@@ -277,7 +277,7 @@ final class NavigationLocalizationTests: XCTestCase {
 
         wait(for: [finished], timeout: 5)
         XCTAssertEqual(diskWorkRanOnMain, [false, false])
-        XCTAssertEqual(expectedStates, [.completed])
+        XCTAssertEqual(expectedStates, [[.completed]])
         XCTAssertTrue(deletedLocalFile)
     }
 
@@ -365,11 +365,12 @@ final class NavigationLocalizationTests: XCTestCase {
         cancelActiveDownload: @escaping () -> Void = { XCTFail("Finished downloads do not need cancellation") },
         currentState: (() -> DownloadSupport.RecordLookup)? = nil,
         deleteLocalFile: @escaping () -> DownloadSupport.LocalFileDeletionResult,
-        deleteRecord: @escaping (Download.State?) -> Bool = { _ in true },
+        deleteRecord: @escaping (Set<Download.State>?) -> Bool = { _ in true },
         localFileDeletionDidSucceed: @escaping () -> Void = {}
     ) -> DownloadSupport.Deletion {
         DownloadSupport.Deletion(
             state: state,
+            supersedesCreation: false,
             cancelActiveDownload: cancelActiveDownload,
             deleteLocalFile: deleteLocalFile,
             currentState: currentState ?? { .stored(state) },

@@ -50,6 +50,7 @@ enum DownloadSupport {
         let queueController = DownloadQueueController.sharedInstance
         guard queueController.prepareRecordCreation() else { return false }
         let token = queueController.recordCreationWillStart(id: id)
+        let session = AccountNoticeStore.shared.session
         recordQueue.async {
             let didWrite = autoreleasepool { () -> Bool in
                 guard let download = makeDownload(), let realm = realm(context: context) else { return false }
@@ -67,7 +68,7 @@ enum DownloadSupport {
                     realm(context: context.appending("refresh"))?.refresh()
                     outcome = queueController.isRecordCreationCurrent(token) ? .queued : .stale
                 }
-                if outcome == .queued { didCreate() }
+                if outcome == .queued, session == AccountNoticeStore.shared.session { didCreate() }
                 queueController.recordCreationDidFinish(id: id, outcome: outcome)
             }
         }
@@ -86,7 +87,7 @@ enum DownloadSupport {
         return true
     }
 
-    static func deleteRecord(id: Int, context: PutioRealm.Context, ifStateIs expectedState: Download.State? = nil) -> Bool {
+    static func deleteRecord(id: Int, context: PutioRealm.Context, ifStateIsIn expectedStates: Set<Download.State>? = nil) -> Bool {
         guard let realm = realm(context: context) else { return false }
         guard realm.object(ofType: Download.self, forPrimaryKey: id) != nil else {
             return true
@@ -95,7 +96,7 @@ enum DownloadSupport {
         var stateMatched = true
         let didWrite = write(realm, context: context.appending("write")) {
             guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
-            stateMatched = expectedState.map { download.state == $0 } ?? true
+            stateMatched = expectedStates?.contains(download.state) ?? true
             guard stateMatched else { return }
             realm.delete(download)
         }
@@ -259,10 +260,11 @@ enum DownloadSupport {
 
     struct Deletion {
         let state: Download.State?
+        let supersedesCreation: Bool
         let cancelActiveDownload: () -> Void
         let deleteLocalFile: () -> LocalFileDeletionResult
         let currentState: () -> RecordLookup
-        let deleteRecord: (_ expectedState: Download.State?) -> Bool
+        let deleteRecord: (_ expectedStates: Set<Download.State>?) -> Bool
         let localFileDeletionDidSucceed: () -> Void
 
         func perform(completion: @escaping (Bool) -> Void) {
@@ -291,16 +293,18 @@ enum DownloadSupport {
         }
 
         private func performFinished() -> Bool {
+            guard let state else { return false }
+            let expectedStates: Set<Download.State> = supersedesCreation ? [state, .queued] : [state]
             switch currentState() {
-            case .missing: return true
+            case .missing: guard supersedesCreation else { return true }
             case .unreadable: return false
-            case .stored(let current): guard current == state else { return false }
+            case .stored(let current): guard expectedStates.contains(current) else { return false }
             }
             return performDeletion(
                 state: state,
                 cancelActiveDownload: cancelActiveDownload,
                 deleteLocalFile: deleteLocalFile,
-                deleteRecord: { deleteRecord(state) },
+                deleteRecord: { deleteRecord(expectedStates) },
                 localFileDeletionDidSucceed: localFileDeletionDidSucceed
             )
         }
@@ -309,12 +313,14 @@ enum DownloadSupport {
     static func deletion(
         id: Int,
         state: Download.State?,
+        supersedesCreation: Bool,
         context: PutioRealm.Context,
         cancelActiveDownload: @escaping () -> Void,
         deleteLocalFile: @escaping () -> LocalFileDeletionResult
     ) -> Deletion {
         Deletion(
             state: state,
+            supersedesCreation: supersedesCreation,
             cancelActiveDownload: cancelActiveDownload,
             deleteLocalFile: deleteLocalFile,
             currentState: {
@@ -322,8 +328,8 @@ enum DownloadSupport {
                 realm.refresh()
                 return realm.object(ofType: Download.self, forPrimaryKey: id).map { .stored($0.state) } ?? .missing
             },
-            deleteRecord: { expectedState in
-                deleteRecord(id: id, context: context, ifStateIs: expectedState)
+            deleteRecord: { expectedStates in
+                deleteRecord(id: id, context: context, ifStateIsIn: expectedStates)
             },
             localFileDeletionDidSucceed: {
                 UserDefaults.standard.removeObject(forKey: String(id))

@@ -154,12 +154,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) -> Bool {
         log.verbose(["VDM: createDownload", file.id])
         discardDownload(id: file.id)
-        let session = AccountNoticeStore.shared.session
         return DownloadSupport.createRecord(
             id: file.id,
             context: "VideoDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
-            didCreate: { ProductAnalytics.capture(.downloadStarted(.video), startedIn: session) }
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.video)) }
         )
     }
 
@@ -179,19 +178,20 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
-        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
-        deletion(for: id).perform { didDelete in
+        let supersedesCreation = DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
+        deletion(for: id, supersedesCreation: supersedesCreation).perform { didDelete in
             self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
         }
     }
 
-    private func deletion(for id: Int) -> DownloadSupport.Deletion {
+    private func deletion(for id: Int, supersedesCreation: Bool) -> DownloadSupport.Deletion {
         dispatchPrecondition(condition: .onQueue(.main))
         log.verbose(["VDM: deleteDownload", id])
         return DownloadSupport.deletion(
             id: id,
             state: getDownloadFromDatabase(id: id)?.state,
+            supersedesCreation: supersedesCreation,
             context: "VideoDownloadManager.deleteDownload",
             cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) }

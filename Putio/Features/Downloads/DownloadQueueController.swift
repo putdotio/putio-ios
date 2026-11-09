@@ -261,10 +261,12 @@ final class DownloadQueueController {
         creationGenerations.withLock { !$0.isAccountCleanupPending && $0.token(for: token.id) == token }
     }
 
-    func invalidateRecordCreations(id: Int) {
+    @discardableResult
+    func invalidateRecordCreations(id: Int) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
-        guard creationsByID[id] != nil else { return }
+        guard creationsByID[id] != nil else { return false }
         creationGenerations.withLock { $0.byID[id, default: 0] += 1 }
+        return true
     }
 
     func recordCreationDidFinish(id: Int, outcome: RecordCreationOutcome) {
@@ -296,19 +298,24 @@ final class DownloadQueueController {
     }
 
     private func removeStaleRecord(id: Int) {
-        let context: PutioRealm.Context = "DownloadQueueController.staleRecordCreation"
-        guard !DownloadSupport.deleteRecord(id: id, context: context, ifStateIs: .queued) else { return }
-        guard let realm = DownloadSupport.realm(context: context.appending("stop")),
-              DownloadSupport.write(realm, context: context.appending("stop.write"), updates: {
-                  guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
-                        download.state == .queued else { return }
-                  download.state = .stopped
-              }) else {
-            InternalFailurePresenter.log(
-                "Kept a queued record for a download whose creation went stale",
-                context: "DownloadQueueController.staleRecordCreation"
-            )
-            return
+        DownloadSupport.recordQueue.async {
+            let context: PutioRealm.Context = "DownloadQueueController.staleRecordCreation"
+            let didRemove = autoreleasepool { () -> Bool in
+                if DownloadSupport.deleteRecord(id: id, context: context, ifStateIsIn: [.queued]) { return true }
+                guard let realm = DownloadSupport.realm(context: context.appending("stop")) else { return false }
+                return DownloadSupport.write(realm, context: context.appending("stop.write")) {
+                    guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
+                          download.state == .queued else { return }
+                    download.state = .stopped
+                }
+            }
+            guard !didRemove else { return }
+            DispatchQueue.main.async {
+                InternalFailurePresenter.log(
+                    "Kept a queued record for a download whose creation went stale",
+                    context: "DownloadQueueController.staleRecordCreation"
+                )
+            }
         }
     }
 
