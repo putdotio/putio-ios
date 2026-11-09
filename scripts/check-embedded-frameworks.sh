@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app="${1:?usage: scripts/check-embedded-frameworks.sh <app-path>}"
+binary="$app/$(basename "$app" .app)"
+linked="$(otool -L "$binary")"
+
+missing=0
+while IFS= read -r framework; do
+  if [ ! -e "$app/Frameworks/$framework" ]; then
+    echo "$app links @rpath/$framework but does not embed it" >&2
+    missing=1
+  fi
+done < <(awk '$1 ~ /^@rpath\// { sub("^@rpath/", "", $1); print $1 }' <<<"$linked" | sort -u)
+
+exit "$missing"

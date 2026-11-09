@@ -377,6 +377,8 @@ while [ "$#" -gt 0 ]; do
         mkdir -p "$2/dSYMs/$name.dSYM/Contents/Resources/DWARF"
         echo "dwarf for $name" > "$2/dSYMs/$name.dSYM/Contents/Resources/DWARF/\${name%.*}"
       done
+      mkdir -p "$2/Products/Applications/Putio.app/Frameworks/Sentry.framework"
+      touch "$2/Products/Applications/Putio.app/Putio" "$2/Products/Applications/Putio.app/Frameworks/Sentry.framework/Sentry"
       ;;
     export:-exportOptionsPlist) cp "$2" "$EXPORT_OPTIONS" ;;
     export:-exportPath) mkdir -p "$2" && touch "$2/Putio.ipa" ;;
@@ -389,7 +391,8 @@ const archiveFixture = async (t: test.TestContext) => {
   const dir = await tempDir(t);
   await writeFile(join(dir, "xcodebuild"), fakeXcodebuild);
   await writeFile(join(dir, "plutil"), "#!/bin/sh\n");
-  for (const tool of ["xcodebuild", "plutil"]) await chmod(join(dir, tool), 0o755);
+  await writeFile(join(dir, "otool"), `#!/bin/sh\necho "$2:"\nfor framework in Sentry $FAKE_LINKED_FRAMEWORKS; do echo "\t@rpath/$framework.framework/$framework (compatibility version 1.0.0)"; done\n`);
+  for (const tool of ["xcodebuild", "plutil", "otool"]) await chmod(join(dir, tool), 0o755);
   const run = (env: Record<string, string>) =>
     spawnSync("bash", [fileURLToPath(new URL("./archive-ios.sh", import.meta.url)), "3.0.1", "1", join(dir, "a.ipa"), join(dir, "dsyms")], {
       encoding: "utf8",
@@ -410,6 +413,14 @@ test("the archive keeps every dSYM after it removes the xcarchive", async (t) =>
   await assert.rejects(readFile(join(archivePath, "dSYMs/Putio.app.dSYM/Contents/Resources/DWARF/Putio")), { code: "ENOENT" });
   assert.equal(await readFile(join(dir, "dsyms/Putio.app.dSYM/Contents/Resources/DWARF/Putio"), "utf8"), "dwarf for Putio.app\n");
   assert.equal(await readFile(join(dir, "dsyms/Sentry.framework.dSYM/Contents/Resources/DWARF/Sentry"), "utf8"), "dwarf for Sentry.framework\n");
+});
+
+test("the archive stops before export when the app links a framework it doesn't embed", async (t) => {
+  const { dir, run } = await archiveFixture(t);
+  const result = run({ PUTIO_PROVISIONING_PROFILE_UUID: "12345678-1234-1234-1234-123456789ABC", FAKE_LINKED_FRAMEWORKS: "RealmSwift" });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /links @rpath\/RealmSwift\.framework\/RealmSwift but does not embed it/);
+  assert.doesNotMatch(await readFile(join(dir, "xcodebuild.log"), "utf8"), /-exportArchive/);
 });
 
 test("the archive signs and exports with the profile install-signing.sh checked", async (t) => {
