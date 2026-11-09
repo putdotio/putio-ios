@@ -217,11 +217,11 @@ final class ProductAnalyticsTests: XCTestCase {
         _ = try waitForEvents(token: token, count: 1)
         gate.capture(.screenViewed(.files))
         let events = try waitForEvents(token: token, count: 2)
+        try waitForConfig(token: token)
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "screen_viewed"])
         XCTAssertEqual(Set(events.map { $0["distinct_id"] as? String }), ["1001"])
         let paths = requests(token: token).compactMap(\.url?.path)
-        XCTAssertTrue(paths.contains("/array/\(token)/config"), "\(paths)")
         XCTAssertTrue(paths.contains("/batch"), "\(paths)")
         XCTAssertFalse(paths.contains { $0.hasPrefix("/flags") || $0.contains("push_subscriptions") }, "\(paths)")
         XCTAssertTrue(requests(token: token).allSatisfy { $0.url?.host == "burrow.put.io" })
@@ -236,6 +236,7 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         gate.capture(.screenViewed(.files))
         _ = try waitForEvents(token: token, count: 1)
+        try waitForConfig(token: token)
         XCTAssertTrue(FileManager.default.fileExists(atPath: gate.storageDirectory(token: token).path))
 
         gate.settingDidSave(enabled: false)
@@ -824,6 +825,18 @@ final class ProductAnalyticsTests: XCTestCase {
         return sent
     }
 
+    private func waitForConfig(token: String) throws {
+        let path = "/array/\(token)/config"
+        let deadline = Date().addingTimeInterval(Self.aWaitTimedOut ? 10 : 90)
+        while !requests(token: token).contains(where: { $0.url?.path == path }), Date() < deadline {
+            spinRunLoop(seconds: 0.05)
+        }
+        guard requests(token: token).contains(where: { $0.url?.path == path }) else {
+            Self.aWaitTimedOut = true
+            throw MissingEvents(description: "no config request: \(requests(token: token).map(\.url))")
+        }
+    }
+
     private struct MissingEvents: Error, CustomStringConvertible {
         let description: String
     }
@@ -855,6 +868,7 @@ private final class RecordingURLProtocol: URLProtocol {
         var loads: [String: [HeldLoad]] = [:]
     }
 
+    private static let configDelay: TimeInterval = 0.5
     private static let recorded = OSAllocatedUnfairLock(uncheckedState: [Request]())
     private static let holds = OSAllocatedUnfairLock(uncheckedState: Holds())
 
@@ -887,6 +901,15 @@ private final class RecordingURLProtocol: URLProtocol {
 
     override func startLoading() {
         let recorded = Request(url: request.url, body: request.httpBody ?? request.httpBodyStream.map(Self.read))
+        if recorded.url?.path.hasSuffix("/config") == true {
+            let thread = Thread.current
+            let mode = RunLoop.current.currentMode ?? .default
+            DispatchQueue.global().asyncAfter(deadline: .now() + Self.configDelay) { [self] in
+                Self.recorded.withLock { $0.append(recorded) }
+                perform(#selector(respond), on: thread, with: nil, waitUntilDone: false, modes: [mode.rawValue])
+            }
+            return
+        }
         Self.recorded.withLock { $0.append(recorded) }
         let token = recorded.json?["api_key"] as? String
         let isHeld = Self.holds.withLockUnchecked { holds in
