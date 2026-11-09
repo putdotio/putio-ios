@@ -164,7 +164,7 @@ final class DownloadQueueController {
         }
     }
 
-    func clearDownloadsForAccountChange(onCleared: @escaping () -> Void = {}) {
+    func clearDownloadsForAccountChange() {
         onMain {
             self.isEnabled = false
             self.creationGenerations.withLock {
@@ -172,9 +172,7 @@ final class DownloadQueueController {
                 $0.isAccountCleanupPending = true
             }
             self.defaults.set(true, forKey: Self.accountChangeCleanupPendingKey)
-            if self.clearAccountDownloads() {
-                onCleared()
-            }
+            self.clearAccountDownloads()
         }
     }
 
@@ -194,6 +192,7 @@ final class DownloadQueueController {
         }
         guard deleteDownloadRecords(realm) else { return false }
         defaults.removeObject(forKey: Self.accountChangeCleanupPendingKey)
+        PutioRealm.setDownloadsHaveNoAccount(false, defaults: defaults)
         creationGenerations.withLock { $0.isAccountCleanupPending = false }
         downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
         let pendingFiles = locations.map { DownloadSupport.moveAsideForDeletion($0) }

@@ -393,9 +393,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             currentID: account.id,
             downloadsHaveNoAccount: PutioRealm.downloadsHaveNoAccount()
         ) {
-            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange {
-                PutioRealm.setDownloadsHaveNoAccount(false)
-            }
+            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)

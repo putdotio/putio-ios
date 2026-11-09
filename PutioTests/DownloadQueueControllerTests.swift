@@ -242,18 +242,17 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
     }
 
-    func testTheNoAccountMarkerSurvivesAFailedCleanup() {
-        PutioRealm.setDownloadsHaveNoAccount(true)
-        addTeardownBlock { PutioRealm.setDownloadsHaveNoAccount(false) }
-        let clearMarker = { PutioRealm.setDownloadsHaveNoAccount(false) }
+    func testTheNoAccountMarkerSurvivesAFailedCleanupAndClearsOnTheRetry() {
+        PutioRealm.setDownloadsHaveNoAccount(true, defaults: defaults)
+        let controller = makeController()
 
         recordDeletesFail = true
-        makeController().clearDownloadsForAccountChange(onCleared: clearMarker)
-        XCTAssertTrue(PutioRealm.downloadsHaveNoAccount())
+        controller.clearDownloadsForAccountChange()
+        XCTAssertTrue(PutioRealm.downloadsHaveNoAccount(defaults: defaults))
 
         recordDeletesFail = false
-        makeController().clearDownloadsForAccountChange(onCleared: clearMarker)
-        XCTAssertFalse(PutioRealm.downloadsHaveNoAccount())
+        controller.start()
+        XCTAssertFalse(PutioRealm.downloadsHaveNoAccount(defaults: defaults))
     }
 
     func testPendingCleanupRefusesNewDownloadsUntilARetrySucceeds() throws {
