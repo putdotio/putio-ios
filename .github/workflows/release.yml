@@ -47,6 +47,9 @@ jobs:
     runs-on: xcode-27
     environment: release
     timeout-minutes: 105
+    permissions:
+      contents: read
+      actions: read
     outputs:
       build_number: ${{ steps.metadata.outputs.build_number }}
 
@@ -110,7 +113,23 @@ jobs:
           mise run fonts-setup
           mise run verify-fonts
 
+      - name: Find a passing CI verify on this commit
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.validate-ref.outputs.sha }}
+        run: |
+          verified=false
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push&status=success" --jq '.workflow_runs[].id'); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/jobs" --jq '.jobs[] | select(.name == "Verify iOS app" and .conclusion == "success") | .id' | grep -q .; then
+              verified=true
+              echo "CI run $run already verified $SHA"
+            fi
+          done
+          echo "verified=$verified" >> "$GITHUB_OUTPUT"
+
       - name: Verify repository
+        if: steps.ci.outputs.verified != 'true'
         run: mise run verify
 
       - name: Load shared release secrets
