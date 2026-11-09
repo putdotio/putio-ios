@@ -100,6 +100,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         stateMachine.addView(emptyView, forState: "empty")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
+        offlineStatusView.isUserInteractionEnabled = false
         stateMachine.addView(offlineStatusView, forState: "offline")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()

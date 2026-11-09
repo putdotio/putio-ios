@@ -6,6 +6,7 @@ import XCTest
 
 final class FilesListStub: URLProtocol {
     private static let listedFiles = OSAllocatedUnfairLock(initialState: 0)
+    private static let failingListings = OSAllocatedUnfairLock(initialState: 0)
 
     override static func canInit(with request: URLRequest) -> Bool {
         request.url?.host == "api.put.io"
@@ -17,6 +18,11 @@ final class FilesListStub: URLProtocol {
 
     override func startLoading() {
         guard let url = request.url, url.path == "/v2/files/list",
+              !Self.failingListings.withLock({ remaining in
+                  guard remaining > 0 else { return false }
+                  remaining -= 1
+                  return true
+              }),
               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
@@ -60,8 +66,9 @@ final class FilesListStub: URLProtocol {
         """
     }
 
-    static func answerFilesList(with fileCount: Int, in testCase: XCTestCase) {
+    static func answerFilesList(with fileCount: Int, failingFirst failures: Int = 0, in testCase: XCTestCase) {
         listedFiles.withLock { $0 = fileCount }
+        failingListings.withLock { $0 = failures }
         URLProtocol.registerClass(FilesListStub.self)
         testCase.addTeardownBlock { URLProtocol.unregisterClass(FilesListStub.self) }
     }

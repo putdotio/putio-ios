@@ -969,6 +969,61 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(tableView.numberOfSections, 0)
     }
 
+    func testHistoryOfflineStateLetsPullToRefreshReachTheTable() throws {
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/events/list", method: .get)
+        let offline = PutioSDKError(request: PutioSDKErrorRequestInformation(config: config), error: URLError(.notConnectedToInternet))
+        let viewController = HistoryViewController()
+        viewController.viewModel = HistoryViewModel(fetchEventsRequest: { completion in completion(.failure(offline)) })
+        let tableView = UITableView()
+        viewController.tableView = tableView
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        tableView.frame = viewController.view.bounds
+        viewController.view.addSubview(tableView)
+
+        viewController.viewModel.fetchEvents()
+        waitForSubview(OfflineStatusView.self, in: viewController.view)
+
+        let touched = viewController.view.hitTest(CGPoint(x: 195, y: 422), with: nil)
+        XCTAssertTrue(touched?.isDescendant(of: tableView) == true, "the offline view swallowed the pull: \(String(describing: touched))")
+    }
+
+    func testMoveFilesShowsARetryableErrorWhenTheFolderLoadFails() throws {
+        FilesListStub.answerFilesList(with: 2, failingFirst: 1, in: self)
+        let storyboard = UIStoryboard(name: "MoveFiles", bundle: Bundle(for: MoveFilesViewController.self))
+        let viewController = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "MoveVC") as? MoveFilesViewController)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = UINavigationController(rootViewController: viewController)
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        viewController.view.layoutIfNeeded()
+
+        let failed = expectation(for: NSPredicate { _, _ in
+            viewController.view.subviews.contains { $0 is EmptyStateView }
+                && !viewController.view.subviews.contains { $0 is LoaderView }
+        }, evaluatedWith: nil)
+        wait(for: [failed], timeout: 10)
+        let errorView = viewController.view.subviews.compactMap { $0 as? EmptyStateView }.first
+        XCTAssertEqual(errorView?.headingLabel.text, NSLocalizedString("Oops", comment: ""))
+        XCTAssertEqual(errorView?.descriptionLabel.text, NSLocalizedString("An error occurred, please try again :(", comment: ""))
+        XCTAssertFalse(viewController.moveButton.isEnabled)
+
+        let refreshControl = try XCTUnwrap(viewController.tableView.refreshControl)
+        refreshControl.sendActions(for: .valueChanged)
+
+        let loaded = expectation(for: NSPredicate { _, _ in
+            viewController.tableView.numberOfRows(inSection: 0) == 2
+                && !viewController.view.subviews.contains { $0 is EmptyStateView || $0 is LoaderView }
+        }, evaluatedWith: nil)
+        wait(for: [loaded], timeout: 10)
+        XCTAssertTrue(viewController.moveButton.isEnabled)
+    }
+
+    private func waitForSubview<View: UIView>(_ type: View.Type, in container: UIView) {
+        let shown = expectation(for: NSPredicate { _, _ in container.subviews.contains { $0 is View } }, evaluatedWith: nil)
+        wait(for: [shown], timeout: 10)
+    }
+
     private final class RecordingRefreshControl: UIRefreshControl {
         var endRefreshingCalls = 0
 

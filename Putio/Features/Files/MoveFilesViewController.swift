@@ -24,6 +24,8 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
 
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.refreshControl = UIRefreshControl()
+        tableView.refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
 
         configureAppearance()
         fetchData()
@@ -32,6 +34,15 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     func configureStateMachine() {
         let loaderView = LoaderView.instantiateFromInterfaceBuilder()
         stateMachine.addView(loaderView, forState: "loading")
+
+        let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
+        errorView.isUserInteractionEnabled = false
+        stateMachine.addView(errorView, forState: "error")
+
         stateMachine.transitionToState(.view("loading"), animated: false, completion: nil)
     }
 
@@ -77,6 +88,8 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         updateActionButtonStates(isEnabled: false)
 
         api.getFiles(parentID: fileID, query: PutioFilesListQuery(contentType: "application/x-directory"), completion: { result in
+            self.tableView.refreshControl?.endRefreshing()
+
             switch result {
             case .success(let data):
                 self.file = data.parent
@@ -99,9 +112,13 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
                 self.tableView.reloadData()
 
             case .failure:
-                break
+                self.stateMachine.transitionToState(.view("error"), animated: false, completion: nil)
             }
         })
+    }
+
+    @objc func refresh() {
+        fetchData()
     }
 
     @IBAction func cancelButtonPressed(_ sender: Any) {
