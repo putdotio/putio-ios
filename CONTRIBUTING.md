@@ -150,6 +150,8 @@ put.io Notion.
 - The App Store listing is code: `metadata/`, `screenshots/`, and
   [`Config/AppStore.json`](Config/AppStore.json). Never edit those fields in
   App Store Connect; only the App Review contact lives there.
+- An approved version releases on its own as a 7-day phased release. Pause or
+  halt the rollout in App Store Connect.
 - Each release needs `metadata/version/<version>/en-US.json` before Release
   runs. A field left out of `metadata/` stays unmanaged; to adopt one, copy it
   from the Screenshots dry run's artifact.

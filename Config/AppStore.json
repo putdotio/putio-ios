@@ -5,7 +5,7 @@
   "primaryLocale": "en-US",
   "metadataDir": "metadata",
   "version": {
-    "releaseType": "MANUAL",
+    "releaseType": "AFTER_APPROVAL",
     "phasedRelease": true
   },
   "ageRating": {
