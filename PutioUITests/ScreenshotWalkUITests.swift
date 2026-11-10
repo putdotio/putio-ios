@@ -91,6 +91,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(trashRow.appears(within: 5))
         trashRow.tap()
         XCTAssertTrue(app.staticTexts["Elephants Dream.mp4"].appears(within: 5))
+        XCTAssertTrue(app.activityIndicators.firstMatch.disappears(within: 10), "the trash loader should fade out before capture")
         capture(app, named: "walk-dark-trash")
     }
 
@@ -228,6 +229,7 @@ final class ScreenshotWalkUITests: XCTestCase {
     }
 
     func testSecondaryScreensScreenshotWalk() {
+        executionTimeAllowance = 300
         walkSecondaryScreens()
     }
 
