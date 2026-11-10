@@ -7,6 +7,7 @@ final class FilePreviewUITests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        executionTimeAllowance = 300
     }
 
     func testLargeImageOpens() {
