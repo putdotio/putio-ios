@@ -58,9 +58,9 @@ mise run run-simulator       # signed build on a visible simulator
 - `verify` and `e2e-simulator` each run on an ephemeral simulator.
   `PUTIO_SIMULATOR_ID=<udid>` reuses a device, but that device keeps its own
   locale, so never record baselines on it.
-- Pull-request CI does not run `e2e-simulator`
-  ([schedule](.github/workflows/e2e-simulator.yml)). Run it before you hand off
-  SDK-backed flow changes.
+- No CI runs the full `e2e-simulator` suite; the
+  [weekly smoke](.github/workflows/e2e-simulator.yml) runs a few of its tests.
+  Run it before you hand off SDK-backed flow changes.
 
 ### Mocked e2e
 
