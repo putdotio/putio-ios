@@ -33,9 +33,16 @@ final class ScreenshotWalkUITests: XCTestCase {
         return app
     }
 
-    // Presentation animations (~0.35s) race capture; let them settle.
-    private func settle() {
+    private func settle(_ app: XCUIApplication, within timeout: TimeInterval = 5) {
         Thread.sleep(forTimeInterval: 0.5)
+        var previous = app.screenshot().pngRepresentation
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.25)
+            let current = app.screenshot().pngRepresentation
+            if current == previous { return }
+            previous = current
+        }
     }
 
     private func capture(_ app: XCUIApplication, named name: String) {
@@ -119,7 +126,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         // earlier yields black.
         XCTAssertTrue(player.reaches(NSPredicate(format: "value == %@", "ready"), within: 20), "the player should report ready")
 
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-video-player")
     }
 
@@ -143,7 +150,7 @@ final class ScreenshotWalkUITests: XCTestCase {
             app.staticTexts["Nothing queued"].appears(within: 10),
             "next-item lookup should settle on the empty fixture result"
         )
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-audio-player")
         let closeButton = app.navigationBars.buttons["Close"]
         XCTAssertTrue(closeButton.appears(within: 5), "audio player close button should exist")
@@ -158,7 +165,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.buttons["Move"].tap()
         XCTAssertTrue(app.navigationBars["Your Files"].appears(within: 5))
         XCTAssertTrue(app.staticTexts["Big Buck Bunny.mp4"].firstMatch.appears(within: 10), "move sheet content should render")
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-move-files")
         app.buttons["Cancel"].firstMatch.tap()
 
@@ -175,7 +182,7 @@ final class ScreenshotWalkUITests: XCTestCase {
             app.otherElements["putio-downloads-tutorial"].reaches(NSPredicate(format: "value == %@", "parked"), within: 10),
             "the tutorial clip should park on its fixed frame"
         )
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-downloads-tutorial")
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].disappears(within: 5), "tutorial sheet should dismiss")
@@ -185,7 +192,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(routesRow.appears(within: 5))
         routesRow.tap()
         XCTAssertTrue(app.staticTexts["Amsterdam"].appears(within: 10))
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-routes")
         app.navigationBars.buttons["Account"].tap()
 
@@ -193,7 +200,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(sessionsRow.appears(within: 5))
         sessionsRow.tap()
         XCTAssertTrue(app.staticTexts["put.io Web"].appears(within: 10))
-        settle()
+        settle(app)
         capture(app, named: "walk-dark-sessions")
     }
 
