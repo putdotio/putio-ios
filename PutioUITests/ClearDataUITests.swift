@@ -11,9 +11,10 @@ final class ClearDataUITests: XCTestCase {
         guard app.waitForSignedInTabBar() else { return nil }
         app.tabItem("Account").tap()
 
-        let row = app.tables.staticTexts["Clear your data"]
-        XCTAssertTrue(row.appears(within: 10))
-        row.tap()
+        let rows = app.tables.staticTexts.matching(NSPredicate(format: "label == %@", "Clear your data"))
+        let single = XCTNSPredicateExpectation(predicate: NSPredicate(format: "count == 1"), object: rows)
+        XCTAssertEqual(XCTWaiter.wait(for: [single], timeout: 10), .completed, "Account should settle on one Clear your data row")
+        rows.element.tap()
 
         guard app.tables["putio-clear-data-table"].appears(within: 5) else {
             XCTFail("Clear your data should open")
