@@ -34,12 +34,12 @@ jobs:
           - name: Run mocked e2e playback and previews
             artifact: e2e-playback-xcresult
             task: e2e-simulator
-            args: --only-testing PutioUITests/PlaybackSmokeUITests --only-testing PutioUITests/FilePreviewUITests --only-testing PutioUITests/HistorySmokeUITests --only-testing PutioUITests/ClearDataUITests
+            args: --parallel-workers 1 --only-testing PutioUITests/PlaybackSmokeUITests --only-testing PutioUITests/FilePreviewUITests --only-testing PutioUITests/HistorySmokeUITests --only-testing PutioUITests/ClearDataUITests
             bundle: build/e2e-simulator.xcresult
           - name: Run mocked e2e for everything else
             artifact: e2e-rest-xcresult
             task: e2e-simulator
-            args: --skip-testing PutioUITests/PlaybackSmokeUITests --skip-testing PutioUITests/FilePreviewUITests --skip-testing PutioUITests/HistorySmokeUITests --skip-testing PutioUITests/ClearDataUITests
+            args: --parallel-workers 1 --skip-testing PutioUITests/PlaybackSmokeUITests --skip-testing PutioUITests/FilePreviewUITests --skip-testing PutioUITests/HistorySmokeUITests --skip-testing PutioUITests/ClearDataUITests
             bundle: build/e2e-simulator.xcresult
           - name: Assert the screenshot walk
             artifact: screenshots-verify-xcresult
