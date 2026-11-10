@@ -57,7 +57,7 @@ struct AppConfig: Decodable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let rawValue = try container.decodeIfPresent(String.self, forKey: .chromecastPlaybackType)
+        let rawValue = try? container.decodeIfPresent(String.self, forKey: .chromecastPlaybackType)
         chromecastPlaybackType = rawValue.flatMap(PutioChromecastPlaybackType.init(rawValue:)) ?? .hls
         autoRotateVideo = (try? container.decodeIfPresent(Bool.self, forKey: .autoRotateVideo)) ?? true
 
