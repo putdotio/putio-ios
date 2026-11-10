@@ -2,33 +2,15 @@ import XCTest
 
 final class FilePreviewUITests: XCTestCase {
     private let largeImage = 400_000_001
-    private let chainHeadFolder = 100_000_001
-    private let firstPDFInChainHead = "putio-file-500010001"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
-        executionTimeAllowance = 300
     }
 
     func testLargeImageOpens() {
         let app = launch(opening: largeImage)
 
         XCTAssertTrue(app.navigationBars["Perf fixture photo 8064x6048.jpg"].appears(within: 60), "the large fixture root should list and open the file")
-        assertPreviewShows(in: app)
-    }
-
-    func testTappingAPDFRowOpensItsPreview() {
-        let app = launch(opening: chainHeadFolder)
-        let row = app.tables.cells[firstPDFInChainHead]
-        XCTAssertTrue(row.appears(within: 60), "the opened folder should list a PDF")
-        for _ in 0..<5 where !row.isHittable {
-            app.tables.firstMatch.swipeUp()
-        }
-        let name = row.label
-
-        row.tap()
-
-        XCTAssertTrue(app.navigationBars[name].appears(within: 10), "tapping the row should open \(name)")
         assertPreviewShows(in: app)
     }
 

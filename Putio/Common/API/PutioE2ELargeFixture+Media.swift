@@ -12,8 +12,7 @@ extension PutioE2ELargeFixture {
             let body = cached("photo-\(Int(size.width))x\(Int(size.height)).jpg") { jpeg(size: size) }
             return Response(statusCode: 200, contentType: "image/jpeg", body: body)
         case .pdf:
-            let pages = id == Anchor.document ? 300 : 3
-            let body = cached("document-\(pages).pdf") { pdf(pages: pages) }
+            let body = cached("document-300.pdf") { pdf(pages: 300) }
             return Response(statusCode: 200, contentType: "application/pdf", body: body)
         default:
             return nil
