@@ -52,7 +52,9 @@ while IFS= read -r path; do
     scripts/install-asc.sh) tooling=true ;;
     # Signing runs only in delivery jobs; its tests run in the tooling lane.
     scripts/install-signing.sh) tooling=true ;;
+    # Delivery jobs and the archive run these; the tooling lane fakes the tools.
     scripts/archive-ios.sh | scripts/upload-dsyms.sh) tooling=true ;;
+    scripts/build-number.sh | scripts/check-embedded-frameworks.sh) tooling=true ;;
     # Composite actions. The tooling lane's workflow tests run their guards, and
     # the app lane stays on as it would for any unrecognized path.
     .github/actions/*)

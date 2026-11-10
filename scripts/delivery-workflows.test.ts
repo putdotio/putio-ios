@@ -333,6 +333,38 @@ test("delivery workflow changes run their contract tests in the tooling lane", (
   }
 });
 
+test("every script a delivery job runs routes to the tooling lane, where its tests run", async () => {
+  const script = fileURLToPath(new URL("./ci-affected.sh", import.meta.url));
+  const callers = [".github/workflows/beta.yml", ".github/workflows/release.yml", ".github/workflows/submit.yml", "scripts/archive-ios.sh"];
+  const sources = await Promise.all(callers.map((path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")));
+  const scripts = new Set(sources.flatMap((source) => [...source.matchAll(/\.\/(scripts\/[\w.-]+\.sh)/g)].map((match) => match[1])));
+  assert.ok(scripts.has("scripts/build-number.sh") && scripts.has("scripts/check-embedded-frameworks.sh"), [...scripts].join(" "));
+  for (const path of scripts) {
+    const result = spawnSync("sh", [script], { encoding: "utf8", input: `${path}\n` });
+    assert.match(result.stdout, /^tooling=true$/m, path);
+  }
+});
+
+test("build numbers stay two dotted parts that Google Cast accepts and App Store Connect sorts by time", async (t) => {
+  const dir = await tempDir(t);
+  await writeFile(join(dir, "date"), '#!/bin/sh\necho "$FAKE_NOW"\n');
+  await chmod(join(dir, "date"), 0o755);
+  const buildNumber = (now: string) => {
+    const result = spawnSync("bash", [fileURLToPath(new URL("./build-number.sh", import.meta.url))], {
+      encoding: "utf8",
+      env: { PATH: `${dir}:${process.env.PATH}`, FAKE_NOW: now },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const builds = ["261109 0905", "261109 1838", "261109 2359", "261110 0000", "261110 0005"].map(buildNumber);
+
+  assert.deepEqual(builds, ["261109.905", "261109.1838", "261109.2359", "261110.0", "261110.5"]);
+  for (const build of builds) assert.match(build, /^[0-9]{1,6}\.[0-9]{1,6}$/);
+  const order = builds.map((build) => build.split(".").map(Number)).map(([day = 0, minute = 0]) => day * 10_000 + minute);
+  assert.deepEqual(order, [...new Set(order)].sort((a, b) => a - b), "each build sorts above the one before it");
+});
+
 test("macOS delivery checkouts keep no GitHub token on disk", async () => {
   for (const [name, job] of [["beta.yml", "beta"], ["release.yml", "release"]] as const) {
     const workflow = await loadYaml(`.github/workflows/${name}`);
