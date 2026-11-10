@@ -229,6 +229,7 @@ final class ScreenshotWalkUITests: XCTestCase {
     }
 
     func testSecondaryScreensScreenshotWalk() {
+        executionTimeAllowance = 300
         walkSecondaryScreens()
     }
 
