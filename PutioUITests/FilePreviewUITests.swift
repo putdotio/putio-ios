@@ -3,7 +3,7 @@ import XCTest
 final class FilePreviewUITests: XCTestCase {
     private let largeImage = 400_000_001
     private let chainHeadFolder = 100_000_001
-    private let pdfRowsInChainHead = "putio-file-500010"
+    private let firstPDFInChainHead = "putio-file-500010001"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -19,7 +19,7 @@ final class FilePreviewUITests: XCTestCase {
 
     func testTappingAPDFRowOpensItsPreview() {
         let app = launch(opening: chainHeadFolder)
-        let row = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", pdfRowsInChainHead)).firstMatch
+        let row = app.tables.cells[firstPDFInChainHead]
         XCTAssertTrue(row.appears(within: 60), "the opened folder should list a PDF")
         for _ in 0..<5 where !row.isHittable {
             app.tables.firstMatch.swipeUp()
