@@ -5,7 +5,8 @@
 #   scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify
 #
 # --parallel-workers N runs test classes on N clones of the simulator.
-# --only-testing and --skip-testing take one xcodebuild test identifier each.
+# --only-testing and --skip-testing take one xcodebuild test identifier each
+# and repeat.
 #
 # A test that runs past its allowance fails instead of hanging the run.
 #
@@ -26,8 +27,7 @@ scheme=""
 bundle=""
 label=""
 workers=""
-only_testing=""
-skip_testing=""
+filters=""
 
 fatal() {
     echo "xcodebuild-test: $*" >&2
@@ -58,12 +58,14 @@ while [ $# -gt 0 ]; do
             ;;
         --only-testing)
             [ $# -ge 2 ] || fatal "--only-testing needs a value"
-            only_testing="$2"
+            filters="$filters
+-only-testing:$2"
             shift 2
             ;;
         --skip-testing)
             [ $# -ge 2 ] || fatal "--skip-testing needs a value"
-            skip_testing="$2"
+            filters="$filters
+-skip-testing:$2"
             shift 2
             ;;
         -h|--help)
@@ -140,12 +142,15 @@ set -- -collect-test-diagnostics never -enableCodeCoverage NO \
 if [ -n "$workers" ]; then
     set -- "$@" -parallel-testing-enabled YES -parallel-testing-worker-count "$workers"
 fi
-if [ -n "$only_testing" ]; then
-    set -- "$@" "-only-testing:$only_testing"
-fi
-if [ -n "$skip_testing" ]; then
-    set -- "$@" "-skip-testing:$skip_testing"
-fi
+set -f
+old_ifs=$IFS
+IFS='
+'
+for filter in $filters; do
+    set -- "$@" "$filter"
+done
+IFS=$old_ifs
+set +f
 
 echo "Test results will be written to $bundle"
 TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="${PUTIO_RECORD_SNAPSHOTS:-0}" \

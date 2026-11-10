@@ -31,11 +31,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Run mocked simulator e2e
+          - name: Run mocked e2e playback and previews
+            artifact: e2e-playback-xcresult
             task: e2e-simulator
+            args: --only-testing PutioUITests/PlaybackSmokeUITests --only-testing PutioUITests/FilePreviewUITests --only-testing PutioUITests/HistorySmokeUITests --only-testing PutioUITests/ClearDataUITests
+            bundle: build/e2e-simulator.xcresult
+          - name: Run mocked e2e for everything else
+            artifact: e2e-rest-xcresult
+            task: e2e-simulator
+            args: --skip-testing PutioUITests/PlaybackSmokeUITests --skip-testing PutioUITests/FilePreviewUITests --skip-testing PutioUITests/HistorySmokeUITests --skip-testing PutioUITests/ClearDataUITests
             bundle: build/e2e-simulator.xcresult
           - name: Assert the screenshot walk
+            artifact: screenshots-verify-xcresult
             task: screenshots-verify
+            args: ''
             bundle: build/screenshots-verify.xcresult
 
     steps:
@@ -77,13 +86,13 @@ jobs:
           mise run verify-fonts
 
       - name: ${{ matrix.name }}
-        run: mise run ${{ matrix.task }}
+        run: mise run ${{ matrix.task }} -- ${{ matrix.args }}
 
       - name: Upload test result bundle
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ${{ matrix.task }}-xcresult
+          name: ${{ matrix.artifact }}
           path: ${{ matrix.bundle }}
           if-no-files-found: ignore
 
