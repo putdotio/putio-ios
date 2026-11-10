@@ -2,8 +2,8 @@ import XCTest
 @testable import Putio
 
 final class UserConfigTests: XCTestCase {
-    func testMissingOrUnknownChromecastPlaybackTypeFallsBackToHLS() throws {
-        for json in [#"{}"#, #"{"chromecast_playback_type":"webm"}"#] {
+    func testMissingUnknownOrUnreadableChromecastPlaybackTypeFallsBackToHLS() throws {
+        for json in [#"{}"#, #"{"chromecast_playback_type":"webm"}"#, #"{"chromecast_playback_type":1}"#] {
             XCTAssertEqual(UserConfig(config: try decode(json))?.chromecastPlaybackType, "hls", json)
         }
     }
