@@ -12,6 +12,10 @@ run = "./scripts/doctor.sh"
 description = "Generate the workspace and verify the provisioned host"
 run = "./scripts/bootstrap.sh"
 
+[tasks.xcode-skills]
+description = "Link the installed Xcode's agent skills into this checkout, untracked"
+run = "./scripts/xcode-skills.sh"
+
 [tasks.generate]
 description = "Generate the Xcode workspace without opening Xcode"
 run = "./scripts/generate.sh"

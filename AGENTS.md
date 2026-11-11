@@ -7,6 +7,10 @@ session, API, and feature logic belong in `Packages/PutioCore`.
 ## Work in this repository
 
 - Run `mise run bootstrap` in a fresh checkout or worktree.
+- Before SwiftUI, App Intents, test-migration, or Instruments work, run
+  `mise run xcode-skills` once per worktree. It links the installed Xcode's
+  agent skills into the checkout, untracked; never commit them. If the export
+  hangs, skip it and say so.
 - Edit targets and settings in `Project.swift`, `Tuist.swift`, and
   `Tuist/Package.swift`. Tuist is local generation only; hosted cache,
   analytics, previews, and account-backed features are out of scope.
