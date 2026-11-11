@@ -52,6 +52,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
       notice.disappears(within: 10), "renewing did not clear the notice on return")
     XCTAssertTrue(element("files.item.410").exists)
     addScreenshot(named: "runtime-inactive-renewed")
+    signOut()
   }
 
   func testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate() {
@@ -65,6 +66,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
       notice.label.contains("Your family plan is no longer active."),
       "notice: \(notice.label)")
     XCTAssertFalse(notice.label.contains("deleted"), "the family notice names a deletion date")
+    signOut()
   }
 
   func testActiveAccountSeesNoNotice() {
@@ -72,6 +74,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     signIn()
     XCTAssertTrue(element("files.item.410").appears(within: 10))
     XCTAssertFalse(element("account.inactive-notice").exists, "an active account sees a notice")
+    signOut()
   }
 
   private func signIn() {
@@ -79,6 +82,15 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
+  private func signOut() {
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func element(_ identifier: String) -> XCUIElement {
