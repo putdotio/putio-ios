@@ -1469,20 +1469,21 @@ public struct SimulatorHarness {
         "-only-testing:\(suite.target)",
       ]
     }
-    // A freshly booted Simulator keeps every runner core busy with first-boot
-    // work, so the suites compile before it exists rather than after.
-    for suite in suites {
-      _ = try runner.checked(
-        "xcodebuild",
-        arguments(
-          "build-for-testing", suite, destination: platform.configuration.destination)
-          + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
-        currentDirectory: context.root,
-        context: "build \(platform.rawValue) \(suite.target)"
-      )
-    }
     let runID = UUID().uuidString.lowercased()
-    return try withSession(platform: platform, runID: runID) { session in
+    func buildSuites() throws {
+      for suite in suites {
+        _ = try runner.checked(
+          "xcodebuild",
+          arguments(
+            "build-for-testing", suite, destination: platform.configuration.destination)
+            + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
+          currentDirectory: context.root,
+          context: "build \(platform.rawValue) \(suite.target)"
+        )
+      }
+    }
+    return try withSession(platform: platform, runID: runID, alongside: buildSuites) {
+      session in
       var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
       testEnvironment["TEST_RUNNER_SNAPSHOT_TESTING_RECORD"] = recordSnapshots ? "failed" : "never"
       if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
@@ -1927,9 +1928,12 @@ public struct SimulatorHarness {
     platform: HarnessPlatform,
     runID: String,
     device: BoardDevice? = nil,
+    alongside preparation: (() throws -> Void)? = nil,
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    let session = try createSession(platform: platform, runID: runID, device: device)
+    let session =
+      try preparation.map { try bootSession(platform: platform, runID: runID, alongside: $0) }
+      ?? createSession(platform: platform, runID: runID, device: device)
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -1947,6 +1951,36 @@ public struct SimulatorHarness {
       }
     }
     return try result.get()
+  }
+
+  private func bootSession(
+    platform: HarnessPlatform, runID: String, alongside preparation: () throws -> Void
+  ) throws -> SimulatorSession {
+    nonisolated(unsafe) let harness = self
+    nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
+    let booting = DispatchGroup()
+    DispatchQueue.global().async(group: booting) {
+      booted = Result {
+        try harness.createSession(platform: platform, runID: runID)
+      }
+    }
+    let prepared = Result { try preparation() }
+    booting.wait()
+    switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
+    case (.success, .success(let booted)):
+      return booted
+    case (.success, .failure(let bootError)):
+      throw bootError
+    case (.failure(let preparationError), .failure(let bootError)):
+      throw HarnessFailure("\(preparationError)\nSimulator boot also failed: \(bootError)")
+    case (.failure(let preparationError), .success(let booted)):
+      do {
+        try SimulatorLifecycle.shared.endSession { try booted.cleanup() }
+      } catch {
+        throw HarnessFailure("\(preparationError)\ncleanup failed: \(error)")
+      }
+      throw preparationError
+    }
   }
 
   func requireGeneratedWorkspace() throws {
@@ -2087,7 +2121,7 @@ public struct SimulatorHarness {
       }
       try boot(deviceIdentifier, label: platform.rawValue)
       if platform == .ios {
-        try unloadUnusedJobs(deviceIdentifier)
+        try unloadUnusedJobs(deviceIdentifier, runtime: runtime)
       }
       if platform == .watchos {
         _ = try runner.checked(
@@ -2175,19 +2209,22 @@ public struct SimulatorHarness {
   /// Unloading the ones the apps never use roughly halves that work. One
   /// `bootout` with every plist path is a single spawn; jobs that aren't
   /// loaded only fail their own path, so the result is ignored.
-  func unloadUnusedJobs(_ identifier: String) throws {
-    let root = try runner.checked(
-      "xcrun", ["simctl", "getenv", identifier, "SIMULATOR_ROOT"],
-      context: "read iOS Simulator runtime root"
-    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  func unloadUnusedJobs(_ identifier: String, runtime: RuntimeRecord) throws {
+    let root =
+      try runtime.runtimeRoot
+      ?? runner.checked(
+        "xcrun", ["simctl", "getenv", identifier, "SIMULATOR_ROOT"],
+        context: "read iOS Simulator runtime root"
+      ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     let plists = unusedSimulatorJobs.compactMap { label in
       ["System/Library/LaunchDaemons", "System/Library/LaunchAgents"]
         .map { "\(root)/\($0)/\(label).plist" }
         .first { fileManager.fileExists(atPath: $0) }
     }
     guard !plists.isEmpty else { return }
-    _ = try runner.run(
-      "xcrun", ["simctl", "spawn", identifier, "launchctl", "bootout", "system"] + plists)
+    _ = try runner.timed(
+      "xcrun", ["simctl", "spawn", identifier, "launchctl", "bootout", "system"] + plists,
+      context: "unload unused iOS Simulator jobs")
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {

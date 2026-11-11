@@ -203,6 +203,28 @@ public struct ProcessRunner: Sendable {
     currentDirectory: URL? = nil,
     context: String
   ) throws -> ProcessOutput {
+    let output = try timed(
+      executable,
+      arguments,
+      environment: environment,
+      removingEnvironment: removingEnvironment,
+      currentDirectory: currentDirectory,
+      context: context
+    )
+    guard output.status == 0 else {
+      throw HarnessFailure("\(context) failed\n\(tail(output.combinedOutput))")
+    }
+    return output
+  }
+
+  public func timed(
+    _ executable: String,
+    _ arguments: [String] = [],
+    environment: [String: String] = [:],
+    removingEnvironment: Set<String> = [],
+    currentDirectory: URL? = nil,
+    context: String
+  ) throws -> ProcessOutput {
     let started = ContinuousClock.now
     let output = try run(
       executable,
@@ -212,9 +234,6 @@ public struct ProcessRunner: Sendable {
       currentDirectory: currentDirectory
     )
     reportDuration(of: context, since: started)
-    guard output.status == 0 else {
-      throw HarnessFailure("\(context) failed\n\(tail(output.combinedOutput))")
-    }
     return output
   }
 

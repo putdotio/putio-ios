@@ -52,6 +52,7 @@ struct RuntimeRecord: Decodable, Sendable {
   let platform: String
   let isAvailable: Bool
   let supportedDeviceTypes: [DeviceTypeRecord]
+  var runtimeRoot: String? = nil
 
   func deviceType(for family: String) throws -> DeviceTypeRecord {
     guard

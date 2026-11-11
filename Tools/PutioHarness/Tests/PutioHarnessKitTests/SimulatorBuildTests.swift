@@ -50,6 +50,7 @@ private func withFakeXcodebuild(
     .map { $0.split(separator: "\n").map(String.init) }
 }
 
+@Suite(.serialized)
 struct SimulatorBuildTests {
   @Test func everyAppBuildCompilesOnlyTheHostArchitecture() throws {
     let calls = try withFakeXcodebuild { harness in
@@ -75,22 +76,80 @@ struct SimulatorBuildTests {
     }
   }
 
-  @Test func testSuitesCompileForTheHostArchitectureBeforeAnySimulatorWork() throws {
+  @Test func testSuitesCompileForTheHostArchitecture() throws {
     let calls = try withFakeXcodebuild { harness in
       #expect(throws: HarnessFailure.self) {
         try harness.test(.ios, recordSnapshots: false, environment: [:])
       }
     }
-    try #require(calls.count == 3)
+    let builds = calls.filter { $0.first != "xcrun" }
+    try #require(builds.count == 2)
     for (index, target) in ["PutioSnapshotTests", "PutioFeatureTests"].enumerated() {
-      let arguments = calls[index]
+      let arguments = builds[index]
       #expect(arguments.first == "build-for-testing")
       #expect(arguments.contains("-only-testing:\(target)"))
       let destinationIndex = try #require(arguments.firstIndex(of: "-destination"))
       #expect(arguments[destinationIndex + 1] == "generic/platform=iOS Simulator")
       #expect(arguments.contains("ARCHS=$(NATIVE_ARCH_ACTUAL)"))
     }
-    #expect(calls[2].starts(with: ["xcrun", "simctl"]))
+    #expect(calls.contains { $0.starts(with: ["xcrun", "simctl"]) })
+  }
+
+  @Test func aFailedBuildDeletesTheSimulatorBootedAlongsideIt() throws {
+    let root = FileManager.default.temporaryDirectory.appending(
+      path: "putio-simulator-overlap-\(UUID().uuidString.lowercased())")
+    let bin = root.appending(path: "bin")
+    try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(
+      at: root.appending(path: "Putio.xcworkspace"), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let log = root.appending(path: "calls")
+    let devices = root.appending(path: "devices")
+    try Data().write(to: devices)
+    let runtimes = #"""
+      {"runtimes":[{"name":"iOS 27.2","identifier":"ios-27-2","version":"27.2","platform":"iOS",
+        "isAvailable":true,"runtimeRoot":"/nonexistent","supportedDeviceTypes":[
+        {"name":"iPhone 17","identifier":"iphone-17","productFamily":"iPhone"}]}]}
+      """#.replacingOccurrences(of: "\n", with: "")
+    let scripts = [
+      "xcrun": """
+      #!/bin/sh
+      echo "$@" >> "\(log.path)"
+      add() { u="UDID-$(wc -l < "\(log.path)" | tr -d ' ')"; echo "{\\"udid\\":\\"$u\\",\\"name\\":\\"$1\\"}" >> "\(devices.path)"; echo "$u"; }
+      case "$2" in
+        list)
+          if [ "$4" = runtimes ]; then echo '\(runtimes)'; exit 0; fi
+          echo "{\\"devices\\":{\\"ios-27-2\\":[$(paste -sd, "\(devices.path)")]}}";;
+        create) add "$3";;
+        clone) add "$4";;
+        delete) grep -v "\\"$3\\"" "\(devices.path)" > "\(devices.path).next"; mv "\(devices.path).next" "\(devices.path)";;
+      esac
+      """,
+      "xcodebuild": """
+      #!/bin/sh
+      if [ "$1" = -version ]; then echo 27.2; exit 0; fi
+      exit 65
+      """,
+    ]
+    for (name, script) in scripts {
+      let executable = bin.appending(path: name)
+      try script.write(to: executable, atomically: true, encoding: .utf8)
+      try FileManager.default.setAttributes(
+        [.posixPermissions: 0o755], ofItemAtPath: executable.path)
+    }
+    let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+    let harness = SimulatorHarness(
+      context: RepositoryContext(root: root),
+      runner: ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]))
+
+    #expect(throws: HarnessFailure.self) {
+      try harness.test(.ios, recordSnapshots: false, environment: [:])
+    }
+
+    let calls = try String(contentsOf: log, encoding: .utf8)
+    #expect(calls.contains("simctl bootstatus"))
+    let remaining = try String(contentsOf: devices, encoding: .utf8)
+    #expect(!remaining.contains("putio-harness-"))
   }
 
   @Test func standaloneWatchBuildAlsoBuildsNativeCompanion() throws {
