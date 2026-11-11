@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ of %@" : {
+      "comment" : "android: mobile_downloads_meta_of",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ of %@"
+          }
+        }
+      }
+    },
     "%@ of %@ used" : {
       "comment" : "android: mobile_account_storage_used",
       "localizations" : {
@@ -89,6 +100,17 @@
         }
       }
     },
+    "Cancel download" : {
+      "comment" : "android: mobile_downloads_ring_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel download"
+          }
+        }
+      }
+    },
     "Check your connection and try again." : {
       "comment" : "android: mobile_state_error_message",
       "localizations" : {
@@ -107,6 +129,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continue from %@"
+          }
+        }
+      }
+    },
+    "Converting" : {
+      "comment" : "ios-only: no Android string for the shared download status line",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converting"
           }
         }
       }
@@ -575,24 +608,13 @@
         }
       }
     },
-    "Download" : {
-      "comment" : "android: mobile_files_download_action",
+    "Download again" : {
+      "comment" : "android: mobile_downloads_download_again",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download"
-          }
-        }
-      }
-    },
-    "Downloaded" : {
-      "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloaded"
+            "value" : "Download again"
           }
         }
       }
@@ -874,6 +896,17 @@
         }
       }
     },
+    "No longer on this iPhone" : {
+      "comment" : "android: mobile_files_download_missing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer on this iPhone"
+          }
+        }
+      }
+    },
     "No sign-in is in progress." : {
       "comment" : "ios-only: no Android string for the shared session errors",
       "localizations" : {
@@ -881,6 +914,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No sign-in is in progress."
+          }
+        }
+      }
+    },
+    "On this iPhone" : {
+      "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this iPhone"
+          }
+        }
+      }
+    },
+    "Pause download" : {
+      "comment" : "android: mobile_downloads_ring_pause",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause download"
+          }
+        }
+      }
+    },
+    "Paused" : {
+      "comment" : "android: mobile_downloads_meta_paused",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
           }
         }
       }
@@ -1006,13 +1072,13 @@
         }
       }
     },
-    "Queued" : {
-      "comment" : "ios-only: no Android string for the shared download button",
+    "Queued · #%lld in line" : {
+      "comment" : "android: mobile_downloads_status_queued_position",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Queued"
+            "value" : "Queued · #%lld in line"
           }
         }
       }
@@ -1024,6 +1090,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Regenerating could not be completed. Try again."
+          }
+        }
+      }
+    },
+    "Removing from this iPhone…" : {
+      "comment" : "android: mobile_downloads_status_removing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removing from this iPhone…"
+          }
+        }
+      }
+    },
+    "Resume download" : {
+      "comment" : "android: mobile_downloads_ring_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume download"
           }
         }
       }
@@ -1178,17 +1266,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start from the beginning"
-          }
-        }
-      }
-    },
-    "Stop download" : {
-      "comment" : "android: mobile_downloads_ring_cancel | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Stop download"
           }
         }
       }
@@ -1431,6 +1508,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video not found"
+          }
+        }
+      }
+    },
+    "Waiting for network" : {
+      "comment" : "android: mobile_files_download_waiting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for network"
+          }
+        }
+      }
+    },
+    "Waiting for storage" : {
+      "comment" : "android: mobile_files_download_waiting_storage",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for storage"
           }
         }
       }

@@ -551,7 +551,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
     ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
 
-  static let galleryPages = ["buttons", "files", "transfers", "states", "feedback", "forms"]
+  static let galleryPages = ["buttons", "files", "states", "feedback", "forms"]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
@@ -719,6 +719,8 @@ enum BrowserJourneyContract {
         "runtime-accessibility-audio-landscape-controls",
       ],
       timeAllowance: 180),
+    JourneyPreflight(
+      "file-row-gallery", "FileRowGalleryTests/testTrailingControlsReportTheActionForTheirState"),
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"]),

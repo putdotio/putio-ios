@@ -33,8 +33,12 @@ public struct PutioComponentGallery: View {
 
     // List- and Form-backed pages have no intrinsic height, so snapshots
     // render them at a fixed viewport instead of the fitted size.
-    var usesContainerViewport: Bool {
-      self == .files || self == .forms
+    var viewportHeight: CGFloat? {
+      switch self {
+      case .files: GalleryLayout.filesViewportHeight
+      case .forms: GalleryLayout.containerViewportHeight
+      case .buttons, .transfers, .states, .feedback: nil
+      }
     }
   }
 
@@ -61,13 +65,11 @@ public struct PutioComponentGallery: View {
 
   public static func snapshotContent(page: Page) -> some View {
     GalleryPageView(page: page)
-      .frame(
-        maxHeight: page.usesContainerViewport ? GalleryLayout.containerViewportHeight : nil
-      )
+      .frame(maxHeight: page.viewportHeight)
   }
 
   public static func snapshotViewportHeight(page: Page) -> CGFloat? {
-    page.usesContainerViewport ? GalleryLayout.containerViewportHeight : nil
+    page.viewportHeight
   }
 }
 
@@ -181,6 +183,10 @@ private struct ButtonsPage: View {
 }
 
 private struct FilesGallery: View {
+  #if !os(tvOS)
+    @State private var reportedAction = "none"
+  #endif
+
   var body: some View {
     #if os(tvOS)
       ScrollView {
@@ -215,7 +221,22 @@ private struct FilesGallery: View {
               PutioFileRow(model)
             }
           } header: {
-            GalleryTitle(page: .files)
+            VStack(alignment: .leading, spacing: GalleryLayout.itemGap) {
+              GalleryTitle(page: .files)
+              Text(verbatim: "Last action: \(reportedAction)")
+                .putioFont(GalleryLayout.captionFont)
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+                .textCase(nil)
+                .accessibilityIdentifier("gallery.files.reported-action")
+            }
+          }
+          .listRowBackground(PutioTheme.Colors.background)
+          Section("Download states") {
+            ForEach(Array(GalleryFixtures.downloadRows.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model) { action in
+                reportedAction = "\(GalleryFixtures.actionName(action)) \(model.name)"
+              }
+            }
           }
           .listRowBackground(PutioTheme.Colors.background)
           Section("Native navigation") {
@@ -237,18 +258,6 @@ private struct FilesGallery: View {
 
 private struct TransfersPage: View {
   var body: some View {
-    #if os(iOS) || os(watchOS)
-      GallerySection(caption: "Download states") {
-        ForEach(Array(GalleryFixtures.downloadStates.enumerated()), id: \.offset) { _, entry in
-          HStack(spacing: GalleryLayout.itemGap) {
-            PutioDownloadStateButton(state: entry.state) {}
-            Text(entry.label)
-              .putioFont(GalleryLayout.bodyFont)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
-          }
-        }
-      }
-    #endif
     GallerySection(caption: "Row progress") {
       ProgressView(value: 0.6)
         .tint(PutioTheme.Colors.accent)
@@ -383,23 +392,69 @@ private struct FormsGallery: View {
 
 enum GalleryFixtures {
   static let fileRows = [
-    PutioFileRowModel(name: "Incoming", kind: .folder),
+    PutioFileRowModel(name: "Blue Lights", kind: .folder, sizeText: "13.1 GB", dateText: "Oct 20"),
     PutioFileRowModel(
-      name: "The.Wire.S03E04.Back.Burners.1080p.BluRay.x264-DEMAND.mkv",
+      name: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv",
       kind: .video,
-      sizeText: "4.36 GB",
+      sizeText: "3.2 GB",
+      dateText: "Oct 13",
+      isOnDevice: true,
+      isWatched: true
+    ),
+    PutioFileRowModel(
+      name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv",
+      kind: .video,
+      sizeText: "3.3 GB",
+      dateText: "Oct 13",
       isWatched: true
     ),
     PutioFileRowModel(
       name: "Kind of Blue — 01 So What.flac",
       kind: .audio,
-      sizeText: "48.2 MB"
+      sizeText: "48.2 MB",
+      dateText: "Oct 20"
     ),
-    PutioFileRowModel(name: "IMG_2041.HEIC", kind: .image, sizeText: "3.1 MB"),
-    PutioFileRowModel(name: "putio-ios-harness.notes.txt", kind: .file, sizeText: "1 KB"),
+    PutioFileRowModel(name: "IMG_2041.HEIC", kind: .image, sizeText: "3.1 MB", dateText: "Oct 20"),
+    PutioFileRowModel(
+      name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
   ]
 
-  static let folderRow = PutioFileRowModel(name: "Séries télé 🎬", kind: .folder)
+  private static let downloadStates: [(episode: String, state: PutioDownloadState)] = [
+    ("02", .downloading(receivedBytes: 1_400_000_000, totalBytes: 3_300_000_000)),
+    ("05", .converting(progress: 0.12)),
+    ("03", .paused(receivedBytes: 1_400_000_000, totalBytes: 3_300_000_000)),
+    ("06", .waiting(.network, receivedBytes: 1_400_000_000, totalBytes: 3_300_000_000)),
+    ("04", .waiting(.storage, receivedBytes: 200_000_000, totalBytes: 3_400_000_000)),
+    ("08", .waiting(.network, receivedBytes: 0, totalBytes: 3_300_000_000)),
+    ("09", .waiting(.storage, receivedBytes: 0, totalBytes: 3_400_000_000)),
+    ("07", .queued(position: 1)),
+    ("01", .removing),
+    ("10", .missing),
+    ("11", .failed(reason: "Connection lost")),
+  ]
+
+  static let downloadRows: [PutioFileRowModel] = downloadStates.map { entry in
+    PutioFileRowModel(
+      name: "Blue.Lights.S04E\(entry.episode).1080p.HDTV.H264-ORGANiC.mkv",
+      kind: .video,
+      sizeText: "3.3 GB",
+      dateText: "Oct 13",
+      downloadState: entry.state
+    )
+  }
+
+  static let folderRow = PutioFileRowModel(
+    name: "Séries télé 🎬", kind: .folder, sizeText: "9.4 GB", dateText: "Yesterday")
+
+  static func actionName(_ action: PutioDownloadAction) -> String {
+    switch action {
+    case .pause: "pause"
+    case .resume: "resume"
+    case .cancel: "cancel"
+    case .retry: "retry"
+    case .downloadAgain: "download-again"
+    }
+  }
 
   static let toasts = [
     PutioToast(variant: .neutral, title: "Copied link"),
@@ -409,16 +464,6 @@ enum GalleryFixtures {
   ]
 
   static let routes = ["Frankfurt", "Amsterdam", "New York"]
-
-  #if os(iOS) || os(watchOS)
-    static let downloadStates: [(state: PutioDownloadState, label: String)] = [
-      (.idle, "Idle"),
-      (.queued, "Queued · position 2"),
-      (.downloading(progress: 0.6), "11.2 of 18.6 GB · 18.4 MB/s"),
-      (.downloaded, "Downloaded"),
-      (.failed, "No seeders found"),
-    ]
-  #endif
 
   static func tierLabel(_ tier: PutioButtonTier) -> String {
     switch tier {
@@ -450,6 +495,7 @@ enum GalleryLayout {
     static let pagePadding = PutioTheme.TV.Spacing.large
     static let stateTileHeight = PutioTheme.TV.Spacing.xl * 3
     static let containerViewportHeight = PutioTheme.TV.Spacing.xxl * 5
+    static let filesViewportHeight = PutioTheme.TV.Spacing.xxl * 8
     static let sheetPreviewBackground = Color.clear
   #else
     static let titleFont = PutioTheme.Typography.heading
@@ -460,6 +506,7 @@ enum GalleryLayout {
     static let pagePadding = PutioTheme.Spacing.space3
     static let stateTileHeight = PutioTheme.Spacing.space6 * 2
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
+    static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     // The scaffold previews inside a scroll page rather than a real sheet,
     // so give it the surface a system sheet would provide.
     static let sheetPreviewBackground = PutioTheme.Colors.surface

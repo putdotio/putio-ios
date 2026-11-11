@@ -434,7 +434,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       crossTabFolder.appears(within: 10),
       "the Files folder did not refresh after its Search counterpart was popped"
     )
-    XCTAssertEqual(crossTabFolder.label, "Cross-tab Refresh")
+    XCTAssertEqual(crossTabFolder.label.components(separatedBy: ", ").first, "Cross-tab Refresh")
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     app.buttons["Search"].tap()
@@ -513,7 +513,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     typeName("Renamed Harness", into: name, replacing: "Harness Folder")
     app.buttons["Rename"].tap()
     let renamed = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@ AND enabled == true", "Renamed Harness"),
+      predicate: NSPredicate(
+        format: "(label == %@ OR label BEGINSWITH %@) AND enabled == true", "Renamed Harness",
+        "Renamed Harness, "),
       object: folder
     )
     XCTAssertEqual(XCTWaiter.wait(for: [renamed], timeout: 10), .completed)
@@ -735,7 +737,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let createdFolder = element(identifier: "files.item.415")
     XCTAssertTrue(createdFolder.appears(within: 5), "created folder never appeared")
-    XCTAssertEqual(createdFolder.label, "Watch Later")
+    XCTAssertEqual(createdFolder.label.components(separatedBy: ", ").first, "Watch Later")
 
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
     XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
@@ -764,7 +766,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       .completed,
       "folder navigation did not become disabled while rename was pending"
     )
-    XCTAssertEqual(createdFolderButton.label, "Weekend")
+    XCTAssertEqual(createdFolderButton.label.components(separatedBy: ", ").first, "Weekend")
     let createdFolderScreen = element(identifier: "files.screen.415")
     XCTAssertFalse(
       createdFolderScreen.appears(within: 1),
@@ -777,7 +779,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
       createdFolderButton.appears(within: 5) && createdFolderButton.isHittable,
       "folder navigation did not re-enable after rename failure"
     )
-    XCTAssertEqual(createdFolderButton.label, "Watch Later", "failed rename did not roll back")
+    XCTAssertEqual(
+      createdFolderButton.label.components(separatedBy: ", ").first, "Watch Later",
+      "failed rename did not roll back")
     XCTAssertTrue(
       renameFailure.disappears(within: 5), "rename failure toast did not clear")
 
@@ -797,7 +801,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let renamedFolder = element(identifier: "files.item.415")
     let renamed = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@", "Weekend"),
+      predicate: NSPredicate(format: "label == %@ OR label BEGINSWITH %@", "Weekend", "Weekend, "),
       object: renamedFolder
     )
     XCTAssertEqual(
@@ -854,7 +858,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       movedFolder.appears(within: 5),
       "moved folder is missing at destination"
     )
-    XCTAssertEqual(movedFolder.label, "Weekend")
+    XCTAssertEqual(movedFolder.label.components(separatedBy: ", ").first, "Weekend")
 
     movedFolder.swipeRight()
     let swipeMove = app.buttons["Move"]
@@ -884,7 +888,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       waitUntilHittable(movedFolderAtRoot, timeout: 5),
       "ancestor Files list did not refresh after the move"
     )
-    XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
+    XCTAssertEqual(movedFolderAtRoot.label.components(separatedBy: ", ").first, "Weekend")
 
     movedFolderAtRoot.swipeLeft()
     let swipeTrash = app.buttons["Trash"]
@@ -1085,7 +1089,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       waitUntilHittable(appliedMoveAtRoot, timeout: 5),
       "already-loaded destination did not refresh after the ambiguous move"
     )
-    XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
+    XCTAssertEqual(appliedMoveAtRoot.label.components(separatedBy: ", ").first, "Ambiguous Move")
     assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
 
     app.buttons["Account"].tap()
@@ -1255,7 +1259,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let folder = element(identifier: "files.item.\(expectedID)")
     XCTAssertTrue(
       folder.appears(within: 5), "created folder \(expectedID) did not appear")
-    XCTAssertEqual(folder.label, name)
+    XCTAssertEqual(folder.label.components(separatedBy: ", ").first, name)
     return folder
   }
 
