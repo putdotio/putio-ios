@@ -17,10 +17,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "Putio.app",
         runtimePlatform: "iOS",
         deviceFamily: "iPhone",
-        snapshotSuites: [
-          SnapshotSuite(scheme: "Putio", target: "PutioSnapshotTests"),
-          SnapshotSuite(scheme: "PutioFeatureTests", target: "PutioFeatureTests"),
-        ]
+        testPlan: TestPlan(name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests"]),
+        journeyTestPlan: "PutioJourneys"
       )
     case .watchos:
       PlatformConfiguration(
@@ -43,22 +41,21 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "PutioTV.app",
         runtimePlatform: "tvOS",
         deviceFamily: "Apple TV",
-        snapshotSuites: [
-          SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests"),
-          SnapshotSuite(scheme: "PutioTVFeatureTests", target: "PutioTVFeatureTests"),
-        ]
+        testPlan: TestPlan(
+          name: "PutioTV", targets: ["PutioTVSnapshotTests", "PutioTVFeatureTests"]),
+        journeyTestPlan: "PutioTVJourneys"
       )
     }
   }
 }
 
-public struct SnapshotSuite: Equatable, Sendable {
-  public let scheme: String
-  public let target: String
+public struct TestPlan: Equatable, Sendable {
+  public let name: String
+  public let targets: [String]
 
-  public init(scheme: String, target: String) {
-    self.scheme = scheme
-    self.target = target
+  public init(name: String, targets: [String]) {
+    self.name = name
+    self.targets = targets
   }
 }
 
@@ -71,7 +68,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let appName: String
   public let runtimePlatform: String
   public let deviceFamily: String
-  public let snapshotSuites: [SnapshotSuite]
+  public let testPlan: TestPlan?
+  public let journeyTestPlan: String?
 
   public init(
     scheme: String,
@@ -82,7 +80,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
     appName: String,
     runtimePlatform: String,
     deviceFamily: String,
-    snapshotSuites: [SnapshotSuite] = []
+    testPlan: TestPlan? = nil,
+    journeyTestPlan: String? = nil
   ) {
     self.scheme = scheme
     self.bundleIdentifier = bundleIdentifier
@@ -92,7 +91,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.appName = appName
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
-    self.snapshotSuites = snapshotSuites
+    self.testPlan = testPlan
+    self.journeyTestPlan = journeyTestPlan
   }
 }
 
@@ -1013,19 +1013,43 @@ func requirePassingJourneySummary(_ summaryData: Data) throws -> XCResultTestSum
   return summary
 }
 
-/// A suite must run tests and fail none. Skips are allowed only while brand
-/// fonts are optional: without them every font-gated test skips.
+struct XCResultTestNode: Decodable, Sendable {
+  let nodeType: String
+  let name: String
+  let result: String?
+  let children: [XCResultTestNode]?
+
+  var testCases: [XCResultTestNode] {
+    nodeType == "Test Case" ? [self] : (children ?? []).flatMap(\.testCases)
+  }
+
+  var testBundles: [XCResultTestNode] {
+    nodeType.hasSuffix("test bundle") ? [self] : (children ?? []).flatMap(\.testBundles)
+  }
+}
+
+private struct XCResultTests: Decodable {
+  let testNodes: [XCResultTestNode]
+}
+
+/// A test plan run must report exactly the plan's bundles, each with at least
+/// one test, and fail none. Skips are allowed only while brand fonts are
+/// optional: without them every font-gated test skips.
 @discardableResult
-func requirePassingSuiteSummary(
-  _ summaryData: Data,
-  suite: String,
+func requirePassingTestPlan(
+  summary summaryData: Data,
+  tests testsData: Data,
+  plan: TestPlan,
   allowsSkips: Bool
-) throws -> XCResultTestSummary {
+) throws -> String {
   let summary: XCResultTestSummary
+  let bundles: [XCResultTestNode]
   do {
     summary = try JSONDecoder().decode(XCResultTestSummary.self, from: summaryData)
+    bundles = try JSONDecoder().decode(XCResultTests.self, from: testsData).testNodes
+      .flatMap(\.testBundles)
   } catch {
-    throw HarnessFailure("decode \(suite) result summary: \(error)")
+    throw HarnessFailure("decode \(plan.name) test plan results: \(error)")
   }
   let acceptable =
     allowsSkips
@@ -1033,13 +1057,25 @@ func requirePassingSuiteSummary(
     : summary.result == "Passed" && summary.skippedTests == 0
   guard acceptable, summary.totalTestCount > 0, summary.failedTests == 0 else {
     throw HarnessFailure(
-      "\(suite) must run at least one test with no failures\(allowsSkips ? "" : " or skips"); "
+      "\(plan.name) must run at least one test with no failures\(allowsSkips ? "" : " or skips"); "
         + "result=\(summary.result), total=\(summary.totalTestCount), "
         + "passed=\(summary.passedTests), failed=\(summary.failedTests), "
         + "skipped=\(summary.skippedTests), expectedFailures=\(summary.expectedFailures)"
     )
   }
-  return summary
+  let ran = bundles.filter { !$0.testCases.isEmpty }.map(\.name)
+  guard ran.sorted() == plan.targets.sorted() else {
+    throw HarnessFailure(
+      "\(plan.name) must run tests in exactly \(plan.targets.joined(separator: ", ")); "
+        + "ran \(ran.isEmpty ? "none" : ran.joined(separator: ", "))"
+    )
+  }
+  return plan.targets.map { target in
+    let cases = bundles.filter { $0.name == target }.flatMap(\.testCases)
+    let passed = cases.filter { $0.result == "Passed" }.count
+    let skipped = cases.filter { $0.result == "Skipped" }.count
+    return "\(target) passed \(passed)" + (skipped > 0 ? " and skipped \(skipped)" : "")
+  }.joined(separator: "; ")
 }
 
 /// `simctl bootstatus` prints a status line every second; keep each status

@@ -42,7 +42,7 @@ public enum HarnessArgumentParser {
     case "test":
       try options.rejectUnknown(allowing: ["platform", "snapshots", "output"])
       guard let platform = HarnessPlatform(rawValue: try options.required("platform")),
-        !platform.configuration.snapshotSuites.isEmpty
+        platform.configuration.testPlan != nil
       else {
         throw HarnessFailure("test: --platform must be ios or tvos")
       }
@@ -118,7 +118,7 @@ public enum HarnessArgumentParser {
         throw HarnessFailure("--scenario is supported only by screenshot and record")
       }
       if scenario == .gallery,
-        selection.platforms.contains(where: { $0.configuration.snapshotSuites.isEmpty })
+        selection.platforms.contains(where: { $0.configuration.testPlan == nil })
       {
         throw HarnessFailure("--scenario gallery is supported only on ios and tvos")
       }

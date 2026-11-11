@@ -1,0 +1,40 @@
+{
+  "configurations" : [
+    {
+      "id" : "6B1E3C2A-4F0D-4E5B-9A7C-2D8F1B3E5A01",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "key" : "PUTIO_SNAPSHOT_RASTER",
+        "value" : "1"
+      },
+      {
+        "key" : "SNAPSHOT_TESTING_RECORD",
+        "value" : "never"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "50BA7DC7330F568E336CB2AE",
+        "name" : "PutioSnapshotTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "F9F1156CABBF8C0A2F022A15",
+        "name" : "PutioFeatureTests"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -9,13 +9,14 @@ derived_data=build/DeadCode/DerivedData
 ./scripts/generate.sh
 
 # Periphery cannot pick a destination per scheme, so build the index here.
-# Test schemes are included so test-only callers count as uses; the Putio and
-# PutioTV schemes also build their snapshot and UI test targets.
-for scheme_platform in Putio:iOS PutioFeatureTests:iOS PutioTV:tvOS PutioTVFeatureTests:tvOS; do
+# Every test plan is built so test-only callers count as uses.
+for entry in Putio:Putio:iOS Putio:PutioJourneys:iOS PutioTV:PutioTV:tvOS PutioTV:PutioTVJourneys:tvOS; do
+  IFS=: read -r scheme plan platform <<<"$entry"
   xcodebuild build-for-testing -quiet \
     -workspace Putio.xcworkspace \
-    -scheme "${scheme_platform%%:*}" \
-    -destination "generic/platform=${scheme_platform#*:} Simulator" \
+    -scheme "$scheme" \
+    -testPlan "$plan" \
+    -destination "generic/platform=$platform Simulator" \
     -derivedDataPath "$derived_data" \
     'ARCHS=$(NATIVE_ARCH_ACTUAL)' \
     COMPILER_INDEX_STORE_ENABLE=YES \

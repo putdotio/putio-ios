@@ -1,0 +1,40 @@
+{
+  "configurations" : [
+    {
+      "id" : "9C4A7E15-2B6D-4F83-8E1A-5D0C3F7B9E02",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "key" : "PUTIO_SNAPSHOT_RASTER",
+        "value" : "1"
+      },
+      {
+        "key" : "SNAPSHOT_TESTING_RECORD",
+        "value" : "never"
+      }
+    ]
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "28910596BA25E7F71AA360A2",
+        "name" : "PutioTVSnapshotTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "7FF00B1993FECB38CF4E3681",
+        "name" : "PutioTVFeatureTests"
+      }
+    }
+  ],
+  "version" : 1
+}

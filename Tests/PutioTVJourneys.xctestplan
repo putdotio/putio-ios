@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "D27F0B64-8C1E-4A5D-93B7-6E4A2C8F1B04",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "12F8D125F130B73CF578470C",
+        "name" : "PutioTVUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

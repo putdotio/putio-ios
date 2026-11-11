@@ -11,8 +11,9 @@ session, API, and feature logic belong in `Packages/PutioCore`.
   `mise run xcode-skills` once per worktree. It links the installed Xcode's
   agent skills into the checkout, untracked; never commit them. If the export
   hangs, skip it and say so.
-- Edit targets and settings in `Project.swift`, `Tuist.swift`, and
-  `Tuist/Package.swift`. Tuist is local generation only; hosted cache,
+- Edit targets, schemes, and settings in `Project.swift`, `Tuist.swift`, and
+  `Tuist/Package.swift`; edit test-plan targets and variables in
+  `Tests/*.xctestplan`. Tuist is local generation only; hosted cache,
   analytics, previews, and account-backed features are out of scope.
 - Follow [Design Principles](DESIGN.md) for UI. Change tokens through
   [the contributor workflow](CONTRIBUTING.md#design-tokens), then regenerate;
