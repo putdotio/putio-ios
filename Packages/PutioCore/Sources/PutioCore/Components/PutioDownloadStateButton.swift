@@ -169,7 +169,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     let unit = ByteUnit(total)
     let totalText = total.formatted(
       ByteCountFormatStyle(style: .file, allowedUnits: unit.allowedUnits, locale: locale))
-    let receivedText = (Double(max(received, 0)) / unit.divisor).formatted(
+    let receivedText = (Double(min(max(received, 0), total)) / unit.divisor).formatted(
       .number.precision(.fractionLength(0...unit.fractionDigits)).locale(locale))
     return String(localized: "\(receivedText) of \(totalText)", bundle: .module, locale: locale)
   }
@@ -180,7 +180,8 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
   }
 
   private static func percentText(_ fraction: Double, locale: Locale) -> String {
-    fraction.formatted(.percent.precision(.fractionLength(0)).locale(locale))
+    fraction.formatted(
+      .percent.precision(.fractionLength(0)).rounded(rule: .down).locale(locale))
   }
 
   private static func waitText(_ wait: PutioDownloadWait, locale: Locale) -> String {
