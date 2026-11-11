@@ -7,7 +7,8 @@ import Testing
   #expect(HarnessPlatform.ios.configuration.scheme == "Putio")
   #expect(
     HarnessPlatform.ios.configuration.testPlan
-      == TestPlan(name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests"])
+      == TestPlan(
+        name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests", "PutioUITests"])
   )
   #expect(HarnessPlatform.watchos.configuration.bundleIdentifier == "io.put.dev.ios.watchkitapp")
   #expect(HarnessPlatform.watchos.configuration.testPlan == nil)

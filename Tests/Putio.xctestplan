@@ -9,6 +9,7 @@
     }
   ],
   "defaultOptions" : {
+    "defaultTestExecutionTimeAllowance" : 120,
     "environmentVariableEntries" : [
       {
         "key" : "PUTIO_SNAPSHOT_RASTER",
@@ -18,7 +19,8 @@
         "key" : "SNAPSHOT_TESTING_RECORD",
         "value" : "never"
       }
-    ]
+    ],
+    "testTimeoutsEnabled" : true
   },
   "testTargets" : [
     {
@@ -33,6 +35,16 @@
         "containerPath" : "container:Putio.xcodeproj",
         "identifier" : "F9F1156CABBF8C0A2F022A15",
         "name" : "PutioFeatureTests"
+      }
+    },
+    {
+      "selectedTests" : [
+        "LaunchSmokeTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "070AE74A1966213F5904D052",
+        "name" : "PutioUITests"
       }
     }
   ],

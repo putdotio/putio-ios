@@ -90,6 +90,6 @@ If cleanup fails, delete only the UDIDs the run reported:
 
 ## CI
 
-Feature journeys do not run in
+Feature journeys and `proof` do not run in
 [Next CI](../../../.github/workflows/ci-next.yml), so run the affected journey
 or preflights locally.

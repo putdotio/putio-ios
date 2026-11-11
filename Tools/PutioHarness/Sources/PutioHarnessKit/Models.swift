@@ -17,7 +17,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "Putio.app",
         runtimePlatform: "iOS",
         deviceFamily: "iPhone",
-        testPlan: TestPlan(name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests"]),
+        testPlan: TestPlan(
+          name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests", "PutioUITests"]),
         journeyTestPlan: "PutioJourneys"
       )
     case .watchos:

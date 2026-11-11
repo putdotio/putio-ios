@@ -1509,7 +1509,7 @@ public struct SimulatorHarness {
         platform: platform,
         artifacts: [],
         message: recordSnapshots
-          ? "recorded and re-asserted \(plan.targets.joined(separator: ", ")) snapshot baselines"
+          ? "recorded and re-asserted \(plan.name) test plan snapshot baselines"
           : counts
       )
     }

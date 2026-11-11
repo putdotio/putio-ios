@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-# Debug shells compile in the iOS and tvOS test lanes and the iOS proof. Compile
+# Debug shells compile in the iOS and tvOS test lanes. Compile
 # every shell's Release branches here; Putio builds its embedded watch app. This
 # checks that non-Debug code compiles, so one architecture and no optimizer are
 # enough; archives optimize.
