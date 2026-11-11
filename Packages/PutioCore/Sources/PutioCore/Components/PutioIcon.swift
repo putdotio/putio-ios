@@ -60,6 +60,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case wifiSlash = "wifi-slash-regular"
   case x = "x-regular"
   case xCircle = "x-circle-regular"
+  case xCircleFill = "x-circle-fill"
 }
 
 extension Image {

@@ -87,14 +87,14 @@ struct ProductAnalyticsPromptView: View {
     PromptList(
       title: PutioProductAnalyticsPrompt.neverSentTitle,
       items: PutioProductAnalyticsPrompt.neverSent,
-      icon: .xCircle,
+      icon: .xCircleFill,
       iconColor: PutioTheme.Colors.destructive,
       itemColor: PutioTheme.Colors.textSecondary
     )
     PromptList(
       title: PutioProductAnalyticsPrompt.sentTitle,
       items: PutioProductAnalyticsPrompt.sent,
-      icon: .checkCircle,
+      icon: .checkCircleFill,
       iconColor: PutioTheme.Colors.success,
       itemColor: PutioTheme.Colors.textPrimary
     )
