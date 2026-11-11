@@ -194,12 +194,20 @@ public struct PutioFileRow: View {
   #if !os(tvOS)
     @ViewBuilder private var secondLine: some View {
       if !presentation.statusLine.isEmpty {
-        HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
-          ForEach(Array(presentation.statusLine.enumerated()), id: \.offset) { index, segment in
-            if index > 0 {
-              separator(statusColor)
+        ViewThatFits(in: .horizontal) {
+          HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
+            ForEach(Array(presentation.statusLine.enumerated()), id: \.offset) { index, segment in
+              if index > 0 {
+                separator(statusColor)
+              }
+              segmentText(segment.text, isNumeric: segment.isNumeric, color: statusColor)
+                .fixedSize()
             }
-            segmentText(segment.text, isNumeric: segment.isNumeric, color: statusColor)
+          }
+          VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(presentation.statusLine.enumerated()), id: \.offset) { _, segment in
+              segmentText(segment.text, isNumeric: segment.isNumeric, color: statusColor)
+            }
           }
         }
       } else if model.sizeText != nil || model.dateText != nil || model.isOnDevice
