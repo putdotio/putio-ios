@@ -90,10 +90,6 @@ If cleanup fails, delete only the UDIDs the run reported:
 
 ## CI
 
-[Next CI](../../../.github/workflows/ci-next.yml) runs each verify lane that a
-pull request's paths reach, plus the iOS launch-proof subset
-(`proof --platform ios --record-seconds 1`), on separate runners, and
-uploads `.xcresult` bundles when a test fails. `PUTIO_SIMULATOR_TEMPLATES=1`,
-set by the [setup action](../../../.github/actions/setup-apple/action.yml), clones a
-cached, booted `putio-template-*` device. Feature journeys do not run in CI, so
-run the affected journey or preflights locally.
+Feature journeys do not run in
+[Next CI](../../../.github/workflows/ci-next.yml), so run the affected journey
+or preflights locally.

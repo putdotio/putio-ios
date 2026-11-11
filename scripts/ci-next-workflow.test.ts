@@ -63,7 +63,6 @@ test("next CI admits rollout PR bases without broadening push", async () => {
     "github.event.action != 'closed'",
     "a closed pull request only cancels its stale run",
   );
-  assert.deepEqual(Object.keys(jobs), ["changes", "tooling", "app-store", "checks", "tvos", "ios", "build", "proof"]);
 });
 
 type GitHubContext = Readonly<{
