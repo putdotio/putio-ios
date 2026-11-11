@@ -19,6 +19,7 @@ public struct PutioComponentGallery: View {
       case selectionNone = "selection-none"
       case selectionSome = "selection-some"
       case selectionAll = "selection-all"
+      case split
     #endif
 
     public static let launchArgument = "--putio-harness-gallery-page"
@@ -45,6 +46,7 @@ public struct PutioComponentGallery: View {
         case .textAlert: "Text alert"
         case .confirmAlert: "Confirm alert"
         case .selectionNone, .selectionSome, .selectionAll: "Selection"
+        case .split: "List and detail"
       #endif
       }
     }
@@ -60,6 +62,7 @@ public struct PutioComponentGallery: View {
         case .shell: nil
         case .menus, .textAlert, .confirmAlert: GalleryLayout.actionsViewportHeight
         case .selectionNone, .selectionSome, .selectionAll: GalleryLayout.filesViewportHeight
+        case .split: GalleryLayout.containerViewportHeight
       #endif
       }
     }
@@ -159,6 +162,8 @@ struct GalleryPageView: View {
           ConfirmAlertGallery(presentsOnAppear: presentsOnAppear)
         case .selectionNone, .selectionSome, .selectionAll:
           SelectionGallery(initial: page.initialSelection ?? .none)
+        case .split:
+          ListDetailGallery()
       #endif
       case .buttons, .transfers, .states, .feedback, .sheets:
         ScrollView {
@@ -187,7 +192,8 @@ struct GalleryPageView: View {
     case .sheets: SheetsPage()
     case .files, .forms: EmptyView()
     #if os(iOS)
-      case .shell, .menus, .textAlert, .confirmAlert, .selectionNone, .selectionSome, .selectionAll:
+      case .shell, .menus, .textAlert, .confirmAlert, .selectionNone, .selectionSome, .selectionAll,
+        .split:
         EmptyView()
     #endif
     }
@@ -365,6 +371,46 @@ private struct ButtonsPage: View {
         if presentsOnAppear {
           alert = GalleryFixtures.renameAlert(log: log)
         }
+      }
+    }
+  }
+
+  private struct ListDetailGallery: View {
+    @State private var selection: String?
+
+    var body: some View {
+      PutioListDetail(
+        selection: $selection,
+        emptyTitle: "No file selected",
+        emptyMessage: "Tap a file to see it here."
+      ) { selection in
+        List(selection: selection) {
+          Section {
+            ForEach(Array(GalleryFixtures.listDetailRows.enumerated()), id: \.offset) {
+              index, model in
+              PutioFileRow(model)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("gallery.split.row.\(index)")
+                .putioListDetailRow(model.name)
+            }
+          } header: {
+            HStack {
+              Text(verbatim: "6 items")
+              Spacer()
+              Text(verbatim: "13.1 GB")
+                .putioFont(PutioTheme.Typography.numeric)
+            }
+            .putioFont(GalleryLayout.captionFont)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .textCase(nil)
+          }
+        }
+        .listStyle(.plain)
+        .putioContentBackground()
+        .navigationTitle(Text(verbatim: "Blue Lights"))
+        .navigationBarTitleDisplayMode(.inline)
+      } detail: { name in
+        GalleryPlaceholderDetail(name: name)
       }
     }
   }
@@ -549,6 +595,46 @@ private struct ButtonsPage: View {
           reportedAction = "\(entry.id) \(selection.count)"
         }
       }
+    }
+  }
+
+  private struct GalleryPlaceholderDetail: View {
+    let name: String
+
+    var body: some View {
+      ScrollView {
+        VStack(alignment: .leading, spacing: GalleryLayout.itemGap) {
+          RoundedRectangle(cornerRadius: GalleryLayout.sheetPreviewRadius)
+            .fill(PutioTheme.Colors.surface)
+            .aspectRatio(GalleryLayout.posterAspectRatio, contentMode: .fit)
+            .accessibilityHidden(true)
+          Text(name)
+            .putioFont(GalleryLayout.titleFont)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .accessibilityIdentifier("gallery.split.detail-title")
+          PutioButton("Resume from 18:42", icon: .playFill, tier: .primary) {}
+          Grid(
+            alignment: .leading,
+            horizontalSpacing: GalleryLayout.itemGap,
+            verticalSpacing: GalleryLayout.detailRowGap
+          ) {
+            ForEach(Array(GalleryFixtures.listDetailFacts.enumerated()), id: \.offset) {
+              _, entry in
+              GridRow {
+                Text(entry.label)
+                  .foregroundStyle(PutioTheme.Colors.textSecondary)
+                Text(entry.value)
+                  .foregroundStyle(PutioTheme.Colors.textPrimary)
+              }
+            }
+          }
+          .putioFont(GalleryLayout.bodyFont)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GalleryLayout.pagePadding)
+      }
+      .putioContentBackground()
+      .navigationBarTitleDisplayMode(.inline)
     }
   }
 #endif
@@ -1141,6 +1227,25 @@ enum GalleryFixtures {
         name: "Blue.Lights.S04E02.en.srt", kind: .file, sizeText: "39 kB", dateText: "Oct 13"),
     ]
 
+    static let listDetailRows: [PutioFileRowModel] = [
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", kind: .video, sizeText: "3.2 GB",
+        dateText: "Oct 13", isOnDevice: true),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", kind: .video, sizeText: "3.3 GB",
+        dateText: "Oct 13", isWatched: true),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", kind: .video, sizeText: "3.1 GB",
+        dateText: "Oct 20"),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", kind: .video, sizeText: "3.4 GB",
+        dateText: "Oct 20"),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E02.en.srt", kind: .file, sizeText: "39 kB", dateText: "Oct 13"),
+    ]
+
     private static func action(
       _ id: String,
       _ title: String,
@@ -1272,6 +1377,14 @@ enum GalleryFixtures {
         ("trash", "Trash", .trash, true),
       ]
 
+    static let listDetailFacts: [(label: String, value: String)] = [
+      ("Size", "3.2 GB"),
+      ("Added", "Oct 13, 2026"),
+      ("Length", "49:49"),
+      ("Subtitles", "English, English SDH"),
+      ("Folder", "Series / Blue Lights"),
+    ]
+
     static let storageStates: [(label: String, storage: PutioAccountSnapshot.Storage)] = [
       ("Empty", storage(usedBytes: 0)),
       ("In use", storage(usedBytes: 30_600_000_000)),
@@ -1330,6 +1443,7 @@ enum GalleryLayout {
     static let pagePadding = PutioTheme.Spacing.space3
     static let sidebarWidth = PutioTheme.Spacing.space6 * 2
     static let actionsViewportHeight = PutioTheme.Spacing.space6 * 6
+    static let posterAspectRatio: CGFloat = 16 / 9
     static let stateTileHeight = PutioTheme.Spacing.space5 * 5
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14

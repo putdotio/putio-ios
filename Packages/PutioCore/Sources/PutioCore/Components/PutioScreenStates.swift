@@ -74,6 +74,7 @@ public struct PutioEmptyStateView: View {
   private enum Glyph {
     case icon(PutioIcon)
     case kaomoji(PutioKaomoji)
+    case hidden
   }
 
   private let glyph: Glyph
@@ -120,6 +121,17 @@ public struct PutioEmptyStateView: View {
     )
   }
 
+  private init(placeholderTitle title: String, message: String) {
+    self.glyph = .hidden
+    self.title = title
+    self.message = message
+    self.action = nil
+  }
+
+  static func detailPlaceholder(title: String, message: String) -> Self {
+    Self(placeholderTitle: title, message: message)
+  }
+
   public static var history: Self {
     Self(
       kaomoji: .shrug,
@@ -134,6 +146,7 @@ public struct PutioEmptyStateView: View {
       switch glyph {
       case .icon(let icon): PutioScreenStateIcon(icon: icon, tint: PutioTheme.Colors.textDisabled)
       case .kaomoji(let kaomoji): PutioScreenStateKaomoji(kaomoji: kaomoji)
+      case .hidden: EmptyView()
       }
     }
   }

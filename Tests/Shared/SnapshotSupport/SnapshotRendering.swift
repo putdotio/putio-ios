@@ -23,6 +23,14 @@ enum SnapshotEnvironment {
     static let scale: CGFloat = 2
   #endif
 
+  static func sizeClass(forWidth width: CGFloat) -> UserInterfaceSizeClass {
+    #if os(tvOS)
+      .regular
+    #else
+      width >= regularWidth ? .regular : .compact
+    #endif
+  }
+
   static var isRecording: Bool {
     ProcessInfo.processInfo.environment["PUTIO_SNAPSHOT_RECORD"] == "1"
   }
@@ -78,6 +86,7 @@ enum SnapshotRenderer {
     let controller = UIHostingController(
       rootView: PutioComponentGallery.snapshotContent(page: page)
         .environment(\.colorScheme, .dark)
+        .environment(\.horizontalSizeClass, SnapshotEnvironment.sizeClass(forWidth: width))
     )
     controller.overrideUserInterfaceStyle = .dark
     let view = try XCTUnwrap(controller.view)

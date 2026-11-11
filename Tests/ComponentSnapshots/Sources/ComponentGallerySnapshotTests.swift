@@ -73,6 +73,17 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     }
   #endif
 
+  #if os(iOS)
+    @MainActor func testSplitPage() throws {
+      try assertGallerySnapshot(page: .split)
+    }
+
+    @MainActor func testSplitPageRegularWidth() throws {
+      try assertGallerySnapshot(
+        page: .split, width: SnapshotEnvironment.regularWidth, variant: "regular")
+    }
+  #endif
+
   @MainActor
   private func assertGallerySnapshot(
     page: PutioComponentGallery.Page,
