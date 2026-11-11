@@ -34,6 +34,10 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     try assertGallerySnapshot(page: .forms)
   }
 
+  @MainActor func testSheetsPage() throws {
+    try assertGallerySnapshot(page: .sheets)
+  }
+
   @MainActor
   private func assertGallerySnapshot(
     page: PutioComponentGallery.Page,

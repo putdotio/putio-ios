@@ -100,6 +100,17 @@
         }
       }
     },
+    "Cancel" : {
+      "comment" : "android: mobile_action_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
     "Cancel download" : {
       "comment" : "android: mobile_downloads_ring_cancel",
       "localizations" : {

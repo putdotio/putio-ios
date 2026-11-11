@@ -10,6 +10,7 @@ public struct PutioComponentGallery: View {
     case states
     case feedback
     case forms
+    case sheets
 
     public static let launchArgument = "--putio-harness-gallery-page"
 
@@ -28,6 +29,7 @@ public struct PutioComponentGallery: View {
       case .states: "Screen states"
       case .feedback: "Feedback"
       case .forms: "Forms"
+      case .sheets: "Sheets"
       }
     }
 
@@ -37,7 +39,7 @@ public struct PutioComponentGallery: View {
       switch self {
       case .files: GalleryLayout.filesViewportHeight
       case .forms: GalleryLayout.formsViewportHeight
-      case .buttons, .transfers, .states, .feedback: nil
+      case .buttons, .transfers, .states, .feedback, .sheets: nil
       }
     }
   }
@@ -106,7 +108,7 @@ struct GalleryPageView: View {
         FilesGallery()
       case .forms:
         FormsGallery()
-      case .buttons, .transfers, .states, .feedback:
+      case .buttons, .transfers, .states, .feedback, .sheets:
         ScrollView {
           VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
             GalleryTitle(page: page)
@@ -130,6 +132,7 @@ struct GalleryPageView: View {
     case .transfers: TransfersPage()
     case .states: StatesPage()
     case .feedback: FeedbackPage()
+    case .sheets: SheetsPage()
     case .files, .forms: EmptyView()
     }
   }
@@ -363,13 +366,89 @@ private struct FeedbackPage: View {
       }
       .dynamicTypeSize(.xxLarge)
     }
-    GallerySection(caption: "Sheet scaffold") {
-      PutioSheetScaffold(title: "Move 3 files") {
-        Text("Pick a destination folder.")
-          .putioFont(GalleryLayout.bodyFont)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+  }
+}
+
+private struct SheetsPage: View {
+  var body: some View {
+    GallerySection(caption: "Primary button") {
+      GallerySheetFrame { GalleryMoveSheet(isBusy: false) }
+    }
+    GallerySection(caption: "Primary button busy") {
+      GallerySheetFrame { GalleryMoveSheet(isBusy: true) }
+    }
+    GallerySection(caption: "No primary button") {
+      GallerySheetFrame { GalleryDetailSheet() }
+    }
+  }
+}
+
+private struct GallerySheetFrame<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    content
+      .frame(maxWidth: GalleryLayout.sheetPreviewMaxWidth)
+      .frame(height: GalleryLayout.sheetPreviewHeight)
+      .background(PutioTheme.Components.Sheet.background)
+      .clipShape(.rect(cornerRadius: GalleryLayout.sheetPreviewRadius))
+      .frame(maxWidth: .infinity)
+  }
+}
+
+private struct GalleryMoveSheet: View {
+  let isBusy: Bool
+
+  var body: some View {
+    PutioSheetScaffold(
+      title: "Move 1 item",
+      trailingButton: PutioSheetIconButton(icon: .folderFill, label: "New folder") {},
+      primaryButton: PutioSheetPrimaryButton("Move to Files", isBusy: isBusy) {}
+    ) {
+      #if os(tvOS)
+        VStack(spacing: 0) {
+          ForEach(Array(GalleryFixtures.sheetFolders.enumerated()), id: \.offset) { _, model in
+            PutioFileRow(model)
+          }
+        }
+      #else
+        List {
+          Section("Files") {
+            ForEach(Array(GalleryFixtures.sheetFolders.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model)
+            }
+          }
+          .listRowBackground(PutioTheme.Components.Sheet.background)
+        }
+        .listStyle(.plain)
+      #endif
+    }
+  }
+}
+
+private struct GalleryDetailSheet: View {
+  var body: some View {
+    PutioSheetScaffold(
+      title: "Blue.Lights.S04E01.108…ORGANiC.mkv",
+      dismissButton: nil
+    ) {
+      Grid(
+        alignment: .leading,
+        horizontalSpacing: GalleryLayout.itemGap,
+        verticalSpacing: GalleryLayout.detailRowGap
+      ) {
+        ForEach(Array(GalleryFixtures.sheetDetails.enumerated()), id: \.offset) { _, entry in
+          GridRow {
+            Text(entry.label)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+            Text(entry.value)
+              .foregroundStyle(PutioTheme.Colors.textPrimary)
+          }
+        }
       }
-      .background(GalleryLayout.sheetPreviewBackground)
+      .putioFont(GalleryLayout.bodyFont)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(GalleryLayout.pagePadding)
     }
   }
 }
@@ -647,6 +726,19 @@ enum GalleryFixtures {
       : "Plays the original file, up to 4K and surround, when this iPhone can. Converted otherwise."
   }
 
+  static let sheetFolders = [
+    PutioFileRowModel(name: "Movies", kind: .folder, sizeText: "10.2 GB · Oct 28"),
+    PutioFileRowModel(name: "Series", kind: .folder, sizeText: "13.1 GB · Nov 2"),
+  ]
+
+  static let sheetDetails: [(label: String, value: String)] = [
+    ("Size", "3.2 GB"),
+    ("Downloaded", "Today"),
+    ("Length", "49:49"),
+    ("Audio", "English, Turkish"),
+    ("Subtitles", "English, English SDH, Turkish"),
+  ]
+
   static func tierLabel(_ tier: PutioButtonTier) -> String {
     switch tier {
     case .primary: "Primary"
@@ -679,7 +771,10 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.TV.Spacing.xxl * 5
     static let filesViewportHeight = PutioTheme.TV.Spacing.xxl * 8
     static let formsViewportHeight = containerViewportHeight
-    static let sheetPreviewBackground = Color.clear
+    static let detailRowGap = PutioTheme.TV.Spacing.xs
+    static let sheetPreviewHeight = PutioTheme.TV.Spacing.xxl * 2
+    static let sheetPreviewMaxWidth = PutioTheme.TV.Spacing.xxl * 4
+    static let sheetPreviewRadius = PutioTheme.TV.radius
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let captionFont = PutioTheme.Typography.caption
@@ -691,8 +786,9 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     static let formsViewportHeight = PutioTheme.Spacing.space6 * 14
-    // The scaffold previews inside a scroll page rather than a real sheet,
-    // so give it the surface a system sheet would provide.
-    static let sheetPreviewBackground = PutioTheme.Colors.surface
+    static let detailRowGap = PutioTheme.Spacing.space2
+    static let sheetPreviewHeight = PutioTheme.Spacing.space6 * 3
+    static let sheetPreviewMaxWidth = PutioTheme.Spacing.space8
+    static let sheetPreviewRadius = PutioTheme.Radius.large
   #endif
 }
