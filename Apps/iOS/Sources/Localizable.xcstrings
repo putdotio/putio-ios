@@ -4053,17 +4053,6 @@
         }
       }
     },
-    "Storage totals could not be updated. Use Update storage to retry." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Storage totals could not be updated. Use Update storage to retry."
-          }
-        }
-      }
-    },
     "Subtitles" : {
       "comment" : "android: mobile_playback_subtitles_title",
       "localizations" : {

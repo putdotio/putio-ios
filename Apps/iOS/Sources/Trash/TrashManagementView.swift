@@ -396,27 +396,24 @@ struct TrashManagementView: View {
     }
   }
 
-  private static let staleStorageMessage =
-    String(localized: "Storage totals could not be updated. Use Update storage to retry.")
-
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }
     switch outcome {
     case .restored:
       toast = PutioToast(String(localized: "Item restored"))
-    case .permanentlyDeleted(_, let storageRefreshed):
+    case .permanentlyDeleted:
       toast = PutioToast(
-        storageRefreshed ? String(localized: "Item deleted") : Self.staleStorageMessage)
+        String(localized: "Item deleted"))
     case .restoredItems:
       toast = PutioToast(String(localized: "Items restored"))
-    case .permanentlyDeletedItems(_, let storageRefreshed):
+    case .permanentlyDeletedItems:
       toast = PutioToast(
-        storageRefreshed ? String(localized: "Items deleted") : Self.staleStorageMessage)
+        String(localized: "Items deleted"))
     case .restoredAll:
       toast = PutioToast(String(localized: "Restore started!"))
-    case .emptied(let storageRefreshed):
+    case .emptied:
       toast = PutioToast(
-        storageRefreshed ? String(localized: "Trash emptied") : Self.staleStorageMessage)
+        String(localized: "Trash emptied"))
     case .failed(_, let failure):
       toast = PutioToast(failure.title)
     }

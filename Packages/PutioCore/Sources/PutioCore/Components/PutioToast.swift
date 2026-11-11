@@ -96,12 +96,15 @@ private struct PutioToastSurface: ViewModifier {
       )
     #elseif os(iOS)
       if HarnessRendering.usesRasterFallback {
-        content.background(.regularMaterial, in: Capsule())
+        content.background(
+          .regularMaterial, in: RoundedRectangle(cornerRadius: PutioToastLayout.cornerRadius))
       } else {
-        content.glassEffect(.regular, in: Capsule())
+        content.glassEffect(
+          .regular, in: RoundedRectangle(cornerRadius: PutioToastLayout.cornerRadius))
       }
     #else
-      content.background(.regularMaterial, in: Capsule())
+      content.background(
+        .regularMaterial, in: RoundedRectangle(cornerRadius: PutioToastLayout.cornerRadius))
     #endif
   }
 }
@@ -228,5 +231,6 @@ enum PutioToastLayout {
     static let zIndex = 1.0
     static let duration = Duration.seconds(5)
     static let swipeDistance = PutioTheme.Spacing.space4
+    static let cornerRadius: CGFloat = 26
   #endif
 }

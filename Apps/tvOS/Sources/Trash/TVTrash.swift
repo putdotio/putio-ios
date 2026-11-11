@@ -22,23 +22,21 @@ enum TVTrashPresentation {
     switch outcome {
     case .restored:
       PutioToast("Item restored")
-    case .permanentlyDeleted(_, let storageRefreshed):
-      PutioToast(storageRefreshed ? "Item deleted" : staleStorageMessage)
+    case .permanentlyDeleted:
+      PutioToast("Item deleted")
     case .restoredItems:
       PutioToast("Items restored")
-    case .permanentlyDeletedItems(_, let storageRefreshed):
-      PutioToast(storageRefreshed ? "Items deleted" : staleStorageMessage)
+    case .permanentlyDeletedItems:
+      PutioToast("Items deleted")
     case .restoredAll:
       PutioToast("Restore started!")
-    case .emptied(let storageRefreshed):
-      PutioToast(storageRefreshed ? "Trash emptied" : staleStorageMessage)
+    case .emptied:
+      PutioToast("Trash emptied")
     case .failed(_, let failure):
       PutioToast(failure.title)
     }
   }
 
-  private static let staleStorageMessage =
-    "Storage totals could not be updated. Use Update storage to retry."
 }
 
 struct TVTrashView: View {
