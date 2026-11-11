@@ -382,10 +382,10 @@ import Foundation
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
-    /// The previews journey opens the image once against a failing lookup so
-    /// the error state and retry are exercised before the fixture renders.
-    nonisolated(unsafe) private static var previewImageFailuresRemaining =
-      ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
+    private static var usesPreviews: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
+    }
+    nonisolated(unsafe) private static var longPreviewLookups = 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
     nonisolated(unsafe) private static var searchRetryFailed = false
@@ -491,8 +491,7 @@ import Foundation
       historyDeletedIDs = []
       historyCleared = false
       deepLinkLookupFailed = false
-      previewImageFailuresRemaining =
-        ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
+      longPreviewLookups = 0
       externalPlaybackFailurePending =
         ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
       searchRetryFailed = false
@@ -555,6 +554,8 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if Self.holdsPreviewLookup(url) {
+        return
       } else if statusCode == 503, url.path == "/v2/files/410" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
@@ -569,6 +570,11 @@ import Foundation
       } else {
         deliverResponse()
       }
+    }
+
+    private static func holdsPreviewLookup(_ url: URL) -> Bool {
+      guard usesPreviews, url.path == "/v2/files/\(longPreviewFileID)" else { return false }
+      return fileActionsLock.withLock { longPreviewLookups == 1 }
     }
 
     override func stopLoading() {
@@ -1280,18 +1286,23 @@ import Foundation
       case "GET /v2/files/414/next-file":
         return (200, #"{"next_file":null}"#)
       case "GET /v2/files/\(imageFileID)":
-        fileActionsLock.lock()
-        let failImage = previewImageFailuresRemaining > 0
-        if failImage { previewImageFailuresRemaining -= 1 }
-        fileActionsLock.unlock()
-        if failImage {
+        return (
+          200, previewFile(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856)
+        )
+      case "GET /v2/files/\(longPreviewFileID)" where usesPreviews:
+        let lookup = fileActionsLock.withLock {
+          longPreviewLookups += 1
+          return longPreviewLookups
+        }
+        if lookup == 2 {
           return (
             503,
             fixtureError(statusCode: 503, type: "HARNESS_PREVIEW_RETRY", message: "Retry preview")
           )
         }
         return (
-          200, previewFile(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856)
+          200,
+          previewFile(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856)
         )
       case "GET /v2/files/\(archiveFileID)":
         return (
@@ -1345,6 +1356,8 @@ import Foundation
     static let rootContinuationFileID = 422
     static let imageFileID = 406
     static let archiveFileID = 407
+    static let longPreviewFileID = 428
+    static let longPreviewName = "document-scan-from-the-harness-weekend-2026.png"
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
 
@@ -2165,6 +2178,9 @@ import Foundation
             folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0),
           ] : [])
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
+        + (usesPreviews
+          ? [previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856)]
+          : [])
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       // Only the two name orders are modelled; the journey proves the

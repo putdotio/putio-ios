@@ -343,6 +343,17 @@
         }
       }
     },
+    "Back" : {
+      "comment" : "android: mobile_action_back",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
     "Back 30 seconds" : {
       "comment" : "android: mobile_playback_seek_back | differs: iOS fixes the 30-second step in the text",
       "localizations" : {
@@ -838,28 +849,6 @@
         }
       }
     },
-    "Could not open document" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not open document"
-          }
-        }
-      }
-    },
-    "Could not open image" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not open image"
-          }
-        }
-      }
-    },
     "Could not open in VLC" : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
       "localizations" : {
@@ -1297,17 +1286,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Document"
-          }
-        }
-      }
-    },
-    "Document not found" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Document not found"
           }
         }
       }
@@ -1885,17 +1863,6 @@
         }
       }
     },
-    "Image not found" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Image not found"
-          }
-        }
-      }
-    },
     "Image too large to preview" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
       "localizations" : {
@@ -2050,6 +2017,17 @@
         }
       }
     },
+    "Loading" : {
+      "comment" : "android: mobile_state_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading"
+          }
+        }
+      }
+    },
     "Loading apps" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2057,17 +2035,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading apps"
-          }
-        }
-      }
-    },
-    "Loading document" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading document"
           }
         }
       }
@@ -2101,17 +2068,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading history"
-          }
-        }
-      }
-    },
-    "Loading image" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading image"
           }
         }
       }
@@ -3140,17 +3096,6 @@
         }
       }
     },
-    "put.io could not prepare this document. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not prepare this document. Try again."
-          }
-        }
-      }
-    },
     "put.io could not prepare this file. Try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -3158,17 +3103,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io could not prepare this file. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not prepare this image. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not prepare this image. Try again."
           }
         }
       }
@@ -3796,6 +3730,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Services we use"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "comment" : "android: mobile_files_share_action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
           }
         }
       }

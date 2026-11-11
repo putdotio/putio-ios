@@ -22,77 +22,17 @@ enum PutioPreviewState: Equatable {
   }
 }
 
-struct PutioPreviewFailure: Equatable {
-  enum Kind: Equatable {
-    case notFound
-    case rateLimited
-    case transient
-    case invalidResponse
-    case unreadable
-    case tooLarge
-    case unknown
-  }
+enum PutioPreviewFailure: Equatable {
+  case loadFailed
+  case tooLarge
+  case unreadable
 
-  let kind: Kind
-  let title: String
-  let message: String
-
-  static func resolving(_ error: Error, kind previewKind: PutioPreviewRoute.Kind) -> Self? {
-    let isImage = previewKind == .image
-    if error is PutioPreviewTooLargeError {
-      return Self(
-        kind: .tooLarge,
-        title: isImage
-          ? String(localized: "Image too large to preview")
-          : String(localized: "Document too large to preview"),
-        message: String(localized: "Open it on put.io from a browser instead."))
-    }
-    let couldNotOpen =
-      isImage
-      ? String(localized: "Could not open image") : String(localized: "Could not open document")
+  static func resolving(_ error: Error) -> Self? {
+    if error is PutioPreviewTooLargeError { return .tooLarge }
     switch error as? PutioRuntimeError {
-    case .authenticationRequired, .sessionExpired:
-      return nil
-    case .notFound:
-      return Self(
-        kind: .notFound,
-        title: isImage
-          ? String(localized: "Image not found") : String(localized: "Document not found"),
-        message: String(localized: "It may have been moved or deleted."))
-    case .rateLimited:
-      return Self(
-        kind: .rateLimited, title: couldNotOpen,
-        message: String(localized: "put.io is receiving too many requests. Try again shortly."))
-    case .transient:
-      return Self(
-        kind: .transient, title: couldNotOpen,
-        message: String(localized: "Check your connection and try again."))
-    case .invalidResponse:
-      return Self(
-        kind: .invalidResponse, title: couldNotOpen,
-        message: String(localized: "put.io returned an invalid response. Try again."))
-    case .unknown, nil:
-      if let urlError = error as? URLError, urlError.code != .cancelled {
-        return Self(
-          kind: .transient, title: couldNotOpen,
-          message: String(localized: "Check your connection and try again."))
-      }
-      return Self(
-        kind: .unknown, title: couldNotOpen,
-        message: isImage
-          ? String(localized: "put.io could not prepare this image. Try again.")
-          : String(localized: "put.io could not prepare this document. Try again."))
+    case .authenticationRequired, .sessionExpired: return nil
+    default: return .loadFailed
     }
-  }
-
-  static func unreadable(kind previewKind: PutioPreviewRoute.Kind) -> Self {
-    previewKind == .image
-      ? Self(
-        kind: .unreadable, title: String(localized: "Could not display image"),
-        message: String(localized: "The image could not be read. Try again."))
-      : Self(
-        kind: .unreadable, title: String(localized: "Could not display document"),
-        message: String(localized: "The document could not be read. Try again."))
   }
 }
 
@@ -231,7 +171,7 @@ final class PutioPreviewModel {
         guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
           return
         }
-        guard let failure = PutioPreviewFailure.resolving(error, kind: route.kind) else { return }
+        guard let failure = PutioPreviewFailure.resolving(error) else { return }
         state = .failed(failure)
       }
     }
@@ -264,12 +204,12 @@ final class PutioPreviewModel {
     switch kind {
     case .image:
       let image = try await decodeImage(data, maximumPixels: maximumImagePixels)
-      guard let image else { return .failed(.unreadable(kind: kind)) }
+      guard let image else { return .failed(.unreadable) }
       return .image(image)
     case .pdf:
       try Task.checkCancellation()
       guard let document = PDFDocument(data: data), document.pageCount > 0 else {
-        return .failed(.unreadable(kind: kind))
+        return .failed(.unreadable)
       }
       return .document(document)
     }
@@ -314,30 +254,68 @@ struct PutioPreviewView: View {
     NavigationStack {
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .putioContentBackground()
+        .background(Color.black)
         .navigationTitle(model.route.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .confirmationAction) {
-            Button("Done") { onDismiss() }
-              .accessibilityIdentifier("preview.done")
-          }
-        }
+        .toolbar { toolbar }
     }
     .task { await model.load() }
     .onDisappear { model.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
   }
 
+  @ToolbarContentBuilder
+  private var toolbar: some ToolbarContent {
+    ToolbarItem(placement: .topBarLeading) {
+      Button {
+        onDismiss()
+      } label: {
+        Label(String(localized: "Back"), systemImage: "chevron.left")
+          .labelStyle(.iconOnly)
+      }
+      .tint(PutioTheme.Colors.textPrimary)
+      .accessibilityIdentifier("preview.back")
+    }
+    ToolbarItem(placement: .principal) {
+      Text(model.route.title)
+        .putioFont(PutioTheme.Typography.subheading)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .lineLimit(1)
+        .truncationMode(.middle)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityIdentifier("preview.title")
+    }
+    ToolbarItemGroup(placement: .topBarTrailing) {
+      Button {
+      } label: {
+        Label {
+          Text("Share")
+        } icon: {
+          Image(putioIcon: .export)
+        }
+      }
+      .disabled(true)
+      .accessibilityIdentifier("preview.share")
+      Button {
+      } label: {
+        Label {
+          Text("More")
+        } icon: {
+          Image(putioIcon: .dotsThree)
+        }
+      }
+      .disabled(true)
+      .accessibilityIdentifier("preview.more")
+    }
+  }
+
   @ViewBuilder
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(
-        title: model.route.kind == .image
-          ? String(localized: "Loading image") : String(localized: "Loading document")
-      )
-      .accessibilityIdentifier("preview.loading")
+      PutioLoadingStateView(title: String(localized: "Loading"), titleVisibility: .hidden)
+        .ignoresSafeArea()
+        .accessibilityIdentifier("preview.loading")
     case .image(let image):
       PutioZoomableImageView(image: image, title: model.route.title)
         .accessibilityIdentifier("preview.image")
@@ -345,9 +323,26 @@ struct PutioPreviewView: View {
       PutioPDFView(document: document)
         .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
         .accessibilityIdentifier("preview.document")
-    case .failed(let failure):
+    case .failed(.loadFailed):
+      PutioErrorStateView(kind: .failed, retryIdentifier: "preview.retry") {
+        Task { await model.retry() }
+      }
+      .ignoresSafeArea()
+    case .failed(.tooLarge):
       PutioErrorStateView(
-        title: failure.title, message: failure.message, retryTitle: String(localized: "Try again"),
+        title: model.route.kind == .image
+          ? String(localized: "Image too large to preview")
+          : String(localized: "Document too large to preview"),
+        message: String(localized: "Open it on put.io from a browser instead."))
+    case .failed(.unreadable):
+      PutioErrorStateView(
+        title: model.route.kind == .image
+          ? String(localized: "Could not display image")
+          : String(localized: "Could not display document"),
+        message: model.route.kind == .image
+          ? String(localized: "The image could not be read. Try again.")
+          : String(localized: "The document could not be read. Try again."),
+        retryTitle: String(localized: "Try again"),
         retryIdentifier: "preview.retry"
       ) {
         Task { await model.retry() }

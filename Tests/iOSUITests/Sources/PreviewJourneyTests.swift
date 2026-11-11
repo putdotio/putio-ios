@@ -44,19 +44,43 @@ final class PreviewJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // Image: the seeded lookup fails once, so the error state and retry are
-    // exercised before the fixture renders.
-    let image = element("files.item.406")
-    XCTAssertTrue(image.appears(within: 10))
-    XCTAssertEqual(image.value as? String, "Image")
-    image.tap()
-    XCTAssertTrue(app.staticTexts["Could not open image"].appears(within: 10))
+    let longImage = element("files.item.428")
+    XCTAssertTrue(longImage.appears(within: 10))
+    XCTAssertEqual(longImage.value as? String, "Image")
+    longImage.tap()
+    XCTAssertTrue(element("preview.loading").appears(within: 10))
+    assertViewerToolbar(fileID: 428)
+    screenshot("runtime-preview-loading")
+    let requests = element("preview.requests")
+    XCTAssertEqual(requests.value as? String ?? "", "")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.428").disappears(within: 5))
+    XCTAssertTrue(
+      waitForValue(requests, "428:cancelled"),
+      "leaving did not cancel the load: \(requests.value ?? "")")
+
+    longImage.tap()
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    assertViewerToolbar(fileID: 428)
     screenshot("runtime-preview-error")
     app.buttons["preview.retry"].tap()
     XCTAssertTrue(element("preview.image").appears(within: 10))
-    XCTAssertTrue(app.images["Harness Poster.png"].exists)
+    XCTAssertTrue(element("preview.screen.428").exists)
+    XCTAssertTrue(
+      waitForValue(requests, "428:cancelled,428:failed,428:loaded"),
+      "retry did not reload in place: \(requests.value ?? "")")
     screenshot("runtime-preview-image")
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.428").disappears(within: 5))
+
+    let image = element("files.item.406")
+    XCTAssertTrue(image.appears(within: 5))
+    XCTAssertEqual(image.value as? String, "Image")
+    image.tap()
+    XCTAssertTrue(element("preview.image").appears(within: 10))
+    XCTAssertTrue(app.images["Harness Poster.png"].exists)
+    app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
     // PDF renders through PDFKit with the page count exposed to accessibility.
@@ -67,7 +91,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.document").appears(within: 10))
     XCTAssertTrue(app.staticTexts["put.io harness page 1"].appears(within: 10))
     screenshot("runtime-preview-document")
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
 
     // Unsupported: an explanation surface instead of a dead row.
@@ -92,7 +116,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(searchImage.appears(within: 10))
     searchImage.tap()
     XCTAssertTrue(element("preview.image").appears(within: 10))
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
     let searchArchive = element("files.search-item.407")
     XCTAssertTrue(searchArchive.appears(within: 5))
     searchArchive.tap()
@@ -108,15 +132,15 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(historyImage.appears(within: 10))
     historyImage.tap()
     XCTAssertTrue(element("preview.image").appears(within: 10))
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
 
     // VLC handoff without VLC: the explicit not-installed outcome with a store link.
-    let requests = element("vlc.requests")
-    XCTAssertTrue(requests.appears(within: 5))
-    XCTAssertEqual(requests.value as? String, "0|")
+    let vlcRequests = element("vlc.requests")
+    XCTAssertTrue(vlcRequests.appears(within: 5))
+    XCTAssertEqual(vlcRequests.value as? String, "0|")
     assertNoVLCAction(fileID: 407)
     assertNoVLCAction(fileID: 406)
     openInVLC(fileID: 412)
@@ -124,8 +148,8 @@ final class PreviewJourneyTests: XCTestCase {
     screenshot("runtime-vlc-missing")
     app.buttons["Get VLC"].tap()
     XCTAssertTrue(
-      waitForValue(requests, "1|https://apps.apple.com/app/id650377962"),
-      "store link was not requested: \(requests.value ?? "")")
+      waitForValue(vlcRequests, "1|https://apps.apple.com/app/id650377962"),
+      "store link was not requested: \(vlcRequests.value ?? "")")
 
     // VLC handoff with VLC: the tokened stream URL leaves the app once, with a
     // return link to the file's folder. The relaunch starts a fresh request log.
@@ -136,10 +160,10 @@ final class PreviewJourneyTests: XCTestCase {
     openInVLC(fileID: 408)
     XCTAssertTrue(
       waitForValue(
-        requests,
+        vlcRequests,
         "1|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/408/download"
           + "&x-success=putio:///files/0"),
-      "handoff was not requested: \(requests.value ?? "")")
+      "handoff was not requested: \(vlcRequests.value ?? "")")
     XCTAssertFalse(app.staticTexts["VLC is not installed"].exists)
     XCTAssertTrue(element("files.screen.0").exists)
 
@@ -156,6 +180,16 @@ final class PreviewJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func assertViewerToolbar(fileID: Int) {
+    XCTAssertTrue(element("preview.screen.\(fileID)").exists)
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    let title = element("preview.title")
+    XCTAssertTrue(title.exists)
+    XCTAssertEqual(title.label, "document-scan-from-the-harness-weekend-2026.png")
+    XCTAssertFalse(app.buttons["preview.share"].isEnabled)
+    XCTAssertFalse(app.buttons["preview.more"].isEnabled)
   }
 
   /// Preview and unsupported rows show a context menu without the handoff.
