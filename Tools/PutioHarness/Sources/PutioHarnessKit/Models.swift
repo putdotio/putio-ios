@@ -828,7 +828,7 @@ enum BrowserJourneyContract {
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
-        "runtime-preview-document", "runtime-preview-unsupported", "runtime-vlc-missing",
+        "runtime-preview-document", "runtime-preview-cannot-show", "runtime-vlc-missing",
       ],
       timeAllowance: 150),
     JourneyPreflight(
