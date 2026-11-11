@@ -38,27 +38,33 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    # Pushes to next verify everything. Pull requests skip a lane when every
-    # changed path is excluded from its filter; unlisted paths count for every
-    # lane. Tooling runs on every pull request and push. This job also checks
+    # A pull request or push skips a lane when every changed path is excluded
+    # from its filter; unlisted paths count for every lane. A push compares with
+    # the commit before it. Tooling runs on every pull request and push. This job also checks
     # Markdown links and scans each pushed range. A link or scan failure fails
     # this job without skipping the lanes, which use `!cancelled()`. A dispatch
     # runs only this job unless `verify` is set; only pushes save compilation
     # caches and Simulator templates.
     outputs:
       tooling: ${{ github.event_name != 'workflow_dispatch' || inputs.verify }}
-      store: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.store == 'true' }}
-      checks: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.checks == 'true' }}
-      build: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.build == 'true' }}
-      ios: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.ios == 'true' }}
-      tvos: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.tvos == 'true' }}
-      proof: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.proof == 'true' }}
+      store: ${{ inputs.verify || steps.filter.outputs.store == 'true' }}
+      checks: ${{ inputs.verify || steps.filter.outputs.checks == 'true' }}
+      build: ${{ inputs.verify || steps.filter.outputs.build == 'true' }}
+      ios: ${{ inputs.verify || steps.filter.outputs.ios == 'true' }}
+      tvos: ${{ inputs.verify || steps.filter.outputs.tvos == 'true' }}
+      proof: ${{ inputs.verify || steps.filter.outputs.proof == 'true' }}
     steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
       - name: Classify changed paths
         id: filter
-        if: github.event_name == 'pull_request'
+        if: github.event_name != 'workflow_dispatch'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
+          base: ${{ github.ref_name }}
           predicate-quantifier: every
           filters: |
             apple: &apple
@@ -100,11 +106,6 @@ jobs:
             # match every entry in a list.
             store:
               - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
-
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
 
       - name: Check Markdown links
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
