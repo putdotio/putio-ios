@@ -1645,6 +1645,17 @@
         }
       }
     },
+    "Your account has been deactivated 😢" : {
+      "comment" : "android: account_inactive_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account has been deactivated 😢"
+          }
+        }
+      }
+    },
     "Your connection dropped, or we did. Retrying on its own." : {
       "comment" : "android: mobile_files_offline_message",
       "localizations" : {
@@ -1652,6 +1663,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your connection dropped, or we did. Retrying on its own."
+          }
+        }
+      }
+    },
+    "Your family plan is no longer active." : {
+      "comment" : "android: account_family_expired_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your family plan is no longer active."
+          }
+        }
+      }
+    },
+    "Your files are still here, but they are scheduled to be deleted in %lld days." : {
+      "comment" : "android: account_inactive_files_deletion",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your files are still here, but they are scheduled to be deleted in %lld day."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Your files are still here, but they are scheduled to be deleted in %lld days."
+                }
+              }
+            }
           }
         }
       }

@@ -43,6 +43,7 @@ struct PutioFolderScreen: View {
   private let onDownload: PutioFileSelection?
   private let castButton: AnyView?
   private let refreshRequests: PutioFolderRefreshRequests
+  private let accountNotice: PutioInactiveAccountNotice?
 
   init(
     route: PutioFolderRoute,
@@ -59,8 +60,10 @@ struct PutioFolderScreen: View {
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
-    castButton: AnyView? = nil
+    castButton: AnyView? = nil,
+    accountNotice: PutioInactiveAccountNotice? = nil
   ) {
+    self.accountNotice = accountNotice
     self.castButton = castButton
     self.route = route
     _model = State(
@@ -318,6 +321,9 @@ struct PutioFolderScreen: View {
       GeometryReader { geometry in
         ScrollView {
           VStack(spacing: PutioTheme.Spacing.space4) {
+            if let accountNotice {
+              PutioInactiveAccountNoticeView(notice: accountNotice)
+            }
             PutioEmptyStateView(
               icon: .folderFill,
               title: String(localized: "This folder is empty"),
@@ -338,6 +344,17 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
       List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
+        if let accountNotice {
+          PutioInactiveAccountNoticeView(notice: accountNotice)
+            .listRowInsets(
+              EdgeInsets(
+                top: PutioTheme.Spacing.space2, leading: PutioTheme.Spacing.space3,
+                bottom: PutioTheme.Spacing.space2, trailing: PutioTheme.Spacing.space3)
+            )
+            .listRowSeparator(.hidden)
+            .listRowBackground(PutioTheme.Colors.background)
+            .selectionDisabled()
+        }
         folderHeader(contents)
         ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
           VStack(spacing: 0) {

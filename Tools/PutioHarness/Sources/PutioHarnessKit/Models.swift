@@ -632,6 +632,18 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-ses-18-analytics-failed", .iphone, "testAnalyticsPromptFailed", screenBase: false),
       BoardCapture("rd-ios-ses-25-ipad-analytics", .ipad, "testIPadAnalyticsPrompt"),
+      BoardCapture(
+        "rd-ios-ses-19-inactive", .iphone, "testInactiveNotice",
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
+      BoardCapture(
+        "rd-ios-ses-20-inactive-no-date", .iphone, "testInactiveNotice", screenBase: false,
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "owner-no-date"]),
+      BoardCapture(
+        "rd-ios-ses-21-inactive-family", .iphone, "testInactiveNotice", screenBase: false,
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
+      BoardCapture(
+        "rd-ios-ses-26-ipad-inactive", .ipad, "testIPadInactiveNotice",
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -964,6 +976,15 @@ enum BrowserJourneyContract {
         "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
       ],
       timeAllowance: 240),
+    JourneyPreflight(
+      "inactive-account",
+      "InactiveAccountJourneyTests/testNoticeShowsWhileInactiveAndClearsAfterRenewalOnReturn",
+      attachmentNames: ["runtime-inactive-notice", "runtime-inactive-renewed"], timeAllowance: 90),
+    JourneyPreflight(
+      "inactive-family",
+      "InactiveAccountJourneyTests/testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate"),
+    JourneyPreflight(
+      "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
   ]

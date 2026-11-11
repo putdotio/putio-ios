@@ -209,9 +209,14 @@ final class PutioSessionStoreTests: XCTestCase {
     historyEnabled: Bool = true,
     trashEnabled: Bool = true,
     avatarURL: String = "",
-    trashSize: Int64 = 0
+    trashSize: Int64 = 0,
+    accountStatus: String? = nil,
+    accountActive: Bool = true,
+    isSubAccount: Bool = false,
+    filesWillBeDeletedAt: String = ""
   ) -> String {
-    """
+    let status = accountStatus.map { #""account_status": "\#($0)","# } ?? ""
+    return """
     {
       "info": {
         "user_id": 1001,
@@ -222,8 +227,10 @@ final class PutioSessionStoreTests: XCTestCase {
         "features": {},
         "download_token": "token",
         "trash_size": \(trashSize),
-        "account_active": true,
-        "files_will_be_deleted_at": "",
+        \(status)
+        "account_active": \(accountActive),
+        "is_sub_account": \(isSubAccount),
+        "files_will_be_deleted_at": "\(filesWillBeDeletedAt)",
         "password_last_changed_at": "",
         "disk": { "avail": 10, "size": 30, "used": 20 },
         "settings": {
@@ -290,6 +297,103 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected a restored account")
     }
     XCTAssertFalse(account.historyEnabled)
+  }
+
+  func testAccountStatusSubAccountAndDeletionDateMapIntoTheSnapshot() async {
+    let account = await restoredAccount(
+      Self.accountInfo(
+        rememberVideoTime: true, accountStatus: "inactive", accountActive: false,
+        isSubAccount: true, filesWillBeDeletedAt: "2026-10-15T08:00:00"))
+    XCTAssertEqual(account?.status, .inactive)
+    XCTAssertEqual(account?.isSubAccount, true)
+    XCTAssertEqual(
+      account?.filesDeletionDate, ISO8601DateFormatter().date(from: "2026-10-15T08:00:00Z"))
+  }
+
+  func testAccountStatusWinsOverTheActiveFlag() async {
+    let inactive = await restoredAccount(
+      Self.accountInfo(rememberVideoTime: true, accountStatus: "inactive", accountActive: true))
+    XCTAssertEqual(inactive?.status, .inactive)
+    let stranger = await restoredAccount(
+      Self.accountInfo(rememberVideoTime: true, accountStatus: "stranger", accountActive: false))
+    XCTAssertEqual(stranger?.status, .stranger)
+  }
+
+  func testMissingAccountStatusFallsBackToTheActiveFlag() async {
+    let inactive = await restoredAccount(
+      Self.accountInfo(rememberVideoTime: true, accountActive: false))
+    XCTAssertEqual(inactive?.status, .inactive)
+    let active = await restoredAccount(
+      Self.accountInfo(rememberVideoTime: true, accountActive: true))
+    XCTAssertEqual(active?.status, .active)
+  }
+
+  func testUnusableDeletionDateMapsToNoDate() async {
+    let account = await restoredAccount(
+      Self.accountInfo(
+        rememberVideoTime: true, accountStatus: "inactive", filesWillBeDeletedAt: "soon"))
+    XCTAssertEqual(account?.status, .inactive)
+    XCTAssertNil(account?.filesDeletionDate)
+  }
+
+  func testRenewalClearsTheInactiveStatusOnTheNextRefresh() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(
+        rememberVideoTime: true, accountStatus: "inactive", accountActive: false,
+        filesWillBeDeletedAt: "2026-10-15T08:00:00")
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn(let inactive) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertNotNil(PutioInactiveAccountNotice(account: inactive))
+
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200, Self.accountInfo(rememberVideoTime: true, accountStatus: "active")
+    )
+    let refreshed = await store.refreshAccount()
+
+    XCTAssertTrue(refreshed)
+    guard case .signedIn(let renewed) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(renewed.status, .active)
+    XCTAssertNil(PutioInactiveAccountNotice(account: renewed))
+  }
+
+  func testAccountStatusSurvivesPreferenceAcknowledgement() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(
+        rememberVideoTime: true, accountStatus: "inactive", isSubAccount: true,
+        filesWillBeDeletedAt: "2026-10-15T08:00:00Z")
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    store.applyAcknowledgedPreferences(hideSubtitles: true)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.status, .inactive)
+    XCTAssertTrue(account.isSubAccount)
+    XCTAssertNotNil(account.filesDeletionDate)
+  }
+
+  private func restoredAccount(_ info: String) async -> PutioAccountSnapshot? {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (200, info)
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn(let account) = store.state else {
+      XCTFail("expected signedIn, got \(store.state)")
+      return nil
+    }
+    return account
   }
 
   func testRestoreWithoutTokenLandsSignedOut() async {

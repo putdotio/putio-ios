@@ -1,5 +1,9 @@
 import Foundation
 
+#if canImport(UIKit) && !os(watchOS)
+  import UIKit
+#endif
+
 #if DEBUG
   final class HarnessResponseDeliveryGate: @unchecked Sendable {
     private let lock = NSLock()
@@ -90,6 +94,69 @@ import Foundation
     static let securityTwoFactorCode = "246810"
     static let securityDeviceCode = "HARN42"
     static let securityPassword = "harness-pass"
+
+    enum InactiveAccount: String {
+      case owner
+      case ownerNoDate = "owner-no-date"
+      case family
+    }
+
+    static let inactiveAccountArgument = "--putio-harness-account-inactive"
+    static let accountRenewsInBackgroundArgument = "--putio-harness-account-renews-in-background"
+    static let inactiveAccountDeletionDays = 12
+
+    private static var inactiveAccount: InactiveAccount? {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: inactiveAccountArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return InactiveAccount(rawValue: arguments[flag + 1])
+    }
+
+    private static let accountRenewalLock = NSLock()
+    nonisolated(unsafe) private static var accountRenewed = false
+    nonisolated(unsafe) private static var accountRenewalObserver: NSObjectProtocol?
+
+    static func observeAccountRenewal() {
+      #if canImport(UIKit) && !os(watchOS)
+        guard ProcessInfo.processInfo.arguments.contains(accountRenewsInBackgroundArgument),
+          accountRenewalObserver == nil
+        else { return }
+        accountRenewalObserver = NotificationCenter.default.addObserver(
+          forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil
+        ) { _ in
+          accountRenewalLock.withLock { accountRenewed = true }
+        }
+      #endif
+    }
+
+    private static var accountStatusFieldsLocked: String {
+      let renewed = accountRenewalLock.withLock { accountRenewed }
+      guard let inactiveAccount, !renewed else {
+        return accountStatusFields(status: "active", subAccount: false, deletion: "")
+      }
+      let deletion: String
+      switch inactiveAccount {
+      case .ownerNoDate:
+        deletion = ""
+      case .owner, .family:
+        let calendar = Calendar.current
+        let day =
+          calendar.date(
+            byAdding: DateComponents(day: inactiveAccountDeletionDays, hour: 12),
+            to: calendar.startOfDay(for: .now)) ?? .now
+        deletion = ISO8601DateFormatter().string(from: day)
+      }
+      return accountStatusFields(
+        status: "inactive", subAccount: inactiveAccount == .family, deletion: deletion)
+    }
+
+    private static func accountStatusFields(
+      status: String, subAccount: Bool, deletion: String
+    ) -> String {
+      #""account_status": "\#(status)", "account_active": \#(status == "active"), "#
+        + #""is_sub_account": \#(subAccount), "files_will_be_deleted_at": "\#(deletion)","#
+    }
 
     /// The tvOS journey proves History gating follows an account change made
     /// elsewhere: once History is cleared, account loads report it off.
@@ -2213,8 +2280,7 @@ import Foundation
             "features": {},
             "download_token": "harness-download-token",
             "trash_size": \(trashSizeBytes),
-            "account_active": true,
-            "files_will_be_deleted_at": "",
+            \(accountStatusFieldsLocked)
             "password_last_changed_at": "",
             "disk": {
               "avail": \(diskTotalBytes - usedBytes),

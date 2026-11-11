@@ -26,6 +26,7 @@ struct FilesBrowserView: View {
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
   private let accountID: Int?
+  private let accountNotice: PutioInactiveAccountNotice?
   private let navigationRestoration = PutioFilesNavigationRestoration()
   private let navigationRequest: PutioFilesNavigationRequest?
   @State private var appliedNavigationRequest: UUID?
@@ -44,9 +45,11 @@ struct FilesBrowserView: View {
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil,
-    castButton: (() -> AnyView)? = nil
+    castButton: (() -> AnyView)? = nil,
+    accountNotice: PutioInactiveAccountNotice? = nil
   ) {
     self.tracksWatched = tracksWatched
+    self.accountNotice = accountNotice
     self.castButton = castButton?()
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
@@ -80,7 +83,8 @@ struct FilesBrowserView: View {
         onFileSelected: onFileSelected,
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
-        castButton: castButton
+        castButton: castButton,
+        accountNotice: accountNotice
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(

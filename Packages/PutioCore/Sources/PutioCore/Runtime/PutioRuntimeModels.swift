@@ -26,6 +26,13 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     }
   }
 
+  /// put.io's `account_status`. `stranger` is an account that never had a plan.
+  public enum Status: Equatable, Sendable {
+    case active
+    case inactive
+    case stranger
+  }
+
   public let id: Int
   public let username: String
   public let email: String
@@ -47,6 +54,11 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   /// Bytes in Trash as the account reports them; the Trash listing owns the
   /// live total while it is open.
   public let trashSizeBytes: Int64
+  public let status: Status
+  /// A family plan member rather than the plan's owner.
+  public let isSubAccount: Bool
+  /// When an inactive account's files are scheduled for deletion, if put.io sent a usable date.
+  public let filesDeletionDate: Date?
 
   public init(
     id: Int,
@@ -65,7 +77,10 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     diagnosticsEnabled: Bool = true,
     productAnalyticsEnabled: Bool = false,
     avatarURL: URL? = nil,
-    trashSizeBytes: Int64 = 0
+    trashSizeBytes: Int64 = 0,
+    status: Status = .active,
+    isSubAccount: Bool = false,
+    filesDeletionDate: Date? = nil
   ) {
     self.id = id
     self.username = username
@@ -84,6 +99,9 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.productAnalyticsEnabled = productAnalyticsEnabled
     self.avatarURL = avatarURL
     self.trashSizeBytes = trashSizeBytes
+    self.status = status
+    self.isSubAccount = isSubAccount
+    self.filesDeletionDate = filesDeletionDate
   }
 }
 
@@ -110,6 +128,9 @@ extension PutioAccountSnapshot: CustomReflectable {
         "productAnalyticsEnabled": productAnalyticsEnabled,
         "avatarURL": avatarURL == nil ? "nil" : "<redacted>",
         "trashSizeBytes": trashSizeBytes,
+        "status": status,
+        "isSubAccount": isSubAccount,
+        "filesDeletionDate": filesDeletionDate as Any,
       ],
       displayStyle: .struct
     )
