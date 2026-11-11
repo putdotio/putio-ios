@@ -4,7 +4,7 @@ import PutioSDK
 extension PutioRuntime {
   public func listFiles(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
     let result = try await performAuthenticatedOperation {
-      try await sdk.getFiles(parentID: parentID.rawValue)
+      try await sdk.getFiles(parentID: parentID.rawValue, query: PutioFilesListQuery(total: true))
     }
     return folderContents(from: result)
   }
@@ -40,7 +40,8 @@ extension PutioRuntime {
       folder: contents.folder,
       items: contents.items.filter { !sharedRootIDs.contains($0.id) },
       nextCursor: contents.nextCursor,
-      sort: contents.sort
+      sort: contents.sort,
+      totalCount: contents.totalCount.map { max($0 - sharedRootIDs.count, 0) }
     )
   }
 
@@ -109,7 +110,8 @@ extension PutioRuntime {
       folder: result.parent.map(snapshot),
       items: result.children.map(snapshot),
       nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
-      sort: result.parent.flatMap { PutioFolderSort(rawValue: $0.sortBy) }
+      sort: result.parent.flatMap { PutioFolderSort(rawValue: $0.sortBy) },
+      totalCount: result.total
     )
   }
 

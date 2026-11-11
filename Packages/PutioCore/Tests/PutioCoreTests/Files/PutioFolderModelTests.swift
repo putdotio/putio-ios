@@ -233,6 +233,50 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(contents.hasMore)
   }
 
+  func testItemCountFollowsTheServerTotalThroughPagingAndAnOptimisticDelete() async throws {
+    let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
+    let first = BrowserTestFixtures.item(id: 1)
+    let second = BrowserTestFixtures.item(id: 2)
+    let firstPage = BrowserTestFixtures.contents(items: [first, second], hasMore: true)
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in
+        PutioFolderContents(
+          folder: firstPage.folder, items: firstPage.items, nextCursor: "next", totalCount: 3)
+      },
+      continueLoad: { _ in BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: 3)]) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in try await mutation.run() }
+      )
+    )
+
+    _ = await model.loadIfNeeded()
+    guard case .loaded(let paged) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(paged.itemCount, 3)
+
+    let task = Task { await model.delete(first) }
+    try await mutation.waitUntilStarted()
+    guard case .loaded(let optimistic) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(optimistic.itemCount, 2)
+    await mutation.fail(with: PutioRuntimeError.unknown)
+    await task.value
+
+    _ = await model.loadMore()
+    guard case .loaded(let complete) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertFalse(complete.hasMore)
+    XCTAssertEqual(complete.itemCount, 3)
+  }
+
+  func testItemCountIsUnknownWhileAPageIsMissingAndTheServerSentNoTotal() {
+    let contents = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)], hasMore: true)
+
+    XCTAssertNil(contents.itemCount)
+  }
+
   func testContinuationStopsWhenTheServerHandsBackAConsumedCursor() async {
     func page(_ id: Int, cursor: String?) -> PutioFolderContents {
       let base = BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: id)])
