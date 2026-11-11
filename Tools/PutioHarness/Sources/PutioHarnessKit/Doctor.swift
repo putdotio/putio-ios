@@ -17,7 +17,8 @@ public struct HarnessDoctor: Sendable {
         "xcodebuild", required: true,
         recovery: "install the Xcode in .xcode-version and select it with DEVELOPER_DIR"))
     checks.append(toolCheck("xcrun", required: true, recovery: "install Xcode command-line tools"))
-    checks.append(toolCheck("swift", required: true, recovery: "install the Xcode in .xcode-version"))
+    checks.append(
+      toolCheck("swift", required: true, recovery: "install the Xcode in .xcode-version"))
     checks.append(toolCheck("tuist", required: true, recovery: "run mise install"))
     checks.append(toolCheck("git", required: true, recovery: "install Xcode command-line tools"))
     checks.append(
