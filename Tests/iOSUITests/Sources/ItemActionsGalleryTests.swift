@@ -82,9 +82,11 @@ final class ItemActionsGalleryTests: XCTestCase {
     let first = app.buttons[boardMenu[0]].firstMatch
     XCTAssertTrue(first.appears(within: 5), "item menu never opened")
     let items = app.buttons.matching(NSPredicate(format: "label IN %@", boardMenu))
-    return items.allElementsBoundByIndex
-      .sorted { $0.frame.minY < $1.frame.minY }
-      .map(\.label)
+    return Array(
+      items.allElementsBoundByIndex
+        .sorted { $0.frame.minY < $1.frame.minY }
+        .map(\.label)
+        .suffix(boardMenu.count))
   }
 
   private func swipeMore(beside row: XCUIElement) -> XCUIElement {
