@@ -59,7 +59,6 @@ jobs:
           version: "2026.11.5"
           install_args: node
 
-      # A pull request checks out its merge commit, whose first parent is the base.
       - name: Select affected lanes
         id: lanes
         env:
@@ -75,6 +74,7 @@ jobs:
           fi
 
       - name: Check Markdown links
+        if: ${{ !cancelled() }}
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
 
       - name: Scan secrets and workflows

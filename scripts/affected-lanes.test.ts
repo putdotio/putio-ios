@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { type Lane, lanes, lanesFor, miseLanes } from "./affected-lanes.ts";
+import { type Lane, ciTasks, lanes, lanesFor, miseLanes } from "./affected-lanes.ts";
 
 const select = (...paths: string[]): Lane[] => lanes.filter((lane) => lanesFor(paths).has(lane));
 const apple: Lane[] = ["checks", "build", "ios", "tvos", "proof"];
@@ -100,4 +100,16 @@ test("mise.toml selects lanes only for tools, settings, and the tasks CI runs", 
     [],
   );
   assert.deepEqual(miseLanes(before, `${before}\n[env]\nFOO = "1"\n`), [...lanes]);
+});
+
+test("every mise task CI runs is one whose edits select every lane", async () => {
+  const sources = await Promise.all(
+    [".github/workflows/ci-next.yml", ".github/actions/setup-apple/action.yml"].map((path) =>
+      readFile(new URL(`../${path}`, import.meta.url), "utf8"),
+    ),
+  );
+  const used = new Set(
+    sources.flatMap((text) => [...text.matchAll(/mise run ([\w-]+)/g)].map((match) => match[1])),
+  );
+  assert.deepEqual([...used].sort(), [...ciTasks].sort());
 });

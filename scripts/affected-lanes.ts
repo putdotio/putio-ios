@@ -87,7 +87,7 @@ const rules: readonly Rule[] = [
   { match: under("Tests/HarnessMedia"), lanes: ["build", "ios", "tvos", "proof"] },
 ];
 
-const ciTasks = new Set(["verify", "harness-ci", "fonts-setup"]);
+export const ciTasks: ReadonlySet<string> = new Set(["verify", "harness-ci", "fonts-setup"]);
 
 const sectionByLine = (text: string): string[] => {
   let section = "";

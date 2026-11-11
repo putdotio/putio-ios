@@ -10,7 +10,8 @@ lanes=("$@")
 if [[ ${#lanes[@]} -eq 0 ]]; then
   lanes=(tooling checks build ios tvos)
 elif [[ "${lanes[0]}" == "--affected" ]]; then
-  read -r -a selected <<<"$(node scripts/affected-lanes.ts "${lanes[@]:1}")"
+  affected="$(node scripts/affected-lanes.ts "${lanes[@]:1}")"
+  read -r -a selected <<<"$affected"
   lanes=()
   for lane in tooling checks build ios tvos; do
     [[ " ${selected[*]:-} " == *" $lane "* ]] && lanes+=("$lane")
