@@ -181,7 +181,9 @@ public enum HarnessInvocation: Equatable, Sendable {
     only: [String] = [],
     output: OutputFormat
   )
-  case boards(ids: [String], xxl: Bool = false, runID: String?, output: OutputFormat)
+  case boards(
+    ids: [String], xxl: Bool = false, device: BoardDevice? = nil, runID: String?,
+    output: OutputFormat)
   case authStatus(output: OutputFormat)
   case liveFixture(output: OutputFormat)
 }
@@ -498,10 +500,12 @@ public struct ProofManifest: Codable, Equatable, Sendable {
 public enum BoardDevice: String, CaseIterable, Codable, Sendable {
   case iphone
   case ipad
+  case duoFolded = "duo-folded"
+  case duoOpen = "duo-open"
 
   var deviceFamily: String {
     switch self {
-    case .iphone: "iPhone"
+    case .iphone, .duoFolded, .duoOpen: "iPhone"
     case .ipad: "iPad"
     }
   }
@@ -510,13 +514,31 @@ public enum BoardDevice: String, CaseIterable, Codable, Sendable {
     switch self {
     case .iphone: "iPhone 17 Pro"
     case .ipad: "iPad Pro 11-inch (M5)"
+    case .duoFolded, .duoOpen: "iPhone Duo"
     }
+  }
+
+  var requiredDeviceTypeIdentifier: String? {
+    switch self {
+    case .iphone, .ipad: nil
+    case .duoFolded, .duoOpen: foldableDeviceTypeIdentifier
+    }
+  }
+
+  func requireHeadlessPosture() throws {
+    guard self == .duoOpen else { return }
+    throw HarnessFailure(
+      "duo-open needs the iPhone Duo unfolded, and no headless tool sets its posture: "
+        + "simctl has no fold command and screenConfig power does not fold. "
+        + "Device Hub (Xcode 27.1+, Xcode > Open Developer Tool > Device Hub) is the only way "
+        + "to set Closed, Partially Open, or Open; capture the open posture there by hand. "
+        + "No simulator was created.")
   }
 }
 
 struct BoardCapture: Equatable, Sendable {
   let id: String
-  let device: BoardDevice
+  private(set) var device: BoardDevice
   let testIdentifier: String
   let isScreenBase: Bool
   let environment: [String: String]
@@ -540,6 +562,18 @@ struct BoardCapture: Equatable, Sendable {
   }
 
   var layoutAttachmentName: String { "\(id)-layout" }
+
+  var testEnvironment: [String: String] {
+    environment.merging(
+      ["PUTIO_BOARD_ID": id, "PUTIO_BOARD_DEVICE": device.rawValue]
+    ) { declared, _ in declared }
+  }
+
+  func on(_ device: BoardDevice) -> BoardCapture {
+    var capture = self
+    capture.device = device
+    return capture
+  }
 }
 
 enum BoardCaptureContract {
@@ -559,14 +593,17 @@ enum BoardCaptureContract {
       BoardCapture(
         "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
         screenBase: false),
-    ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
+      BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
+    ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
+
+  static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
 
   static let galleryPages = [
     "buttons", "files", "states", "feedback", "forms", "sheets", "shell", "menus", "text-alert",
     "confirm-alert", "selection-none", "selection-some", "selection-all", "split",
   ]
 
-  static func resolve(_ ids: [String]) throws -> [BoardCapture] {
+  static func resolve(_ ids: [String], device: BoardDevice? = nil) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
     let unknown = ids.filter { id in !boards.contains { $0.id == id } }
     guard unknown.isEmpty else {
@@ -577,7 +614,11 @@ enum BoardCaptureContract {
     guard Set(ids).count == ids.count else {
       throw HarnessFailure("--boards lists a board id twice")
     }
-    return ids.compactMap { id in boards.first { $0.id == id } }
+    let captures = ids.compactMap { id in boards.first { $0.id == id } }.map { capture in
+      device.map(capture.on) ?? capture
+    }
+    for capture in captures { try capture.device.requireHeadlessPosture() }
+    return captures
   }
 }
 

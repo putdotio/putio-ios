@@ -37,16 +37,16 @@ Swift cannot compile the harness.
 
 ## Drive
 
-| Proof                                   | Command                                                                           | Details                                    |
-| --------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------ |
-| iOS feature flows and the recorded walk | `journey --platform ios --scenario files-browser [--only <preflights>]`           | [journeys](references/journeys.md)         |
-| tvOS sign-in, browse, and playback      | `journey --platform tvos --scenario device-sign-in`                               | [journeys](references/journeys.md#tvos)    |
-| Design board states on iPhone and iPad  | `journey --platform ios --boards <board-id>[,<board-id>...]`                      | [journeys](references/journeys.md#boards)  |
-| Launch and rendering                    | `proof --platform <ios\|watchos\|tvos\|all>`                                      | below                                      |
-| One screen                              | `screenshot` or `record --platform <p> --scenario signed-out\|gallery\|signed-in` | below                                      |
-| Components and theming                  | `test --platform <ios\|tvos> [--snapshots record]`                                | [snapshots](references/snapshots.md)       |
-| tvOS on hardware                        | `build`, `launch`, or `proof --platform tvos --device <udid>`                     | [Apple TV](references/apple-tv-device.md)  |
-| Real put.io account                     | `journey --scenario live-files-browser\|live-device-sign-in`                      | [live account](references/live-account.md) |
+| Proof                                        | Command                                                                           | Details                                    |
+| -------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------ |
+| iOS feature flows and the recorded walk      | `journey --platform ios --scenario files-browser [--only <preflights>]`           | [journeys](references/journeys.md)         |
+| tvOS sign-in, browse, and playback           | `journey --platform tvos --scenario device-sign-in`                               | [journeys](references/journeys.md#tvos)    |
+| Design board states on iPhone, iPad, and Duo | `journey --platform ios --boards <board-id>[,<board-id>...] [--device <d>]`       | [journeys](references/journeys.md#boards)  |
+| Launch and rendering                         | `proof --platform <ios\|watchos\|tvos\|all>`                                      | below                                      |
+| One screen                                   | `screenshot` or `record --platform <p> --scenario signed-out\|gallery\|signed-in` | below                                      |
+| Components and theming                       | `test --platform <ios\|tvos> [--snapshots record]`                                | [snapshots](references/snapshots.md)       |
+| tvOS on hardware                             | `build`, `launch`, or `proof --platform tvos --device <udid>`                     | [Apple TV](references/apple-tv-device.md)  |
+| Real put.io account                          | `journey --scenario live-files-browser\|live-device-sign-in`                      | [live account](references/live-account.md) |
 
 The [feature map](features/README.md) names the preflight that proves each
 user-facing feature. `journey --only` runs just those preflights in a few minutes;

@@ -176,7 +176,9 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(folderScreen.appears(within: 10), "folder did not open")
   }
 
-  private func captureBoard(_ board: String) throws {
+  private func captureBoard(_ defaultBoard: String) throws {
+    let board = ProcessInfo.processInfo.environment["PUTIO_BOARD_ID"] ?? defaultBoard
+    try requireBoardDevicePosture()
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
         guard let element = issue.element else { return false }
@@ -204,6 +206,17 @@ final class BoardCaptureTests: XCTestCase {
     data.lifetime = .keepAlways
     add(data)
   }
+
+  private func requireBoardDevicePosture() throws {
+    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-folded" else { return }
+    let window = app.windows.firstMatch
+    XCTAssertTrue(window.appears(within: 10), "app window never appeared")
+    XCTAssertLessThan(
+      window.frame.width, Self.regularWidthThreshold,
+      "folded iPhone Duo window is \(window.frame.width) pt wide")
+  }
+
+  private static let regularWidthThreshold: CGFloat = 600
 
   private static func oriented(_ screen: UIImage, toMatch size: CGSize) -> UIImage {
     let upright = UIGraphicsImageRenderer(size: screen.size, format: rendererFormat(screen)).image {

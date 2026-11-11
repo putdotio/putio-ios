@@ -8,7 +8,7 @@ public enum HarnessArgumentParser {
       putio-harness <build|launch|proof> --platform tvos --device <udid|identifier|name> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--only PREFLIGHT[,PREFLIGHT...]] [--run-id ID] [--output text|json]
-      putio-harness journey --platform ios --boards BOARD[,BOARD...] [--xxl] [--run-id ID] [--output text|json]
+      putio-harness journey --platform ios --boards BOARD[,BOARD...] [--device iphone|ipad|duo-folded|duo-open] [--xxl] [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario live-device-sign-in [--run-id ID] [--output text|json]
@@ -52,16 +52,26 @@ public enum HarnessArgumentParser {
       }
       return .test(platform: platform, recordSnapshots: snapshotsValue == "record", output: output)
     case "journey" where options.value("boards") != nil:
-      try options.rejectUnknown(allowing: ["platform", "boards", "xxl", "run-id", "output"])
+      try options.rejectUnknown(
+        allowing: ["platform", "boards", "device", "xxl", "run-id", "output"])
       guard try options.required("platform") == HarnessPlatform.ios.rawValue else {
         throw HarnessFailure("journey --boards runs only on ios")
       }
+      let device = try options.value("device").map { value in
+        guard let device = BoardDevice(rawValue: value) else {
+          throw HarnessFailure(
+            "journey --boards: --device must be one of: "
+              + BoardDevice.allCases.map(\.rawValue).joined(separator: ", "))
+        }
+        return device
+      }
       let ids = try options.required("boards").split(separator: ",").map(String.init)
-      let boards = try BoardCaptureContract.resolve(ids)
+      let boards = try BoardCaptureContract.resolve(ids, device: device)
       let runID = options.value("run-id")
       if let runID { try validateIdentifier(runID, label: "run id") }
       return .boards(
-        ids: boards.map(\.id), xxl: options.flag("xxl"), runID: runID, output: output)
+        ids: boards.map(\.id), xxl: options.flag("xxl"), device: device, runID: runID,
+        output: output)
     case "journey":
       try options.rejectUnknown(allowing: ["platform", "scenario", "only", "run-id", "output"])
       guard let platform = HarnessPlatform(rawValue: try options.required("platform")),

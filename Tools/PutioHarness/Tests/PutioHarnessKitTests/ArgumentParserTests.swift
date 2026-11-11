@@ -375,3 +375,31 @@ import Testing
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--xxl"])
   }
 }
+
+@Test func parsesTheBoardDeviceOverride() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--device", "duo-folded",
+    ]) == .boards(ids: ["rd-ios-02-folder"], device: .duoFolded, runID: nil, output: .text))
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-duo-01-folded-folder",
+    ]) == .boards(ids: ["rd-ios-duo-01-folded-folder"], runID: nil, output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--device", "duo",
+    ])
+  }
+}
+
+@Test func refusesTheOpenDuoPostureBeforeAnySimulator() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--device", "duo-open",
+    ])
+  }
+  let failure = #expect(throws: HarnessFailure.self) {
+    try BoardCaptureContract.resolve(["rd-ios-duo-01-folded-folder"], device: .duoOpen)
+  }
+  #expect(failure?.message.contains("Device Hub (Xcode 27.1+") == true)
+}

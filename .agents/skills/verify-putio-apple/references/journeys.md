@@ -83,8 +83,14 @@ A board state needs one row there and one seeded test step.
   page on each device.
 - Captures go to `build/proof/<run-id>/ios/<device>/<board-id>.png`. The
   manifest lists each board with its device type, point size and digest.
-- iPhone and iPad boards each get their own simulator. The test sets the
+- iPhone, iPad, and Duo boards each get their own simulator. The test sets the
   orientation the board uses.
+- `--device <iphone|ipad|duo-folded|duo-open>` captures the listed boards on
+  that device instead of the one their row names.
+- `duo-folded` runs on the iPhone Duo runtime, on its outer display. The test
+  fails unless the window reports compact width under 600 pt.
+- `duo-open` fails before any simulator starts. No headless tool sets the Duo
+  posture; capture the open posture by hand in Device Hub (Xcode 27.1+).
 - The run fails on an id with no table row, and when any board produces no
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with
