@@ -169,7 +169,17 @@ struct MainTabView: View {
       askProductAnalyticsIfNeeded()
     }
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
-    .accessibilityHidden(selectedVideoRoute != nil)
+    .accessibilityHidden(selectedVideoRoute != nil || presentedPreviewRoute != nil)
+    .overlay {
+      if let route = presentedPreviewRoute {
+        PutioPreviewView(
+          route: route,
+          download: { fileID in try await downloadPreview(fileID: fileID) },
+          onDismiss: { presentedPreviewRoute = nil }
+        )
+        .id(route.id)
+      }
+    }
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         videoPlayer(for: route)
@@ -211,14 +221,6 @@ struct MainTabView: View {
     }
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
-    }
-    .fullScreenCover(item: $presentedPreviewRoute) { route in
-      PutioPreviewView(
-        route: route,
-        download: { fileID in try await downloadPreview(fileID: fileID) },
-        onDismiss: { presentedPreviewRoute = nil }
-      )
-      .preferredColorScheme(.dark)
     }
     .sheet(item: $presentedUnsupportedRoute) { route in
       PutioUnsupportedFileView(route: route, onDismiss: { presentedUnsupportedRoute = nil })
