@@ -231,8 +231,8 @@ final class BoardCaptureTests: XCTestCase {
       app.swipeUp()
       swipes += 1
     }
-    XCTAssertTrue(destroy.isHittable, "the end of Account never scrolled into view")
     XCTAssertTrue(destroy.appears(within: 5))
+    XCTAssertTrue(destroy.isHittable, "the end of Account never scrolled into view")
     try captureBoard("rd-ios-acc-04-account-end")
   }
 

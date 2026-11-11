@@ -14,6 +14,14 @@ extension XCUIApplication {
     return target
   }
 
+  func scrollDown(toHit element: XCUIElement, maximumSwipes: Int = 6) {
+    var swipes = 0
+    while !element.isHittable, swipes < maximumSwipes {
+      swipeDown()
+      swipes += 1
+    }
+  }
+
   /// Account's Log out asks "Are you sure?" before ending the session.
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {
     let confirm = buttons["auth.sign-out-confirm"].firstMatch

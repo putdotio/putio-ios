@@ -151,7 +151,6 @@ struct AccountView: View {
           .accessibilityHidden(true)
       }
       .padding(.vertical, PutioTheme.Spacing.space1)
-      .accessibilityElement(children: .combine)
       if runtime.session.isAccountStorageStale {
         PutioErrorStateView(
           title: PutioTrashErrorPresentation.staleStorage.title,
@@ -258,7 +257,7 @@ struct AccountView: View {
       )
       .disabled(settingsLocked)
       .accessibilityIdentifier("playback-settings.subtitles")
-      if !(preferences.account?.hideSubtitles ?? account.hideSubtitles) {
+      if !(preferences.account ?? account).hideSubtitles {
         PutioToggleRow(
           title: String(localized: "Pick matching subtitles"), icon: .listChecks,
           isOn: pickMatchingSubtitles
@@ -368,13 +367,13 @@ struct AccountView: View {
 
   private var showSubtitles: Binding<Bool> {
     Binding(
-      get: { !(preferences.account?.hideSubtitles ?? false) },
+      get: { !(preferences.account ?? account).hideSubtitles },
       set: { save(.showSubtitles($0)) })
   }
 
   private var pickMatchingSubtitles: Binding<Bool> {
     Binding(
-      get: { !(preferences.account?.dontAutoSelectSubtitles ?? false) },
+      get: { !(preferences.account ?? account).dontAutoSelectSubtitles },
       set: { save(.dontAutoSelectSubtitles(!$0)) })
   }
 
@@ -414,7 +413,7 @@ struct PutioPlaybackConfigRows: View {
     } else if appConfig.isLoading {
       ProgressView("Loading playback settings")
     }
-    if let failure = appConfig.failure {
+    if let failure = appConfig.failure, suggestsNextVideo || showsRotation {
       Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
       Button("Try again") { Task { await appConfig.retry() } }
         .disabled(appConfig.isBusy)

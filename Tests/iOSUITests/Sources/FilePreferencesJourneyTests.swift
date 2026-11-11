@@ -94,7 +94,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(history, enabled: true)
     XCTAssertTrue(app.buttons["History"].appears(within: 5))
 
-    reveal(trash)
+    app.scrollDown(toHit: trash)
     tapToggle(trash)
     assertToggle(trash, enabled: true)
     // Trash is managed from Account › Storage only.
@@ -160,14 +160,6 @@ final class FilePreferencesJourneyTests: XCTestCase {
   private func openPreferences() {
     app.buttons["Account"].tap()
     XCTAssertTrue(waitUntilHittable(app.revealed("settings.default-sort")))
-  }
-
-  private func reveal(_ element: XCUIElement) {
-    var swipes = 0
-    while !element.isHittable, swipes < 6 {
-      app.swipeDown()
-      swipes += 1
-    }
   }
 
   private func openPrivacy() {

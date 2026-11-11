@@ -46,7 +46,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     // Autoplay lives in the config document, not the account settings: the
     // first write fails and the switch keeps the authoritative value.
     let autoplay = app.switches["playback-settings.autoplay"]
-    revealUp(autoplay, in: app)
+    app.scrollDown(toHit: autoplay)
     XCTAssertTrue(autoplay.appears(within: 5))
     assertToggle(autoplay, value: "0")
     tapToggle(autoplay)
@@ -137,14 +137,6 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(routeRetry.appears(within: 10))
     routeRetry.tap()
     return proxy
-  }
-
-  private func revealUp(_ element: XCUIElement, in app: XCUIApplication) {
-    var swipes = 0
-    while !element.isHittable, swipes < 6 {
-      app.swipeDown()
-      swipes += 1
-    }
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
