@@ -795,28 +795,6 @@
         }
       }
     },
-    "Items deleted" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Items deleted"
-          }
-        }
-      }
-    },
-    "Items moved to Trash" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Items moved to Trash"
-          }
-        }
-      }
-    },
     "Last week" : {
       "comment" : "ios-only: no Android string for the shared history day groups",
       "localizations" : {

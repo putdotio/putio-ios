@@ -20,34 +20,23 @@ enum TVTrashPresentation {
 
   static func toast(for outcome: PutioTrashMutationOutcome) -> PutioToast {
     switch outcome {
-    case .restored(let item):
-      PutioToast(variant: .success, title: "Item restored", message: item.name)
-    case .permanentlyDeleted(let item, let storageRefreshed):
-      PutioToast(
-        variant: storageRefreshed ? .success : .info, title: "Item deleted",
-        message: storageRefreshed ? item.name : staleStorageMessage)
-    case .restoredItems(let items):
-      PutioToast(
-        variant: .success, title: "Items restored", message: "Restored \(items.count) items.")
-    case .permanentlyDeletedItems(let items, let storageRefreshed):
-      PutioToast(
-        variant: storageRefreshed ? .success : .info, title: "Items deleted",
-        message: storageRefreshed ? "Deleted \(items.count) items." : staleStorageMessage)
+    case .restored:
+      PutioToast("Item restored")
+    case .permanentlyDeleted:
+      PutioToast("Item deleted")
+    case .restoredItems:
+      PutioToast("Items restored")
+    case .permanentlyDeletedItems:
+      PutioToast("Items deleted")
     case .restoredAll:
-      PutioToast(
-        variant: .success, title: "Restore started!",
-        message: "It may take a long time if there are too many files.")
-    case .emptied(let storageRefreshed):
-      PutioToast(
-        variant: storageRefreshed ? .success : .info, title: "Trash emptied",
-        message: storageRefreshed ? nil : staleStorageMessage)
+      PutioToast("Restore started!")
+    case .emptied:
+      PutioToast("Trash emptied")
     case .failed(_, let failure):
-      PutioToast(variant: .danger, title: failure.title, message: failure.message)
+      PutioToast(failure.title)
     }
   }
 
-  private static let staleStorageMessage =
-    "Storage totals could not be updated. Use Update storage to retry."
 }
 
 struct TVTrashView: View {

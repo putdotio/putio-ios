@@ -216,15 +216,12 @@ struct PutioFileItemActionsHost: ViewModifier {
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .succeeded(.rename(_, _, let newName)):
-      toast = PutioToast(
-        variant: .success, title: String(localized: "Item renamed"), message: newName)
-    case .succeeded(.delete(_, let name)):
-      toast = PutioToast(variant: .success, title: deletion.singleSuccessTitle, message: name)
-    case .succeeded(.move(_, let name, _, _, let destinationName)):
-      toast = PutioToast(
-        variant: .success, title: String(localized: "Item moved"),
-        message: String(localized: "\(name) to \(destinationName)"))
+    case .succeeded(.rename):
+      toast = PutioToast(String(localized: "Item renamed"))
+    case .succeeded(.delete):
+      toast = PutioToast(deletion.singleSuccessTitle)
+    case .succeeded(.move):
+      toast = PutioToast(String(localized: "Item moved"))
     case .succeeded:
       break
     case .failed(let action, let failure):
@@ -234,7 +231,7 @@ struct PutioFileItemActionsHost: ViewModifier {
       } else {
         title = failure.title
       }
-      toast = PutioToast(variant: .danger, title: title, message: failure.message)
+      toast = PutioToast(title)
     }
     model.clearOutcome()
   }

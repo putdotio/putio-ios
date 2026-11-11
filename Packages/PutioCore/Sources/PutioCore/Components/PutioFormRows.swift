@@ -368,10 +368,7 @@ final class PutioSettingSaveFailures {
   var toast: PutioToast?
 
   static var failureToast: PutioToast {
-    PutioToast(
-      variant: .danger,
-      title: String(localized: "Couldn’t save this setting", bundle: .module)
-    )
+    PutioToast(String(localized: "Couldn’t save this setting", bundle: .module))
   }
 
   func report() {

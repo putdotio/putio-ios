@@ -19,12 +19,6 @@ public struct PutioFileDeletionPresentation: Equatable, Sendable {
       : String(localized: "Item deleted", bundle: .module)
   }
 
-  public var bulkSuccessTitle: String {
-    trashEnabled
-      ? String(localized: "Items moved to Trash", bundle: .module)
-      : String(localized: "Items deleted", bundle: .module)
-  }
-
   public var singleFailureTitle: String {
     trashEnabled
       ? String(localized: "Could not move item to Trash", bundle: .module)

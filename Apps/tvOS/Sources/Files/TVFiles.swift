@@ -69,19 +69,16 @@ enum TVFilePresentation {
   static func toast(for outcome: PutioFileActionOutcome, trashEnabled: Bool) -> PutioToast? {
     let deletion = PutioFileDeletionPresentation(trashEnabled: trashEnabled)
     switch outcome {
-    case .succeeded(.setWatched(_, _, let name, let watched)):
-      return PutioToast(
-        variant: .success, title: watched ? "Marked as watched" : "Marked as unwatched",
-        message: name)
-    case .succeeded(.delete(_, let name)):
-      return PutioToast(variant: .success, title: deletion.singleSuccessTitle, message: name)
+    case .succeeded(.setWatched(_, _, _, let watched)):
+      return PutioToast(watched ? "Marked as watched" : "Marked as unwatched")
+    case .succeeded(.delete):
+      return PutioToast(deletion.singleSuccessTitle)
     case .succeeded:
       return nil
-    case .failed(.delete, let failure):
-      return PutioToast(
-        variant: .danger, title: deletion.singleFailureTitle, message: failure.message)
+    case .failed(.delete, _):
+      return PutioToast(deletion.singleFailureTitle)
     case .failed(_, let failure):
-      return PutioToast(variant: .danger, title: failure.title, message: failure.message)
+      return PutioToast(failure.title)
     }
   }
 }
