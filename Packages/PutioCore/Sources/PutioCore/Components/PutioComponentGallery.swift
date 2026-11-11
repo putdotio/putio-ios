@@ -39,7 +39,7 @@ public struct PutioComponentGallery: View {
       switch self {
       case .files: GalleryLayout.filesViewportHeight
       case .forms: GalleryLayout.formsViewportHeight
-      case .buttons, .transfers, .states, .feedback: nil
+      case .buttons, .transfers, .states, .feedback, .sheets: nil
       }
     }
   }
