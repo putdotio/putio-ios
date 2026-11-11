@@ -1,18 +1,24 @@
 import XCTest
 
 final class LaunchSmokeTests: XCTestCase {
-  private let app = XCUIApplication()
+  private var app: XCUIApplication!
 
   override func setUpWithError() throws {
     try super.setUpWithError()
     continueAfterFailure = false
+    app = XCUIApplication()
+  }
+
+  override func tearDown() {
+    app.terminate()
+    super.tearDown()
   }
 
   func testLaunchRendersAndTheExerciseChangesTheFrameWhileTheAppStaysAlive() throws {
     let beforeLaunch = XCUIScreen.main.screenshot().image
     let signedOut = try launch(scenario: "signed-out", replacing: beforeLaunch)
     XCTAssertTrue(
-      app.descendants(matching: .any)["auth.sign-in"].waitForExistence(timeout: 30),
+      app.descendants(matching: .any)["auth.sign-in"].waitForExistence(timeout: 10),
       "the signed-out launch did not render sign-in")
 
     app.terminate()
@@ -31,29 +37,25 @@ final class LaunchSmokeTests: XCTestCase {
   private func launch(scenario: String, replacing previous: UIImage) throws -> UIImage {
     app.launchArguments = ["--putio-harness-scenario", scenario]
     app.launch()
-    XCTAssertTrue(
-      app.wait(for: .runningForeground, timeout: 30),
-      "the \(scenario) launch exited before its first rendered frame")
-    let previousPixels = try pixels(of: previous)
+    let previousBytes = try rgba(of: previous).bytes
     let deadline = Date.now.addingTimeInterval(30)
     repeat {
-      XCTAssertEqual(app.state, .runningForeground, "the \(scenario) launch exited")
+      XCTAssertEqual(
+        app.state, .runningForeground,
+        "the \(scenario) launch exited before its first rendered frame")
       let frame = XCUIScreen.main.screenshot().image
-      let framePixels = try pixels(of: frame)
-      if framePixels.bytes != previousPixels.bytes,
-        framePixels.visibleContent >= framePixels.minimumContent
-      {
+      let pixels = try rgba(of: frame)
+      if pixels.bytes != previousBytes, hasVisibleContent(pixels) {
         return frame
       }
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.25))
     } while Date.now < deadline
-    XCTFail("the \(scenario) launch did not change the screen to visible content within 30 s")
-    return previous
+    return try XCTUnwrap(
+      nil as UIImage?,
+      "the \(scenario) launch did not change the screen to visible content in 30 s")
   }
 
-  private func pixels(of image: UIImage) throws -> (
-    bytes: [UInt8], visibleContent: Int, minimumContent: Int
-  ) {
+  private func rgba(of image: UIImage) throws -> (bytes: [UInt8], width: Int, height: Int) {
     let cgImage = try XCTUnwrap(image.cgImage)
     let width = cgImage.width
     let height = cgImage.height
@@ -70,15 +72,23 @@ final class LaunchSmokeTests: XCTestCase {
       return true
     }
     XCTAssertTrue(drawn, "could not rasterize the screenshot")
-    let columns = (width / 10)..<(width * 9 / 10)
-    let rows = (height / 5)..<(height * 4 / 5)
-    var visibleContent = 0
+    return (bytes, width, height)
+  }
+
+  private func hasVisibleContent(_ pixels: (bytes: [UInt8], width: Int, height: Int)) -> Bool {
+    let columns = (pixels.width / 10)..<(pixels.width * 9 / 10)
+    let rows = (pixels.height / 5)..<(pixels.height * 4 / 5)
+    let minimum = max(128, columns.count * rows.count / 1_000)
+    var visible = 0
     for y in rows {
       for x in columns {
-        let index = (y * width + x) * 4
-        if max(bytes[index], bytes[index + 1], bytes[index + 2]) >= 48 { visibleContent += 1 }
+        let index = (y * pixels.width + x) * 4
+        if max(pixels.bytes[index], pixels.bytes[index + 1], pixels.bytes[index + 2]) >= 48 {
+          visible += 1
+          if visible >= minimum { return true }
+        }
       }
     }
-    return (bytes, visibleContent, max(128, columns.count * rows.count / 1_000))
+    return false
   }
 }

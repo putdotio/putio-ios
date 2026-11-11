@@ -94,5 +94,4 @@ Feature journeys and `proof` do not run in
 [Next CI](../../../.github/workflows/ci-next.yml), so run the affected journey
 or preflights locally. CI's iOS lane runs
 [LaunchSmokeTests](../../../Tests/iOSUITests/Sources/LaunchSmokeTests.swift)
-from the iOS test plan: the same launch, exercise, frame-change, and liveness
-checks as `proof`, without the recording or manifest.
+from the iOS test plan.
