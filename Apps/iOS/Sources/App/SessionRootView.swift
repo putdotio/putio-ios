@@ -21,7 +21,7 @@ struct SessionRootView: View {
       case .unknown:
         PutioLoadingStateView()
       case .signingOut:
-        PutioLoadingStateView(title: "Signing out…")
+        PutioLoadingStateView(title: String(localized: "Signing out…"))
       case .signOutFailed(let failure):
         SignOutFailureView(session: runtime.session, failure: failure)
       case .signedOut, .authenticating:
@@ -99,13 +99,13 @@ struct SessionRootView: View {
         Group {
           if let failure = deepLinks.failure {
             PutioErrorStateView(
-              title: "Cannot open link", message: failure.message,
-              retryTitle: failure.canRetry ? "Try again" : nil,
+              title: String(localized: "Cannot open link"), message: failure.message,
+              retryTitle: failure.canRetry ? String(localized: "Try again") : nil,
               retryIdentifier: "link.retry",
               retry: failure.canRetry ? { deepLinks.retry() } : nil
             )
           } else {
-            PutioLoadingStateView(title: "Opening link")
+            PutioLoadingStateView(title: String(localized: "Opening link"))
               .accessibilityIdentifier("link.loading")
           }
         }

@@ -75,12 +75,12 @@ private struct PutioMoveDestinationScreen: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: "Loading folders")
+        PutioLoadingStateView(title: String(localized: "Loading folders"))
       case .failed(let failure):
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: "Try again"
+          retryTitle: String(localized: "Try again")
         ) {
           Task { await model.retry() }
         }
@@ -179,7 +179,7 @@ private struct PutioMoveDestinationScreen: View {
         Text("Move")
           .putioFont(PutioTheme.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Text(items.count == 1 ? items[0].name : "\(items.count) items")
+        Text(items.count == 1 ? items[0].name : String(localized: "\(items.count) items"))
           .putioFont(PutioTheme.Typography.body)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .lineLimit(1)
@@ -200,8 +200,8 @@ private struct PutioMoveDestinationScreen: View {
     if folders.isEmpty, !contents.hasMore {
       PutioEmptyStateView(
         icon: .folderFill,
-        title: "No folders here",
-        message: canMoveHere ? emptyDestinationMessage : "Choose another folder."
+        title: String(localized: "No folders here"),
+        message: canMoveHere ? emptyDestinationMessage : String(localized: "Choose another folder.")
       )
     } else {
       List {
@@ -275,8 +275,8 @@ private struct PutioMoveDestinationScreen: View {
 
   private var emptyDestinationMessage: String {
     items.count == 1
-      ? "Move this item here or go back."
-      : "Move the selected items here or go back."
+      ? String(localized: "Move this item here or go back.")
+      : String(localized: "Move the selected items here or go back.")
   }
 
   private var canMoveHere: Bool {

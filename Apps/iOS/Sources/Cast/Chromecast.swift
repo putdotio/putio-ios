@@ -89,33 +89,39 @@ struct PutioCastFailure: Equatable, Sendable {
       return nil
     case .notFound:
       return Self(
-        kind: .notFound, title: "File not found", message: "It may have been moved or deleted.",
+        kind: .notFound, title: String(localized: "File not found"),
+        message: String(localized: "It may have been moved or deleted."),
         canRetry: false)
     case .rateLimited:
       return Self(
-        kind: .rateLimited, title: "Could not cast",
-        message: "put.io is receiving too many requests. Try again shortly.", canRetry: true)
+        kind: .rateLimited, title: String(localized: "Could not cast"),
+        message: String(localized: "put.io is receiving too many requests. Try again shortly."),
+        canRetry: true)
     case .transient:
       return Self(
-        kind: .transient, title: "Could not cast",
-        message: "Check your connection and try again.", canRetry: true)
+        kind: .transient, title: String(localized: "Could not cast"),
+        message: String(localized: "Check your connection and try again."), canRetry: true)
     case .invalidResponse:
       return Self(
-        kind: .invalidResponse, title: "Could not cast",
-        message: "put.io returned an invalid response. Try again.", canRetry: true)
+        kind: .invalidResponse, title: String(localized: "Could not cast"),
+        message: String(localized: "put.io returned an invalid response. Try again."),
+        canRetry: true)
     case .unknown, nil:
       return Self(
-        kind: .unknown, title: "Could not cast",
-        message: "Something went wrong while casting. Try again.", canRetry: true)
+        kind: .unknown, title: String(localized: "Could not cast"),
+        message: String(localized: "Something went wrong while casting. Try again."), canRetry: true
+      )
     }
   }
 
   static let receiver = Self(
-    kind: .receiver, title: "Could not cast",
-    message: "The Chromecast did not accept the video. Try again.", canRetry: true)
+    kind: .receiver, title: String(localized: "Could not cast"),
+    message: String(localized: "The Chromecast did not accept the video. Try again."),
+    canRetry: true)
   static let conversion = Self(
-    kind: .conversion, title: "Conversion failed",
-    message: "put.io could not convert this video for Chromecast. Try again.", canRetry: true)
+    kind: .conversion, title: String(localized: "Conversion failed"),
+    message: String(localized: "put.io could not convert this video for Chromecast. Try again."),
+    canRetry: true)
 }
 
 /// What the shell is doing on the model's behalf for one file.
@@ -425,10 +431,13 @@ final class PutioCastModel {
   private static func preferenceMessage(for error: Error) -> String? {
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return "Check your connection and try again."
-    case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
-    case .invalidResponse: return "put.io returned an invalid response. Try again."
-    case .notFound, .unknown, nil: return "Could not save the Chromecast setting. Try again."
+    case .transient: return String(localized: "Check your connection and try again.")
+    case .rateLimited:
+      return String(localized: "put.io is receiving too many requests. Try again shortly.")
+    case .invalidResponse:
+      return String(localized: "put.io returned an invalid response. Try again.")
+    case .notFound, .unknown, nil:
+      return String(localized: "Could not save the Chromecast setting. Try again.")
     }
   }
 
@@ -599,7 +608,7 @@ extension PutioCastFailure {
   fileprivate static func resolvingConversion(_ error: Error) -> PutioCastFailure? {
     guard let mapped = resolving(error) else { return nil }
     return PutioCastFailure(
-      kind: mapped.kind, title: "Conversion failed", message: mapped.message,
+      kind: mapped.kind, title: String(localized: "Conversion failed"), message: mapped.message,
       canRetry: mapped.canRetry)
   }
 }

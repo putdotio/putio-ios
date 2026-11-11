@@ -88,11 +88,11 @@ public enum PutioDownloadState: Equatable, Sendable {
     // the action the tap performs, so it announces the retry.
     private var accessibilityLabel: Text {
       switch state {
-      case .idle: Text("Download")
-      case .queued: Text("Queued")
-      case .downloading: Text("Stop download")
-      case .downloaded: Text("Downloaded")
-      case .failed: Text("Retry download")
+      case .idle: Text("Download", bundle: .module)
+      case .queued: Text("Queued", bundle: .module)
+      case .downloading: Text("Stop download", bundle: .module)
+      case .downloaded: Text("Downloaded", bundle: .module)
+      case .failed: Text("Retry download", bundle: .module)
       }
     }
 

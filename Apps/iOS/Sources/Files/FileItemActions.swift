@@ -148,8 +148,8 @@ struct PutioFileItemActionsHost: ViewModifier {
     content
       .sheet(item: renameBinding) { item in
         PutioFileNameEditor(
-          title: "Rename Item",
-          submitTitle: "Rename",
+          title: String(localized: "Rename Item"),
+          submitTitle: String(localized: "Rename"),
           initialName: item.name,
           isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
           onCancel: { request = nil },
@@ -217,12 +217,14 @@ struct PutioFileItemActionsHost: ViewModifier {
     guard let outcome else { return }
     switch outcome {
     case .succeeded(.rename(_, _, let newName)):
-      toast = PutioToast(variant: .success, title: "Item renamed", message: newName)
+      toast = PutioToast(
+        variant: .success, title: String(localized: "Item renamed"), message: newName)
     case .succeeded(.delete(_, let name)):
       toast = PutioToast(variant: .success, title: deletion.singleSuccessTitle, message: name)
     case .succeeded(.move(_, let name, _, _, let destinationName)):
       toast = PutioToast(
-        variant: .success, title: "Item moved", message: "\(name) to \(destinationName)")
+        variant: .success, title: String(localized: "Item moved"),
+        message: String(localized: "\(name) to \(destinationName)"))
     case .succeeded:
       break
     case .failed(let action, let failure):

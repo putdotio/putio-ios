@@ -99,12 +99,12 @@ struct PutioAudioMiniPlayer: View {
 
   private var status: String {
     switch model.state {
-    case .loading: "Preparing audio"
-    case .playing: "Playing"
-    case .paused: "Paused"
-    case .interrupted: "Playback interrupted"
-    case .failed: "Could not play audio"
-    case .ended: "End of folder"
+    case .loading: String(localized: "Preparing audio")
+    case .playing: String(localized: "Playing")
+    case .paused: String(localized: "Paused")
+    case .interrupted: String(localized: "Playback interrupted")
+    case .failed: String(localized: "Could not play audio")
+    case .ended: String(localized: "End of folder")
     }
   }
 }

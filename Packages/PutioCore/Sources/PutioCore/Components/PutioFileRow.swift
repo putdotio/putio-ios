@@ -131,7 +131,7 @@ public struct PutioFileRow: View {
           .scaledToFit()
           .frame(width: indicatorSize, height: indicatorSize)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .accessibilityLabel(Text("Watched"))
+          .accessibilityLabel(Text("Watched", bundle: .module))
       }
       #if os(tvOS)
         if model.kind == .folder, model.showsDisclosure {

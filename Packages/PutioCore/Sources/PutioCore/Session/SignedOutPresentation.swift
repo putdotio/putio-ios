@@ -11,7 +11,7 @@ public struct SignedOutPresentation: Equatable, Sendable {
 
   public static let putio = SignedOutPresentation(
     title: "put.io",
-    message: "Sign in to continue"
+    message: String(localized: "Sign in to continue", bundle: .module)
   )
 
   public static func harnessInitialPresentation(arguments: [String]) -> SignedOutPresentation {

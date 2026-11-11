@@ -9,105 +9,89 @@ public struct PutioFileDeletionPresentation: Equatable, Sendable {
 
   public var actionTitle: String {
     trashEnabled
-      ? String(localized: "Trash", comment: "File action that moves an item to Trash")
-      : String(localized: "Delete", comment: "File action that permanently deletes an item")
+      ? String(localized: "Trash", bundle: .module)
+      : String(localized: "Delete", bundle: .module)
   }
 
   public var singleSuccessTitle: String {
     trashEnabled
-      ? String(localized: "Moved to Trash", comment: "File action success title")
-      : String(localized: "Item deleted", comment: "Permanent file deletion success title")
+      ? String(localized: "Moved to Trash", bundle: .module)
+      : String(localized: "Item deleted", bundle: .module)
   }
 
   public var bulkSuccessTitle: String {
     trashEnabled
-      ? String(localized: "Items moved to Trash", comment: "Bulk file action success title")
-      : String(localized: "Items deleted", comment: "Bulk permanent deletion success title")
+      ? String(localized: "Items moved to Trash", bundle: .module)
+      : String(localized: "Items deleted", bundle: .module)
   }
 
   public var singleFailureTitle: String {
     trashEnabled
-      ? String(localized: "Could not move item to Trash", comment: "File action failure title")
-      : String(localized: "Could not delete item", comment: "Permanent deletion failure title")
+      ? String(localized: "Could not move item to Trash", bundle: .module)
+      : String(localized: "Could not delete item", bundle: .module)
   }
 
   public func confirmationTitle(itemName: String) -> String {
     if trashEnabled {
       return String(
-        localized: "Move “\(itemName)” to Trash?",
-        comment: "Confirmation title for moving one file to Trash"
-      )
+        localized: "Move “\(itemName)” to Trash?", bundle: .module)
     }
     return String(
-      localized: "Delete “\(itemName)” permanently?",
-      comment: "Confirmation title for permanently deleting one file"
-    )
+      localized: "Delete “\(itemName)” permanently?", bundle: .module)
   }
 
   public func confirmationTitle(itemCount: Int) -> String {
     if trashEnabled {
       return String(
-        localized: "Move \(itemCount) \(itemNoun(itemCount)) to Trash?",
-        comment: "Confirmation title for moving selected files to Trash"
-      )
+        localized: "Move \(itemCount) items to Trash?", bundle: .module)
     }
     return String(
-      localized: "Delete \(itemCount) \(itemNoun(itemCount)) permanently?",
-      comment: "Confirmation title for permanently deleting selected files"
-    )
+      localized: "Delete \(itemCount) items permanently?", bundle: .module)
   }
 
   public func confirmationMessage(itemCount: Int) -> String {
     if trashEnabled {
       return itemCount == 1
-        ? String(localized: "You can restore this item from Trash.")
-        : String(localized: "You can restore these items from Trash.")
+        ? String(localized: "You can restore this item from Trash.", bundle: .module)
+        : String(localized: "You can restore these items from Trash.", bundle: .module)
     }
     return itemCount == 1
-      ? String(localized: "This item cannot be restored.")
-      : String(localized: "These items cannot be restored.")
+      ? String(localized: "This item cannot be restored.", bundle: .module)
+      : String(localized: "These items cannot be restored.", bundle: .module)
   }
 
   public func progressTitle(currentItem: Int, totalItems: Int) -> String {
     if trashEnabled {
       return String(
-        localized: "Moving item \(currentItem) of \(totalItems) to Trash…",
-        comment: "Progress title for a bulk Trash action"
-      )
+        localized: "Moving item \(currentItem) of \(totalItems) to Trash…", bundle: .module)
     }
     return String(
-      localized: "Deleting item \(currentItem) of \(totalItems)…",
-      comment: "Progress title for bulk permanent deletion"
-    )
+      localized: "Deleting item \(currentItem) of \(totalItems)…", bundle: .module)
   }
 
   public func failureTitle(allItemsFailed: Bool) -> String {
     switch (trashEnabled, allItemsFailed) {
     case (true, true):
-      String(localized: "Could not move items to Trash")
+      String(localized: "Could not move items to Trash", bundle: .module)
     case (true, false):
-      String(localized: "Some items couldn’t be moved to Trash")
+      String(localized: "Some items couldn’t be moved to Trash", bundle: .module)
     case (false, true):
-      String(localized: "Could not delete items")
+      String(localized: "Could not delete items", bundle: .module)
     case (false, false):
-      String(localized: "Some items couldn’t be deleted")
+      String(localized: "Some items couldn’t be deleted", bundle: .module)
     }
   }
 
   public func outcomeMessage(succeeded: Int, failed: Int) -> String {
     let successText =
       trashEnabled
-      ? String(localized: "Moved \(succeeded) \(itemNoun(succeeded)) to Trash.")
-      : String(localized: "Deleted \(succeeded) \(itemNoun(succeeded)).")
+      ? String(localized: "Moved \(succeeded) items to Trash.", bundle: .module)
+      : String(localized: "Deleted \(succeeded) items.", bundle: .module)
     guard failed > 0 else { return successText }
     let failureText =
       trashEnabled
-      ? String(localized: "\(failed) couldn’t be moved to Trash.")
-      : String(localized: "\(failed) couldn’t be deleted.")
+      ? String(localized: "\(failed) couldn’t be moved to Trash.", bundle: .module)
+      : String(localized: "\(failed) couldn’t be deleted.", bundle: .module)
     return "\(successText) \(failureText)"
-  }
-
-  private func itemNoun(_ count: Int) -> String {
-    count == 1 ? String(localized: "item") : String(localized: "items")
   }
 }

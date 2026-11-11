@@ -89,11 +89,11 @@ struct HistoryView: View {
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: "Loading history")
+      PutioLoadingStateView(title: String(localized: "Loading history"))
     case .failed(let failure):
       PutioErrorStateView(
-        title: "Could not load history", message: failure.message,
-        retryTitle: "Try again", retryIdentifier: "history.retry"
+        title: String(localized: "Could not load history"), message: failure.message,
+        retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
       ) {
         Task { await model.refresh() }
       }
@@ -104,8 +104,8 @@ struct HistoryView: View {
         GeometryReader { geometry in
           ScrollView {
             PutioEmptyStateView(
-              icon: .clockCounterClockwise, title: "No history",
-              message: "New account events will appear here."
+              icon: .clockCounterClockwise, title: String(localized: "No history"),
+              message: String(localized: "New account events will appear here.")
             )
             .frame(minHeight: geometry.size.height)
           }
@@ -249,24 +249,32 @@ private struct PutioHistoryRow: View {
   private var presentation: (title: String, detail: String, icon: PutioIcon) {
     switch event.kind {
     case .upload(let name, let size, _):
-      (name, "Uploaded · \(PutioFileRowModel.sizeText(bytes: size))", .file)
+      (name, String(localized: "Uploaded · \(PutioFileRowModel.sizeText(bytes: size))"), .file)
     case .fileShared(let name, let user, _):
-      (name, "Shared by \(user)", .userCircle)
+      (name, String(localized: "Shared by \(user)"), .userCircle)
     case .transferCompleted(let name, let size, _):
-      (name, "Transfer completed · \(PutioFileRowModel.sizeText(bytes: size))", .checkCircle)
+      (
+        name, String(localized: "Transfer completed · \(PutioFileRowModel.sizeText(bytes: size))"),
+        .checkCircle
+      )
     case .transferError(let name):
-      (name, "Transfer failed", .xCircle)
+      (name, String(localized: "Transfer failed"), .xCircle)
     case .fileFromRSSDeleted(let name, let size):
       (
-        name, "Deleted to make room for RSS · \(PutioFileRowModel.sizeText(bytes: size))",
+        name,
+        String(
+          localized: "Deleted to make room for RSS · \(PutioFileRowModel.sizeText(bytes: size))"),
         .warningCircle
       )
     case .rssFilterPaused(let title):
-      (title, "RSS paused because its source could not be reached", .warningCircle)
+      (
+        title, String(localized: "RSS paused because its source could not be reached"),
+        .warningCircle
+      )
     case .transferFromRSSError(let name):
-      (name, "Transfer from RSS failed", .xCircle)
+      (name, String(localized: "Transfer from RSS failed"), .xCircle)
     case .transferCallbackError(let name):
-      (name, "Transfer callback failed", .xCircle)
+      (name, String(localized: "Transfer callback failed"), .xCircle)
     }
   }
 }

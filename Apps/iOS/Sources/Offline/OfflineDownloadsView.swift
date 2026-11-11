@@ -28,8 +28,8 @@ struct PutioOfflineDownloadsView: View {
     Group {
       if queue.items.isEmpty {
         PutioEmptyStateView(
-          icon: .arrowCircleDown, title: "No downloads",
-          message: "Files you download for offline playback appear here."
+          icon: .arrowCircleDown, title: String(localized: "No downloads"),
+          message: String(localized: "Files you download for offline playback appear here.")
         )
         .accessibilityIdentifier("downloads.empty")
       } else {
@@ -257,12 +257,13 @@ struct PutioOfflineDownloadsView: View {
 
   private func subtitle(_ item: PutioOfflineItem) -> String {
     switch item.stage {
-    case .queued: "Waiting"
-    case .converting(let progress): "Converting · \(percent(progress))"
-    case .downloading(let progress): "Downloading · \(percent(progress))"
+    case .queued: String(localized: "Waiting")
+    case .converting(let progress): String(localized: "Converting · \(percent(progress))")
+    case .downloading(let progress): String(localized: "Downloading · \(percent(progress))")
     case .paused(let progress):
       queue.isWaitingForSlot(item.id)
-        ? "Waiting for a slot · \(percent(progress))" : "Paused · \(percent(progress))"
+        ? String(localized: "Waiting for a slot · \(percent(progress))")
+        : String(localized: "Paused · \(percent(progress))")
     case .completed: item.storedSizeText ?? ""
     case .failed(let failure): failure.message
     }
@@ -373,11 +374,11 @@ struct PutioOfflineDetailView: View {
 
   private var status: String {
     switch item.stage {
-    case .queued: "Waiting"
-    case .converting: "Converting"
-    case .downloading: "Downloading"
-    case .paused: "Paused"
-    case .completed: "Downloaded"
+    case .queued: String(localized: "Waiting")
+    case .converting: String(localized: "Converting")
+    case .downloading: String(localized: "Downloading")
+    case .paused: String(localized: "Paused")
+    case .completed: String(localized: "Downloaded")
     case .failed(let failure): failure.message
     }
   }
@@ -500,8 +501,8 @@ enum PutioOfflineNotifications {
     _ item: PutioOfflineItem, center: UNUserNotificationCenter = .current()
   ) {
     let content = UNMutableNotificationContent()
-    content.title = "Download complete"
-    content.body = "\(item.name) is ready to play."
+    content.title = String(localized: "Download complete")
+    content.body = String(localized: "\(item.name) is ready to play.")
     let request = UNNotificationRequest(
       identifier: "offline-\(item.id.rawValue)", content: content, trigger: nil)
     center.add(request)

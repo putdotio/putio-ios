@@ -25,7 +25,10 @@ public enum PutioVideoPlaybackState: Equatable {
 extension PutioVideoPlaybackState {
   /// app.put.io's explanation of why a video waits for its conversion.
   public static let conversionExplanation =
-    "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding."
+    String(
+      localized:
+        "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding.",
+      bundle: .module)
 }
 
 public struct PutioVideoPlaybackFailure: Equatable, Sendable {
@@ -50,46 +53,49 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     case .notFound:
       return PutioVideoPlaybackFailure(
         kind: .notFound,
-        title: "Video not found",
-        message: "It may have been moved or deleted."
+        title: String(localized: "Video not found", bundle: .module),
+        message: String(localized: "It may have been moved or deleted.", bundle: .module)
       )
     case .rateLimited:
       return PutioVideoPlaybackFailure(
         kind: .rateLimited,
-        title: "Could not open video",
-        message: "put.io is receiving too many requests. Try again shortly."
+        title: String(localized: "Could not open video", bundle: .module),
+        message: String(
+          localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
       )
     case .transient:
       return PutioVideoPlaybackFailure(
         kind: .transient,
-        title: "Could not open video",
-        message: "Check your connection and try again."
+        title: String(localized: "Could not open video", bundle: .module),
+        message: String(localized: "Check your connection and try again.", bundle: .module)
       )
     case .invalidResponse:
       return PutioVideoPlaybackFailure(
         kind: .invalidResponse,
-        title: "Could not open video",
-        message: "put.io returned an invalid response. Try again."
+        title: String(localized: "Could not open video", bundle: .module),
+        message: String(
+          localized: "put.io returned an invalid response. Try again.", bundle: .module)
       )
     case .unknown, nil:
       return PutioVideoPlaybackFailure(
         kind: .unknown,
-        title: "Could not open video",
-        message: "put.io could not prepare this video. Try again."
+        title: String(localized: "Could not open video", bundle: .module),
+        message: String(
+          localized: "put.io could not prepare this video. Try again.", bundle: .module)
       )
     }
   }
 
   public static let playback = PutioVideoPlaybackFailure(
     kind: .playback,
-    title: "Could not play video",
-    message: "The video could not be played. Try again."
+    title: String(localized: "Could not play video", bundle: .module),
+    message: String(localized: "The video could not be played. Try again.", bundle: .module)
   )
 
   static let conversion = PutioVideoPlaybackFailure(
     kind: .conversion,
-    title: "Could not convert video",
-    message: "The conversion did not finish. Try again."
+    title: String(localized: "Could not convert video", bundle: .module),
+    message: String(localized: "The conversion did not finish. Try again.", bundle: .module)
   )
 
   static func converting(_ error: Error) -> PutioVideoPlaybackFailure? {
@@ -97,7 +103,7 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     guard failure.kind != .notFound else { return failure }
     return PutioVideoPlaybackFailure(
       kind: failure.kind,
-      title: "Could not convert video",
+      title: String(localized: "Could not convert video", bundle: .module),
       message: failure.message
     )
   }

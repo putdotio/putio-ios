@@ -22,7 +22,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     public func usageSummary(locale: Locale = .current) -> String {
       let used = PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale)
       let total = PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
-      return "\(used) of \(total) used"
+      return String(localized: "\(used) of \(total) used", bundle: .module)
     }
   }
 
@@ -453,14 +453,14 @@ public enum PutioAccountDataCategory: String, CaseIterable, Sendable {
 
   public var title: String {
     switch self {
-    case .files: "Files"
-    case .finishedTransfers: "Finished transfers"
-    case .activeTransfers: "Active transfers"
-    case .rssFeeds: "RSS feeds"
-    case .rssLogs: "RSS logs"
-    case .history: "History"
-    case .trash: "Trash"
-    case .friends: "Friends"
+    case .files: String(localized: "Files", bundle: .module)
+    case .finishedTransfers: String(localized: "Finished transfers", bundle: .module)
+    case .activeTransfers: String(localized: "Active transfers", bundle: .module)
+    case .rssFeeds: String(localized: "RSS feeds", bundle: .module)
+    case .rssLogs: String(localized: "RSS logs", bundle: .module)
+    case .history: String(localized: "History", bundle: .module)
+    case .trash: String(localized: "Trash", bundle: .module)
+    case .friends: String(localized: "Friends", bundle: .module)
     }
   }
 }

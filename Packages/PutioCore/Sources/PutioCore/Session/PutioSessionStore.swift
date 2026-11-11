@@ -28,20 +28,27 @@ public enum PutioSignOutFailure: Equatable, Sendable {
 }
 
 extension PutioSignOutFailure {
-  public var title: String { "Sign-out did not finish" }
+  public var title: String { String(localized: "Sign-out did not finish", bundle: .module) }
 
   public var message: String {
     switch self {
     case .credentialRemoval:
-      "Saved sign-in details could not be removed. Try again before closing the app."
+      String(
+        localized: "Saved sign-in details could not be removed. Try again before closing the app.",
+        bundle: .module)
     case .revocation:
-      "put.io could not revoke your session. Check your connection and try again."
+      String(
+        localized: "put.io could not revoke your session. Check your connection and try again.",
+        bundle: .module)
     case .credentialRemovalAndRevocation:
-      "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
+      String(
+        localized:
+          "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app.",
+        bundle: .module)
     }
   }
 
-  public var retryTitle: String { "Try signing out again" }
+  public var retryTitle: String { String(localized: "Try signing out again", bundle: .module) }
 }
 
 public enum PutioSessionOperationError: Error, Equatable, Sendable {
@@ -231,7 +238,8 @@ public final class PutioSessionStore {
       guard case .authenticating = state, deviceCodeSignIn == nil else { return }
       abandonPendingSignIn()
       _ = advanceAuthenticationGeneration()
-      state = .signedOut(.authenticationFailed("No sign-in is in progress."))
+      state = .signedOut(
+        .authenticationFailed(String(localized: "No sign-in is in progress.", bundle: .module)))
       return
     }
     pendingOAuthState = nil
@@ -592,21 +600,24 @@ public final class PutioSessionStore {
 
   private func message(for error: Error) -> String {
     if error is PutioDeviceCodeError {
-      return "put.io did not return an activation code. Try again."
+      return String(
+        localized: "put.io did not return an activation code. Try again.", bundle: .module)
     }
     if error is PutioTokenStoreError {
-      return "This device's keychain is unavailable. Try again."
+      return String(localized: "This device's keychain is unavailable. Try again.", bundle: .module)
     }
     if let sdkError = error as? PutioSDKError {
       switch sdkError.type {
       case .networkError:
-        return "put.io is unreachable. Check your connection and try again."
+        return String(
+          localized: "put.io is unreachable. Check your connection and try again.", bundle: .module)
       case .httpError, .decodingError, .unknownError:
-        return "put.io could not complete the request. Try again."
+        return String(
+          localized: "put.io could not complete the request. Try again.", bundle: .module)
       }
     }
     return (error as? LocalizedError)?.errorDescription
-      ?? "Sign-in did not complete. Try again."
+      ?? String(localized: "Sign-in did not complete. Try again.", bundle: .module)
   }
 }
 

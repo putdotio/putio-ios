@@ -75,13 +75,14 @@ struct FilesSearchView: View {
     switch model.state {
     case .idle:
       PutioEmptyStateView(
-        icon: .file, title: "Search your files", message: "Find files by their stored name.")
+        icon: .file, title: String(localized: "Search your files"),
+        message: String(localized: "Find files by their stored name."))
     case .loading:
-      PutioLoadingStateView(title: "Searching files")
+      PutioLoadingStateView(title: String(localized: "Searching files"))
     case .failed(let failure):
       PutioErrorStateView(
-        title: "Could not search files", message: failure.message,
-        retryTitle: "Try again",
+        title: String(localized: "Could not search files"), message: failure.message,
+        retryTitle: String(localized: "Try again"),
         retryIdentifier: "files.search-retry"
       ) {
         Task { await model.refresh(query: query, revision: refreshRequests.revision) }
@@ -91,7 +92,8 @@ struct FilesSearchView: View {
         GeometryReader { geometry in
           ScrollView {
             PutioEmptyStateView(
-              icon: .file, title: "No results", message: "Try a different file name."
+              icon: .file, title: String(localized: "No results"),
+              message: String(localized: "Try a different file name.")
             )
             .frame(minHeight: geometry.size.height)
           }

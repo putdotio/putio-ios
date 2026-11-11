@@ -244,8 +244,9 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
   }
 
   public static let staleStorage = PutioTrashErrorPresentation(
-    title: "Storage totals are out of date",
-    message: "Account storage could not be updated after the last deletion."
+    title: String(localized: "Storage totals are out of date", bundle: .module),
+    message: String(
+      localized: "Account storage could not be updated after the last deletion.", bundle: .module)
   )
 
   init?(title: String, error: Error) {
@@ -254,15 +255,19 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
     case .authenticationRequired, .sessionExpired:
       return nil
     case .notFound:
-      message = "The item is no longer in Trash. Refresh and try again."
+      message = String(
+        localized: "The item is no longer in Trash. Refresh and try again.", bundle: .module)
     case .rateLimited:
-      message = "put.io is receiving too many requests. Try again shortly."
+      message = String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
     case .transient:
-      message = "Check your connection and try again."
+      message = String(localized: "Check your connection and try again.", bundle: .module)
     case .invalidResponse:
-      message = "put.io returned an invalid response. Try again."
+      message = String(
+        localized: "put.io returned an invalid response. Try again.", bundle: .module)
     case .unknown, nil:
-      message = "put.io could not complete the request. Try again."
+      message = String(
+        localized: "put.io could not complete the request. Try again.", bundle: .module)
     }
   }
 }
@@ -535,7 +540,7 @@ public final class PutioTrashModel {
       return
     } catch {
       paginationFailure = PutioTrashErrorPresentation(
-        title: "Could not load more Trash items",
+        title: String(localized: "Could not load more Trash items", bundle: .module),
         error: error
       )
     }
@@ -743,9 +748,10 @@ public final class PutioTrashModel {
       if let shownPage = page ?? previousPage {
         // The shown page may already reflect another screen's mutation.
         state = .loaded(reconciliation.prune(shownPage))
-        refreshFailure = PutioTrashErrorPresentation(title: "Could not refresh Trash", error: error)
+        refreshFailure = PutioTrashErrorPresentation(
+          title: String(localized: "Could not refresh Trash", bundle: .module), error: error)
       } else if let failure = PutioTrashErrorPresentation(
-        title: "Could not load Trash",
+        title: String(localized: "Could not load Trash", bundle: .module),
         error: error
       ) {
         state = .failed(failure)
@@ -824,19 +830,20 @@ public final class PutioTrashModel {
       paginationFailure = nil
       if !(error is CancellationError) {
         refreshFailure = PutioTrashErrorPresentation(
-          title: "Could not refresh Trash", error: error)
+          title: String(localized: "Could not refresh Trash", bundle: .module), error: error)
       }
     }
   }
 
   private func failureTitle(for mutation: PutioTrashMutation) -> String {
     switch mutation {
-    case .restore: "Could not restore item"
-    case .permanentlyDelete: "Could not permanently delete item"
-    case .restoreItems: "Could not restore items"
-    case .permanentlyDeleteItems: "Could not permanently delete items"
-    case .restoreAll: "Could not restore Trash"
-    case .empty: "Could not empty Trash"
+    case .restore: String(localized: "Could not restore item", bundle: .module)
+    case .permanentlyDelete: String(localized: "Could not permanently delete item", bundle: .module)
+    case .restoreItems: String(localized: "Could not restore items", bundle: .module)
+    case .permanentlyDeleteItems:
+      String(localized: "Could not permanently delete items", bundle: .module)
+    case .restoreAll: String(localized: "Could not restore Trash", bundle: .module)
+    case .empty: String(localized: "Could not empty Trash", bundle: .module)
     }
   }
 }

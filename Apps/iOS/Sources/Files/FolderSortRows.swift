@@ -10,8 +10,8 @@ struct PutioFolderSortRows: View {
   /// VoiceOver label for the menu holding these rows. The sort rides in the
   /// label because iOS 27 drops a `Menu`'s accessibility value.
   static func menuLabel(for current: PutioFolderSort?) -> String {
-    guard let current else { return "More, using the account default sort" }
-    return "More, sorted by \(current.title)"
+    guard let current else { return String(localized: "More, using the account default sort") }
+    return String(localized: "More, sorted by \(current.title)")
   }
 
   var body: some View {

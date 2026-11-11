@@ -97,12 +97,12 @@ struct PutioVideoPlaybackView: View {
             .background(.black.opacity(0.55), in: Circle())
         }
         if let onCast {
-          PutioButton("Cast", tier: .secondary, presentation: .floating) {
+          PutioButton(String(localized: "Cast"), tier: .secondary, presentation: .floating) {
             onCast()
           }
           .accessibilityIdentifier("video.cast")
         }
-        PutioButton("Done", tier: .primary, presentation: .floating) {
+        PutioButton(String(localized: "Done"), tier: .primary, presentation: .floating) {
           onDismiss()
         }
         .accessibilityIdentifier("video.done")
@@ -258,7 +258,7 @@ struct PutioVideoPlaybackView: View {
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: "Preparing video")
+      PutioLoadingStateView(title: String(localized: "Preparing video"))
         .accessibilityIdentifier("video.loading")
     case .ready(let source):
       PutioSystemVideoPlayer(
@@ -297,12 +297,12 @@ struct PutioVideoPlaybackView: View {
       .ignoresSafeArea()
     case .conversionRequired:
       PutioConversionStatusView {
-        PutioLoadingStateView(title: "Starting conversion")
+        PutioLoadingStateView(title: String(localized: "Starting conversion"))
           .accessibilityIdentifier("video.conversion-required")
       }
     case .conversionQueued:
       PutioConversionStatusView {
-        PutioLoadingStateView(title: "Waiting to convert")
+        PutioLoadingStateView(title: String(localized: "Waiting to convert"))
           .accessibilityIdentifier("video.conversion-queued")
       }
     case .converting(let progress):
@@ -320,14 +320,14 @@ struct PutioVideoPlaybackView: View {
       }
     case .conversionCompleted:
       PutioConversionStatusView {
-        PutioLoadingStateView(title: "Finishing conversion")
+        PutioLoadingStateView(title: String(localized: "Finishing conversion"))
           .accessibilityIdentifier("video.conversion-completed")
       }
     case .failed(let failure):
       PutioErrorStateView(
         title: failure.title,
         message: failure.message,
-        retryTitle: "Try again"
+        retryTitle: String(localized: "Try again")
       ) {
         retrySequence &+= 1
       }
@@ -395,10 +395,10 @@ struct PutioNextVideoOverlay: View {
         .accessibilityIdentifier("video.next-countdown")
       }
       HStack(spacing: PutioTheme.Spacing.space2) {
-        PutioButton("Play Next", tier: .primary, action: onPlay)
+        PutioButton(String(localized: "Play Next"), tier: .primary, action: onPlay)
           .accessibilityLabel("Play next, \(nextVideo.name)")
           .accessibilityIdentifier("video.play-next")
-        PutioButton("Cancel", tier: .secondary, action: onCancel)
+        PutioButton(String(localized: "Cancel"), tier: .secondary, action: onCancel)
           .accessibilityLabel("Cancel playing \(nextVideo.name)")
           .accessibilityIdentifier("video.cancel-next")
       }

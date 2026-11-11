@@ -66,7 +66,8 @@ struct AccountView: View {
             PutioErrorStateView(
               title: PutioTrashErrorPresentation.staleStorage.title,
               message: PutioTrashErrorPresentation.staleStorage.message,
-              retryTitle: isRefreshingStorage ? "Updating…" : "Update storage"
+              retryTitle: isRefreshingStorage
+                ? String(localized: "Updating…") : String(localized: "Update storage")
             ) {
               // Flip the flag before suspending so a second tap cannot start
               // another refresh, and only the one owner clears it.

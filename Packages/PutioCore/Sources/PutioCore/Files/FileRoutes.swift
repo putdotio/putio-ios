@@ -4,7 +4,8 @@ public struct PutioFolderRoute: Identifiable, Sendable {
   public let id: PutioFileID
   public let title: String
 
-  public static let root = PutioFolderRoute(id: .root, title: "Files")
+  public static let root = PutioFolderRoute(
+    id: .root, title: String(localized: "Files", bundle: .module))
 
   public init(id: PutioFileID, title: String) {
     self.id = id

@@ -9,29 +9,41 @@ public enum PutioPrivacyControls {
     public let description: String
   }
 
-  public static let title = "Privacy controls"
+  public static let title = String(localized: "Privacy controls", bundle: .module)
 
   public static let strictlyNecessary = Control(
-    title: "Strictly necessary",
+    title: String(localized: "Strictly necessary", bundle: .module),
     description:
-      "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices."
+      String(
+        localized:
+          "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices.",
+        bundle: .module)
   )
 
   public static let diagnostics = Control(
-    title: "Diagnostics",
+    title: String(localized: "Diagnostics", bundle: .module),
     description:
-      "Crash reports, error details, and limited playback diagnostics, so we can fix problems."
+      String(
+        localized:
+          "Crash reports, error details, and limited playback diagnostics, so we can fix problems.",
+        bundle: .module)
   )
 
   public static let productAnalytics = Control(
-    title: "Product analytics",
+    title: String(localized: "Product analytics", bundle: .module),
     description:
-      "Limited usage, device, billing, and playback data that shows which apps and features work."
+      String(
+        localized:
+          "Limited usage, device, billing, and playback data that shows which apps and features work.",
+        bundle: .module)
   )
 
   /// Shown once under the group, not repeated in each row.
   public static let groupFooter =
-    "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
+    String(
+      localized:
+        "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens.",
+      bundle: .module)
 
   public static let privacyPolicyURL = URL(string: "https://put.io/privacy-policy/")!
   public static let servicesWeUseURL = URL(string: "https://put.io/services-we-use/")!

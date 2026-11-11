@@ -34,11 +34,19 @@ public struct PutioHistoryFailure: Equatable {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .notFound: message = "This item is no longer available."
-    case .rateLimited: message = "put.io is receiving too many requests. Try again shortly."
-    case .transient: message = "Check your connection and try again."
-    case .invalidResponse: message = "put.io returned an invalid response. Try again."
-    case .unknown, nil: message = "put.io could not complete the request. Try again."
+    case .notFound:
+      message = String(localized: "This item is no longer available.", bundle: .module)
+    case .rateLimited:
+      message = String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+    case .transient:
+      message = String(localized: "Check your connection and try again.", bundle: .module)
+    case .invalidResponse:
+      message = String(
+        localized: "put.io returned an invalid response. Try again.", bundle: .module)
+    case .unknown, nil:
+      message = String(
+        localized: "put.io could not complete the request. Try again.", bundle: .module)
     }
   }
 }
@@ -272,16 +280,23 @@ public final class PutioHistoryModel {
 }
 
 public struct PutioHistorySection: Identifiable {
-  public enum Day: String, CaseIterable {
-    case today = "Today"
-    case yesterday = "Yesterday"
-    case lastWeek = "Last week"
-    case ancientTimes = "Ancient times"
+  public enum Day: CaseIterable {
+    case today
+    case yesterday
+    case lastWeek
+    case ancientTimes
   }
 
   public let id: Day
   public let items: [PutioHistoryEventItem]
-  public var title: String { id.rawValue }
+  public var title: String {
+    switch id {
+    case .today: String(localized: "Today", bundle: .module)
+    case .yesterday: String(localized: "Yesterday", bundle: .module)
+    case .lastWeek: String(localized: "Last week", bundle: .module)
+    case .ancientTimes: String(localized: "Ancient times", bundle: .module)
+    }
+  }
 
   /// Calendar days back from `now`: today, yesterday, the rest of the last
   /// week (under 8 days), then everything older.
