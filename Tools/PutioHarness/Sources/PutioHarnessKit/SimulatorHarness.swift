@@ -1730,7 +1730,7 @@ public struct SimulatorHarness {
     return artifacts + dataArtifacts
   }
 
-  public func captureBoards(
+  func captureBoards(
     _ boards: [BoardCapture], runID: String, sourceRevision: String
   ) throws -> SurfaceRun {
     let platform = HarnessPlatform.ios
