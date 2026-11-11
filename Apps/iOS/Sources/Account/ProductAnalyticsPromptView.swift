@@ -110,12 +110,13 @@ struct ProductAnalyticsPromptView: View {
         if isSaving { ProgressView().tint(PutioTheme.Colors.textSecondary) }
       }
       .putioFont(PromptTypography.button)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
       .frame(maxWidth: .infinity, minHeight: 32)
     }
-    .buttonStyle(.bordered)
+    .buttonStyle(.borderedProminent)
     .buttonBorderShape(.capsule)
     .controlSize(.large)
-    .tint(PutioTheme.Colors.textPrimary)
+    .tint(PutioTheme.Colors.surfaceActive)
     .disabled(model.isSaving)
     .accessibilityLabel(title)
     .accessibilityIdentifier(identifier)
