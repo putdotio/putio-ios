@@ -143,7 +143,6 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
   assert.deepEqual(lanes("Tests/ComponentSnapshots/__Snapshots__/ios/gallery.png"), ["ios"]);
   assert.deepEqual(lanes("Tests/HarnessMedia/audio/a.m4a"), ["build", "ios", "tvos", "proof"]);
   assert.deepEqual(lanes("scripts/build.sh"), ["build"]);
-  assert.deepEqual(lanes("scripts/harness-ci.sh"), ["proof"]);
   for (const path of [
     "Packages/PutioCore/Sources/Session.swift",
     "Tools/PutioHarness/Sources/PutioHarness/main.swift",

@@ -4,7 +4,7 @@ run = "./scripts/doctor.sh"
 
 [bootstrap]
 description = "Generate the workspace and verify the provisioned host"
-run = "./scripts/bootstrap.sh"
+run = ["pnpm install --frozen-lockfile", "./scripts/generate.sh", "./scripts/harness.sh doctor"]
 
 [xcode-skills]
 description = "Link the installed Xcode's agent skills into this checkout, untracked"
@@ -37,15 +37,11 @@ run = "./scripts/build.sh"
 
 [open]
 description = "Generate and open the Xcode workspace"
-run = "./scripts/open.sh"
+run = ["./scripts/generate.sh", "open Putio.xcworkspace"]
 
 [harness]
 description = "Run the typed headless Apple-platform harness"
 run = "./scripts/harness.sh"
-
-[harness-ci]
-description = "Run the headless iOS proof subset used by CI"
-run = "./scripts/harness-ci.sh"
 
 [dead-code]
 description = "Scan the app shells, PutioCore, and the harness for unused code with Periphery"

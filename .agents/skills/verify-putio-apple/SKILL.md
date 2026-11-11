@@ -65,9 +65,8 @@ and captures the exercised screen. `gallery` is for iOS and tvOS, and
 - Artifacts go to ignored `build/proof/<run-id>/<platform>/`. The manifest
   records source and simulator provenance, artifact sizes, and SHA-256 digests.
 - A failed run keeps its diagnostics, `.xcresult` bundles included, and removes
-  the success manifest. Use a new `--run-id` to retry.
-  [harness-ci.sh](../../../scripts/harness-ci.sh) assigns a unique run ID; set
-  `PUTIO_HARNESS_RUN_ID` only when the caller must supply one.
+  the success manifest. Use a new `--run-id` to retry; the default is the
+  time and commit.
 - Open the screenshots and recording yourself. A passing run is not proof that
   the screen looks right.
 - Upload reviewed media with `gh pr comment <n> --attach <file>`. Media never
@@ -93,7 +92,7 @@ If cleanup fails, delete only the UDIDs the run reported:
 
 [Next CI](../../../.github/workflows/ci-next.yml) runs each verify lane that a
 pull request's paths reach, plus the iOS launch-proof subset
-(`mise run harness-ci`), on separate runners, and
+(`proof --platform ios --record-seconds 1`), on separate runners, and
 uploads `.xcresult` bundles when a test fails. `PUTIO_SIMULATOR_TEMPLATES=1`,
 set by the [setup action](../../../.github/actions/setup-apple/action.yml), clones a
 cached, booted `putio-template-*` device. Feature journeys do not run in CI, so
