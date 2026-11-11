@@ -1115,11 +1115,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func assertSortRowSelected(_ row: XCUIElement, label: String) {
-    if #available(iOS 27.0, *) {
-      XCTAssertEqual(row.label, label)
-    } else {
-      XCTAssertTrue(row.isSelected, "\(label) row is not selected")
-    }
+    XCTAssertEqual(row.label, label)
   }
 
   /// The menu announces the sort in its label on every runtime.

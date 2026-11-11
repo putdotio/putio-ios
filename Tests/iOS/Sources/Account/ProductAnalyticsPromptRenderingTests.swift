@@ -9,12 +9,8 @@ final class ProductAnalyticsPromptRenderingTests: XCTestCase {
   func testPromptMatchesBaselinesAtDefaultAndCappedTextSizes() throws {
     let model = PutioProductAnalyticsPromptModel(
       actions: PutioProductAnalyticsPromptActions(saveSetting: { _ in }, markAnswered: {}))
-    // iOS 27's glyph antialiasing drifts past the comparison tolerance on
-    // this text-dense sheet at default size.
-    var defaultName = "analytics-prompt-default"
-    if #available(iOS 27.0, *) { defaultName += "-ios27" }
     _ = try assertRenderingSnapshot(
-      name: defaultName,
+      name: "analytics-prompt-default",
       view: sheet(model),
       size: CGSize(width: 393, height: 680))
     _ = try assertRenderingSnapshot(

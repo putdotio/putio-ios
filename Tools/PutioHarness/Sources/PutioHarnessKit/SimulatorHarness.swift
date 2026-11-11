@@ -1818,16 +1818,14 @@ public struct SimulatorHarness {
       context: "read \(config.sdk) version"
     ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     guard
-      let runtime = runtimes.first(where: {
-        $0.isAvailable && $0.platform == config.runtimePlatform
-          && runtimeMatchesSDK($0.version, sdkVersion)
-      })
+      let (runtime, deviceType) = selectSimulator(
+        from: runtimes, platform: config.runtimePlatform, family: config.deviceFamily,
+        sdkVersion: sdkVersion)
     else {
       throw HarnessFailure(
         "\(config.runtimePlatform) \(sdkVersion) Simulator runtime is missing; run xcodebuild -downloadPlatform \(config.runtimePlatform)"
       )
     }
-    let deviceType = try runtime.deviceType(for: config.deviceFamily)
 
     // The nonce keeps concurrent runs with the same run ID apart; the
     // ownership check below makes the pre-claim name fallback safe.
@@ -1851,16 +1849,13 @@ public struct SimulatorHarness {
       var companionIdentifier: String?
       if platform == .watchos {
         guard
-          let phoneRuntime = runtimes.first(where: {
-            $0.isAvailable && $0.platform == "iOS"
-              && runtimeMatchesSDK($0.version, runtime.version)
-          })
+          let (phoneRuntime, phoneType) = selectSimulator(
+            from: runtimes, platform: "iOS", family: "iPhone", sdkVersion: runtime.version)
         else {
           throw HarnessFailure(
             "watchOS \(runtime.version) requires a matching iOS Simulator runtime and iPhone device type"
           )
         }
-        let phoneType = try phoneRuntime.deviceType(for: "iPhone")
         let phoneName = "putio-harness-watch-companion-\(suffix)"
         try requireNoSimulator(named: phoneName)
         let ownedPhone = OwnedSimulator(name: phoneName)
