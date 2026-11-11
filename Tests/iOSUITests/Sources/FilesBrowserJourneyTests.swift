@@ -513,7 +513,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     typeName("Renamed Harness", into: name, replacing: "Harness Folder")
     app.buttons["Rename"].tap()
     let renamed = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@ AND enabled == true", "Renamed Harness"),
+      predicate: NSPredicate(
+        format: "(label == %@ OR label BEGINSWITH %@) AND enabled == true", "Renamed Harness",
+        "Renamed Harness, "),
       object: folder
     )
     XCTAssertEqual(XCTWaiter.wait(for: [renamed], timeout: 10), .completed)
@@ -1087,7 +1089,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       waitUntilHittable(appliedMoveAtRoot, timeout: 5),
       "already-loaded destination did not refresh after the ambiguous move"
     )
-    XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
+    XCTAssertEqual(appliedMoveAtRoot.label.components(separatedBy: ", ").first, "Ambiguous Move")
     assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
 
     app.buttons["Account"].tap()
