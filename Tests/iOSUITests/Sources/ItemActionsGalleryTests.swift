@@ -25,7 +25,7 @@ final class ItemActionsGalleryTests: XCTestCase {
     let longPressItems = menuItems()
     XCTAssertEqual(longPressItems, boardMenu)
     addScreenshot(named: "item-menu-long-press")
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.9)).tap()
     XCTAssertTrue(
       app.buttons["Play"].firstMatch.disappears(within: 5), "long-press menu never closed")
 
