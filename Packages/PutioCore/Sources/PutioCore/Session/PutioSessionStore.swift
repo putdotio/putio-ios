@@ -125,7 +125,7 @@ public final class PutioSessionStore {
     abandonPendingSignIn()
     let generation = advanceAuthenticationGeneration()
     if signOutIntentStore.isPending {
-      isSignOutCleanupPending = true
+      setSignOutCleanupPending(true)
       do {
         let token = try tokenStore.read()
         await finishSignOut(token: token, generation: generation)
@@ -257,8 +257,7 @@ public final class PutioSessionStore {
     sdk.setToken(token: token)
     do {
       try tokenStore.write(token)
-      signOutIntentStore.setPending(false)
-      isSignOutCleanupPending = false
+      setSignOutCleanupPending(false)
       return true
     } catch {
       _ = try? await sdk.logout()
@@ -353,8 +352,7 @@ public final class PutioSessionStore {
   public func signOut() async {
     guard case .signedIn = state else { return }
     let token = sdk.config.token.isEmpty ? nil : sdk.config.token
-    signOutIntentStore.setPending(true)
-    isSignOutCleanupPending = true
+    setSignOutCleanupPending(true)
     abandonPendingSignIn()
     let generation = advanceAuthenticationGeneration()
     state = .signingOut
@@ -375,10 +373,14 @@ public final class PutioSessionStore {
     }
     sdk.clearToken()
     if revoked, (try? tokenStore.clear()) != nil {
-      signOutIntentStore.setPending(false)
-      isSignOutCleanupPending = false
+      setSignOutCleanupPending(false)
     }
     state = .signedOut(.userSignedOut)
+  }
+
+  private func setSignOutCleanupPending(_ pending: Bool) {
+    signOutIntentStore.setPending(pending)
+    isSignOutCleanupPending = pending
   }
 
   func expireSession() {

@@ -25,8 +25,6 @@
       }
     }
 
-    /// A finished sign-out cleanup needs logout to succeed or put.io to reject
-    /// the token; expiry means put.io rejected it.
     static func provesRevocation(_ state: PutioSessionState, signOutCleanupPending: Bool)
       -> Bool
     {
@@ -40,10 +38,6 @@
     }
   }
 
-  /// The live scenario's token store. Any cleared token stays in a
-  /// pending-revocation item until the probe sees revocation proven, and
-  /// restore falls back to it so the sign-out launch can finish the job even
-  /// if a removal outran its revocation.
   final class HarnessLiveTokenStore: PutioTokenStore, @unchecked Sendable {
     private let active: PutioTokenStore
     private let pending: PutioTokenStore

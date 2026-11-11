@@ -4,8 +4,6 @@ import XCTest
 @testable import Putio
 
 final class HarnessLiveTokenStoreTests: XCTestCase {
-  /// A cleared token must still leave a copy the sign-out launch can restore
-  /// and revoke until revocation is confirmed.
   func testClearedTokenStaysRestorableUntilRevocationIsConfirmed() throws {
     let store = HarnessLiveTokenStore(
       active: PutioInMemoryTokenStore(), pending: PutioInMemoryTokenStore())

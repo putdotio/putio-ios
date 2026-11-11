@@ -118,8 +118,6 @@ const runTLC = async (property: string): Promise<Outcome> => {
     child.on("close", () => done(text));
   });
   if (output.includes("Model checking completed. No error has been found.")) {
-    // An action whose conjuncts contradict each other never fires, and a pass
-    // would then silently skip the code it models.
     const dead = Object.keys(steps).filter((action) =>
       new RegExp(`^<${action} line [^>]*>: \\d+:0$`, "m").test(output),
     );
