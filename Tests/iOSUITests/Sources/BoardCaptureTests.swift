@@ -34,17 +34,20 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openHarnessFolder() {
     let root = element("files.screen.0")
+    let folderScreen = element("files.screen.410")
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
-    while !root.exists, !signIn.exists, Date.now < deadline {
+    while !root.exists, !folderScreen.exists, !signIn.exists, Date.now < deadline {
       _ = root.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
-    XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
-    let folder = element("files.item.410")
-    XCTAssertTrue(folder.appears(within: 10), "seeded folder row never appeared")
-    folder.tap()
-    XCTAssertTrue(element("files.screen.410").appears(within: 10), "folder did not open")
+    if !folderScreen.exists {
+      XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
+      let folder = element("files.item.410")
+      XCTAssertTrue(folder.appears(within: 10), "seeded folder row never appeared")
+      folder.tap()
+    }
+    XCTAssertTrue(folderScreen.appears(within: 10), "folder did not open")
   }
 
   private func captureBoard(_ board: String) throws {
