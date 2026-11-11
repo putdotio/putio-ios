@@ -3,6 +3,7 @@ run-name: Next app CI for ${{ github.event_name }} on ${{ github.ref_name }}
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
     branches:
       - next
       - "next-rollout/**"
@@ -17,11 +18,12 @@ on:
         default: false
         type: boolean
 
-# Pull requests share a group per ref so a new push cancels the stale run. Each
-# push to next and each dispatch gets its own group, so every merged commit keeps
-# its own result.
+# Pull requests share a group per number so a new push cancels the stale run,
+# and closing the pull request cancels it too; the push to next verifies a merged
+# commit. Each push to next and each dispatch gets its own group, so every merged
+# commit keeps its own result.
 concurrency:
-  group: next-ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  group: next-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -30,6 +32,7 @@ permissions:
 jobs:
   changes:
     name: Select affected lanes
+    if: github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
