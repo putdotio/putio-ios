@@ -52,10 +52,13 @@ public struct PutioSheetScaffold<Content: View>: View {
   private let dismissButton: PutioSheetDismissButton?
   private let trailingButton: PutioSheetIconButton?
   private let primaryButton: PutioSheetPrimaryButton?
+  private let onCancel: (@MainActor () -> Void)?
+  private let externalPath: Binding<NavigationPath>?
   private let content: Content
 
   #if os(iOS)
     @Environment(\.dismiss) private var dismiss
+    @State private var internalPath = NavigationPath()
   #endif
 
   public init(
@@ -63,12 +66,16 @@ public struct PutioSheetScaffold<Content: View>: View {
     dismissButton: PutioSheetDismissButton? = .cancel,
     trailingButton: PutioSheetIconButton? = nil,
     primaryButton: PutioSheetPrimaryButton? = nil,
+    path: Binding<NavigationPath>? = nil,
+    onCancel: (@MainActor () -> Void)? = nil,
     @ViewBuilder content: () -> Content
   ) {
     self.title = title
     self.dismissButton = dismissButton
     self.trailingButton = trailingButton
     self.primaryButton = primaryButton
+    self.externalPath = path
+    self.onCancel = onCancel
     self.content = content()
   }
 
@@ -78,7 +85,7 @@ public struct PutioSheetScaffold<Content: View>: View {
 
   public var body: some View {
     #if os(iOS)
-      NavigationStack {
+      NavigationStack(path: externalPath ?? $internalPath) {
         content
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
           .scrollContentBackground(.hidden)
@@ -86,11 +93,12 @@ public struct PutioSheetScaffold<Content: View>: View {
           .navigationTitle(title)
           .navigationBarTitleDisplayMode(.inline)
           .toolbar { titleBarButtons }
-          .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let primaryButton {
-              PutioSheetPrimaryBar(button: primaryButton)
-            }
-          }
+      }
+      .safeAreaInset(edge: .bottom, spacing: 0) {
+        if let primaryButton {
+          PutioSheetPrimaryBar(button: primaryButton)
+            .background(PutioTheme.Components.Sheet.background)
+        }
       }
       .presentationDragIndicator(.visible)
       .presentationSizing(.form)
@@ -139,6 +147,7 @@ public struct PutioSheetScaffold<Content: View>: View {
       if let dismissButton {
         ToolbarItem(placement: .cancellationAction) {
           Button(dismissButton.title) {
+            onCancel?()
             dismiss()
           }
           .disabled(isBusy)
