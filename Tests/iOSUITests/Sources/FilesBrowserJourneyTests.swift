@@ -872,7 +872,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(moveBackToRoot, timeout: 5), "moving back to Files is disabled")
     moveBackToRoot.tap()
     XCTAssertTrue(
-      app.staticTexts["Weekend to Files"].appears(within: 5),
+      app.staticTexts["Item moved"].appears(within: 5),
       "move back to Files did not settle"
     )
 
