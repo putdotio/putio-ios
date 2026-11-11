@@ -1,56 +1,37 @@
 # Design Principles
 
-Use native Apple controls and behavior with the put.io theme. The shared design
-package owns colors, typography, spacing, motion, and Phosphor icons; Apple owns
-control geometry, navigation, focus, and presentation.
-
-[package.json](package.json) pins the design package. The adopted
+These rules hold for the iOS redesign on `next`. The shared design package owns
+colors, type, spacing, motion, and Phosphor icons;
+[package.json](package.json) pins it and the
+[generated adapter](Packages/PutioCore/Sources/PutioCore/Generated/PutioTheme+Generated.swift)
+carries its values. The adopted
 [Apple contract](https://github.com/putdotio/putio-design/blob/v3.3.0/platforms/apple/DESIGN.md)
-sets the platform rules. Follow [Contributing](CONTRIBUTING.md#design-tokens)
-when updating the package or its generated adapter.
+sets the platform rules. Change tokens through
+[Contributing](CONTRIBUTING.md#design-tokens).
 
-## Controls and content
+## iOS
 
-- Prefer stock controls, lists, forms, sheets, and navigation. Let native lists
-  own insets, separators, row height, and disclosure. `NavigationLink` supplies
-  folder disclosure; edit-mode and Trash rows have no navigation accessory.
-- Content actions use bordered styles. Reserve stock glass for standalone
-  floating controls over media. Toasts and Up Next own their surface; their
-  child controls must not add another glass layer. Keep plain glass neutral
-  and use at most one prominent glass capsule per screen.
-- Set the app accent once. System back controls, selection, and ordinary actions
-  inherit it; destructive and success actions retain their semantic roles.
-- Keep app content dark and opaque. Use generated foreground roles for authored
-  text and native geometry for controls.
-- Let `Gauge` and `ProgressView` own their tracks and dimensions. The download
-  control's minimum hit target does not constrain its intrinsic ring. Keep
-  queued, downloading, downloaded, idle, and failed states distinct; failure
-  offers retry with an accessible reason.
-- Let `AVPlayerViewController` own video transport, AirPlay, and Picture in
-  Picture. Keep over-video text in the
-  [player palette](Apps/iOS/Sources/Playback/VideoPlayback.swift) and preserve the app
-  accent on transport controls.
+- **Native first.** Every control is the stock iOS one. put.io supplies color,
+  type, glyphs, and copy; Apple owns geometry, navigation, and presentation.
+- **Yellow marks four things.** File glyphs, the selected tab, checkmarks, and
+  the one primary button of a screen, sheet, or alert. Everything else is
+  neutral. Account screens have no yellow.
+- **Glass only on chrome.** The toolbar, tab bar, menus, and toast. A control
+  inside the toast adds no second glass layer.
+- **Type.** GT America for content; Berkeley Mono for sizes, counts, and times.
+  Text stops growing at XX Large through the window override in
+  [PutioApp](Apps/iOS/Sources/App/PutioApp.swift).
+- **Layout follows size classes.** Compact width is one pane; regular width
+  adds a detail column. No device checks.
+- **Copy.** A string ships only if a design shows it. It records its Android
+  string key, or `ios-only` with a reason when Android has none. A string no
+  design shows blocks the change.
+- **Video.** put.io controls over `AVPlayer`, not the system player screen.
+  AirPlay stays the system route button.
+- **Product lines.** No Transfers UI. Moving to Trash never confirms; only
+  permanent delete confirms.
 
-## Typography and layout
-
-Use `putioFont` for app-authored content. Brand fonts are optional; preserve system
-and per-glyph fallback, including raw filenames. System navigation titles, tab
-labels, search fields, and time displays retain system typography.
-
-Use the generated semantic numeric roles for tabular figures. Their
-[generator](scripts/generate-design-tokens.ts) owns platform font selection;
-do not introduce a separate tvOS monospace face.
-
-Structural spacing, overscan, borders, radii, and minimum interaction geometry
-remain fixed. Content, adjacent icons, and meaningful gaps scale through
-`PutioScaledMetric` with an explicit Dynamic Type text style. Add a semantic
-`PutioMetricRole` when needed instead of scaling the entire spacing ramp.
-On iOS, text stops growing at XX Large through a window override in
-[PutioApp](Apps/iOS/Sources/App/PutioApp.swift), which also reaches UIKit menus
-and alerts.
-
-File-type icons use yellow Phosphor assets. Preserve native tab glyph sizing;
-Search keeps the system glyph.
+The redesign lands on `next` only.
 
 ## tvOS and watchOS
 
@@ -94,6 +75,5 @@ pages.
 Component and theming changes follow the
 [proof table](AGENTS.md#verification-and-completion): intentional visual changes
 need inspected, re-recorded baselines through the [harness](.agents/skills/verify-putio-apple/references/snapshots.md).
-Inspect native materials, focus, and Dynamic Type in the affected simulator;
-off-screen snapshots cannot prove Liquid Glass. Use the Files journey when
-changing disclosure, Trash, or playback interactions.
+Off-screen snapshots cannot prove Liquid Glass; inspect materials and Dynamic
+Type in the simulator.
