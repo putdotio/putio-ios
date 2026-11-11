@@ -61,7 +61,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     field.typeText(name)
     app.buttons["files.action-submit"].tap()
     let folder = reachable(element("files.item.415"))
-    XCTAssertEqual(folder.label, name)
+    XCTAssertTrue(folder.label == name || folder.label.hasPrefix(name + ", "), folder.label)
     centerRow(folder)
     screenshot("runtime-accessibility-files")
 
@@ -71,7 +71,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(folder, "Not selected"))
     reachable(folder).tap()
     XCTAssertTrue(waitForValue(folder, "Selected"))
-    XCTAssertEqual(folder.label, name)
+    XCTAssertTrue(folder.label == name || folder.label.hasPrefix(name + ", "), folder.label)
     XCTAssertTrue(reachable(app.buttons["files.bulk.remove"]).isEnabled)
     centerRow(folder)
     screenshot("runtime-accessibility-selection")

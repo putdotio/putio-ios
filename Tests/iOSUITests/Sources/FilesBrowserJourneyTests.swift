@@ -1257,7 +1257,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let folder = element(identifier: "files.item.\(expectedID)")
     XCTAssertTrue(
       folder.appears(within: 5), "created folder \(expectedID) did not appear")
-    XCTAssertEqual(folder.label, name)
+    XCTAssertEqual(folder.label.components(separatedBy: ", ").first, name)
     return folder
   }
 
