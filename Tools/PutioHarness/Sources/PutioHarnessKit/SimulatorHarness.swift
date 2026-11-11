@@ -1734,6 +1734,7 @@ public struct SimulatorHarness {
     _ boards: [BoardCapture], xxl: Bool = false, runID: String, sourceRevision: String
   ) throws -> SurfaceRun {
     let platform = HarnessPlatform.ios
+    for board in boards { try board.device.requireHeadlessPosture() }
     try requireCleanSource()
     try requireRevision(sourceRevision)
     try regenerateWorkspace()
@@ -1838,7 +1839,7 @@ public struct SimulatorHarness {
       platform: .ios,
       session: session,
       mediaBaseURL: mediaBaseURL,
-      environment: board.environment.reduce(
+      environment: board.testEnvironment.reduce(
         into: textSize == .xxl ? ["TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": "1"] : [:]
       ) { environment, entry in environment["TEST_RUNNER_" + entry.key] = entry.value },
       resultBundle: resultBundle,
@@ -2011,8 +2012,14 @@ public struct SimulatorHarness {
       let (runtime, deviceType) = selectSimulator(
         from: runtimes, platform: config.runtimePlatform,
         family: device?.deviceFamily ?? config.deviceFamily, sdkVersion: sdkVersion,
-        preferredDeviceType: device?.deviceType)
+        preferredDeviceType: device?.deviceType,
+        requiredDeviceType: device?.requiredDeviceTypeIdentifier)
     else {
+      if let device, let required = device.requiredDeviceTypeIdentifier {
+        throw HarnessFailure(
+          "no \(config.runtimePlatform) \(sdkVersion) Simulator runtime offers \(required) for \(device.rawValue) boards; install it from Xcode > Settings > Components"
+        )
+      }
       throw HarnessFailure(
         "\(config.runtimePlatform) \(sdkVersion) Simulator runtime is missing; run xcodebuild -downloadPlatform \(config.runtimePlatform)"
       )

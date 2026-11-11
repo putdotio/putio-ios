@@ -232,6 +232,51 @@ import Testing
   #expect(!runtimes[1].supportsFoldableDevice)
 }
 
+@Test func duoBoardsSelectOnlyTheFoldableDeviceType() throws {
+  let catalog = #"""
+    {"runtimes":[
+      {"name":"iOS 27.2","identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2",
+       "version":"27.2","platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPhone 17 Pro","identifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+          "productFamily":"iPhone"}]},
+      {"name":"iOS 27.2","identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4",
+       "version":"27.2","platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPhone Duo","identifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
+          "productFamily":"iPhone"}]}
+    ]}
+    """#
+  let runtimes = try JSONDecoder().decode(RuntimeList.self, from: Data(catalog.utf8)).runtimes
+  let device = BoardDevice.duoFolded
+  let selection = try #require(
+    selectSimulator(
+      from: runtimes, platform: "iOS", family: device.deviceFamily, sdkVersion: "27.2",
+      preferredDeviceType: device.deviceType,
+      requiredDeviceType: device.requiredDeviceTypeIdentifier))
+
+  #expect(
+    selection.runtime.identifier == "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4")
+  #expect(selection.deviceType.identifier == "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo")
+  #expect(
+    selectSimulator(
+      from: [runtimes[0]], platform: "iOS", family: device.deviceFamily, sdkVersion: "27.2",
+      preferredDeviceType: device.deviceType,
+      requiredDeviceType: device.requiredDeviceTypeIdentifier) == nil)
+}
+
+@Test func duoFoldedBoardMapsToTheFolderTestOnTheFoldedPosture() throws {
+  let board = try #require(
+    BoardCaptureContract.resolve(["rd-ios-duo-01-folded-folder"]).first)
+  #expect(board.device == .duoFolded)
+  #expect(board.testIdentifier == "PutioUITests/BoardCaptureTests/testFolder")
+  #expect(board.testEnvironment["PUTIO_BOARD_DEVICE"] == "duo-folded")
+  #expect(
+    try BoardCaptureContract.resolve(["rd-ios-02-folder"], device: .duoFolded).first?.device
+      == .duoFolded)
+  try requireBoardScreenshot(
+    pixelWidth: 1398, pixelHeight: 2034, matches: BoardLayout(width: 466, height: 678, scale: 3),
+    board: "rd-ios-duo-01-folded-folder")
+}
+
 @Test func xcodeVersionMatchesOnlyThePinnedRelease() {
   #expect(xcodeVersionMatches("Xcode 27.2", required: "27.2"))
   #expect(xcodeVersionMatches("Xcode 27.2.1", required: "27.2"))

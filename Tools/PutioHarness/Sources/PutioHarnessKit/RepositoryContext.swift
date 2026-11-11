@@ -74,10 +74,20 @@ let foldableDeviceTypeIdentifier = "com.apple.CoreSimulator.SimDeviceType.iPhone
 
 func selectSimulator(
   from runtimes: [RuntimeRecord], platform: String, family: String, sdkVersion: String,
-  preferredDeviceType: String? = nil
+  preferredDeviceType: String? = nil, requiredDeviceType: String? = nil
 ) -> (runtime: RuntimeRecord, deviceType: DeviceTypeRecord)? {
   let matching = runtimes.filter {
     $0.isAvailable && $0.platform == platform && runtimeMatchesSDK($0.version, sdkVersion)
+  }
+  if let requiredDeviceType {
+    for runtime in matching {
+      if let deviceType = runtime.supportedDeviceTypes.first(where: {
+        $0.identifier == requiredDeviceType
+      }) {
+        return (runtime, deviceType)
+      }
+    }
+    return nil
   }
   if let preferredDeviceType {
     for runtime in matching {
