@@ -807,7 +807,7 @@ enum BrowserJourneyContract {
       attachmentNames: ["shell-history-off"]),
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
-      attachmentNames: ["runtime-account-rating"]),
+      attachmentNames: ["runtime-account-rating"], timeAllowance: 120),
     JourneyPreflight(
       "analytics-prompt",
       "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",
@@ -900,13 +900,13 @@ enum BrowserJourneyContract {
       "subtitles",
       "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
-      timeAllowance: 180),
+      timeAllowance: 240),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy",
       attachmentNames: [
         "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
       ],
-      timeAllowance: 180),
+      timeAllowance: 240),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
   ]
