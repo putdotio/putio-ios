@@ -154,6 +154,7 @@ struct MainTabView: View {
       }
     }
     .tabViewStyle(.sidebarAdaptable)
+    .defaultAdaptableTabBarPlacement(.tabBar)
     .tabViewSidebarBottomBar {
       PutioStorageMeter(storage: account.storage)
     }

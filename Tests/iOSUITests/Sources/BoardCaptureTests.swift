@@ -92,12 +92,14 @@ final class BoardCaptureTests: XCTestCase {
 
   private func reachFilesRoot() {
     let root = element("files.screen.0")
+    let folderScreen = element("files.screen.410")
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
-    while !root.exists, !signIn.exists, Date.now < deadline {
+    while !root.exists, !signIn.exists, !folderScreen.exists, Date.now < deadline {
       _ = root.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
+    if folderScreen.exists, !root.isHittable { app.navigationBars.buttons.firstMatch.tap() }
     XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
   }
 
