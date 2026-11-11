@@ -254,7 +254,7 @@ struct PutioPreviewView: View {
     NavigationStack {
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .putioContentBackground()
+        .background(Color.black)
         .navigationTitle(model.route.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
