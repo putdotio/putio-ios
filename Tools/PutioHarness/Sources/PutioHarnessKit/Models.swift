@@ -554,8 +554,6 @@ enum BoardCaptureContract {
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
       BoardCapture("rd-ios-13-ipad-sidebar", .ipad, "testIPadSidebar"),
       BoardCapture("rd-ios-14-ipad-portrait", .ipad, "testIPadPortrait"),
-      BoardCapture(
-        "gallery-selection-ipad-columns", .ipad, "testIPadSelectionColumns", screenBase: false),
     ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
 
   static let galleryPages = [
