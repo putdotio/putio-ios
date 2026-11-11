@@ -278,11 +278,15 @@ let project = Project(
       deploymentTargets: .iOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
-        "Tests/ComponentSnapshots/Sources",
+        .folder(
+          "Tests/ComponentSnapshots/Sources",
+          exceptions: [.exception(excluded: ["**/__Snapshots__"])]
+        ),
         "Tests/Shared/SnapshotSupport",
       ],
       dependencies: [
-        .package(product: "PutioCore")
+        .package(product: "PutioCore"),
+        .external(name: "SnapshotTesting"),
       ]
     ),
     .target(
@@ -293,13 +297,17 @@ let project = Project(
       deploymentTargets: .iOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
-        "Tests/iOS/Sources",
+        .folder(
+          "Tests/iOS/Sources",
+          exceptions: [.exception(excluded: ["**/__Snapshots__"])]
+        ),
         "Tests/Shared/SnapshotSupport",
         "Tests/Shared/MediaSupport",
       ],
       dependencies: [
         .target(name: "Putio"),
         .package(product: "PutioCore"),
+        .external(name: "SnapshotTesting"),
       ]
     ),
     .target(
@@ -322,13 +330,17 @@ let project = Project(
       deploymentTargets: .tvOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
-        "Tests/ComponentSnapshots/Sources",
+        .folder(
+          "Tests/ComponentSnapshots/Sources",
+          exceptions: [.exception(excluded: ["**/__Snapshots__"])]
+        ),
         "Tests/Shared/SnapshotSupport",
       ],
       // Hosted: tvOS snapshots capture through the app's render server.
       dependencies: [
         .target(name: "PutioTV"),
         .package(product: "PutioCore"),
+        .external(name: "SnapshotTesting"),
       ]
     ),
     .target(
@@ -378,13 +390,17 @@ let project = Project(
       deploymentTargets: .tvOS("26.0"),
       infoPlist: .default,
       buildableFolders: [
-        "Tests/tvOS/Sources",
+        .folder(
+          "Tests/tvOS/Sources",
+          exceptions: [.exception(excluded: ["**/__Snapshots__"])]
+        ),
         "Tests/Shared/SnapshotSupport",
         "Tests/Shared/MediaSupport",
       ],
       dependencies: [
         .target(name: "PutioTV"),
         .package(product: "PutioCore"),
+        .external(name: "SnapshotTesting"),
       ]
     ),
     .target(

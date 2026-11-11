@@ -22,7 +22,7 @@ final class ComponentGallerySnapshotTests: XCTestCase {
   #if os(iOS)
     @MainActor func testStatesPageRegularWidth() throws {
       try assertGallerySnapshot(
-        page: .states, width: SnapshotEnvironment.regularWidth, variant: "regular")
+        page: .states, width: SnapshotEnvironment.regularWidth)
     }
   #endif
 
@@ -69,7 +69,7 @@ final class ComponentGallerySnapshotTests: XCTestCase {
 
     @MainActor func testSelectionSomePageRegularWidth() throws {
       try assertGallerySnapshot(
-        page: .selectionSome, width: SnapshotEnvironment.regularWidth, variant: "regular")
+        page: .selectionSome, width: SnapshotEnvironment.regularWidth)
     }
   #endif
 
@@ -80,7 +80,7 @@ final class ComponentGallerySnapshotTests: XCTestCase {
 
     @MainActor func testSplitPageRegularWidth() throws {
       try assertGallerySnapshot(
-        page: .split, width: SnapshotEnvironment.regularWidth, variant: "regular")
+        page: .split, width: SnapshotEnvironment.regularWidth)
     }
   #endif
 
@@ -88,55 +88,16 @@ final class ComponentGallerySnapshotTests: XCTestCase {
   private func assertGallerySnapshot(
     page: PutioComponentGallery.Page,
     width: CGFloat = SnapshotEnvironment.width,
-    variant: String? = nil,
     file: StaticString = #filePath,
+    testName: String = #function,
     line: UInt = #line
   ) throws {
-    let fileManager = FileManager.default
-    let baselineName = ["gallery", page.rawValue, variant].compactMap { $0 }.joined(separator: "-")
-    let baselineURL = SnapshotEnvironment.baselineDirectory
-      .appending(path: "\(baselineName).png")
-    let rendered = try SnapshotRenderer.render(page: page, width: width)
-    let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
-
-    try SnapshotEnvironment.requireBrandFontsForBaseline()
-
-    if SnapshotEnvironment.isRecording {
-      try fileManager.createDirectory(
-        at: SnapshotEnvironment.baselineDirectory, withIntermediateDirectories: true)
-      try renderedData.write(to: baselineURL, options: .atomic)
-    }
-
-    guard fileManager.fileExists(atPath: baselineURL.path) else {
-      XCTFail(
-        "missing baseline \(baselineURL.lastPathComponent); "
-          + "run mise run harness -- test --platform \(SnapshotEnvironment.platform) "
-          + "--snapshots record",
-        file: file,
-        line: line
-      )
-      return
-    }
-
-    let baselineImage = try XCTUnwrap(
-      UIImage(data: try Data(contentsOf: baselineURL))?.cgImage,
-      "could not decode baseline \(baselineURL.lastPathComponent)"
+    try assertBaseline(
+      SnapshotRenderer.render(page: page, width: width),
+      named: SnapshotEnvironment.platform,
+      file: file,
+      testName: testName,
+      line: line
     )
-    let renderedImage = try XCTUnwrap(rendered.cgImage, "rendered snapshot has no CGImage")
-    let comparison = try SnapshotPixels(cgImage: renderedImage)
-      .matches(SnapshotPixels(cgImage: baselineImage))
-    if !comparison.matches {
-      let failureURL = SnapshotEnvironment.failureDirectory
-        .appending(path: "\(baselineName).png")
-      try? fileManager.createDirectory(
-        at: SnapshotEnvironment.failureDirectory, withIntermediateDirectories: true)
-      try? renderedData.write(to: failureURL, options: .atomic)
-      XCTFail(
-        "\(baselineName) diverged from its baseline (\(comparison.detail)); "
-          + "rendered image written to \(failureURL.path)",
-        file: file,
-        line: line
-      )
-    }
   }
 }

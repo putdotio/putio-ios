@@ -1484,7 +1484,7 @@ public struct SimulatorHarness {
     let runID = UUID().uuidString.lowercased()
     return try withSession(platform: platform, runID: runID) { session in
       var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
-      if recordSnapshots { testEnvironment["TEST_RUNNER_PUTIO_SNAPSHOT_RECORD"] = "1" }
+      testEnvironment["TEST_RUNNER_SNAPSHOT_TESTING_RECORD"] = recordSnapshots ? "failed" : "never"
       if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
       var results: [String] = []
       for suite in suites {
