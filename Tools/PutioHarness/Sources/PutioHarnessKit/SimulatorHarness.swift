@@ -2189,6 +2189,7 @@ public struct SimulatorHarness {
   }
 
   private func boot(_ identifier: String, label: String) throws {
+    try pinLocale(ofSimulator: identifier)
     _ = try runner.checked(
       "xcrun", ["simctl", "boot", identifier], context: "boot \(label) Simulator")
     let started = ContinuousClock.now
@@ -2205,12 +2206,23 @@ public struct SimulatorHarness {
           "putio-harness: \(label) Simulator boot progress\n\(bootProgressSummary(status.combinedOutput))\n"
             .utf8))
     }
-    for (key, type, value) in simulatorLocalePreferences {
-      _ = try runner.checked(
-        "xcrun",
-        ["simctl", "spawn", identifier, "defaults", "write", "-g", key, type, value],
-        context: "pin \(label) Simulator \(key)")
-    }
+  }
+
+  private func pinLocale(ofSimulator identifier: String) throws {
+    let device = fileManager.homeDirectoryForCurrentUser
+      .appending(path: "Library/Developer/CoreSimulator/Devices")
+      .appending(path: identifier)
+    guard fileManager.fileExists(atPath: device.path) else { return }
+    let preferences = device.appending(path: "data/Library/Preferences")
+    try fileManager.createDirectory(at: preferences, withIntermediateDirectories: true)
+    let file = preferences.appending(path: ".GlobalPreferences.plist")
+    var values =
+      (try? PropertyListSerialization.propertyList(from: Data(contentsOf: file), format: nil))
+      as? [String: Any] ?? [:]
+    values["AppleLocale"] = simulatorLocale
+    values["AppleLanguages"] = simulatorLanguages
+    try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
+      .write(to: file, options: .atomic)
   }
 
   private func install(platform: HarnessPlatform, session: SimulatorSession) throws {
@@ -2818,10 +2830,8 @@ func requireBoardScreenshot(
   }
 }
 
-let simulatorLocalePreferences = [
-  ("AppleLocale", "-string", "en_US"),
-  ("AppleLanguages", "-array", "en"),
-]
+let simulatorLocale = "en_US"
+let simulatorLanguages = ["en"]
 
 struct DecodedPixels {
   let width: Int
