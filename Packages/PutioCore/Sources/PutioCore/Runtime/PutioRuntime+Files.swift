@@ -40,8 +40,7 @@ extension PutioRuntime {
       folder: contents.folder,
       items: contents.items.filter { !sharedRootIDs.contains($0.id) },
       nextCursor: contents.nextCursor,
-      sort: contents.sort,
-      totalCount: contents.totalCount.map { max($0 - sharedRootIDs.count, 0) }
+      sort: contents.sort
     )
   }
 

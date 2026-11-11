@@ -233,9 +233,13 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(contents.hasMore)
   }
 
-  func testItemCountFollowsTheServerTotalThroughPagingAndAnOptimisticDelete() async throws {
+  func testItemCountKeepsTheServerTotalThroughOptimisticAndCommittedActions() async throws {
     let mutation = SuspendedFileMutation()
-    addTeardownBlock { await mutation.cancelPending() }
+    let renaming = SuspendedFileMutation()
+    addTeardownBlock {
+      await mutation.cancelPending()
+      await renaming.cancelPending()
+    }
     let first = BrowserTestFixtures.item(id: 1)
     let second = BrowserTestFixtures.item(id: 2)
     let firstPage = BrowserTestFixtures.contents(items: [first, second], hasMore: true)
@@ -245,10 +249,9 @@ final class PutioFolderModelTests: XCTestCase {
         PutioFolderContents(
           folder: firstPage.folder, items: firstPage.items, nextCursor: "next", totalCount: 3)
       },
-      continueLoad: { _ in BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: 3)]) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in try await mutation.run() }
       )
     )
@@ -264,10 +267,16 @@ final class PutioFolderModelTests: XCTestCase {
     await mutation.fail(with: PutioRuntimeError.unknown)
     await task.value
 
-    _ = await model.loadMore()
-    guard case .loaded(let complete) = model.state else { return XCTFail("Expected contents") }
-    XCTAssertFalse(complete.hasMore)
-    XCTAssertEqual(complete.itemCount, 3)
+    guard case .loaded(let restored) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(restored.itemCount, 3)
+
+    let rename = Task { await model.rename(second, to: "Renamed") }
+    try await renaming.waitUntilStarted()
+    await renaming.succeed()
+    await rename.value
+    guard case .loaded(let renamed) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(renamed.items.count, 2)
+    XCTAssertEqual(renamed.itemCount, 3)
   }
 
   func testItemCountIsUnknownWhileAPageIsMissingAndTheServerSentNoTotal() {
@@ -1104,7 +1113,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { _ in original },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1223,7 +1232,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1317,7 +1326,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1359,7 +1368,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1397,7 +1406,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1436,7 +1445,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2168,7 +2177,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { _ in renamed },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2215,7 +2224,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2250,7 +2259,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await mutation.run() },
+        renameFile: { _, _ in try await renaming.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original

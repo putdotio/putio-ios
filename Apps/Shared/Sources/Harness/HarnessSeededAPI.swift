@@ -1356,13 +1356,11 @@ import Foundation
     private static let seasonFolderSize: Int64 = 13_100_000_000
     private static let harnessFolderSize: Int64 = 1_073_741_824 + seasonFolderSize
 
-    private static var seasonFolderSeeded: Bool {
-      #if os(iOS)
-        true
-      #else
-        false
-      #endif
-    }
+    #if os(iOS)
+      private static let seasonFolderSeeded = true
+    #else
+      private static let seasonFolderSeeded = false
+    #endif
 
     private static var seasonFiles: String {
       let episodes: [(id: Int, name: String, size: Int64, day: Int, startFrom: Int)] = [

@@ -221,8 +221,8 @@ public struct PutioFolderContents: Equatable, Sendable {
   }
 
   public var itemCount: Int? {
-    guard hasMore else { return items.count }
-    return totalCount.map { max($0, items.count) }
+    guard let totalCount else { return hasMore ? nil : items.count }
+    return max(totalCount, items.count)
   }
 }
 
