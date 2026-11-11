@@ -140,7 +140,11 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
   assert.deepEqual(lanes("Apps/iOS/Sources/Files/FileRow.swift"), ["checks", "build", "ios", "proof"]);
   assert.deepEqual(lanes("Apps/tvOS/Sources/App.swift"), ["checks", "build", "tvos"]);
   assert.deepEqual(lanes("Tests/iOS/Sources/FileRowTests.swift"), ["checks", "ios"]);
-  assert.deepEqual(lanes("Tests/ComponentSnapshots/__Snapshots__/ios/gallery.png"), ["ios"]);
+  const gallery = "Tests/ComponentSnapshots/Sources/__Snapshots__/ComponentGallerySnapshotTests";
+  assert.deepEqual(lanes(`${gallery}/testFilesPage.ios.png`), ["ios"]);
+  assert.deepEqual(lanes(`${gallery}/testFilesPage.tvos.png`), ["tvos"]);
+  assert.deepEqual(lanes("Tests/iOS/Sources/Files/__Snapshots__/FilesBrowserRenderingTests/root.1.png"), ["ios"]);
+  assert.deepEqual(lanes("Tests/tvOS/Sources/__Snapshots__/TVPlaybackTests/overlay.1.png"), ["tvos"]);
   assert.deepEqual(lanes("Tests/HarnessMedia/audio/a.m4a"), ["build", "ios", "tvos", "proof"]);
   assert.deepEqual(lanes("scripts/build.sh"), ["build"]);
   for (const path of [

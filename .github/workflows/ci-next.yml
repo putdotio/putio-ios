@@ -74,7 +74,7 @@ jobs:
               - *apple
               - '!scripts/build.sh'
               - '!Tests/HarnessMedia/**'
-              - '!Tests/ComponentSnapshots/__Snapshots__/**'
+              - '!**/__Snapshots__/**'
             build:
               - *apple
               - '!scripts/{doctor,test,test-harness-interruption}.sh'
@@ -84,13 +84,13 @@ jobs:
               - '!scripts/{doctor,test,test-harness-interruption,build}.sh'
               - '!Apps/tvOS/**'
               - '!Tests/{tvOS,tvOSUITests}/**'
-              - '!Tests/ComponentSnapshots/__Snapshots__/tvos/**'
+              - '!**/__Snapshots__/**/*.tvos.png'
             tvos:
               - *apple
               - '!scripts/{doctor,test,test-harness-interruption,build}.sh'
               - '!Apps/{iOS,watchOS}/**'
               - '!Tests/{iOS,iOSUITests}/**'
-              - '!Tests/ComponentSnapshots/__Snapshots__/ios/**'
+              - '!**/__Snapshots__/**/*.ios.png'
             proof:
               - *apple
               - '!scripts/{doctor,test,test-harness-interruption,build}.sh'
