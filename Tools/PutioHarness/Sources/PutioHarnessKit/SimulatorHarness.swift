@@ -1758,7 +1758,7 @@ public struct SimulatorHarness {
       guard !group.isEmpty else { continue }
       let deviceDirectory = platformDirectory.appending(path: device.rawValue)
       try fileManager.createDirectory(at: deviceDirectory, withIntermediateDirectories: true)
-      try withSession(platform: platform, runID: runID, deviceFamily: device.deviceFamily) {
+      try withSession(platform: platform, runID: runID, device: device) {
         session in
         runtimeName = session.runtime.name
         try buildJourneyTests(platform: platform, session: session)
@@ -1871,10 +1871,10 @@ public struct SimulatorHarness {
   private func withSession<T>(
     platform: HarnessPlatform,
     runID: String,
-    deviceFamily: String? = nil,
+    device: BoardDevice? = nil,
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    let session = try createSession(platform: platform, runID: runID, deviceFamily: deviceFamily)
+    let session = try createSession(platform: platform, runID: runID, device: device)
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -1947,7 +1947,7 @@ public struct SimulatorHarness {
   }
 
   private func createSession(
-    platform: HarnessPlatform, runID: String, deviceFamily: String? = nil
+    platform: HarnessPlatform, runID: String, device: BoardDevice? = nil
   ) throws -> SimulatorSession {
     let runtimes = try availableRuntimes()
     let config = platform.configuration
@@ -1959,7 +1959,8 @@ public struct SimulatorHarness {
     guard
       let (runtime, deviceType) = selectSimulator(
         from: runtimes, platform: config.runtimePlatform,
-        family: deviceFamily ?? config.deviceFamily, sdkVersion: sdkVersion)
+        family: device?.deviceFamily ?? config.deviceFamily, sdkVersion: sdkVersion,
+        preferredDeviceType: device?.deviceType)
     else {
       throw HarnessFailure(
         "\(config.runtimePlatform) \(sdkVersion) Simulator runtime is missing; run xcodebuild -downloadPlatform \(config.runtimePlatform)"

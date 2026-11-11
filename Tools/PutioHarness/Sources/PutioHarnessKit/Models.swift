@@ -505,6 +505,13 @@ public enum BoardDevice: String, CaseIterable, Codable, Sendable {
     case .ipad: "iPad"
     }
   }
+
+  var deviceType: String {
+    switch self {
+    case .iphone: "iPhone 17 Pro"
+    case .ipad: "iPad Pro 11-inch (M5)"
+    }
+  }
 }
 
 struct BoardCapture: Equatable, Sendable {

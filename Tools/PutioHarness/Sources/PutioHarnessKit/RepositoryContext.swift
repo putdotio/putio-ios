@@ -73,12 +73,22 @@ struct RuntimeRecord: Decodable, Sendable {
 let foldableDeviceTypeIdentifier = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
 
 func selectSimulator(
-  from runtimes: [RuntimeRecord], platform: String, family: String, sdkVersion: String
+  from runtimes: [RuntimeRecord], platform: String, family: String, sdkVersion: String,
+  preferredDeviceType: String? = nil
 ) -> (runtime: RuntimeRecord, deviceType: DeviceTypeRecord)? {
-  for runtime in runtimes
-  where runtime.isAvailable && runtime.platform == platform
-    && runtimeMatchesSDK(runtime.version, sdkVersion)
-  {
+  let matching = runtimes.filter {
+    $0.isAvailable && $0.platform == platform && runtimeMatchesSDK($0.version, sdkVersion)
+  }
+  if let preferredDeviceType {
+    for runtime in matching {
+      if let deviceType = runtime.supportedDeviceTypes.first(where: {
+        $0.name == preferredDeviceType && $0.productFamily == family
+      }) {
+        return (runtime, deviceType)
+      }
+    }
+  }
+  for runtime in matching {
     if let deviceType = try? runtime.deviceType(for: family) {
       return (runtime, deviceType)
     }
