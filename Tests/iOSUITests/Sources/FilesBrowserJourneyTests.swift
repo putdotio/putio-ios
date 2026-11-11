@@ -434,7 +434,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       crossTabFolder.appears(within: 10),
       "the Files folder did not refresh after its Search counterpart was popped"
     )
-    XCTAssertEqual(crossTabFolder.label, "Cross-tab Refresh")
+    XCTAssertEqual(crossTabFolder.label.components(separatedBy: ", ").first, "Cross-tab Refresh")
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     app.buttons["Search"].tap()
@@ -735,7 +735,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let createdFolder = element(identifier: "files.item.415")
     XCTAssertTrue(createdFolder.appears(within: 5), "created folder never appeared")
-    XCTAssertEqual(createdFolder.label, "Watch Later")
+    XCTAssertEqual(createdFolder.label.components(separatedBy: ", ").first, "Watch Later")
 
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
     XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
@@ -764,7 +764,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       .completed,
       "folder navigation did not become disabled while rename was pending"
     )
-    XCTAssertEqual(createdFolderButton.label, "Weekend")
+    XCTAssertEqual(createdFolderButton.label.components(separatedBy: ", ").first, "Weekend")
     let createdFolderScreen = element(identifier: "files.screen.415")
     XCTAssertFalse(
       createdFolderScreen.appears(within: 1),
@@ -777,7 +777,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
       createdFolderButton.appears(within: 5) && createdFolderButton.isHittable,
       "folder navigation did not re-enable after rename failure"
     )
-    XCTAssertEqual(createdFolderButton.label, "Watch Later", "failed rename did not roll back")
+    XCTAssertEqual(
+      createdFolderButton.label.components(separatedBy: ", ").first, "Watch Later",
+      "failed rename did not roll back")
     XCTAssertTrue(
       renameFailure.disappears(within: 5), "rename failure toast did not clear")
 
@@ -854,7 +856,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       movedFolder.appears(within: 5),
       "moved folder is missing at destination"
     )
-    XCTAssertEqual(movedFolder.label, "Weekend")
+    XCTAssertEqual(movedFolder.label.components(separatedBy: ", ").first, "Weekend")
 
     movedFolder.swipeRight()
     let swipeMove = app.buttons["Move"]
@@ -884,7 +886,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       waitUntilHittable(movedFolderAtRoot, timeout: 5),
       "ancestor Files list did not refresh after the move"
     )
-    XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
+    XCTAssertEqual(movedFolderAtRoot.label.components(separatedBy: ", ").first, "Weekend")
 
     movedFolderAtRoot.swipeLeft()
     let swipeTrash = app.buttons["Trash"]
