@@ -399,7 +399,7 @@ struct PutioFolderScreen: View {
       HStack(alignment: .firstTextBaseline) {
         if let itemCount = contents.itemCount {
           Text("\(itemCount) items")
-            .putioFont(PutioTheme.Typography.caption)
+            .putioFont(PutioTheme.Typography.numeric)
         }
         Spacer(minLength: PutioTheme.Spacing.space2)
         Text(PutioFileRowModel.sizeText(bytes: folder.sizeBytes, locale: locale))
