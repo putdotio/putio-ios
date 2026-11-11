@@ -260,6 +260,8 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openSeasonFolder() {
+    let seasonScreen = element("files.screen.440")
+    if seasonScreen.appears(within: 5) { return }
     if !element("files.screen.410").exists { openHarnessFolder() }
     let folder = element("files.item.440")
     XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
