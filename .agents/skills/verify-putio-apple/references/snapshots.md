@@ -27,11 +27,11 @@ precision and the brand-font gate.
 - Without the brand fonts, suites render with system fallbacks and skip
   brand-baseline comparison. With `PUTIO_REQUIRE_BRAND_FONTS=1`, which CI sets
   after it installs the fonts, they fail instead.
-- Each run writes one result bundle under `build/DerivedData/Logs/Test`. `test`
-  fails unless each target in the platform's `testPlan` from
-  [HarnessPlatform.configuration](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
-  ran at least one test, and no other target ran. No test may fail, and none may
-  skip when fonts are required.
+- Each run writes one result bundle under `build/DerivedData/Logs/Test`. A
+  target added to or removed from a plan also goes in the platform's `testPlan`
+  in
+  [HarnessPlatform.configuration](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift);
+  `test` fails when the bundles that ran differ from it.
 - A failed comparison attaches `reference.png`, `failure.png`, and
   `difference.png` to that result bundle.
 - The plan sets `SNAPSHOT_TESTING_RECORD=never`, so a missing baseline fails.

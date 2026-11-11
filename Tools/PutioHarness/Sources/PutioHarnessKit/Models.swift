@@ -49,7 +49,6 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
   }
 }
 
-/// A scheme's `.xctestplan` and the test bundles each run must report.
 public struct TestPlan: Equatable, Sendable {
   public let name: String
   public let targets: [String]
