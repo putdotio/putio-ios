@@ -150,6 +150,7 @@ public struct PutioSheetScaffold<Content: View>: View {
             onCancel?()
             dismiss()
           }
+          .tint(PutioTheme.Colors.textPrimary)
           .disabled(isBusy)
           .accessibilityIdentifier("sheet.dismiss")
         }
@@ -166,6 +167,7 @@ public struct PutioSheetScaffold<Content: View>: View {
             }
           }
           .labelStyle(.iconOnly)
+          .tint(PutioTheme.Colors.textPrimary)
           .disabled(isBusy)
           .accessibilityIdentifier("sheet.trailing")
         }
