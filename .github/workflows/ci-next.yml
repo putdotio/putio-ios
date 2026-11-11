@@ -318,7 +318,7 @@ jobs:
         with:
           lane: build
 
-      - name: Build every app shell
+      - name: Build every app shell in Release
         run: ./scripts/verify.sh build
 
       - name: Save Xcode compilation cache
@@ -341,13 +341,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # The proof builds the same Debug app as the build job, so it reuses
-      # that job's compilation cache and saves none of its own.
       - name: Set up the Apple toolchain
         id: setup
         uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
         with:
-          lane: build
+          lane: proof
           simulator-template: true
 
       - name: Exercise the headless Apple harness
@@ -369,3 +367,10 @@ jobs:
         with:
           path: ~/.cache/putio-simulator-templates
           key: ${{ steps.setup.outputs.simulator-template-key }}
+
+      - name: Save Xcode compilation cache
+        if: success() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ runner.os }}-xcode-cas-proof-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}

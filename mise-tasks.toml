@@ -31,7 +31,7 @@ description = "Format-check and test the shared core"
 run = "./scripts/test.sh"
 
 [build]
-description = "Build every Apple app shell"
+description = "Build every Apple app shell in Release"
 depends = ["generate"]
 run = "./scripts/build.sh"
 
