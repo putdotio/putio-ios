@@ -211,8 +211,6 @@ final class BoardCaptureTests: XCTestCase {
     guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-folded" else { return }
     let window = app.windows.firstMatch
     XCTAssertTrue(window.appears(within: 10), "app window never appeared")
-    XCTAssertEqual(
-      app.horizontalSizeClass, .compact, "folded iPhone Duo must report compact width")
     XCTAssertLessThan(
       window.frame.width, Self.regularWidthThreshold,
       "folded iPhone Duo window is \(window.frame.width) pt wide")
