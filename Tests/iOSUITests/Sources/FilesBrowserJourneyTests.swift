@@ -1024,6 +1024,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let harnessFolderAfterBulkMove = element(identifier: "files.item.410")
     XCTAssertTrue(waitUntilHittable(harnessFolderAfterBulkMove, timeout: 5))
+    XCTAssertTrue(
+      waitUntilSettled(harnessFolderAfterBulkMove, timeout: 5),
+      "root rows kept moving after selection ended")
     harnessFolderAfterBulkMove.tap()
     XCTAssertTrue(
       element(identifier: "files.screen.410").appears(within: 5),
@@ -1245,6 +1248,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
       object: element
     )
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func waitUntilSettled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    var previous = element.frame
+    while Date() < deadline {
+      RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+      let current = element.frame
+      if current == previous { return true }
+      previous = current
+    }
+    return false
   }
 
   private func assertCurrentBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
