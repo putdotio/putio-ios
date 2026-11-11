@@ -21,7 +21,7 @@ final class ChromecastJourneyTests: XCTestCase {
     // Settings: the first save fails and is retried. The receiver app ID is
     // build configuration, not a user setting, so it is not shown.
     app.buttons["Account"].tap()
-    let entry = element("account.chromecast")
+    let entry = app.revealed("account.chromecast")
     XCTAssertTrue(entry.appears(within: 5))
     entry.tap()
     let playbackType = element("cast-settings.playback-type")

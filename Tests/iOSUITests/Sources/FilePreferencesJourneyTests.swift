@@ -26,9 +26,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
     openPreferences()
     let sort = element("settings.default-sort")
     let initialSort = sort.label
-    XCTAssertEqual(initialSort, "Default sort, Name, ascending")
+    XCTAssertEqual(initialSort, "Default sort order, Name, ascending")
     sort.tap()
-    let descending = element("settings.sort.NAME_DESC")
+    let descending = app.buttons["Name, descending"].firstMatch
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
     let retrySave = app.buttons["settings.retry-save"]
@@ -44,12 +44,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(refresh.disappears(within: 10))
     XCTAssertTrue(waitUntilHittable(sort))
     let savedSort = sort.label
-    XCTAssertEqual(savedSort, "Default sort, Name, descending")
+    XCTAssertEqual(savedSort, "Default sort order, Name, descending")
 
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
-    let reset = app.buttons["settings.reset-sort"]
+    let reset = app.revealed("settings.reset-sort")
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
     let resetConfirm = app.buttons["settings.reset-sort-confirm"].firstMatch
@@ -76,7 +76,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(trashConfirm.appears(within: 5))
     cancelConfirmation(trashConfirm)
     assertToggle(trash, enabled: true)
-    XCTAssertTrue(waitUntilHittable(history))
+    XCTAssertTrue(waitUntilHittable(app.revealed("settings.history")))
     tapToggle(history)
     XCTAssertTrue(historyConfirm.appears(within: 5))
     cancelConfirmation(historyConfirm)
@@ -94,6 +94,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(history, enabled: true)
     XCTAssertTrue(app.buttons["History"].appears(within: 5))
 
+    reveal(trash)
     tapToggle(trash)
     assertToggle(trash, enabled: true)
     // Trash is managed from Account › Storage only.
@@ -107,7 +108,6 @@ final class FilePreferencesJourneyTests: XCTestCase {
     // product analytics starts off, and both survive the relaunch below.
     let diagnostics = app.switches["privacy.diagnostics"]
     let analytics = app.switches["privacy.product-analytics"]
-    app.navigationBars.buttons["BackButton"].tap()
     assertPrivacySummary("Diagnostics on · Product analytics off")
     openPrivacy()
     XCTAssertTrue(element("privacy.strictly-necessary").exists)
@@ -130,8 +130,8 @@ final class FilePreferencesJourneyTests: XCTestCase {
     openPreferences()
     XCTAssertEqual(sort.label, savedSort)
     assertToggle(trash, enabled: false)
+    _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
-    app.navigationBars.buttons["BackButton"].tap()
     assertPrivacySummary("Diagnostics off · Product analytics on")
     openPrivacy()
     assertToggle(diagnostics, enabled: false)
@@ -159,23 +159,26 @@ final class FilePreferencesJourneyTests: XCTestCase {
 
   private func openPreferences() {
     app.buttons["Account"].tap()
-    let sort = element("settings.default-sort")
-    if sort.exists && sort.isHittable { return }
-    let entry = element("account.file-preferences")
-    XCTAssertTrue(waitUntilHittable(entry))
-    entry.tap()
-    XCTAssertTrue(waitUntilHittable(sort))
+    XCTAssertTrue(waitUntilHittable(app.revealed("settings.default-sort")))
+  }
+
+  private func reveal(_ element: XCUIElement) {
+    var swipes = 0
+    while !element.isHittable, swipes < 6 {
+      app.swipeDown()
+      swipes += 1
+    }
   }
 
   private func openPrivacy() {
-    let entry = element("account.privacy")
+    let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
     entry.tap()
     XCTAssertTrue(waitUntilHittable(app.switches["privacy.diagnostics"]))
   }
 
   private func assertPrivacySummary(_ summary: String) {
-    let entry = element("account.privacy")
+    let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
     XCTAssertTrue(entry.label.contains(summary), "Account row read \(entry.label)")
   }

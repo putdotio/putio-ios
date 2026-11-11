@@ -255,6 +255,17 @@
         }
       }
     },
+    "App info" : {
+      "comment" : "android: mobile_settings_about",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App info"
+          }
+        }
+      }
+    },
     "Are you sure to permanently delete those files?" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -625,17 +636,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connected to %@"
-          }
-        }
-      }
-    },
-    "Connection" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection"
           }
         }
       }
@@ -1036,13 +1036,13 @@
         }
       }
     },
-    "Default sort" : {
-      "comment" : "android: mobile_settings_default_sort | differs: shorter iOS row label",
+    "Default sort order" : {
+      "comment" : "android: mobile_settings_default_sort",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Default sort"
+            "value" : "Default sort order"
           }
         }
       }
@@ -1224,17 +1224,6 @@
         }
       }
     },
-    "Devices" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Devices"
-          }
-        }
-      }
-    },
     "Disable" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -1264,17 +1253,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disconnect"
-          }
-        }
-      }
-    },
-    "Do not select subtitles by default" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Do not select subtitles by default"
           }
         }
       }
@@ -1396,17 +1374,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Each unused code signs you in once if you lose your authenticator app."
-          }
-        }
-      }
-    },
-    "Email" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Email"
           }
         }
       }
@@ -1609,17 +1576,6 @@
         }
       }
     },
-    "File preferences" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File preferences"
-          }
-        }
-      }
-    },
     "Files" : {
       "comment" : "android: mobile_destination_files",
       "localizations" : {
@@ -1693,17 +1649,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Folder created"
-          }
-        }
-      }
-    },
-    "Folders use the default sort unless you choose a different order inside them." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Folders use the default sort unless you choose a different order inside them."
           }
         }
       }
@@ -1940,13 +1885,13 @@
         }
       }
     },
-    "Keep account events in History. Turning this off clears existing history." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+    "Keep account history" : {
+      "comment" : "android: mobile_settings_history",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep account events in History. Turning this off clears existing history."
+            "value" : "Keep account history"
           }
         }
       }
@@ -1962,6 +1907,17 @@
         }
       }
     },
+    "Library" : {
+      "comment" : "android: mobile_settings_section_library",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library"
+          }
+        }
+      }
+    },
     "Link" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -1969,6 +1925,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Link"
+          }
+        }
+      }
+    },
+    "Link a device" : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link a device"
           }
         }
       }
@@ -2182,13 +2149,13 @@
         }
       }
     },
-    "Manage your trash" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
+    "Logged-in apps" : {
+      "comment" : "ios-only: Android shows logged-in apps without a settings row string",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage your trash"
+            "value" : "Logged-in apps"
           }
         }
       }
@@ -2266,6 +2233,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move"
+          }
+        }
+      }
+    },
+    "Move deleted files to trash" : {
+      "comment" : "android: mobile_settings_trash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move deleted files to trash"
           }
         }
       }
@@ -2410,28 +2388,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Next track"
-          }
-        }
-      }
-    },
-    "Next video" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next video"
-          }
-        }
-      }
-    },
-    "Next video suggestions are turned off in your put.io account settings." : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next video suggestions are turned off in your put.io account settings."
           }
         }
       }
@@ -2645,6 +2601,17 @@
         }
       }
     },
+    "On" : {
+      "comment" : "ios-only: two-factor state value on the iOS Account list",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        }
+      }
+    },
     "One last step" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2685,6 +2652,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open link"
+          }
+        }
+      }
+    },
+    "Open source licenses" : {
+      "comment" : "android: mobile_settings_open_source_licenses",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open source licenses"
           }
         }
       }
@@ -2799,6 +2777,17 @@
         }
       }
     },
+    "Pick matching subtitles" : {
+      "comment" : "android: mobile_settings_auto_select_subtitles",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick matching subtitles"
+          }
+        }
+      }
+    },
     "Play" : {
       "comment" : "android: mobile_now_playing_play",
       "localizations" : {
@@ -2843,6 +2832,17 @@
         }
       }
     },
+    "Playback" : {
+      "comment" : "android: mobile_settings_section_playback",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback"
+          }
+        }
+      }
+    },
     "Playback failed, open to retry" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
       "localizations" : {
@@ -2872,17 +2872,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback position"
-          }
-        }
-      }
-    },
-    "Playback preferences" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback preferences"
           }
         }
       }
@@ -3015,6 +3004,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preparing…"
+          }
+        }
+      }
+    },
+    "Privacy" : {
+      "comment" : "android: mobile_settings_section_privacy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
           }
         }
       }
@@ -3404,13 +3404,13 @@
         }
       }
     },
-    "Reset folder sorts" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+    "Reset all sort settings" : {
+      "comment" : "ios-only: Android has no reset-sorts row; iOS board wording",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset folder sorts"
+            "value" : "Reset all sort settings"
           }
         }
       }
@@ -3532,17 +3532,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RSS paused because its source could not be reached"
-          }
-        }
-      }
-    },
-    "Save History" : {
-      "comment" : "android: mobile_settings_history | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save History"
           }
         }
       }
@@ -3778,6 +3767,17 @@
         }
       }
     },
+    "Sign out" : {
+      "comment" : "android: mobile_account_sign_out",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        }
+      }
+    },
     "Sign-in" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -3987,17 +3987,6 @@
         }
       }
     },
-    "Support" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Support"
-          }
-        }
-      }
-    },
     "Swipe an app to revoke its access. This app keeps its own sign-in." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -4071,17 +4060,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The file could not be inspected. Try again."
-          }
-        }
-      }
-    },
-    "The next video is suggested when one ends. With autoplay on, it starts after a short countdown." : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The next video is suggested when one ends. With autoplay on, it starts after a short countdown."
           }
         }
       }
@@ -4537,17 +4515,6 @@
         }
       }
     },
-    "Use Trash" : {
-      "comment" : "android: mobile_settings_trash | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use Trash"
-          }
-        }
-      }
-    },
     "Used" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -4566,17 +4533,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used recovery code"
-          }
-        }
-      }
-    },
-    "Username" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Username"
           }
         }
       }
@@ -4603,17 +4559,6 @@
         }
       }
     },
-    "Video" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Video"
-          }
-        }
-      }
-    },
     "Video conversion progress" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -4632,17 +4577,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video ready"
-          }
-        }
-      }
-    },
-    "Videos play in landscape and stay there until you close them." : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Videos play in landscape and stay there until you close them."
           }
         }
       }
@@ -4753,17 +4687,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What to clear"
-          }
-        }
-      }
-    },
-    "When Trash is off, deleted files cannot be restored." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When Trash is off, deleted files cannot be restored."
           }
         }
       }

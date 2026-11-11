@@ -601,6 +601,12 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
+      BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
+      BoardCapture(
+        "rd-ios-acc-03-account-middle", .iphone, "testAccountPlayback", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-22-account-security", .iphone, "testAccountSecurity", screenBase: false),
+      BoardCapture("rd-ios-acc-04-account-end", .iphone, "testAccountEnd", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]

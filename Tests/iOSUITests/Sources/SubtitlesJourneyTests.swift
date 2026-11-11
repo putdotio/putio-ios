@@ -82,8 +82,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
     element("video.done").tap()
 
-    // "Do not select subtitles by default": the tracks stay offered, none is on.
-    setPlaybackToggle("playback-settings.subtitle-selection", to: "1", retryingSeededFailure: true)
+    // "Pick matching subtitles" off: the tracks stay offered, none is on.
+    setPlaybackToggle("playback-settings.subtitle-selection", to: "0", retryingSeededFailure: true)
     openVideo(retryingSeededFailure: false)
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
@@ -158,15 +158,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     _ identifier: String, to value: String, retryingSeededFailure: Bool
   ) {
     app.buttons["Account"].tap()
-    let entry = element("account.playback-preferences")
-    if entry.appears(within: 5) { entry.tap() }
+    _ = app.revealed(identifier)
     let toggle = app.switches[identifier]
     XCTAssertTrue(
       waitFor(NSPredicate(format: "hittable == true AND enabled == true"), toggle, timeout: 10))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     if retryingSeededFailure {
-      let retry = app.buttons["playback-settings.retry-save"]
+      let retry = app.revealed("settings.retry-save")
       XCTAssertTrue(retry.appears(within: 10))
       retry.tap()
     }
