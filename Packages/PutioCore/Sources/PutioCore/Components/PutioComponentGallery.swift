@@ -37,7 +37,8 @@ public struct PutioComponentGallery: View {
       switch self {
       case .files: GalleryLayout.filesViewportHeight
       case .forms: GalleryLayout.formsViewportHeight
-      case .buttons, .transfers, .states, .feedback: nil
+      case .states: GalleryLayout.statesViewportHeight
+      case .buttons, .transfers, .feedback: nil
       }
     }
   }
@@ -668,6 +669,7 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.TV.Spacing.xxl * 5
     static let filesViewportHeight = PutioTheme.TV.Spacing.xxl * 8
     static let formsViewportHeight = containerViewportHeight
+    static let statesViewportHeight: CGFloat? = nil
     static let sheetPreviewBackground = Color.clear
   #else
     static let titleFont = PutioTheme.Typography.heading
@@ -680,6 +682,7 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     static let formsViewportHeight = PutioTheme.Spacing.space6 * 14
+    static let statesViewportHeight: CGFloat? = PutioTheme.Spacing.space6 * 20
     // The scaffold previews inside a scroll page rather than a real sheet,
     // so give it the surface a system sheet would provide.
     static let sheetPreviewBackground = PutioTheme.Colors.surface
