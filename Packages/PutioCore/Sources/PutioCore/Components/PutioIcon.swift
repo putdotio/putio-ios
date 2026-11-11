@@ -17,6 +17,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case fileVideo = "file-video-regular"
   case fileVideoFill = "file-video-fill"
   case folderFill = "folder-fill"
+  case folderSimplePlus = "folder-simple-plus-regular"
   case image = "image-regular"
   case imageFill = "image-fill"
   case info = "info-regular"
@@ -26,6 +27,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case trash = "trash-regular"
   case userCircle = "user-circle-regular"
   case warningCircle = "warning-circle-regular"
+  case wifiSlash = "wifi-slash-regular"
   case xCircle = "x-circle-regular"
 }
 

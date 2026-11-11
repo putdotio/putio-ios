@@ -122,6 +122,17 @@
         }
       }
     },
+    "Completed transfers and shared files will appear here." : {
+      "comment" : "android: mobile_history_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Completed transfers and shared files will appear here."
+          }
+        }
+      }
+    },
     "Continue from %@" : {
       "comment" : "android: playback_resume_title | differs: iOS board wording",
       "localizations" : {
@@ -221,6 +232,17 @@
         }
       }
     },
+    "Could not load Trash" : {
+      "comment" : "ios-only: no Android string for the shared trash errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load Trash"
+          }
+        }
+      }
+    },
     "Could not load files" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -250,17 +272,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not load playback settings. Try again."
-          }
-        }
-      }
-    },
-    "Could not load Trash" : {
-      "comment" : "ios-only: no Android string for the shared trash errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not load Trash"
           }
         }
       }
@@ -342,17 +353,6 @@
         }
       }
     },
-    "Could not refresh account settings. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account settings errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not refresh account settings. Try again."
-          }
-        }
-      }
-    },
     "Could not refresh Trash" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -360,6 +360,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not refresh Trash"
+          }
+        }
+      }
+    },
+    "Could not refresh account settings. Try again." : {
+      "comment" : "ios-only: no Android string for the shared account settings errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not refresh account settings. Try again."
           }
         }
       }
@@ -386,6 +397,17 @@
         }
       }
     },
+    "Could not restore Trash" : {
+      "comment" : "ios-only: no Android string for the shared trash errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not restore Trash"
+          }
+        }
+      }
+    },
     "Could not restore item" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -404,17 +426,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not restore items"
-          }
-        }
-      }
-    },
-    "Could not restore Trash" : {
-      "comment" : "ios-only: no Android string for the shared trash errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not restore Trash"
           }
         }
       }
@@ -463,6 +474,28 @@
         }
       }
     },
+    "Couldn’t load more files." : {
+      "comment" : "android: mobile_files_paging_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load more files."
+          }
+        }
+      }
+    },
+    "Couldn’t load this" : {
+      "comment" : "android: mobile_state_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load this"
+          }
+        }
+      }
+    },
     "Couldn’t save this setting" : {
       "comment" : "android: mobile_settings_save_error",
       "localizations" : {
@@ -481,6 +514,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Crash reports, error details, and limited playback diagnostics, so we can fix problems."
+          }
+        }
+      }
+    },
+    "Create folder" : {
+      "comment" : "android: mobile_files_new_folder | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create folder"
           }
         }
       }
@@ -795,6 +839,28 @@
         }
       }
     },
+    "Loading files" : {
+      "comment" : "android: mobile_files_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading files"
+          }
+        }
+      }
+    },
+    "Maybe you’d like to create a new folder?" : {
+      "comment" : "android: mobile_files_empty_message | differs: iOS board wording, as on web",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maybe you’d like to create a new folder?"
+          }
+        }
+      }
+    },
     "Move %lld items to Trash?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -907,6 +973,28 @@
         }
       }
     },
+    "No files whatsoever!" : {
+      "comment" : "android: mobile_files_empty_title | differs: iOS board wording, as on web",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No files whatsoever!"
+          }
+        }
+      }
+    },
+    "No history yet" : {
+      "comment" : "android: mobile_history_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No history yet"
+          }
+        }
+      }
+    },
     "No longer on this iPhone" : {
       "comment" : "android: mobile_files_download_missing | differs: iOS board wording",
       "localizations" : {
@@ -925,6 +1013,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No sign-in is in progress."
+          }
+        }
+      }
+    },
+    "Offline. Showing what’s on this iPhone." : {
+      "comment" : "android: mobile_files_offline_banner | differs: iOS board names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline. Showing what’s on this iPhone."
           }
         }
       }
@@ -995,94 +1094,6 @@
         }
       }
     },
-    "put.io could not complete the request. Try again." : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not complete the request. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not find what this action needs. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not find what this action needs. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not prepare this video. Try again." : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not prepare this video. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not revoke your session. Check your connection and try again." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not revoke your session. Check your connection and try again."
-          }
-        }
-      }
-    },
-    "put.io did not return an activation code. Try again." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io did not return an activation code. Try again."
-          }
-        }
-      }
-    },
-    "put.io is receiving too many requests. Try again shortly." : {
-      "comment" : "android: mobile_state_error_rate_limited",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io is receiving too many requests. Try again shortly."
-          }
-        }
-      }
-    },
-    "put.io is unreachable. Check your connection and try again." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io is unreachable. Check your connection and try again."
-          }
-        }
-      }
-    },
-    "put.io returned an invalid response. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account settings errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io returned an invalid response. Try again."
-          }
-        }
-      }
-    },
     "Queued · #%lld in line" : {
       "comment" : "android: mobile_downloads_status_queued_position",
       "localizations" : {
@@ -1090,6 +1101,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Queued · #%lld in line"
+          }
+        }
+      }
+    },
+    "RSS feeds" : {
+      "comment" : "ios-only: no Android string for the shared account data categories",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RSS feeds"
+          }
+        }
+      }
+    },
+    "RSS logs" : {
+      "comment" : "ios-only: no Android string for the shared account data categories",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RSS logs"
           }
         }
       }
@@ -1134,28 +1167,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retry download"
-          }
-        }
-      }
-    },
-    "RSS feeds" : {
-      "comment" : "ios-only: no Android string for the shared account data categories",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RSS feeds"
-          }
-        }
-      }
-    },
-    "RSS logs" : {
-      "comment" : "ios-only: no Android string for the shared account data categories",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RSS logs"
           }
         }
       }
@@ -1468,6 +1479,17 @@
         }
       }
     },
+    "Try again" : {
+      "comment" : "android: mobile_action_retry",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      }
+    },
     "Try signing out again" : {
       "comment" : "ios-only: no Android string for the shared session errors",
       "localizations" : {
@@ -1622,6 +1644,17 @@
         }
       }
     },
+    "Your connection dropped, or we did. Retrying on its own." : {
+      "comment" : "android: mobile_files_offline_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your connection dropped, or we did. Retrying on its own."
+          }
+        }
+      }
+    },
     "Your recovery codes could not be loaded. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
       "localizations" : {
@@ -1629,6 +1662,105 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your recovery codes could not be loaded. Try again."
+          }
+        }
+      }
+    },
+    "put.io could not complete the request. Try again." : {
+      "comment" : "ios-only: no Android string for the shared file actions and sorting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io could not complete the request. Try again."
+          }
+        }
+      }
+    },
+    "put.io could not find what this action needs. Try again." : {
+      "comment" : "ios-only: no Android string for the shared account security errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io could not find what this action needs. Try again."
+          }
+        }
+      }
+    },
+    "put.io could not prepare this video. Try again." : {
+      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io could not prepare this video. Try again."
+          }
+        }
+      }
+    },
+    "put.io could not revoke your session. Check your connection and try again." : {
+      "comment" : "ios-only: no Android string for the shared session errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io could not revoke your session. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "put.io did not return an activation code. Try again." : {
+      "comment" : "ios-only: no Android string for the shared session errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io did not return an activation code. Try again."
+          }
+        }
+      }
+    },
+    "put.io is out of reach" : {
+      "comment" : "android: mobile_files_offline_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io is out of reach"
+          }
+        }
+      }
+    },
+    "put.io is receiving too many requests. Try again shortly." : {
+      "comment" : "android: mobile_state_error_rate_limited",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io is receiving too many requests. Try again shortly."
+          }
+        }
+      }
+    },
+    "put.io is unreachable. Check your connection and try again." : {
+      "comment" : "ios-only: no Android string for the shared session errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io is unreachable. Check your connection and try again."
+          }
+        }
+      }
+    },
+    "put.io returned an invalid response. Try again." : {
+      "comment" : "ios-only: no Android string for the shared account settings errors",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io returned an invalid response. Try again."
           }
         }
       }
