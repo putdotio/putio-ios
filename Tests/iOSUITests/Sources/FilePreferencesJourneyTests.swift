@@ -26,9 +26,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
     openPreferences()
     let sort = element("settings.default-sort")
     let initialSort = sort.label
-    XCTAssertEqual(initialSort, "Default sort order, Name, ascending")
+    XCTAssertEqual(initialSort, "Default sort order, Name, A to Z")
     sort.tap()
-    let descending = app.buttons["Name, descending"].firstMatch
+    let descending = app.buttons["Name, Z to A"].firstMatch
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
     let retrySave = app.buttons["settings.retry-save"]
@@ -44,7 +44,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(refresh.disappears(within: 10))
     XCTAssertTrue(waitUntilHittable(sort))
     let savedSort = sort.label
-    XCTAssertEqual(savedSort, "Default sort order, Name, descending")
+    XCTAssertEqual(savedSort, "Default sort order, Name, Z to A")
 
     app.showTabBar()
     app.buttons["Files"].tap()

@@ -1036,6 +1036,50 @@
         }
       }
     },
+    "Date added, newest first" : {
+      "comment" : "android: mobile_files_sort_date_added_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date added, newest first"
+          }
+        }
+      }
+    },
+    "Date added, oldest first" : {
+      "comment" : "android: mobile_files_sort_date_added_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date added, oldest first"
+          }
+        }
+      }
+    },
+    "Date modified, newest first" : {
+      "comment" : "android: mobile_files_sort_date_modified_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date modified, newest first"
+          }
+        }
+      }
+    },
+    "Date modified, oldest first" : {
+      "comment" : "android: mobile_files_sort_date_modified_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date modified, oldest first"
+          }
+        }
+      }
+    },
     "Default sort order" : {
       "comment" : "android: mobile_settings_default_sort",
       "localizations" : {
@@ -2344,6 +2388,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name"
+          }
+        }
+      }
+    },
+    "Name, A to Z" : {
+      "comment" : "android: mobile_files_sort_name_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, A to Z"
+          }
+        }
+      }
+    },
+    "Name, Z to A" : {
+      "comment" : "android: mobile_files_sort_name_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, Z to A"
           }
         }
       }
@@ -3844,6 +3910,28 @@
         }
       }
     },
+    "Size, largest first" : {
+      "comment" : "android: mobile_files_sort_size_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size, largest first"
+          }
+        }
+      }
+    },
+    "Size, smallest first" : {
+      "comment" : "android: mobile_files_sort_size_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size, smallest first"
+          }
+        }
+      }
+    },
     "Some items couldn’t be moved" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
       "localizations" : {
@@ -4383,6 +4471,28 @@
         }
       }
     },
+    "Type, A to Z" : {
+      "comment" : "android: mobile_files_sort_type_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type, A to Z"
+          }
+        }
+      }
+    },
+    "Type, Z to A" : {
+      "comment" : "android: mobile_files_sort_type_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type, Z to A"
+          }
+        }
+      }
+    },
     "Unknown" : {
       "comment" : "android: playback_subtitle_unknown",
       "localizations" : {
@@ -4401,6 +4511,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unsupported file"
+          }
+        }
+      }
+    },
+    "Unwatched first" : {
+      "comment" : "android: mobile_files_sort_watch_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unwatched first"
           }
         }
       }
@@ -4643,6 +4764,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting to convert"
+          }
+        }
+      }
+    },
+    "Watched first" : {
+      "comment" : "android: mobile_files_sort_watch_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watched first"
           }
         }
       }

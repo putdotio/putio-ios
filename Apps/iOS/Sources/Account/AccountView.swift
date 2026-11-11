@@ -213,7 +213,7 @@ struct AccountView: View {
         selection: defaultSort,
         options: sortOptions
       ) { sort in
-        sort?.title ?? String(localized: "Current server setting")
+        sort?.accountValue ?? String(localized: "Current server setting")
       }
       .disabled(settingsLocked)
       .accessibilityIdentifier("settings.default-sort")
@@ -508,6 +508,25 @@ private enum AccountSettingConfirmation {
           "Existing history will be cleared and new account events will no longer be saved.")
     case .resetSort:
       String(localized: "Every folder will use your account's default sort.")
+    }
+  }
+}
+
+extension PutioFolderSort {
+  fileprivate var accountValue: String {
+    switch self {
+    case .nameAscending: String(localized: "Name, A to Z")
+    case .nameDescending: String(localized: "Name, Z to A")
+    case .sizeAscending: String(localized: "Size, smallest first")
+    case .sizeDescending: String(localized: "Size, largest first")
+    case .dateAddedAscending: String(localized: "Date added, oldest first")
+    case .dateAddedDescending: String(localized: "Date added, newest first")
+    case .dateModifiedAscending: String(localized: "Date modified, oldest first")
+    case .dateModifiedDescending: String(localized: "Date modified, newest first")
+    case .typeAscending: String(localized: "Type, A to Z")
+    case .typeDescending: String(localized: "Type, Z to A")
+    case .watchStatusAscending: String(localized: "Unwatched first")
+    case .watchStatusDescending: String(localized: "Watched first")
     }
   }
 }
