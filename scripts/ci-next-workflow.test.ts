@@ -66,16 +66,22 @@ test("next CI admits rollout PR bases without broadening push", async () => {
   assert.deepEqual(Object.keys(jobs), ["changes", "tooling", "app-store", "checks", "tvos", "ios", "build", "proof"]);
 });
 
-type GitHubContext = Readonly<{ event_name: string; ref: string; run_id: string }>;
+type GitHubContext = Readonly<{
+  event_name: string;
+  ref: string;
+  run_id: string;
+  event: { pull_request?: { number: number } };
+}>;
 
 // Covers the expression subset concurrency settings use (`github.*`, quoted
-// strings, `==`, `!=`, `&&`, `||`, `!`), which GitHub and JavaScript evaluate
-// alike for these values.
+// strings, `==`, `!=`, `&&`, `||`, `!`). Property access is null-safe, as in
+// GitHub expressions.
 const evaluate = (value: unknown, github: GitHubContext): unknown => {
   if (typeof value !== "string") return value;
   const run = (expression: string): unknown => {
     assert.match(expression, /^[\w.\s'=!&|]+$/, `unsupported expression: ${expression}`);
-    return new Function("github", `return (${expression});`)(github) as unknown;
+    const nullSafe = expression.replace(/(\w)\.(?=\w)/g, "$1?.");
+    return new Function("github", `return (${nullSafe});`)(github) as unknown;
   };
   const whole = /^\$\{\{([^}]*)\}\}$/.exec(value);
   if (whole) return run(whole[1] ?? "");
@@ -89,9 +95,10 @@ test("next CI cancels a stale pull request run but never a push to next", async 
     group: evaluate(concurrency.group, github),
     cancelInProgress: evaluate(concurrency["cancel-in-progress"], github),
   });
-  const push = (runId: string) => settle({ event_name: "push", ref: "refs/heads/next", run_id: runId });
-  const pullRequest = (runId: string) =>
-    settle({ event_name: "pull_request", ref: "refs/pull/7/merge", run_id: runId });
+  const push = (runId: string) =>
+    settle({ event_name: "push", ref: "refs/heads/next", run_id: runId, event: {} });
+  const pullRequest = (runId: string, ref = "refs/pull/7/merge") =>
+    settle({ event_name: "pull_request", ref, run_id: runId, event: { pull_request: { number: 7 } } });
 
   // A shared group would let a later push cancel, or replace while queued, an
   // earlier one, so that merged commit would get no result of its own.
@@ -99,6 +106,7 @@ test("next CI cancels a stale pull request run but never a push to next", async 
   assert.notEqual(push("1").group, pullRequest("2").group);
   assert.equal(pullRequest("3").group, pullRequest("4").group);
   assert.equal(pullRequest("4").cancelInProgress, true);
+  assert.equal(pullRequest("5", "refs/heads/next").group, pullRequest("3").group, "merging cancels the open run");
 });
 
 const laneFilters = async (): Promise<Map<string, readonly string[]>> => {
