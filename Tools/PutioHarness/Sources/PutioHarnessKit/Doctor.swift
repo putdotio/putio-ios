@@ -15,9 +15,9 @@ public struct HarnessDoctor: Sendable {
     checks.append(
       toolCheck(
         "xcodebuild", required: true,
-        recovery: "install Xcode 26.x or 27.x and select it with DEVELOPER_DIR"))
+        recovery: "install the Xcode in .xcode-version and select it with DEVELOPER_DIR"))
     checks.append(toolCheck("xcrun", required: true, recovery: "install Xcode command-line tools"))
-    checks.append(toolCheck("swift", required: true, recovery: "install Xcode 26.x or 27.x"))
+    checks.append(toolCheck("swift", required: true, recovery: "install the Xcode in .xcode-version"))
     checks.append(toolCheck("tuist", required: true, recovery: "run mise install"))
     checks.append(toolCheck("git", required: true, recovery: "install Xcode command-line tools"))
     checks.append(
@@ -63,12 +63,14 @@ public struct HarnessDoctor: Sendable {
     do {
       let output = try runner.checked("xcodebuild", ["-version"], context: "read Xcode version")
       let firstLine = output.stdout.split(separator: "\n").first.map(String.init) ?? "unknown"
-      guard firstLine.hasPrefix("Xcode 26.") || firstLine.hasPrefix("Xcode 27.") else {
+      let required = try context.requiredXcodeVersion()
+      guard xcodeVersionMatches(firstLine, required: required) else {
         return DoctorCheck(
           name: "xcode-version",
           status: .failed,
           required: true,
-          detail: "expected Xcode 26.x or 27.x, found \(firstLine); select Xcode with DEVELOPER_DIR"
+          detail:
+            "expected Xcode \(required), found \(firstLine); select Xcode \(required) with DEVELOPER_DIR"
         )
       }
       return DoctorCheck(name: "xcode-version", status: .ok, required: true, detail: firstLine)
@@ -131,16 +133,15 @@ public struct HarnessDoctor: Sendable {
             ["-version", "-sdk", config.sdk, "ProductVersion"],
             context: "read \(config.sdk) version"
           ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-          if let runtime = runtimes.first(where: {
-            $0.isAvailable && $0.platform == config.runtimePlatform
-              && runtimeMatchesSDK($0.version, sdkVersion)
-          }) {
-            let device = try runtime.deviceType(for: config.deviceFamily)
+          if let selection = selectSimulator(
+            from: runtimes, platform: config.runtimePlatform, family: config.deviceFamily,
+            sdkVersion: sdkVersion)
+          {
             return DoctorCheck(
               name: "\(platform.rawValue)-runtime",
               status: .ok,
               required: true,
-              detail: "\(runtime.name) — \(device.name)"
+              detail: "\(selection.runtime.name) — \(selection.deviceType.name)"
             )
           }
           return DoctorCheck(
@@ -158,7 +159,7 @@ public struct HarnessDoctor: Sendable {
             detail: String(describing: error)
           )
         }
-      }
+      } + [foldableDeviceCheck(runtimes)]
     } catch {
       return [
         DoctorCheck(
@@ -169,6 +170,20 @@ public struct HarnessDoctor: Sendable {
         )
       ]
     }
+  }
+
+  private func foldableDeviceCheck(_ runtimes: [RuntimeRecord]) -> DoctorCheck {
+    if let runtime = runtimes.first(where: { $0.isAvailable && $0.supportsFoldableDevice }) {
+      return DoctorCheck(
+        name: "iphone-duo", status: .ok, required: true, detail: "\(runtime.name) — iPhone Duo")
+    }
+    return DoctorCheck(
+      name: "iphone-duo",
+      status: .failed,
+      required: true,
+      detail:
+        "no iOS 27.1 or later runtime offers the iPhone Duo device type; install it from Xcode > Settings > Components"
+    )
   }
 
   private func workspaceCheck() -> DoctorCheck {

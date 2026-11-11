@@ -29,6 +29,14 @@ public struct RepositoryContext: Sendable {
       "repository root not found; run from putio-ios or one of its subdirectories")
   }
 
+  func requiredXcodeVersion() throws -> String {
+    let file = root.appending(path: ".xcode-version")
+    let version = try String(contentsOf: file, encoding: .utf8)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !version.isEmpty else { throw HarnessFailure(".xcode-version is empty") }
+    return version
+  }
+
   func relativePath(for url: URL) -> String {
     let rootPrefix = root.standardizedFileURL.path + "/"
     let path = url.standardizedFileURL.path
@@ -46,11 +54,46 @@ struct RuntimeRecord: Decodable, Sendable {
   let supportedDeviceTypes: [DeviceTypeRecord]
 
   func deviceType(for family: String) throws -> DeviceTypeRecord {
-    guard let device = supportedDeviceTypes.first(where: { $0.productFamily == family }) else {
+    guard
+      let device = supportedDeviceTypes.first(where: {
+        $0.productFamily == family && $0.identifier != foldableDeviceTypeIdentifier
+      })
+    else {
       throw HarnessFailure("\(name) has no compatible \(family) Simulator device type")
     }
     return device
   }
+
+  var supportsFoldableDevice: Bool {
+    platform == "iOS" && versionAtLeast(version, major: 27, minor: 1)
+      && supportedDeviceTypes.contains { $0.identifier == foldableDeviceTypeIdentifier }
+  }
+}
+
+let foldableDeviceTypeIdentifier = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo"
+
+func selectSimulator(
+  from runtimes: [RuntimeRecord], platform: String, family: String, sdkVersion: String
+) -> (runtime: RuntimeRecord, deviceType: DeviceTypeRecord)? {
+  for runtime in runtimes
+  where runtime.isAvailable && runtime.platform == platform
+    && runtimeMatchesSDK(runtime.version, sdkVersion)
+  {
+    if let deviceType = try? runtime.deviceType(for: family) {
+      return (runtime, deviceType)
+    }
+  }
+  return nil
+}
+
+func versionAtLeast(_ version: String, major: Int, minor: Int) -> Bool {
+  let components = version.split(separator: ".").compactMap { Int($0) }
+  let actual = (components.first ?? 0, components.dropFirst().first ?? 0)
+  return actual >= (major, minor)
+}
+
+func xcodeVersionMatches(_ versionLine: String, required: String) -> Bool {
+  versionLine == "Xcode \(required)" || versionLine.hasPrefix("Xcode \(required).")
 }
 
 struct RuntimeList: Decodable, Sendable {

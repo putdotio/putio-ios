@@ -209,6 +209,37 @@ import Testing
   }
 }
 
+@Test func simulatorSelectionSkipsTheFoldableOnlyRuntime() throws {
+  let catalog = #"""
+    {"runtimes":[
+      {"name":"iOS 27.2","identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4",
+       "version":"27.2","platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPhone Duo","identifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-Duo",
+          "productFamily":"iPhone"}]},
+      {"name":"iOS 27.2","identifier":"com.apple.CoreSimulator.SimRuntime.iOS-27-2",
+       "version":"27.2","platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPhone 18 Pro","identifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro",
+          "productFamily":"iPhone"}]}
+    ]}
+    """#
+  let runtimes = try JSONDecoder().decode(RuntimeList.self, from: Data(catalog.utf8)).runtimes
+  let selection = try #require(
+    selectSimulator(from: runtimes, platform: "iOS", family: "iPhone", sdkVersion: "27.2"))
+
+  #expect(selection.runtime.identifier == "com.apple.CoreSimulator.SimRuntime.iOS-27-2")
+  #expect(selection.deviceType.name == "iPhone 18 Pro")
+  #expect(runtimes[0].supportsFoldableDevice)
+  #expect(!runtimes[1].supportsFoldableDevice)
+}
+
+@Test func xcodeVersionMatchesOnlyThePinnedRelease() {
+  #expect(xcodeVersionMatches("Xcode 27.2", required: "27.2"))
+  #expect(xcodeVersionMatches("Xcode 27.2.1", required: "27.2"))
+  #expect(!xcodeVersionMatches("Xcode 27.1", required: "27.2"))
+  #expect(!xcodeVersionMatches("Xcode 27.20", required: "27.2"))
+  #expect(!xcodeVersionMatches("Xcode 26.6", required: "27.2"))
+}
+
 @Test func simulatorDeviceSelectionRejectsAnEmptySupportedCatalog() {
   let runtime = RuntimeRecord(
     name: "iOS 27.0", identifier: "ios-27-0", version: "27.0", platform: "iOS",

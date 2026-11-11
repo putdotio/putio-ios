@@ -178,7 +178,7 @@ jobs:
     name: Checks
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:
@@ -197,7 +197,7 @@ jobs:
     name: tvOS tests
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.tvos == 'true' }}
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:
@@ -234,7 +234,7 @@ jobs:
     name: iOS tests
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:
@@ -290,7 +290,7 @@ jobs:
     name: Builds
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:
@@ -318,7 +318,7 @@ jobs:
     name: iOS proof
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 30
 
     steps:

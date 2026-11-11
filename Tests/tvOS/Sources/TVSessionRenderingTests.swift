@@ -53,12 +53,8 @@ final class TVSessionRenderingTests: XCTestCase {
   /// account offers the refresh recovery.
   @MainActor
   func testAccountWithDependentRowsHiddenAndStaleSettingsMatchesBaseline() throws {
-    // tvOS 26 draws disabled card rows without a platter; tvOS 27 keeps it.
-    // The default baseline comes from CI's tvOS 26 toolchain.
-    var name = "tv-account-stale"
-    if #available(tvOS 27.0, *) { name += "-tvos27" }
     _ = try assertRenderingSnapshot(
-      name: name,
+      name: "tv-account-stale",
       view: NavigationStack {
         TVAccountScreen(
           account: Self.account(hideSubtitles: true, trashEnabled: false),

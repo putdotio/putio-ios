@@ -2,11 +2,10 @@
 
 ## Setup
 
-Install Xcode 26.x or 27.x with its matching iOS, watchOS, and tvOS Simulator
-runtimes, plus [mise](https://mise.jdx.dev). The
-[CI setup action](.github/actions/setup-apple/action.yml) pins the CI version.
-The local doctor checks runtimes and compatible device types against the
-selected Xcode.
+Install the Xcode named in [.xcode-version](.xcode-version) with its matching
+iOS, watchOS, and tvOS Simulator runtimes and the iPhone Duo runtime, plus
+[mise](https://mise.jdx.dev). CI and the local doctor both read that file; the
+doctor also checks runtimes and device types against the selected Xcode.
 
 ```bash
 mise install

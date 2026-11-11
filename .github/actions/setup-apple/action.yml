@@ -19,10 +19,15 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Select Xcode 26.6
+    - name: Read the Xcode version
+      id: xcode
+      shell: bash
+      run: echo "version=$(tr -d '[:space:]' < .xcode-version)" >> "$GITHUB_OUTPUT"
+
+    - name: Select Xcode ${{ steps.xcode.outputs.version }}
       uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
       with:
-        xcode-version: "26.6"
+        xcode-version: ${{ steps.xcode.outputs.version }}
 
     - name: Install the pinned toolchain
       uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
