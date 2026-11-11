@@ -409,6 +409,17 @@
         }
       }
     },
+    "Can’t show this file here." : {
+      "comment" : "android: mobile_viewer_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t show this file here."
+          }
+        }
+      }
+    },
     "Cast" : {
       "comment" : "android: mobile_cast",
       "localizations" : {
@@ -735,28 +746,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not delete originals"
-          }
-        }
-      }
-    },
-    "Could not display document" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not display document"
-          }
-        }
-      }
-    },
-    "Could not display image" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not display image"
           }
         }
       }
@@ -1286,17 +1275,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Document"
-          }
-        }
-      }
-    },
-    "Document too large to preview" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Document too large to preview"
           }
         }
       }
@@ -1859,17 +1837,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Image"
-          }
-        }
-      }
-    },
-    "Image too large to preview" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Image too large to preview"
           }
         }
       }
@@ -2690,7 +2657,7 @@
       }
     },
     "Open it on put.io from a browser instead." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
+      "comment" : "ios-only: Android mobile_viewer_failed has no detail line; the iOS cannot-show state adds one",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3103,28 +3070,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io could not prepare this file. Try again."
-          }
-        }
-      }
-    },
-    "put.io for iOS can’t display %@ files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io for iOS can’t display %@ files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
-          }
-        }
-      }
-    },
-    "put.io for iOS can’t display this type of file yet. You can move, rename, or delete it from Files, or open it on put.io from a browser." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io for iOS can’t display this type of file yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
           }
         }
       }
@@ -4086,17 +4031,6 @@
         }
       }
     },
-    "The document could not be read. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The document could not be read. Try again."
-          }
-        }
-      }
-    },
     "The download could not finish. Try again." : {
       "comment" : "android: mobile_downloads_status_failed_unexpected | differs: iOS board wording",
       "localizations" : {
@@ -4115,17 +4049,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The file could not be inspected. Try again."
-          }
-        }
-      }
-    },
-    "The image could not be read. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The image could not be read. Try again."
           }
         }
       }
@@ -4478,17 +4401,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unsupported file"
-          }
-        }
-      }
-    },
-    "Unsupported file type" : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsupported file type"
           }
         }
       }

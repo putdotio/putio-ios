@@ -59,11 +59,10 @@ struct MainTabView: View {
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
-  @State private var presentedPreviewRoute: PutioPreviewRoute?
+  @State private var presentedPreviewRoute: PutioViewerRoute?
   #if DEBUG
     @State private var harnessPreviewRequests = HarnessPreviewRequests()
   #endif
-  @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
   @State private var offlineQueueHolder: PutioOfflineQueueHolder
   private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
@@ -223,10 +222,6 @@ struct MainTabView: View {
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
-    .sheet(item: $presentedUnsupportedRoute) { route in
-      PutioUnsupportedFileView(route: route, onDismiss: { presentedUnsupportedRoute = nil })
-        .preferredColorScheme(.dark)
-    }
     .sheet(item: $trackPicker) { request in
       PutioOfflineTrackPickerView(
         name: request.route.item.name, inventory: request.inventory,
@@ -280,7 +275,6 @@ struct MainTabView: View {
       dismissPresentedVideo()
       audioPlayback.isPresented = false
       presentedPreviewRoute = nil
-      presentedUnsupportedRoute = nil
       trackPicker = nil
       switch destination {
       case .files(let path, let file):
@@ -358,10 +352,8 @@ struct MainTabView: View {
       }
     case .audio(let audioRoute):
       presentAudio(audioRoute)
-    case .preview(let previewRoute):
-      presentedPreviewRoute = previewRoute
-    case .unsupported(let unsupportedRoute):
-      presentedUnsupportedRoute = unsupportedRoute
+    case .preview, .unsupported:
+      presentedPreviewRoute = PutioViewerRoute(opening: route.openAction)
     }
   }
 

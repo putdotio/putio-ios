@@ -33,18 +33,50 @@ final class FilePreviewTests: XCTestCase {
     }
   }
 
-  func testUnsupportedTypeNamesReadNaturally() {
-    XCTAssertEqual(PutioUnsupportedFileView.typeName(for: .other("ARCHIVE")), "archive")
-    XCTAssertEqual(PutioUnsupportedFileView.typeName(for: .other("DISK_IMAGE")), "disk image")
-    XCTAssertNil(PutioUnsupportedFileView.typeName(for: .other("")))
-    XCTAssertNil(PutioUnsupportedFileView.typeName(for: .other("  ")))
+  func testPreviewsOverTheSizeCapCannotBeShown() {
+    let cap = PutioPreviewRoute.maximumBytes
+    for kind in [PutioFileKind.image, .pdf] {
+      let atCap = PutioFileRoute(item: BrowserTestFixtures.item(id: 1, kind: kind, sizeBytes: cap))
+      guard case .preview = PutioViewerRoute(opening: atCap.openAction) else {
+        return XCTFail("\(kind) at the cap")
+      }
+      let over = PutioFileRoute(
+        item: BrowserTestFixtures.item(id: 2, kind: kind, sizeBytes: cap + 1))
+      guard case .preview = over.openAction else { return XCTFail("\(kind) lost its type") }
+      XCTAssertEqual(
+        PutioViewerRoute(opening: over.openAction),
+        .cannotShow(id: over.id, title: over.item.name))
+    }
+  }
+
+  func testCannotShowRoutesNeverStartADownload() async {
+    let archive = BrowserTestFixtures.item(id: 3, kind: .other("ARCHIVE"))
+    let oversized = BrowserTestFixtures.item(
+      id: 4, kind: .image, sizeBytes: PutioPreviewRoute.maximumBytes + 1)
+    for item in [archive, oversized] {
+      guard let route = PutioViewerRoute(opening: PutioFileRoute(item: item).openAction),
+        case .cannotShow = route
+      else {
+        return XCTFail("\(item.kind) opened a preview")
+      }
+      var downloads = 0
+      let model = PutioPreviewModel(route: route) { _ in
+        downloads += 1
+        return Self.pngData()
+      }
+      XCTAssertEqual(model.state, .failed(.cannotShow))
+      await model.load()
+      await model.retry()
+      XCTAssertEqual(model.state, .failed(.cannotShow))
+      XCTAssertEqual(downloads, 0)
+    }
   }
 
   func testImagePreviewDecodesRetriesAndReportsUnreadableData() async throws {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 5), parentID: .root, title: "Poster.png", kind: .image)
     var attempts = 0
-    let model = PutioPreviewModel(route: route) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _ in
       attempts += 1
       switch attempts {
       case 1: throw PutioRuntimeError.transient
@@ -55,7 +87,7 @@ final class FilePreviewTests: XCTestCase {
     await model.load()
     XCTAssertEqual(model.state, .failed(.loadFailed))
     await model.retry()
-    XCTAssertEqual(model.state, .failed(.unreadable))
+    XCTAssertEqual(model.state, .failed(.cannotShow))
     await model.retry()
     guard case .image(let image) = model.state else { return XCTFail("\(model.state)") }
     XCTAssertEqual(image.size.width * image.scale, 2)
@@ -66,17 +98,19 @@ final class FilePreviewTests: XCTestCase {
   func testDocumentPreviewRequiresAtLeastOnePageAndShowsNotFoundAsLoadFailed() async throws {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 6), parentID: .root, title: "Doc.pdf", kind: .pdf)
-    let notFound = PutioPreviewModel(route: route) { _ in throw PutioRuntimeError.notFound }
+    let notFound = PutioPreviewModel(route: .preview(route)) { _ in
+      throw PutioRuntimeError.notFound
+    }
     await notFound.load()
     XCTAssertEqual(notFound.state, .failed(.loadFailed))
 
-    let empty = PutioPreviewModel(route: route) { _ in Data("%PDF-1.4".utf8) }
+    let empty = PutioPreviewModel(route: .preview(route)) { _ in Data("%PDF-1.4".utf8) }
     await empty.load()
-    XCTAssertEqual(empty.state, .failed(.unreadable))
+    XCTAssertEqual(empty.state, .failed(.cannotShow))
 
     let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 100, height: 100))
     let data = renderer.pdfData { context in context.beginPage() }
-    let loaded = PutioPreviewModel(route: route) { _ in data }
+    let loaded = PutioPreviewModel(route: .preview(route)) { _ in data }
     await loaded.load()
     guard case .document(let document) = loaded.state else { return XCTFail("\(loaded.state)") }
     XCTAssertEqual(document.pageCount, 1)
@@ -85,9 +119,11 @@ final class FilePreviewTests: XCTestCase {
   func testOversizedPreviewsAreRejectedBeforeDecoding() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 8), parentID: .root, title: "Huge.png", kind: .image)
-    let model = PutioPreviewModel(route: route) { _ in throw PutioPreviewTooLargeError() }
+    let model = PutioPreviewModel(route: .preview(route)) { _ in
+      throw PutioPreviewTooLargeError()
+    }
     await model.load()
-    XCTAssertEqual(model.state, .failed(.tooLarge))
+    XCTAssertEqual(model.state, .failed(.cannotShow))
   }
 
   func testReloadCancelsTheInFlightDownload() async {
@@ -96,7 +132,7 @@ final class FilePreviewTests: XCTestCase {
     let started = expectation(description: "first download started")
     let cancelled = expectation(description: "first download observed cancellation")
     var attempts = 0
-    let model = PutioPreviewModel(route: route) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _ in
       attempts += 1
       if attempts == 1 {
         started.fulfill()
@@ -123,7 +159,9 @@ final class FilePreviewTests: XCTestCase {
   func testSessionLossLeavesThePreviewLoadingForTheSignedOutShell() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 7), parentID: .root, title: "Poster.png", kind: .image)
-    let model = PutioPreviewModel(route: route) { _ in throw PutioRuntimeError.sessionExpired }
+    let model = PutioPreviewModel(route: .preview(route)) { _ in
+      throw PutioRuntimeError.sessionExpired
+    }
     await model.load()
     XCTAssertEqual(model.state, .loading)
   }

@@ -128,6 +128,19 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-08-error")
   }
 
+  func testPreviewCannotShow() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.429")
+    XCTAssertTrue(row.exists, "the disk image row never appeared")
+    row.tap()
+    XCTAssertTrue(
+      element("preview.cannot-show").appears(within: 10), "the disk image has no cannot-show state")
+    try captureBoard("rd-ios-pv-05-unsupported")
+  }
+
   private func openLongPreview() {
     reachFilesRoot()
     let row = element("files.item.428")

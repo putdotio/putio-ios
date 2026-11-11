@@ -595,6 +595,7 @@ enum BoardCaptureContract {
         "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
+      BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
@@ -827,7 +828,7 @@ enum BrowserJourneyContract {
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
-        "runtime-preview-document", "runtime-preview-unsupported", "runtime-vlc-missing",
+        "runtime-preview-document", "runtime-preview-cannot-show", "runtime-vlc-missing",
       ],
       timeAllowance: 150),
     JourneyPreflight(
