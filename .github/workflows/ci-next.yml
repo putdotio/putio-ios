@@ -241,7 +241,6 @@ jobs:
           name: test-results-tvos-attempt-${{ github.run_attempt }}
           path: |
             build/DerivedData/Logs/Test/*.xcresult
-            build/snapshot-failures/
           if-no-files-found: ignore
           retention-days: 5
 
@@ -299,7 +298,6 @@ jobs:
           name: test-results-ios-attempt-${{ github.run_attempt }}
           path: |
             build/DerivedData/Logs/Test/*.xcresult
-            build/snapshot-failures/
           if-no-files-found: ignore
           retention-days: 5
 

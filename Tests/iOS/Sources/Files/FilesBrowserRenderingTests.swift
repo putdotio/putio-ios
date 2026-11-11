@@ -1,3 +1,4 @@
+import SnapshotTesting
 import SwiftUI
 import UIKit
 import XCTest
@@ -155,8 +156,6 @@ final class FilesBrowserRenderingTests: XCTestCase {
 
     XCTAssertEqual(defaultImage.size, viewport)
     XCTAssertEqual(accessibilityImage.size, viewport)
-    let defaultPixels = try SnapshotPixels(cgImage: XCTUnwrap(defaultImage.cgImage))
-    let accessibilityPixels = try SnapshotPixels(cgImage: XCTUnwrap(accessibilityImage.cgImage))
-    XCTAssertFalse(defaultPixels.matches(accessibilityPixels).matches)
+    XCTAssertNotNil(SnapshotRenderer.comparison.diffing.diffV2(defaultImage, accessibilityImage))
   }
 }
