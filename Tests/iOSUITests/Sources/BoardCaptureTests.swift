@@ -63,14 +63,26 @@ final class BoardCaptureTests: XCTestCase {
     add(data)
   }
 
-  private static func oriented(_ image: UIImage, toMatch size: CGSize) -> UIImage {
+  private static func oriented(_ screen: UIImage, toMatch size: CGSize) -> UIImage {
+    let upright = UIGraphicsImageRenderer(size: screen.size, format: rendererFormat(screen)).image {
+      _ in screen.draw(in: CGRect(origin: .zero, size: screen.size))
+    }
+    return rotated(upright, toMatch: size)
+  }
+
+  private static func rendererFormat(_ image: UIImage) -> UIGraphicsImageRendererFormat {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = image.scale
+    return format
+  }
+
+  private static func rotated(_ image: UIImage, toMatch size: CGSize) -> UIImage {
     let landscapeImage = image.size.width > image.size.height
     guard landscapeImage != (size.width > size.height) else { return image }
     let clockwise = XCUIDevice.shared.orientation == .landscapeRight
-    let format = UIGraphicsImageRendererFormat()
-    format.scale = image.scale
     let rotated = CGSize(width: image.size.height, height: image.size.width)
-    return UIGraphicsImageRenderer(size: rotated, format: format).image { context in
+    return UIGraphicsImageRenderer(size: rotated, format: rendererFormat(image)).image {
+      context in
       let cg = context.cgContext
       cg.translateBy(x: rotated.width / 2, y: rotated.height / 2)
       cg.rotate(by: clockwise ? .pi / 2 : -.pi / 2)
