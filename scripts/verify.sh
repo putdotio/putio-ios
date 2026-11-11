@@ -7,18 +7,7 @@ cd "$repo_root"
 # Lanes run in order; CI runs them on separate runners. Lanes share
 # build/DerivedData, so never run two verify invocations in one worktree.
 lanes=("$@")
-if [[ ${#lanes[@]} -eq 0 ]]; then
-  lanes=(tooling checks build ios tvos)
-elif [[ "${lanes[0]}" == "--affected" ]]; then
-  affected="$(node scripts/affected-lanes.ts "${lanes[@]:1}")"
-  read -r -a selected <<<"$affected"
-  lanes=()
-  for lane in tooling checks build ios tvos; do
-    [[ " ${selected[*]:-} " == *" $lane "* ]] && lanes+=("$lane")
-  done
-  printf 'verify: affected lanes: %s\n' "${lanes[*]:-none}"
-  [[ ${#lanes[@]} -eq 0 ]] && exit 0
-fi
+[[ ${#lanes[@]} -eq 0 ]] && lanes=(tooling checks build ios tvos)
 for lane in "${lanes[@]}"; do
   case "$lane" in
     tooling | checks | build | ios | tvos) ;;

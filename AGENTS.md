@@ -48,8 +48,7 @@ session, API, and feature logic belong in `Packages/PutioCore`.
 ## Verification and completion
 
 `mise run verify` is the full gate; pass lanes (`tooling`, `checks`, `build`,
-`ios`, `tvos`) to run a subset in order, or `--affected` for the lanes your
-changes reach. Code changes pass the lanes they affect plus
+`ios`, `tvos`) to run a subset in order. Code changes pass the lanes they affect plus
 the focused proof below; runtime changes also exercise the affected shell
 through the [verify-putio-apple][verify] skill. Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.

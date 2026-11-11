@@ -32,49 +32,78 @@ jobs:
     name: Select affected lanes
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # scripts/affected-lanes.ts maps changed paths to lanes for CI and for
-    # `mise run verify --affected`; unlisted paths select every lane. Pushes to
-    # next and dispatches with `verify` select every lane. This job also checks
-    # Markdown links and scans each pushed range; a link or scan failure fails
-    # this job without skipping the lanes, which use `!cancelled()`. Only pushes
-    # save compilation caches and Simulator templates.
+    permissions:
+      contents: read
+      pull-requests: read
+    # Pushes to next verify everything. Pull requests skip a lane when every
+    # changed path is excluded from its filter; unlisted paths count for every
+    # lane. Tooling runs on every pull request and push. This job also checks
+    # Markdown links and scans each pushed range. A link or scan failure fails
+    # this job without skipping the lanes, which use `!cancelled()`. A dispatch
+    # runs only this job unless `verify` is set; only pushes save compilation
+    # caches and Simulator templates.
     outputs:
-      tooling: ${{ steps.lanes.outputs.tooling }}
-      store: ${{ steps.lanes.outputs.store }}
-      checks: ${{ steps.lanes.outputs.checks }}
-      build: ${{ steps.lanes.outputs.build }}
-      ios: ${{ steps.lanes.outputs.ios }}
-      tvos: ${{ steps.lanes.outputs.tvos }}
-      proof: ${{ steps.lanes.outputs.proof }}
+      tooling: ${{ github.event_name != 'workflow_dispatch' || inputs.verify }}
+      store: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.store == 'true' }}
+      checks: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.checks == 'true' }}
+      build: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.build == 'true' }}
+      ios: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.ios == 'true' }}
+      tvos: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.tvos == 'true' }}
+      proof: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.proof == 'true' }}
     steps:
+      - name: Classify changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: every
+          filters: |
+            apple: &apple
+              - '**'
+              - '!**/*.md'
+              - '!{docs,.agents,.claude,.github/ISSUE_TEMPLATE,Tests/Formal}/**'
+              - '!{LICENSE,skills-lock.json,renovate.json,.worktreeinclude,.periphery.yml,.oxfmtrc.json,tsconfig.json,mise-tasks.toml}'
+              - '!scripts/{bootstrap,dead-code,open,xcode-skills,install-asc}.sh'
+              - '!scripts/{app-store,string-catalog,generate-design-tokens,formal-session}*.ts'
+              - '!scripts/*.test.ts'
+              - '!Config/AndroidStrings.json'
+            checks:
+              - *apple
+              - '!scripts/{build,harness-ci}.sh'
+              - '!Tests/HarnessMedia/**'
+              - '!Tests/ComponentSnapshots/__Snapshots__/**'
+            build:
+              - *apple
+              - '!scripts/{doctor,test,test-harness-interruption,harness-ci}.sh'
+              - '!Tests/{iOS,iOSUITests,tvOS,tvOSUITests,ComponentSnapshots,Shared}/**'
+            ios:
+              - *apple
+              - '!scripts/{doctor,test,test-harness-interruption,build,harness-ci}.sh'
+              - '!Apps/tvOS/**'
+              - '!Tests/{tvOS,tvOSUITests}/**'
+              - '!Tests/ComponentSnapshots/__Snapshots__/tvos/**'
+            tvos:
+              - *apple
+              - '!scripts/{doctor,test,test-harness-interruption,build,harness-ci}.sh'
+              - '!Apps/{iOS,watchOS}/**'
+              - '!Tests/{iOS,iOSUITests}/**'
+              - '!Tests/ComponentSnapshots/__Snapshots__/ios/**'
+            proof:
+              - *apple
+              - '!scripts/{doctor,test,test-harness-interruption,build}.sh'
+              - '!Apps/tvOS/**'
+              - '!Tests/{iOS,iOSUITests,tvOS,tvOSUITests,ComponentSnapshots,Shared}/**'
+            # One pattern: predicate-quantifier every would require a file to
+            # match every entry in a list.
+            store:
+              - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
+
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
-
-      - name: Install Node.js
-        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
-        with:
-          version: "2026.11.5"
-          install_args: node
-
-      - name: Select affected lanes
-        id: lanes
-        env:
-          SELECT_ALL: ${{ github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.verify) }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [[ "$SELECT_ALL" == true ]]; then
-            node scripts/affected-lanes.ts --all --github-output
-          elif [[ "$EVENT_NAME" == pull_request ]]; then
-            node scripts/affected-lanes.ts --base HEAD^1 --head HEAD --github-output
-          else
-            printf '%s=false\n' tooling store checks build ios tvos proof >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Check Markdown links
-        if: ${{ !cancelled() }}
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
 
       - name: Scan secrets and workflows
@@ -172,7 +201,7 @@ jobs:
         uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
 
       - name: Verify checks
-        run: mise run verify checks
+        run: ./scripts/verify.sh checks
 
   tvos:
     name: tvOS tests
@@ -193,7 +222,7 @@ jobs:
           lane: tvos
 
       - name: Verify tvOS snapshots and features
-        run: mise run verify tvos
+        run: ./scripts/verify.sh tvos
 
       - name: Save Xcode compilation cache
         if: success() && github.event_name == 'push'
@@ -234,7 +263,7 @@ jobs:
           simulator-template: true
 
       - name: Verify iOS snapshots and features
-        run: mise run verify ios
+        run: ./scripts/verify.sh ios
 
       - name: Stage a new iOS Simulator template
         if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
@@ -290,7 +319,7 @@ jobs:
           lane: build
 
       - name: Build every app shell
-        run: mise run verify build
+        run: ./scripts/verify.sh build
 
       - name: Save Xcode compilation cache
         if: success() && github.event_name == 'push'
@@ -322,7 +351,7 @@ jobs:
           simulator-template: true
 
       - name: Exercise the headless Apple harness
-        run: mise run harness-ci
+        run: ./scripts/harness-ci.sh
 
       - name: Stage a new iOS Simulator template
         if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'

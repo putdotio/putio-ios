@@ -114,11 +114,9 @@ mise run verify
 The [verification script](scripts/verify.sh) owns the full gate: TypeScript
 tooling, [package checks](scripts/test.sh), app builds, and iOS/tvOS native
 suites. Pass lanes to run a subset in order: `mise run verify checks tvos`; the
-lanes are `tooling`, `checks`, `build`, `ios`, and `tvos`.
-`mise run verify --affected` runs only the lanes your changes since `origin/next`
-reach; [affected-lanes.ts](scripts/affected-lanes.ts) owns that map for CI and
-local runs, and an unlisted path selects every lane. Keep generation and
-verification secret-free.
+lanes are `tooling`, `checks`, `build`, `ios`, and `tvos`. Tasks live in
+[mise-tasks.toml](mise-tasks.toml); CI calls the scripts directly, so a task-only
+change skips the macOS lanes. Keep generation and verification secret-free.
 
 The `tooling` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
 fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips each upstream skill in
