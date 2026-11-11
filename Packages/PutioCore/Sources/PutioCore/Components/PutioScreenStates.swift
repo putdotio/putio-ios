@@ -466,12 +466,16 @@ enum PutioScreenStateLayout {
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let messageFont = PutioTheme.Typography.body
-    static let kaomojiFont = PutioFontRole(
-      fontName: PutioTheme.Typography.mono.fontName,
-      size: PutioTheme.Typography.sizeXl,
-      lineHeight: PutioTheme.Typography.mono.lineHeight,
-      textStyle: .title
-    )
+    #if os(iOS) || os(watchOS)
+      static let kaomojiFont = PutioFontRole(
+        fontName: PutioTheme.Typography.mono.fontName,
+        size: PutioTheme.Typography.sizeXl,
+        lineHeight: PutioTheme.Typography.mono.lineHeight,
+        textStyle: .title
+      )
+    #else
+      static let kaomojiFont = PutioTheme.Typography.heading
+    #endif
     static let contentGap = PutioTheme.Spacing.space3
     static let spinnerTint = PutioTheme.Colors.textSecondary
     static let actionSize = PutioButtonSize.regular
