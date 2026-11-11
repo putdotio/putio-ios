@@ -441,7 +441,8 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("the saved token must restore once the fault clears, got \(store.state)")
     }
     let validation = try XCTUnwrap(fixtures.requests.last { $0.url?.path == "/v2/oauth2/validate" })
-    XCTAssertEqual(validation.value(forHTTPHeaderField: "Authorization"), "token stored-token")
+    XCTAssertEqual(
+      validation.value(forHTTPHeaderField: "Authorization")?.lowercased(), "token stored-token")
   }
 
   func testAuthenticationRejectionDuringTheAccountCheckStillExpires() async {

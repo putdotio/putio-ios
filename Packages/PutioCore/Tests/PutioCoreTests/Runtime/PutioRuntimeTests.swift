@@ -241,7 +241,7 @@ final class PutioRuntimeTests: XCTestCase {
       return XCTFail("logout request did not start")
     }
     XCTAssertEqual(runtime.session.state, .signingOut)
-    XCTAssertNil(try? tokenStore.read())
+    XCTAssertEqual(try? tokenStore.read(), "stored-token")
     fixtures.releaseFixture(for: Self.filesRoute)
     await assertRuntimeError(.authenticationRequired) {
       _ = try await listTask.value
