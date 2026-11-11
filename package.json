@@ -15,7 +15,7 @@
   "devDependencies": {
     "@putdotio/design": "4.0.1",
     "@types/node": "26.6.6",
-    "oxfmt": "0.77.0",
+    "oxfmt": "0.78.0",
     "typescript": "7.0.2",
     "yaml": "2.9.1"
   },
