@@ -558,7 +558,7 @@ enum BoardCaptureContract {
 
   static let galleryPages = [
     "buttons", "files", "states", "feedback", "forms", "sheets", "shell", "menus", "text-alert",
-    "confirm-alert",
+    "confirm-alert", "selection-none", "selection-some", "selection-all",
   ]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {
@@ -736,6 +736,10 @@ enum BrowserJourneyContract {
       "text-alert-retry",
       "ItemActionsGalleryTests/testTextAlertFailureClosesAndTryAgainResendsTheSameName",
       attachmentNames: ["text-alert-failure-toast"]),
+    JourneyPreflight(
+      "selection-mode",
+      "SelectionGalleryTests/testSelectionHeaderAndBarReplaceTheTabBarUntilClosed",
+      attachmentNames: ["selection-mode-some", "selection-mode-all"], timeAllowance: 90),
     JourneyPreflight(
       "shell-tabs", "ShellJourneyTests/testEveryTabKeepsTheOpenFolder",
       attachmentNames: ["shell-folder-open"]),

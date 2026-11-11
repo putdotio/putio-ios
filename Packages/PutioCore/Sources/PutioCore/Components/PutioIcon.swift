@@ -6,6 +6,8 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case arrowCounterClockwise = "arrow-counter-clockwise-regular"
   case caretRight = "caret-right-regular"
   case checkCircle = "check-circle-regular"
+  case checkCircleFill = "check-circle-fill"
+  case circle = "circle-regular"
   case clockCounterClockwise = "clock-counter-clockwise-regular"
   case clockCountdown = "clock-countdown-regular"
   case dotsThree = "dots-three-regular"
@@ -38,6 +40,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case userCircle = "user-circle-regular"
   case warningCircle = "warning-circle-regular"
   case wifiSlash = "wifi-slash-regular"
+  case x = "x-regular"
   case xCircle = "x-circle-regular"
 }
 

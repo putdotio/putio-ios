@@ -16,6 +16,9 @@ public struct PutioComponentGallery: View {
       case menus
       case textAlert = "text-alert"
       case confirmAlert = "confirm-alert"
+      case selectionNone = "selection-none"
+      case selectionSome = "selection-some"
+      case selectionAll = "selection-all"
     #endif
 
     public static let launchArgument = "--putio-harness-gallery-page"
@@ -41,6 +44,7 @@ public struct PutioComponentGallery: View {
         case .menus: "Menus and swipe actions"
         case .textAlert: "Text alert"
         case .confirmAlert: "Confirm alert"
+        case .selectionNone, .selectionSome, .selectionAll: "Selection"
       #endif
       }
     }
@@ -55,9 +59,21 @@ public struct PutioComponentGallery: View {
       #if os(iOS)
         case .shell: nil
         case .menus, .textAlert, .confirmAlert: GalleryLayout.actionsViewportHeight
+        case .selectionNone, .selectionSome, .selectionAll: GalleryLayout.filesViewportHeight
       #endif
       }
     }
+
+    #if os(iOS)
+      var initialSelection: SelectionGallery.Initial? {
+        switch self {
+        case .selectionNone: SelectionGallery.Initial.none
+        case .selectionSome: .some
+        case .selectionAll: .all
+        default: nil
+        }
+      }
+    #endif
   }
 
   private let page: Page
@@ -141,6 +157,8 @@ struct GalleryPageView: View {
           TextAlertGallery(presentsOnAppear: presentsOnAppear)
         case .confirmAlert:
           ConfirmAlertGallery(presentsOnAppear: presentsOnAppear)
+        case .selectionNone, .selectionSome, .selectionAll:
+          SelectionGallery(initial: page.initialSelection ?? .none)
       #endif
       case .buttons, .transfers, .states, .feedback, .sheets:
         ScrollView {
@@ -169,7 +187,8 @@ struct GalleryPageView: View {
     case .sheets: SheetsPage()
     case .files, .forms: EmptyView()
     #if os(iOS)
-      case .shell, .menus, .textAlert, .confirmAlert: EmptyView()
+      case .shell, .menus, .textAlert, .confirmAlert, .selectionNone, .selectionSome, .selectionAll:
+        EmptyView()
     #endif
     }
   }
@@ -388,6 +407,146 @@ private struct ButtonsPage: View {
       .onAppear {
         if presentsOnAppear {
           alert = GalleryFixtures.deletePermanentlyAlert(log: log)
+        }
+      }
+    }
+  }
+
+  struct SelectionGallery: View {
+    enum Initial {
+      case none
+      case some
+      case all
+    }
+
+    private enum GalleryTab: Hashable {
+      case files
+      case downloads
+    }
+
+    @State private var tab = GalleryTab.files
+    @State private var selection: PutioSelection<Int>
+
+    init(initial: Initial) {
+      let ids = GalleryFixtures.selectionRows.indices
+      let selected: Set<Int> =
+        switch initial {
+        case .none: []
+        case .some: GalleryFixtures.selectionSomeSelected
+        case .all: Set(ids)
+        }
+      _selection = State(initialValue: PutioSelection(isActive: true, selectedIDs: selected))
+    }
+
+    var body: some View {
+      TabView(selection: $tab) {
+        Tab(value: GalleryTab.files) {
+          NavigationSplitView {
+            SelectionGalleryList(selection: $selection)
+          } detail: {
+            PutioEmptyStateView(title: "No file selected", message: "Tap a file to see it here.")
+              .putioContentBackground()
+          }
+        } label: {
+          Label {
+            Text(verbatim: "Files")
+          } icon: {
+            Image(putioIcon: .folderFill)
+          }
+        }
+        Tab(value: GalleryTab.downloads) {
+          PutioEmptyStateView(title: "No downloads")
+            .putioContentBackground()
+        } label: {
+          Label {
+            Text(verbatim: "Downloads")
+          } icon: {
+            Image(putioIcon: .arrowCircleDown)
+          }
+        }
+      }
+      .tabViewStyle(.sidebarAdaptable)
+    }
+  }
+
+  private struct SelectionGalleryList: View {
+    @Binding var selection: PutioSelection<Int>
+    @State private var reportedAction = "none"
+
+    private var ids: [Int] { Array(GalleryFixtures.selectionRows.indices) }
+
+    var body: some View {
+      List {
+        Section {
+          ForEach(Array(GalleryFixtures.selectionRows.enumerated()), id: \.offset) { index, model in
+            row(index: index, model: model)
+              .accessibilityIdentifier("gallery.selection.row.\(index)")
+          }
+        } header: {
+          Text(verbatim: "Last action: \(reportedAction)")
+            .putioFont(GalleryLayout.captionFont)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .textCase(nil)
+            .accessibilityIdentifier("gallery.selection.reported-action")
+        }
+      }
+      .listStyle(.plain)
+      .putioContentBackground()
+      .refreshable {}
+      .navigationTitle(selection.isActive ? "" : PutioComponentGallery.Page.selectionSome.title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        if !selection.isActive {
+          ToolbarItem(placement: .topBarTrailing) {
+            Button {
+              selection.begin()
+            } label: {
+              Text(verbatim: "Select")
+            }
+            .accessibilityIdentifier("gallery.selection.select")
+          }
+        }
+      }
+      .putioSelectionMode($selection, among: ids, actions: actions)
+    }
+
+    @ViewBuilder private func row(index: Int, model: PutioFileRowModel) -> some View {
+      if selection.isActive {
+        PutioSelectableRow(isSelected: selection.contains(index)) {
+          selection.toggle(index)
+        } content: {
+          PutioFileRow(model)
+        }
+      } else {
+        PutioFileRow(model)
+          .listRowBackground(PutioTheme.Colors.background)
+          .putioRowActions {
+            Button(role: .destructive) {
+              reportedAction = "swipe \(model.name)"
+            } label: {
+              Label {
+                Text(verbatim: "Trash")
+              } icon: {
+                Image(putioIcon: .trash)
+              }
+            }
+          } menu: {
+            Button {
+              selection.begin()
+              selection.toggle(index)
+            } label: {
+              Text(verbatim: "Select")
+            }
+          }
+      }
+    }
+
+    private var actions: [PutioSelectionAction] {
+      GalleryFixtures.selectionActions.map { entry in
+        PutioSelectionAction(
+          id: entry.id, title: entry.title, icon: entry.icon, isDestructive: entry.isDestructive
+        ) {
+          reportedAction = "\(entry.id) \(selection.count)"
         }
       }
     }
@@ -1077,6 +1236,42 @@ enum GalleryFixtures {
   #endif
 
   #if os(iOS)
+    static let selectionRows = [
+      PutioFileRowModel(name: "Movies", kind: .folder, sizeText: "10.2 GB", dateText: "Oct 28"),
+      PutioFileRowModel(name: "Series", kind: .folder, sizeText: "13.1 GB", dateText: "Nov 2"),
+      PutioFileRowModel(name: "Items shared with you", kind: .folder, dateText: "Sep 14"),
+      PutioFileRowModel(
+        name: "Big_Buck_Bunny_1080_10s_30MB.mp4",
+        kind: .video,
+        sizeText: "31 MB",
+        dateText: "Aug 25",
+        isOnDevice: true,
+        isWatched: true
+      ),
+      PutioFileRowModel(
+        name: "Sintel.2010.1080p.mkv", kind: .video, sizeText: "1.1 GB", dateText: "Sep 9",
+        downloadState: .downloading(receivedBytes: 400_000_000, totalBytes: 1_100_000_000)),
+      PutioFileRowModel(
+        name: "FFTT Tree Rings October 23, 2026.mp3", kind: .audio, sizeText: "48 MB",
+        dateText: "Oct 23"),
+      PutioFileRowModel(name: "IMG_4392.HEIC", kind: .image, sizeText: "2.4 MB", dateText: "May 4"),
+      PutioFileRowModel(
+        name: "document-scan-march-2026.pdf", kind: .file, sizeText: "1.1 MB", dateText: "Mar 18"),
+      PutioFileRowModel(
+        name: "ubuntu-24.04.1-desktop-amd64.iso", kind: .file, sizeText: "6.1 GB",
+        dateText: "Oct 20"),
+    ]
+
+    static let selectionSomeSelected: Set<Int> = [3, 4, 5]
+
+    static let selectionActions:
+      [(id: String, title: String, icon: PutioIcon, isDestructive: Bool)] = [
+        ("move", "Move", .folderSimpleDashed, false),
+        ("download", "Download", .arrowCircleDown, false),
+        ("watched", "Watched", .eye, false),
+        ("trash", "Trash", .trash, true),
+      ]
+
     static let storageStates: [(label: String, storage: PutioAccountSnapshot.Storage)] = [
       ("Empty", storage(usedBytes: 0)),
       ("In use", storage(usedBytes: 30_600_000_000)),
