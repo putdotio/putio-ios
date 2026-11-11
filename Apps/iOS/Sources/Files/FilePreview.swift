@@ -448,6 +448,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     showsHorizontalScrollIndicator = false
     backgroundColor = .clear
     contentInsetAdjustmentBehavior = .never
+    topEdgeEffect.isHidden = true
     imageView.contentMode = .scaleAspectFit
     imageView.isAccessibilityElement = true
     imageView.accessibilityTraits = .image
