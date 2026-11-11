@@ -169,7 +169,7 @@ struct MainTabView: View {
       askProductAnalyticsIfNeeded()
     }
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
-    .accessibilityHidden(selectedVideoRoute != nil || presentedPreviewRoute != nil)
+    .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
       if let route = presentedPreviewRoute {
         PutioPreviewView(
@@ -178,6 +178,7 @@ struct MainTabView: View {
           onDismiss: { presentedPreviewRoute = nil }
         )
         .id(route.id)
+        .accessibilityAddTraits(.isModal)
       }
     }
     .overlay {
