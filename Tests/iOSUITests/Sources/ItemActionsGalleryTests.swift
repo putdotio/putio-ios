@@ -81,7 +81,8 @@ final class ItemActionsGalleryTests: XCTestCase {
   private func menuItems() -> [String] {
     let first = app.buttons["item-action.play"].firstMatch
     XCTAssertTrue(first.appears(within: 5), "item menu never opened")
-    let items = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
+    let items = app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
     return items.allElementsBoundByIndex
       .sorted { $0.frame.minY < $1.frame.minY }
       .map(\.label)
