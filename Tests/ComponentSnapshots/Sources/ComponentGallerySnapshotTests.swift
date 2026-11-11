@@ -19,6 +19,13 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     try assertGallerySnapshot(page: .states)
   }
 
+  #if os(iOS)
+    @MainActor func testStatesPageRegularWidth() throws {
+      try assertGallerySnapshot(
+        page: .states, width: SnapshotEnvironment.regularWidth, variant: "regular")
+    }
+  #endif
+
   @MainActor func testFeedbackPage() throws {
     try assertGallerySnapshot(page: .feedback)
   }
@@ -30,14 +37,16 @@ final class ComponentGallerySnapshotTests: XCTestCase {
   @MainActor
   private func assertGallerySnapshot(
     page: PutioComponentGallery.Page,
+    width: CGFloat = SnapshotEnvironment.width,
+    variant: String? = nil,
     file: StaticString = #filePath,
     line: UInt = #line
   ) throws {
     let fileManager = FileManager.default
-    let baselineName = "gallery-\(page.rawValue)"
+    let baselineName = ["gallery", page.rawValue, variant].compactMap { $0 }.joined(separator: "-")
     let baselineURL = SnapshotEnvironment.baselineDirectory
       .appending(path: "\(baselineName).png")
-    let rendered = try SnapshotRenderer.render(page: page)
+    let rendered = try SnapshotRenderer.render(page: page, width: width)
     let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
 
     try SnapshotEnvironment.requireBrandFontsForBaseline()
@@ -68,12 +77,12 @@ final class ComponentGallerySnapshotTests: XCTestCase {
       .matches(SnapshotPixels(cgImage: baselineImage))
     if !comparison.matches {
       let failureURL = SnapshotEnvironment.failureDirectory
-        .appending(path: "gallery-\(page.rawValue).png")
+        .appending(path: "\(baselineName).png")
       try? fileManager.createDirectory(
         at: SnapshotEnvironment.failureDirectory, withIntermediateDirectories: true)
       try? renderedData.write(to: failureURL, options: .atomic)
       XCTFail(
-        "gallery-\(page.rawValue) diverged from its baseline (\(comparison.detail)); "
+        "\(baselineName) diverged from its baseline (\(comparison.detail)); "
           + "rendered image written to \(failureURL.path)",
         file: file,
         line: line

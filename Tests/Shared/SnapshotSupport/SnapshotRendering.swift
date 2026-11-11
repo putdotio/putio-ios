@@ -19,6 +19,7 @@ enum SnapshotEnvironment {
   #else
     static let platform = "ios"
     static let width: CGFloat = 390
+    static let regularWidth: CGFloat = 820
     static let scale: CGFloat = 2
   #endif
 
@@ -69,7 +70,10 @@ enum SnapshotEnvironment {
 
 @MainActor
 enum SnapshotRenderer {
-  static func render(page: PutioComponentGallery.Page) throws -> UIImage {
+  static func render(
+    page: PutioComponentGallery.Page,
+    width: CGFloat = SnapshotEnvironment.width
+  ) throws -> UIImage {
     _ = SnapshotEnvironment.registersBrandFonts
     let controller = UIHostingController(
       rootView: PutioComponentGallery.snapshotContent(page: page)
@@ -78,7 +82,6 @@ enum SnapshotRenderer {
     controller.overrideUserInterfaceStyle = .dark
     let view = try XCTUnwrap(controller.view)
     view.backgroundColor = .clear
-    let width = SnapshotEnvironment.width
     let height: CGFloat
     if let viewport = PutioComponentGallery.snapshotViewportHeight(page: page) {
       height = viewport
