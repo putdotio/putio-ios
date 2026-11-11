@@ -1113,7 +1113,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { _ in original },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1232,7 +1232,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1326,7 +1326,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1368,7 +1368,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1406,7 +1406,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -1445,7 +1445,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2177,7 +2177,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { _ in renamed },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2224,7 +2224,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
@@ -2259,7 +2259,7 @@ final class PutioFolderModelTests: XCTestCase {
       load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
-        renameFile: { _, _ in try await renaming.run() },
+        renameFile: { _, _ in try await mutation.run() },
         deleteFile: { _ in throw PutioRuntimeError.unknown }
       ),
       initialContents: original
