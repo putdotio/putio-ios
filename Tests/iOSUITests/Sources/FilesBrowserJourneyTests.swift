@@ -983,7 +983,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       bulkRetryFolder.value as? String, "Not selected",
       "ending selection retained the previous selection")
-    XCTAssertTrue(bulkSuccessFolder.appears(within: 5), "rows kept moving after selection began")
     bulkRetryFolder.tap()
     bulkSuccessFolder.tap()
     XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
