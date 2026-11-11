@@ -65,11 +65,12 @@ public struct HarnessService {
           message: run.message
         )
       )
-    case .boards(let ids, let requestedRunID, _):
+    case .boards(let ids, let xxl, let requestedRunID, _):
       let runID = try requestedRunID ?? simulator.defaultRunID()
       let sourceRevision = try simulator.pinProofSourceRevision()
       let run = try simulator.captureBoards(
-        try BoardCaptureContract.resolve(ids), runID: runID, sourceRevision: sourceRevision)
+        try BoardCaptureContract.resolve(ids), xxl: xxl, runID: runID,
+        sourceRevision: sourceRevision)
       return .result(
         HarnessResult(
           command: "journey --boards",
@@ -171,7 +172,7 @@ public enum HarnessOutput {
     case .surface(_, _, _, _, _, let output, _): output
     case .test(_, _, let output): output
     case .journey(_, _, _, _, let output): output
-    case .boards(_, _, let output): output
+    case .boards(_, _, _, let output): output
     case .authStatus(let output): output
     case .liveFixture(let output): output
     }
