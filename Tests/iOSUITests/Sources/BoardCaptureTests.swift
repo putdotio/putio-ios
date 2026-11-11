@@ -7,7 +7,7 @@ final class BoardCaptureTests: XCTestCase {
     try super.setUpWithError()
     continueAfterFailure = false
     app = XCUIApplication()
-    app.launchArguments = ["--putio-harness-scenario", "signed-in"]
+    app.launchArguments = ["--putio-harness-scenario", "files-browser"]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"]
     )
@@ -34,7 +34,13 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openHarnessFolder() {
     let root = element("files.screen.0")
-    XCTAssertTrue(root.appears(within: 15), "seeded session did not restore to Files")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !root.exists, !signIn.exists, Date.now < deadline {
+      _ = root.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
     let folder = element("files.item.410")
     XCTAssertTrue(folder.appears(within: 10), "seeded folder row never appeared")
     folder.tap()
