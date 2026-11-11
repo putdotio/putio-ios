@@ -63,9 +63,26 @@ Report skipped or unavailable checks.
 | tvOS shell or sign-in               | `mise run harness -- journey --platform tvos --scenario device-sign-in`                                                |
 | Recorded platform proof             | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>`                                                       |
 | tvOS device launch and rendering    | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV][apple-tv]                           |
+| iOS redesign                        | [Redesign proof](#redesign-proof)                                                                                      |
 
 Upload reviewed screenshots or recordings with
 `gh pr comment <n> --attach ./file.png`; never commit them.
+
+### Redesign proof
+
+- Pass the affected lanes and the journey that exercises the behaviour.
+- Capture every board the issue names on iPhone and iPad with
+  `mise run harness -- journey --platform ios --boards <ids> --xxl`, plus Duo
+  folded and open when it names Duo boards. The xxL capture covers each screen
+  it adds or restyles.
+- The pull request carries one table: board id, device, capture, differences.
+  "None" is a valid difference; an empty cell is not.
+- A screen that only rearranges designed content, such as an iPad or Duo
+  layout, ships with a capture and names the boards it rearranges. A new layout
+  waits for a board.
+- Board wording is approved iOS copy. A board string with no Android key is
+  `ios-only` with its reason; a string on no board stops the change.
+- Changes target `next`. No TestFlight build or release is part of the proof.
 
 [verify]: .agents/skills/verify-putio-apple/SKILL.md
 [live-account]: .agents/skills/verify-putio-apple/references/live-account.md

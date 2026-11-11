@@ -87,6 +87,8 @@ A board state needs one row there and one seeded test step.
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with
   their boards yourself; the run proves only that the state was reached.
+- Redesign pull requests list each capture in the board table the
+  [redesign proof](../../../../AGENTS.md#redesign-proof) rules describe.
 - `--xxl` adds one capture per screen at the XX Large text cap, taken on the
   screen's base board and named `<board-id>-xxl.png`. The run sets the
   simulator's text size and restores it afterwards, also on failure or

@@ -5,6 +5,14 @@ recording for UI (`gh pr create --attach ./file.png`, never committed), a
 Mermaid diagram for a flow, a table for numbers, or a short code sample for an
 API. Add one-line bullets only for risks the aid doesn't show. -->
 
+<!-- Redesign changes keep this table: one row per board and device, with the
+capture attached. "None" is a valid difference; an empty cell is not. Other
+changes delete it. -->
+
+| Board | Device | Capture | Differences |
+| ----- | ------ | ------- | ----------- |
+|       |        |         |             |
+
 ## Validation
 
 - [ ] `mise run verify`
