@@ -382,9 +382,6 @@ import Foundation
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
-    /// `--putio-harness-previews` adds a long-named image to the root. Its
-    /// first lookup never answers, so leaving cancels it; the second fails
-    /// with 503 and the third loads, for the load failed and retry states.
     private static var usesPreviews: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
     }

@@ -44,7 +44,6 @@ final class PreviewJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // A long-named image: its first lookup never answers, so Back cancels it.
     let longImage = element("files.item.428")
     XCTAssertTrue(longImage.appears(within: 10))
     XCTAssertEqual(longImage.value as? String, "Image")
@@ -60,7 +59,6 @@ final class PreviewJourneyTests: XCTestCase {
       waitForValue(requests, "428:cancelled"),
       "leaving did not cancel the load: \(requests.value ?? "")")
 
-    // The second lookup fails; Try again reloads in place.
     longImage.tap()
     XCTAssertTrue(app.staticTexts["Couldn’t load this"].appears(within: 10))
     XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
@@ -184,7 +182,6 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
-  /// Back, the title cut in the middle, and Share and More, both inert until loaded.
   private func assertViewerToolbar(fileID: Int) {
     XCTAssertTrue(element("preview.screen.\(fileID)").exists)
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
