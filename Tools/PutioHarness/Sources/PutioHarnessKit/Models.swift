@@ -599,8 +599,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
-      BoardCapture(
-        "rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage", screenBase: false),
+      BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
