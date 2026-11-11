@@ -410,7 +410,7 @@ struct PutioPlaybackConfigRows: View {
         .disabled(!appConfig.canSave)
         .accessibilityIdentifier("playback-settings.auto-rotate")
       }
-    } else if appConfig.isLoading {
+    } else if appConfig.isLoading, suggestsNextVideo || showsRotation {
       ProgressView("Loading playback settings")
     }
     if let failure = appConfig.failure, suggestsNextVideo || showsRotation {
