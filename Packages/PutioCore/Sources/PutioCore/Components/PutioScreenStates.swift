@@ -369,7 +369,6 @@ private struct PutioScreenStateKaomoji: View {
     Text(verbatim: kaomoji.rawValue)
       .putioFont(PutioScreenStateLayout.kaomojiFont)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
-      .lineLimit(1)
       .fixedSize()
       .accessibilityHidden(true)
   }
