@@ -223,6 +223,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           Image(putioIcon: .x)
         }
         .accessibilityLabel(Text("Done selecting", bundle: .module))
+        .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.close")
       }
       ToolbarItem(placement: .principal) {
@@ -238,6 +239,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           Text("Select all", bundle: .module)
         }
         .disabled(ids.isEmpty)
+        .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.toggle-all")
       }
     }
