@@ -158,9 +158,8 @@ final class PutioFileRouteTests: XCTestCase {
     XCTAssertEqual(presentation.row.name, item.name)
     XCTAssertEqual(presentation.row.kind, .video)
     XCTAssertTrue(presentation.row.isWatched)
-    let detail = try XCTUnwrap(presentation.row.sizeText)
-    XCTAssertTrue(detail.hasPrefix("4.68 GB · "))
-    XCTAssertFalse(detail.hasSuffix(" · "))
+    XCTAssertEqual(presentation.row.sizeText, "4.68 GB")
+    XCTAssertNotNil(presentation.row.dateText)
   }
 
   func testRowDateShowsWhenAddedOnlyUnderDateAddedSort() {
@@ -172,7 +171,7 @@ final class PutioFileRouteTests: XCTestCase {
         relativeTo: BrowserTestFixtures.referenceDate,
         locale: Locale(identifier: "en_US"),
         sort: sort
-      ).row.sizeText?.components(separatedBy: " · ").last
+      ).row.dateText
     }
 
     XCTAssertEqual(relativeDate(.dateAddedDescending), "2 days ago")
@@ -195,7 +194,7 @@ final class PutioFileRouteTests: XCTestCase {
         item: item,
         relativeTo: BrowserTestFixtures.referenceDate,
         locale: Locale(identifier: identifier)
-      ).row.sizeText?.components(separatedBy: " · ").last
+      ).row.dateText
     }
 
     XCTAssertEqual(relativeDate("en_US"), "yesterday")
@@ -203,14 +202,20 @@ final class PutioFileRouteTests: XCTestCase {
     XCTAssertEqual(relativeDate("en_US"), "yesterday")
   }
 
-  func testFolderRowOmitsFileSizeAndRelativeDate() {
+  func testFolderRowShowsSizeAndRelativeDate() {
     let folder = BrowserTestFixtures.item(
       id: 13,
       name: "Films",
       kind: .folder,
-      sizeBytes: 9_999
+      sizeBytes: 4_682_500_000
     )
 
-    XCTAssertNil(PutioBrowserItemPresentation(item: folder).row.sizeText)
+    let row = PutioBrowserItemPresentation(
+      item: folder,
+      relativeTo: BrowserTestFixtures.referenceDate,
+      locale: Locale(identifier: "en_US")
+    ).row
+    XCTAssertEqual(row.sizeText, "4.68 GB")
+    XCTAssertEqual(row.dateText, "yesterday")
   }
 }
