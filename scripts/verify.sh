@@ -19,12 +19,7 @@ for lane in "${lanes[@]}"; do
 done
 
 pnpm install --frozen-lockfile
-for lane in "${lanes[@]}"; do
-  if [[ "$lane" == build || "$lane" == ios || "$lane" == tvos ]]; then
-    ./scripts/generate.sh
-    break
-  fi
-done
+[[ "${lanes[*]}" != tooling ]] && ./scripts/generate.sh
 for lane in "${lanes[@]}"; do
   case "$lane" in
     tooling) pnpm run verify ;;
