@@ -65,8 +65,8 @@ jobs:
               - '**'
               - '!**/*.md'
               - '!{docs,.agents,.claude,.github/ISSUE_TEMPLATE,Tests/Formal}/**'
-              - '!{LICENSE,skills-lock.json,renovate.json,.worktreeinclude,.periphery.yml,.oxfmtrc.json,tsconfig.json,mise-tasks.toml}'
-              - '!scripts/{dead-code,xcode-skills,install-asc}.sh'
+              - '!{LICENSE,skills-lock.json,renovate.json,.worktreeinclude,.periphery.yml,.oxfmtrc.json,tsconfig.json,mise-tasks.toml,mise.store.toml,mise.store.lock}'
+              - '!scripts/{dead-code,xcode-skills}.sh'
               - '!scripts/{app-store,string-catalog,generate-design-tokens,formal-session}*.ts'
               - '!scripts/*.test.ts'
               - '!Config/AndroidStrings.json'
@@ -99,7 +99,7 @@ jobs:
             # One pattern: predicate-quantifier every would require a file to
             # match every entry in a list.
             store:
-              - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
+              - '{scripts/app-store*.ts,mise.store.*,.github/workflows/ci-next.yml}'
 
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -146,6 +146,7 @@ jobs:
     env:
       ASC_TELEMETRY_DISABLED: "1"
       ASC_SKILLS_AUTO_CHECK: "0"
+      MISE_ENV: store
 
     steps:
       - name: Check out repository
@@ -153,21 +154,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Node.js and pnpm
+      - name: Install Node.js, pnpm and the pinned asc
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           version: "2026.11.5"
-          install_args: node pnpm
-
-      - name: Install the pinned asc
-        run: |
-          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
-          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+          install_args: node pnpm github:rorkai/App-Store-Connect-CLI
 
       # The second status runs without the variable, so the check fails if
       # telemetry was off for any other reason.
-      - name: Prove asc telemetry is off
+      - name: Prove the pinned asc runs with telemetry off
         run: |
+          test "$(command -v asc)" = "$(mise which asc)"
           asc telemetry status --output json | jq -e '.enabled == false and .reason == "ASC_TELEMETRY_DISABLED"'
           env -u ASC_TELEMETRY_DISABLED asc telemetry status --output json | jq -e '.enabled == true'
 

@@ -1,0 +1,2 @@
+[tools]
+"github:rorkai/App-Store-Connect-CLI" = { version = "5.15.0", bin = "asc" }

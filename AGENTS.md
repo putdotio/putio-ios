@@ -60,7 +60,7 @@ Report skipped or unavailable checks.
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
 | Session lifecycle                   | `mise run formal-session`; see [verify-session-lifecycle][session-model]                                               |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
-| App Store tool or asc pin           | `pnpm run verify`, then `PUTIO_REQUIRE_ASC=1 node --test scripts/app-store.test.ts` with the pinned asc on `PATH`      |
+| App Store tool or asc pin           | `pnpm run verify`, then `PUTIO_REQUIRE_ASC=1 MISE_ENV=store mise exec -- node --test scripts/app-store.test.ts`        |
 | Manifest or dependency graph        | `mise run build`                                                                                                       |
 | Shell logic, components, or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
 | iOS Files browser                   | `mise run harness -- journey --platform ios --scenario files-browser`                                                  |

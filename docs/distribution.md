@@ -70,9 +70,11 @@ ships.
 
 ### asc pin and telemetry
 
-[install-asc.sh](../scripts/install-asc.sh) pins asc 5.15.0 and checks each
-platform's SHA-256 before installing. CI installs asc only through it, never
-from Homebrew. Bump the version and every checksum together.
+[mise.store.toml](../mise.store.toml) pins asc 5.15.0 and
+[mise.store.lock](../mise.store.lock) pins each platform's SHA-256; mise refuses
+a download that does not match. CI installs asc only through it, never from
+Homebrew. To bump, change the version, then run
+`MISE_ENV=store mise lock --platform linux-arm64,linux-x64,macos-arm64,macos-x64 github:rorkai/App-Store-Connect-CLI`.
 
 asc sends command telemetry to rork.com by default. 5.15.0 turns it off when
 `ASC_TELEMETRY_DISABLED` or `DO_NOT_TRACK` is set. Every workflow that runs asc
