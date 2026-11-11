@@ -22,6 +22,18 @@ extension XCUIApplication {
     }
   }
 
+  func bringIntoView(_ element: XCUIElement, maximumSwipes: Int = 6) {
+    var swipes = 0
+    while !(element.exists && element.isHittable), swipes < maximumSwipes {
+      if element.exists, element.frame.minY < frame.midY { swipeDown() } else { swipeUp() }
+      swipes += 1
+    }
+  }
+
+  func showTabBar() {
+    scrollDown(toHit: buttons["Files"])
+  }
+
   /// Account's Log out asks "Are you sure?" before ending the session.
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {
     let confirm = buttons["auth.sign-out-confirm"].firstMatch

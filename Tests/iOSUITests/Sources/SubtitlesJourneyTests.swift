@@ -108,6 +108,7 @@ final class SubtitlesJourneyTests: XCTestCase {
 
   /// The seeded scenario fails the first playback attempt for retry proof.
   private func openVideo(retryingSeededFailure: Bool) {
+    app.showTabBar()
     app.buttons["Files"].tap()
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
@@ -158,8 +159,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     _ identifier: String, to value: String, retryingSeededFailure: Bool
   ) {
     app.buttons["Account"].tap()
-    _ = app.revealed(identifier)
     let toggle = app.switches[identifier]
+    app.bringIntoView(toggle)
     XCTAssertTrue(
       waitFor(NSPredicate(format: "hittable == true AND enabled == true"), toggle, timeout: 10))
     // Form exposes the full row as the switch accessibility frame.

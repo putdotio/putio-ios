@@ -46,6 +46,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let savedSort = sort.label
     XCTAssertEqual(savedSort, "Default sort order, Name, descending")
 
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
@@ -55,6 +56,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let resetConfirm = app.buttons["settings.reset-sort-confirm"].firstMatch
     XCTAssertTrue(resetConfirm.appears(within: 5))
     cancelConfirmation(resetConfirm)
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
@@ -63,6 +65,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     resetConfirm.tap()
     XCTAssertTrue(resetConfirm.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(reset))
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Document.pdf")
     openPreferences()
@@ -81,6 +84,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(historyConfirm.appears(within: 5))
     cancelConfirmation(historyConfirm)
     assertToggle(history, enabled: true)
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].exists)
 
     tapToggle(trash)
@@ -89,9 +93,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(history)
     historyConfirm.tap()
     assertToggle(history, enabled: false)
+    app.showTabBar()
+    XCTAssertTrue(app.buttons["Files"].exists)
     XCTAssertTrue(app.buttons["History"].disappears(within: 5))
     tapToggle(history)
     assertToggle(history, enabled: true)
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].appears(within: 5))
 
     app.scrollDown(toHit: trash)
@@ -126,6 +133,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 15))
     assertFirstFile("Document.pdf")
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].exists)
     openPreferences()
     XCTAssertEqual(sort.label, savedSort)
@@ -184,6 +192,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    app.bringIntoView(toggle)
     XCTAssertTrue(waitUntilHittable(toggle))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()

@@ -206,6 +206,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    app.bringIntoView(toggle)
     XCTAssertTrue(waitUntilHittable(toggle))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()

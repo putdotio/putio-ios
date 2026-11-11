@@ -140,6 +140,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    XCUIApplication().bringIntoView(toggle)
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: toggle)
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
