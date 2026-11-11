@@ -181,6 +181,7 @@ public enum HarnessInvocation: Equatable, Sendable {
     only: [String] = [],
     output: OutputFormat
   )
+  case boards(ids: [String], runID: String?, output: OutputFormat)
   case authStatus(output: OutputFormat)
   case liveFixture(output: OutputFormat)
 }
@@ -494,6 +495,82 @@ public struct ProofManifest: Codable, Equatable, Sendable {
   }
 }
 
+public enum BoardDevice: String, CaseIterable, Codable, Sendable {
+  case iphone
+  case ipad
+
+  var deviceFamily: String {
+    switch self {
+    case .iphone: "iPhone"
+    case .ipad: "iPad"
+    }
+  }
+}
+
+struct BoardCapture: Equatable, Sendable {
+  let id: String
+  let device: BoardDevice
+  let testIdentifier: String
+
+  init(_ id: String, _ device: BoardDevice, _ testIdentifier: String) {
+    self.id = id
+    self.device = device
+    self.testIdentifier = "PutioUITests/BoardCaptureTests/" + testIdentifier
+  }
+
+  var layoutAttachmentName: String { "\(id).layout" }
+}
+
+enum BoardCaptureContract {
+  static let fixtureSet = "seeded-runtime-loop-v5"
+
+  static let boards = [
+    BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
+    BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+  ]
+
+  static func resolve(_ ids: [String]) throws -> [BoardCapture] {
+    guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
+    let unknown = ids.filter { id in !boards.contains { $0.id == id } }
+    guard unknown.isEmpty else {
+      throw HarnessFailure(
+        "no board table entry for \(unknown.joined(separator: ", ")); known boards: "
+          + boards.map(\.id).joined(separator: ", "))
+    }
+    guard Set(ids).count == ids.count else {
+      throw HarnessFailure("--boards lists a board id twice")
+    }
+    return ids.compactMap { id in boards.first { $0.id == id } }
+  }
+}
+
+struct BoardLayout: Codable, Equatable, Sendable {
+  let width: Double
+  let height: Double
+  let scale: Double
+}
+
+public struct BoardArtifact: Codable, Equatable, Sendable {
+  public let board: String
+  public let device: BoardDevice
+  public let deviceType: String
+  public let pointWidth: Double
+  public let pointHeight: Double
+  public let path: String
+  public let sha256: String
+}
+
+public struct BoardManifest: Codable, Equatable, Sendable {
+  public let schemaVersion: Int
+  public let runID: String
+  public let commit: String
+  public let createdAt: String
+  public let command: String
+  public let runtime: String
+  public let fixtureSet: String
+  public let boards: [BoardArtifact]
+}
+
 enum DeviceSignInJourneyContract {
   static let testIdentifier =
     "PutioTVUITests/DeviceSignInJourneyTests/testCodeExpiryApprovalRelaunchAndSignOut"
@@ -737,7 +814,8 @@ struct XCResultTestSummary: Decodable, Equatable, Sendable {
 
 func selectJourneyAttachmentFiles(
   from manifestData: Data,
-  expectedNames: [String] = BrowserJourneyContract.attachmentNames
+  expectedNames: [String] = BrowserJourneyContract.attachmentNames,
+  fileExtension: String = "png"
 ) throws -> [String: String] {
   let groups: [XCResultAttachmentGroup]
   do {
@@ -751,7 +829,8 @@ func selectJourneyAttachmentFiles(
     let matches = attachments.filter {
       matchesJourneyAttachmentName(
         suggestedName: $0.suggestedHumanReadableName,
-        expectedName: name
+        expectedName: name,
+        fileExtension: fileExtension
       )
     }
     guard matches.count == 1, let match = matches.first else {
@@ -762,9 +841,10 @@ func selectJourneyAttachmentFiles(
     let exportedName = match.exportedFileName
     guard !exportedName.isEmpty,
       URL(fileURLWithPath: exportedName).lastPathComponent == exportedName,
-      URL(fileURLWithPath: exportedName).pathExtension.lowercased() == "png"
+      URL(fileURLWithPath: exportedName).pathExtension.lowercased() == fileExtension
     else {
-      throw HarnessFailure("XCUITest attachment \(name) has an invalid exported PNG filename")
+      throw HarnessFailure(
+        "XCUITest attachment \(name) has an invalid exported .\(fileExtension) filename")
     }
     selected[name] = exportedName
   }
@@ -773,11 +853,12 @@ func selectJourneyAttachmentFiles(
 
 private func matchesJourneyAttachmentName(
   suggestedName: String,
-  expectedName: String
+  expectedName: String,
+  fileExtension: String
 ) -> Bool {
   if suggestedName == expectedName { return true }
   let prefix = expectedName + "_"
-  let suffix = ".png"
+  let suffix = "." + fileExtension
   guard suggestedName.hasPrefix(prefix), suggestedName.lowercased().hasSuffix(suffix) else {
     return false
   }

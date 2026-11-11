@@ -8,6 +8,7 @@ public enum HarnessArgumentParser {
       putio-harness <build|launch|proof> --platform tvos --device <udid|identifier|name> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--only PREFLIGHT[,PREFLIGHT...]] [--run-id ID] [--output text|json]
+      putio-harness journey --platform ios --boards BOARD[,BOARD...] [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario live-device-sign-in [--run-id ID] [--output text|json]
@@ -50,6 +51,16 @@ public enum HarnessArgumentParser {
         throw HarnessFailure("--snapshots must be assert or record")
       }
       return .test(platform: platform, recordSnapshots: snapshotsValue == "record", output: output)
+    case "journey" where options.value("boards") != nil:
+      try options.rejectUnknown(allowing: ["platform", "boards", "run-id", "output"])
+      guard try options.required("platform") == HarnessPlatform.ios.rawValue else {
+        throw HarnessFailure("journey --boards runs only on ios")
+      }
+      let ids = try options.required("boards").split(separator: ",").map(String.init)
+      let boards = try BoardCaptureContract.resolve(ids)
+      let runID = options.value("run-id")
+      if let runID { try validateIdentifier(runID, label: "run id") }
+      return .boards(ids: boards.map(\.id), runID: runID, output: output)
     case "journey":
       try options.rejectUnknown(allowing: ["platform", "scenario", "only", "run-id", "output"])
       guard let platform = HarnessPlatform(rawValue: try options.required("platform")),
