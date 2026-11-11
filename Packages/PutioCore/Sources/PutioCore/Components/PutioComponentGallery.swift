@@ -46,6 +46,9 @@ public struct PutioComponentGallery: View {
       case .files: GalleryLayout.filesViewportHeight
       case .forms: GalleryLayout.formsViewportHeight
       case .buttons, .transfers, .states, .feedback, .sheets: nil
+      #if os(iOS)
+        case .shell: nil
+      #endif
       }
     }
   }
