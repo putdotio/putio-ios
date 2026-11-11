@@ -1930,8 +1930,6 @@ public struct SimulatorHarness {
     return try currentRevision()
   }
 
-  /// `preparation` runs while the Simulator boots, so a build overlaps the
-  /// boot wait. A failed preparation still waits for the boot, then deletes it.
   private func withSession<T>(
     platform: HarnessPlatform,
     runID: String,
@@ -2209,8 +2207,7 @@ public struct SimulatorHarness {
   /// jobs, which keeps a 3-core CI runner saturated through the first test run.
   /// Unloading the ones the apps never use roughly halves that work. One
   /// `bootout` with every plist path is a single spawn; jobs that aren't
-  /// loaded only fail their own path, so the result is ignored. The runtime
-  /// list names the root, so no extra spawn into the busy device reads it.
+  /// loaded only fail their own path, so the result is ignored.
   func unloadUnusedJobs(_ identifier: String, runtime: RuntimeRecord) throws {
     let root =
       try runtime.runtimeRoot

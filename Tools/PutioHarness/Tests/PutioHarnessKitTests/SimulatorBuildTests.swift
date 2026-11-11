@@ -50,6 +50,7 @@ private func withFakeXcodebuild(
     .map { $0.split(separator: "\n").map(String.init) }
 }
 
+@Suite(.serialized)
 struct SimulatorBuildTests {
   @Test func everyAppBuildCompilesOnlyTheHostArchitecture() throws {
     let calls = try withFakeXcodebuild { harness in
