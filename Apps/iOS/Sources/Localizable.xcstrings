@@ -1312,17 +1312,6 @@
         }
       }
     },
-    "Don't allow" : {
-      "comment" : "android: mobile_product_analytics_prompt_deny | differs: iOS uses a straight apostrophe",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Don't allow"
-          }
-        }
-      }
-    },
     "Done" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -1341,6 +1330,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Done. The selected data has been cleared."
+          }
+        }
+      }
+    },
+    "Don’t allow" : {
+      "comment" : "android: mobile_product_analytics_prompt_deny",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Don’t allow"
           }
         }
       }

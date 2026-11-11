@@ -558,6 +558,8 @@ import Foundation
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
+      } else if Self.shouldDelayAnalyticsAnswer(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
@@ -610,6 +612,12 @@ import Foundation
           .contains(where: { $0.name == "parent_id" && $0.value == "410" }) == true
       else { return 0 }
       return 5
+    }
+
+    private static func shouldDelayAnalyticsAnswer(_ request: URLRequest) -> Bool {
+      ProcessInfo.processInfo.arguments.contains(HarnessLaunch.analyticsPromptArgument)
+        && request.httpMethod == "POST" && request.url?.path == "/v2/account/settings"
+        && requestPayload(request)?["product_analytics_enabled"] != nil
     }
 
     private static func shouldDelayBulkDeleteResponse(_ request: URLRequest) -> Bool {

@@ -16,12 +16,14 @@ public enum PutioProductAnalyticsPrompt {
     String(localized: "URLs or search text", bundle: .module),
     String(localized: "Tokens", bundle: .module),
   ]
-  public static let sentTitle = String(localized: "What we'd send", bundle: .module)
+  public static let sentTitle = String(localized: "What we’d send", bundle: .module)
   public static let sent = [
     String(localized: "Features you use", bundle: .module),
     String(localized: "App and device type", bundle: .module),
     String(localized: "Playback and billing events", bundle: .module),
   ]
+  public static let saveFailureTitle = String(
+    localized: "Couldn’t save this setting", bundle: .module)
 
   /// An unset setting reads as off, so an account is asked until it turns
   /// analytics on or this app stores an answer. A launch that opens a link

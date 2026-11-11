@@ -15,7 +15,10 @@ from a sign-out that did not finish.
 - `history` pages, opens items, deletes, and follows the History setting.
 - `rows` opens and closes every Account row from top to end.
 - `rating` opens rating and contact links only after an explicit tap.
-- `analytics-prompt` retries a failed save and saves the choice once.
+- `analytics-prompt` shows saving and failed states, retries, and saves the
+  choice once.
+- `analytics-prompt-swipe` swipes the prompt away and meets it again on the
+  next launch.
 
 ## How to get to it (user POV)
 
@@ -44,8 +47,11 @@ Preconditions:
 - **Rows.** Run `--only account-rows`. Every navigation row opens its screen
   and goes back; Privacy policy records its URL.
 - **Rating.** Run `--only account-rating`. Screenshot: `runtime-account-rating`.
-- **Analytics prompt.** Run `--only analytics-prompt`. Screenshot:
-  `runtime-analytics-prompt`.
+- **Analytics prompt.** Run `--only analytics-prompt`. Screenshots:
+  `runtime-analytics-prompt`, `runtime-analytics-prompt-saving`,
+  `runtime-analytics-prompt-failed`. Boards: `rd-ios-ses-10-analytics`,
+  `rd-ios-ses-17-analytics-saving`, `rd-ios-ses-18-analytics-failed`,
+  `rd-ios-ses-25-ipad-analytics`.
 
 ## Gotchas
 
