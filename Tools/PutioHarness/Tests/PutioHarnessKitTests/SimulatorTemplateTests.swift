@@ -74,6 +74,8 @@ struct SimulatorTemplateTests {
           + " com.apple.CoreSimulator.SimRuntime.iOS-26-5",
         "simctl boot NEW-TEMPLATE",
         "simctl bootstatus NEW-TEMPLATE -b -d",
+        "simctl spawn NEW-TEMPLATE defaults write -g AppleLocale -string en_US",
+        "simctl spawn NEW-TEMPLATE defaults write -g AppleLanguages -array en",
         "simctl shutdown NEW-TEMPLATE",
       ])
   }
