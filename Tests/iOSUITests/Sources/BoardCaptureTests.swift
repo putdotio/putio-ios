@@ -53,7 +53,9 @@ final class BoardCaptureTests: XCTestCase {
   private func captureBoard(_ board: String) throws {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
-        Self.isMiddleTruncatedFileName(issue.element?.label)
+        guard let element = issue.element else { return false }
+        return Self.isMiddleTruncatedFileName(element.label)
+          && element.frame.height >= Self.minimumXXLargeLineHeight
       }
     }
     let window = app.windows.firstMatch.frame
@@ -106,6 +108,8 @@ final class BoardCaptureTests: XCTestCase {
           height: image.size.height))
     }
   }
+
+  private static let minimumXXLargeLineHeight: CGFloat = 24
 
   private static func isMiddleTruncatedFileName(_ label: String?) -> Bool {
     guard let label, let dot = label.lastIndex(of: "."), dot != label.startIndex else {
