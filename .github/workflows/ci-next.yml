@@ -179,9 +179,8 @@ jobs:
             exit 1
           fi
 
-  # Four macOS jobs leave one slot of the organization's concurrent macOS
-  # limit, so two overlapping runs, a `verify` dispatch included, queue until
-  # slots free up.
+  # macOS jobs share the organization's concurrent macOS limit, so a run that
+  # overlaps another, a `verify` dispatch included, queues until slots free up.
   checks:
     name: Checks
     needs: changes

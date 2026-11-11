@@ -92,6 +92,4 @@ If cleanup fails, delete only the UDIDs the run reported:
 
 Feature journeys and `proof` do not run in
 [Next CI](../../../.github/workflows/ci-next.yml), so run the affected journey
-or preflights locally. CI's iOS lane runs
-[LaunchSmokeTests](../../../Tests/iOSUITests/Sources/LaunchSmokeTests.swift)
-from the iOS test plan.
+or preflights locally.

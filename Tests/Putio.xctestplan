@@ -9,6 +9,7 @@
     }
   ],
   "defaultOptions" : {
+    "defaultTestExecutionTimeAllowance" : 120,
     "environmentVariableEntries" : [
       {
         "key" : "PUTIO_SNAPSHOT_RASTER",
@@ -18,7 +19,8 @@
         "key" : "SNAPSHOT_TESTING_RECORD",
         "value" : "never"
       }
-    ]
+    ],
+    "testTimeoutsEnabled" : true
   },
   "testTargets" : [
     {
