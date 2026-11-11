@@ -54,6 +54,23 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     @MainActor func testConfirmAlertPage() throws {
       try assertGallerySnapshot(page: .confirmAlert)
     }
+
+    @MainActor func testSelectionNonePage() throws {
+      try assertGallerySnapshot(page: .selectionNone)
+    }
+
+    @MainActor func testSelectionSomePage() throws {
+      try assertGallerySnapshot(page: .selectionSome)
+    }
+
+    @MainActor func testSelectionAllPage() throws {
+      try assertGallerySnapshot(page: .selectionAll)
+    }
+
+    @MainActor func testSelectionSomePageRegularWidth() throws {
+      try assertGallerySnapshot(
+        page: .selectionSome, width: SnapshotEnvironment.regularWidth, variant: "regular")
+    }
   #endif
 
   @MainActor

@@ -45,6 +45,29 @@
         }
       }
     },
+    "%lld selected" : {
+      "comment" : "android: mobile_selection_count",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld selected"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld selected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Account storage could not be updated after the last deletion." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -652,6 +675,17 @@
         }
       }
     },
+    "Deselect all" : {
+      "comment" : "ios-only: the selection header names the undo of Select all once every row is selected; Android keeps Select all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect all"
+          }
+        }
+      }
+    },
     "Diagnostics" : {
       "comment" : "android: privacy_diagnostics",
       "localizations" : {
@@ -670,6 +704,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
+          }
+        }
+      }
+    },
+    "Done selecting" : {
+      "comment" : "android: mobile_selection_clear | differs: the selection boards label the close button Done selecting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done selecting"
           }
         }
       }
@@ -851,7 +896,7 @@
       }
     },
     "More" : {
-      "comment" : "android: mobile_action_more_options | differs: one-word iOS menu label",
+      "comment" : "android: mobile_action_more_options | differs: one-word iOS label for the action bar overflow",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1200,6 +1245,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saved, but the latest account settings could not be loaded. Refresh to continue."
+          }
+        }
+      }
+    },
+    "Select all" : {
+      "comment" : "android: mobile_selection_select_all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select all"
           }
         }
       }

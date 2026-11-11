@@ -80,6 +80,9 @@ public struct PutioFileRow: View {
   private let presentation: PutioDownloadPresentation
   private let onDownloadAction: (PutioDownloadAction) -> Void
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  #if !os(tvOS)
+    @Environment(\.putioIsSelecting) private var isSelecting
+  #endif
 
   @PutioScaledMetric private var iconSize: CGFloat
   @PutioScaledMetric private var contentGap: CGFloat
@@ -185,8 +188,10 @@ public struct PutioFileRow: View {
             .foregroundStyle(PutioTheme.Colors.textSecondary)
         }
       #else
-        PutioDownloadStateButton(
-          presentation: presentation, fileName: model.name, onAction: onDownloadAction)
+        if !isSelecting {
+          PutioDownloadStateButton(
+            presentation: presentation, fileName: model.name, onAction: onDownloadAction)
+        }
       #endif
     }
   }

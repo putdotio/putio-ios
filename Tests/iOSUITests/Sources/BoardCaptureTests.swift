@@ -90,6 +90,33 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard(board)
   }
 
+  func testIPadSelectionColumns() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    app.launchArguments = [
+      "--putio-harness-scenario", "gallery", "--putio-harness-gallery-page", "selection-some",
+    ]
+    app.launch()
+    let count = element("selection.count")
+    XCTAssertTrue(count.appears(within: 15), "the selection header never appeared")
+    XCTAssertEqual(count.label, "3 selected")
+    XCTAssertTrue(tabButton("Downloads").isHittable, "selection hid the iPad top tabs")
+    let bar = element("selection.bar")
+    let detail = app.staticTexts["No file selected"]
+    XCTAssertTrue(bar.exists, "the action bar is missing")
+    XCTAssertTrue(detail.exists, "the detail column lost its content")
+    XCTAssertLessThanOrEqual(
+      bar.frame.maxX, detail.frame.minX, "the action bar left the list column")
+    XCTAssertLessThanOrEqual(
+      count.frame.maxX, detail.frame.minX, "the selection header left the list column")
+    try captureBoard("gallery-selection-ipad-columns")
+
+    tabButton("Downloads").tap()
+    tabButton("Files").tap()
+    XCTAssertTrue(
+      element("gallery.selection.select").appears(within: 5), "switching tabs kept the selection")
+    XCTAssertFalse(element("selection.bar").exists, "the action bar outlived the selection")
+  }
+
   private func reachFilesRoot() {
     let root = element("files.screen.0")
     let folderScreen = element("files.screen.410")
