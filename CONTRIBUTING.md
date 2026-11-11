@@ -35,8 +35,9 @@ mise run doctor -- --output json
 
 The platform shells in [Apps](Apps) own UI and lifecycle behavior;
 [PutioCore](Packages/PutioCore) owns shared logic. Use Swift Package Manager for
-dependencies. [Project.swift](Project.swift) owns targets, bundle identifiers,
-and build settings; generated Xcode projects and workspaces are disposable.
+dependencies. [Project.swift](Project.swift) owns targets, schemes, bundle
+identifiers, and build settings; generated Xcode projects and workspaces are
+disposable.
 
 Sources are grouped by domain, and the iOS and tvOS shells reuse PutioCore's
 folder names: `Files`, `Playback`, `Account`, `History`, `Trash`, `Session`. A
@@ -112,9 +113,11 @@ mise run verify
 ```
 
 The [verification script](scripts/verify.sh) owns the full gate and its lanes;
-pass lanes to run a subset in order, as in `mise run verify checks tvos`. Tasks
-live in [mise-tasks.toml](mise-tasks.toml). Keep generation and verification
-secret-free.
+pass lanes to run a subset in order, as in `mise run verify checks tvos`. The
+`ios` and `tvos` lanes run the [iOS](Tests/Putio.xctestplan) and
+[tvOS](Tests/PutioTV.xctestplan) test plans, as ⌘U on the `Putio` and `PutioTV`
+schemes does. Tasks live in [mise-tasks.toml](mise-tasks.toml). Keep generation
+and verification secret-free.
 
 The `tooling` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
 fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips each upstream skill in

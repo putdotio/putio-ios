@@ -76,22 +76,23 @@ struct SimulatorBuildTests {
     }
   }
 
-  @Test func testSuitesCompileForTheHostArchitecture() throws {
+  @Test func theTestPlanCompilesOnceForTheHostArchitecture() throws {
     let calls = try withFakeXcodebuild { harness in
       #expect(throws: HarnessFailure.self) {
         try harness.test(.ios, recordSnapshots: false, environment: [:])
       }
     }
     let builds = calls.filter { $0.first != "xcrun" }
-    try #require(builds.count == 2)
-    for (index, target) in ["PutioSnapshotTests", "PutioFeatureTests"].enumerated() {
-      let arguments = builds[index]
-      #expect(arguments.first == "build-for-testing")
-      #expect(arguments.contains("-only-testing:\(target)"))
-      let destinationIndex = try #require(arguments.firstIndex(of: "-destination"))
-      #expect(arguments[destinationIndex + 1] == "generic/platform=iOS Simulator")
-      #expect(arguments.contains("ARCHS=$(NATIVE_ARCH_ACTUAL)"))
-    }
+    try #require(builds.count == 1)
+    let arguments = builds[0]
+    #expect(arguments.first == "build-for-testing")
+    let schemeIndex = try #require(arguments.firstIndex(of: "-scheme"))
+    #expect(arguments[schemeIndex + 1] == "Putio")
+    let planIndex = try #require(arguments.firstIndex(of: "-testPlan"))
+    #expect(arguments[planIndex + 1] == "Putio")
+    let destinationIndex = try #require(arguments.firstIndex(of: "-destination"))
+    #expect(arguments[destinationIndex + 1] == "generic/platform=iOS Simulator")
+    #expect(arguments.contains("ARCHS=$(NATIVE_ARCH_ACTUAL)"))
     #expect(calls.contains { $0.starts(with: ["xcrun", "simctl"]) })
   }
 

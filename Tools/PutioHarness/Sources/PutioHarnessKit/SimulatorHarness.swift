@@ -941,6 +941,7 @@ public struct SimulatorHarness {
             "-quiet",
             "-workspace", "Putio.xcworkspace",
             "-scheme", platform.configuration.scheme,
+            "-testPlan", try journeyTestPlan(platform),
             "-destination", "id=\(session.deviceIdentifier)",
             "-derivedDataPath", context.derivedData.path,
             "-resultBundlePath", resultBundle.path,
@@ -1445,9 +1446,8 @@ public struct SimulatorHarness {
     recordSnapshots: Bool,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> SurfaceRun {
-    let suites = platform.configuration.snapshotSuites
-    guard !suites.isEmpty else {
-      throw HarnessFailure("test supports only platforms with snapshot suites: ios, tvos")
+    guard let plan = platform.configuration.testPlan else {
+      throw HarnessFailure("test supports only platforms with a test plan: ios, tvos")
     }
     guard !(recordSnapshots && environment["CI"] == "true") else {
       throw HarnessFailure(
@@ -1459,71 +1459,67 @@ public struct SimulatorHarness {
     // Logs/Test is where CI uploads result bundles from a failed run.
     let resultsDirectory = context.derivedData.appending(path: "Logs/Test")
     try fileManager.createDirectory(at: resultsDirectory, withIntermediateDirectories: true)
-    func arguments(_ action: String, _ suite: SnapshotSuite, destination: String) -> [String] {
+    func arguments(_ action: String, destination: String) -> [String] {
       [
         action,
         "-workspace", "Putio.xcworkspace",
-        "-scheme", suite.scheme,
+        "-scheme", platform.configuration.scheme,
+        "-testPlan", plan.name,
         "-destination", destination,
         "-derivedDataPath", context.derivedData.path,
-        "-only-testing:\(suite.target)",
       ]
     }
     let runID = UUID().uuidString.lowercased()
-    func buildSuites() throws {
-      for suite in suites {
-        _ = try runner.checked(
-          "xcodebuild",
-          arguments(
-            "build-for-testing", suite, destination: platform.configuration.destination)
-            + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
-          currentDirectory: context.root,
-          context: "build \(platform.rawValue) \(suite.target)"
-        )
-      }
+    func buildPlan() throws {
+      _ = try runner.checked(
+        "xcodebuild",
+        arguments("build-for-testing", destination: platform.configuration.destination)
+          + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
+        currentDirectory: context.root,
+        context: "build \(platform.rawValue) \(plan.name) test plan"
+      )
     }
-    return try withSession(platform: platform, runID: runID, alongside: buildSuites) {
+    return try withSession(platform: platform, runID: runID, alongside: buildPlan) {
       session in
-      var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
-      testEnvironment["TEST_RUNNER_SNAPSHOT_TESTING_RECORD"] = recordSnapshots ? "failed" : "never"
+      var testEnvironment: [String: String] = [:]
+      if recordSnapshots { testEnvironment["TEST_RUNNER_SNAPSHOT_TESTING_RECORD"] = "failed" }
       if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
-      var results: [String] = []
-      for suite in suites {
-        let resultBundle = resultsDirectory.appending(path: "\(suite.target)-\(runID).xcresult")
-        _ = try runner.checked(
-          "xcodebuild",
-          arguments(
-            "test-without-building", suite, destination: "id=\(session.deviceIdentifier)")
-            // The default collects a 600 s Simulator diagnose even after some passing runs.
-            + ["-resultBundlePath", resultBundle.path, "-collect-test-diagnostics", "never"],
-          environment: testEnvironment,
-          currentDirectory: context.root,
-          context: "test \(platform.rawValue) \(suite.target)"
-        )
-        let summary = try runner.checked(
+      let resultBundle = resultsDirectory.appending(path: "\(plan.name)-\(runID).xcresult")
+      _ = try runner.checked(
+        "xcodebuild",
+        arguments("test-without-building", destination: "id=\(session.deviceIdentifier)")
+          // The default collects a 600 s Simulator diagnose even after some passing runs.
+          + ["-resultBundlePath", resultBundle.path, "-collect-test-diagnostics", "never"],
+        environment: testEnvironment,
+        currentDirectory: context.root,
+        context: "test \(platform.rawValue) \(plan.name) test plan"
+      )
+      func results(_ kind: String) throws -> Data {
+        let output = try runner.checked(
           "xcrun",
-          [
-            "xcresulttool", "get", "test-results", "summary",
-            "--path", resultBundle.path,
-            "--compact",
-          ],
-          context: "read \(suite.target) test summary"
+          ["xcresulttool", "get", "test-results", kind, "--path", resultBundle.path, "--compact"],
+          context: "read \(plan.name) test \(kind)"
         )
-        let passed = try requirePassingSuiteSummary(
-          Data(summary.stdout.utf8), suite: suite.target, allowsSkips: !requiresBrandFonts)
-        results.append(
-          "\(suite.target) passed \(passed.passedTests)"
-            + (passed.skippedTests > 0 ? " and skipped \(passed.skippedTests)" : ""))
+        return Data(output.stdout.utf8)
       }
-      let targets = suites.map(\.target).joined(separator: ", ")
+      let counts = try requirePassingTestPlan(
+        summary: try results("summary"), tests: try results("tests"), plan: plan,
+        allowsSkips: !requiresBrandFonts)
       return SurfaceRun(
         platform: platform,
         artifacts: [],
         message: recordSnapshots
-          ? "recorded and re-asserted \(targets) snapshot baselines"
-          : results.joined(separator: "; ")
+          ? "recorded and re-asserted \(plan.targets.joined(separator: ", ")) snapshot baselines"
+          : counts
       )
     }
+  }
+
+  private func journeyTestPlan(_ platform: HarnessPlatform) throws -> String {
+    guard let plan = platform.configuration.journeyTestPlan else {
+      throw HarnessFailure("\(platform.rawValue) has no journey test plan")
+    }
+    return plan
   }
 
   private func buildJourneyTests(
@@ -1536,6 +1532,7 @@ public struct SimulatorHarness {
         "build-for-testing",
         "-workspace", "Putio.xcworkspace",
         "-scheme", platform.configuration.scheme,
+        "-testPlan", try journeyTestPlan(platform),
         "-destination", "id=\(session.deviceIdentifier)",
         "-derivedDataPath", context.derivedData.path,
         "-parallel-testing-enabled", "NO",
@@ -1617,6 +1614,7 @@ public struct SimulatorHarness {
       "-quiet",
       "-workspace", "Putio.xcworkspace",
       "-scheme", platform.configuration.scheme,
+      "-testPlan", try journeyTestPlan(platform),
       "-destination", "id=\(session.deviceIdentifier)",
       "-derivedDataPath", context.derivedData.path,
       "-resultBundlePath", resultBundle.path,

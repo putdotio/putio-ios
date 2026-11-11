@@ -6,22 +6,18 @@ import Testing
 @Test func platformContractsStayExplicit() {
   #expect(HarnessPlatform.ios.configuration.scheme == "Putio")
   #expect(
-    HarnessPlatform.ios.configuration.snapshotSuites
-      == [
-        SnapshotSuite(scheme: "Putio", target: "PutioSnapshotTests"),
-        SnapshotSuite(scheme: "PutioFeatureTests", target: "PutioFeatureTests"),
-      ]
+    HarnessPlatform.ios.configuration.testPlan
+      == TestPlan(name: "Putio", targets: ["PutioSnapshotTests", "PutioFeatureTests"])
   )
   #expect(HarnessPlatform.watchos.configuration.bundleIdentifier == "io.put.dev.ios.watchkitapp")
-  #expect(HarnessPlatform.watchos.configuration.snapshotSuites.isEmpty)
+  #expect(HarnessPlatform.watchos.configuration.testPlan == nil)
   #expect(HarnessPlatform.tvos.configuration.productDirectory == "Debug-appletvsimulator")
   #expect(
-    HarnessPlatform.tvos.configuration.snapshotSuites
-      == [
-        SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests"),
-        SnapshotSuite(scheme: "PutioTVFeatureTests", target: "PutioTVFeatureTests"),
-      ]
+    HarnessPlatform.tvos.configuration.testPlan
+      == TestPlan(name: "PutioTV", targets: ["PutioTVSnapshotTests", "PutioTVFeatureTests"])
   )
+  #expect(HarnessPlatform.ios.configuration.journeyTestPlan == "PutioJourneys")
+  #expect(HarnessPlatform.tvos.configuration.journeyTestPlan == "PutioTVJourneys")
 }
 
 @Test func browserJourneyArtifactsCannotOverwriteEachOther() {
@@ -114,34 +110,47 @@ import Testing
   }
 }
 
-@Test func suiteSummaryRequiresRunTestsAndRejectsSkipsWhenFontsAreRequired() throws {
-  func summary(passed: Int, failed: Int = 0, skipped: Int = 0) -> Data {
+@Test func testPlanRunRequiresEveryBundleAndRejectsSkipsWhenFontsAreRequired() throws {
+  let plan = TestPlan(name: "P", targets: ["A", "B"])
+  func run(_ bundles: [String: [String]], allowsSkips: Bool) throws -> String {
+    let results = bundles.values.flatMap { $0 }
+    let passed = results.filter { $0 == "Passed" }.count
+    let failed = results.filter { $0 == "Failed" }.count
+    let skipped = results.filter { $0 == "Skipped" }.count
     let result = failed > 0 ? "Failed" : passed == 0 && skipped > 0 ? "Skipped" : "Passed"
-    return Data(
-      #"{"result":"\#(result)","totalTestCount":\#(passed + failed + skipped),"passedTests":\#(passed),"failedTests":\#(failed),"skippedTests":\#(skipped),"expectedFailures":0}"#
-        .utf8
-    )
+    let summary =
+      #"{"result":"\#(result)","totalTestCount":\#(results.count),"passedTests":\#(passed),"failedTests":\#(failed),"skippedTests":\#(skipped),"expectedFailures":0}"#
+    let nodes = bundles.sorted { $0.key < $1.key }.map { name, cases in
+      let children = cases.enumerated().map { index, result in
+        #"{"nodeType":"Test Case","name":"t\#(index)()","result":"\#(result)"}"#
+      }.joined(separator: ",")
+      return
+        #"{"nodeType":"Unit test bundle","name":"\#(name)","children":[{"nodeType":"Test Suite","name":"S","children":[\#(children)]}]}"#
+    }.joined(separator: ",")
+    let tests = #"{"testNodes":[{"nodeType":"Test Plan","name":"P","children":[\#(nodes)]}]}"#
+    return try requirePassingTestPlan(
+      summary: Data(summary.utf8), tests: Data(tests.utf8), plan: plan, allowsSkips: allowsSkips)
   }
   #expect(
-    try requirePassingSuiteSummary(summary(passed: 6), suite: "S", allowsSkips: false)
-      .passedTests == 6)
+    try run(["A": ["Passed", "Passed"], "B": ["Passed"]], allowsSkips: false)
+      == "A passed 2; B passed 1")
   #expect(
-    try requirePassingSuiteSummary(summary(passed: 6, skipped: 3), suite: "S", allowsSkips: true)
-      .skippedTests == 3)
+    try run(["A": ["Passed", "Skipped"], "B": ["Skipped"]], allowsSkips: true)
+      == "A passed 1 and skipped 1; B passed 0 and skipped 1")
   #expect(throws: HarnessFailure.self) {
-    try requirePassingSuiteSummary(summary(passed: 6, skipped: 3), suite: "S", allowsSkips: false)
+    try run(["A": ["Passed", "Skipped"], "B": ["Passed"]], allowsSkips: false)
   }
   #expect(throws: HarnessFailure.self) {
-    try requirePassingSuiteSummary(summary(passed: 0), suite: "S", allowsSkips: true)
-  }
-  #expect(
-    try requirePassingSuiteSummary(summary(passed: 0, skipped: 4), suite: "S", allowsSkips: true)
-      .skippedTests == 4)
-  #expect(throws: HarnessFailure.self) {
-    try requirePassingSuiteSummary(summary(passed: 0, skipped: 4), suite: "S", allowsSkips: false)
+    try run(["A": ["Passed"], "B": ["Failed"]], allowsSkips: true)
   }
   #expect(throws: HarnessFailure.self) {
-    try requirePassingSuiteSummary(summary(passed: 5, failed: 1), suite: "S", allowsSkips: true)
+    try run(["A": ["Passed"]], allowsSkips: true)
+  }
+  #expect(throws: HarnessFailure.self) {
+    try run(["A": ["Passed"], "B": []], allowsSkips: true)
+  }
+  #expect(throws: HarnessFailure.self) {
+    try run(["A": ["Passed"], "B": ["Passed"], "C": ["Passed"]], allowsSkips: true)
   }
 }
 

@@ -115,6 +115,7 @@ private func sentrySettings(releaseEnvironment: String) -> [Configuration] {
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
+  options: .options(automaticSchemesOptions: .disabled),
   packages: [
     .local(path: "Packages/PutioCore")
   ],
@@ -414,6 +415,30 @@ let project = Project(
       dependencies: [
         .target(name: "PutioTV")
       ]
+    ),
+  ],
+  schemes: [
+    .scheme(
+      name: "Putio",
+      buildAction: .buildAction(targets: ["Putio"]),
+      testAction: .testPlans(["Tests/Putio.xctestplan", "Tests/PutioJourneys.xctestplan"]),
+      runAction: .runAction(executable: "Putio")
+    ),
+    .scheme(
+      name: "PutioNightly",
+      buildAction: .buildAction(targets: ["PutioNightly"]),
+      runAction: .runAction(executable: "PutioNightly")
+    ),
+    .scheme(
+      name: "PutioWatch",
+      buildAction: .buildAction(targets: ["PutioWatch"]),
+      runAction: .runAction(executable: "PutioWatch")
+    ),
+    .scheme(
+      name: "PutioTV",
+      buildAction: .buildAction(targets: ["PutioTV"]),
+      testAction: .testPlans(["Tests/PutioTV.xctestplan", "Tests/PutioTVJourneys.xctestplan"]),
+      runAction: .runAction(executable: "PutioTV")
     ),
   ]
 )

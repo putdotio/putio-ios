@@ -13,7 +13,10 @@ screenshots, time allowance), then the recorded walk `testRunnableAlphaLoop`.
 The [UI tests](../../../../Tests/iOSUITests/Sources) own the assertions.
 
 - Each preflight is its own `xcodebuild test-without-building` call. All of
-  them share one simulator.
+  them share one simulator. Journeys select their UI tests from the
+  [PutioJourneys](../../../../Tests/PutioJourneys.xctestplan) and
+  [PutioTVJourneys](../../../../Tests/PutioTVJourneys.xctestplan) plans, so ⌘U
+  on the scheme leaves them out.
 - Every selected preflight runs, even after one fails. The journey then names
   every failed preflight and skips the walk.
 - `--only` takes preflight names from the table. It skips the walk, and its

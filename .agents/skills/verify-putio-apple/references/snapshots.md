@@ -6,9 +6,11 @@ mise run harness -- test --platform tvos
 mise run harness -- test --platform ios --snapshots record
 ```
 
-`test` runs the platform's `snapshotSuites` from
-[HarnessPlatform.configuration](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift).
-[Repository verification](../../../../scripts/verify.sh) runs it too.
+`test` builds and runs the scheme's test plan once:
+[Putio.xctestplan](../../../../Tests/Putio.xctestplan) or
+[PutioTV.xctestplan](../../../../Tests/PutioTV.xctestplan). ⌘U on the `Putio`
+or `PutioTV` scheme runs the same plan.
+[Repository verification](../../../../scripts/verify.sh) runs `test` too.
 
 [SnapshotRendering.swift](../../../../Tests/Shared/SnapshotSupport/SnapshotRendering.swift)
 renders each view and compares it with
@@ -25,12 +27,15 @@ precision and the brand-font gate.
 - Without the brand fonts, suites render with system fallbacks and skip
   brand-baseline comparison. With `PUTIO_REQUIRE_BRAND_FONTS=1`, which CI sets
   after it installs the fonts, they fail instead.
-- Each suite writes a result bundle under `build/DerivedData/Logs/Test`. `test`
-  fails unless the suite ran at least one test with no failures, and with no
-  skips when fonts are required.
+- Each run writes one result bundle under `build/DerivedData/Logs/Test`. `test`
+  fails unless each target in the platform's `testPlan` from
+  [HarnessPlatform.configuration](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
+  ran at least one test, and no other target ran. No test may fail, and none may
+  skip when fonts are required.
 - A failed comparison attaches `reference.png`, `failure.png`, and
   `difference.png` to that result bundle.
-- `test` runs with `SNAPSHOT_TESTING_RECORD=never`, so a missing baseline fails.
+- The plan sets `SNAPSHOT_TESTING_RECORD=never`, so a missing baseline fails.
+  Variables a suite needs belong in the plan, not the scheme.
 
 ## Record after an intentional visual change
 
@@ -38,7 +43,7 @@ precision and the brand-font gate.
    when `CI=true`.
 2. Run `test --snapshots record` until it passes. It sets
    `SNAPSHOT_TESTING_RECORD=failed` and rewrites each missing or failing
-   baseline. A run fails at the first suite that wrote one.
+   baseline. A run that wrote one fails.
 3. Review the image diff, then commit it.
 
 Off-screen snapshots use bordered or material fallbacks for Liquid Glass. Review
