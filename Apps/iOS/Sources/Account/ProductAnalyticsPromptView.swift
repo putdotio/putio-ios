@@ -6,7 +6,6 @@ import SwiftUI
 /// asks again.
 struct ProductAnalyticsPromptView: View {
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let model: PutioProductAnalyticsPromptModel
   @State private var contentHeight: CGFloat = 0
 
@@ -25,7 +24,7 @@ struct ProductAnalyticsPromptView: View {
     .scrollBounceBehavior(.basedOnSize)
     .frame(idealHeight: contentHeight > 0 ? contentHeight : nil)
     .background(PutioTheme.Components.Sheet.background)
-    .presentationDetents(detents)
+    .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.large])
     .presentationDragIndicator(.visible)
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
@@ -34,10 +33,6 @@ struct ProductAnalyticsPromptView: View {
       if answered { dismiss() }
     }
     .accessibilityIdentifier("analytics-prompt")
-  }
-
-  private var detents: Set<PresentationDetent> {
-    contentHeight > 0 && dynamicTypeSize < .xxLarge ? [.height(contentHeight)] : [.large]
   }
 
   private var content: some View {
