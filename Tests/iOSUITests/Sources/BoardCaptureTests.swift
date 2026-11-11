@@ -57,7 +57,7 @@ final class BoardCaptureTests: XCTestCase {
       ],
       options: [.sortedKeys])
     let data = XCTAttachment(data: layout, uniformTypeIdentifier: "public.json")
-    data.name = "\(board).layout"
+    data.name = "\(board)-layout"
     data.lifetime = .keepAlways
     add(data)
   }

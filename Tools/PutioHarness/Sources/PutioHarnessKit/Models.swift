@@ -518,7 +518,7 @@ struct BoardCapture: Equatable, Sendable {
     self.testIdentifier = "PutioUITests/BoardCaptureTests/" + testIdentifier
   }
 
-  var layoutAttachmentName: String { "\(id).layout" }
+  var layoutAttachmentName: String { "\(id)-layout" }
 }
 
 enum BoardCaptureContract {

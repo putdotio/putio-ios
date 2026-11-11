@@ -310,7 +310,7 @@ import Testing
     #"""
     [{"attachments":[
       {"exportedFileName":"a.png","suggestedHumanReadableName":"rd-ios-02-folder_0_6A4A2D1B-1C1E-4F57-9C51-9D1D7D5A9B11.png"},
-      {"exportedFileName":"b.json","suggestedHumanReadableName":"rd-ios-02-folder.layout_0_0B2E7F8C-6C2C-4E9F-8E36-1A6A3F0C2D44.json"}
+      {"exportedFileName":"b.json","suggestedHumanReadableName":"rd-ios-02-folder-layout_0_0B2E7F8C-6C2C-4E9F-8E36-1A6A3F0C2D44.json"}
     ]}]
     """#.utf8)
   #expect(
@@ -318,6 +318,6 @@ import Testing
       == ["rd-ios-02-folder": "a.png"])
   #expect(
     try selectJourneyAttachmentFiles(
-      from: manifest, expectedNames: ["rd-ios-02-folder.layout"], fileExtension: "json")
-      == ["rd-ios-02-folder.layout": "b.json"])
+      from: manifest, expectedNames: ["rd-ios-02-folder-layout"], fileExtension: "json")
+      == ["rd-ios-02-folder-layout": "b.json"])
 }
