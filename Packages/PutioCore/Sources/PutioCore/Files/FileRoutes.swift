@@ -45,6 +45,7 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
   }
 
   var previewRoute: PutioPreviewRoute? {
+    guard item.sizeBytes <= PutioPreviewRoute.maximumBytes else { return nil }
     switch item.kind {
     case .image:
       PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .image)
@@ -96,6 +97,8 @@ public struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
     case image
     case pdf
   }
+
+  public static let maximumBytes: Int64 = 64 * 1024 * 1024
 
   public let id: PutioFileID
   public let parentID: PutioFileID

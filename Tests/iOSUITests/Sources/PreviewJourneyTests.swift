@@ -94,17 +94,18 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
 
-    // Unsupported: an explanation surface instead of a dead row.
-    let archive = element("files.item.407")
-    XCTAssertTrue(archive.appears(within: 5))
-    XCTAssertEqual(archive.value as? String, "Unsupported file")
-    archive.tap()
-    XCTAssertTrue(element("unsupported.screen.407").appears(within: 5))
-    XCTAssertTrue(app.staticTexts["Unsupported file type"].exists)
-    XCTAssertFalse(app.activityIndicators.firstMatch.exists)
-    screenshot("runtime-preview-unsupported")
-    app.buttons["unsupported.done"].tap()
-    XCTAssertTrue(element("unsupported.screen.407").disappears(within: 5))
+    let loadedRequests = requests.value as? String
+    assertCannotShow(rowID: 407, title: "Harness Bundle.zip")
+    assertCannotShow(
+      rowID: 429, title: "ubuntu-24.04.3-desktop-amd64.iso",
+      screenshot: "runtime-preview-cannot-show")
+    assertCannotShow(rowID: 430, title: "Harness Panorama.png")
+    XCTAssertEqual(requests.value as? String, loadedRequests)
+    var swipes = 0
+    while !element("files.item.412").isHittable, swipes < 3 {
+      app.swipeDown()
+      swipes += 1
+    }
 
     // Search and History dispatch through the same routing table.
     app.buttons["Search"].tap()
@@ -120,8 +121,9 @@ final class PreviewJourneyTests: XCTestCase {
     let searchArchive = element("files.search-item.407")
     XCTAssertTrue(searchArchive.appears(within: 5))
     searchArchive.tap()
-    XCTAssertTrue(element("unsupported.screen.407").appears(within: 5))
-    app.buttons["unsupported.done"].tap()
+    XCTAssertTrue(element("preview.cannot-show").appears(within: 5))
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.407").disappears(within: 5))
     // The Search tab collapses the tab bar; Files restores it.
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
@@ -180,6 +182,26 @@ final class PreviewJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func assertCannotShow(rowID: Int, title: String, screenshot name: String? = nil) {
+    let row = app.revealed("files.item.\(rowID)")
+    XCTAssertTrue(row.exists, "row \(rowID) never appeared")
+    XCTAssertEqual(row.value as? String, "Unsupported file")
+    row.tap()
+    XCTAssertTrue(element("preview.cannot-show").appears(within: 5))
+    XCTAssertTrue(element("preview.screen.\(rowID)").exists)
+    XCTAssertTrue(app.staticTexts["Can’t show this file here."].exists)
+    XCTAssertTrue(app.staticTexts["Open it on put.io from a browser instead."].exists)
+    XCTAssertEqual(element("preview.title").label, title)
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    XCTAssertFalse(app.buttons["preview.share"].isEnabled)
+    XCTAssertTrue(app.buttons["preview.more"].exists)
+    XCTAssertFalse(app.buttons["preview.retry"].exists)
+    XCTAssertFalse(app.activityIndicators.firstMatch.exists)
+    if let name { screenshot(name) }
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.\(rowID)").disappears(within: 5))
   }
 
   private func assertViewerToolbar(fileID: Int) {

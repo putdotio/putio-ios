@@ -3,6 +3,7 @@ import SwiftUI
 public enum PutioKaomoji: String, CaseIterable, Sendable {
   case shrug = "¯\\_(ツ)_/¯"
   case knockedOut = "(×_×)"
+  case uneasy = "(・_・;)"
 }
 
 public enum PutioScreenErrorKind: CaseIterable, Sendable {

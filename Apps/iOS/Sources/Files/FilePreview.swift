@@ -24,14 +24,32 @@ enum PutioPreviewState: Equatable {
 
 enum PutioPreviewFailure: Equatable {
   case loadFailed
-  case tooLarge
-  case unreadable
+  case cannotShow
 
   static func resolving(_ error: Error) -> Self? {
-    if error is PutioPreviewTooLargeError { return .tooLarge }
+    if error is PutioPreviewTooLargeError { return .cannotShow }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
     default: return .loadFailed
+    }
+  }
+}
+
+enum PutioViewerRoute: Identifiable, Equatable {
+  case preview(PutioPreviewRoute)
+  case cannotShow(PutioUnsupportedFileRoute)
+
+  var id: PutioFileID {
+    switch self {
+    case .preview(let route): route.id
+    case .cannotShow(let route): route.id
+    }
+  }
+
+  var title: String {
+    switch self {
+    case .preview(let route): route.title
+    case .cannotShow(let route): route.item.name
     }
   }
 }
@@ -45,7 +63,7 @@ struct PutioPreviewTooLargeError: Error {}
 /// task is cancelled the moment the cap is crossed. Larger files stay on
 /// put.io. 401/403 surface as session loss so the signed-out shell takes over.
 enum PutioPreviewDownloader {
-  static let maximumBytes = 64 * 1024 * 1024
+  static let maximumBytes = Int(PutioPreviewRoute.maximumBytes)
 
   static func download(
     _ url: URL,
@@ -142,13 +160,13 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
 @MainActor
 @Observable
 final class PutioPreviewModel {
-  let route: PutioPreviewRoute
+  let route: PutioViewerRoute
   private(set) var state: PutioPreviewState = .loading
   private let download: PutioPreviewDownload
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
 
-  init(route: PutioPreviewRoute, download: @escaping PutioPreviewDownload) {
+  init(route: PutioViewerRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
     self.download = download
   }
@@ -158,6 +176,10 @@ final class PutioPreviewModel {
     loadTask?.cancel()
     generation &+= 1
     let request = generation
+    guard case .preview(let route) = route else {
+      state = .failed(.cannotShow)
+      return
+    }
     state = .loading
     let task = Task { [weak self] in
       guard let self else { return }
@@ -204,12 +226,12 @@ final class PutioPreviewModel {
     switch kind {
     case .image:
       let image = try await decodeImage(data, maximumPixels: maximumImagePixels)
-      guard let image else { return .failed(.unreadable) }
+      guard let image else { return .failed(.cannotShow) }
       return .image(image)
     case .pdf:
       try Task.checkCancellation()
       guard let document = PDFDocument(data: data), document.pageCount > 0 else {
-        return .failed(.unreadable)
+        return .failed(.cannotShow)
       }
       return .document(document)
     }
@@ -242,7 +264,7 @@ struct PutioPreviewView: View {
   private let onDismiss: @MainActor () -> Void
 
   init(
-    route: PutioPreviewRoute,
+    route: PutioViewerRoute,
     download: @escaping PutioPreviewDownload,
     onDismiss: @escaping @MainActor () -> Void
   ) {
@@ -328,25 +350,14 @@ struct PutioPreviewView: View {
         Task { await model.retry() }
       }
       .ignoresSafeArea()
-    case .failed(.tooLarge):
-      PutioErrorStateView(
-        title: model.route.kind == .image
-          ? String(localized: "Image too large to preview")
-          : String(localized: "Document too large to preview"),
-        message: String(localized: "Open it on put.io from a browser instead."))
-    case .failed(.unreadable):
-      PutioErrorStateView(
-        title: model.route.kind == .image
-          ? String(localized: "Could not display image")
-          : String(localized: "Could not display document"),
-        message: model.route.kind == .image
-          ? String(localized: "The image could not be read. Try again.")
-          : String(localized: "The document could not be read. Try again."),
-        retryTitle: String(localized: "Try again"),
-        retryIdentifier: "preview.retry"
-      ) {
-        Task { await model.retry() }
-      }
+    case .failed(.cannotShow):
+      PutioEmptyStateView(
+        kaomoji: .uneasy,
+        title: String(localized: "Can’t show this file here."),
+        message: String(localized: "Open it on put.io from a browser instead.")
+      )
+      .ignoresSafeArea()
+      .accessibilityIdentifier("preview.cannot-show")
     }
   }
 }
@@ -478,60 +489,5 @@ struct PutioPDFView: UIViewRepresentable {
 
   func updateUIView(_ view: PDFView, context: Context) {
     if view.document !== document { view.document = document }
-  }
-}
-
-/// A file the app cannot render. The sheet names the type and offers the
-/// actions that exist for it; there is no spinner and no dead end.
-struct PutioUnsupportedFileView: View {
-  let route: PutioUnsupportedFileRoute
-  let onDismiss: @MainActor () -> Void
-
-  var body: some View {
-    NavigationStack {
-      PutioEmptyStateView(
-        icon: .file,
-        title: String(localized: "Unsupported file type"),
-        message: message
-      )
-      .accessibilityIdentifier("unsupported.screen.\(route.id.rawValue)")
-      .putioContentBackground()
-      .navigationTitle(route.item.name)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { onDismiss() }
-            .accessibilityIdentifier("unsupported.done")
-        }
-      }
-    }
-  }
-
-  private var message: String {
-    guard let typeName = PutioUnsupportedFileView.typeName(for: route.item.kind) else {
-      return String(
-        localized:
-          "put.io for iOS can’t display this type of file yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
-      )
-    }
-    return String(
-      localized:
-        "put.io for iOS can’t display \(typeName) files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
-    )
-  }
-
-  /// `nil` when the server sent no usable type name.
-  static func typeName(for kind: PutioFileKind) -> String? {
-    switch kind {
-    case .other(let raw):
-      let normalized = raw.replacingOccurrences(of: "_", with: " ").lowercased()
-        .trimmingCharacters(in: .whitespaces)
-      return normalized.isEmpty ? nil : normalized
-    case .folder: return "folder"
-    case .video: return "video"
-    case .audio: return "audio"
-    case .image: return "image"
-    case .pdf: return "PDF"
-    }
   }
 }

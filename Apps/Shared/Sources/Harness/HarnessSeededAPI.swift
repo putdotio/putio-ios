@@ -1358,6 +1358,9 @@ import Foundation
     static let archiveFileID = 407
     static let longPreviewFileID = 428
     static let longPreviewName = "document-scan-from-the-harness-weekend-2026.png"
+    static let diskImageFileID = 429
+    static let diskImageName = "ubuntu-24.04.3-desktop-amd64.iso"
+    static let oversizedImageFileID = 430
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
 
@@ -2179,7 +2182,13 @@ import Foundation
           ] : [])
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
         + (usesPreviews
-          ? [previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856)]
+          ? [
+            previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856),
+            previewObject(id: diskImageFileID, name: diskImageName, type: "OTHER", size: 6_291_456_000),
+            previewObject(
+              id: oversizedImageFileID, name: "Harness Panorama.png", type: "IMAGE",
+              size: 83_886_080),
+          ]
           : [])
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
