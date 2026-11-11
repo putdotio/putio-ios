@@ -63,7 +63,7 @@ final class BoardCaptureTests: XCTestCase {
   func testIPadPortrait() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
-    openHarnessFolder()
+    openSeasonFolder()
     let toggle = sidebarToggle()
     XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
     toggle.tap()
@@ -73,8 +73,7 @@ final class BoardCaptureTests: XCTestCase {
       element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(
-      element("files.screen.410").appears(within: 5), "rotating reset the Files path")
-    openSeasonFolder()
+      element("files.screen.440").appears(within: 5), "rotating reset the Files path")
     try captureBoard("rd-ios-14-ipad-portrait")
   }
 
