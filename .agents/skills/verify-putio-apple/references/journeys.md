@@ -68,6 +68,26 @@ The failed preflight's bundle stays at
 5. Loop the preflight with `--only <name>` and a new `--run-id` until it passes
    every run, one run at a time.
 
+## Boards
+
+```bash
+mise run harness -- journey --platform ios --boards rd-ios-02-folder,rd-ios-12-ipad-split
+```
+
+[BoardCaptureContract](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
+maps each board id to its device and to a test in
+[BoardCaptureTests](../../../../Tests/iOSUITests/Sources/BoardCaptureTests.swift).
+A board state needs one row there and one seeded test step.
+
+- Captures go to `build/proof/<run-id>/ios/<device>/<board-id>.png`. The
+  manifest lists each board with its device type, point size and digest.
+- iPhone and iPad boards each get their own simulator. The test sets the
+  orientation the board uses.
+- The run fails on an id with no table row, and when any board produces no
+  capture.
+- Captures use the seeded fixtures, never the live account. Compare them with
+  their boards yourself; the run proves only that the state was reached.
+
 ## tvOS
 
 ```bash

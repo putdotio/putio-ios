@@ -324,3 +324,38 @@ import Testing
   #expect(text.contains("[REDACTED]"))
   #expect(json.contains("[REDACTED]"))
 }
+
+@Test func parsesBoardCaptures() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "journey", "--platform", "ios", "--boards", "rd-ios-02-folder,rd-ios-12-ipad-split",
+    "--run-id", "boards-1",
+  ])
+  #expect(
+    invocation
+      == .boards(
+        ids: ["rd-ios-02-folder", "rd-ios-12-ipad-split"], runID: "boards-1", output: .text))
+}
+
+@Test func rejectsBoardsWithoutATableEntry() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder,rd-ios-99-unknown",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder,rd-ios-02-folder",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--boards", "rd-ios-02-folder",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--scenario",
+      "files-browser",
+    ])
+  }
+}

@@ -1605,6 +1605,7 @@ public struct SimulatorHarness {
     environment: [String: String] = [:],
     resultBundle: URL,
     attachmentNames: [String] = [],
+    dataAttachmentNames: [String] = [],
     artifactDirectory: URL? = nil,
     defaultExecutionTimeAllowance: Int = 30,
     maximumExecutionTimeAllowance: Int = 60,
@@ -1710,7 +1711,142 @@ public struct SimulatorHarness {
         destination, context: "journey preflight screenshot \(attachmentName)")
       return destination
     }
-    return artifacts
+    guard !dataAttachmentNames.isEmpty else { return artifacts }
+    let selectedData = try selectJourneyAttachmentFiles(
+      from: Data(contentsOf: attachmentsDirectory.appending(path: "manifest.json")),
+      expectedNames: dataAttachmentNames,
+      fileExtension: "json"
+    )
+    let dataArtifacts = try dataAttachmentNames.map { attachmentName in
+      guard let exportedName = selectedData[attachmentName] else {
+        throw HarnessFailure("journey preflight attachment selection lost \(attachmentName)")
+      }
+      let destination = artifactDirectory.appending(path: "\(attachmentName).json")
+      try fileManager.copyItem(
+        at: attachmentsDirectory.appending(path: exportedName), to: destination)
+      try requireNonemptyFile(destination, context: "journey preflight data \(attachmentName)")
+      return destination
+    }
+    return artifacts + dataArtifacts
+  }
+
+  func captureBoards(
+    _ boards: [BoardCapture], runID: String, sourceRevision: String
+  ) throws -> SurfaceRun {
+    let platform = HarnessPlatform.ios
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try regenerateWorkspace()
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try requireGeneratedWorkspace()
+    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+
+    let platformDirectory = context.proofRoot.appending(path: runID).appending(
+      path: platform.rawValue)
+    guard !fileManager.fileExists(atPath: platformDirectory.path) else {
+      throw HarnessFailure(
+        "proof path already exists: \(platformDirectory.path); choose a new --run-id")
+    }
+    try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
+
+    var captured: [BoardArtifact] = []
+    var failures: [(board: String, failure: Error)] = []
+    var runtimeName = ""
+    for device in BoardDevice.allCases {
+      let group = boards.filter { $0.device == device }
+      guard !group.isEmpty else { continue }
+      let deviceDirectory = platformDirectory.appending(path: device.rawValue)
+      try fileManager.createDirectory(at: deviceDirectory, withIntermediateDirectories: true)
+      try withSession(platform: platform, runID: runID, device: device) {
+        session in
+        runtimeName = session.runtime.name
+        try buildJourneyTests(platform: platform, session: session)
+        let mediaServer = try HarnessMediaServer(
+          mediaDirectory: appURL(for: platform).appending(path: "HarnessMedia"))
+        defer { mediaServer.stop() }
+        try SimulatorLifecycle.shared.register { mediaServer.stop() }
+        let mediaBaseURL = try mediaServer.start()
+        for board in group {
+          do {
+            captured.append(
+              try captureBoard(
+                board, session: session, mediaBaseURL: mediaBaseURL, directory: deviceDirectory))
+          } catch {
+            failures.append((board.id, error))
+          }
+        }
+      }
+    }
+    guard failures.isEmpty else {
+      throw HarnessFailure(
+        "\(failures.count) of \(boards.count) boards produced no capture: "
+          + failures.map(\.board).joined(separator: ", ") + "\n\n"
+          + failures.map { "[\($0.board)] \($0.failure)" }.joined(separator: "\n\n"))
+    }
+
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    let manifest = BoardManifest(
+      schemaVersion: 1,
+      runID: runID,
+      commit: sourceRevision,
+      createdAt: ISO8601DateFormatter().string(from: Date()),
+      command: "journey --boards \(boards.map(\.id).joined(separator: ","))",
+      runtime: runtimeName,
+      fixtureSet: BoardCaptureContract.fixtureSet,
+      boards: captured
+    )
+    let manifestURL = platformDirectory.appending(path: "manifest.json")
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+    try encoder.encode(manifest).write(to: manifestURL, options: .atomic)
+    let screenshots = captured.map { context.root.appending(path: $0.path) }
+    return SurfaceRun(
+      platform: platform,
+      artifacts: screenshots + [manifestURL],
+      message:
+        "\(captured.count) boards captured in \(context.relativePath(for: platformDirectory))"
+    )
+  }
+
+  private func captureBoard(
+    _ board: BoardCapture, session: SimulatorSession, mediaBaseURL: URL, directory: URL
+  ) throws -> BoardArtifact {
+    let resultBundle = directory.appending(path: ".\(board.id).xcresult")
+    let files = try runJourneyPreflightTest(
+      identifier: board.testIdentifier,
+      platform: .ios,
+      session: session,
+      mediaBaseURL: mediaBaseURL,
+      resultBundle: resultBundle,
+      attachmentNames: [board.id],
+      dataAttachmentNames: [board.layoutAttachmentName],
+      artifactDirectory: directory,
+      defaultExecutionTimeAllowance: 90,
+      maximumExecutionTimeAllowance: 120
+    )
+    guard files.count == 2 else {
+      throw HarnessFailure("board \(board.id) exported \(files.count) attachments, expected 2")
+    }
+    let screenshot = files[0]
+    let layoutURL = files[1]
+    defer { try? fileManager.removeItem(at: layoutURL) }
+    let pixels = try requireMeaningfulScreenshot(screenshot, context: "board \(board.id)")
+    let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: layoutURL))
+    try requireBoardScreenshot(
+      pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: board.id)
+    try? fileManager.removeItem(at: resultBundle)
+    let artifact = try artifact(for: screenshot)
+    return BoardArtifact(
+      board: board.id,
+      device: board.device,
+      deviceType: session.deviceType.name,
+      pointWidth: layout.width,
+      pointHeight: layout.height,
+      path: artifact.path,
+      sha256: artifact.sha256
+    )
   }
 
   public func defaultRunID() throws -> String {
@@ -1735,9 +1871,10 @@ public struct SimulatorHarness {
   private func withSession<T>(
     platform: HarnessPlatform,
     runID: String,
+    device: BoardDevice? = nil,
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    let session = try createSession(platform: platform, runID: runID)
+    let session = try createSession(platform: platform, runID: runID, device: device)
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -1809,7 +1946,9 @@ public struct SimulatorHarness {
       .appending(path: config.appName)
   }
 
-  private func createSession(platform: HarnessPlatform, runID: String) throws -> SimulatorSession {
+  private func createSession(
+    platform: HarnessPlatform, runID: String, device: BoardDevice? = nil
+  ) throws -> SimulatorSession {
     let runtimes = try availableRuntimes()
     let config = platform.configuration
     let sdkVersion = try runner.checked(
@@ -1819,8 +1958,9 @@ public struct SimulatorHarness {
     ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     guard
       let (runtime, deviceType) = selectSimulator(
-        from: runtimes, platform: config.runtimePlatform, family: config.deviceFamily,
-        sdkVersion: sdkVersion)
+        from: runtimes, platform: config.runtimePlatform,
+        family: device?.deviceFamily ?? config.deviceFamily, sdkVersion: sdkVersion,
+        preferredDeviceType: device?.deviceType)
     else {
       throw HarnessFailure(
         "\(config.runtimePlatform) \(sdkVersion) Simulator runtime is missing; run xcodebuild -downloadPlatform \(config.runtimePlatform)"
@@ -2602,6 +2742,20 @@ public struct SimulatorHarness {
       throw HarnessFailure("\(context) has no meaningful visible content at \(url.path)")
     }
     return pixels
+  }
+}
+
+func requireBoardScreenshot(
+  pixelWidth: Int, pixelHeight: Int, matches layout: BoardLayout, board: String
+) throws {
+  let expectedWidth = Int((layout.width * layout.scale).rounded())
+  let expectedHeight = Int((layout.height * layout.scale).rounded())
+  guard layout.width > 0, layout.height > 0, layout.scale > 0,
+    abs(pixelWidth - expectedWidth) <= 1, abs(pixelHeight - expectedHeight) <= 1
+  else {
+    throw HarnessFailure(
+      "board \(board) capture is \(pixelWidth)x\(pixelHeight) px, but the app window measured "
+        + "\(layout.width)x\(layout.height) pt at \(layout.scale)x")
   }
 }
 
