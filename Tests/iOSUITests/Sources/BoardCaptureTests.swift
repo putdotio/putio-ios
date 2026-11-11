@@ -42,24 +42,43 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func captureBoard(_ board: String) throws {
-    let screenshot = XCUIScreen.main.screenshot()
-    let image = XCTAttachment(screenshot: screenshot)
+    let window = app.windows.firstMatch.frame
+    let screen = XCUIScreen.main.screenshot().image
+    let capture = Self.oriented(screen, toMatch: window.size)
+    let image = XCTAttachment(image: capture)
     image.name = board
     image.lifetime = .keepAlways
     add(image)
 
-    let window = app.windows.firstMatch.frame
     let layout = try JSONSerialization.data(
       withJSONObject: [
         "width": Double(window.width),
         "height": Double(window.height),
-        "scale": Double(screenshot.image.scale),
+        "scale": Double(capture.scale),
       ],
       options: [.sortedKeys])
     let data = XCTAttachment(data: layout, uniformTypeIdentifier: "public.json")
     data.name = "\(board)-layout"
     data.lifetime = .keepAlways
     add(data)
+  }
+
+  private static func oriented(_ image: UIImage, toMatch size: CGSize) -> UIImage {
+    let landscapeImage = image.size.width > image.size.height
+    guard landscapeImage != (size.width > size.height) else { return image }
+    let clockwise = XCUIDevice.shared.orientation == .landscapeRight
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = image.scale
+    let rotated = CGSize(width: image.size.height, height: image.size.width)
+    return UIGraphicsImageRenderer(size: rotated, format: format).image { context in
+      let cg = context.cgContext
+      cg.translateBy(x: rotated.width / 2, y: rotated.height / 2)
+      cg.rotate(by: clockwise ? .pi / 2 : -.pi / 2)
+      image.draw(
+        in: CGRect(
+          x: -image.size.width / 2, y: -image.size.height / 2, width: image.size.width,
+          height: image.size.height))
+    }
   }
 
   private func element(_ identifier: String) -> XCUIElement {
