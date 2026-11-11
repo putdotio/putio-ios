@@ -32,63 +32,47 @@ jobs:
     name: Select affected lanes
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-    # Pushes to next verify everything. Pull requests skip lanes whose platform
-    # no changed path can affect; unlisted paths count for every lane. The
-    # checks lane also checks Markdown; the Markdown job covers pull requests
-    # that change Markdown, including the docs-only ones that skip every lane.
-    # This job runs on every event, so it also checks Markdown links and scans
-    # each pushed range. A link or scan failure fails this job without skipping
-    # the lanes, which use `!cancelled()`. A dispatch runs only this job: links
-    # plus a scan that audits every workflow. A dispatch with `verify` also runs
-    # every lane; only pushes save compilation caches and Simulator templates.
+    # scripts/affected-lanes.ts maps changed paths to lanes for CI and for
+    # `mise run verify --affected`; unlisted paths select every lane. Pushes to
+    # next and dispatches with `verify` select every lane. This job also checks
+    # Markdown links and scans each pushed range; a link or scan failure fails
+    # this job without skipping the lanes, which use `!cancelled()`. Only pushes
+    # save compilation caches and Simulator templates.
     outputs:
-      code: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.code == 'true' }}
-      ios: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.ios == 'true' }}
-      tvos: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.tvos == 'true' }}
-      markdown: ${{ github.event_name == 'pull_request' && steps.filter.outputs.markdown == 'true' }}
-      store: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.store == 'true' }}
+      tooling: ${{ steps.lanes.outputs.tooling }}
+      store: ${{ steps.lanes.outputs.store }}
+      checks: ${{ steps.lanes.outputs.checks }}
+      build: ${{ steps.lanes.outputs.build }}
+      ios: ${{ steps.lanes.outputs.ios }}
+      tvos: ${{ steps.lanes.outputs.tvos }}
+      proof: ${{ steps.lanes.outputs.proof }}
     steps:
-      - name: Classify changed paths
-        id: filter
-        if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          predicate-quantifier: every
-          filters: |
-            code: &code
-              - '**'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!.agents/**'
-              - '!.claude/**'
-              - '!.github/ISSUE_TEMPLATE/**'
-              - '!LICENSE'
-              - '!skills-lock.json'
-            ios:
-              - *code
-              - '!Apps/tvOS/**'
-              - '!Tests/tvOS/**'
-              - '!Tests/tvOSUITests/**'
-            tvos:
-              - *code
-              - '!Apps/iOS/**'
-              - '!Apps/watchOS/**'
-              - '!Tests/iOS/**'
-              - '!Tests/iOSUITests/**'
-            markdown:
-              - '**/*.md'
-            # One pattern: predicate-quantifier every would require a file to
-            # match every entry in a list.
-            store:
-              - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
-
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
+
+      - name: Install Node.js
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          version: "2026.11.5"
+          install_args: node
+
+      # A pull request checks out its merge commit, whose first parent is the base.
+      - name: Select affected lanes
+        id: lanes
+        env:
+          SELECT_ALL: ${{ github.event_name != 'pull_request' && (github.event_name == 'push' || inputs.verify) }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$SELECT_ALL" == true ]]; then
+            node scripts/affected-lanes.ts --all --github-output
+          elif [[ "$EVENT_NAME" == pull_request ]]; then
+            node scripts/affected-lanes.ts --base HEAD^1 --head HEAD --github-output
+          else
+            printf '%s=false\n' tooling store checks build ios tvos proof >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Check Markdown links
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
@@ -97,10 +81,10 @@ jobs:
         if: ${{ !cancelled() }}
         uses: putdotio/.github/.github/actions/scan@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
 
-  markdown:
-    name: Markdown
+  tooling:
+    name: Tooling
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.markdown == 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.tooling == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -116,11 +100,8 @@ jobs:
           version: "2026.11.5"
           install_args: node pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Check Markdown formatting
-        run: pnpm run markdown:check
+      - name: Verify tooling
+        run: ./scripts/verify.sh tooling
 
   # asc runs only here, on a fresh Linux runner: the pinned, checksummed binary
   # with telemetry off, then the store tool's tests against it, offline.
@@ -177,7 +158,7 @@ jobs:
   checks:
     name: Checks
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.checks == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
 
@@ -293,7 +274,7 @@ jobs:
   build:
     name: Builds
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.build == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
 
@@ -321,7 +302,7 @@ jobs:
   proof:
     name: iOS proof
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
+    if: ${{ !cancelled() && needs.changes.outputs.proof == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
 

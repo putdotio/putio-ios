@@ -63,5 +63,5 @@ tools = { java = "temurin-21" }
 run = "node scripts/formal-session.ts"
 
 [tasks.verify]
-description = "Test the shared core and build every Apple app shell; pass lanes (checks, build, ios, tvos) to run a subset"
+description = "Run the full gate; pass lanes (tooling, checks, build, ios, tvos) or --affected to run a subset"
 run = "./scripts/verify.sh"

@@ -111,13 +111,16 @@ fails there instead of skipping.
 mise run verify
 ```
 
-The [verification script](scripts/verify.sh) owns the full gate, including
-[tooling and package checks](scripts/test.sh), app builds, and iOS/tvOS native
-suites. Pass lanes to run a subset in order: `mise run verify checks tvos` runs
-the tooling checks and tvOS suites; the lanes are `checks`, `build`, `ios`, and
-`tvos`. Keep generation and verification secret-free.
+The [verification script](scripts/verify.sh) owns the full gate: TypeScript
+tooling, [package checks](scripts/test.sh), app builds, and iOS/tvOS native
+suites. Pass lanes to run a subset in order: `mise run verify checks tvos`; the
+lanes are `tooling`, `checks`, `build`, `ios`, and `tvos`.
+`mise run verify --affected` runs only the lanes your changes since `origin/next`
+reach; [affected-lanes.ts](scripts/affected-lanes.ts) owns that map for CI and
+local runs, and an unlisted path selects every lane. Keep generation and
+verification secret-free.
 
-The `checks` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
+The `tooling` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
 fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips each upstream skill in
 [skills-lock.json](skills-lock.json), which keeps its upstream content; add a
 newly installed one there. Repository-owned skills, such as `verify-putio-apple`,

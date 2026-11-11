@@ -92,8 +92,9 @@ If cleanup fails, delete only the UDIDs the run reported:
 ## CI
 
 [Next CI](../../../.github/workflows/ci-next.yml) runs each `mise run verify` lane
-and the iOS launch-proof subset (`mise run harness-ci`) on separate runners, and
-uploads `.xcresult` bundles when a test fails. `PUTIO_SIMULATOR_TEMPLATES=1`,
+that a pull request's changes reach, plus the iOS launch-proof subset
+(`mise run harness-ci`), on separate runners, and uploads
+`.xcresult` bundles when a test fails. `PUTIO_SIMULATOR_TEMPLATES=1`,
 set by the [setup action](../../../.github/actions/setup-apple/action.yml), clones a
 cached, booted `putio-template-*` device. Feature journeys do not run in CI, so
 run the affected journey or preflights locally.

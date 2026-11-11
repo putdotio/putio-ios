@@ -4,6 +4,8 @@ import test from "node:test";
 
 import { parse } from "yaml";
 
+import { lanes } from "./affected-lanes.ts";
+
 type RecordValue = Record<string, unknown>;
 
 const workflowUrl = (name: string): URL =>
@@ -50,7 +52,16 @@ test("next CI admits rollout PR bases without broadening push", async () => {
   assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
 
   const jobs = recordAt(workflow, "jobs", "ci-next.yml");
-  assert.deepEqual(Object.keys(jobs), ["changes", "markdown", "app-store", "checks", "tvos", "ios", "build", "proof"]);
+  assert.deepEqual(Object.keys(jobs), [
+    "changes",
+    "tooling",
+    "app-store",
+    "checks",
+    "tvos",
+    "ios",
+    "build",
+    "proof",
+  ]);
 });
 
 type GitHubContext = Readonly<{ event_name: string; ref: string; run_id: string }>;
@@ -86,4 +97,29 @@ test("next CI cancels a stale pull request run but never a push to next", async 
   assert.notEqual(push("1").group, pullRequest("2").group);
   assert.equal(pullRequest("3").group, pullRequest("4").group);
   assert.equal(pullRequest("4").cancelInProgress, true);
+});
+
+test("each lane job runs exactly when its lane is selected", async () => {
+  const workflow = await loadWorkflow("ci-next.yml");
+  const jobs = recordAt(workflow, "jobs", "ci-next.yml");
+  const changes = recordAt(jobs, "changes", "ci-next.yml.jobs");
+  assert.deepEqual(Object.keys(recordAt(changes, "outputs", "changes")), [...lanes]);
+
+  const jobForLane = {
+    tooling: "tooling",
+    store: "app-store",
+    checks: "checks",
+    build: "build",
+    ios: "ios",
+    tvos: "tvos",
+    proof: "proof",
+  };
+  for (const lane of lanes) {
+    const job = recordAt(jobs, jobForLane[lane], "ci-next.yml.jobs");
+    assert.deepEqual(job.needs, "changes");
+    assert.equal(
+      stringAt(job, "if", jobForLane[lane]),
+      `\${{ !cancelled() && needs.changes.outputs.${lane} == 'true' }}`,
+    );
+  }
 });

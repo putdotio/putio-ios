@@ -4,7 +4,6 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-pnpm run verify
 # Only the SDK may fill the event fields SentryTelemetry's allowlist keeps.
 if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Sentry[A-Za-z_]*([.[:space:]]|$)' \
   -- 'Apps/*.swift' 'Packages/*.swift' ':(exclude)Apps/iOS/Sources/Telemetry/SentryTelemetry.swift'; then
