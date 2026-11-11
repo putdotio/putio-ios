@@ -2204,6 +2204,12 @@ public struct SimulatorHarness {
           "putio-harness: \(label) Simulator boot progress\n\(bootProgressSummary(status.combinedOutput))\n"
             .utf8))
     }
+    for (key, type, value) in simulatorLocalePreferences {
+      _ = try runner.checked(
+        "xcrun",
+        ["simctl", "spawn", identifier, "defaults", "write", "-g", key, type, value],
+        context: "pin \(label) Simulator \(key)")
+    }
   }
 
   private func install(platform: HarnessPlatform, session: SimulatorSession) throws {
@@ -2808,6 +2814,11 @@ func requireBoardScreenshot(
         + "\(layout.width)x\(layout.height) pt at \(layout.scale)x")
   }
 }
+
+let simulatorLocalePreferences = [
+  ("AppleLocale", "-string", "en_US"),
+  ("AppleLanguages", "-array", "en"),
+]
 
 struct DecodedPixels {
   let width: Int
