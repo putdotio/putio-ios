@@ -463,6 +463,17 @@
         }
       }
     },
+    "Couldn’t save this setting" : {
+      "comment" : "android: mobile_settings_save_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t save this setting"
+          }
+        }
+      }
+    },
     "Crash reports, error details, and limited playback diagnostics, so we can fix problems." : {
       "comment" : "android: privacy_diagnostics_description",
       "localizations" : {

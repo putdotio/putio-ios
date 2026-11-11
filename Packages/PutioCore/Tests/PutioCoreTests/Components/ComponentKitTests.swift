@@ -75,6 +75,18 @@ final class ComponentKitTests: XCTestCase {
     XCTAssertEqual(icons.count, PutioFileRowModel.Kind.allCases.count)
   }
 
+  func testPendingSettingShowsTheNewValueWhileSavingAndThePreviousOneAfter() {
+    var pending = PutioPendingSetting<Bool>()
+    XCTAssertFalse(pending.begin(false, over: false))
+    XCTAssertTrue(pending.begin(true, over: false))
+    XCTAssertTrue(pending.isSaving)
+    XCTAssertTrue(pending.shown(over: false))
+    XCTAssertFalse(pending.begin(false, over: false))
+    pending.end()
+    XCTAssertFalse(pending.isSaving)
+    XCTAssertFalse(pending.shown(over: false))
+  }
+
   func testGalleryFixturesCoverEveryVariantAxis() {
     XCTAssertEqual(
       Set(GalleryFixtures.fileRows.map(\.kind)).count,
