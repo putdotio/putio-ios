@@ -47,10 +47,22 @@ test("next CI admits rollout PR bases without broadening push", async () => {
     "next-rollout/**",
   ]);
 
+  assert.deepEqual(arrayAt(pullRequest, "types", "ci-next.yml.on.pull_request"), [
+    "opened",
+    "synchronize",
+    "reopened",
+    "closed",
+  ]);
+
   const push = recordAt(triggers, "push", "ci-next.yml.on");
   assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
 
   const jobs = recordAt(workflow, "jobs", "ci-next.yml");
+  assert.equal(
+    recordAt(jobs, "changes", "ci-next.yml.jobs").if,
+    "github.event.action != 'closed'",
+    "a closed pull request only cancels its stale run",
+  );
   assert.deepEqual(Object.keys(jobs), ["changes", "tooling", "app-store", "checks", "tvos", "ios", "build", "proof"]);
 });
 
