@@ -549,9 +549,14 @@ enum BoardCaptureContract {
     [
       BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+      BoardCapture("Main", .iphone, "testFilesRoot"),
+      BoardCapture(
+        "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
+      BoardCapture("rd-ios-13-ipad-sidebar", .ipad, "testIPadSidebar", screenBase: false),
+      BoardCapture("rd-ios-14-ipad-portrait", .ipad, "testIPadPortrait", screenBase: false),
     ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
 
-  static let galleryPages = ["buttons", "files", "states", "feedback", "forms", "sheets"]
+  static let galleryPages = ["buttons", "files", "states", "feedback", "forms", "sheets", "shell"]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
@@ -721,6 +726,12 @@ enum BrowserJourneyContract {
       timeAllowance: 180),
     JourneyPreflight(
       "file-row-gallery", "FileRowGalleryTests/testTrailingControlsReportTheActionForTheirState"),
+    JourneyPreflight(
+      "shell-tabs", "ShellJourneyTests/testEveryTabKeepsTheOpenFolder",
+      attachmentNames: ["shell-folder-open"]),
+    JourneyPreflight(
+      "shell-history-off", "ShellJourneyTests/testHistoryOffHidesTheHistoryTab",
+      attachmentNames: ["shell-history-off"]),
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"]),

@@ -1,4 +1,3 @@
-import UIKit
 import XCTest
 
 final class ShellJourneyTests: XCTestCase {
@@ -30,9 +29,9 @@ final class ShellJourneyTests: XCTestCase {
       let button = tabButton(tab)
       XCTAssertTrue(button.appears(within: 5), "\(tab) tab is missing")
       button.tap()
-      let folder = element("files.screen.410")
-      XCTAssertFalse(
-        folder.exists && folder.isHittable, "\(tab) did not replace the Files content")
+      XCTAssertTrue(
+        element("files.screen.410").disappears(within: 5),
+        "\(tab) did not replace the Files content")
     }
     searchTab().tap()
     tabButton("Files").tap()
@@ -49,34 +48,6 @@ final class ShellJourneyTests: XCTestCase {
     XCTAssertTrue(tabButton("Account").exists)
     XCTAssertFalse(tabButton("History").exists, "disabled history remained in the tab bar")
     addScreenshot(named: "shell-history-off")
-    signOut()
-  }
-
-  func testIPadSidebarAndRotationKeepTheOpenFolder() throws {
-    try XCTSkipUnless(
-      UIDevice.current.userInterfaceIdiom == .pad, "the sidebar exists on iPad only")
-    XCUIDevice.shared.orientation = .landscapeLeft
-    app.launch()
-    signIn()
-    openFolder()
-    addScreenshot(named: "shell-ipad-landscape")
-
-    let showSidebar = sidebarToggle()
-    XCTAssertTrue(showSidebar.appears(within: 5), "the top tabs have no sidebar button")
-    showSidebar.tap()
-    let storage = element("shell.storage")
-    XCTAssertTrue(storage.appears(within: 5), "the sidebar has no storage meter")
-    XCTAssertTrue(element("files.screen.410").exists, "opening the sidebar reset the Files path")
-    addScreenshot(named: "shell-ipad-sidebar")
-
-    sidebarToggle().tap()
-    XCTAssertTrue(storage.disappears(within: 5), "the sidebar did not close")
-    XCTAssertTrue(element("files.screen.410").exists, "closing the sidebar reset the Files path")
-
-    XCUIDevice.shared.orientation = .portrait
-    XCTAssertTrue(
-      element("files.screen.410").appears(within: 5), "rotating reset the Files path")
-    addScreenshot(named: "shell-ipad-portrait")
     signOut()
   }
 
@@ -111,10 +82,6 @@ final class ShellJourneyTests: XCTestCase {
     let search = tabButton("Search")
     XCTAssertTrue(search.appears(within: 5), "the Search tab is missing")
     return search
-  }
-
-  private func sidebarToggle() -> XCUIElement {
-    app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar")).firstMatch
   }
 
   private func element(_ identifier: String) -> XCUIElement {

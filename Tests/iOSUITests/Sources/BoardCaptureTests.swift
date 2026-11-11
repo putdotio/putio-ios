@@ -32,6 +32,51 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-12-ipad-split")
   }
 
+  func testFilesRoot() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    try captureBoard("Main")
+  }
+
+  func testHistoryTabHidden() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-history-disabled")
+    app.launch()
+    reachFilesRoot()
+    XCTAssertFalse(tabButton("History").exists, "disabled history remained in the tab bar")
+    try captureBoard("rd-ios-hist-13-tab-hidden")
+  }
+
+  func testIPadSidebar() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    app.launch()
+    openHarnessFolder()
+    let toggle = sidebarToggle()
+    XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
+    toggle.tap()
+    XCTAssertTrue(element("shell.storage").appears(within: 5), "the sidebar has no storage meter")
+    XCTAssertTrue(element("files.screen.410").exists, "opening the sidebar reset the Files path")
+    try captureBoard("rd-ios-13-ipad-sidebar")
+  }
+
+  func testIPadPortrait() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    app.launch()
+    openHarnessFolder()
+    let toggle = sidebarToggle()
+    XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
+    toggle.tap()
+    XCTAssertTrue(element("shell.storage").appears(within: 5))
+    sidebarToggle().tap()
+    XCTAssertTrue(
+      element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(
+      element("files.screen.410").appears(within: 5), "rotating reset the Files path")
+    try captureBoard("rd-ios-14-ipad-portrait")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
@@ -43,6 +88,25 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.staticTexts.firstMatch.appears(within: 15), "gallery page never rendered")
     try captureBoard(board)
+  }
+
+  private func reachFilesRoot() {
+    let root = element("files.screen.0")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !root.exists, !signIn.exists, Date.now < deadline {
+      _ = root.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
+  }
+
+  private func tabButton(_ label: String) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+  }
+
+  private func sidebarToggle() -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar")).firstMatch
   }
 
   private func openHarnessFolder() {

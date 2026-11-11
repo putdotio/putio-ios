@@ -17,6 +17,10 @@ extension XCUIElement {
     poll("become hittable", timeout: timeout) { element, _ in element.isHittable }
   }
 
+  func becomesUnhittable(within timeout: TimeInterval) -> Bool {
+    poll("become unhittable", timeout: timeout) { element, _ in !element.isHittable }
+  }
+
   func disappears(within timeout: TimeInterval) -> Bool {
     poll("disappear", timeout: timeout) { element, _ in !element.exists }
   }
