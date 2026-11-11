@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+import picomatch from "picomatch";
 import { parse } from "yaml";
 
 type RecordValue = Record<string, unknown>;
@@ -50,7 +51,7 @@ test("next CI admits rollout PR bases without broadening push", async () => {
   assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
 
   const jobs = recordAt(workflow, "jobs", "ci-next.yml");
-  assert.deepEqual(Object.keys(jobs), ["changes", "markdown", "app-store", "checks", "tvos", "ios", "build", "proof"]);
+  assert.deepEqual(Object.keys(jobs), ["changes", "tooling", "app-store", "checks", "tvos", "ios", "build", "proof"]);
 });
 
 type GitHubContext = Readonly<{ event_name: string; ref: string; run_id: string }>;
@@ -86,4 +87,53 @@ test("next CI cancels a stale pull request run but never a push to next", async 
   assert.notEqual(push("1").group, pullRequest("2").group);
   assert.equal(pullRequest("3").group, pullRequest("4").group);
   assert.equal(pullRequest("4").cancelInProgress, true);
+});
+
+const laneFilters = async (): Promise<Map<string, readonly string[]>> => {
+  const workflow = await loadWorkflow("ci-next.yml");
+  const changes = recordAt(recordAt(workflow, "jobs", "ci-next.yml"), "changes", "jobs");
+  const step = arrayAt(changes, "steps", "changes")
+    .map((value) => asRecord(value, "changes step"))
+    .find((value) => value.id === "filter");
+  assert.ok(step, "changes must have a filter step");
+  const options = recordAt(step, "with", "filter");
+  assert.equal(options["predicate-quantifier"], "every");
+  const filters = asRecord(parse(stringAt(options, "filters", "filter")) as unknown, "filters");
+  return new Map(
+    Object.entries(filters).map(([name, patterns]) => [name, [patterns].flat(Infinity) as string[]]),
+  );
+};
+
+const selectedLanes = (filters: Map<string, readonly string[]>, paths: readonly string[]): string[] =>
+  ["checks", "build", "ios", "tvos", "proof"].filter((lane) =>
+    paths.some((path) => (filters.get(lane) ?? []).every((pattern) => picomatch(pattern, { dot: true })(path))),
+  );
+
+test("pull requests start only the macOS lanes their paths reach", async () => {
+  const filters = await laneFilters();
+  const lanes = (...paths: string[]) => selectedLanes(filters, paths);
+  const every = ["checks", "build", "ios", "tvos", "proof"];
+
+  assert.deepEqual(lanes("AGENTS.md", "mise-tasks.toml", "scripts/xcode-skills.sh"), []);
+  assert.deepEqual(lanes("docs/session.md", ".agents/skills/verify-putio-apple/SKILL.md", "LICENSE"), []);
+  assert.deepEqual(lanes("scripts/string-catalog.ts", "scripts/string-catalog.test.ts", "tsconfig.json"), []);
+  assert.deepEqual(lanes("Apps/iOS/Sources/Files/FileRow.swift"), ["checks", "build", "ios", "proof"]);
+  assert.deepEqual(lanes("Apps/tvOS/Sources/App.swift"), ["checks", "build", "tvos"]);
+  assert.deepEqual(lanes("Tests/iOS/Sources/FileRowTests.swift"), ["checks", "ios"]);
+  assert.deepEqual(lanes("Tests/ComponentSnapshots/__Snapshots__/ios/gallery.png"), ["ios"]);
+  assert.deepEqual(lanes("Tests/HarnessMedia/audio/a.m4a"), ["build", "ios", "tvos", "proof"]);
+  assert.deepEqual(lanes("scripts/build.sh"), ["build"]);
+  assert.deepEqual(lanes("scripts/harness-ci.sh"), ["proof"]);
+  for (const path of [
+    "Packages/PutioCore/Sources/Session.swift",
+    "Tools/PutioHarness/Sources/PutioHarness/main.swift",
+    "mise.toml",
+    "package.json",
+    "scripts/sync-brand-fonts.ts",
+    ".github/workflows/ci-next.yml",
+    ".github/actions/setup-apple/action.yml",
+    "an/unlisted/path",
+  ]) {
+    assert.deepEqual(lanes(path), every, path);
+  }
 });

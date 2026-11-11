@@ -172,9 +172,15 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      '@types/picomatch':
+        specifier: 2.3.4
+        version: 2.3.4
       oxfmt:
         specifier: 0.78.0
         version: 0.78.0
+      picomatch:
+        specifier: 2.3.1
+        version: 2.3.1
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -312,6 +318,9 @@ packages:
   '@types/node@26.6.6':
     resolution: {integrity: sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==}
 
+  '@types/picomatch@2.3.4':
+    resolution: {integrity: sha512-0so8lU8O5zatZS/2Fi4zrwks+vZv7e0dygrgEZXljODXBig97l4cPQD+9LabXfGJOWwoRkTVz6Q4edZvD12UOA==}
+
   '@typescript/typescript-aix-ppc64@7.0.2':
     resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
     engines: {node: '>=16.20.0'}
@@ -448,6 +457,10 @@ packages:
       vite-plus:
         optional: true
 
+  picomatch@2.3.1:
+    resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
+    engines: {node: '>=8.6'}
+
   tinypool@2.2.0:
     resolution: {integrity: sha512-jBrmx4lYmaC9k/mgPbylxs7kBUxHtD8256up+HjLaDFfXScKJQyil+SWXSvhAtT7XHo+yTVlpB81PGmHP8oLSQ==}
     engines: {node: ^20.0.0 || >=22.0.0}
@@ -529,6 +542,8 @@ snapshots:
   '@types/node@26.6.6':
     dependencies:
       undici-types: 8.9.0
+
+  '@types/picomatch@2.3.4': {}
 
   '@typescript/typescript-aix-ppc64@7.0.2':
     optional: true
@@ -613,6 +628,8 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.78.0
       '@oxfmt/binding-win32-ia32-msvc': 0.78.0
       '@oxfmt/binding-win32-x64-msvc': 0.78.0
+
+  picomatch@2.3.1: {}
 
   tinypool@2.2.0: {}
 
