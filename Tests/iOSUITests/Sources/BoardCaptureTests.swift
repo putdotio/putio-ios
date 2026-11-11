@@ -176,7 +176,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(folderScreen.appears(within: 10), "folder did not open")
   }
 
-  private func captureBoard(_ board: String) throws {
+  private func captureBoard(_ defaultBoard: String) throws {
+    let board = ProcessInfo.processInfo.environment["PUTIO_BOARD_ID"] ?? defaultBoard
     try requireBoardDevicePosture()
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
