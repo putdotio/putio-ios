@@ -320,14 +320,14 @@ private struct PutioScreenStateContent<Glyph: View>: View {
 
   var body: some View {
     ContentUnavailableView {
-      Label {
+      VStack(spacing: PutioScreenStateLayout.contentGap) {
+        glyph
         Text(title)
           .putioFont(PutioScreenStateLayout.titleFont)
           .putioScreenStateForeground(PutioTheme.Colors.textPrimary)
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
-      } icon: {
-        glyph
+          .accessibilityAddTraits(.isHeader)
       }
     } description: {
       if let message {
