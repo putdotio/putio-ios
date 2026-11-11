@@ -42,6 +42,18 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     @MainActor func testShellPage() throws {
       try assertGallerySnapshot(page: .shell)
     }
+
+    @MainActor func testMenusPage() throws {
+      try assertGallerySnapshot(page: .menus)
+    }
+
+    @MainActor func testTextAlertPage() throws {
+      try assertGallerySnapshot(page: .textAlert)
+    }
+
+    @MainActor func testConfirmAlertPage() throws {
+      try assertGallerySnapshot(page: .confirmAlert)
+    }
   #endif
 
   @MainActor

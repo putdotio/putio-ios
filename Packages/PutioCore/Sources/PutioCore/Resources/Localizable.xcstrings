@@ -850,6 +850,17 @@
         }
       }
     },
+    "More" : {
+      "comment" : "android: mobile_action_more_options | differs: one-word iOS menu label",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More"
+          }
+        }
+      }
+    },
     "Move %lld items to Trash?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {

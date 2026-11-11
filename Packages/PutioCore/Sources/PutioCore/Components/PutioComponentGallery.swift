@@ -13,6 +13,9 @@ public struct PutioComponentGallery: View {
     case sheets
     #if os(iOS)
       case shell
+      case menus
+      case textAlert = "text-alert"
+      case confirmAlert = "confirm-alert"
     #endif
 
     public static let launchArgument = "--putio-harness-gallery-page"
@@ -35,6 +38,9 @@ public struct PutioComponentGallery: View {
       case .sheets: "Sheets"
       #if os(iOS)
         case .shell: "Shell"
+        case .menus: "Menus and swipe actions"
+        case .textAlert: "Text alert"
+        case .confirmAlert: "Confirm alert"
       #endif
       }
     }
@@ -48,6 +54,7 @@ public struct PutioComponentGallery: View {
       case .buttons, .transfers, .states, .feedback, .sheets: nil
       #if os(iOS)
         case .shell: nil
+        case .menus, .textAlert, .confirmAlert: GalleryLayout.actionsViewportHeight
       #endif
       }
     }
@@ -70,7 +77,7 @@ public struct PutioComponentGallery: View {
     if let autoAdvanceInterval {
       AutoAdvancingGallery(interval: autoAdvanceInterval, initialPage: page)
     } else {
-      GalleryPageView(page: page)
+      GalleryPageView(page: page, presentsOnAppear: true)
     }
   }
 
@@ -109,6 +116,7 @@ private struct AutoAdvancingGallery: View {
 
 struct GalleryPageView: View {
   let page: PutioComponentGallery.Page
+  var presentsOnAppear = false
 
   var body: some View {
     Group {
@@ -127,6 +135,12 @@ struct GalleryPageView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(GalleryLayout.pagePadding)
           }
+        case .menus:
+          MenusGallery()
+        case .textAlert:
+          TextAlertGallery(presentsOnAppear: presentsOnAppear)
+        case .confirmAlert:
+          ConfirmAlertGallery(presentsOnAppear: presentsOnAppear)
       #endif
       case .buttons, .transfers, .states, .feedback, .sheets:
         ScrollView {
@@ -155,7 +169,7 @@ struct GalleryPageView: View {
     case .sheets: SheetsPage()
     case .files, .forms: EmptyView()
     #if os(iOS)
-      case .shell: EmptyView()
+      case .shell, .menus, .textAlert, .confirmAlert: EmptyView()
     #endif
     }
   }
@@ -220,6 +234,160 @@ private struct ButtonsPage: View {
             PutioStorageMeter(storage: entry.storage)
               .frame(maxWidth: GalleryLayout.sidebarWidth, alignment: .leading)
           }
+        }
+      }
+    }
+  }
+#endif
+
+#if os(iOS)
+  @MainActor @Observable
+  final class GalleryActionLog {
+    var last = "none"
+    var sent: [String] = []
+
+    var sentText: String {
+      "Sent: " + (sent.isEmpty ? "none" : sent.joined(separator: ", "))
+    }
+  }
+
+  private struct GalleryActionsHeader<Controls: View>: View {
+    let page: PutioComponentGallery.Page
+    let reported: String
+    @ViewBuilder let controls: Controls
+
+    var body: some View {
+      VStack(alignment: .leading, spacing: GalleryLayout.itemGap) {
+        GalleryTitle(page: page)
+        Text(verbatim: reported)
+          .putioFont(GalleryLayout.captionFont)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .accessibilityIdentifier("gallery.actions.reported")
+        controls
+      }
+      .textCase(nil)
+    }
+  }
+
+  private struct MenusGallery: View {
+    @State private var log = GalleryActionLog()
+
+    var body: some View {
+      NavigationStack {
+        List {
+          Section {
+            ForEach(Array(GalleryFixtures.actionRows.enumerated()), id: \.offset) { index, model in
+              PutioFileRow(model)
+                .putioItemActions(
+                  GalleryFixtures.itemMenu(for: model.name, log: log),
+                  leading: [GalleryFixtures.moveAction(for: model.name, log: log)],
+                  trailing: GalleryFixtures.trailingSwipe(for: model.name, log: log)
+                )
+                .accessibilityIdentifier("gallery.menus.row.\(index)")
+            }
+          } header: {
+            GalleryActionsHeader(page: .menus, reported: "Last action: \(log.last)") {
+              EmptyView()
+            }
+          }
+          .listRowBackground(PutioTheme.Colors.background)
+        }
+        .listStyle(.plain)
+        .putioContentBackground()
+        .toolbar {
+          ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+              PutioItemMenuContent(GalleryFixtures.browseMenu(log: log))
+            } label: {
+              Label {
+                Text(verbatim: "More")
+              } icon: {
+                Image(putioIcon: .dotsThree)
+              }
+            }
+            .menuOrder(.fixed)
+            .accessibilityIdentifier("gallery.menus.more")
+          }
+        }
+      }
+    }
+  }
+
+  private struct TextAlertGallery: View {
+    let presentsOnAppear: Bool
+    @State private var log = GalleryActionLog()
+    @State private var alert: PutioTextAlert?
+
+    var body: some View {
+      NavigationStack {
+        List {
+          Section {
+            ForEach(Array(GalleryFixtures.actionRows.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model)
+            }
+          } header: {
+            GalleryActionsHeader(page: .textAlert, reported: log.sentText) {
+              Button {
+                alert = GalleryFixtures.renameAlert(log: log)
+              } label: {
+                Text(verbatim: "Rename")
+              }
+              .buttonStyle(.bordered)
+              .accessibilityIdentifier("gallery.text-alert.open")
+            }
+          }
+          .listRowBackground(PutioTheme.Colors.background)
+        }
+        .listStyle(.plain)
+        .putioContentBackground()
+      }
+      .putioTextAlert($alert)
+      .onAppear {
+        if presentsOnAppear {
+          alert = GalleryFixtures.renameAlert(log: log)
+        }
+      }
+    }
+  }
+
+  private struct ConfirmAlertGallery: View {
+    let presentsOnAppear: Bool
+    @State private var log = GalleryActionLog()
+    @State private var alert: PutioConfirmAlert?
+
+    var body: some View {
+      NavigationStack {
+        List {
+          Section {
+            ForEach(Array(GalleryFixtures.actionRows.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model)
+            }
+          } header: {
+            GalleryActionsHeader(page: .confirmAlert, reported: "Last action: \(log.last)") {
+              HStack(spacing: GalleryLayout.itemGap) {
+                Button {
+                  alert = GalleryFixtures.deletePermanentlyAlert(log: log)
+                } label: {
+                  Text(verbatim: "Delete permanently")
+                }
+                Button {
+                  alert = GalleryFixtures.clearHistoryAlert(log: log)
+                } label: {
+                  Text(verbatim: "Clear history")
+                }
+              }
+              .buttonStyle(.bordered)
+            }
+          }
+          .listRowBackground(PutioTheme.Colors.background)
+        }
+        .listStyle(.plain)
+        .putioContentBackground()
+      }
+      .putioConfirmAlert($alert)
+      .onAppear {
+        if presentsOnAppear {
+          alert = GalleryFixtures.deletePermanentlyAlert(log: log)
         }
       }
     }
@@ -781,6 +949,134 @@ enum GalleryFixtures {
   ]
 
   #if os(iOS)
+    static let actionRows = [
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv",
+        kind: .video,
+        sizeText: "3.2 GB",
+        dateText: "Oct 13",
+        isOnDevice: true
+      ),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv",
+        kind: .video,
+        sizeText: "3.3 GB",
+        dateText: "Oct 13",
+        isWatched: true
+      ),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv",
+        kind: .video,
+        sizeText: "3.1 GB",
+        dateText: "Oct 20"
+      ),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv",
+        kind: .video,
+        sizeText: "3.4 GB",
+        dateText: "Oct 20"
+      ),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+      PutioFileRowModel(
+        name: "Blue.Lights.S04E02.en.srt", kind: .file, sizeText: "39 kB", dateText: "Oct 13"),
+    ]
+
+    private static func action(
+      _ id: String,
+      _ title: String,
+      _ icon: PutioIcon,
+      role: PutioItemAction.Role = .standard,
+      on name: String,
+      log: GalleryActionLog
+    ) -> PutioItemAction {
+      PutioItemAction(id: id, title: title, icon: icon, role: role) { [log] in
+        log.last = "\(title) \(name)"
+      }
+    }
+
+    static func itemMenu(for name: String, log: GalleryActionLog) -> PutioItemMenu {
+      PutioItemMenu([
+        [
+          action("play", "Play", .play, on: name, log: log),
+          action("play-direct", "Play with Direct play", .playCircle, on: name, log: log),
+          action("download", "Download", .arrowCircleDown, on: name, log: log),
+          action(
+            "download-direct", "Download with Direct play", .downloadSimple, on: name, log: log),
+          action("share", "Share", .export, on: name, log: log),
+        ],
+        [
+          action("select", "Select", .checkCircle, on: name, log: log),
+          action("pin", "Pin", .pushPin, on: name, log: log),
+          action("unwatched", "Mark as unwatched", .eyeSlash, on: name, log: log),
+        ],
+        [
+          action("rename", "Rename", .pencilSimple, on: name, log: log),
+          moveAction(for: name, log: log),
+          action("exclusive-link", "Exclusive link", .link, on: name, log: log),
+        ],
+        [trashAction(for: name, log: log)],
+      ])
+    }
+
+    static func moveAction(for name: String, log: GalleryActionLog) -> PutioItemAction {
+      action("move", "Move", .folderSimpleDashed, on: name, log: log)
+    }
+
+    static func trailingSwipe(for name: String, log: GalleryActionLog) -> [PutioItemAction] {
+      [
+        trashAction(for: name, log: log),
+        action("download", "Download", .arrowCircleDown, on: name, log: log),
+      ]
+    }
+
+    private static func trashAction(for name: String, log: GalleryActionLog) -> PutioItemAction {
+      action("trash", "Move to trash", .trash, role: .destructive, on: name, log: log)
+    }
+
+    static func browseMenu(log: GalleryActionLog) -> PutioItemMenu {
+      PutioItemMenu([
+        [
+          action("select", "Select", .checkCircle, on: "Files", log: log),
+          action("new-folder", "New folder", .folderSimplePlus, on: "Files", log: log),
+        ]
+      ])
+    }
+
+    static func renameAlert(log: GalleryActionLog) -> PutioTextAlert {
+      PutioTextAlert(
+        title: "Rename",
+        initialText: "Blue.Lights.S04E01.en.srt",
+        submitTitle: "Rename",
+        failureText: "Couldn’t rename."
+      ) { [log] name in
+        log.sent.append(name)
+        throw SaveFailure()
+      }
+    }
+
+    static func deletePermanentlyAlert(log: GalleryActionLog) -> PutioConfirmAlert {
+      PutioConfirmAlert(
+        title: "Delete 1 item permanently?",
+        message: "Trash is off for this account, so this can’t be undone.",
+        confirmTitle: "Delete"
+      ) { [log] in
+        log.last = "Delete"
+      }
+    }
+
+    static func clearHistoryAlert(log: GalleryActionLog) -> PutioConfirmAlert {
+      PutioConfirmAlert(
+        title: "Clear history?",
+        message: "This removes all activity from your put.io history.",
+        confirmTitle: "Clear"
+      ) { [log] in
+        log.last = "Clear"
+      }
+    }
+  #endif
+
+  #if os(iOS)
     static let storageStates: [(label: String, storage: PutioAccountSnapshot.Storage)] = [
       ("Empty", storage(usedBytes: 0)),
       ("In use", storage(usedBytes: 30_600_000_000)),
@@ -838,6 +1134,7 @@ enum GalleryLayout {
     static let itemGap = PutioTheme.Spacing.space3
     static let pagePadding = PutioTheme.Spacing.space3
     static let sidebarWidth = PutioTheme.Spacing.space6 * 2
+    static let actionsViewportHeight = PutioTheme.Spacing.space6 * 6
     static let stateTileHeight = PutioTheme.Spacing.space5 * 5
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
