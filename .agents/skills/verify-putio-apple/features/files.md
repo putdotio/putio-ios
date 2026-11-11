@@ -6,6 +6,8 @@ images and documents, and opens put.io links into the same screens.
 
 ## Sub-features
 
+- `folder-header` shows each folder's item count and size, and Back keeps the
+  parent's place.
 - `browse-sort` changes the folder sort from the browse menu and appends the
   next page on scroll.
 - `search` pages results, retries a failed page, and restores the open folder
@@ -39,8 +41,11 @@ images and documents, and opens put.io links into the same screens.
 Preconditions:
 
 - Seeded `files-browser` fixtures; the root lists `Harness Folder` (410) and
-  `Root Movie.mkv` (412). New folders get IDs from 415 up.
+  `Root Movie.mkv` (412). New folders get IDs from 415 up. Harness Folder
+  holds `Blue Lights` (440), six items with a watched episode.
 
+- **Folder header.** Run `--only folder-header`. Screenshot:
+  `runtime-folder-header`.
 - **Sort and continuation.** Run `--only sort-continuation`. `Season Pack.zip`
   appends without a tap; Name descending puts `Document.pdf` first. Screenshot:
   `runtime-sorted-root`.
