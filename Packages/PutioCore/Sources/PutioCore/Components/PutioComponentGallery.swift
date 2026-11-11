@@ -11,6 +11,15 @@ public struct PutioComponentGallery: View {
     case feedback
     case forms
 
+    public static let launchArgument = "--putio-harness-gallery-page"
+
+    public static func requested(in arguments: [String]) -> Page? {
+      guard let flag = arguments.firstIndex(of: launchArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return Page(rawValue: arguments[flag + 1])
+    }
+
     public var title: String {
       switch self {
       case .buttons: "Buttons"
@@ -35,6 +44,11 @@ public struct PutioComponentGallery: View {
   public init(autoAdvanceEvery interval: TimeInterval) {
     self.page = .buttons
     self.autoAdvanceInterval = interval
+  }
+
+  public init(page: Page) {
+    self.page = page
+    self.autoAdvanceInterval = nil
   }
 
   public var body: some View {

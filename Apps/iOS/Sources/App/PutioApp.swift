@@ -21,7 +21,13 @@ struct PutioApp: App {
       Group {
         switch scenario {
         case .gallery:
-          PutioComponentGallery(autoAdvanceEvery: 3)
+          if let page = PutioComponentGallery.Page.requested(
+            in: ProcessInfo.processInfo.arguments)
+          {
+            PutioComponentGallery(page: page)
+          } else {
+            PutioComponentGallery(autoAdvanceEvery: 3)
+          }
         case .exercised:
           HarnessExerciseView()
         case .signedOut, .signedIn, .filesBrowser, .deviceSignIn, .live:

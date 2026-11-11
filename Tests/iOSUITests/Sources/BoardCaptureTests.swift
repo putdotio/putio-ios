@@ -32,6 +32,19 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-12-ipad-split")
   }
 
+  func testGalleryPage() throws {
+    let environment = ProcessInfo.processInfo.environment
+    let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
+    let page = try XCTUnwrap(environment["PUTIO_GALLERY_PAGE"])
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments = [
+      "--putio-harness-scenario", "gallery", "--putio-harness-gallery-page", page,
+    ]
+    app.launch()
+    XCTAssertTrue(app.staticTexts.firstMatch.appears(within: 15), "gallery page never rendered")
+    try captureBoard(board)
+  }
+
   private func openHarnessFolder() {
     let root = element("files.screen.0")
     let folderScreen = element("files.screen.410")
