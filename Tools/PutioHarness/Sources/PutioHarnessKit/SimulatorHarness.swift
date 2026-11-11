@@ -647,13 +647,11 @@ public struct SimulatorHarness {
   private func runInstalledApp(_ platform: HarnessPlatform, shouldExercise: Bool) throws
     -> SurfaceRun
   {
+    _ = try build(platform)
     let scratch = context.root.appending(path: "build/harness/\(UUID().uuidString.lowercased())")
     try fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: scratch) }
-    func buildApp() throws { _ = try build(platform) }
-    return try withSession(
-      platform: platform, runID: UUID().uuidString.lowercased(), alongside: buildApp
-    ) { session in
+    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
       try install(platform: platform, session: session)
       let screenshot = scratch.appending(path: "ready.png")
       let pid = try launchAndWait(
@@ -690,6 +688,10 @@ public struct SimulatorHarness {
   ) throws -> SurfaceRun {
     try requireCleanSource()
     try requireRevision(sourceRevision)
+    try regenerateWorkspace()
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    _ = try build(platform, iosCompanionAvailable: iosCompanionAvailable)
     let platformDirectory = context.proofRoot.appending(path: runID).appending(
       path: platform.rawValue)
     guard !fileManager.fileExists(atPath: platformDirectory.path) else {
@@ -698,16 +700,8 @@ public struct SimulatorHarness {
     }
     try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
 
-    func buildProvenApp() throws {
-      try regenerateWorkspace()
-      try requireCleanSource()
-      try requireRevision(sourceRevision)
-      _ = try build(platform, iosCompanionAvailable: iosCompanionAvailable)
-    }
-
     do {
-      return try withSession(platform: platform, runID: runID, alongside: buildProvenApp) {
-        session in
+      return try withSession(platform: platform, runID: runID) { session in
         try install(platform: platform, session: session)
 
         let wantsScreenshot = command == .screenshot || command == .proof
@@ -1939,10 +1933,14 @@ public struct SimulatorHarness {
   ) throws -> T {
     nonisolated(unsafe) let harness = self
     nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
-    let prepared = Result { try preparation() }
-    booted = Result {
-      try harness.createSession(platform: platform, runID: runID, device: device)
+    let booting = DispatchGroup()
+    DispatchQueue.global().async(group: booting) {
+      booted = Result {
+        try harness.createSession(platform: platform, runID: runID, device: device)
+      }
     }
+    let prepared = Result { try preparation() }
+    booting.wait()
     let session: SimulatorSession
     switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
     case (.success, .success(let booted)):
