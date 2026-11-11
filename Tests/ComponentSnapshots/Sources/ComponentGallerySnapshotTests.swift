@@ -38,6 +38,12 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     try assertGallerySnapshot(page: .sheets)
   }
 
+  #if os(iOS)
+    @MainActor func testShellPage() throws {
+      try assertGallerySnapshot(page: .shell)
+    }
+  #endif
+
   @MainActor
   private func assertGallerySnapshot(
     page: PutioComponentGallery.Page,

@@ -1854,7 +1854,8 @@ public struct SimulatorHarness {
     let screenshot = directory.appending(path: "\(name).png")
     try fileManager.moveItem(at: files[0], to: screenshot)
     let layoutURL = files[1]
-    let pixels = try requireMeaningfulScreenshot(screenshot, context: "board \(name)")
+    let pixels = try requireMeaningfulScreenshot(
+      screenshot, context: "board \(name)", wholeFrame: true)
     let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: layoutURL))
     try requireBoardScreenshot(
       pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: name)
@@ -2738,7 +2739,7 @@ public struct SimulatorHarness {
     }
   }
 
-  func decodedPixels(at url: URL) throws -> DecodedPixels {
+  func decodedPixels(at url: URL, wholeFrame: Bool = false) throws -> DecodedPixels {
     let encoded = try Data(contentsOf: url)
     guard
       let source = CGImageSourceCreateWithData(encoded as CFData, nil),
@@ -2768,10 +2769,10 @@ public struct SimulatorHarness {
     guard rendered else {
       throw HarnessFailure("could not rasterize screenshot pixels at \(url.path)")
     }
-    let minimumX = image.width / 10
-    let maximumX = image.width * 9 / 10
-    let minimumY = image.height / 5
-    let maximumY = image.height * 4 / 5
+    let minimumX = wholeFrame ? 0 : image.width / 10
+    let maximumX = wholeFrame ? image.width : image.width * 9 / 10
+    let minimumY = wholeFrame ? 0 : image.height / 5
+    let maximumY = wholeFrame ? image.height : image.height * 4 / 5
     var visibleContentPixelCount = 0
     for y in minimumY..<maximumY {
       for x in minimumX..<maximumX {
@@ -2791,9 +2792,11 @@ public struct SimulatorHarness {
     )
   }
 
-  func requireMeaningfulScreenshot(_ url: URL, context: String) throws -> DecodedPixels {
+  func requireMeaningfulScreenshot(_ url: URL, context: String, wholeFrame: Bool = false) throws
+    -> DecodedPixels
+  {
     try requireNonemptyFile(url, context: context)
-    let pixels = try decodedPixels(at: url)
+    let pixels = try decodedPixels(at: url, wholeFrame: wholeFrame)
     guard pixels.visibleContentPixelCount >= pixels.minimumContentPixelCount else {
       throw HarnessFailure("\(context) has no meaningful visible content at \(url.path)")
     }
