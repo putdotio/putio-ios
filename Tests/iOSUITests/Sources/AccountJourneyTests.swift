@@ -41,7 +41,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [contacted], timeout: 5), .completed)
     // Scrolling minimizes the tab bar; scroll back so the tabs are buttons again.
     let files = app.buttons["Files"]
-    if !files.exists { app.swipeDown() }
+    app.scrollDown(toHit: files)
     XCTAssertTrue(files.appears(within: 5))
     files.tap()
     account.tap()
