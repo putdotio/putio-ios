@@ -281,16 +281,14 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("account.storage-used").exists, "Account has no storage row")
   }
 
-  /// Drags the list a step at a time so the target row settles under the
-  /// inline title, as the scrolled boards draw it.
   private func scrollAccount(untilNearTop identifier: String) {
     let target = element(identifier)
     let window = app.windows.firstMatch.frame
-    let ceiling = window.minY + window.height * 0.2
+    let ceiling = window.minY + window.height * 0.24
     var steps = 0
-    while !(target.exists && target.frame.minY < ceiling), steps < 24 {
-      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
-      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    while !(target.exists && target.frame.minY < ceiling), steps < 60 {
+      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
       start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
       steps += 1
     }

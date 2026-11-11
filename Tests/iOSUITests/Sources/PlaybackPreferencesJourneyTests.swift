@@ -129,7 +129,6 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
   }
 
-  /// The proxy list fails once before it loads; the pick returns to Account.
   private func openProxy(_ app: XCUIApplication) -> XCUIElement {
     let proxy = app.revealed("playback-settings.route")
     XCTAssertTrue(proxy.appears(within: 10))
