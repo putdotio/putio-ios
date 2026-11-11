@@ -41,9 +41,9 @@ public struct PutioSelection<ID: Hashable & Sendable>: Equatable, Sendable {
     if selectedIDs.remove(id) == nil { selectedIDs.insert(id) }
   }
 
-  public mutating func toggleAll(among ids: some Collection<ID>) {
+  public mutating func selectAll(among ids: some Collection<ID>) {
     guard isActive else { return }
-    selectedIDs = coverage(among: ids) == .all ? [] : Set(ids)
+    selectedIDs = Set(ids)
   }
 
   public mutating func retain(_ ids: some Collection<ID>) {
@@ -233,13 +233,9 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
       }
       ToolbarItem(placement: .topBarTrailing) {
         Button {
-          selection.toggleAll(among: ids)
+          selection.selectAll(among: ids)
         } label: {
-          if selection.coverage(among: ids) == .all {
-            Text("Deselect all", bundle: .module)
-          } else {
-            Text("Select all", bundle: .module)
-          }
+          Text("Select all", bundle: .module)
         }
         .disabled(ids.isEmpty)
         .accessibilityIdentifier("selection.toggle-all")

@@ -15,12 +15,12 @@ final class PutioSelectionTests: XCTestCase {
     XCTAssertEqual(selection.coverage(among: ids), .some)
     XCTAssertEqual(selection.count, 2)
 
-    selection.toggleAll(among: ids)
+    selection.selectAll(among: ids)
     XCTAssertEqual(selection.coverage(among: ids), .all)
     XCTAssertEqual(selection.count, 3)
 
-    selection.toggleAll(among: ids)
-    XCTAssertEqual(selection.coverage(among: ids), .none)
+    selection.selectAll(among: ids)
+    XCTAssertEqual(selection.coverage(among: ids), .all)
     XCTAssertTrue(selection.isActive)
   }
 
@@ -34,7 +34,7 @@ final class PutioSelectionTests: XCTestCase {
   func testRowsDoNotToggleOutsideSelection() {
     var selection = PutioSelection<Int>()
     selection.toggle(1)
-    selection.toggleAll(among: ids)
+    selection.selectAll(among: ids)
     XCTAssertEqual(selection.count, 0)
   }
 

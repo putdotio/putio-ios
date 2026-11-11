@@ -675,17 +675,6 @@
         }
       }
     },
-    "Deselect all" : {
-      "comment" : "ios-only: the selection header names the undo of Select all once every row is selected; Android keeps Select all",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deselect all"
-          }
-        }
-      }
-    },
     "Diagnostics" : {
       "comment" : "android: privacy_diagnostics",
       "localizations" : {

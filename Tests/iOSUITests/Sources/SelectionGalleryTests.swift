@@ -43,20 +43,13 @@ final class SelectionGalleryTests: XCTestCase {
 
     toggleAll().tap()
     XCTAssertEqual(count.label, "9 selected")
-    XCTAssertEqual(toggleAll().label, "Deselect all")
+    XCTAssertEqual(toggleAll().label, "Select all")
     attachScreenshot(named: "selection-mode-all")
 
     action("trash").tap()
     XCTAssertEqual(
       app.staticTexts["gallery.selection.reported-action"].label, "Last action: trash 9")
 
-    toggleAll().tap()
-    XCTAssertEqual(count.label, "0 selected")
-    XCTAssertEqual(toggleAll().label, "Select all")
-    XCTAssertFalse(row(0).isSelected, "Deselect all left a row selected")
-
-    row(1).tap()
-    XCTAssertEqual(count.label, "1 selected")
     close()
     select.tap()
     XCTAssertTrue(count.appears(within: 5))
