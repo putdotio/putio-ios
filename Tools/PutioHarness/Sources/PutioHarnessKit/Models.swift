@@ -554,11 +554,16 @@ enum BoardCaptureContract {
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
       BoardCapture("rd-ios-13-ipad-sidebar", .ipad, "testIPadSidebar"),
       BoardCapture("rd-ios-14-ipad-portrait", .ipad, "testIPadPortrait"),
+      BoardCapture(
+        "gallery-split-ipad-none", .ipad, "testListDetailNothingSelected", screenBase: false),
+      BoardCapture(
+        "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
+        screenBase: false),
     ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
 
   static let galleryPages = [
     "buttons", "files", "states", "feedback", "forms", "sheets", "shell", "menus", "text-alert",
-    "confirm-alert", "selection-none", "selection-some", "selection-all",
+    "confirm-alert", "selection-none", "selection-some", "selection-all", "split",
   ]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {

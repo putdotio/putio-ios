@@ -77,6 +77,30 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-14-ipad-portrait")
   }
 
+  func testListDetailNothingSelected() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    launchListDetailGallery()
+    XCTAssertTrue(
+      app.staticTexts["No file selected"].appears(within: 5), "the empty detail has no title")
+    XCTAssertTrue(app.staticTexts["Tap a file to see it here."].exists)
+    XCTAssertFalse(listDetailRow(0).isSelected, "a row is open with nothing selected")
+    try captureBoard("gallery-split-ipad-none")
+  }
+
+  func testListDetailKeepsSelectionAcrossRotation() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    launchListDetailGallery()
+    let row = listDetailRow(0)
+    row.tap()
+    assertListDetailOpen(row, "selecting a row")
+    XCUIDevice.shared.orientation = .portrait
+    assertListDetailOpen(row, "rotating to portrait")
+    XCUIDevice.shared.orientation = .landscapeLeft
+    assertListDetailOpen(row, "rotating back to landscape")
+    XCTAssertFalse(listDetailRow(1).isSelected, "a second row opened")
+    try captureBoard("gallery-split-ipad-detail")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
@@ -88,6 +112,29 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.staticTexts.firstMatch.appears(within: 15), "gallery page never rendered")
     try captureBoard(board)
+  }
+
+  private static let listDetailFileName = "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv"
+
+  private func launchListDetailGallery() {
+    app.launchArguments = [
+      "--putio-harness-scenario", "gallery", "--putio-harness-gallery-page", "split",
+    ]
+    app.launch()
+    XCTAssertTrue(listDetailRow(0).appears(within: 15), "the list and detail page never rendered")
+  }
+
+  private func listDetailRow(_ index: Int) -> XCUIElement {
+    element("gallery.split.row.\(index)").firstMatch
+  }
+
+  private func assertListDetailOpen(_ row: XCUIElement, _ step: String) {
+    let title = element("gallery.split.detail-title").firstMatch
+    XCTAssertTrue(title.appears(within: 5), "no detail after \(step)")
+    XCTAssertEqual(title.label, Self.listDetailFileName, "the detail changed after \(step)")
+    XCTAssertTrue(row.appears(within: 5), "the list column is hidden after \(step)")
+    XCTAssertTrue(row.isSelected, "the open row lost its selection after \(step)")
+    XCTAssertFalse(app.staticTexts["No file selected"].exists, "the detail emptied after \(step)")
   }
 
   private func reachFilesRoot() {
