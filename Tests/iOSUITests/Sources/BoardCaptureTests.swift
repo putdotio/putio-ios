@@ -51,6 +51,13 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func captureBoard(_ board: String) throws {
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      try app.performAccessibilityAudit(for: .textClipped) { issue in
+        guard let element = issue.element else { return false }
+        return Self.isMiddleTruncatedFileName(element.label)
+          && element.frame.height >= Self.minimumXXLargeLineHeight
+      }
+    }
     let window = app.windows.firstMatch.frame
     let screen = XCUIScreen.main.screenshot().image
     let capture = Self.oriented(screen, toMatch: window.size)
@@ -100,6 +107,18 @@ final class BoardCaptureTests: XCTestCase {
           x: -image.size.width / 2, y: -image.size.height / 2, width: image.size.width,
           height: image.size.height))
     }
+  }
+
+  private static let minimumXXLargeLineHeight: CGFloat = 24
+
+  private static func isMiddleTruncatedFileName(_ label: String?) -> Bool {
+    guard let label, let dot = label.lastIndex(of: "."), dot != label.startIndex else {
+      return false
+    }
+    let fileExtension = label[label.index(after: dot)...]
+    return (1...5).contains(fileExtension.count)
+      && fileExtension.allSatisfy { $0.isLetter || $0.isNumber }
+      && fileExtension.contains(where: \.isLetter)
   }
 
   private func element(_ identifier: String) -> XCUIElement {

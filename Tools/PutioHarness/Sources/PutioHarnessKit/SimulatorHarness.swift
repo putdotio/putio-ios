@@ -1731,7 +1731,7 @@ public struct SimulatorHarness {
   }
 
   func captureBoards(
-    _ boards: [BoardCapture], runID: String, sourceRevision: String
+    _ boards: [BoardCapture], xxl: Bool = false, runID: String, sourceRevision: String
   ) throws -> SurfaceRun {
     let platform = HarnessPlatform.ios
     try requireCleanSource()
@@ -1776,6 +1776,19 @@ public struct SimulatorHarness {
             failures.append((board.id, error))
           }
         }
+        guard xxl else { return }
+        try withContentSize(BoardTextSize.xxl.contentSizeCategory, session: session) {
+          for board in group where board.isScreenBase {
+            do {
+              captured.append(
+                try captureBoard(
+                  board, textSize: .xxl, session: session, mediaBaseURL: mediaBaseURL,
+                  directory: deviceDirectory))
+            } catch {
+              failures.append(("\(board.id)-xxl", error))
+            }
+          }
+        }
       }
     }
     guard failures.isEmpty else {
@@ -1792,7 +1805,8 @@ public struct SimulatorHarness {
       runID: runID,
       commit: sourceRevision,
       createdAt: ISO8601DateFormatter().string(from: Date()),
-      command: "journey --boards \(boards.map(\.id).joined(separator: ","))",
+      command: "journey --boards \(boards.map(\.id).joined(separator: ","))"
+        + (xxl ? " --xxl" : ""),
       runtime: runtimeName,
       fixtureSet: BoardCaptureContract.fixtureSet,
       boards: captured
@@ -1811,42 +1825,76 @@ public struct SimulatorHarness {
   }
 
   private func captureBoard(
-    _ board: BoardCapture, session: SimulatorSession, mediaBaseURL: URL, directory: URL
+    _ board: BoardCapture, textSize: BoardTextSize = .standard, session: SimulatorSession,
+    mediaBaseURL: URL, directory: URL
   ) throws -> BoardArtifact {
-    let resultBundle = directory.appending(path: ".\(board.id).xcresult")
+    let name = textSize == .xxl ? "\(board.id)-xxl" : board.id
+    let staging = directory.appending(path: ".\(name)")
+    try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+    defer { try? fileManager.removeItem(at: staging) }
+    let resultBundle = directory.appending(path: ".\(name).xcresult")
     let files = try runJourneyPreflightTest(
       identifier: board.testIdentifier,
       platform: .ios,
       session: session,
       mediaBaseURL: mediaBaseURL,
+      environment: textSize == .xxl ? ["TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": "1"] : [:],
       resultBundle: resultBundle,
       attachmentNames: [board.id],
       dataAttachmentNames: [board.layoutAttachmentName],
-      artifactDirectory: directory,
+      artifactDirectory: staging,
       defaultExecutionTimeAllowance: 90,
       maximumExecutionTimeAllowance: 120
     )
     guard files.count == 2 else {
-      throw HarnessFailure("board \(board.id) exported \(files.count) attachments, expected 2")
+      throw HarnessFailure("board \(name) exported \(files.count) attachments, expected 2")
     }
-    let screenshot = files[0]
+    let screenshot = directory.appending(path: "\(name).png")
+    try fileManager.moveItem(at: files[0], to: screenshot)
     let layoutURL = files[1]
-    defer { try? fileManager.removeItem(at: layoutURL) }
-    let pixels = try requireMeaningfulScreenshot(screenshot, context: "board \(board.id)")
+    let pixels = try requireMeaningfulScreenshot(screenshot, context: "board \(name)")
     let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: layoutURL))
     try requireBoardScreenshot(
-      pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: board.id)
+      pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: name)
     try? fileManager.removeItem(at: resultBundle)
     let artifact = try artifact(for: screenshot)
     return BoardArtifact(
       board: board.id,
       device: board.device,
+      textSize: textSize,
       deviceType: session.deviceType.name,
       pointWidth: layout.width,
       pointHeight: layout.height,
       path: artifact.path,
       sha256: artifact.sha256
     )
+  }
+
+  private func withContentSize(
+    _ category: String, session: SimulatorSession, operation: () throws -> Void
+  ) throws {
+    let device = session.deviceIdentifier
+    let previous = try runner.checked(
+      "xcrun", ["simctl", "ui", device, "content_size"], context: "read Simulator text size"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    let restore = { [runner] in
+      _ = try runner.checked(
+        "xcrun", ["simctl", "ui", device, "content_size", previous],
+        context: "restore Simulator text size to \(previous)")
+    }
+    try SimulatorLifecycle.shared.register(beforeSimulatorTeardown: true) { try restore() }
+    _ = try runner.checked(
+      "xcrun", ["simctl", "ui", device, "content_size", category],
+      context: "set Simulator text size to \(category)")
+    let result = Result { try operation() }
+    try restore()
+    let restored = try runner.checked(
+      "xcrun", ["simctl", "ui", device, "content_size"], context: "read Simulator text size"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard restored == previous else {
+      throw HarnessFailure("Simulator text size is \(restored) after the run, expected \(previous)")
+    }
+    try result.get()
   }
 
   public func defaultRunID() throws -> String {

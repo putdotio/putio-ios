@@ -181,7 +181,7 @@ public enum HarnessInvocation: Equatable, Sendable {
     only: [String] = [],
     output: OutputFormat
   )
-  case boards(ids: [String], runID: String?, output: OutputFormat)
+  case boards(ids: [String], xxl: Bool = false, runID: String?, output: OutputFormat)
   case authStatus(output: OutputFormat)
   case liveFixture(output: OutputFormat)
 }
@@ -518,11 +518,13 @@ struct BoardCapture: Equatable, Sendable {
   let id: String
   let device: BoardDevice
   let testIdentifier: String
+  let isScreenBase: Bool
 
-  init(_ id: String, _ device: BoardDevice, _ testIdentifier: String) {
+  init(_ id: String, _ device: BoardDevice, _ testIdentifier: String, screenBase: Bool = true) {
     self.id = id
     self.device = device
     self.testIdentifier = "PutioUITests/BoardCaptureTests/" + testIdentifier
+    isScreenBase = screenBase
   }
 
   var layoutAttachmentName: String { "\(id)-layout" }
@@ -557,9 +559,22 @@ struct BoardLayout: Codable, Equatable, Sendable {
   let scale: Double
 }
 
+public enum BoardTextSize: String, Codable, Sendable {
+  case standard
+  case xxl
+
+  var contentSizeCategory: String {
+    switch self {
+    case .standard: "large"
+    case .xxl: "extra-extra-large"
+    }
+  }
+}
+
 public struct BoardArtifact: Codable, Equatable, Sendable {
   public let board: String
   public let device: BoardDevice
+  public let textSize: BoardTextSize
   public let deviceType: String
   public let pointWidth: Double
   public let pointHeight: Double

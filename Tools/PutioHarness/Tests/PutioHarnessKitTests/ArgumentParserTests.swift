@@ -333,7 +333,8 @@ import Testing
   #expect(
     invocation
       == .boards(
-        ids: ["rd-ios-02-folder", "rd-ios-12-ipad-split"], runID: "boards-1", output: .text))
+        ids: ["rd-ios-02-folder", "rd-ios-12-ipad-split"], xxl: false, runID: "boards-1",
+        output: .text))
 }
 
 @Test func rejectsBoardsWithoutATableEntry() {
@@ -357,5 +358,20 @@ import Testing
       "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--scenario",
       "files-browser",
     ])
+  }
+}
+
+@Test func parsesTheXXLBoardFlag() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--xxl",
+    ]) == .boards(ids: ["rd-ios-02-folder"], xxl: true, runID: nil, output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--xxl", "--xxl",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--xxl"])
   }
 }

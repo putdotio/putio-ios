@@ -87,6 +87,11 @@ A board state needs one row there and one seeded test step.
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with
   their boards yourself; the run proves only that the state was reached.
+- `--xxl` adds one capture per screen at the XX Large text cap, taken on the
+  screen's base board and named `<board-id>-xxl.png`. The run sets the
+  simulator's text size and restores it afterwards, also on failure or
+  interruption. The capture fails when the accessibility audit reports clipped
+  text, except file names cut in the middle.
 
 ## tvOS
 
