@@ -107,7 +107,6 @@ private struct PutioToastSurface: ViewModifier {
 }
 
 extension View {
-  /// Shows one toast at a time: setting a new one replaces the current one.
   public func putioToast(_ toast: Binding<PutioToast?>) -> some View {
     modifier(PutioToastPresenter(toast: toast))
   }
