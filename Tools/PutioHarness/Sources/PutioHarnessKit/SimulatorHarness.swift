@@ -1939,14 +1939,10 @@ public struct SimulatorHarness {
   ) throws -> T {
     nonisolated(unsafe) let harness = self
     nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
-    let booting = DispatchGroup()
-    DispatchQueue.global().async(group: booting) {
-      booted = Result {
-        try harness.createSession(platform: platform, runID: runID, device: device)
-      }
-    }
     let prepared = Result { try preparation() }
-    booting.wait()
+    booted = Result {
+      try harness.createSession(platform: platform, runID: runID, device: device)
+    }
     let session: SimulatorSession
     switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
     case (.success, .success(let booted)):
