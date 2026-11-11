@@ -799,7 +799,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let renamedFolder = element(identifier: "files.item.415")
     let renamed = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@", "Weekend"),
+      predicate: NSPredicate(format: "label == %@ OR label BEGINSWITH %@", "Weekend", "Weekend, "),
       object: renamedFolder
     )
     XCTAssertEqual(
