@@ -38,7 +38,7 @@ final class LiveFilesJourneyTests: XCTestCase {
       app.descendants(matching: .any)["preview.image"].waitForExistence(timeout: 30),
       "fixture image never rendered")
     attach("live-preview")
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
     XCTAssertTrue(
       app.descendants(matching: .any)["preview.screen.\(fileID)"].waitForNonExistence(timeout: 5))
 

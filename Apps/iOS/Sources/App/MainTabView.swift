@@ -60,6 +60,9 @@ struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreviewRoute: PutioPreviewRoute?
+  #if DEBUG
+    @State private var harnessPreviewRequests = HarnessPreviewRequests()
+  #endif
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
   @State private var offlineQueueHolder: PutioOfflineQueueHolder
@@ -209,7 +212,7 @@ struct MainTabView: View {
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
-    .sheet(item: $presentedPreviewRoute) { route in
+    .fullScreenCover(item: $presentedPreviewRoute) { route in
       PutioPreviewView(
         route: route,
         download: { fileID in try await downloadPreview(fileID: fileID) },
@@ -424,6 +427,22 @@ struct MainTabView: View {
   /// A rejected token on the raw GET is re-checked through the runtime, which
   /// signs the account out when the session really expired.
   private func downloadPreview(fileID: PutioFileID) async throws -> Data {
+    #if DEBUG
+      guard scenario == .filesBrowser else { return try await fetchPreview(fileID: fileID) }
+      do {
+        let data = try await fetchPreview(fileID: fileID)
+        harnessPreviewRequests.record(fileID, .loaded)
+        return data
+      } catch {
+        harnessPreviewRequests.record(fileID, Task.isCancelled ? .cancelled : .failed)
+        throw error
+      }
+    #else
+      return try await fetchPreview(fileID: fileID)
+    #endif
+  }
+
+  private func fetchPreview(fileID: PutioFileID) async throws -> Data {
     let source = try await runtime.resolveFileDownloadSource(fileID: fileID)
     let url = try harnessPreviewURL(for: source) ?? source.url
     do {
@@ -611,6 +630,7 @@ struct MainTabView: View {
           )
         }
         HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
+        HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }

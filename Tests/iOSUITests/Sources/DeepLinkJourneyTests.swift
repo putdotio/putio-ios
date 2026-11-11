@@ -45,7 +45,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     try open("putio:///files/413")
     XCTAssertTrue(element("preview.screen.413").appears(within: 10))
     XCTAssertTrue(element("preview.document").appears(within: 10))
-    app.buttons["preview.done"].tap()
+    app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
     // Nothing is queued, so the item link falls back to the Downloads list.
     try open("putio:///downloads/411")

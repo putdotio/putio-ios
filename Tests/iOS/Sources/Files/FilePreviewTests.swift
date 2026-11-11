@@ -53,13 +53,9 @@ final class FilePreviewTests: XCTestCase {
       }
     }
     await model.load()
-    guard case .failed(let failure) = model.state else { return XCTFail("\(model.state)") }
-    XCTAssertEqual(failure.kind, .transient)
-    XCTAssertEqual(failure.title, "Could not open image")
+    XCTAssertEqual(model.state, .failed(.loadFailed))
     await model.retry()
-    guard case .failed(let unreadable) = model.state else { return XCTFail("\(model.state)") }
-    XCTAssertEqual(unreadable.kind, .unreadable)
-    XCTAssertEqual(unreadable.title, "Could not display image")
+    XCTAssertEqual(model.state, .failed(.unreadable))
     await model.retry()
     guard case .image(let image) = model.state else { return XCTFail("\(model.state)") }
     XCTAssertEqual(image.size.width * image.scale, 2)
@@ -67,19 +63,16 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(attempts, 3)
   }
 
-  func testDocumentPreviewRequiresAtLeastOnePageAndMapsNotFound() async throws {
+  func testDocumentPreviewRequiresAtLeastOnePageAndShowsNotFoundAsLoadFailed() async throws {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 6), parentID: .root, title: "Doc.pdf", kind: .pdf)
     let notFound = PutioPreviewModel(route: route) { _ in throw PutioRuntimeError.notFound }
     await notFound.load()
-    guard case .failed(let failure) = notFound.state else { return XCTFail("\(notFound.state)") }
-    XCTAssertEqual(failure.kind, .notFound)
-    XCTAssertEqual(failure.title, "Document not found")
+    XCTAssertEqual(notFound.state, .failed(.loadFailed))
 
     let empty = PutioPreviewModel(route: route) { _ in Data("%PDF-1.4".utf8) }
     await empty.load()
-    guard case .failed(let unreadable) = empty.state else { return XCTFail("\(empty.state)") }
-    XCTAssertEqual(unreadable.kind, .unreadable)
+    XCTAssertEqual(empty.state, .failed(.unreadable))
 
     let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 100, height: 100))
     let data = renderer.pdfData { context in context.beginPage() }
@@ -94,9 +87,7 @@ final class FilePreviewTests: XCTestCase {
       id: PutioFileID(rawValue: 8), parentID: .root, title: "Huge.png", kind: .image)
     let model = PutioPreviewModel(route: route) { _ in throw PutioPreviewTooLargeError() }
     await model.load()
-    guard case .failed(let failure) = model.state else { return XCTFail("\(model.state)") }
-    XCTAssertEqual(failure.kind, .tooLarge)
-    XCTAssertEqual(failure.title, "Image too large to preview")
+    XCTAssertEqual(model.state, .failed(.tooLarge))
   }
 
   func testReloadCancelsTheInFlightDownload() async {

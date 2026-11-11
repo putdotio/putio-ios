@@ -1,3 +1,4 @@
+import Observation
 import PutioCore
 import SwiftUI
 
@@ -48,6 +49,36 @@ import SwiftUI
         .accessibilityLabel("External playback requests")
         .accessibilityValue(HarnessExternalURLOpener.summary())
         .accessibilityIdentifier("vlc.requests")
+        .allowsHitTesting(false)
+    }
+  }
+
+  @MainActor
+  @Observable
+  final class HarnessPreviewRequests {
+    enum Outcome: String {
+      case loaded
+      case failed
+      case cancelled
+    }
+
+    private(set) var entries: [String] = []
+
+    func record(_ fileID: PutioFileID, _ outcome: Outcome) {
+      entries.append("\(fileID.rawValue):\(outcome.rawValue)")
+    }
+  }
+
+  struct HarnessPreviewRequestsProbe: View {
+    let requests: HarnessPreviewRequests
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Preview requests")
+        .accessibilityValue(requests.entries.joined(separator: ","))
+        .accessibilityIdentifier("preview.requests")
         .allowsHitTesting(false)
     }
   }
