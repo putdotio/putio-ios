@@ -2218,9 +2218,8 @@ public struct SimulatorHarness {
     var values =
       (try? PropertyListSerialization.propertyList(from: Data(contentsOf: file), format: nil))
       as? [String: Any] ?? [:]
-    for (key, value) in simulatorLocalePreferences {
-      values[key] = value
-    }
+    values["AppleLocale"] = simulatorLocale
+    values["AppleLanguages"] = simulatorLanguages
     try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
       .write(to: file, options: .atomic)
   }
@@ -2828,10 +2827,8 @@ func requireBoardScreenshot(
   }
 }
 
-let simulatorLocalePreferences: [(String, Any)] = [
-  ("AppleLocale", "en_US"),
-  ("AppleLanguages", ["en"]),
-]
+let simulatorLocale = "en_US"
+let simulatorLanguages = ["en"]
 
 struct DecodedPixels {
   let width: Int
