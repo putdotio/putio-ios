@@ -32,7 +32,8 @@
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
           .navigationSplitViewColumnWidth(
             min: PutioListDetailLayout.listMinimumWidth,
-            ideal: PutioListDetailLayout.listIdealWidth)
+            ideal: PutioListDetailLayout.listIdealWidth
+          )
           .toolbar(removing: .sidebarToggle)
       } detail: {
         if let selection {
