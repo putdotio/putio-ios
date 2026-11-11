@@ -3,7 +3,6 @@
   "strings" : {
     "%@ %lld couldn’t be moved." : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -15,7 +14,6 @@
     },
     "%@ is now signed in with your account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -27,7 +25,6 @@
     },
     "%@ is ready to play." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -39,7 +36,6 @@
     },
     "%@ to %@" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -51,7 +47,6 @@
     },
     "%@ was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -63,7 +58,6 @@
     },
     "%@ was removed from this device, but put.io did not confirm the original was removed." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -75,7 +69,6 @@
     },
     "%@ were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -87,7 +80,6 @@
     },
     "%@ were removed from this device, but put.io did not confirm the originals were removed." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -99,7 +91,6 @@
     },
     "%@ · Deleted %@" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -111,7 +102,6 @@
     },
     "%@, %lld pages" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -123,7 +113,6 @@
     },
     "%@. %lld of %lld complete." : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -135,7 +124,6 @@
     },
     "%lld items" : {
       "comment" : "android: mobile_files_item_count",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -159,7 +147,6 @@
     },
     "A selected audio language is no longer available." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -171,7 +158,6 @@
     },
     "About" : {
       "comment" : "android: mobile_settings_section_about",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -183,7 +169,6 @@
     },
     "About put.io" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -195,7 +180,6 @@
     },
     "Account" : {
       "comment" : "android: mobile_destination_account",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -207,7 +191,6 @@
     },
     "Account settings could not be confirmed. Refresh to continue." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -219,7 +202,6 @@
     },
     "Acknowledgements" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -231,7 +213,6 @@
     },
     "Activation code" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -243,7 +224,6 @@
     },
     "Add this secret to your authenticator app, then enter the code it shows." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -255,7 +235,6 @@
     },
     "Allow" : {
       "comment" : "android: mobile_product_analytics_prompt_allow",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -267,7 +246,6 @@
     },
     "Always on" : {
       "comment" : "android: privacy_strictly_necessary_state",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -279,7 +257,6 @@
     },
     "Are you sure to permanently delete those files?" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -291,7 +268,6 @@
     },
     "Are you sure?" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -303,7 +279,6 @@
     },
     "Audio" : {
       "comment" : "android: mobile_playback_audio_control",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -315,7 +290,6 @@
     },
     "Audio languages" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -327,7 +301,6 @@
     },
     "Audio not found" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -339,7 +312,6 @@
     },
     "Audio output" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -351,7 +323,6 @@
     },
     "Audio player state" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -363,7 +334,6 @@
     },
     "Authenticator code" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -375,7 +345,6 @@
     },
     "Autoplay next video" : {
       "comment" : "android: mobile_settings_autoplay_next",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -387,7 +356,6 @@
     },
     "Back 30 seconds" : {
       "comment" : "android: mobile_playback_seek_back | differs: iOS fixes the 30-second step in the text",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -399,7 +367,6 @@
     },
     "Buffering on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -411,7 +378,6 @@
     },
     "Cancel" : {
       "comment" : "android: mobile_action_cancel",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -423,7 +389,6 @@
     },
     "Cancel playing %@" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -435,7 +400,6 @@
     },
     "Cannot open link" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -447,7 +411,6 @@
     },
     "Cast" : {
       "comment" : "android: mobile_cast",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -459,7 +422,6 @@
     },
     "Cast receiver" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -471,7 +433,6 @@
     },
     "Cast, connected" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -483,7 +444,6 @@
     },
     "Changes to your downloads could not be saved on this device. Try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -495,7 +455,6 @@
     },
     "Check your connection and try again." : {
       "comment" : "android: mobile_state_error_message",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -507,7 +466,6 @@
     },
     "Choose another folder." : {
       "comment" : "ios-only: no Android string for the iOS move picker",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -519,7 +477,6 @@
     },
     "Chromecast" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -531,7 +488,6 @@
     },
     "Clear" : {
       "comment" : "android: mobile_history_clear_confirm",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -543,7 +499,6 @@
     },
     "Clear all history?" : {
       "comment" : "android: mobile_history_clear_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -555,7 +510,6 @@
     },
     "Clear History" : {
       "comment" : "android: mobile_history_clear | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -567,7 +521,6 @@
     },
     "Clear selected data" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -579,7 +532,6 @@
     },
     "Clear the selected data?" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -591,7 +543,6 @@
     },
     "Clear your data" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -603,7 +554,6 @@
     },
     "Cleared data cannot be recovered." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -615,7 +565,6 @@
     },
     "Close" : {
       "comment" : "android: mobile_action_close",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -627,7 +576,6 @@
     },
     "Confirm" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -639,7 +587,6 @@
     },
     "Connected" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -651,7 +598,6 @@
     },
     "Connected to %@" : {
       "comment" : "android: mobile_cast_casting_to | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -663,7 +609,6 @@
     },
     "Connection" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -675,7 +620,6 @@
     },
     "Contact us" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -687,7 +631,6 @@
     },
     "Conversion failed" : {
       "comment" : "android: mobile_playback_conversion_failed | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -699,7 +642,6 @@
     },
     "Converting" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -711,7 +653,6 @@
     },
     "Converting %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -723,7 +664,6 @@
     },
     "Converting video" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -735,7 +675,6 @@
     },
     "Converting · %@" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -747,7 +686,6 @@
     },
     "Copy all" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -759,7 +697,6 @@
     },
     "Copy secret" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -771,7 +708,6 @@
     },
     "Could not cast" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -783,7 +719,6 @@
     },
     "Could not delete original" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -795,7 +730,6 @@
     },
     "Could not delete originals" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -807,7 +741,6 @@
     },
     "Could not display document" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -819,7 +752,6 @@
     },
     "Could not display image" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -831,7 +763,6 @@
     },
     "Could not load apps" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -843,7 +774,6 @@
     },
     "Could not load history" : {
       "comment" : "android: mobile_history_error_title | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -855,7 +785,6 @@
     },
     "Could not load more files" : {
       "comment" : "android: mobile_files_paging_error | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -867,7 +796,6 @@
     },
     "Could not load more folders" : {
       "comment" : "ios-only: no Android string for the iOS move picker",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -879,7 +807,6 @@
     },
     "Could not move items" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -891,7 +818,6 @@
     },
     "Could not move original to Trash" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -903,7 +829,6 @@
     },
     "Could not move originals to Trash" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -915,7 +840,6 @@
     },
     "Could not open audio" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -927,7 +851,6 @@
     },
     "Could not open document" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -939,7 +862,6 @@
     },
     "Could not open image" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -951,7 +873,6 @@
     },
     "Could not open in VLC" : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -963,7 +884,6 @@
     },
     "Could not play audio" : {
       "comment" : "android: mobile_playback_error_title_audio | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -975,7 +895,6 @@
     },
     "Could not refresh" : {
       "comment" : "android: mobile_files_refresh_error | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -987,7 +906,6 @@
     },
     "Could not remove download" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -999,7 +917,6 @@
     },
     "Could not remove downloads" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1011,7 +928,6 @@
     },
     "Could not remove original from put.io" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1023,7 +939,6 @@
     },
     "Could not remove originals from put.io" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1035,7 +950,6 @@
     },
     "Could not save downloads" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1047,7 +961,6 @@
     },
     "Could not save the Chromecast setting. Try again." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1059,7 +972,6 @@
     },
     "Could not search files" : {
       "comment" : "android: mobile_search_error_title | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1071,7 +983,6 @@
     },
     "Could not start download" : {
       "comment" : "android: mobile_downloads_meta_failed_unexpected | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1083,7 +994,6 @@
     },
     "Could not update items" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1095,7 +1005,6 @@
     },
     "Create" : {
       "comment" : "android: mobile_files_new_folder_create",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1107,7 +1016,6 @@
     },
     "Current playback position" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1119,7 +1027,6 @@
     },
     "Current proxy" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1131,7 +1038,6 @@
     },
     "Current server setting" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1143,7 +1049,6 @@
     },
     "Danger zone" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1155,7 +1060,6 @@
     },
     "Default sort" : {
       "comment" : "android: mobile_settings_default_sort | differs: shorter iOS row label",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1167,7 +1071,6 @@
     },
     "Default track" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1179,7 +1082,6 @@
     },
     "Delete" : {
       "comment" : "android: mobile_files_delete",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1191,7 +1093,6 @@
     },
     "Delete %lld items permanently?" : {
       "comment" : "android: mobile_files_delete_permanently_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -1215,7 +1116,6 @@
     },
     "Delete Event" : {
       "comment" : "ios-only: no Android string for the iOS history screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1227,7 +1127,6 @@
     },
     "Delete Permanently" : {
       "comment" : "android: mobile_trash_delete | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1239,7 +1138,6 @@
     },
     "Delete permanently?" : {
       "comment" : "android: mobile_trash_delete_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1251,7 +1149,6 @@
     },
     "Delete “%@” permanently?" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1263,7 +1160,6 @@
     },
     "Deleted %lld items." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -1287,7 +1183,6 @@
     },
     "Deleted to make room for RSS · %@" : {
       "comment" : "android: mobile_history_kind_rss_file_deleted | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1299,7 +1194,6 @@
     },
     "Deleting the original removes it from every device signed in to your account and cannot be undone." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1311,7 +1205,6 @@
     },
     "Deleting the originals removes them from every device signed in to your account and cannot be undone." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1323,7 +1216,6 @@
     },
     "Deselect All" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1335,7 +1227,6 @@
     },
     "Destroy account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1347,7 +1238,6 @@
     },
     "Destroy your account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1359,7 +1249,6 @@
     },
     "Destroying your account deletes your files, transfers, and history and cancels your subscription. There is no way back." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1371,7 +1260,6 @@
     },
     "Details" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1383,7 +1271,6 @@
     },
     "Devices" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1395,7 +1282,6 @@
     },
     "Disable" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1407,7 +1293,6 @@
     },
     "Disable two-factor" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1419,7 +1304,6 @@
     },
     "Disconnect" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1431,7 +1315,6 @@
     },
     "Do not select subtitles by default" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1443,7 +1326,6 @@
     },
     "Document" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1455,7 +1337,6 @@
     },
     "Document not found" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1467,7 +1348,6 @@
     },
     "Document too large to preview" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1479,7 +1359,6 @@
     },
     "Don't allow" : {
       "comment" : "android: mobile_product_analytics_prompt_deny | differs: iOS uses a straight apostrophe",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1491,7 +1370,6 @@
     },
     "Done" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1503,7 +1381,6 @@
     },
     "Done. The selected data has been cleared." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1515,7 +1392,6 @@
     },
     "Download" : {
       "comment" : "android: mobile_files_download_action",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1527,7 +1403,6 @@
     },
     "Download complete" : {
       "comment" : "android: mobile_downloads_notification_completed | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1539,7 +1414,6 @@
     },
     "Downloaded" : {
       "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1551,7 +1425,6 @@
     },
     "Downloading" : {
       "comment" : "android: mobile_downloads_section_downloading",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1563,7 +1436,6 @@
     },
     "Downloading · %@" : {
       "comment" : "android: mobile_downloads_status_downloading_unknown",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1575,7 +1447,6 @@
     },
     "Downloads" : {
       "comment" : "android: mobile_destination_downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1587,7 +1458,6 @@
     },
     "Each unused code signs you in once if you lose your authenticator app." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1599,7 +1469,6 @@
     },
     "Email" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1611,7 +1480,6 @@
     },
     "Empty Trash" : {
       "comment" : "android: mobile_trash_empty_action | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1623,7 +1491,6 @@
     },
     "Empty Trash permanently?" : {
       "comment" : "android: mobile_trash_empty_confirm_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1635,7 +1502,6 @@
     },
     "Enable" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1647,7 +1513,6 @@
     },
     "Enable two-factor" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1659,7 +1524,6 @@
     },
     "End of folder" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1671,7 +1535,6 @@
     },
     "Enter the code shown on your device to link it to your put.io account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1683,7 +1546,6 @@
     },
     "Enter the current code from your authenticator app to turn two-factor authentication off." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1695,7 +1557,6 @@
     },
     "Enter the six-digit code your authenticator app shows for put.io." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1707,7 +1568,6 @@
     },
     "Enter your password to confirm." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1719,7 +1579,6 @@
     },
     "Estimated size" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1731,7 +1590,6 @@
     },
     "Every event will be removed from your history. Your files will stay in place." : {
       "comment" : "android: mobile_history_clear_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1743,7 +1601,6 @@
     },
     "Every folder will use your account's default sort." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1755,7 +1612,6 @@
     },
     "Every item in Trash will be deleted and cannot be restored." : {
       "comment" : "android: mobile_trash_empty_confirm_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1767,7 +1623,6 @@
     },
     "Every item in Trash will be permanently deleted. Future deletions cannot be restored." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1779,7 +1634,6 @@
     },
     "Every selected language is stored and can be switched while offline." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1791,7 +1645,6 @@
     },
     "Existing history will be cleared and new account events will no longer be saved." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1803,7 +1656,6 @@
     },
     "Expires on %@" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1815,7 +1667,6 @@
     },
     "File not found" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1827,7 +1678,6 @@
     },
     "File preferences" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1839,7 +1689,6 @@
     },
     "Files" : {
       "comment" : "android: mobile_destination_files",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1851,7 +1700,6 @@
     },
     "Files added here appear in this list." : {
       "comment" : "android: mobile_files_empty_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1863,7 +1711,6 @@
     },
     "Files you download for offline playback appear here." : {
       "comment" : "android: mobile_downloads_empty_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1875,7 +1722,6 @@
     },
     "Find files by their stored name." : {
       "comment" : "android: mobile_search_start_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1887,7 +1733,6 @@
     },
     "Finding the next video" : {
       "comment" : "android: mobile_playback_finding_next | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1899,7 +1744,6 @@
     },
     "Finishing conversion" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1911,7 +1755,6 @@
     },
     "Folder created" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1923,7 +1766,6 @@
     },
     "Folders use the default sort unless you choose a different order inside them." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1935,7 +1777,6 @@
     },
     "Forward %lld seconds" : {
       "comment" : "android: mobile_playback_seek_forward",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -1959,7 +1800,6 @@
     },
     "Forward 30 seconds" : {
       "comment" : "android: mobile_playback_seek_forward | differs: iOS fixes the 30-second step in the text",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1971,7 +1811,6 @@
     },
     "Free on device" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1983,7 +1822,6 @@
     },
     "Get VLC" : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1995,7 +1833,6 @@
     },
     "Google Cast SDK" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2007,7 +1844,6 @@
     },
     "Heads up: Files in trash have an expiry date of 14 days." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2019,7 +1855,6 @@
     },
     "History" : {
       "comment" : "android: mobile_destination_history",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2031,7 +1866,6 @@
     },
     "History is turned off in your account settings." : {
       "comment" : "ios-only: no Android string for the iOS deep-link errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2043,7 +1877,6 @@
     },
     "HLS" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2055,7 +1888,6 @@
     },
     "HLS streams the original file with put.io subtitles. MP4 casts the converted file and lets you switch subtitles on the receiver." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2067,7 +1899,6 @@
     },
     "I have saved my recovery codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2079,7 +1910,6 @@
     },
     "Image" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2091,7 +1921,6 @@
     },
     "Image not found" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2103,7 +1932,6 @@
     },
     "Image too large to preview" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2115,7 +1943,6 @@
     },
     "Install VLC for iOS from the App Store to stream this file there." : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2127,7 +1954,6 @@
     },
     "It may have been moved or deleted." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2139,7 +1965,6 @@
     },
     "It may take a long time if there are too many files." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2151,7 +1976,6 @@
     },
     "Item deleted" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2163,7 +1987,6 @@
     },
     "Item moved" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2175,7 +1998,6 @@
     },
     "Item renamed" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2187,7 +2009,6 @@
     },
     "Item restored" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2199,7 +2020,6 @@
     },
     "Items deleted" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2211,7 +2031,6 @@
     },
     "Items moved" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2223,7 +2042,6 @@
     },
     "Items restored" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2235,7 +2053,6 @@
     },
     "Keep account events in History. Turning this off clears existing history." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2247,7 +2064,6 @@
     },
     "Libraries this app is built on." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2259,7 +2075,6 @@
     },
     "Link" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2271,7 +2086,6 @@
     },
     "Link your account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2283,7 +2097,6 @@
     },
     "Load recovery codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2295,7 +2108,6 @@
     },
     "Loading apps" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2307,7 +2119,6 @@
     },
     "Loading document" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2319,7 +2130,6 @@
     },
     "Loading files" : {
       "comment" : "android: mobile_files_loading",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2331,7 +2141,6 @@
     },
     "Loading folders" : {
       "comment" : "android: mobile_files_move_loading | differs: iOS drops the ellipsis",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2343,7 +2152,6 @@
     },
     "Loading history" : {
       "comment" : "android: mobile_history_loading",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2355,7 +2163,6 @@
     },
     "Loading image" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2367,7 +2174,6 @@
     },
     "Loading more files" : {
       "comment" : "android: mobile_files_loading_more",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2379,7 +2185,6 @@
     },
     "Loading more folders" : {
       "comment" : "ios-only: no Android string for the iOS move picker",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2391,7 +2196,6 @@
     },
     "Loading more history" : {
       "comment" : "android: mobile_history_loading_more",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2403,7 +2207,6 @@
     },
     "Loading more results" : {
       "comment" : "android: mobile_search_loading_more",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2415,7 +2218,6 @@
     },
     "Loading more Trash items" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2427,7 +2229,6 @@
     },
     "Loading on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2439,7 +2240,6 @@
     },
     "Loading playback settings" : {
       "comment" : "android: mobile_settings_playback_loading",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2451,7 +2251,6 @@
     },
     "Loading playback type" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2463,7 +2262,6 @@
     },
     "Loading proxies" : {
       "comment" : "android: mobile_settings_tunnel_route_loading | differs: iOS drops the ellipsis",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2475,7 +2273,6 @@
     },
     "Loading recovery codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2487,7 +2284,6 @@
     },
     "Loading Trash" : {
       "comment" : "android: mobile_trash_loading | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2499,7 +2295,6 @@
     },
     "Log out" : {
       "comment" : "android: mobile_account_sign_out | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2511,7 +2306,6 @@
     },
     "Manage your trash" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2523,7 +2317,6 @@
     },
     "Marked as unwatched" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2535,7 +2328,6 @@
     },
     "Marked as watched" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2547,7 +2339,6 @@
     },
     "More" : {
       "comment" : "android: mobile_action_more_options | differs: one-word iOS menu label",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2559,7 +2350,6 @@
     },
     "More actions for %@" : {
       "comment" : "android: mobile_trash_actions_named | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2571,7 +2361,6 @@
     },
     "More, sorted by %@" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2583,7 +2372,6 @@
     },
     "More, using the account default sort" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2595,7 +2383,6 @@
     },
     "Move" : {
       "comment" : "android: mobile_files_move",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2607,7 +2394,6 @@
     },
     "Move the selected items here or go back." : {
       "comment" : "ios-only: no Android string for the iOS move picker",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2619,7 +2405,6 @@
     },
     "Move this item here or go back." : {
       "comment" : "ios-only: no Android string for the iOS move picker",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2631,7 +2416,6 @@
     },
     "Moved %lld items." : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -2655,7 +2439,6 @@
     },
     "Moving item %lld of %lld…" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2667,7 +2450,6 @@
     },
     "Moving the original to Trash removes it from every device signed in to your account until you restore it." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2679,7 +2461,6 @@
     },
     "Moving the originals to Trash removes them from every device signed in to your account until you restore them." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2691,7 +2472,6 @@
     },
     "MP4" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2703,7 +2483,6 @@
     },
     "Name" : {
       "comment" : "android: mobile_files_name",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2715,7 +2494,6 @@
     },
     "New account events will appear here." : {
       "comment" : "android: mobile_history_empty_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2727,7 +2505,6 @@
     },
     "New Folder" : {
       "comment" : "android: mobile_files_new_folder | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2739,7 +2516,6 @@
     },
     "Next" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2751,7 +2527,6 @@
     },
     "Next track" : {
       "comment" : "android: mobile_now_playing_next | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2763,7 +2538,6 @@
     },
     "Next video" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2775,7 +2549,6 @@
     },
     "Next video suggestions are turned off in your put.io account settings." : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2787,7 +2560,6 @@
     },
     "No downloads" : {
       "comment" : "android: mobile_downloads_empty_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2799,7 +2571,6 @@
     },
     "No folders here" : {
       "comment" : "android: mobile_files_move_empty | differs: iOS drops the period",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2811,7 +2582,6 @@
     },
     "No history" : {
       "comment" : "android: mobile_history_empty_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2823,7 +2593,6 @@
     },
     "No next video" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2835,7 +2604,6 @@
     },
     "No results" : {
       "comment" : "android: mobile_search_no_results_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2847,7 +2615,6 @@
     },
     "None stored" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2859,7 +2626,6 @@
     },
     "Not enough space on this device. Free up storage and try again." : {
       "comment" : "android: mobile_downloads_status_failed_storage | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2871,7 +2637,6 @@
     },
     "Not selected" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2883,7 +2648,6 @@
     },
     "Not watched" : {
       "comment" : "android: mobile_files_unwatched | differs: iOS accessibility value wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2895,7 +2659,6 @@
     },
     "Nothing casting" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2907,7 +2670,6 @@
     },
     "Nothing was removed because this device could not save the change. Remove the download again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2919,7 +2681,6 @@
     },
     "Nothing was removed because this device could not save the change. Remove the downloads again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2931,7 +2692,6 @@
     },
     "Nothing was removed because this device is out of space. Free up storage and remove the download again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2943,7 +2703,6 @@
     },
     "Nothing was removed because this device is out of space. Free up storage and remove the downloads again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2955,7 +2714,6 @@
     },
     "Now Playing" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2967,7 +2725,6 @@
     },
     "Now Playing, %@, %@" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2979,7 +2736,6 @@
     },
     "Observed conversion states" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2991,7 +2747,6 @@
     },
     "Off" : {
       "comment" : "android: mobile_playback_subtitles_disabled",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3003,7 +2758,6 @@
     },
     "OK" : {
       "comment" : "android: mobile_action_ok",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3015,7 +2769,6 @@
     },
     "One last step" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3027,7 +2780,6 @@
     },
     "Open in VLC" : {
       "comment" : "android: mobile_files_open_in_vlc",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3039,7 +2791,6 @@
     },
     "Open it on put.io from a browser instead." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3051,7 +2802,6 @@
     },
     "Open link" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3063,7 +2813,6 @@
     },
     "Opening file" : {
       "comment" : "ios-only: no Android string for the iOS history screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3075,7 +2824,6 @@
     },
     "Opening link" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3087,7 +2835,6 @@
     },
     "Password" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3099,7 +2846,6 @@
     },
     "Pause" : {
       "comment" : "android: mobile_now_playing_pause",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3111,7 +2857,6 @@
     },
     "Paused" : {
       "comment" : "android: mobile_downloads_meta_paused",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3123,7 +2868,6 @@
     },
     "Paused by another app" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3135,7 +2879,6 @@
     },
     "Paused on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3147,7 +2890,6 @@
     },
     "Paused · %@" : {
       "comment" : "android: mobile_downloads_status_paused | differs: iOS shows progress, not bytes saved",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3159,7 +2901,6 @@
     },
     "Pick a video to play it on %@." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3171,7 +2912,6 @@
     },
     "Play" : {
       "comment" : "android: mobile_now_playing_play",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3183,7 +2923,6 @@
     },
     "Play again" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3195,7 +2934,6 @@
     },
     "Play Next" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3207,7 +2945,6 @@
     },
     "Play next, %@" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3219,7 +2956,6 @@
     },
     "Playback failed, open to retry" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3231,7 +2967,6 @@
     },
     "Playback interrupted" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3243,7 +2978,6 @@
     },
     "Playback position" : {
       "comment" : "android: mobile_playback_position",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3255,7 +2989,6 @@
     },
     "Playback preferences" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3267,7 +3000,6 @@
     },
     "Playback reached end" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3279,7 +3011,6 @@
     },
     "Playback speed" : {
       "comment" : "android: mobile_playback_speed",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3291,7 +3022,6 @@
     },
     "Playback type" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3303,7 +3033,6 @@
     },
     "Playing" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3315,7 +3044,6 @@
     },
     "Playing in %@" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3327,7 +3055,6 @@
     },
     "Playing on %@" : {
       "comment" : "android: mobile_cast_playing_on",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3339,7 +3066,6 @@
     },
     "Positions waiting to sync" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3351,7 +3077,6 @@
     },
     "Preparing audio" : {
       "comment" : "android: mobile_playback_loading_audio",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3363,7 +3088,6 @@
     },
     "Preparing for %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3375,7 +3099,6 @@
     },
     "Preparing video" : {
       "comment" : "android: mobile_playback_loading",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3387,7 +3110,6 @@
     },
     "Preparing your secret" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3399,7 +3121,6 @@
     },
     "Preparing…" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3411,7 +3132,6 @@
     },
     "Privacy policy" : {
       "comment" : "android: privacy_policy",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3423,7 +3143,6 @@
     },
     "Protect your account with a code from an authenticator app at sign-in." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3435,7 +3154,6 @@
     },
     "Proxy" : {
       "comment" : "android: mobile_settings_proxy",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3447,7 +3165,6 @@
     },
     "put.io" : {
       "comment" : "android: app_name",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3459,7 +3176,6 @@
     },
     "put.io could not convert this video for Chromecast. Try again." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3471,7 +3187,6 @@
     },
     "put.io could not prepare this audio. Try again." : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3483,7 +3198,6 @@
     },
     "put.io could not prepare this document. Try again." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3495,7 +3209,6 @@
     },
     "put.io could not prepare this file. Try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3507,7 +3220,6 @@
     },
     "put.io could not prepare this image. Try again." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3519,7 +3231,6 @@
     },
     "put.io for iOS can’t display %@ files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3531,7 +3242,6 @@
     },
     "put.io for iOS can’t display this type of file yet. You can move, rename, or delete it from Files, or open it on put.io from a browser." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3543,7 +3253,6 @@
     },
     "put.io is receiving too many requests. Try again shortly." : {
       "comment" : "android: mobile_state_error_rate_limited",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3555,7 +3264,6 @@
     },
     "put.io returned an invalid response. Try again." : {
       "comment" : "ios-only: no Android string for the iOS deep-link errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3567,7 +3275,6 @@
     },
     "Queue" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3579,7 +3286,6 @@
     },
     "Rate put.io on App Store" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3591,7 +3297,6 @@
     },
     "Recovery code" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3603,7 +3308,6 @@
     },
     "Recovery codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3615,7 +3319,6 @@
     },
     "Refresh account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3627,7 +3330,6 @@
     },
     "Refreshing…" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3639,7 +3341,6 @@
     },
     "Regenerate" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3651,7 +3352,6 @@
     },
     "Regenerate codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3663,7 +3363,6 @@
     },
     "Regenerate recovery codes?" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3675,7 +3374,6 @@
     },
     "Regenerating codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3687,7 +3385,6 @@
     },
     "Regenerating replaces every code above, including unused ones." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3699,7 +3396,6 @@
     },
     "Remove" : {
       "comment" : "android: mobile_downloads_remove_confirm",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3711,7 +3407,6 @@
     },
     "Remove %lld" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3723,7 +3418,6 @@
     },
     "Remove %lld downloads?" : {
       "comment" : "android: mobile_downloads_remove_many_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3735,7 +3429,6 @@
     },
     "Remove download" : {
       "comment" : "android: mobile_downloads_remove | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3747,7 +3440,6 @@
     },
     "Remove download and delete original" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3759,7 +3451,6 @@
     },
     "Remove download and move original to Trash" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3771,7 +3462,6 @@
     },
     "Remove downloads" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3783,7 +3473,6 @@
     },
     "Remove downloads and delete originals" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3795,7 +3484,6 @@
     },
     "Remove downloads and move originals to Trash" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3807,7 +3495,6 @@
     },
     "Remove “%@”?" : {
       "comment" : "android: mobile_downloads_remove_title | differs: iOS names the download",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3819,7 +3506,6 @@
     },
     "Removing the download frees space on this device only; the file stays on put.io." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3831,7 +3517,6 @@
     },
     "Removing the downloads frees space on this device only; the files stay on put.io." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3843,7 +3528,6 @@
     },
     "Rename" : {
       "comment" : "android: mobile_files_rename",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3855,7 +3539,6 @@
     },
     "Rename Item" : {
       "comment" : "android: mobile_files_rename | differs: iOS names the item in the dialog",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3867,7 +3550,6 @@
     },
     "Reset all folder sorts?" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3879,7 +3561,6 @@
     },
     "Reset folder sorts" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3891,7 +3572,6 @@
     },
     "Reset Folder Sorts" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3903,7 +3583,6 @@
     },
     "Restore" : {
       "comment" : "android: mobile_trash_restore",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3915,7 +3594,6 @@
     },
     "Restore All" : {
       "comment" : "android: mobile_trash_restore_all | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3927,7 +3605,6 @@
     },
     "Restore started!" : {
       "comment" : "android: mobile_trash_started | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3939,7 +3616,6 @@
     },
     "Restored %lld items." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -3963,7 +3639,6 @@
     },
     "Resume" : {
       "comment" : "android: mobile_downloads_resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3975,7 +3650,6 @@
     },
     "Resume position" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3987,7 +3661,6 @@
     },
     "Revoke" : {
       "comment" : "android: mobile_public_links_revoke",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3999,7 +3672,6 @@
     },
     "Revoking" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4011,7 +3683,6 @@
     },
     "Rewind %lld seconds" : {
       "comment" : "android: mobile_playback_seek_back | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4023,7 +3694,6 @@
     },
     "Rotate to landscape" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4035,7 +3705,6 @@
     },
     "RSS paused because its source could not be reached" : {
       "comment" : "android: mobile_history_kind_rss_filter_paused | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4047,7 +3716,6 @@
     },
     "Save History" : {
       "comment" : "android: mobile_settings_history | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4059,7 +3727,6 @@
     },
     "Saving settings" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4071,7 +3738,6 @@
     },
     "Search" : {
       "comment" : "android: mobile_shortcut_search",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4083,7 +3749,6 @@
     },
     "Search in Files" : {
       "comment" : "android: mobile_files_search_in | differs: iOS always searches Files",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4095,7 +3760,6 @@
     },
     "Search your files" : {
       "comment" : "android: mobile_files_search_hint",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4107,7 +3771,6 @@
     },
     "Searching files" : {
       "comment" : "android: mobile_search_loading | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4119,7 +3782,6 @@
     },
     "Secret" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4131,7 +3793,6 @@
     },
     "Security" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4143,7 +3804,6 @@
     },
     "Select" : {
       "comment" : "android: mobile_files_select",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4155,7 +3815,6 @@
     },
     "Select All" : {
       "comment" : "android: mobile_selection_select_all | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4167,7 +3826,6 @@
     },
     "Select Items" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4179,7 +3837,6 @@
     },
     "Selected" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4191,7 +3848,6 @@
     },
     "Selected audio language" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4203,7 +3859,6 @@
     },
     "Selected subtitle" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4215,7 +3870,6 @@
     },
     "Services we use" : {
       "comment" : "android: privacy_services_we_use",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4227,7 +3881,6 @@
     },
     "Shared by %@" : {
       "comment" : "android: mobile_files_shared_by",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4239,7 +3892,6 @@
     },
     "Show subtitles" : {
       "comment" : "android: mobile_settings_show_subtitles",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4251,7 +3903,6 @@
     },
     "Sign in" : {
       "comment" : "android: mobile_auth_sign_in",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4263,7 +3914,6 @@
     },
     "Sign in again" : {
       "comment" : "android: mobile_downloads_meta_failed_authentication",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4275,7 +3925,6 @@
     },
     "Sign in again to continue this download." : {
       "comment" : "android: mobile_downloads_status_failed_authentication",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4287,7 +3936,6 @@
     },
     "Sign in to stream, download and manage your files." : {
       "comment" : "android: mobile_welcome_lede | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4299,7 +3947,6 @@
     },
     "Sign-in" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4311,7 +3958,6 @@
     },
     "Signing in again removes the saved sign-in from this device." : {
       "comment" : "ios-only: no Android string for the iOS welcome screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4323,7 +3969,6 @@
     },
     "Signing in asks for a code from your authenticator app. Recovery codes get you in without it." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4335,7 +3980,6 @@
     },
     "Signing out…" : {
       "comment" : "android: mobile_auth_signing_out | differs: iOS adds an ellipsis",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4347,7 +3991,6 @@
     },
     "Simultaneous downloads" : {
       "comment" : "android: mobile_downloads_concurrency | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4359,7 +4002,6 @@
     },
     "Size" : {
       "comment" : "android: mobile_files_sort_field_size",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4371,7 +4013,6 @@
     },
     "Some items couldn’t be moved" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4383,7 +4024,6 @@
     },
     "Something went wrong while casting. Try again." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4395,7 +4035,6 @@
     },
     "Something went wrong. Try again." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4407,7 +4046,6 @@
     },
     "Sorting changed" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4419,7 +4057,6 @@
     },
     "Starting conversion" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4431,7 +4068,6 @@
     },
     "Status" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4443,7 +4079,6 @@
     },
     "Step 1 of 3" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4455,7 +4090,6 @@
     },
     "Step 2 of 3" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4467,7 +4101,6 @@
     },
     "Step 3 of 3" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4479,7 +4112,6 @@
     },
     "Stop casting" : {
       "comment" : "android: mobile_cast_stop",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4491,7 +4123,6 @@
     },
     "Storage" : {
       "comment" : "android: mobile_account_storage",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4503,7 +4134,6 @@
     },
     "Storage totals could not be updated. Use Update storage to retry." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4515,7 +4145,6 @@
     },
     "Subtitles" : {
       "comment" : "android: mobile_playback_subtitles_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4527,7 +4156,6 @@
     },
     "Subtitles are handled by the receiver for HLS streams." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4539,7 +4167,6 @@
     },
     "Support" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4551,7 +4178,6 @@
     },
     "Swipe an app to revoke its access. This app keeps its own sign-in." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4563,7 +4189,6 @@
     },
     "Terms of service" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4575,7 +4200,6 @@
     },
     "The audio could not be played. Try again." : {
       "comment" : "ios-only: no Android string for the iOS audio player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4587,7 +4211,6 @@
     },
     "The Chromecast did not accept the video. Try again." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4599,7 +4222,6 @@
     },
     "The conversion did not finish. Try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4611,7 +4233,6 @@
     },
     "The document could not be read. Try again." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4623,7 +4244,6 @@
     },
     "The download could not finish. Try again." : {
       "comment" : "android: mobile_downloads_status_failed_unexpected | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4635,7 +4255,6 @@
     },
     "The file could not be inspected. Try again." : {
       "comment" : "ios-only: no Android string for the iOS tab shell",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4647,7 +4266,6 @@
     },
     "The image could not be read. Try again." : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4659,7 +4277,6 @@
     },
     "The next video is suggested when one ends. With autoplay on, it starts after a short countdown." : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4671,7 +4288,6 @@
     },
     "The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4683,7 +4299,6 @@
     },
     "The originals were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4695,7 +4310,6 @@
     },
     "The selected proxy applies when you open media again." : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4707,7 +4321,6 @@
     },
     "This app" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4719,7 +4332,6 @@
     },
     "This device is out of space, so changes to your downloads were not saved. Free up storage and try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4731,7 +4343,6 @@
     },
     "This folder is empty" : {
       "comment" : "android: mobile_files_empty_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4743,7 +4354,6 @@
     },
     "This item cannot be restored." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4755,7 +4365,6 @@
     },
     "This item could not be found." : {
       "comment" : "ios-only: no Android string for the iOS deep-link errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4767,7 +4376,6 @@
     },
     "This link cannot be opened in this app yet." : {
       "comment" : "ios-only: no Android string for the iOS deep-link errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4779,7 +4387,6 @@
     },
     "This removes the selected data from your account permanently." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4791,7 +4398,6 @@
     },
     "This selection does not fit. Deselect a language or free up space." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4803,7 +4409,6 @@
     },
     "Transfer callback failed" : {
       "comment" : "android: mobile_history_kind_callback_failed | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4815,7 +4420,6 @@
     },
     "Transfer completed · %@" : {
       "comment" : "android: mobile_history_kind_transfer_completed | differs: iOS appends the size",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4827,7 +4431,6 @@
     },
     "Transfer failed" : {
       "comment" : "android: mobile_history_kind_transfer_failed",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4839,7 +4442,6 @@
     },
     "Transfer from RSS failed" : {
       "comment" : "android: mobile_history_kind_rss_transfer_failed | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4851,7 +4453,6 @@
     },
     "Trash" : {
       "comment" : "android: mobile_trash_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4863,7 +4464,6 @@
     },
     "Trash Actions" : {
       "comment" : "android: mobile_trash_more | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4875,7 +4475,6 @@
     },
     "Trash emptied" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4887,7 +4486,6 @@
     },
     "Trash is empty" : {
       "comment" : "android: mobile_trash_empty_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4899,7 +4497,6 @@
     },
     "Try a different file name." : {
       "comment" : "ios-only: no Android string for the iOS search screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4911,7 +4508,6 @@
     },
     "Try again" : {
       "comment" : "android: mobile_action_retry",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4923,7 +4519,6 @@
     },
     "Try Again" : {
       "comment" : "android: mobile_action_retry | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4935,7 +4530,6 @@
     },
     "Turn Off History" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4947,7 +4541,6 @@
     },
     "Turn off History?" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4959,7 +4552,6 @@
     },
     "Turn Off Trash" : {
       "comment" : "android: mobile_settings_trash_confirm_action | differs: iOS names the setting in the button",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4971,7 +4563,6 @@
     },
     "Turn off Trash?" : {
       "comment" : "android: mobile_settings_trash_confirm_title | differs: iOS capitalizes Trash",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4983,7 +4574,6 @@
     },
     "Two-factor authentication" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4995,7 +4585,6 @@
     },
     "Two-factor authentication is on. %@ They also stay available under Security." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5007,7 +4596,6 @@
     },
     "Two-factor authentication is on. Keep these codes somewhere safe; each one signs you in once if you lose your authenticator." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5019,7 +4607,6 @@
     },
     "Unknown" : {
       "comment" : "android: playback_subtitle_unknown",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5031,7 +4618,6 @@
     },
     "Unsupported file" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5043,7 +4629,6 @@
     },
     "Unsupported file type" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5055,7 +4640,6 @@
     },
     "Up next" : {
       "comment" : "android: mobile_now_playing_up_next",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5067,7 +4651,6 @@
     },
     "Up Next" : {
       "comment" : "android: mobile_now_playing_up_next | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5079,7 +4662,6 @@
     },
     "Up next, %@" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5091,7 +4673,6 @@
     },
     "Update settings?" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5103,7 +4684,6 @@
     },
     "Update storage" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5115,7 +4695,6 @@
     },
     "Updating history" : {
       "comment" : "ios-only: no Android string for the iOS history screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5127,7 +4706,6 @@
     },
     "Updating Trash" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5139,7 +4717,6 @@
     },
     "Updating Trash…" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5151,7 +4728,6 @@
     },
     "Updating…" : {
       "comment" : "android: mobile_transfer_status_updating",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5163,7 +4739,6 @@
     },
     "Uploaded · %@" : {
       "comment" : "android: mobile_history_kind_uploaded | differs: iOS appends the size",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5175,7 +4750,6 @@
     },
     "Use Trash" : {
       "comment" : "android: mobile_settings_trash | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5187,7 +4761,6 @@
     },
     "Used" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5199,7 +4772,6 @@
     },
     "Used recovery code" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5211,7 +4783,6 @@
     },
     "Username" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5223,7 +4794,6 @@
     },
     "Using the account default" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5235,7 +4805,6 @@
     },
     "Version" : {
       "comment" : "android: mobile_settings_about_version",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5247,7 +4816,6 @@
     },
     "Video" : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5259,7 +4827,6 @@
     },
     "Video conversion progress" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5271,7 +4838,6 @@
     },
     "Video ready" : {
       "comment" : "ios-only: no Android string for the iOS video player",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5283,7 +4849,6 @@
     },
     "Videos play in landscape and stay there until you close them." : {
       "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5295,7 +4860,6 @@
     },
     "VLC did not accept the file. Try again." : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5307,7 +4871,6 @@
     },
     "VLC is not installed" : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5319,7 +4882,6 @@
     },
     "Waiting" : {
       "comment" : "android: mobile_transfer_status_waiting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5331,7 +4893,6 @@
     },
     "Waiting for a slot" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5343,7 +4904,6 @@
     },
     "Waiting for a slot · %@" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5355,7 +4915,6 @@
     },
     "Waiting to convert" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5367,7 +4926,6 @@
     },
     "Watched, resume at %@" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5379,7 +4937,6 @@
     },
     "Welcome back!" : {
       "comment" : "android: mobile_welcome_back_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5391,7 +4948,6 @@
     },
     "Welcome!" : {
       "comment" : "android: mobile_welcome_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5403,7 +4959,6 @@
     },
     "What to clear" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5415,7 +4970,6 @@
     },
     "When Trash is off, deleted files cannot be restored." : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5427,7 +4981,6 @@
     },
     "When you send files to trash, we keep them here for 14 days." : {
       "comment" : "android: mobile_trash_empty_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5439,7 +4992,6 @@
     },
     "Where you are logged in" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5451,7 +5003,6 @@
     },
     "Your account settings could not be confirmed. Try again." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5463,7 +5014,6 @@
     },
     "Your current codes stop working." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5475,7 +5025,6 @@
     },
     "Your recovery codes were not saved. Try downloading them again." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5487,7 +5036,6 @@
     },
     "Your session expired. Sign in again to continue." : {
       "comment" : "android: mobile_welcome_expired",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {

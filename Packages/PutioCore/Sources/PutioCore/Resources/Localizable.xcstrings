@@ -3,7 +3,6 @@
   "strings" : {
     "%@ of %@ used" : {
       "comment" : "android: mobile_account_storage_used",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -15,7 +14,6 @@
     },
     "%lld couldn’t be deleted." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -27,7 +25,6 @@
     },
     "%lld couldn’t be moved to Trash." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -39,7 +36,6 @@
     },
     "Account storage could not be updated after the last deletion." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -51,7 +47,6 @@
     },
     "Active transfers" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -63,7 +58,6 @@
     },
     "Ancient times" : {
       "comment" : "ios-only: no Android string for the shared history day groups",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -75,7 +69,6 @@
     },
     "App and device type" : {
       "comment" : "android: mobile_product_analytics_prompt_send_device",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -87,7 +80,6 @@
     },
     "Ascending" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -99,7 +91,6 @@
     },
     "Check your connection and try again." : {
       "comment" : "android: mobile_state_error_message",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -111,7 +102,6 @@
     },
     "Continue from %@" : {
       "comment" : "android: playback_resume_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -123,7 +113,6 @@
     },
     "Could not change sorting" : {
       "comment" : "android: mobile_files_sort_error | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -135,7 +124,6 @@
     },
     "Could not confirm your change. Refresh account settings before continuing." : {
       "comment" : "ios-only: no Android string for the shared account settings errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -147,7 +135,6 @@
     },
     "Could not convert video" : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -159,7 +146,6 @@
     },
     "Could not create folder" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -171,7 +157,6 @@
     },
     "Could not delete item" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -183,7 +168,6 @@
     },
     "Could not delete items" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -195,7 +179,6 @@
     },
     "Could not empty Trash" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -207,7 +190,6 @@
     },
     "Could not load files" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -219,7 +201,6 @@
     },
     "Could not load more Trash items" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -231,7 +212,6 @@
     },
     "Could not load playback settings. Try again." : {
       "comment" : "android: mobile_settings_playback_error_title | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -243,7 +223,6 @@
     },
     "Could not load Trash" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -255,7 +234,6 @@
     },
     "Could not move item" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -267,7 +245,6 @@
     },
     "Could not move item to Trash" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -279,7 +256,6 @@
     },
     "Could not move items to Trash" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -291,7 +267,6 @@
     },
     "Could not open video" : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -303,7 +278,6 @@
     },
     "Could not permanently delete item" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -315,7 +289,6 @@
     },
     "Could not permanently delete items" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -327,7 +300,6 @@
     },
     "Could not play video" : {
       "comment" : "android: mobile_playback_error_title | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -339,7 +311,6 @@
     },
     "Could not refresh account settings. Try again." : {
       "comment" : "ios-only: no Android string for the shared account settings errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -351,7 +322,6 @@
     },
     "Could not refresh Trash" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -363,7 +333,6 @@
     },
     "Could not remove item" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -375,7 +344,6 @@
     },
     "Could not rename item" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -387,7 +355,6 @@
     },
     "Could not restore item" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -399,7 +366,6 @@
     },
     "Could not restore items" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -411,7 +377,6 @@
     },
     "Could not restore Trash" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -423,7 +388,6 @@
     },
     "Could not save account settings. Try again." : {
       "comment" : "android: mobile_settings_save_error | differs: iOS spells out “Could not”",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -435,7 +399,6 @@
     },
     "Could not save playback settings. Try again." : {
       "comment" : "ios-only: no Android string for the shared account settings errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -447,7 +410,6 @@
     },
     "Could not save your choice. Try again." : {
       "comment" : "ios-only: no Android string for the shared account settings errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -459,7 +421,6 @@
     },
     "Could not update watch status" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -471,7 +432,6 @@
     },
     "Crash reports, error details, and limited playback diagnostics, so we can fix problems." : {
       "comment" : "android: privacy_diagnostics_description",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -483,7 +443,6 @@
     },
     "Date Added" : {
       "comment" : "android: mobile_files_sort_field_date_added | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -495,7 +454,6 @@
     },
     "Date Modified" : {
       "comment" : "android: mobile_files_sort_field_date_modified | differs: iOS uses title case",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -507,7 +465,6 @@
     },
     "Delete" : {
       "comment" : "android: mobile_files_delete",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -519,7 +476,6 @@
     },
     "Delete %lld items permanently?" : {
       "comment" : "android: mobile_files_delete_permanently_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -543,7 +499,6 @@
     },
     "Delete “%@” permanently?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -555,7 +510,6 @@
     },
     "Deleted %lld items." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -579,7 +533,6 @@
     },
     "Deleting item %lld of %lld…" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -591,7 +544,6 @@
     },
     "Descending" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -603,7 +555,6 @@
     },
     "Diagnostics" : {
       "comment" : "android: privacy_diagnostics",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -615,7 +566,6 @@
     },
     "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens." : {
       "comment" : "android: privacy_controls_footer",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -627,7 +577,6 @@
     },
     "Download" : {
       "comment" : "android: mobile_files_download_action",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -639,7 +588,6 @@
     },
     "Downloaded" : {
       "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -651,7 +599,6 @@
     },
     "Enter your password to confirm." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -663,7 +610,6 @@
     },
     "Features you use" : {
       "comment" : "android: mobile_product_analytics_prompt_send_features",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -675,7 +621,6 @@
     },
     "Filenames or media titles" : {
       "comment" : "android: mobile_product_analytics_prompt_never_names",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -687,7 +632,6 @@
     },
     "Files" : {
       "comment" : "android: mobile_destination_files",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -699,7 +643,6 @@
     },
     "Finished transfers" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -711,7 +654,6 @@
     },
     "Folder not found" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -723,7 +665,6 @@
     },
     "Friends" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -735,7 +676,6 @@
     },
     "History" : {
       "comment" : "android: mobile_destination_history",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -747,7 +687,6 @@
     },
     "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." : {
       "comment" : "android: mobile_product_analytics_prompt_body",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -759,7 +698,6 @@
     },
     "It may have been moved or deleted." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -771,7 +709,6 @@
     },
     "Item deleted" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -783,7 +720,6 @@
     },
     "Items deleted" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -795,7 +731,6 @@
     },
     "Items moved to Trash" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -807,7 +742,6 @@
     },
     "Last week" : {
       "comment" : "ios-only: no Android string for the shared history day groups",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -819,7 +753,6 @@
     },
     "Limited usage, device, billing, and playback data that shows which apps and features work." : {
       "comment" : "android: privacy_product_analytics_description",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -831,7 +764,6 @@
     },
     "Move %lld items to Trash?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -855,7 +787,6 @@
     },
     "Move “%@” to Trash?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -867,7 +798,6 @@
     },
     "Moved %lld items to Trash." : {
       "comment" : "android: mobile_files_trash_done_many | differs: iOS capitalizes Trash",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -891,7 +821,6 @@
     },
     "Moved to Trash" : {
       "comment" : "android: mobile_files_trash_done | differs: iOS capitalizes Trash",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -903,7 +832,6 @@
     },
     "Moving item %lld of %lld to Trash…" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -915,7 +843,6 @@
     },
     "Must be exactly 6 characters." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -927,7 +854,6 @@
     },
     "Name" : {
       "comment" : "android: mobile_files_sort_field_name",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -939,7 +865,6 @@
     },
     "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices." : {
       "comment" : "android: privacy_strictly_necessary_description",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -951,7 +876,6 @@
     },
     "No sign-in is in progress." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -963,7 +887,6 @@
     },
     "Playback and billing events" : {
       "comment" : "android: mobile_product_analytics_prompt_send_events",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -975,7 +898,6 @@
     },
     "Privacy controls" : {
       "comment" : "android: mobile_settings_privacy_controls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -987,7 +909,6 @@
     },
     "Product analytics" : {
       "comment" : "android: privacy_product_analytics",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -999,7 +920,6 @@
     },
     "put.io could not complete the request. Try again." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1011,7 +931,6 @@
     },
     "put.io could not find what this action needs. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1023,7 +942,6 @@
     },
     "put.io could not prepare this video. Try again." : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1035,7 +953,6 @@
     },
     "put.io could not revoke your session. Check your connection and try again." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1047,7 +964,6 @@
     },
     "put.io did not return an activation code. Try again." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1059,7 +975,6 @@
     },
     "put.io is receiving too many requests. Try again shortly." : {
       "comment" : "android: mobile_state_error_rate_limited",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1071,7 +986,6 @@
     },
     "put.io is unreachable. Check your connection and try again." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1083,7 +997,6 @@
     },
     "put.io returned an invalid response. Try again." : {
       "comment" : "ios-only: no Android string for the shared account settings errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1095,7 +1008,6 @@
     },
     "Queued" : {
       "comment" : "ios-only: no Android string for the shared download button",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1107,7 +1019,6 @@
     },
     "Regenerating could not be completed. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1119,7 +1030,6 @@
     },
     "Retry download" : {
       "comment" : "android: mobile_downloads_retry",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1131,7 +1041,6 @@
     },
     "RSS feeds" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1143,7 +1052,6 @@
     },
     "RSS logs" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1155,7 +1063,6 @@
     },
     "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1167,7 +1074,6 @@
     },
     "Saved sign-in details could not be removed. Try again before closing the app." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1179,7 +1085,6 @@
     },
     "Saved, but the latest account settings could not be loaded. Refresh to continue." : {
       "comment" : "android: mobile_settings_refresh_error | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1191,7 +1096,6 @@
     },
     "Sign in to continue" : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1203,7 +1107,6 @@
     },
     "Sign-in did not complete. Try again." : {
       "comment" : "android: mobile_welcome_failed_title | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1215,7 +1118,6 @@
     },
     "Sign-out did not finish" : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1227,7 +1129,6 @@
     },
     "Size" : {
       "comment" : "android: mobile_files_sort_field_size",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1239,7 +1140,6 @@
     },
     "Some items couldn’t be deleted" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1251,7 +1151,6 @@
     },
     "Some items couldn’t be moved to Trash" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1263,7 +1162,6 @@
     },
     "Something went wrong. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1275,7 +1173,6 @@
     },
     "Start from the beginning" : {
       "comment" : "android: playback_start_over | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1287,7 +1184,6 @@
     },
     "Stop download" : {
       "comment" : "android: mobile_downloads_ring_cancel | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1299,7 +1195,6 @@
     },
     "Storage totals are out of date" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1311,7 +1206,6 @@
     },
     "Strictly necessary" : {
       "comment" : "android: privacy_strictly_necessary",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1323,7 +1217,6 @@
     },
     "That code is not valid. Check your authenticator app and try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1335,7 +1228,6 @@
     },
     "That device code was not found. Check the code on the device and try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1347,7 +1239,6 @@
     },
     "That password does not match our records. Check it and try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1359,7 +1250,6 @@
     },
     "The change could not be confirmed. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1371,7 +1261,6 @@
     },
     "The conversion did not finish. Try again." : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1383,7 +1272,6 @@
     },
     "The item is no longer in Trash. Refresh and try again." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1395,7 +1283,6 @@
     },
     "The video could not be played. Try again." : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1407,7 +1294,6 @@
     },
     "These items cannot be restored." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1419,7 +1305,6 @@
     },
     "This device's keychain is unavailable. Try again." : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1431,7 +1316,6 @@
     },
     "This item cannot be restored." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1443,7 +1327,6 @@
     },
     "This item is no longer available." : {
       "comment" : "ios-only: no Android string for the shared history day groups",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1455,7 +1338,6 @@
     },
     "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding." : {
       "comment" : "android: mobile_playback_conversion_message | differs: iOS board wording",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1467,7 +1349,6 @@
     },
     "Today" : {
       "comment" : "android: mobile_history_today",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1479,7 +1360,6 @@
     },
     "Tokens" : {
       "comment" : "android: mobile_product_analytics_prompt_never_tokens",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1491,7 +1371,6 @@
     },
     "Trash" : {
       "comment" : "android: mobile_files_trash_short",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1503,7 +1382,6 @@
     },
     "Try signing out again" : {
       "comment" : "ios-only: no Android string for the shared session errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1515,7 +1393,6 @@
     },
     "Turn on product analytics?" : {
       "comment" : "android: mobile_product_analytics_prompt_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1527,7 +1404,6 @@
     },
     "Type" : {
       "comment" : "android: mobile_files_sort_field_type",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1539,7 +1415,6 @@
     },
     "URLs or search text" : {
       "comment" : "android: mobile_product_analytics_prompt_never_urls",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1551,7 +1426,6 @@
     },
     "Video not found" : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1563,7 +1437,6 @@
     },
     "Watch Status" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1575,7 +1448,6 @@
     },
     "Watched" : {
       "comment" : "android: mobile_files_watched",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1587,7 +1459,6 @@
     },
     "What we never send" : {
       "comment" : "android: mobile_product_analytics_prompt_never_title",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1599,7 +1470,6 @@
     },
     "What we'd send" : {
       "comment" : "android: mobile_product_analytics_prompt_send_title | differs: iOS uses a straight apostrophe",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1611,7 +1481,6 @@
     },
     "Yesterday" : {
       "comment" : "android: mobile_history_yesterday",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1623,7 +1492,6 @@
     },
     "You can restore these items from Trash." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1635,7 +1503,6 @@
     },
     "You can restore this item from Trash." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1647,7 +1514,6 @@
     },
     "Your recovery codes could not be loaded. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
-      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
