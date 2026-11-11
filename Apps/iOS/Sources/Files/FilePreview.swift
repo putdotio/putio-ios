@@ -280,6 +280,7 @@ final class PutioPreviewModel {
 struct PutioPreviewView: View {
   @State private var model: PutioPreviewModel
   @State private var barsHidden = false
+  @State private var documentPage = PutioPDFPagePosition(index: 0, count: 0)
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   private let onDismiss: @MainActor () -> Void
 
@@ -298,6 +299,7 @@ struct PutioPreviewView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .overlay(alignment: .top) { topFade }
+        .overlay(alignment: .bottom) { pagePill }
         .navigationTitle(model.route.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
@@ -313,6 +315,19 @@ struct PutioPreviewView: View {
     if case .image = model.state { true } else { false }
   }
 
+  private static let imageFade: [Gradient.Stop] = [
+    .init(color: .black.opacity(0.6), location: 0), .init(color: .black.opacity(0), location: 1),
+  ]
+
+  private static let documentFade: [Gradient.Stop] = [
+    .init(color: .black, location: 0), .init(color: .black.opacity(0.85), location: 0.45),
+    .init(color: .black.opacity(0), location: 1),
+  ]
+
+  private var showsDocument: Bool {
+    if case .document = model.state { true } else { false }
+  }
+
   private var showsBars: Bool {
     !(barsHidden && showsImage && !voiceOverEnabled)
   }
@@ -323,16 +338,23 @@ struct PutioPreviewView: View {
 
   @ViewBuilder
   private var topFade: some View {
-    if showsImage, showsBars {
+    if showsImage && showsBars || showsDocument {
       LinearGradient(
-        colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
+        stops: showsDocument ? Self.documentFade : Self.imageFade,
         startPoint: .top, endPoint: .bottom
       )
-      .frame(height: 120)
+      .frame(height: showsDocument ? 150 : 120)
       .ignoresSafeArea(edges: .top)
       .allowsHitTesting(false)
       .accessibilityHidden(true)
       .transition(.opacity)
+    }
+  }
+
+  @ViewBuilder
+  private var pagePill: some View {
+    if showsDocument, documentPage.showsPill {
+      PutioPDFPagePill(position: documentPage)
     }
   }
 
@@ -393,7 +415,8 @@ struct PutioPreviewView: View {
         .ignoresSafeArea()
         .accessibilityIdentifier("preview.image")
     case .document(let document):
-      PutioPDFView(document: document)
+      PutioPDFView(document: document) { documentPage = $0 }
+        .ignoresSafeArea()
         .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
         .accessibilityIdentifier("preview.document")
     case .failed(.loadFailed):
@@ -544,20 +567,110 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   }
 }
 
+struct PutioPDFPagePosition: Equatable {
+  let index: Int
+  let count: Int
+
+  var showsPill: Bool { count > 1 }
+  var number: Int { index + 1 }
+}
+
+struct PutioPDFPagePill: View {
+  let position: PutioPDFPagePosition
+
+  var body: some View {
+    Text("\(position.number) of \(position.count)")
+      .putioFont(PutioTheme.Typography.numeric)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .padding(.horizontal, PutioTheme.Spacing.space3)
+      .padding(.vertical, PutioTheme.Spacing.space1)
+      .background(PutioTheme.Colors.surfaceActive, in: Capsule())
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(Text("Page \(position.number) of \(position.count)"))
+      .accessibilityIdentifier("preview.page")
+      .allowsHitTesting(false)
+  }
+}
+
 struct PutioPDFView: UIViewRepresentable {
   let document: PDFDocument
+  let onPageChange: @MainActor (PutioPDFPagePosition) -> Void
+
+  func makeCoordinator() -> Coordinator { Coordinator() }
 
   func makeUIView(context: Context) -> PDFView {
     let view = PDFView()
     view.autoScales = true
     view.displayMode = .singlePageContinuous
     view.displayDirection = .vertical
-    view.backgroundColor = UIColor(PutioTheme.Colors.background)
+    view.displaysPageBreaks = true
+    view.pageShadowsEnabled = false
+    view.pageBreakMargins = UIEdgeInsets(
+      top: PutioTheme.Spacing.space1, left: 0, bottom: PutioTheme.Spacing.space1, right: 0)
+    view.backgroundColor = .black
     view.document = document
+    view.firstScrollView?.topEdgeEffect.isHidden = true
+    context.coordinator.observe(view, onPageChange: onPageChange)
     return view
   }
 
   func updateUIView(_ view: PDFView, context: Context) {
     if view.document !== document { view.document = document }
+    context.coordinator.observe(view, onPageChange: onPageChange)
+  }
+
+  static func dismantleUIView(_ view: PDFView, coordinator: Coordinator) {
+    coordinator.stop()
+  }
+
+  @MainActor
+  final class Coordinator {
+    private var observer: NSObjectProtocol?
+    private var onPageChange: (@MainActor (PutioPDFPagePosition) -> Void)?
+    private var reported: PutioPDFPagePosition?
+
+    func observe(
+      _ view: PDFView, onPageChange: @escaping @MainActor (PutioPDFPagePosition) -> Void
+    ) {
+      self.onPageChange = onPageChange
+      if observer == nil {
+        observer = NotificationCenter.default.addObserver(
+          forName: .PDFViewPageChanged, object: view, queue: .main
+        ) { [weak self, weak view] _ in
+          MainActor.assumeIsolated {
+            guard let self, let view else { return }
+            self.report(view)
+          }
+        }
+      }
+      Task { @MainActor [weak self, weak view] in
+        guard let self, let view else { return }
+        self.report(view)
+      }
+    }
+
+    func stop() {
+      if let observer { NotificationCenter.default.removeObserver(observer) }
+      observer = nil
+    }
+
+    private func report(_ view: PDFView) {
+      guard let document = view.document else { return }
+      let index = view.currentPage.map { document.index(for: $0) } ?? 0
+      let position = PutioPDFPagePosition(index: index, count: document.pageCount)
+      guard position != reported else { return }
+      reported = position
+      onPageChange?(position)
+    }
+  }
+}
+
+extension UIView {
+  fileprivate var firstScrollView: UIScrollView? {
+    for subview in subviews {
+      if let scrollView = subview as? UIScrollView { return scrollView }
+      if let nested = subview.firstScrollView { return nested }
+    }
+    return nil
   }
 }

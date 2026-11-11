@@ -1304,6 +1304,11 @@ import Foundation
           200,
           previewFile(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856)
         )
+      case "GET /v2/files/\(corruptDocumentFileID)" where usesPreviews:
+        return (
+          200,
+          previewFile(id: corruptDocumentFileID, name: corruptDocumentName, type: "PDF", size: 1856)
+        )
       case "GET /v2/files/\(archiveFileID)":
         return (
           200,
@@ -1412,6 +1417,8 @@ import Foundation
     static let diskImageFileID = 429
     static let diskImageName = "ubuntu-24.04.3-desktop-amd64.iso"
     static let oversizedImageFileID = 430
+    static let corruptDocumentFileID = 431
+    static let corruptDocumentName = "Harness Scan.pdf"
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
 
@@ -2244,6 +2251,8 @@ import Foundation
             previewObject(
               id: oversizedImageFileID, name: "Harness Panorama.png", type: "IMAGE",
               size: 83_886_080),
+            previewObject(
+              id: corruptDocumentFileID, name: corruptDocumentName, type: "PDF", size: 1856),
           ]
           : [])
       if folderDeleted { rows.removeFirst() }

@@ -134,6 +134,17 @@
         }
       }
     },
+    "%lld of %lld" : {
+      "comment" : "android: mobile_viewer_position",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld"
+          }
+        }
+      }
+    },
     "A selected audio language is no longer available." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -2762,6 +2773,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paused · %@"
+          }
+        }
+      }
+    },
+    "Page %lld of %lld" : {
+      "comment" : "android: mobile_viewer_page",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld of %lld"
           }
         }
       }

@@ -116,6 +116,14 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(document.pageCount, 1)
   }
 
+  func testThePagePillShowsOnlyForMultiPageDocuments() {
+    XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
+    XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)
+    let middle = PutioPDFPagePosition(index: 1, count: 12)
+    XCTAssertTrue(middle.showsPill)
+    XCTAssertEqual(middle.number, 2)
+  }
+
   func testOversizedPreviewsAreRejectedBeforeDecoding() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 8), parentID: .root, title: "Huge.png", kind: .image)
