@@ -45,12 +45,16 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
   }
 
   var previewRoute: PutioPreviewRoute? {
-    guard item.sizeBytes <= PutioPreviewRoute.maximumBytes else { return nil }
+    let exceedsSizeCap = item.sizeBytes > PutioPreviewRoute.maximumBytes
     return switch item.kind {
     case .image:
-      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .image)
+      PutioPreviewRoute(
+        id: item.id, parentID: item.parentID, title: item.name, kind: .image,
+        exceedsSizeCap: exceedsSizeCap)
     case .pdf:
-      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .pdf)
+      PutioPreviewRoute(
+        id: item.id, parentID: item.parentID, title: item.name, kind: .pdf,
+        exceedsSizeCap: exceedsSizeCap)
     case .folder, .video, .audio, .other:
       nil
     }
@@ -104,6 +108,7 @@ public struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
   public let parentID: PutioFileID
   public let title: String
   public let kind: Kind
+  public internal(set) var exceedsSizeCap = false
 }
 
 public struct PutioUnsupportedFileRoute: Identifiable, Equatable, Sendable {

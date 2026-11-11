@@ -37,19 +37,32 @@ enum PutioPreviewFailure: Equatable {
 
 enum PutioViewerRoute: Identifiable, Equatable {
   case preview(PutioPreviewRoute)
-  case cannotShow(PutioUnsupportedFileRoute)
+  case cannotShow(id: PutioFileID, title: String)
+
+  init?(opening action: PutioFileOpenAction) {
+    switch action {
+    case .video, .audio:
+      return nil
+    case .preview(let route) where route.exceedsSizeCap:
+      self = .cannotShow(id: route.id, title: route.title)
+    case .preview(let route):
+      self = .preview(route)
+    case .unsupported(let route):
+      self = .cannotShow(id: route.id, title: route.item.name)
+    }
+  }
 
   var id: PutioFileID {
     switch self {
     case .preview(let route): route.id
-    case .cannotShow(let route): route.id
+    case .cannotShow(let id, _): id
     }
   }
 
   var title: String {
     switch self {
     case .preview(let route): route.title
-    case .cannotShow(let route): route.item.name
+    case .cannotShow(_, let title): title
     }
   }
 }
@@ -161,7 +174,7 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
 @Observable
 final class PutioPreviewModel {
   let route: PutioViewerRoute
-  private(set) var state: PutioPreviewState = .loading
+  private(set) var state: PutioPreviewState
   private let download: PutioPreviewDownload
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
@@ -169,6 +182,11 @@ final class PutioPreviewModel {
   init(route: PutioViewerRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
     self.download = download
+    if case .cannotShow = route {
+      state = .failed(.cannotShow)
+    } else {
+      state = .loading
+    }
   }
 
   /// A new load cancels the previous one so at most one body is in flight.

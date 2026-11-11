@@ -95,17 +95,18 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
 
     let loadedRequests = requests.value as? String
-    assertCannotShow(rowID: 407, title: "Harness Bundle.zip")
+    assertCannotShow(rowID: 407, title: "Harness Bundle.zip", rowValue: "Unsupported file")
     assertCannotShow(
-      rowID: 429, title: "ubuntu-24.04.3-desktop-amd64.iso",
+      rowID: 429, title: "ubuntu-24.04.3-desktop-amd64.iso", rowValue: "Unsupported file",
       screenshot: "runtime-preview-cannot-show")
-    assertCannotShow(rowID: 430, title: "Harness Panorama.png")
+    assertCannotShow(rowID: 430, title: "Harness Panorama.png", rowValue: "Image")
     XCTAssertEqual(requests.value as? String, loadedRequests)
     var swipes = 0
     while !element("files.item.412").isHittable, swipes < 3 {
       app.swipeDown()
       swipes += 1
     }
+    XCTAssertTrue(element("files.item.412").isHittable, "row 412 stayed out of reach")
 
     // Search and History dispatch through the same routing table.
     app.buttons["Search"].tap()
@@ -184,10 +185,12 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
-  private func assertCannotShow(rowID: Int, title: String, screenshot name: String? = nil) {
+  private func assertCannotShow(
+    rowID: Int, title: String, rowValue: String, screenshot name: String? = nil
+  ) {
     let row = app.revealed("files.item.\(rowID)")
     XCTAssertTrue(row.exists, "row \(rowID) never appeared")
-    XCTAssertEqual(row.value as? String, "Unsupported file")
+    XCTAssertEqual(row.value as? String, rowValue)
     row.tap()
     XCTAssertTrue(element("preview.cannot-show").appears(within: 5))
     XCTAssertTrue(element("preview.screen.\(rowID)").exists)

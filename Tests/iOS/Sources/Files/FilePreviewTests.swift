@@ -37,9 +37,15 @@ final class FilePreviewTests: XCTestCase {
     let cap = PutioPreviewRoute.maximumBytes
     for kind in [PutioFileKind.image, .pdf] {
       let atCap = PutioFileRoute(item: BrowserTestFixtures.item(id: 1, kind: kind, sizeBytes: cap))
-      guard case .preview = atCap.openAction else { return XCTFail("\(kind) at the cap") }
-      let over = BrowserTestFixtures.item(id: 2, kind: kind, sizeBytes: cap + 1)
-      XCTAssertEqual(PutioFileRoute(item: over).openAction, .unsupported(.init(item: over)))
+      guard case .preview = PutioViewerRoute(opening: atCap.openAction) else {
+        return XCTFail("\(kind) at the cap")
+      }
+      let over = PutioFileRoute(
+        item: BrowserTestFixtures.item(id: 2, kind: kind, sizeBytes: cap + 1))
+      guard case .preview = over.openAction else { return XCTFail("\(kind) lost its type") }
+      XCTAssertEqual(
+        PutioViewerRoute(opening: over.openAction),
+        .cannotShow(id: over.id, title: over.item.name))
     }
   }
 
@@ -48,14 +54,17 @@ final class FilePreviewTests: XCTestCase {
     let oversized = BrowserTestFixtures.item(
       id: 4, kind: .image, sizeBytes: PutioPreviewRoute.maximumBytes + 1)
     for item in [archive, oversized] {
-      guard case .unsupported(let route) = PutioFileRoute(item: item).openAction else {
+      guard let route = PutioViewerRoute(opening: PutioFileRoute(item: item).openAction),
+        case .cannotShow = route
+      else {
         return XCTFail("\(item.kind) opened a preview")
       }
       var downloads = 0
-      let model = PutioPreviewModel(route: .cannotShow(route)) { _ in
+      let model = PutioPreviewModel(route: route) { _ in
         downloads += 1
         return Self.pngData()
       }
+      XCTAssertEqual(model.state, .failed(.cannotShow))
       await model.load()
       await model.retry()
       XCTAssertEqual(model.state, .failed(.cannotShow))

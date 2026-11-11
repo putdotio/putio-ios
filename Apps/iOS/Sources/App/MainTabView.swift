@@ -352,10 +352,8 @@ struct MainTabView: View {
       }
     case .audio(let audioRoute):
       presentAudio(audioRoute)
-    case .preview(let previewRoute):
-      presentedPreviewRoute = .preview(previewRoute)
-    case .unsupported(let unsupportedRoute):
-      presentedPreviewRoute = .cannotShow(unsupportedRoute)
+    case .preview, .unsupported:
+      presentedPreviewRoute = PutioViewerRoute(opening: route.openAction)
     }
   }
 

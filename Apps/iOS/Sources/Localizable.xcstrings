@@ -2657,7 +2657,7 @@
       }
     },
     "Open it on put.io from a browser instead." : {
-      "comment" : "ios-only: no Android string for the iOS image and PDF preview",
+      "comment" : "ios-only: Android mobile_viewer_failed has no detail line; the iOS cannot-show state adds one",
       "localizations" : {
         "en" : {
           "stringUnit" : {
