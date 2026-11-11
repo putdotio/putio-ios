@@ -536,6 +536,24 @@ public final class SimulatorLifecycle: @unchecked Sendable {
   }
 }
 
+private final class BackgroundWork<T>: @unchecked Sendable {
+  private let finished = DispatchSemaphore(value: 0)
+  private var result: Result<T, Error> = .failure(HarnessFailure("background work did not finish"))
+
+  init(_ body: @escaping () throws -> T) {
+    nonisolated(unsafe) let body = body
+    DispatchQueue.global().async {
+      self.result = Result { try body() }
+      self.finished.signal()
+    }
+  }
+
+  func wait() -> Result<T, Error> {
+    finished.wait()
+    return result
+  }
+}
+
 private final class SimulatorSession {
   let deviceIdentifier: String
   let deviceName: String
@@ -647,11 +665,13 @@ public struct SimulatorHarness {
   private func runInstalledApp(_ platform: HarnessPlatform, shouldExercise: Bool) throws
     -> SurfaceRun
   {
-    _ = try build(platform)
     let scratch = context.root.appending(path: "build/harness/\(UUID().uuidString.lowercased())")
     try fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: scratch) }
-    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
+    func buildApp() throws { _ = try build(platform) }
+    return try withSession(
+      platform: platform, runID: UUID().uuidString.lowercased(), alongside: buildApp
+    ) { session in
       try install(platform: platform, session: session)
       let screenshot = scratch.appending(path: "ready.png")
       let pid = try launchAndWait(
@@ -688,10 +708,6 @@ public struct SimulatorHarness {
   ) throws -> SurfaceRun {
     try requireCleanSource()
     try requireRevision(sourceRevision)
-    try regenerateWorkspace()
-    try requireCleanSource()
-    try requireRevision(sourceRevision)
-    _ = try build(platform, iosCompanionAvailable: iosCompanionAvailable)
     let platformDirectory = context.proofRoot.appending(path: runID).appending(
       path: platform.rawValue)
     guard !fileManager.fileExists(atPath: platformDirectory.path) else {
@@ -700,8 +716,16 @@ public struct SimulatorHarness {
     }
     try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
 
+    func buildProvenApp() throws {
+      try regenerateWorkspace()
+      try requireCleanSource()
+      try requireRevision(sourceRevision)
+      _ = try build(platform, iosCompanionAvailable: iosCompanionAvailable)
+    }
+
     do {
-      return try withSession(platform: platform, runID: runID) { session in
+      return try withSession(platform: platform, runID: runID, alongside: buildProvenApp) {
+        session in
         try install(platform: platform, session: session)
 
         let wantsScreenshot = command == .screenshot || command == .proof
@@ -1469,20 +1493,21 @@ public struct SimulatorHarness {
         "-only-testing:\(suite.target)",
       ]
     }
-    // A freshly booted Simulator keeps every runner core busy with first-boot
-    // work, so the suites compile before it exists rather than after.
-    for suite in suites {
-      _ = try runner.checked(
-        "xcodebuild",
-        arguments(
-          "build-for-testing", suite, destination: platform.configuration.destination)
-          + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
-        currentDirectory: context.root,
-        context: "build \(platform.rawValue) \(suite.target)"
-      )
-    }
     let runID = UUID().uuidString.lowercased()
-    return try withSession(platform: platform, runID: runID) { session in
+    func buildSuites() throws {
+      for suite in suites {
+        _ = try runner.checked(
+          "xcodebuild",
+          arguments(
+            "build-for-testing", suite, destination: platform.configuration.destination)
+            + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
+          currentDirectory: context.root,
+          context: "build \(platform.rawValue) \(suite.target)"
+        )
+      }
+    }
+    return try withSession(platform: platform, runID: runID, alongside: buildSuites) {
+      session in
       var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
       testEnvironment["TEST_RUNNER_SNAPSHOT_TESTING_RECORD"] = recordSnapshots ? "failed" : "never"
       if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
@@ -1923,13 +1948,35 @@ public struct SimulatorHarness {
     return try currentRevision()
   }
 
+  /// `preparation` runs while the Simulator boots, so a build overlaps the
+  /// boot wait. A failed preparation still waits for the boot, then deletes it.
   private func withSession<T>(
     platform: HarnessPlatform,
     runID: String,
     device: BoardDevice? = nil,
+    alongside preparation: () throws -> Void = {},
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    let session = try createSession(platform: platform, runID: runID, device: device)
+    let booting = BackgroundWork {
+      try createSession(platform: platform, runID: runID, device: device)
+    }
+    let prepared = Result { try preparation() }
+    let session: SimulatorSession
+    switch (prepared, booting.wait()) {
+    case (.success, .success(let booted)):
+      session = booted
+    case (.success, .failure(let bootError)):
+      throw bootError
+    case (.failure(let preparationError), .failure(let bootError)):
+      throw HarnessFailure("\(preparationError)\nSimulator boot also failed: \(bootError)")
+    case (.failure(let preparationError), .success(let booted)):
+      do {
+        try SimulatorLifecycle.shared.endSession { try booted.cleanup() }
+      } catch {
+        throw HarnessFailure("\(preparationError)\ncleanup failed: \(error)")
+      }
+      throw preparationError
+    }
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -2087,7 +2134,7 @@ public struct SimulatorHarness {
       }
       try boot(deviceIdentifier, label: platform.rawValue)
       if platform == .ios {
-        try unloadUnusedJobs(deviceIdentifier)
+        try unloadUnusedJobs(deviceIdentifier, runtime: runtime)
       }
       if platform == .watchos {
         _ = try runner.checked(
@@ -2174,20 +2221,24 @@ public struct SimulatorHarness {
   /// jobs, which keeps a 3-core CI runner saturated through the first test run.
   /// Unloading the ones the apps never use roughly halves that work. One
   /// `bootout` with every plist path is a single spawn; jobs that aren't
-  /// loaded only fail their own path, so the result is ignored.
-  func unloadUnusedJobs(_ identifier: String) throws {
-    let root = try runner.checked(
-      "xcrun", ["simctl", "getenv", identifier, "SIMULATOR_ROOT"],
-      context: "read iOS Simulator runtime root"
-    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  /// loaded only fail their own path, so the result is ignored. The runtime
+  /// list names the root, so no extra spawn into the busy device reads it.
+  func unloadUnusedJobs(_ identifier: String, runtime: RuntimeRecord) throws {
+    let root =
+      try runtime.runtimeRoot
+      ?? runner.checked(
+        "xcrun", ["simctl", "getenv", identifier, "SIMULATOR_ROOT"],
+        context: "read iOS Simulator runtime root"
+      ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     let plists = unusedSimulatorJobs.compactMap { label in
       ["System/Library/LaunchDaemons", "System/Library/LaunchAgents"]
         .map { "\(root)/\($0)/\(label).plist" }
         .first { fileManager.fileExists(atPath: $0) }
     }
     guard !plists.isEmpty else { return }
-    _ = try runner.run(
-      "xcrun", ["simctl", "spawn", identifier, "launchctl", "bootout", "system"] + plists)
+    _ = try runner.timed(
+      "xcrun", ["simctl", "spawn", identifier, "launchctl", "bootout", "system"] + plists,
+      context: "unload unused iOS Simulator jobs")
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {

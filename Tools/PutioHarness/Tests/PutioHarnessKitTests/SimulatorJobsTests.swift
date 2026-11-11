@@ -4,7 +4,8 @@ import Testing
 @testable import PutioHarnessKit
 
 struct SimulatorJobsTests {
-  @Test func unusedJobsAreBootedOutInOneSpawnByTheirPlistPaths() throws {
+  @Test(arguments: [true, false])
+  func unusedJobsAreBootedOutInOneSpawnByTheirPlistPaths(runtimeListsRoot: Bool) throws {
     let root = FileManager.default.temporaryDirectory.appending(
       path: "putio-simulator-jobs-\(UUID().uuidString.lowercased())")
     defer { try? FileManager.default.removeItem(at: root) }
@@ -37,13 +38,17 @@ struct SimulatorJobsTests {
       context: RepositoryContext(root: root),
       runner: ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]))
 
-    try harness.unloadUnusedJobs("DEVICE")
+    let runtime = RuntimeRecord(
+      name: "iOS 27.2", identifier: "ios-27-2", version: "27.2", platform: "iOS",
+      isAvailable: true, supportedDeviceTypes: [],
+      runtimeRoot: runtimeListsRoot ? runtimeRoot.path : nil)
+
+    try harness.unloadUnusedJobs("DEVICE", runtime: runtime)
 
     let calls = try String(contentsOf: log, encoding: .utf8).split(separator: "\n").map(String.init)
+    let bootout = "simctl spawn DEVICE launchctl bootout system \(agent.path) \(daemon.path)"
     #expect(
-      calls == [
-        "simctl getenv DEVICE SIMULATOR_ROOT",
-        "simctl spawn DEVICE launchctl bootout system \(agent.path) \(daemon.path)",
-      ])
+      calls
+        == (runtimeListsRoot ? [bootout] : ["simctl getenv DEVICE SIMULATOR_ROOT", bootout]))
   }
 }
