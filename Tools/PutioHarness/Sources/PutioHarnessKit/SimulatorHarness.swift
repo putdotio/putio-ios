@@ -2449,8 +2449,8 @@ public struct SimulatorHarness {
         output.path,
       ]
     )
-    // Cold recordVideo starts have exceeded 30 seconds on hosted CI runners.
-    let deadline = Date().addingTimeInterval(60)
+    // Cold recordVideo starts have exceeded 60 seconds on hosted Xcode 27 runners.
+    let deadline = Date().addingTimeInterval(180)
     while Date() < deadline {
       if fileManager.fileExists(atPath: output.path) { return process }
       guard process.isRunning else {
@@ -2460,7 +2460,7 @@ public struct SimulatorHarness {
       Thread.sleep(forTimeInterval: 0.1)
     }
     let result = process.interruptAndWait()
-    throw HarnessFailure("recording did not start within 60 seconds\n\(result.combinedOutput)")
+    throw HarnessFailure("recording did not start within 180 seconds\n\(result.combinedOutput)")
   }
 
   private func journeyFailureDetails(resultBundle: URL) -> String {
