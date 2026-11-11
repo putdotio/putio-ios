@@ -76,7 +76,7 @@ struct SimulatorBuildTests {
     }
   }
 
-  @Test func testSuitesCompileForTheHostArchitectureWhileTheSimulatorBoots() throws {
+  @Test func testSuitesCompileForTheHostArchitecture() throws {
     let calls = try withFakeXcodebuild { harness in
       #expect(throws: HarnessFailure.self) {
         try harness.test(.ios, recordSnapshots: false, environment: [:])

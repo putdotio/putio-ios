@@ -1928,35 +1928,12 @@ public struct SimulatorHarness {
     platform: HarnessPlatform,
     runID: String,
     device: BoardDevice? = nil,
-    alongside preparation: () throws -> Void = {},
+    alongside preparation: (() throws -> Void)? = nil,
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    nonisolated(unsafe) let harness = self
-    nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
-    let booting = DispatchGroup()
-    DispatchQueue.global().async(group: booting) {
-      booted = Result {
-        try harness.createSession(platform: platform, runID: runID, device: device)
-      }
-    }
-    let prepared = Result { try preparation() }
-    booting.wait()
-    let session: SimulatorSession
-    switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
-    case (.success, .success(let booted)):
-      session = booted
-    case (.success, .failure(let bootError)):
-      throw bootError
-    case (.failure(let preparationError), .failure(let bootError)):
-      throw HarnessFailure("\(preparationError)\nSimulator boot also failed: \(bootError)")
-    case (.failure(let preparationError), .success(let booted)):
-      do {
-        try SimulatorLifecycle.shared.endSession { try booted.cleanup() }
-      } catch {
-        throw HarnessFailure("\(preparationError)\ncleanup failed: \(error)")
-      }
-      throw preparationError
-    }
+    let session =
+      try preparation.map { try bootSession(platform: platform, runID: runID, alongside: $0) }
+      ?? createSession(platform: platform, runID: runID, device: device)
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -1974,6 +1951,36 @@ public struct SimulatorHarness {
       }
     }
     return try result.get()
+  }
+
+  private func bootSession(
+    platform: HarnessPlatform, runID: String, alongside preparation: () throws -> Void
+  ) throws -> SimulatorSession {
+    nonisolated(unsafe) let harness = self
+    nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
+    let booting = DispatchGroup()
+    DispatchQueue.global().async(group: booting) {
+      booted = Result {
+        try harness.createSession(platform: platform, runID: runID)
+      }
+    }
+    let prepared = Result { try preparation() }
+    booting.wait()
+    switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
+    case (.success, .success(let booted)):
+      return booted
+    case (.success, .failure(let bootError)):
+      throw bootError
+    case (.failure(let preparationError), .failure(let bootError)):
+      throw HarnessFailure("\(preparationError)\nSimulator boot also failed: \(bootError)")
+    case (.failure(let preparationError), .success(let booted)):
+      do {
+        try SimulatorLifecycle.shared.endSession { try booted.cleanup() }
+      } catch {
+        throw HarnessFailure("\(preparationError)\ncleanup failed: \(error)")
+      }
+      throw preparationError
+    }
   }
 
   func requireGeneratedWorkspace() throws {
