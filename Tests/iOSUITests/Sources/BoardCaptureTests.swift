@@ -106,7 +106,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     openLongPreview()
-    XCTAssertTrue(element("preview.loading").appears(within: 10), "the preview never showed loading")
+    XCTAssertTrue(
+      element("preview.loading").appears(within: 10), "the preview never showed loading")
     try captureBoard("rd-ios-pv-07-loading")
   }
 
@@ -115,12 +116,15 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     openLongPreview()
-    XCTAssertTrue(element("preview.loading").appears(within: 10), "the preview never showed loading")
+    XCTAssertTrue(
+      element("preview.loading").appears(within: 10), "the preview never showed loading")
     app.buttons["preview.back"].tap()
-    XCTAssertTrue(element("preview.screen.428").disappears(within: 5), "Back did not close the preview")
+    XCTAssertTrue(
+      element("preview.screen.428").disappears(within: 5), "Back did not close the preview")
     openLongPreview()
     XCTAssertTrue(
-      app.staticTexts["Couldn’t load this"].appears(within: 10), "the failed load has no error state")
+      app.staticTexts["Couldn’t load this"].appears(within: 10),
+      "the failed load has no error state")
     try captureBoard("rd-ios-pv-08-error")
   }
 
@@ -129,7 +133,8 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("files.item.428")
     XCTAssertTrue(row.appears(within: 10), "the long-named image row never appeared")
     row.tap()
-    XCTAssertTrue(element("preview.screen.428").appears(within: 10), "the preview did not open")
+    XCTAssertTrue(
+      element("preview.screen.428").appears(within: 10), "the preview did not open")
   }
 
   func testGalleryPage() throws {
