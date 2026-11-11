@@ -771,7 +771,6 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.TV.Spacing.xxl * 5
     static let filesViewportHeight = PutioTheme.TV.Spacing.xxl * 8
     static let formsViewportHeight = containerViewportHeight
-    static let sheetPreviewBackground = Color.clear
     static let detailRowGap = PutioTheme.TV.Spacing.xs
     static let sheetPreviewHeight = PutioTheme.TV.Spacing.xxl * 2
     static let sheetPreviewMaxWidth = PutioTheme.TV.Spacing.xxl * 4
@@ -787,7 +786,6 @@ enum GalleryLayout {
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     static let formsViewportHeight = PutioTheme.Spacing.space6 * 14
-    static let sheetPreviewBackground = PutioTheme.Colors.surface
     static let detailRowGap = PutioTheme.Spacing.space2
     static let sheetPreviewHeight = PutioTheme.Spacing.space6 * 3
     static let sheetPreviewMaxWidth = PutioTheme.Spacing.space8
