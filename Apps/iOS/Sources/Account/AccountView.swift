@@ -234,32 +234,10 @@ struct AccountView: View {
 
   private var playbackSection: some View {
     PutioSettingsSection(String(localized: "Playback")) {
-      if appConfig.config != nil {
-        if account.suggestNextVideo {
-          PutioToggleRow(
-            title: String(localized: "Autoplay next video"), icon: .skipForward,
-            isOn: autoplayNextVideo
-          )
-          .disabled(!appConfig.canSave)
-          .accessibilityIdentifier("playback-settings.autoplay")
-        }
-        if UIDevice.current.userInterfaceIdiom == .phone {
-          PutioToggleRow(
-            title: String(localized: "Rotate to landscape"), icon: .deviceRotate,
-            isOn: autoRotateVideo
-          )
-          .disabled(!appConfig.canSave)
-          .accessibilityIdentifier("playback-settings.auto-rotate")
-        }
-      } else if appConfig.isLoading {
-        ProgressView("Loading playback settings")
-      }
-      if let failure = appConfig.failure {
-        Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-        Button("Try again") { Task { await appConfig.retry() } }
-          .disabled(appConfig.isBusy)
-          .accessibilityIdentifier("playback-settings.retry-autoplay")
-      }
+      PutioPlaybackConfigRows(
+        suggestsNextVideo: account.suggestNextVideo,
+        showsRotation: UIDevice.current.userInterfaceIdiom == .phone,
+        appConfig: appConfig)
       PutioNavigationRow(
         String(localized: "Proxy"), icon: .globe, value: preferences.account?.routeName
       ) {
@@ -400,6 +378,50 @@ struct AccountView: View {
       set: { save(.dontAutoSelectSubtitles(!$0)) })
   }
 
+  private func save(_ mutation: PutioAccountPreferenceMutation) {
+    confirmation = nil
+    Task { await preferences.save(mutation) }
+  }
+
+  private func reconcileRestoredFile(destinationID: PutioFileID?) {
+    PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
+  }
+}
+
+struct PutioPlaybackConfigRows: View {
+  let suggestsNextVideo: Bool
+  let showsRotation: Bool
+  let appConfig: PutioAppConfigModel
+
+  var body: some View {
+    if appConfig.config != nil {
+      if suggestsNextVideo {
+        PutioToggleRow(
+          title: String(localized: "Autoplay next video"), icon: .skipForward,
+          isOn: autoplayNextVideo
+        )
+        .disabled(!appConfig.canSave)
+        .accessibilityIdentifier("playback-settings.autoplay")
+      }
+      if showsRotation {
+        PutioToggleRow(
+          title: String(localized: "Rotate to landscape"), icon: .deviceRotate,
+          isOn: autoRotateVideo
+        )
+        .disabled(!appConfig.canSave)
+        .accessibilityIdentifier("playback-settings.auto-rotate")
+      }
+    } else if appConfig.isLoading {
+      ProgressView("Loading playback settings")
+    }
+    if let failure = appConfig.failure {
+      Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+      Button("Try again") { Task { await appConfig.retry() } }
+        .disabled(appConfig.isBusy)
+        .accessibilityIdentifier("playback-settings.retry-autoplay")
+    }
+  }
+
   private var autoplayNextVideo: Binding<Bool> {
     Binding(
       get: { appConfig.autoplayNextVideo },
@@ -410,15 +432,6 @@ struct AccountView: View {
     Binding(
       get: { appConfig.autoRotateVideo },
       set: { enabled in Task { await appConfig.setAutoRotateVideo(enabled) } })
-  }
-
-  private func save(_ mutation: PutioAccountPreferenceMutation) {
-    confirmation = nil
-    Task { await preferences.save(mutation) }
-  }
-
-  private func reconcileRestoredFile(destinationID: PutioFileID?) {
-    PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
   }
 }
 

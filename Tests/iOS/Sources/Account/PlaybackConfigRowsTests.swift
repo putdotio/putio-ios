@@ -7,26 +7,26 @@ import XCTest
 @testable import PutioCore
 
 @MainActor
-final class PlaybackPreferencesViewTests: XCTestCase {
+final class PlaybackConfigRowsTests: XCTestCase {
   func testAutoplaySwitchIsHiddenWhileSuggestionsAreOff() async throws {
     let model = model(load: { PutioAppConfig(autoplayNextVideo: true) })
     await model.loadIfNeeded()
 
     let suggested = host(
-      PutioNextVideoPreferencesSection(suggestsNextVideo: true, appConfig: model))
+      PutioPlaybackConfigRows(suggestsNextVideo: true, showsRotation: false, appConfig: model))
     defer { suggested.isHidden = true }
     let shown = try await switchCount(in: suggested)
     XCTAssertEqual(shown, 1, "the autoplay switch is missing while suggestions are on")
 
     let unsuggested = host(
-      PutioNextVideoPreferencesSection(suggestsNextVideo: false, appConfig: model))
+      PutioPlaybackConfigRows(suggestsNextVideo: false, showsRotation: false, appConfig: model))
     defer { unsuggested.isHidden = true }
     let hidden = try await switchCount(in: unsuggested)
     XCTAssertEqual(hidden, 0, "autoplay is offered for suggestions the account turned off")
   }
 
-  private func host(_ section: PutioNextVideoPreferencesSection) -> UIWindow {
-    let controller = UIHostingController(rootView: Form { section })
+  private func host(_ rows: PutioPlaybackConfigRows) -> UIWindow {
+    let controller = UIHostingController(rootView: Form { rows })
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
     window.rootViewController = controller
     window.isHidden = false
