@@ -834,9 +834,8 @@ enum GalleryLayout {
     static let sectionGap = PutioTheme.Spacing.space4
     static let itemGap = PutioTheme.Spacing.space3
     static let pagePadding = PutioTheme.Spacing.space3
-    static let stateTileHeight = PutioTheme.Spacing.space5 * 5
     static let sidebarWidth = PutioTheme.Spacing.space6 * 2
-    static let stateTileHeight = PutioTheme.Spacing.space6 * 2
+    static let stateTileHeight = PutioTheme.Spacing.space5 * 5
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     static let formsViewportHeight = PutioTheme.Spacing.space6 * 14
