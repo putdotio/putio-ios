@@ -116,7 +116,7 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(folderTitle)
-    .navigationBarTitleDisplayMode(route.id == .root ? .large : .inline)
+    .navigationBarTitleDisplayMode(route.id == .root && !isEditing ? .large : .inline)
     .navigationBarBackButtonHidden(fileActionPending || isEditing)
     .putioContentBackground()
     .toolbar {
