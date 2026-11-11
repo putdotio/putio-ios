@@ -26,7 +26,6 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     }
   }
 
-  /// put.io's `account_status`. `stranger` is an account that never had a plan.
   public enum Status: Equatable, Sendable {
     case active
     case inactive
@@ -55,9 +54,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   /// live total while it is open.
   public let trashSizeBytes: Int64
   public let status: Status
-  /// A family plan member rather than the plan's owner.
   public let isSubAccount: Bool
-  /// When an inactive account's files are scheduled for deletion, if put.io sent a usable date.
   public let filesDeletionDate: Date?
 
   public init(

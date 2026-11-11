@@ -52,13 +52,16 @@ final class InactiveAccountNoticeTests: XCTestCase {
     XCTAssertEqual(notice.daysUntilFilesDeleted(now: now, calendar: try calendar(hours: 0)), 14)
     XCTAssertEqual(notice.daysUntilFilesDeleted(now: now, calendar: try calendar(hours: 3)), 13)
     XCTAssertEqual(
-      notice.daysUntilFilesDeleted(now: try date("2026-10-15T23:00:00Z"), calendar: try calendar(hours: 0)),
+      notice.daysUntilFilesDeleted(
+        now: try date("2026-10-15T23:00:00Z"), calendar: try calendar(hours: 0)),
       0)
     XCTAssertEqual(
-      notice.daysUntilFilesDeleted(now: try date("2026-10-17T00:00:00Z"), calendar: try calendar(hours: 0)),
+      notice.daysUntilFilesDeleted(
+        now: try date("2026-10-17T00:00:00Z"), calendar: try calendar(hours: 0)),
       2)
     XCTAssertNil(
-      PutioInactiveAccountNotice.deactivated(filesDeletionDate: nil).daysUntilFilesDeleted(now: now))
+      PutioInactiveAccountNotice.deactivated(filesDeletionDate: nil).daysUntilFilesDeleted(now: now)
+    )
     XCTAssertNil(PutioInactiveAccountNotice.familyPlanExpired.daysUntilFilesDeleted(now: now))
   }
 

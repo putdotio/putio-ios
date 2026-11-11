@@ -217,37 +217,37 @@ final class PutioSessionStoreTests: XCTestCase {
   ) -> String {
     let status = accountStatus.map { #""account_status": "\#($0)","# } ?? ""
     return """
-    {
-      "info": {
-        "user_id": 1001,
-        "username": "moviebuff",
-        "mail": "tests@example.com",
-        "avatar_url": "\(avatarURL)",
-        "user_hash": "hash",
-        "features": {},
-        "download_token": "token",
-        "trash_size": \(trashSize),
-        \(status)
-        "account_active": \(accountActive),
-        "is_sub_account": \(isSubAccount),
-        "files_will_be_deleted_at": "\(filesWillBeDeletedAt)",
-        "password_last_changed_at": "",
-        "disk": { "avail": 10, "size": 30, "used": 20 },
-        "settings": {
-          "tunnel_route_name": "default",
-          "next_episode": \(suggestNextVideo),
-          "start_from": \(rememberVideoTime),
-          "history_enabled": \(historyEnabled),
-          "trash_enabled": \(trashEnabled),
-          "sort_by": "NAME_ASC",
-          "show_optimistic_usage": false,
-          "two_factor_enabled": false,
-          "hide_subtitles": false,
-          "dont_autoselect_subtitles": false
+      {
+        "info": {
+          "user_id": 1001,
+          "username": "moviebuff",
+          "mail": "tests@example.com",
+          "avatar_url": "\(avatarURL)",
+          "user_hash": "hash",
+          "features": {},
+          "download_token": "token",
+          "trash_size": \(trashSize),
+          \(status)
+          "account_active": \(accountActive),
+          "is_sub_account": \(isSubAccount),
+          "files_will_be_deleted_at": "\(filesWillBeDeletedAt)",
+          "password_last_changed_at": "",
+          "disk": { "avail": 10, "size": 30, "used": 20 },
+          "settings": {
+            "tunnel_route_name": "default",
+            "next_episode": \(suggestNextVideo),
+            "start_from": \(rememberVideoTime),
+            "history_enabled": \(historyEnabled),
+            "trash_enabled": \(trashEnabled),
+            "sort_by": "NAME_ASC",
+            "show_optimistic_usage": false,
+            "two_factor_enabled": false,
+            "hide_subtitles": false,
+            "dont_autoselect_subtitles": false
+          }
         }
       }
-    }
-    """
+      """
   }
 
   private let fixtures = SessionMockURLProtocol.Fixtures()
