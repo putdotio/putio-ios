@@ -27,7 +27,7 @@ final class ItemActionsGalleryTests: XCTestCase {
     addScreenshot(named: "item-menu-long-press")
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
     XCTAssertTrue(
-      app.buttons["item-action.play"].disappears(within: 5), "long-press menu never closed")
+      app.buttons["Play"].firstMatch.disappears(within: 5), "long-press menu never closed")
 
     row.swipeLeft()
     let more = swipeMore(beside: row)
@@ -37,7 +37,7 @@ final class ItemActionsGalleryTests: XCTestCase {
     XCTAssertEqual(swipeItems, longPressItems)
     addScreenshot(named: "item-menu-swipe-more")
 
-    app.buttons["item-action.rename"].firstMatch.tap()
+    app.buttons["Rename"].firstMatch.tap()
     XCTAssertTrue(
       reported(equals: "Last action: Rename Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv"),
       "the swipe More menu did not run its item's action")
@@ -79,10 +79,9 @@ final class ItemActionsGalleryTests: XCTestCase {
   }
 
   private func menuItems() -> [String] {
-    let first = app.buttons["item-action.play"].firstMatch
+    let first = app.buttons[boardMenu[0]].firstMatch
     XCTAssertTrue(first.appears(within: 5), "item menu never opened")
-    let items = app.buttons.matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
+    let items = app.buttons.matching(NSPredicate(format: "label IN %@", boardMenu))
     return items.allElementsBoundByIndex
       .sorted { $0.frame.minY < $1.frame.minY }
       .map(\.label)

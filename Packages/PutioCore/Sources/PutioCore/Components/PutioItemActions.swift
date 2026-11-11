@@ -116,6 +116,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
             } label: {
               PutioItemActionLabel(action: action)
             }
+            .tint(action.role == .destructive ? nil : PutioTheme.Colors.textPrimary)
             .disabled(action.isDisabled)
             .accessibilityIdentifier("item-action.\(action.id)")
           }
