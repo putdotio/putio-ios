@@ -34,6 +34,16 @@
         "identifier" : "F9F1156CABBF8C0A2F022A15",
         "name" : "PutioFeatureTests"
       }
+    },
+    {
+      "selectedTests" : [
+        "LaunchSmokeTests"
+      ],
+      "target" : {
+        "containerPath" : "container:Putio.xcodeproj",
+        "identifier" : "070AE74A1966213F5904D052",
+        "name" : "PutioUITests"
+      }
     }
   ],
   "version" : 1

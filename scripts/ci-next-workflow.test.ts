@@ -124,19 +124,19 @@ const laneFilters = async (): Promise<Map<string, readonly string[]>> => {
 };
 
 const selectedLanes = (filters: Map<string, readonly string[]>, paths: readonly string[]): string[] =>
-  ["checks", "build", "ios", "tvos", "proof"].filter((lane) =>
+  ["checks", "build", "ios", "tvos"].filter((lane) =>
     paths.some((path) => (filters.get(lane) ?? []).every((pattern) => picomatch(pattern, { dot: true })(path))),
   );
 
 test("pull requests start only the macOS lanes their paths reach", async () => {
   const filters = await laneFilters();
   const lanes = (...paths: string[]) => selectedLanes(filters, paths);
-  const every = ["checks", "build", "ios", "tvos", "proof"];
+  const every = ["checks", "build", "ios", "tvos"];
 
   assert.deepEqual(lanes("AGENTS.md", "mise-tasks.toml", "scripts/xcode-skills.sh"), []);
   assert.deepEqual(lanes("docs/session.md", ".agents/skills/verify-putio-apple/SKILL.md", "LICENSE"), []);
   assert.deepEqual(lanes("scripts/string-catalog.ts", "scripts/string-catalog.test.ts", "tsconfig.json"), []);
-  assert.deepEqual(lanes("Apps/iOS/Sources/Files/FileRow.swift"), ["checks", "build", "ios", "proof"]);
+  assert.deepEqual(lanes("Apps/iOS/Sources/Files/FileRow.swift"), ["checks", "build", "ios"]);
   assert.deepEqual(lanes("Apps/tvOS/Sources/App.swift"), ["checks", "build", "tvos"]);
   assert.deepEqual(lanes("Tests/iOS/Sources/FileRowTests.swift"), ["checks", "ios"]);
   const gallery = "Tests/ComponentSnapshots/Sources/__Snapshots__/ComponentGallerySnapshotTests";
@@ -144,7 +144,7 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
   assert.deepEqual(lanes(`${gallery}/testFilesPage.tvos.png`), ["tvos"]);
   assert.deepEqual(lanes("Tests/iOS/Sources/Files/__Snapshots__/FilesBrowserRenderingTests/root.1.png"), ["ios"]);
   assert.deepEqual(lanes("Tests/tvOS/Sources/__Snapshots__/TVPlaybackTests/overlay.1.png"), ["tvos"]);
-  assert.deepEqual(lanes("Tests/HarnessMedia/audio/a.m4a"), ["build", "ios", "tvos", "proof"]);
+  assert.deepEqual(lanes("Tests/HarnessMedia/audio/a.m4a"), ["build", "ios", "tvos"]);
   assert.deepEqual(lanes("scripts/build.sh"), ["build"]);
   for (const path of [
     "Packages/PutioCore/Sources/Session.swift",

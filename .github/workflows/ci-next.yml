@@ -52,7 +52,6 @@ jobs:
       build: ${{ inputs.verify || steps.filter.outputs.build == 'true' }}
       ios: ${{ inputs.verify || steps.filter.outputs.ios == 'true' }}
       tvos: ${{ inputs.verify || steps.filter.outputs.tvos == 'true' }}
-      proof: ${{ inputs.verify || steps.filter.outputs.proof == 'true' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,11 +96,6 @@ jobs:
               - '!Apps/{iOS,watchOS}/**'
               - '!Tests/{iOS,iOSUITests}/**'
               - '!**/__Snapshots__/**/*.ios.png'
-            proof:
-              - *apple
-              - '!scripts/{doctor,test,test-harness-interruption,build}.sh'
-              - '!Apps/tvOS/**'
-              - '!Tests/{iOS,iOSUITests,tvOS,tvOSUITests,ComponentSnapshots,Shared}/**'
             # One pattern: predicate-quantifier every would require a file to
             # match every entry in a list.
             store:
@@ -185,9 +179,9 @@ jobs:
             exit 1
           fi
 
-  # Five macOS jobs fill the organization's concurrent macOS limit, so a run
-  # that overlaps another, a `verify` dispatch included, queues until slots
-  # free up.
+  # Four macOS jobs leave one slot of the organization's concurrent macOS
+  # limit, so two overlapping runs, a `verify` dispatch included, queue until
+  # slots free up.
   checks:
     name: Checks
     needs: changes
@@ -329,50 +323,3 @@ jobs:
         with:
           path: build/DerivedData/CompilationCache.noindex
           key: ${{ runner.os }}-xcode-cas-build-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
-
-  proof:
-    name: iOS proof
-    needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.proof == 'true' }}
-    runs-on: xcode-27
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up the Apple toolchain
-        id: setup
-        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
-        with:
-          lane: proof
-          simulator-template: true
-
-      - name: Exercise the headless Apple harness
-        run: ./scripts/harness.sh proof --platform ios --record-seconds 1 --output json
-
-      - name: Stage a new iOS Simulator template
-        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
-        run: |
-          mkdir -p ~/.cache/putio-simulator-templates
-          xcrun simctl list devices -j \
-            | jq -r '.devices[][] | select(.name | startswith("putio-template-")) | .udid' \
-            | while read -r udid; do
-                ditto "$HOME/Library/Developer/CoreSimulator/Devices/$udid" "$HOME/.cache/putio-simulator-templates/$udid"
-              done
-
-      - name: Save a new iOS Simulator template
-        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/putio-simulator-templates
-          key: ${{ steps.setup.outputs.simulator-template-key }}
-
-      - name: Save Xcode compilation cache
-        if: success() && github.event_name == 'push'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: build/DerivedData/CompilationCache.noindex
-          key: ${{ runner.os }}-xcode-cas-proof-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
