@@ -324,6 +324,8 @@ private struct PutioScreenStateContent<Glyph: View>: View {
         Text(title)
           .putioFont(PutioScreenStateLayout.titleFont)
           .putioScreenStateForeground(PutioTheme.Colors.textPrimary)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
       } icon: {
         glyph
       }
