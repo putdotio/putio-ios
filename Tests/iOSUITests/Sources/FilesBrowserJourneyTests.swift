@@ -164,6 +164,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(harnessRow.appears(within: 5), "back did not return to the root")
     XCTAssertEqual(harnessRow.frame, rootPlace, "back moved the root's rows")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testSignOutFailureRecoversWithExplicitRetry() {
