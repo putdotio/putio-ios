@@ -46,7 +46,7 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
 
   var previewRoute: PutioPreviewRoute? {
     guard item.sizeBytes <= PutioPreviewRoute.maximumBytes else { return nil }
-    switch item.kind {
+    return switch item.kind {
     case .image:
       PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .image)
     case .pdf:

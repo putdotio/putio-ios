@@ -2184,7 +2184,8 @@ import Foundation
         + (usesPreviews
           ? [
             previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856),
-            previewObject(id: diskImageFileID, name: diskImageName, type: "OTHER", size: 6_291_456_000),
+            previewObject(
+              id: diskImageFileID, name: diskImageName, type: "OTHER", size: 6_291_456_000),
             previewObject(
               id: oversizedImageFileID, name: "Harness Panorama.png", type: "IMAGE",
               size: 83_886_080),
