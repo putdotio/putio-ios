@@ -720,6 +720,8 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 180),
     JourneyPreflight(
+      "file-row-gallery", "FileRowGalleryTests/testTrailingControlsReportTheActionForTheirState"),
+    JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"]),
     JourneyPreflight(
