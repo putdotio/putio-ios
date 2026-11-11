@@ -1205,28 +1205,6 @@
         }
       }
     },
-    "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
-          }
-        }
-      }
-    },
-    "Saved sign-in details could not be removed. Try again before closing the app." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saved sign-in details could not be removed. Try again before closing the app."
-          }
-        }
-      }
-    },
     "Saved, but the latest account settings could not be loaded. Refresh to continue." : {
       "comment" : "android: mobile_settings_refresh_error | differs: iOS board wording",
       "localizations" : {
@@ -1267,17 +1245,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in did not complete. Try again."
-          }
-        }
-      }
-    },
-    "Sign-out did not finish" : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign-out did not finish"
           }
         }
       }
@@ -1535,17 +1502,6 @@
         }
       }
     },
-    "Try signing out again" : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try signing out again"
-          }
-        }
-      }
-    },
     "Turn on product analytics?" : {
       "comment" : "android: mobile_product_analytics_prompt_title",
       "localizations" : {
@@ -1740,17 +1696,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io could not prepare this video. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not revoke your session. Check your connection and try again." : {
-      "comment" : "ios-only: no Android string for the shared session errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not revoke your session. Check your connection and try again."
           }
         }
       }

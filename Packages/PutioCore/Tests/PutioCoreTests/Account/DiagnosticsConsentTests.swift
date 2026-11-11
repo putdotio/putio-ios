@@ -14,7 +14,7 @@ final class DiagnosticsConsentTests: XCTestCase {
     XCTAssertTrue(consent.update(for: .signedIn(Self.account(diagnostics: false))))
     XCTAssertFalse(consent.isEnabled)
 
-    for transitional in [PutioSessionState.unknown, .signingOut, .signOutFailed(.revocation)] {
+    for transitional in [PutioSessionState.unknown, .signingOut] {
       XCTAssertFalse(consent.update(for: transitional))
       XCTAssertFalse(consent.isEnabled, "\(transitional) dropped the account's opt-out")
     }
@@ -33,7 +33,9 @@ final class DiagnosticsConsentTests: XCTestCase {
 
     let relaunched = PutioDiagnosticsConsent(defaults: defaults)
     XCTAssertFalse(relaunched.isEnabled)
-    for unresolved in [PutioSessionState.unknown, .signedOut(.restoreFailed("offline"))] {
+    for unresolved in [
+      PutioSessionState.unknown, .signedOut(.restoreFailed(.sessionCheck, message: "offline")),
+    ] {
       XCTAssertFalse(relaunched.update(for: unresolved))
       XCTAssertFalse(relaunched.isEnabled, "\(unresolved) turned diagnostics on")
       XCTAssertFalse(

@@ -371,6 +371,7 @@ final class PutioRuntimeTests: XCTestCase {
       clientID: "3001",
       clientName: "tests",
       tokenStore: tokenStore,
+      signOutIntentStore: PutioInMemorySignOutIntentStore(),
       urlSession: URLSession(configuration: configuration)
     )
     return (runtime, tokenStore)

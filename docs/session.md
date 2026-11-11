@@ -14,19 +14,26 @@ the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
 
 ## Saved credential failures
 
+Restore recovery names its cause: `secureStorage` when the keychain cannot read
+or remove the credential, `sessionCheck` when put.io cannot confirm the session
+for a reason other than rejecting it. A rejection still ends in the expired
+state.
+
 If the keychain cannot be read at launch, restore fails with a retry and keeps
 the saved token; both web and device-code sign-in are blocked until restore
 succeeds or rejects the credential. A network failure during restore keeps the
 token the same way. The iOS and tvOS recovery screens offer "Try again" and
-"Sign in again". Only the user can abandon the saved credential: "Sign in again"
-calls `discardUnrestoredCredential()`, which removes it from the keychain and
-returns to the normal sign-in. The abandoned grant is not revoked; it stays
-listed under "Where you are logged in" until revoked there. If removal fails,
-restore recovery stays with the removal error.
+"Sign in again". "Try again" re-runs restore with the saved token and never
+starts a browser sign-in. Only the user can abandon the saved credential: "Sign
+in again" calls `discardUnrestoredCredential()`, which removes it from the
+keychain and returns to the normal sign-in. The abandoned grant is not revoked;
+it stays listed under "Where you are logged in" until revoked there. If removal
+fails, restore recovery stays with the `secureStorage` cause.
 
 If a new sign-in saves its token but the account then fails to load for a
-non-authentication reason, the store enters the same restore recovery. A fresh
-sign-in would overwrite a grant that put.io still accepts.
+non-authentication reason, the store enters the same recovery with the
+`sessionCheck` cause. A fresh sign-in would overwrite a grant that put.io still
+accepts.
 
 If a new sign-in cannot save its token, the store revokes the new grant on a best-effort basis
 and fails sign-in. Expiry and account destruction remove the saved token on a
@@ -35,12 +42,18 @@ which removes it again.
 
 ## Sign-out recovery
 
-Sign-out removes the saved credential and revokes the server session. If either
-fails, the app shows a retry and blocks sign-in and restoration in that instance
-until cleanup succeeds. The failed operation is covered by the
-[session tests](../Packages/PutioCore/Tests/PutioCoreTests/Session/PutioSessionStoreTests.swift).
+Sign-out saves its intent outside the keychain, revokes the server session,
+then removes the saved credential. A failed revocation keeps the credential so
+a later launch can still revoke it. The intent clears only when both steps
+succeed; put.io rejecting the token counts as revoked.
 
-Sign-out intent is not persisted. If credential removal and revocation both
-fail, reopening the app can restore the retained token. Complete the retry
-before closing the app. Changing this behavior requires a persistent recovery
-contract, not just a different error message.
+The user lands on the welcome either way, with no failure screen. While the
+intent is set, launch skips restore and retries the cleanup instead, so a
+sign-out that did not finish never restores the account. An unreadable
+credential stays until a later launch can read it.
+
+Sign-in from the welcome stays available. Saving its token replaces the
+credential and clears the intent; the replaced grant is not revoked and stays
+listed under "Where you are logged in". The
+[session tests](../Packages/PutioCore/Tests/PutioCoreTests/Session/PutioSessionStoreTests.swift)
+cover each failure.

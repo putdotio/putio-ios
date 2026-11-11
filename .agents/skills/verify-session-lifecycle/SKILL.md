@@ -13,16 +13,20 @@ relaunches within the bounds below.
 ## Properties
 
 - **`NoOrphanGrant`:** every grant put.io still accepts stays in the app: in
-  the keychain, in `pendingSignOutToken`, in a pending request, or as the
-  signed-in token. Harm: a live session the app can no longer revoke stays
-  under "Where you're signed in".
+  the keychain, in a pending request, or as the signed-in token. Harm: a live
+  session the app can no longer revoke stays under "Where you're signed in".
 - **`SignedInIsSaved`:** while signed in, the SDK token is the saved token.
   Harm: a relaunch restores a different session, or none.
+- **`PendingSignOutNeverSignedIn`:** while the sign-out intent is set, the
+  account is never signed in. Harm: a sign-out that did not finish brings the
+  account back on reopen.
+- **`SessionCheckKeepsCredential`:** session-check recovery keeps the saved
+  credential. Harm: "Try again" has nothing to restore.
 
 `NoOrphanGrant` allows the drops that [session lifecycle](../../../docs/session.md)
 makes on purpose: the user discards an unrestorable credential, a best-effort
-revocation of an unsaved grant fails, or the app quits with a sign-out
-revocation pending.
+revocation of an unsaved grant fails, or a new sign-in replaces the credential
+an unfinished sign-out kept for revocation.
 
 ## Run
 
@@ -35,7 +39,7 @@ each property in about 5 seconds. It exits nonzero on a violation, on drift, or
 when a model action never fires. An action that never fires means the model
 skips the code it names, so fix the action before you trust a pass.
 
-Both properties must hold. Report any other result.
+Every property must hold. Report any other result.
 
 ## Read a violation
 
@@ -58,7 +62,8 @@ below, and prints the new digest.
    which session method it calls, or from which state.
 3. Run `mise run formal-session`.
 4. Show that a property still fails on a broken model, for example
-   `-- --variant dropPendingSignOutToken`.
+   `-- --variant restoreIgnoresSignOutIntent` or
+   `-- --variant removeBeforeRevoking`.
 5. Set the sync digest below to the one the script printed.
 
 ## Scope
@@ -67,7 +72,7 @@ below, and prints the new digest.
 - One atomic step per main-actor segment between `await`s.
 - Callers act as the shipped screens do: `cancelSignIn()` only during web
   sign-in, `failSignIn(_:)` during web sign-in or after `beginSignIn()` throws, `restore()` only at launch and from "Try again",
-  `signOut()` only from Account and the sign-out retry.
+  `signOut()` only from Account.
 - put.io accepts exactly the grants it issued and has not revoked. A grant
   issued to an abandoned web or device-code sign-in is out of scope.
 - Not covered: account refresh ordering, preference staleness, Chromecast
@@ -75,14 +80,15 @@ below, and prints the new digest.
 
 ## Coverage
 
-Sync digest: `998b0a14e27ac9a099b58064d2f434934b7065fa0387d568f92f1e98b422d799`
+Sync digest: `4cdbf4d4eb75736b25a65d5e9a0309f3dcf5d96b3ee7ebdc0875b693d53e0256`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
+- `Packages/PutioCore/Sources/PutioCore/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime+AccountSecurity.swift` (`endDestroyedSession` callers)
 - `Apps/iOS/Sources/Session/WelcomeScreen.swift` (web sign-in, restore retry, discard)
-- `Apps/iOS/Sources/App/SessionRootView.swift` (launch restore, sign-out retry)
+- `Apps/iOS/Sources/App/SessionRootView.swift` (launch restore)
 - `Apps/iOS/Sources/Account/AccountView.swift` (sign-out)
 - `Apps/tvOS/Sources/Session/TVSignIn.swift` (device-code sign-in, restore retry, discard)
-- `Apps/tvOS/Sources/App/TVSessionRootView.swift` (launch restore, sign-out retry)
+- `Apps/tvOS/Sources/App/TVSessionRootView.swift` (launch restore)
 - `Apps/tvOS/Sources/Account/TVAccount.swift` (sign-out)

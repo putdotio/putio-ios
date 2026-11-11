@@ -15,21 +15,23 @@
     /// Written only once put.io has revoked or rejected the run's token.
     static let revokedFilename = "putio-harness-live-revoked"
 
-    static func outcome(for state: PutioSessionState) -> String? {
+    static func outcome(for state: PutioSessionState, signOutCleanupPending: Bool) -> String? {
       switch state {
       case .signedOut(nil): "no-session"
-      case .signedOut(.userSignedOut): "signed-out"
+      case .signedOut(.userSignedOut): signOutCleanupPending ? "sign-out-failed" : "signed-out"
       case .signedOut(.sessionExpired): "expired"
       case .signedOut(.restoreFailed), .signedOut(.authenticationFailed): "restore-failed"
-      case .signOutFailed: "sign-out-failed"
       case .unknown, .authenticating, .signedIn, .signingOut: nil
       }
     }
 
-    /// Sign-out reaches `.userSignedOut` only after logout succeeded or put.io
-    /// rejected the token; expiry means put.io rejected it.
-    static func provesRevocation(_ state: PutioSessionState) -> Bool {
-      state == .signedOut(.userSignedOut) || state == .signedOut(.sessionExpired)
+    /// A finished sign-out cleanup needs logout to succeed or put.io to reject
+    /// the token; expiry means put.io rejected it.
+    static func provesRevocation(_ state: PutioSessionState, signOutCleanupPending: Bool)
+      -> Bool
+    {
+      (state == .signedOut(.userSignedOut) && !signOutCleanupPending)
+        || state == .signedOut(.sessionExpired)
     }
 
     static func write(_ value: String, to filename: String) {
@@ -38,11 +40,10 @@
     }
   }
 
-  /// The live scenario's token store. Sign-out clears the saved token before
-  /// it revokes it, so a failed or interrupted revocation would otherwise
-  /// leave the only copy in memory. This store keeps that copy in a
+  /// The live scenario's token store. Any cleared token stays in a
   /// pending-revocation item until the probe sees revocation proven, and
-  /// restore falls back to it so the sign-out launch can finish the job.
+  /// restore falls back to it so the sign-out launch can finish the job even
+  /// if a removal outran its revocation.
   final class HarnessLiveTokenStore: PutioTokenStore, @unchecked Sendable {
     private let active: PutioTokenStore
     private let pending: PutioTokenStore
@@ -87,14 +88,18 @@
           }
           .onChange(of: session.state, initial: true) { _, state in
             // The marker lands before the outcome the harness waits for.
-            if HarnessLiveSession.provesRevocation(state), (try? tokenStore.confirmRevoked()) != nil
+            let cleanupPending = session.isSignOutCleanupPending
+            if HarnessLiveSession.provesRevocation(state, signOutCleanupPending: cleanupPending),
+              (try? tokenStore.confirmRevoked()) != nil
             {
               HarnessLiveSession.write("revoked", to: HarnessLiveSession.revokedFilename)
             }
             guard signsOut else { return }
             if case .signedIn = state {
               Task { await session.signOut() }
-            } else if let outcome = HarnessLiveSession.outcome(for: state) {
+            } else if let outcome = HarnessLiveSession.outcome(
+              for: state, signOutCleanupPending: cleanupPending)
+            {
               HarnessLiveSession.write(outcome, to: HarnessLiveSession.outcomeFilename)
             }
           }

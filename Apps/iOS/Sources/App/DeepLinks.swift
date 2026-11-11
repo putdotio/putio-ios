@@ -144,7 +144,7 @@ final class PutioDeepLinkModel {
     case .signedIn(let account):
       if let boundAccountID, boundAccountID != account.id { cancel() }
       accountID = account.id
-    case .signingOut, .signOutFailed:
+    case .signingOut:
       cancel()
       accountID = nil
       isSigningOut = true

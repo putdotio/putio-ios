@@ -22,8 +22,6 @@ struct SessionRootView: View {
         PutioLoadingStateView()
       case .signingOut:
         PutioLoadingStateView(title: String(localized: "Signing out…"))
-      case .signOutFailed(let failure):
-        SignOutFailureView(session: runtime.session, failure: failure)
       case .signedOut, .authenticating:
         // One branch keeps the welcome screen mounted under the browser
         // sheet instead of swapping in a loading screen.
@@ -35,8 +33,7 @@ struct SessionRootView: View {
           account: account,
           deepLinks: deepLinks,
           scenario: scenario,
-          autoSignOutAfterSeconds: scenario == .signedIn
-            && !PutioRuntimeFactory.usesSignOutFailureFixture(scenario: scenario) ? 5 : nil
+          autoSignOutAfterSeconds: scenario == .signedIn ? 5 : nil
         )
         .id(account.id)
       }
@@ -122,22 +119,6 @@ struct SessionRootView: View {
     }
     .task {
       await runtime.session.restore()
-    }
-  }
-}
-
-private struct SignOutFailureView: View {
-  let session: PutioSessionStore
-  let failure: PutioSignOutFailure
-
-  var body: some View {
-    PutioErrorStateView(
-      title: failure.title,
-      message: failure.message,
-      retryTitle: failure.retryTitle,
-      retryIdentifier: "auth.retry-sign-out"
-    ) {
-      Task { await session.signOut() }
     }
   }
 }

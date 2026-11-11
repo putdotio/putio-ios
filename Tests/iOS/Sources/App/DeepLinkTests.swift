@@ -315,9 +315,9 @@ final class DeepLinkTests: XCTestCase {
   }
 
   func testLinksDuringSignOutAreIgnoredAndSignedOutLinksWaitAgain() throws {
-    for state in [PutioSessionState.signingOut, .signOutFailed(.revocation)] {
+    do {
       let model = signedInModel()
-      model.updateSession(state)
+      model.updateSession(.signingOut)
       model.receive(try url("/files/10"))
       XCTAssertNil(model.pending)
       XCTAssertFalse(model.presentsStatus)

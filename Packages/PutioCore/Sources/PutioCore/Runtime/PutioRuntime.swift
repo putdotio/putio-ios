@@ -12,6 +12,7 @@ public final class PutioRuntime {
     clientName: String,
     callbackScheme: String = "putio",
     tokenStore: PutioTokenStore = PutioKeychainTokenStore(),
+    signOutIntentStore: PutioSignOutIntentStore = PutioUserDefaultsSignOutIntentStore(),
     urlSession: URLSession = .shared,
     deviceCodePollInterval: Duration = .seconds(3),
     supportIdentityPlatform: String? = nil
@@ -24,6 +25,7 @@ public final class PutioRuntime {
     self.session = PutioSessionStore(
       sdk: sdk,
       tokenStore: tokenStore,
+      signOutIntentStore: signOutIntentStore,
       callbackScheme: callbackScheme,
       deviceCodePollInterval: deviceCodePollInterval,
       supportIdentityPlatform: supportIdentityPlatform

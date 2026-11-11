@@ -251,7 +251,9 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   private func makeStore(
-    tokenStore: PutioTokenStore, supportIdentityPlatform: String? = nil
+    tokenStore: PutioTokenStore,
+    signOutIntentStore: PutioSignOutIntentStore = PutioInMemorySignOutIntentStore(),
+    supportIdentityPlatform: String? = nil
   ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
@@ -262,7 +264,8 @@ final class PutioSessionStoreTests: XCTestCase {
     )
     return (
       PutioSessionStore(
-        sdk: sdk, tokenStore: tokenStore, supportIdentityPlatform: supportIdentityPlatform),
+        sdk: sdk, tokenStore: tokenStore, signOutIntentStore: signOutIntentStore,
+        supportIdentityPlatform: supportIdentityPlatform),
       sdk
     )
   }
@@ -423,18 +426,42 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertNil(try tokenStore.read())
   }
 
-  func testRestoreNetworkFailureKeepsTokenForRetry() async {
+  func testOfflineRestoreFailsTheSessionCheckAndRetriesWithTheSavedToken() async throws {
+    stubSignedInRoutes()
     fixtures.networkFailureRoutes.insert("GET /v2/oauth2/validate")
     let (store, tokenStore) = makeStore(token: "stored-token")
     await store.restore()
-    guard case .signedOut(.restoreFailed) = store.state else {
-      return XCTFail("expected restoreFailed, got \(store.state)")
-    }
+    XCTAssertEqual(store.state, Self.sessionCheckFailed)
     XCTAssertEqual(try tokenStore.read(), "stored-token")
+    XCTAssertThrowsError(try store.beginSignIn())
+
+    fixtures.networkFailureRoutes = []
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("the saved token must restore once the fault clears, got \(store.state)")
+    }
+    let validation = try XCTUnwrap(fixtures.requests.last { $0.url?.path == "/v2/oauth2/validate" })
+    XCTAssertEqual(validation.value(forHTTPHeaderField: "Authorization"), "token stored-token")
+  }
+
+  func testAuthenticationRejectionDuringTheAccountCheckStillExpires() async {
+    stubSignedInRoutes()
+    fixtures.fixtures["GET /v2/account/info"] = (
+      401, #"{"status":"ERROR","status_code":401,"error_type":"invalid_grant"}"#
+    )
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    XCTAssertEqual(store.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try tokenStore.read())
   }
 
   private static let keychainUnavailable =
     PutioSignedOutReason.authenticationFailed("This device's keychain is unavailable. Try again.")
+  private static let secureStorageFailed = PutioSessionState.signedOut(
+    .restoreFailed(.secureStorage, message: "This device's keychain is unavailable. Try again."))
+  private static let sessionCheckFailed = PutioSessionState.signedOut(
+    .restoreFailed(
+      .sessionCheck, message: "put.io is unreachable. Check your connection and try again."))
 
   func testUnreadableStoredTokenFailsRestoreAndKeepsItForRetry() async {
     stubSignedInRoutes()
@@ -443,8 +470,7 @@ final class PutioSessionStoreTests: XCTestCase {
 
     await store.restore()
 
-    XCTAssertEqual(
-      store.state, .signedOut(.restoreFailed("This device's keychain is unavailable. Try again.")))
+    XCTAssertEqual(store.state, Self.secureStorageFailed)
     XCTAssertEqual(tokenStore.storedToken(), "stored-token")
     XCTAssertTrue(sdk.config.token.isEmpty)
     XCTAssertTrue(fixtures.requests.isEmpty)
@@ -487,6 +513,20 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(sdk.config.token, "stored-token")
   }
 
+  func testDiscardingACredentialTheSessionCheckFailedRemovesItWithoutRevoking() async throws {
+    stubSignedInRoutes()
+    fixtures.networkFailureRoutes = ["GET /v2/oauth2/validate"]
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    XCTAssertEqual(store.state, Self.sessionCheckFailed)
+
+    store.discardUnrestoredCredential()
+
+    XCTAssertEqual(store.state, .signedOut(nil))
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertEqual(fixtures.requestCount(route: "POST /v2/oauth/grants/logout"), 0)
+  }
+
   func testChoosingToDiscardAnUnrestoredCredentialReturnsToSignIn() async throws {
     stubSignedInRoutes()
     let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingReads: true)
@@ -515,8 +555,7 @@ final class PutioSessionStoreTests: XCTestCase {
 
     store.discardUnrestoredCredential()
 
-    XCTAssertEqual(
-      store.state, .signedOut(.restoreFailed("This device's keychain is unavailable. Try again.")))
+    XCTAssertEqual(store.state, Self.secureStorageFailed)
     XCTAssertEqual(tokenStore.storedToken(), "stored-token")
     XCTAssertThrowsError(try store.beginSignIn())
   }
@@ -658,9 +697,7 @@ final class PutioSessionStoreTests: XCTestCase {
     await store.completeSignIn(callbackURL: callback)
 
     // A fresh sign-in would overwrite the saved grant and leave it live on put.io.
-    XCTAssertEqual(
-      store.state,
-      .signedOut(.restoreFailed("put.io is unreachable. Check your connection and try again.")))
+    XCTAssertEqual(store.state, Self.sessionCheckFailed)
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
     XCTAssertThrowsError(try store.beginSignIn()) { error in
       XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
@@ -749,92 +786,173 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertNil(try tokenStore.read())
   }
 
-  func testFailedCredentialRemovalBlocksSessionRecoveryUntilRetry() async throws {
+  func testSignOutPersistsItsIntentBeforeCleanupStarts() async {
     stubSignedInRoutes()
-    let tokenStore = FailingClearTokenStore()
-    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    let intent = PutioInMemorySignOutIntentStore()
+    let (store, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: "stored-token"), signOutIntentStore: intent)
     await store.restore()
-    await store.signOut()
+    let route = "POST /v2/oauth/grants/logout"
+    fixtures.gate(route)
+    let requested = expectRequest(route)
 
-    XCTAssertEqual(store.state, .signOutFailed(.credentialRemoval))
-    XCTAssertEqual(try tokenStore.read(), "stored-token")
-    XCTAssertTrue(sdk.config.token.isEmpty)
-    await store.restore()
-    XCTAssertThrowsError(try store.beginSignIn())
-    store.cancelSignIn()
-    store.failSignIn(URLError(.cancelled))
-    XCTAssertEqual(store.state, .signOutFailed(.credentialRemoval))
+    let signOut = Task { await store.signOut() }
+    await fulfillment(of: [requested], timeout: 5)
+    XCTAssertTrue(intent.isPending)
+    XCTAssertEqual(store.state, .signingOut)
 
-    tokenStore.allowClear()
-    await store.signOut()
-    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
-    XCTAssertNil(try tokenStore.read())
-    XCTAssertEqual(
-      fixtures.requests.filter {
-        $0.url?.path == "/v2/oauth/grants/logout"
-      }.count, 1, "successful revocation must not be repeated for a local cleanup retry")
+    fixtures.release(route)
+    await signOut.value
+    XCTAssertFalse(intent.isPending)
+    XCTAssertFalse(store.isSignOutCleanupPending)
   }
 
-  func testFailedRevocationRetainsOnlyAnInactiveCredentialForRetry() async throws {
+  func testFailedRevocationLandsSignedOutAndKeepsTheCredentialForTheNextLaunch() async throws {
     stubSignedInRoutes()
     let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
-    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    let intent = PutioInMemorySignOutIntentStore()
+    let (store, sdk) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
     await store.restore()
     fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+
     await store.signOut()
 
-    XCTAssertEqual(store.state, .signOutFailed(.revocation))
-    XCTAssertNil(try tokenStore.read())
-    XCTAssertTrue(sdk.config.token.isEmpty)
-    fixtures.networkFailureRoutes = []
-    await store.signOut()
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
-    XCTAssertEqual(
-      fixtures.requests.last?.value(forHTTPHeaderField: "Authorization"),
-      "token stored-token")
+    XCTAssertTrue(store.isSignOutCleanupPending)
+    XCTAssertTrue(intent.isPending)
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
     XCTAssertTrue(sdk.config.token.isEmpty)
+
+    fixtures.networkFailureRoutes = []
+    let (relaunched, relaunchedSDK) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    XCTAssertTrue(relaunched.isSignOutCleanupPending)
+    await relaunched.restore()
+
+    XCTAssertEqual(relaunched.state, .signedOut(.userSignedOut))
+    XCTAssertFalse(relaunched.isSignOutCleanupPending)
+    XCTAssertFalse(intent.isPending)
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertTrue(relaunchedSDK.config.token.isEmpty)
+    XCTAssertEqual(
+      fixtures.requests.last?.value(forHTTPHeaderField: "Authorization"), "token stored-token")
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/validate"), 1)
   }
 
-  func testCombinedSignOutFailureRemainsExplicitAndRetainedTokenCanRestoreInANewInstance()
-    async throws
-  {
+  func testFailedRemovalAndRevocationNeverRestoreTheSessionOnRelaunch() async throws {
     stubSignedInRoutes()
     let tokenStore = FailingClearTokenStore()
-    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    let intent = PutioInMemorySignOutIntentStore()
+    let (store, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
     await store.restore()
     fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
     await store.signOut()
-
-    XCTAssertEqual(store.state, .signOutFailed(.credentialRemovalAndRevocation))
-    XCTAssertTrue(sdk.config.token.isEmpty)
-    await store.restore()
-    XCTAssertEqual(store.state, .signOutFailed(.credentialRemovalAndRevocation))
-
-    let (relaunched, _) = makeStore(tokenStore: tokenStore)
-    await relaunched.restore()
-    guard case .signedIn = relaunched.state else {
-      return XCTFail("without durable sign-out intent, a still-valid persisted token can restore")
-    }
-    tokenStore.allowClear()
-    fixtures.networkFailureRoutes = []
-    await store.signOut()
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
-    let (afterCleanup, _) = makeStore(tokenStore: tokenStore)
+
+    let (relaunched, relaunchedSDK) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    await relaunched.restore()
+
+    XCTAssertEqual(relaunched.state, .signedOut(.userSignedOut))
+    XCTAssertTrue(relaunched.isSignOutCleanupPending)
+    XCTAssertTrue(relaunchedSDK.config.token.isEmpty)
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+    XCTAssertEqual(
+      fixtures.requestCount(route: "GET /v2/oauth2/validate"), 1,
+      "a pending sign-out must not validate the saved credential")
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/account/info"), 1)
+
+    fixtures.networkFailureRoutes = []
+    let (stillFailing, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    await stillFailing.restore()
+    XCTAssertEqual(stillFailing.state, .signedOut(.userSignedOut))
+    XCTAssertTrue(intent.isPending, "the credential is still saved, so cleanup is not done")
+
+    tokenStore.allowClear()
+    let (cleaned, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    await cleaned.restore()
+    XCTAssertEqual(cleaned.state, .signedOut(.userSignedOut))
+    XCTAssertFalse(intent.isPending)
+    XCTAssertNil(try tokenStore.read())
+
+    let (afterCleanup, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
     await afterCleanup.restore()
     XCTAssertEqual(afterCleanup.state, .signedOut(nil))
   }
 
-  func testRejectedTokenCompletesRevocationDuringRetry() async {
+  func testFailedRemovalAfterRevocationRetriesAtTheNextLaunch() async throws {
     stubSignedInRoutes()
-    let (store, _) = makeStore(token: "stored-token")
+    let tokenStore = FailingClearTokenStore()
+    let intent = PutioInMemorySignOutIntentStore()
+    let (store, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    await store.restore()
+
+    await store.signOut()
+
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertTrue(intent.isPending)
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+
+    tokenStore.allowClear()
+    fixtures.fixtures["POST /v2/oauth/grants/logout"] =
+      (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
+    let (relaunched, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+    await relaunched.restore()
+    XCTAssertEqual(relaunched.state, .signedOut(.userSignedOut))
+    XCTAssertFalse(intent.isPending)
+    XCTAssertNil(try tokenStore.read())
+  }
+
+  func testUnreadableCredentialKeepsAPendingSignOutQuiet() async {
+    let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingReads: true)
+    let intent = PutioInMemorySignOutIntentStore(pending: true)
+    let (store, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+
+    await store.restore()
+
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertTrue(intent.isPending)
+    XCTAssertEqual(tokenStore.storedToken(), "stored-token")
+    XCTAssertTrue(fixtures.requests.isEmpty)
+  }
+
+  func testSignInWhileASignOutIsPendingReplacesTheCredentialAndEndsTheCleanup() async throws {
+    stubSignedInRoutes()
+    let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
+    let intent = PutioInMemorySignOutIntentStore()
+    let (store, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
     await store.restore()
     fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
     await store.signOut()
-    fixtures.networkFailureRoutes = []
-    fixtures.fixtures["POST /v2/oauth/grants/logout"] =
-      (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
-    await store.signOut()
-    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertTrue(intent.isPending)
+
+    let request = try store.beginSignIn()
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)"))
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertFalse(intent.isPending)
+    XCTAssertFalse(store.isSignOutCleanupPending)
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
+  func testUnsavedSignInKeepsTheSignOutPending() async throws {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingWrites: true)
+    let intent = PutioInMemorySignOutIntentStore(pending: true)
+    let (store, _) = makeStore(tokenStore: tokenStore, signOutIntentStore: intent)
+
+    let request = try store.beginSignIn()
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)"))
+    await store.completeSignIn(callbackURL: callback)
+
+    XCTAssertEqual(store.state, .signedOut(Self.keychainUnavailable))
+    XCTAssertTrue(intent.isPending)
+    XCTAssertEqual(tokenStore.storedToken(), "stored-token")
   }
 
   func testAccountRefreshRejectionSeenByACancelledTaskStillExpiresTheSession() async {

@@ -19,6 +19,7 @@ enum PutioRuntimeFactory {
           clientID: clientID,
           clientName: clientName,
           tokenStore: liveTokenStore,
+          signOutIntentStore: harnessSignOutIntentStore,
           supportIdentityPlatform: supportIdentityPlatform
         )
       }
@@ -36,17 +37,20 @@ enum PutioRuntimeFactory {
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 10
         let tokenStore: PutioTokenStore
-        if failSignOut {
-          tokenStore = HarnessFailOnceTokenStore()
-        } else if scenario == .filesBrowser || scenario == .deviceSignIn {
-          tokenStore = PutioKeychainTokenStore(service: harnessKeychainService)
+        let signOutIntentStore: PutioSignOutIntentStore
+        if scenario == .filesBrowser || scenario == .deviceSignIn {
+          let keychain = PutioKeychainTokenStore(service: harnessKeychainService)
+          tokenStore = failSignOut ? HarnessFailingClearTokenStore(storage: keychain) : keychain
+          signOutIntentStore = harnessSignOutIntentStore
         } else {
           tokenStore = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
+          signOutIntentStore = PutioInMemorySignOutIntentStore()
         }
         return PutioRuntime(
           clientID: clientID,
           clientName: clientName,
           tokenStore: tokenStore,
+          signOutIntentStore: signOutIntentStore,
           urlSession: URLSession(configuration: configuration),
           // The SDK clamps polling to one second; the seeded flow answers
           // pending, expired, and approved in consecutive polls.
@@ -75,7 +79,7 @@ enum PutioRuntimeFactory {
 
   static func usesSignOutFailureFixture(scenario: HarnessScenario) -> Bool {
     #if DEBUG
-      scenario == .signedIn
+      scenario == .filesBrowser
         && ProcessInfo.processInfo.arguments.contains("--putio-harness-sign-out-failure")
     #else
       false
@@ -91,6 +95,9 @@ enum PutioRuntimeFactory {
     }
 
     static let liveTokenStore = HarnessLiveTokenStore(service: harnessKeychainService)
+
+    static let harnessSignOutIntentStore = PutioUserDefaultsSignOutIntentStore(
+      key: PutioUserDefaultsSignOutIntentStore.defaultKey + ".harness")
 
     static func runtimeProofCallback(for request: PutioSignInRequest) throws -> URL {
       guard
@@ -133,22 +140,16 @@ enum PutioRuntimeFactory {
 }
 
 #if DEBUG
-  private final class HarnessFailOnceTokenStore: PutioTokenStore, @unchecked Sendable {
-    private let lock = NSLock()
-    private let storage = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
-    private var failurePending = true
+  private final class HarnessFailingClearTokenStore: PutioTokenStore {
+    private let storage: PutioTokenStore
+
+    init(storage: PutioTokenStore) {
+      self.storage = storage
+    }
 
     func read() throws -> String? { try storage.read() }
     func write(_ token: String) throws { try storage.write(token) }
-    func clear() throws {
-      try lock.withLock {
-        if failurePending {
-          failurePending = false
-          throw HarnessRuntimeError.credentialRemovalFixture
-        }
-        try storage.clear()
-      }
-    }
+    func clear() throws { throw HarnessRuntimeError.credentialRemovalFixture }
   }
 
   private enum HarnessRuntimeError: Error {

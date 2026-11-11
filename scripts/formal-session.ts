@@ -23,12 +23,22 @@ const tlc = {
 const jar = join(workDirectory, `tla2tools-${tlc.version}.jar`);
 
 const bounds = { MaxGen: 10, MaxGrants: 3 };
-const properties = ["NoOrphanGrant", "SignedInIsSaved"] as const;
-const variants = ["shipped", "noBootstrapGenerationGuard", "dropPendingSignOutToken"] as const;
+const properties = [
+  "NoOrphanGrant",
+  "SignedInIsSaved",
+  "PendingSignOutNeverSignedIn",
+  "SessionCheckKeepsCredential",
+] as const;
+const variants = [
+  "shipped",
+  "noBootstrapGenerationGuard",
+  "restoreIgnoresSignOutIntent",
+  "removeBeforeRevoking",
+] as const;
 
 // Model actions in the code's words, for counterexamples.
 const steps: Readonly<Record<string, string>> = {
-  RestoreStart: "restore() reads the keychain",
+  RestoreStart: "restore() reads the keychain, or finishes a pending sign-out",
   ValidateDone: "restore() gets the validateToken answer",
   BootstrapDone: "bootstrap() gets the account answer",
   Discard: "discardUnrestoredCredential() (Sign in again)",
@@ -40,8 +50,8 @@ const steps: Readonly<Record<string, string>> = {
   CodeDone: "runDeviceCodeSignIn() gets the activation code",
   ApprovalDone: "runDeviceCodeSignIn() gets the approval and calls storeSignInToken()",
   RevokeNewDone: "storeSignInToken() gets the best-effort logout answer",
-  SignOutStart: "signOut() clears the keychain and calls logout",
-  LogoutDone: "signOut() gets the logout answer",
+  SignOutStart: "signOut() saves its intent and calls logout",
+  LogoutDone: "finishSignOut() gets the logout answer and clears the keychain",
   ServerRevokes: "the user revokes a grant on put.io",
   AuthenticatedRequestRejected: "a request is rejected and expireSession() runs",
   AccountDestroyed: "destroyAccount() succeeds and endDestroyedSession() runs",
@@ -107,15 +117,15 @@ const runTLC = async (property: string): Promise<Outcome> => {
     child.on("error", fail);
     child.on("close", () => done(text));
   });
-  // An action whose conjuncts contradict each other never fires, and a pass
-  // would then silently skip the code it models.
-  const dead = Object.keys(steps).filter((action) =>
-    new RegExp(`^<${action} line [^>]*>: \\d+:0$`, "m").test(output),
-  );
-  if (dead.length > 0) {
-    throw new Error(`${property}: these model actions never fire: ${dead.join(", ")}`);
-  }
   if (output.includes("Model checking completed. No error has been found.")) {
+    // An action whose conjuncts contradict each other never fires, and a pass
+    // would then silently skip the code it models.
+    const dead = Object.keys(steps).filter((action) =>
+      new RegExp(`^<${action} line [^>]*>: \\d+:0$`, "m").test(output),
+    );
+    if (dead.length > 0) {
+      throw new Error(`${property}: these model actions never fire: ${dead.join(", ")}`);
+    }
     const count = /(\d+) distinct states found, 0 states left/.exec(output)?.[1] ?? "?";
     return { property, passed: true, report: `${property}: holds (${count} distinct states)` };
   }
