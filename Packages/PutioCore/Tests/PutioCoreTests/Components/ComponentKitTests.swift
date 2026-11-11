@@ -92,10 +92,8 @@ final class ComponentKitTests: XCTestCase {
       Set(GalleryFixtures.fileRows.map(\.kind)).count,
       PutioFileRowModel.Kind.allCases.count
     )
-    XCTAssertEqual(
-      Set(GalleryFixtures.toasts.map(\.variant)).count,
-      PutioToast.Variant.allCases.count
-    )
+    XCTAssertTrue(GalleryFixtures.toasts.contains { $0.action != nil })
+    XCTAssertTrue(GalleryFixtures.toasts.contains { $0.action == nil })
     XCTAssertTrue(GalleryFixtures.fileRows.contains(where: \.isWatched))
   }
 

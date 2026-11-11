@@ -402,39 +402,23 @@ struct TrashManagementView: View {
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .restored(let item):
+    case .restored:
+      toast = PutioToast(String(localized: "Item restored"))
+    case .permanentlyDeleted(_, let storageRefreshed):
       toast = PutioToast(
-        variant: .success, title: String(localized: "Item restored"), message: item.name)
-    case .permanentlyDeleted(let item, let storageRefreshed):
+        storageRefreshed ? String(localized: "Item deleted") : Self.staleStorageMessage)
+    case .restoredItems:
+      toast = PutioToast(String(localized: "Items restored"))
+    case .permanentlyDeletedItems(_, let storageRefreshed):
       toast = PutioToast(
-        variant: storageRefreshed ? .success : .info,
-        title: String(localized: "Item deleted"),
-        message: storageRefreshed ? item.name : Self.staleStorageMessage
-      )
-    case .restoredItems(let items):
-      toast = PutioToast(
-        variant: .success, title: String(localized: "Items restored"),
-        message: String(localized: "Restored \(items.count) items."))
-    case .permanentlyDeletedItems(let items, let storageRefreshed):
-      toast = PutioToast(
-        variant: storageRefreshed ? .success : .info,
-        title: String(localized: "Items deleted"),
-        message: storageRefreshed
-          ? String(localized: "Deleted \(items.count) items.")
-          : Self.staleStorageMessage
-      )
+        storageRefreshed ? String(localized: "Items deleted") : Self.staleStorageMessage)
     case .restoredAll:
-      toast = PutioToast(
-        variant: .success, title: String(localized: "Restore started!"),
-        message: String(localized: "It may take a long time if there are too many files."))
+      toast = PutioToast(String(localized: "Restore started!"))
     case .emptied(let storageRefreshed):
       toast = PutioToast(
-        variant: storageRefreshed ? .success : .info,
-        title: String(localized: "Trash emptied"),
-        message: storageRefreshed ? nil : Self.staleStorageMessage
-      )
+        storageRefreshed ? String(localized: "Trash emptied") : Self.staleStorageMessage)
     case .failed(_, let failure):
-      toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
+      toast = PutioToast(failure.title)
     }
     model.clearMutationOutcome()
   }

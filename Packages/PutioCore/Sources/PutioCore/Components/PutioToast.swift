@@ -1,66 +1,91 @@
 import SwiftUI
 
-public struct PutioToast: Equatable, Sendable {
-  public enum Variant: CaseIterable, Sendable {
-    case neutral
-    case success
-    case danger
-    case info
+public struct PutioToast: Identifiable, Equatable, Sendable {
+  public struct Action: Sendable {
+    public let title: String
+    let perform: @MainActor @Sendable () -> Void
+
+    public init(_ title: String, perform: @escaping @MainActor @Sendable () -> Void) {
+      self.title = title
+      self.perform = perform
+    }
   }
 
-  public let variant: Variant
-  public let title: String
-  public let message: String?
+  public let id = UUID()
+  public let text: String
+  public let action: Action?
 
-  public init(variant: Variant = .neutral, title: String, message: String? = nil) {
-    self.variant = variant
-    self.title = title
-    self.message = message
+  public init(_ text: String, action: Action? = nil) {
+    self.text = text
+    self.action = action
+  }
+
+  public static func == (lhs: PutioToast, rhs: PutioToast) -> Bool {
+    lhs.id == rhs.id
   }
 }
 
-// The variant only tints the icon; the surface comes from PutioToastSurface.
 public struct PutioToastView: View {
-  private let toast: PutioToast
+  private enum Focus: Hashable {
+    case text
+    case action
+  }
 
-  @PutioScaledMetric private var iconSize: CGFloat
+  private let toast: PutioToast
+  private let onAction: @MainActor () -> Void
+  private let onVoiceOverFocusChange: (Bool) -> Void
+
+  @AccessibilityFocusState private var focus: Focus?
 
   public init(_ toast: PutioToast) {
+    self.init(toast, onAction: { toast.action?.perform() }, onVoiceOverFocusChange: { _ in })
+  }
+
+  init(
+    _ toast: PutioToast,
+    onAction: @escaping @MainActor () -> Void,
+    onVoiceOverFocusChange: @escaping (Bool) -> Void
+  ) {
     self.toast = toast
-    _iconSize = PutioScaledMetric(PutioToastLayout.iconSize)
+    self.onAction = onAction
+    self.onVoiceOverFocusChange = onVoiceOverFocusChange
   }
 
   public var body: some View {
-    HStack(alignment: .firstTextBaseline, spacing: PutioToastLayout.contentGap) {
-      Image(putioIcon: toast.variant.icon)
-        .resizable()
-        .scaledToFit()
-        .frame(width: iconSize, height: iconSize)
-        .foregroundStyle(toast.variant.iconColor)
-        .accessibilityHidden(true)
-      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
-        Text(toast.title)
-          .putioFont(PutioToastLayout.titleFont)
-          .foregroundStyle(PutioToastLayout.titleColor)
-          .lineLimit(2)
-        if let message = toast.message {
-          Text(message)
-            .putioFont(PutioToastLayout.messageFont)
-            .foregroundStyle(PutioToastLayout.messageColor)
-            .lineLimit(2)
+    HStack(spacing: PutioToastLayout.contentGap) {
+      Text(toast.text)
+        .putioFont(PutioToastLayout.textFont)
+        .foregroundStyle(PutioToastLayout.textColor)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, PutioToastLayout.textVerticalPadding)
+        .accessibilityFocused($focus, equals: .text)
+      if let action = toast.action {
+        Button(action: onAction) {
+          Text(action.title)
+            .putioFont(PutioToastLayout.actionFont)
+            .foregroundStyle(PutioToastLayout.textColor)
         }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .tint(PutioToastLayout.textColor)
+        .accessibilityFocused($focus, equals: .action)
       }
-      .frame(maxWidth: .infinity, alignment: .leading)
     }
-    .padding(PutioToastLayout.contentPadding)
+    .padding(.leading, PutioToastLayout.leadingPadding)
+    .padding(
+      .trailing,
+      toast.action == nil ? PutioToastLayout.leadingPadding : PutioToastLayout.actionInset
+    )
+    .padding(.vertical, PutioToastLayout.actionInset)
     .modifier(PutioToastSurface())
-    .accessibilityElement(children: .combine)
+    .accessibilityElement(children: .contain)
+    .onChange(of: focus != nil) { _, focused in
+      onVoiceOverFocusChange(focused)
+    }
   }
 }
 
-// The toast floats above content, so on iOS it rides Liquid Glass. tvOS is a
-// solid token surface (the TV contract forbids materials); the watchOS and
-// macOS-test fallback is the plain system material.
 private struct PutioToastSurface: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
     #if os(tvOS)
@@ -71,110 +96,138 @@ private struct PutioToastSurface: ViewModifier {
       )
     #elseif os(iOS)
       if HarnessRendering.usesRasterFallback {
-        content.background(
-          .regularMaterial,
-          in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-        )
+        content.background(.regularMaterial, in: Capsule())
       } else {
-        content.glassEffect(
-          .regular,
-          in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-        )
+        content.glassEffect(.regular, in: Capsule())
       }
     #else
-      content.background(
-        .regularMaterial,
-        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-      )
+      content.background(.regularMaterial, in: Capsule())
     #endif
   }
 }
 
 extension View {
-  /// Shows `toast` and clears it after three seconds.
+  /// Shows one toast at a time: setting a new one replaces the current one.
   public func putioToast(_ toast: Binding<PutioToast?>) -> some View {
     modifier(PutioToastPresenter(toast: toast))
   }
 }
 
-// The presenter, not the screen, reads the toast and runs its timer, so
-// showing or clearing one re-renders only this overlay. Re-rendering the
-// screen updates its toolbar, and an open toolbar menu then drops a tap that
-// lands mid-update.
-
 private struct PutioToastPresenter: ViewModifier {
   @Binding var toast: PutioToast?
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var timedOut: PutioToast.ID?
+  @State private var holdsVoiceOverFocus = false
+  @State private var dragOffset: CGFloat = 0
 
   func body(content: Content) -> some View {
     content.overlay(alignment: .bottom) {
       if let toast {
-        PutioToastView(toast)
-          .allowsHitTesting(false)
-          .padding(PutioToastLayout.presentationPadding)
-          .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
-          .zIndex(PutioToastLayout.zIndex)
+        PutioToastView(
+          toast,
+          onAction: { perform(toast) },
+          onVoiceOverFocusChange: { focused in
+            holdsVoiceOverFocus = focused
+            dismissIfTimedOut(toast)
+          }
+        )
+        .id(toast.id)
+        .offset(y: dragOffset)
+        .modifier(PutioToastSwipe(offset: $dragOffset) { dismiss(toast) })
+        .padding(PutioToastLayout.presentationPadding)
+        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+        .zIndex(PutioToastLayout.zIndex)
       }
     }
     .animation(
       PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationBase),
       value: toast
     )
-    .task(id: toast) {
+    .task(id: toast?.id) {
+      dragOffset = 0
+      holdsVoiceOverFocus = false
       guard let presented = toast else { return }
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled, toast == presented else { return }
-      toast = nil
+      AccessibilityNotification.Announcement(presented.text).post()
+      try? await Task.sleep(for: PutioToastLayout.duration)
+      guard !Task.isCancelled else { return }
+      timedOut = presented.id
+      dismissIfTimedOut(presented)
     }
+  }
+
+  private func dismissIfTimedOut(_ presented: PutioToast) {
+    guard timedOut == presented.id, !holdsVoiceOverFocus else { return }
+    dismiss(presented)
+  }
+
+  private func dismiss(_ presented: PutioToast) {
+    guard toast?.id == presented.id else { return }
+    toast = nil
+  }
+
+  private func perform(_ presented: PutioToast) {
+    guard toast?.id == presented.id, let action = presented.action else { return }
+    toast = nil
+    action.perform()
   }
 }
 
-extension PutioToast.Variant {
-  var iconColor: Color {
-    switch self {
-    case .neutral: PutioTheme.Colors.textSecondary
-    case .success: PutioTheme.Colors.success
-    case .danger: PutioTheme.Colors.destructive
-    case .info: PutioTheme.Colors.accent
-    }
-  }
+private struct PutioToastSwipe: ViewModifier {
+  @Binding var offset: CGFloat
+  let dismiss: @MainActor () -> Void
 
-  var icon: PutioIcon {
-    switch self {
-    case .neutral: .info
-    case .success: .checkCircle
-    case .danger: .xCircle
-    case .info: .info
-    }
+  func body(content: Content) -> some View {
+    #if os(tvOS)
+      content
+    #else
+      content
+        .gesture(
+          DragGesture(minimumDistance: PutioTheme.Spacing.space2)
+            .onChanged { value in
+              offset = max(0, value.translation.height)
+            }
+            .onEnded { value in
+              if max(value.translation.height, value.predictedEndTranslation.height)
+                > PutioToastLayout.swipeDistance
+              {
+                dismiss()
+              } else {
+                withAnimation(
+                  PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationFast)
+                ) {
+                  offset = 0
+                }
+              }
+            }
+        )
+        .accessibilityAction(.escape) { dismiss() }
+    #endif
   }
 }
 
 enum PutioToastLayout {
   #if os(tvOS)
-    static let titleFont = PutioTheme.TV.Typography.label
-    static let messageFont = PutioTheme.TV.Typography.body
-    static let titleColor = PutioTheme.Components.Notification.foreground
-    static let messageColor = PutioTheme.Components.Notification.foreground
+    static let textFont = PutioTheme.TV.Typography.label
+    static let actionFont = PutioTheme.TV.Typography.label
+    static let textColor = PutioTheme.Components.Notification.foreground
     static let contentGap = PutioTheme.TV.Spacing.small
-    static let contentPadding = PutioTheme.TV.Spacing.medium
+    static let leadingPadding = PutioTheme.TV.Spacing.medium
+    static let actionInset = PutioTheme.TV.Spacing.small
+    static let textVerticalPadding = PutioTheme.TV.Spacing.small
     static let presentationPadding = PutioTheme.TV.Spacing.large
-    static let iconSize = PutioMetricRole(
-      value: PutioTheme.TV.Typography.caption.size,
-      relativeTo: .body
-    )
     static let zIndex = PutioTheme.TV.ZIndex.toast
+    static let duration = Duration.seconds(3)
   #else
-    static let titleFont = PutioTheme.Typography.subheading
-    static let messageFont = PutioTheme.Typography.caption
-    static let titleColor = PutioTheme.Colors.textPrimary
-    static let messageColor = PutioTheme.Colors.textSecondary
+    static let textFont = PutioTheme.Typography.body
+    static let actionFont = PutioButtonSize.regular.brandLabel
+    static let textColor = PutioTheme.Colors.textPrimary
     static let contentGap = PutioTheme.Spacing.space2
-    static let contentPadding = PutioTheme.Spacing.space3
+    static let leadingPadding = PutioTheme.Spacing.space3
+    static let actionInset = PutioTheme.Spacing.space2
+    static let textVerticalPadding = PutioTheme.Spacing.space2
     static let presentationPadding = PutioTheme.Spacing.space3
-    static let iconSize = PutioMetricRole(
-      value: PutioTheme.Typography.sizeMd,
-      relativeTo: .body
-    )
     static let zIndex = 1.0
+    static let duration = Duration.seconds(5)
+    static let swipeDistance = PutioTheme.Spacing.space4
   #endif
 }

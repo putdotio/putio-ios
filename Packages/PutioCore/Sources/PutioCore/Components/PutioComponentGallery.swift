@@ -357,6 +357,12 @@ private struct FeedbackPage: View {
         PutioToastView(toast)
       }
     }
+    GallerySection(caption: "Toasts at XX Large") {
+      ForEach(Array(GalleryFixtures.largeTextToasts.enumerated()), id: \.offset) { _, toast in
+        PutioToastView(toast)
+      }
+      .dynamicTypeSize(.xxLarge)
+    }
     GallerySection(caption: "Sheet scaffold") {
       PutioSheetScaffold(title: "Move 3 files") {
         Text("Pick a destination folder.")
@@ -614,10 +620,15 @@ enum GalleryFixtures {
   #endif
 
   static let toasts = [
-    PutioToast(variant: .neutral, title: "Copied link"),
-    PutioToast(variant: .success, title: "Download finished", message: "So What.flac is offline."),
-    PutioToast(variant: .danger, title: "Delete failed", message: "The file is already gone."),
-    PutioToast(variant: .info, title: "Converting to MP4", message: "This can take a few minutes."),
+    PutioToast("Moved to trash", action: PutioToast.Action("Undo") {}),
+    PutioToast("Restore started"),
+    PutioToast("1 item is in the selected folder."),
+    PutioToast("Copied to clipboard"),
+  ]
+
+  static let largeTextToasts = [
+    PutioToast("Moved to trash", action: PutioToast.Action("Undo") {}),
+    PutioToast("1 item is in the selected folder."),
   ]
 
   static let routes = ["Frankfurt", "Amsterdam", "New York"]

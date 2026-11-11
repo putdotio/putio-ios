@@ -69,8 +69,8 @@ Preconditions:
 
 ## Gotchas
 
-- A success toast stays 3 seconds. Its own overlay re-renders when it hides; the
-  rest of the screen stays still.
+- A toast stays 5 seconds, longer while VoiceOver focus is on it. Its own overlay
+  re-renders when it hides; the rest of the screen stays still.
 - Menu items such as Select live in the toolbar menu; wait for the menu item to
   appear before you tap it.
 - `files.selection.toggle` is Select inside the menu and Done in the toolbar

@@ -872,7 +872,7 @@ struct PutioFolderScreen: View {
       } else {
         title = failure.title
       }
-      toast = PutioToast(variant: .danger, title: title, message: failure.message)
+      toast = PutioToast(title)
     }
     model.clearActionOutcome()
   }
@@ -895,11 +895,7 @@ struct PutioFolderScreen: View {
     if outcome.failures.isEmpty {
       selectedIDs = []
       editMode = .inactive
-      toast = PutioToast(
-        variant: .success,
-        title: bulkSuccessTitle(outcome.action),
-        message: bulkOutcomeMessage(outcome)
-      )
+      toast = PutioToast(bulkOutcomeMessage(outcome))
       model.clearBulkOutcome()
     } else {
       selectedIDs = Set(outcome.retryableItems(in: currentItems).map(\.id))
@@ -941,10 +937,6 @@ struct PutioFolderScreen: View {
     return String(localized: "Moving item \(currentCount) of \(progress.totalCount)…")
   }
 
-  private func bulkSuccessTitle(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? deletionPresentation.bulkSuccessTitle : String(localized: "Items moved")
-  }
-
   private func bulkOutcomeMessage(_ outcome: PutioBulkFileOutcome) -> String {
     let succeeded = outcome.succeeded.count
     let failed = outcome.failures.count
@@ -958,34 +950,20 @@ struct PutioFolderScreen: View {
 
   private func successToast(for action: PutioFileAction) -> PutioToast {
     switch action {
-    case .createFolder(let name):
-      PutioToast(variant: .success, title: String(localized: "Folder created"), message: name)
-    case .sort(_, let sort):
+    case .createFolder:
+      PutioToast(String(localized: "Folder created"))
+    case .sort:
+      PutioToast(String(localized: "Sorting changed"))
+    case .rename:
+      PutioToast(String(localized: "Item renamed"))
+    case .delete:
+      PutioToast(deletionPresentation.singleSuccessTitle)
+    case .move:
+      PutioToast(String(localized: "Item moved"))
+    case .setWatched(_, _, _, let watched):
       PutioToast(
-        variant: .success,
-        title: String(localized: "Sorting changed"),
-        message: sort.title
-      )
-    case .rename(_, _, let newName):
-      PutioToast(variant: .success, title: String(localized: "Item renamed"), message: newName)
-    case .delete(_, let name):
-      PutioToast(
-        variant: .success,
-        title: deletionPresentation.singleSuccessTitle,
-        message: name
-      )
-    case .move(_, let name, _, _, let destinationName):
-      PutioToast(
-        variant: .success,
-        title: String(localized: "Item moved"),
-        message: String(localized: "\(name) to \(destinationName)")
-      )
-    case .setWatched(_, _, let name, let watched):
-      PutioToast(
-        variant: .success,
-        title: watched
-          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"),
-        message: name)
+        watched
+          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
     }
   }
 

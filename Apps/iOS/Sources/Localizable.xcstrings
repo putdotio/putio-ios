@@ -34,17 +34,6 @@
         }
       }
     },
-    "%@ to %@" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ to %@"
-          }
-        }
-      }
-    },
     "%@ was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -1158,29 +1147,6 @@
         }
       }
     },
-    "Deleted %lld items." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleted %lld item."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Deleted %lld items."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Deleted to make room for RSS · %@" : {
       "comment" : "android: mobile_history_kind_rss_file_deleted | differs: iOS board wording",
       "localizations" : {
@@ -1963,17 +1929,6 @@
         }
       }
     },
-    "It may take a long time if there are too many files." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "It may take a long time if there are too many files."
-          }
-        }
-      }
-    },
     "Item deleted" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -2025,17 +1980,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Items deleted"
-          }
-        }
-      }
-    },
-    "Items moved" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Items moved"
           }
         }
       }
@@ -3610,29 +3554,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore started!"
-          }
-        }
-      }
-    },
-    "Restored %lld items." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Restored %lld item."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Restored %lld items."
-                }
-              }
-            }
           }
         }
       }

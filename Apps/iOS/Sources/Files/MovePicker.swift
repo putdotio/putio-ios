@@ -268,7 +268,7 @@ private struct PutioMoveDestinationScreen: View {
     case .succeeded(let action):
       if case .createFolder = action { newFolderName = "" }
     case .failed(_, let failure):
-      toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
+      toast = PutioToast(failure.title)
     }
     model.clearActionOutcome()
   }

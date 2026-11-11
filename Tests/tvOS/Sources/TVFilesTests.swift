@@ -173,16 +173,16 @@ final class TVFilesTests: XCTestCase {
     let video = Self.video()
     let delete = PutioFileAction.delete(fileID: video.id, name: video.name)
     XCTAssertEqual(
-      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: true)?.title,
+      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: true)?.text,
       "Moved to Trash")
     XCTAssertEqual(
-      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: false)?.title,
+      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: false)?.text,
       "Item deleted")
     XCTAssertEqual(
       TVFilePresentation.toast(
         for: .succeeded(
           .setWatched(fileID: video.id, parentID: .root, name: video.name, watched: false)),
-        trashEnabled: true)?.title,
+        trashEnabled: true)?.text,
       "Marked as unwatched")
     XCTAssertNil(
       TVFilePresentation.toast(
