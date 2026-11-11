@@ -1840,7 +1840,10 @@ public struct SimulatorHarness {
       session: session,
       mediaBaseURL: mediaBaseURL,
       environment: board.testEnvironment.reduce(
-        into: textSize == .xxl ? ["TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": "1"] : [:]
+        into: [
+          "TEST_RUNNER_PUTIO_BOARD_ID": board.id,
+          "TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": textSize == .xxl ? "1" : "0",
+        ]
       ) { environment, entry in environment["TEST_RUNNER_" + entry.key] = entry.value },
       resultBundle: resultBundle,
       attachmentNames: [board.id],
