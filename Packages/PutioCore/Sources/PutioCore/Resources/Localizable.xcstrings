@@ -2,7 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "%@ of %@" : {
-      "comment" : "android: mobile_downloads_meta_of",
+      "comment" : "android: mobile_account_storage_full_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {

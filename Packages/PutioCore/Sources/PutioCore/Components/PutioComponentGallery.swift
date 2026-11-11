@@ -11,6 +11,9 @@ public struct PutioComponentGallery: View {
     case feedback
     case forms
     case sheets
+    #if os(iOS)
+      case shell
+    #endif
 
     public static let launchArgument = "--putio-harness-gallery-page"
 
@@ -30,6 +33,9 @@ public struct PutioComponentGallery: View {
       case .feedback: "Feedback"
       case .forms: "Forms"
       case .sheets: "Sheets"
+      #if os(iOS)
+        case .shell: "Shell"
+      #endif
       }
     }
 
@@ -108,6 +114,17 @@ struct GalleryPageView: View {
         FilesGallery()
       case .forms:
         FormsGallery()
+      #if os(iOS)
+        case .shell:
+          ScrollView {
+            VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
+              GalleryTitle(page: page)
+              ShellPage()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(GalleryLayout.pagePadding)
+          }
+      #endif
       case .buttons, .transfers, .states, .feedback, .sheets:
         ScrollView {
           VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
@@ -134,6 +151,9 @@ struct GalleryPageView: View {
     case .feedback: FeedbackPage()
     case .sheets: SheetsPage()
     case .files, .forms: EmptyView()
+    #if os(iOS)
+      case .shell: EmptyView()
+    #endif
     }
   }
 }
@@ -184,6 +204,24 @@ private struct ButtonsPage: View {
     }
   }
 }
+
+#if os(iOS)
+  private struct ShellPage: View {
+    var body: some View {
+      GallerySection(caption: "Sidebar storage meter") {
+        ForEach(Array(GalleryFixtures.storageStates.enumerated()), id: \.offset) { _, entry in
+          VStack(alignment: .leading, spacing: GalleryLayout.itemGap) {
+            Text(entry.label)
+              .putioFont(GalleryLayout.bodyFont)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+            PutioStorageMeter(storage: entry.storage)
+              .frame(maxWidth: GalleryLayout.sidebarWidth, alignment: .leading)
+          }
+        }
+      }
+    }
+  }
+#endif
 
 private struct FilesGallery: View {
   #if !os(tvOS)
@@ -739,6 +777,20 @@ enum GalleryFixtures {
     ("Subtitles", "English, English SDH, Turkish"),
   ]
 
+  #if os(iOS)
+    static let storageStates: [(label: String, storage: PutioAccountSnapshot.Storage)] = [
+      ("Empty", storage(usedBytes: 0)),
+      ("In use", storage(usedBytes: 30_600_000_000)),
+      ("Full", storage(usedBytes: 1_100_000_000_000)),
+    ]
+
+    private static func storage(usedBytes: Int64) -> PutioAccountSnapshot.Storage {
+      let totalBytes: Int64 = 1_100_000_000_000
+      return PutioAccountSnapshot.Storage(
+        availableBytes: totalBytes - usedBytes, totalBytes: totalBytes, usedBytes: usedBytes)
+    }
+  #endif
+
   static func tierLabel(_ tier: PutioButtonTier) -> String {
     switch tier {
     case .primary: "Primary"
@@ -783,6 +835,8 @@ enum GalleryLayout {
     static let itemGap = PutioTheme.Spacing.space3
     static let pagePadding = PutioTheme.Spacing.space3
     static let stateTileHeight = PutioTheme.Spacing.space5 * 5
+    static let sidebarWidth = PutioTheme.Spacing.space6 * 2
+    static let stateTileHeight = PutioTheme.Spacing.space6 * 2
     static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
     static let filesViewportHeight = PutioTheme.Spacing.space6 * 14
     static let formsViewportHeight = PutioTheme.Spacing.space6 * 14

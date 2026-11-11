@@ -153,6 +153,10 @@ struct MainTabView: View {
         )
       }
     }
+    .tabViewStyle(.sidebarAdaptable)
+    .tabViewSidebarBottomBar {
+      PutioStorageMeter(storage: account.storage)
+    }
     .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
