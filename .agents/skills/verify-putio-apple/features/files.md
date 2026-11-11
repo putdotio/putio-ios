@@ -57,7 +57,8 @@ Preconditions:
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new
   name, then "Folder not found" after the delete.
 - **Previews.** Run `--only previews`. Screenshots: `runtime-preview-loading`,
-  `runtime-preview-error`, `runtime-preview-image`, `runtime-preview-document`,
+  `runtime-preview-error`, `runtime-preview-image`,
+  `runtime-preview-image-landscape`, `runtime-preview-document`,
   `runtime-preview-cannot-show`, `runtime-vlc-missing`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,

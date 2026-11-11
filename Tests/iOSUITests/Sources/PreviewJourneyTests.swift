@@ -14,6 +14,11 @@ final class PreviewJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
   }
 
+  override func tearDown() {
+    XCUIDevice.shared.orientation = .portrait
+    super.tearDown()
+  }
+
   func testVLCHandoffRetriesAfterResolutionFailure() {
     app.launchArguments += [
       "--putio-harness-vlc-installed", "--putio-harness-vlc-resolution-fails-once",
@@ -79,7 +84,9 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(image.value as? String, "Image")
     image.tap()
     XCTAssertTrue(element("preview.image").appears(within: 10))
-    XCTAssertTrue(app.images["Harness Poster.png"].exists)
+    let poster = app.images["Harness Poster.png"]
+    XCTAssertTrue(poster.exists)
+    assertImageGestures(poster)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
@@ -183,6 +190,77 @@ final class PreviewJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func assertImageGestures(_ image: XCUIElement) {
+    let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    XCTAssertTrue(waitForFit(image), "the image is not fitted to the window: \(image.frame)")
+    let window = app.windows.firstMatch.frame
+    XCTAssertEqual(image.frame.midY, window.midY, accuracy: 1, "the image is not centred")
+
+    image.pinch(withScale: 3, velocity: 2)
+    XCTAssertTrue(
+      waitForFrame(image) { $0.width > window.width * 1.5 }, "pinch did not zoom: \(image.frame)")
+    let zoomed = image.frame
+    center.press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)))
+    XCTAssertTrue(
+      waitForFrame(image) { $0.minX < zoomed.minX - 40 }, "drag did not pan: \(image.frame)")
+    center.doubleTap()
+    XCTAssertTrue(waitForFit(image), "double tap did not reset zoom: \(image.frame)")
+    center.doubleTap()
+    XCTAssertTrue(
+      waitForFrame(image) { $0.width > window.width * 1.5 },
+      "double tap did not zoom in: \(image.frame)")
+    center.doubleTap()
+    XCTAssertTrue(waitForFit(image), "double tap did not reset zoom: \(image.frame)")
+
+    let back = app.buttons["preview.back"]
+    center.tap()
+    XCTAssertTrue(back.disappears(within: 5), "a single tap did not hide the bars")
+    XCTAssertTrue(waitForFit(image), "hiding the bars moved the image: \(image.frame)")
+    center.tap()
+    XCTAssertTrue(back.appears(within: 5), "a second tap did not show the bars")
+
+    image.pinch(withScale: 3, velocity: 2)
+    XCTAssertTrue(
+      waitForFrame(image) { $0.width > window.width * 1.5 }, "pinch did not zoom: \(image.frame)")
+    XCUIDevice.shared.orientation = .landscapeLeft
+    XCTAssertTrue(
+      waitForFrame(image) { _ in app.windows.firstMatch.frame.width > window.width },
+      "the viewer did not rotate")
+    XCTAssertTrue(waitForFit(image), "rotation did not reset zoom: \(image.frame)")
+    XCTAssertTrue(back.isHittable, "the bars do not float over the landscape image")
+    XCTAssertTrue(element("preview.title").exists)
+    screenshot("runtime-preview-image-landscape")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(
+      waitForFrame(image) { _ in app.windows.firstMatch.frame.width == window.width },
+      "the viewer did not rotate back")
+    XCTAssertTrue(waitForFit(image), "rotating back did not fit the image: \(image.frame)")
+    XCTAssertTrue(back.isHittable)
+  }
+
+  private func waitForFit(_ image: XCUIElement) -> Bool {
+    waitForFrame(image) { frame in
+      let window = app.windows.firstMatch.frame
+      let fillsWidth = abs(frame.width - window.width) < 1 && frame.height <= window.height + 1
+      let fillsHeight = abs(frame.height - window.height) < 1 && frame.width <= window.width + 1
+      return (fillsWidth || fillsHeight) && abs(frame.midX - window.midX) < 1
+        && abs(frame.midY - window.midY) < 1
+    }
+  }
+
+  private func waitForFrame(
+    _ element: XCUIElement, timeout: TimeInterval = 5, until condition: (CGRect) -> Bool
+  ) -> Bool {
+    let deadline = Date.now.addingTimeInterval(timeout)
+    while Date.now < deadline {
+      if element.exists, condition(element.frame) { return true }
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    return element.exists && condition(element.frame)
   }
 
   private func assertCannotShow(

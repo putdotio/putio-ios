@@ -141,6 +141,39 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-05-unsupported")
   }
 
+  func testPreviewImage() throws {
+    XCUIDevice.shared.orientation = .portrait
+    openPosterPreview()
+    try captureBoard("rd-ios-pv-01-image")
+  }
+
+  func testPreviewLandscapeImage() throws {
+    XCUIDevice.shared.orientation = .portrait
+    openPosterPreview()
+    XCUIDevice.shared.orientation = .landscapeLeft
+    let window = app.windows.firstMatch
+    let deadline = Date.now.addingTimeInterval(10)
+    while window.frame.width < window.frame.height, Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    XCTAssertGreaterThan(window.frame.width, window.frame.height, "the viewer did not rotate")
+    XCTAssertTrue(
+      app.images["Harness Poster.png"].appears(within: 5), "the image did not settle")
+    try captureBoard("rd-ios-pv-13-landscape-image")
+  }
+
+  private func openPosterPreview() {
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.406")
+    XCTAssertTrue(row.exists, "the image row never appeared")
+    row.tap()
+    XCTAssertTrue(element("preview.image").appears(within: 10), "the image never loaded")
+    XCTAssertTrue(
+      app.images["Harness Poster.png"].appears(within: 5), "the image did not settle")
+  }
+
   private func openLongPreview() {
     reachFilesRoot()
     let row = element("files.item.428")
