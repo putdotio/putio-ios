@@ -482,7 +482,6 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     }
     fittedSize = bounds.size
     zoomScale = 1
-    contentOffset = .zero
     let imageSize = imageView.image?.size ?? .zero
     let scale =
       imageSize.width > 0 && imageSize.height > 0
@@ -491,6 +490,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     imageView.frame = CGRect(origin: .zero, size: fitted)
     contentSize = fitted
     center()
+    contentOffset = restingOffset
   }
 
   func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
@@ -502,7 +502,10 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   ) {
     // Back at 1x the picture is smaller than the bounds; any leftover pan
     // offset would park it off-center.
-    if scale <= minimumZoomScale { setContentOffset(.zero, animated: false) }
+    if scale <= minimumZoomScale {
+      center()
+      setContentOffset(restingOffset, animated: false)
+    }
   }
 
   @objc private func toggleBars() {
@@ -526,6 +529,10 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
       x: min(max(0, point.x - size.width / 2), fitted.width - size.width),
       y: min(max(0, point.y - size.height / 2), fitted.height - size.height))
     zoom(to: CGRect(origin: origin, size: size), animated: true)
+  }
+
+  private var restingOffset: CGPoint {
+    CGPoint(x: -contentInset.left, y: -contentInset.top)
   }
 
   private func center() {
