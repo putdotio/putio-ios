@@ -4,11 +4,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-./scripts/harness.sh build --platform all
-
-# Harness builds are Debug; compile every shell's Release branches too. Putio
-# builds its embedded watch app. This checks that non-Debug code compiles, so
-# one architecture and no optimizer are enough; archives optimize.
+# Debug shells compile in the iOS and tvOS test lanes and the iOS proof. Compile
+# every shell's Release branches here; Putio builds its embedded watch app. This
+# checks that non-Debug code compiles, so one architecture and no optimizer are
+# enough; archives optimize.
 for scheme_platform in Putio:iOS PutioNightly:iOS PutioTV:tvOS; do
   started=$SECONDS
   xcodebuild build -quiet \
