@@ -79,6 +79,8 @@ maps each board id to its device and to a test in
 [BoardCaptureTests](../../../../Tests/iOSUITests/Sources/BoardCaptureTests.swift).
 A board state needs one row there and one seeded test step.
 
+- `gallery-<page>` and `gallery-<page>-ipad` capture one component gallery
+  page on each device.
 - Captures go to `build/proof/<run-id>/ios/<device>/<board-id>.png`. The
   manifest lists each board with its device type, point size and digest.
 - iPhone and iPad boards each get their own simulator. The test sets the

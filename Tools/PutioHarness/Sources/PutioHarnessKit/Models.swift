@@ -519,12 +519,24 @@ struct BoardCapture: Equatable, Sendable {
   let device: BoardDevice
   let testIdentifier: String
   let isScreenBase: Bool
+  let environment: [String: String]
 
-  init(_ id: String, _ device: BoardDevice, _ testIdentifier: String, screenBase: Bool = true) {
+  init(
+    _ id: String, _ device: BoardDevice, _ testIdentifier: String, screenBase: Bool = true,
+    environment: [String: String] = [:]
+  ) {
     self.id = id
     self.device = device
     self.testIdentifier = "PutioUITests/BoardCaptureTests/" + testIdentifier
     isScreenBase = screenBase
+    self.environment = environment
+  }
+
+  static func gallery(_ page: String, _ device: BoardDevice) -> BoardCapture {
+    let id = device == .iphone ? "gallery-\(page)" : "gallery-\(page)-\(device.rawValue)"
+    return BoardCapture(
+      id, device, "testGalleryPage",
+      environment: ["PUTIO_BOARD_ID": id, "PUTIO_GALLERY_PAGE": page])
   }
 
   var layoutAttachmentName: String { "\(id)-layout" }
@@ -533,10 +545,13 @@ struct BoardCapture: Equatable, Sendable {
 enum BoardCaptureContract {
   static let fixtureSet = "seeded-runtime-loop-v5"
 
-  static let boards = [
-    BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
-    BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
-  ]
+  static let boards =
+    [
+      BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
+      BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+    ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
+
+  static let galleryPages = ["buttons", "files", "transfers", "states", "feedback", "forms"]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }

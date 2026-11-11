@@ -1838,7 +1838,9 @@ public struct SimulatorHarness {
       platform: .ios,
       session: session,
       mediaBaseURL: mediaBaseURL,
-      environment: textSize == .xxl ? ["TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": "1"] : [:],
+      environment: board.environment.reduce(
+        into: textSize == .xxl ? ["TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": "1"] : [:]
+      ) { environment, entry in environment["TEST_RUNNER_" + entry.key] = entry.value },
       resultBundle: resultBundle,
       attachmentNames: [board.id],
       dataAttachmentNames: [board.layoutAttachmentName],
