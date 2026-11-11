@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
   name: "PutioCore",
+  defaultLocalization: "en",
   platforms: [
     .iOS(.v26),
     .watchOS(.v26),

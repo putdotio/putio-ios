@@ -22,7 +22,8 @@ struct PlaybackPreferencesView: View {
       if model.isStale {
         Section {
           Text(
-            model.failure ?? "Account settings could not be confirmed. Refresh to continue."
+            model.failure
+              ?? String(localized: "Account settings could not be confirmed. Refresh to continue.")
           )
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           Button(model.isRefreshing ? "Refreshing…" : "Refresh account") {

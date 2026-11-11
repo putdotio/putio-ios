@@ -83,7 +83,11 @@ public final class PutioAppConfigModel {
         guard generation == loadGeneration else { return }
         config = loaded
       } catch {
-        guard generation == loadGeneration, let message = Self.message(for: error, verb: "load")
+        guard generation == loadGeneration,
+          let message = Self.message(
+            for: error,
+            fallback: String(
+              localized: "Could not load playback settings. Try again.", bundle: .module))
         else { return }
         failure = message
       }
@@ -135,7 +139,12 @@ public final class PutioAppConfigModel {
         case .autoRotateVideo(let enabled): config?.autoRotateVideo = enabled
         }
       } catch {
-        guard let message = Self.message(for: error, verb: "save") else { return }
+        guard
+          let message = Self.message(
+            for: error,
+            fallback: String(
+              localized: "Could not save playback settings. Try again.", bundle: .module))
+        else { return }
         failure = message
         failedWrite = write
       }
@@ -143,14 +152,18 @@ public final class PutioAppConfigModel {
     await task.value
   }
 
-  private static func message(for error: Error, verb: String) -> String? {
+  private static func message(for error: Error, fallback: String) -> String? {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return "Check your connection and try again."
-    case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
-    case .invalidResponse: return "put.io returned an invalid response. Try again."
-    case .notFound, .unknown, nil: return "Could not \(verb) playback settings. Try again."
+    case .transient:
+      return String(localized: "Check your connection and try again.", bundle: .module)
+    case .rateLimited:
+      return String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+    case .invalidResponse:
+      return String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
+    case .notFound, .unknown, nil: return fallback
     }
   }
 }

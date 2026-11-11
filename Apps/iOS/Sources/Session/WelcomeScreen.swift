@@ -84,7 +84,7 @@ struct WelcomeScreen: View {
       WelcomeNotice(
         icon: .clockCountdown,
         tint: PutioTheme.Colors.accent,
-        message: "Your session expired. Sign in again to continue."
+        message: String(localized: "Your session expired. Sign in again to continue.")
       )
     case .signInFailed(let message):
       WelcomeNotice(icon: .warningCircle, tint: PutioTheme.Colors.destructive, message: message)
@@ -93,7 +93,7 @@ struct WelcomeScreen: View {
         icon: .warningCircle,
         tint: PutioTheme.Colors.destructive,
         message: message,
-        footnote: "Signing in again removes the saved sign-in from this device."
+        footnote: String(localized: "Signing in again removes the saved sign-in from this device.")
       )
     }
   }
@@ -102,18 +102,20 @@ struct WelcomeScreen: View {
     VStack(spacing: PutioTheme.Spacing.space2) {
       switch mode {
       case .fresh, .sessionExpired:
-        WelcomeButton("Sign in", prominent: true, action: signIn)
+        WelcomeButton(String(localized: "Sign in"), prominent: true, action: signIn)
           .accessibilityIdentifier("auth.sign-in")
       case .signInFailed:
-        WelcomeButton("Try again", prominent: true, action: signIn)
+        WelcomeButton(String(localized: "Try again"), prominent: true, action: signIn)
           .accessibilityIdentifier("auth.sign-in")
       case .restoreFailed:
-        WelcomeButton("Try again", prominent: true, action: retryRestore)
+        WelcomeButton(String(localized: "Try again"), prominent: true, action: retryRestore)
           .accessibilityIdentifier("auth.retry")
         // Abandoning the saved sign-in is only ever the user's choice; a
         // transient failure must not cost a valid session.
-        WelcomeButton("Sign in again", prominent: false, action: discardCredential)
-          .accessibilityIdentifier("auth.discard-credential")
+        WelcomeButton(
+          String(localized: "Sign in again"), prominent: false, action: discardCredential
+        )
+        .accessibilityIdentifier("auth.discard-credential")
       }
     }
     .padding(.horizontal, WelcomeMetrics.sideMargin)
@@ -123,14 +125,14 @@ struct WelcomeScreen: View {
 
   private var title: String {
     switch mode {
-    case .fresh, .signInFailed, .restoreFailed: "Welcome!"
-    case .sessionExpired: "Welcome back!"
+    case .fresh, .signInFailed, .restoreFailed: String(localized: "Welcome!")
+    case .sessionExpired: String(localized: "Welcome back!")
     }
   }
 
   private var lede: String? {
     switch mode {
-    case .fresh: "Sign in to stream, download and manage your files."
+    case .fresh: String(localized: "Sign in to stream, download and manage your files.")
     case .sessionExpired, .signInFailed, .restoreFailed: nil
     }
   }

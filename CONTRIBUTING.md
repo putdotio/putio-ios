@@ -72,6 +72,22 @@ Commit the lockfile, coverage manifest, and generated output together. Edit the
 do not hand-edit its Swift or asset output. Verification rejects unclassified
 tokens and generated drift.
 
+### Copy
+
+User-facing strings live in String Catalogs, keyed by their English text: the
+[iOS catalog](Apps/iOS/Sources/Localizable.xcstrings) and the
+[PutioCore catalog](Packages/PutioCore/Sources/PutioCore/Resources/Localizable.xcstrings),
+which code looks up with `bundle: .module`. Each key's comment records its
+Android string as `android: <key>`, `android: <key> | differs: <reason>`, or
+`ios-only: <reason>`. The `checks` lane runs
+[the catalog check](scripts/string-catalog.ts) against the
+[Android snapshot](Config/AndroidStrings.json); refresh the snapshot from a
+putio-android checkout:
+
+```bash
+pnpm strings:android ~/projects/putdotio/putio-android
+```
+
 ### Optional brand fonts
 
 Missing brand fonts use system fallbacks and do not block setup or verification.

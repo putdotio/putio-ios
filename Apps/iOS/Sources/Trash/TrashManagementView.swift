@@ -25,12 +25,12 @@ struct TrashManagementView: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: "Loading Trash")
+        PutioLoadingStateView(title: String(localized: "Loading Trash"))
       case .failed(let failure):
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: "Try again"
+          retryTitle: String(localized: "Try again")
         ) {
           Task { await model.refresh() }
         }
@@ -122,7 +122,7 @@ struct TrashManagementView: View {
       Text("This item cannot be restored.")
     }
     .confirmationDialog(
-      "Delete \(pendingBulkDeletion.count) \(pendingBulkDeletion.count == 1 ? "item" : "items") permanently?",
+      "Delete \(pendingBulkDeletion.count) items permanently?",
       isPresented: bulkDeletionConfirmationPresented,
       titleVisibility: .visible
     ) {
@@ -210,7 +210,7 @@ struct TrashManagementView: View {
             PutioErrorStateView(
               title: failure.title,
               message: failure.message,
-              retryTitle: "Try again"
+              retryTitle: String(localized: "Try again")
             ) {
               Task { await model.refresh() }
             }
@@ -271,7 +271,7 @@ struct TrashManagementView: View {
               PutioErrorStateView(
                 title: failure.title,
                 message: failure.message,
-                retryTitle: "Try again"
+                retryTitle: String(localized: "Try again")
               ) {
                 Task { await model.loadMore() }
               }
@@ -336,15 +336,15 @@ struct TrashManagementView: View {
   }
 
   private var deletionConfirmationTitle: String {
-    guard let pendingDeletion else { return "Delete permanently?" }
-    return "Delete “\(pendingDeletion.name)” permanently?"
+    guard let pendingDeletion else { return String(localized: "Delete permanently?") }
+    return String(localized: "Delete “\(pendingDeletion.name)” permanently?")
   }
 
   private var emptyState: some View {
     PutioEmptyStateView(
       icon: .trash,
-      title: "Trash is empty",
-      message: "When you send files to trash, we keep them here for 14 days."
+      title: String(localized: "Trash is empty"),
+      message: String(localized: "When you send files to trash, we keep them here for 14 days.")
     )
   }
 
@@ -355,7 +355,8 @@ struct TrashManagementView: View {
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: model.isRefreshingStorage ? "Updating…" : "Update storage"
+          retryTitle: model.isRefreshingStorage
+            ? String(localized: "Updating…") : String(localized: "Update storage")
         ) {
           Task { await model.retryStorageRefresh() }
         }
@@ -380,8 +381,8 @@ struct TrashManagementView: View {
     return PutioFileRowModel(
       name: item.name,
       kind: rowKind(for: item.kind),
-      sizeText: "\(size) · Deleted \(deleted)",
-      secondaryText: "Expires on \(expires)"
+      sizeText: String(localized: "\(size) · Deleted \(deleted)"),
+      secondaryText: String(localized: "Expires on \(expires)")
     )
   }
 
@@ -396,39 +397,40 @@ struct TrashManagementView: View {
   }
 
   private static let staleStorageMessage =
-    "Storage totals could not be updated. Use Update storage to retry."
+    String(localized: "Storage totals could not be updated. Use Update storage to retry.")
 
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }
     switch outcome {
     case .restored(let item):
-      toast = PutioToast(variant: .success, title: "Item restored", message: item.name)
+      toast = PutioToast(
+        variant: .success, title: String(localized: "Item restored"), message: item.name)
     case .permanentlyDeleted(let item, let storageRefreshed):
       toast = PutioToast(
         variant: storageRefreshed ? .success : .info,
-        title: "Item deleted",
+        title: String(localized: "Item deleted"),
         message: storageRefreshed ? item.name : Self.staleStorageMessage
       )
     case .restoredItems(let items):
       toast = PutioToast(
-        variant: .success, title: "Items restored",
-        message: "Restored \(items.count) \(items.count == 1 ? "item" : "items").")
+        variant: .success, title: String(localized: "Items restored"),
+        message: String(localized: "Restored \(items.count) items."))
     case .permanentlyDeletedItems(let items, let storageRefreshed):
       toast = PutioToast(
         variant: storageRefreshed ? .success : .info,
-        title: "Items deleted",
+        title: String(localized: "Items deleted"),
         message: storageRefreshed
-          ? "Deleted \(items.count) \(items.count == 1 ? "item" : "items")."
+          ? String(localized: "Deleted \(items.count) items.")
           : Self.staleStorageMessage
       )
     case .restoredAll:
       toast = PutioToast(
-        variant: .success, title: "Restore started!",
-        message: "It may take a long time if there are too many files.")
+        variant: .success, title: String(localized: "Restore started!"),
+        message: String(localized: "It may take a long time if there are too many files."))
     case .emptied(let storageRefreshed):
       toast = PutioToast(
         variant: storageRefreshed ? .success : .info,
-        title: "Trash emptied",
+        title: String(localized: "Trash emptied"),
         message: storageRefreshed ? nil : Self.staleStorageMessage
       )
     case .failed(_, let failure):

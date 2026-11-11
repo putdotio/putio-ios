@@ -20,32 +20,35 @@ public struct PutioBrowserErrorPresentation: Equatable, Sendable {
     case .notFound:
       self.init(
         kind: .notFound,
-        title: "Folder not found",
-        message: "It may have been moved or deleted."
+        title: String(localized: "Folder not found", bundle: .module),
+        message: String(localized: "It may have been moved or deleted.", bundle: .module)
       )
     case .rateLimited:
       self.init(
         kind: .rateLimited,
-        title: "Could not load files",
-        message: "put.io is receiving too many requests. Try again shortly."
+        title: String(localized: "Could not load files", bundle: .module),
+        message: String(
+          localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
       )
     case .transient:
       self.init(
         kind: .transient,
-        title: "Could not load files",
-        message: "Check your connection and try again."
+        title: String(localized: "Could not load files", bundle: .module),
+        message: String(localized: "Check your connection and try again.", bundle: .module)
       )
     case .invalidResponse:
       self.init(
         kind: .invalidResponse,
-        title: "Could not load files",
-        message: "put.io returned an invalid response. Try again."
+        title: String(localized: "Could not load files", bundle: .module),
+        message: String(
+          localized: "put.io returned an invalid response. Try again.", bundle: .module)
       )
     case .unknown, nil:
       self.init(
         kind: .unknown,
-        title: "Could not load files",
-        message: "put.io could not complete the request. Try again."
+        title: String(localized: "Could not load files", bundle: .module),
+        message: String(
+          localized: "put.io could not complete the request. Try again.", bundle: .module)
       )
     }
   }

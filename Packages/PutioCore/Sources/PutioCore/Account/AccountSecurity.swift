@@ -79,25 +79,40 @@ public enum PutioAccountSecurityPresentation {
     if error is CancellationError { return nil }
     switch error as? PutioAccountSecurityError {
     case .invalidTwoFactorCode:
-      return "That code is not valid. Check your authenticator app and try again."
+      return String(
+        localized: "That code is not valid. Check your authenticator app and try again.",
+        bundle: .module)
     case .invalidDeviceCode:
-      return "That device code was not found. Check the code on the device and try again."
+      return String(
+        localized: "That device code was not found. Check the code on the device and try again.",
+        bundle: .module)
     case .invalidPassword:
-      return "That password does not match our records. Check it and try again."
+      return String(
+        localized: "That password does not match our records. Check it and try again.",
+        bundle: .module)
     case nil: break
     }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return "Check your connection and try again."
-    case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
-    case .invalidResponse: return "put.io returned an invalid response. Try again."
-    case .notFound: return "put.io could not find what this action needs. Try again."
-    case .unknown, nil: return "Something went wrong. Try again."
+    case .transient:
+      return String(localized: "Check your connection and try again.", bundle: .module)
+    case .rateLimited:
+      return String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+    case .invalidResponse:
+      return String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
+    case .notFound:
+      return String(
+        localized: "put.io could not find what this action needs. Try again.", bundle: .module)
+    case .unknown, nil:
+      return String(localized: "Something went wrong. Try again.", bundle: .module)
     }
   }
 
   public static let refreshWarning =
-    "Saved, but the latest account settings could not be loaded. Refresh to continue."
+    String(
+      localized: "Saved, but the latest account settings could not be loaded. Refresh to continue.",
+      bundle: .module)
 }
 
 /// One two-factor change: enrollment (secret, code, recovery codes) or
@@ -183,7 +198,8 @@ public final class PutioTwoFactorChangeModel {
         }
       } catch is CancellationError {
         // The save may have committed; the runtime reconciles on the retry.
-        codeFailure = "The change could not be confirmed. Try again."
+        codeFailure = String(
+          localized: "The change could not be confirmed. Try again.", bundle: .module)
       } catch {
         guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
         codeFailure = message
@@ -220,7 +236,8 @@ public final class PutioTwoFactorChangeModel {
       recoveryCodesFailure = nil
     } catch is CancellationError {
       // Two-factor is on either way; only a live session may skip the codes.
-      recoveryCodesFailure = "Your recovery codes could not be loaded. Try again."
+      recoveryCodesFailure = String(
+        localized: "Your recovery codes could not be loaded. Try again.", bundle: .module)
     } catch {
       recoveryCodesFailure = PutioAccountSecurityPresentation.message(for: error)
       if recoveryCodesFailure == nil { step = .finished(accountRefreshed: accountRefreshed) }
@@ -262,7 +279,7 @@ public final class PutioRecoveryCodesModel {
       guard generation == self.generation, !Task.isCancelled else { return }
       failure =
         error is CancellationError
-        ? "Your recovery codes could not be loaded. Try again."
+        ? String(localized: "Your recovery codes could not be loaded. Try again.", bundle: .module)
         : PutioAccountSecurityPresentation.message(for: error)
     }
   }
@@ -289,7 +306,8 @@ public final class PutioRecoveryCodesModel {
         guard generation == self.generation else { return }
         let message: String
         if error is CancellationError {
-          message = "Regenerating could not be completed. Try again."
+          message = String(
+            localized: "Regenerating could not be completed. Try again.", bundle: .module)
         } else if let presented = PutioAccountSecurityPresentation.message(for: error) {
           message = presented
         } else {
@@ -425,7 +443,7 @@ public final class PutioAuthorizedAppsModel {
 public final class PutioLinkDeviceModel {
   /// Activation codes are six characters, as put.io's web linking form requires.
   static let codeLength = 6
-  static let codeLengthFailure = "Must be exactly 6 characters."
+  static let codeLengthFailure = String(localized: "Must be exactly 6 characters.", bundle: .module)
 
   public var code: String
   public private(set) var isLinking = false
@@ -561,7 +579,7 @@ public final class PutioDestroyAccountModel {
     guard !isDestroying else { return }
     guard canDestroy else {
       password = ""
-      failure = "Enter your password to confirm."
+      failure = String(localized: "Enter your password to confirm.", bundle: .module)
       return
     }
     isDestroying = true

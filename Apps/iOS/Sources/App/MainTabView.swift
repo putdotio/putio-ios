@@ -379,7 +379,8 @@ struct MainTabView: View {
       offlineFailure =
         PutioOfflineFailure.resolving(error)
         ?? PutioOfflineFailure(
-          kind: .resolution, message: "The file could not be inspected. Try again.")
+          kind: .resolution,
+          message: String(localized: "The file could not be inspected. Try again."))
       return
     }
     enqueueDownload(

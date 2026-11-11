@@ -859,11 +859,15 @@ struct PutioAudioPlayerView: View {
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: model.advancingTo == nil ? "Preparing audio" : "Up next")
-        .accessibilityIdentifier("audio.loading")
+      PutioLoadingStateView(
+        title: model.advancingTo == nil
+          ? String(localized: "Preparing audio") : String(localized: "Up next")
+      )
+      .accessibilityIdentifier("audio.loading")
     case .failed(_, let failure):
       PutioErrorStateView(
-        title: failure.audioTitle, message: failure.audioMessage, retryTitle: "Try again",
+        title: failure.audioTitle, message: failure.audioMessage,
+        retryTitle: String(localized: "Try again"),
         retryIdentifier: "audio.retry"
       ) {
         Task { await model.retry() }
@@ -1005,9 +1009,9 @@ struct PutioAudioPlayerView: View {
 
   private var playPauseLabel: String {
     switch model.state {
-    case .playing: "Pause"
-    case .ended: "Play again"
-    default: "Play"
+    case .playing: String(localized: "Pause")
+    case .ended: String(localized: "Play again")
+    default: String(localized: "Play")
     }
   }
 
@@ -1059,16 +1063,16 @@ extension PutioVideoPlaybackFailure {
   /// The shared failure kinds carry video wording; the audio sheet rewords them.
   var audioTitle: String {
     switch kind {
-    case .notFound: "Audio not found"
-    case .playback: "Could not play audio"
-    default: "Could not open audio"
+    case .notFound: String(localized: "Audio not found")
+    case .playback: String(localized: "Could not play audio")
+    default: String(localized: "Could not open audio")
     }
   }
 
   var audioMessage: String {
     switch kind {
-    case .playback: "The audio could not be played. Try again."
-    case .unknown: "put.io could not prepare this audio. Try again."
+    case .playback: String(localized: "The audio could not be played. Try again.")
+    case .unknown: String(localized: "put.io could not prepare this audio. Try again.")
     default: message
     }
   }

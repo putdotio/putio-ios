@@ -36,7 +36,7 @@ struct PutioCastBar: View {
       Image(systemName: "tv")
         .foregroundStyle(PutioTheme.Colors.accent)
       VStack(alignment: .leading, spacing: 2) {
-        Text(model.currentTitle ?? "Preparing…")
+        Text(model.currentTitle ?? String(localized: "Preparing…"))
           .putioFont(PutioTheme.Typography.body)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .lineLimit(1)
@@ -75,20 +75,21 @@ struct PutioCastBar: View {
   }
 
   private var barSubtitle: String {
-    let device = model.connection.deviceName ?? "Chromecast"
+    let device = model.connection.deviceName ?? String(localized: "Chromecast")
     switch model.activity {
-    case .resolving: return "Preparing for \(device)"
-    case .conversionRequired, .conversionQueued: return "Waiting to convert"
+    case .resolving: return String(localized: "Preparing for \(device)")
+    case .conversionRequired, .conversionQueued: return String(localized: "Waiting to convert")
     case .converting(_, let progress):
-      return "Converting \(progress.formatted(.percent.precision(.fractionLength(0))))"
-    case .loading: return "Loading on \(device)"
+      return String(
+        localized: "Converting \(progress.formatted(.percent.precision(.fractionLength(0))))")
+    case .loading: return String(localized: "Loading on \(device)")
     case .failed(_, let failure): return failure.title
     case .idle:
       switch model.status?.playerState {
-      case .buffering, .loading: return "Buffering on \(device)"
-      case .paused: return "Paused on \(device)"
-      case .playing: return "Playing on \(device)"
-      case .idle, nil: return "Connected to \(device)"
+      case .buffering, .loading: return String(localized: "Buffering on \(device)")
+      case .paused: return String(localized: "Paused on \(device)")
+      case .playing: return String(localized: "Playing on \(device)")
+      case .idle, nil: return String(localized: "Connected to \(device)")
       }
     }
   }
@@ -106,16 +107,16 @@ struct PutioCastControlsView: View {
       Group {
         switch model.activity {
         case .resolving:
-          PutioLoadingStateView(title: "Preparing video")
+          PutioLoadingStateView(title: String(localized: "Preparing video"))
             .accessibilityIdentifier("cast.preparing")
         case .conversionRequired:
           PutioConversionStatusView {
-            PutioLoadingStateView(title: "Starting conversion")
+            PutioLoadingStateView(title: String(localized: "Starting conversion"))
               .accessibilityIdentifier("cast.conversion-required")
           }
         case .conversionQueued:
           PutioConversionStatusView {
-            PutioLoadingStateView(title: "Waiting to convert")
+            PutioLoadingStateView(title: String(localized: "Waiting to convert"))
               .accessibilityIdentifier("cast.conversion-queued")
           }
         case .converting(_, let progress):
@@ -132,12 +133,16 @@ struct PutioCastControlsView: View {
             }
           }
         case .loading:
-          PutioLoadingStateView(title: "Loading on \(model.connection.deviceName ?? "Chromecast")")
-            .accessibilityIdentifier("cast.loading")
+          PutioLoadingStateView(
+            title: String(
+              localized:
+                "Loading on \(model.connection.deviceName ?? String(localized: "Chromecast"))")
+          )
+          .accessibilityIdentifier("cast.loading")
         case .failed(_, let failure):
           PutioErrorStateView(
             title: failure.title, message: failure.message,
-            retryTitle: failure.canRetry ? "Try again" : nil,
+            retryTitle: failure.canRetry ? String(localized: "Try again") : nil,
             retryIdentifier: "cast.retry",
             retry: failure.canRetry ? { model.retry() } : nil
           )
@@ -146,15 +151,18 @@ struct PutioCastControlsView: View {
             controls(for: media)
           } else {
             PutioEmptyStateView(
-              icon: .fileVideo, title: "Nothing casting",
-              message: "Pick a video to play it on \(model.connection.deviceName ?? "Chromecast")."
+              icon: .fileVideo, title: String(localized: "Nothing casting"),
+              message: String(
+                localized:
+                  "Pick a video to play it on \(model.connection.deviceName ?? String(localized: "Chromecast"))."
+              )
             )
             .accessibilityIdentifier("cast.empty")
           }
         }
       }
       .putioContentBackground()
-      .navigationTitle(model.connection.deviceName ?? "Chromecast")
+      .navigationTitle(model.connection.deviceName ?? String(localized: "Chromecast"))
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
@@ -197,7 +205,10 @@ struct PutioCastControlsView: View {
             .accessibilityIdentifier("cast.title")
           scrubber(for: media)
           HStack(spacing: dynamicTypeSize.isAccessibilitySize ? 0 : PutioTheme.Spacing.space6) {
-            transportButton("gobackward.30", label: "Back 30 seconds", identifier: "cast.rewind") {
+            transportButton(
+              "gobackward.30", label: String(localized: "Back 30 seconds"),
+              identifier: "cast.rewind"
+            ) {
               model.seek(toSeconds: (model.status?.positionSeconds ?? 0) - 30)
             }
             Button {
@@ -209,8 +220,10 @@ struct PutioCastControlsView: View {
             .disabled(model.status == nil)
             .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
             .accessibilityIdentifier("cast.toggle")
-            transportButton("goforward.30", label: "Forward 30 seconds", identifier: "cast.forward")
-            {
+            transportButton(
+              "goforward.30", label: String(localized: "Forward 30 seconds"),
+              identifier: "cast.forward"
+            ) {
               model.seek(toSeconds: (model.status?.positionSeconds ?? 0) + 30)
             }
           }
@@ -243,10 +256,10 @@ struct PutioCastControlsView: View {
 
   private var sessionButtons: some View {
     Group {
-      PutioButton("Stop casting", tier: .secondary) { model.stopCasting() }
+      PutioButton(String(localized: "Stop casting"), tier: .secondary) { model.stopCasting() }
         .disabled(model.media == nil)
         .accessibilityIdentifier("cast.stop")
-      PutioButton("Disconnect", tier: .secondary) { model.disconnect() }
+      PutioButton(String(localized: "Disconnect"), tier: .secondary) { model.disconnect() }
         .accessibilityIdentifier("cast.disconnect")
     }
   }
@@ -314,7 +327,7 @@ struct PutioCastControlsView: View {
   private func activeSubtitleName(in media: PutioCastMedia) -> String {
     guard let key = model.status?.activeSubtitleKey,
       let subtitle = media.subtitles.first(where: { $0.key == key })
-    else { return "Off" }
+    else { return String(localized: "Off") }
     return subtitle.language
   }
 
@@ -339,7 +352,7 @@ struct PutioCastPreferencesView: View {
       Section {
         if let playbackType = model.playbackType {
           PutioPickerRow(
-            title: "Playback type",
+            title: String(localized: "Playback type"),
             selection: Binding(
               get: { playbackType },
               set: { newValue in

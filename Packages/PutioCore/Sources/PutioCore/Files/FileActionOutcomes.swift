@@ -25,17 +25,17 @@ public struct PutioFileActionFailure: Equatable, Sendable {
     }
     switch action {
     case .createFolder:
-      title = "Could not create folder"
+      title = String(localized: "Could not create folder", bundle: .module)
     case .rename:
-      title = "Could not rename item"
+      title = String(localized: "Could not rename item", bundle: .module)
     case .delete:
-      title = "Could not remove item"
+      title = String(localized: "Could not remove item", bundle: .module)
     case .move:
-      title = "Could not move item"
+      title = String(localized: "Could not move item", bundle: .module)
     case .sort:
-      title = "Could not change sorting"
+      title = String(localized: "Could not change sorting", bundle: .module)
     case .setWatched:
-      title = "Could not update watch status"
+      title = String(localized: "Could not update watch status", bundle: .module)
     }
     message = browserFailure.message
   }

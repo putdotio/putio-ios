@@ -34,17 +34,17 @@ public struct PutioVideoResumePrompt: Equatable, Sendable {
   }
 
   public var resumeTitle: String {
-    "Continue from \(Self.clockTime(positionSeconds))"
+    String(localized: "Continue from \(Self.clockTime(positionSeconds))", bundle: .module)
   }
 
   /// VoiceOver reads the position as a duration, not as clock digits.
   public var resumeAccessibilityLabel: String {
     let spoken = Duration.seconds(positionSeconds).formatted(
       .units(allowed: [.hours, .minutes, .seconds], width: .wide))
-    return "Continue from \(spoken)"
+    return String(localized: "Continue from \(spoken)", bundle: .module)
   }
 
-  public static let startOverTitle = "Start from the beginning"
+  public static let startOverTitle = String(localized: "Start from the beginning", bundle: .module)
 
   /// `H:MM:SS`, hours unpadded.
   static func clockTime(_ seconds: Int) -> String {

@@ -102,14 +102,14 @@ struct PutioFolderScreen: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: "Loading files")
+        PutioLoadingStateView(title: String(localized: "Loading files"))
       case .loaded(let contents):
         loadedContent(contents)
       case .failed(let failure):
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: "Try again"
+          retryTitle: String(localized: "Try again")
         ) {
           requestRetry(.load)
         }
@@ -173,16 +173,16 @@ struct PutioFolderScreen: View {
       switch editor {
       case .createFolder:
         PutioFileNameEditor(
-          title: "New Folder",
-          submitTitle: "Create",
+          title: String(localized: "New Folder"),
+          submitTitle: String(localized: "Create"),
           isValid: PutioFileNameEditor.isValidName,
           onCancel: { self.editor = nil },
           onSubmit: { submit(.createFolder($0)) }
         )
       case .rename(let item):
         PutioFileNameEditor(
-          title: "Rename Item",
-          submitTitle: "Rename",
+          title: String(localized: "Rename Item"),
+          submitTitle: String(localized: "Rename"),
           initialName: item.name,
           isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
           onCancel: { self.editor = nil },
@@ -277,8 +277,7 @@ struct PutioFolderScreen: View {
         .accessibilityLabel(Text(bulkProgressTitle(progress)))
         .accessibilityValue(
           Text(
-            "\(progress.currentItem.name). \(progress.completedCount) of "
-              + "\(progress.totalCount) complete."
+            "\(progress.currentItem.name). \(progress.completedCount) of \(progress.totalCount) complete."
           )
         )
       }
@@ -341,8 +340,8 @@ struct PutioFolderScreen: View {
           VStack(spacing: PutioTheme.Spacing.space4) {
             PutioEmptyStateView(
               icon: .folderFill,
-              title: "This folder is empty",
-              message: "Files added here appear in this list."
+              title: String(localized: "This folder is empty"),
+              message: String(localized: "Files added here appear in this list.")
             )
             if let refreshFailure = model.refreshFailure {
               refreshFailureRow(refreshFailure)
@@ -654,13 +653,16 @@ struct PutioFolderScreen: View {
   private func fileAccessibilityValue(for route: PutioFileRoute) -> String {
     switch route.openAction {
     case .video, .audio:
-      guard route.item.isWatched else { return "Not watched" }
+      guard route.item.isWatched else { return String(localized: "Not watched") }
       return
-        "Watched, resume at \(Self.resumePositionText(seconds: route.item.resumePositionSeconds))"
+        String(
+          localized:
+            "Watched, resume at \(Self.resumePositionText(seconds: route.item.resumePositionSeconds))"
+        )
     case .preview(let preview):
-      return preview.kind == .image ? "Image" : "Document"
+      return preview.kind == .image ? String(localized: "Image") : String(localized: "Document")
     case .unsupported:
-      return "Unsupported file"
+      return String(localized: "Unsupported file")
     }
   }
 
@@ -671,7 +673,8 @@ struct PutioFolderScreen: View {
   }
 
   private func selectionAccessibilityValue(for item: PutioFileItem) -> String {
-    selectedIDs.contains(item.id) ? "Selected" : "Not selected"
+    selectedIDs.contains(item.id)
+      ? String(localized: "Selected") : String(localized: "Not selected")
   }
 
   private func requestRetry(_ kind: RetryKind) {
@@ -914,15 +917,17 @@ struct PutioFolderScreen: View {
   }
 
   private var bulkFailureTitle: String {
-    guard let outcome = model.bulkOutcome else { return "Could not update items" }
+    guard let outcome = model.bulkOutcome else {
+      return String(localized: "Could not update items")
+    }
     if outcome.action == .delete {
       return deletionPresentation.failureTitle(
         allItemsFailed: outcome.failures.count == outcome.completedCount
       )
     }
     return outcome.failures.count == outcome.completedCount
-      ? "Could not move items"
-      : "Some items couldn’t be moved"
+      ? String(localized: "Could not move items")
+      : String(localized: "Some items couldn’t be moved")
   }
 
   private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {
@@ -933,11 +938,11 @@ struct PutioFolderScreen: View {
         totalItems: progress.totalCount
       )
     }
-    return "Moving item \(currentCount) of \(progress.totalCount)…"
+    return String(localized: "Moving item \(currentCount) of \(progress.totalCount)…")
   }
 
   private func bulkSuccessTitle(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? deletionPresentation.bulkSuccessTitle : "Items moved"
+    action == .delete ? deletionPresentation.bulkSuccessTitle : String(localized: "Items moved")
   }
 
   private func bulkOutcomeMessage(_ outcome: PutioBulkFileOutcome) -> String {
@@ -946,27 +951,23 @@ struct PutioFolderScreen: View {
     if outcome.action == .delete {
       return deletionPresentation.outcomeMessage(succeeded: succeeded, failed: failed)
     }
-    let successText = "Moved \(succeeded) \(itemNoun(succeeded))."
+    let successText = String(localized: "Moved \(succeeded) items.")
     guard failed > 0 else { return successText }
-    return "\(successText) \(failed) couldn’t be moved."
-  }
-
-  private func itemNoun(_ count: Int) -> String {
-    count == 1 ? "item" : "items"
+    return String(localized: "\(successText) \(failed) couldn’t be moved.")
   }
 
   private func successToast(for action: PutioFileAction) -> PutioToast {
     switch action {
     case .createFolder(let name):
-      PutioToast(variant: .success, title: "Folder created", message: name)
+      PutioToast(variant: .success, title: String(localized: "Folder created"), message: name)
     case .sort(_, let sort):
       PutioToast(
         variant: .success,
-        title: "Sorting changed",
+        title: String(localized: "Sorting changed"),
         message: sort.title
       )
     case .rename(_, _, let newName):
-      PutioToast(variant: .success, title: "Item renamed", message: newName)
+      PutioToast(variant: .success, title: String(localized: "Item renamed"), message: newName)
     case .delete(_, let name):
       PutioToast(
         variant: .success,
@@ -976,12 +977,14 @@ struct PutioFolderScreen: View {
     case .move(_, let name, _, _, let destinationName):
       PutioToast(
         variant: .success,
-        title: "Item moved",
-        message: "\(name) to \(destinationName)"
+        title: String(localized: "Item moved"),
+        message: String(localized: "\(name) to \(destinationName)")
       )
     case .setWatched(_, _, let name, let watched):
       PutioToast(
-        variant: .success, title: watched ? "Marked as watched" : "Marked as unwatched",
+        variant: .success,
+        title: watched
+          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"),
         message: name)
     }
   }

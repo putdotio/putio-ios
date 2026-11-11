@@ -323,7 +323,8 @@ private struct RecoveryCodesDownloadButton: View {
 @MainActor
 @Observable
 final class PutioRecoveryCodesExport {
-  static let failureMessage = "Your recovery codes were not saved. Try downloading them again."
+  static let failureMessage = String(
+    localized: "Your recovery codes were not saved. Try downloading them again.")
 
   private(set) var pending: PutioRecoveryCodesDocument?
   private(set) var filename = ""
@@ -463,10 +464,11 @@ struct AuthorizedAppsView: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: "Loading apps")
+        PutioLoadingStateView(title: String(localized: "Loading apps"))
       case .failed(let message):
         PutioErrorStateView(
-          title: "Could not load apps", message: message, retryTitle: "Try again",
+          title: String(localized: "Could not load apps"), message: message,
+          retryTitle: String(localized: "Try again"),
           retryIdentifier: "security.apps.retry-load"
         ) {
           Task { await model.load() }
@@ -542,7 +544,10 @@ private struct AuthorizedAppRow: View {
       }
     }
     .accessibilityElement(children: .combine)
-    .accessibilityValue(app.isCurrentClient ? "This app" : (isRevoking ? "Revoking" : ""))
+    .accessibilityValue(
+      app.isCurrentClient
+        ? String(localized: "This app") : (isRevoking ? String(localized: "Revoking") : "")
+    )
   }
 }
 
@@ -733,7 +738,7 @@ struct AboutView: View {
     case (let short?, let build?): return "\(short) (\(build))"
     case (let short?, nil): return short
     case (nil, let build?): return build
-    case (nil, nil): return "Unknown"
+    case (nil, nil): return String(localized: "Unknown")
     }
   }()
 
@@ -745,14 +750,16 @@ struct AboutView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
       Section("put.io") {
-        link("About put.io", "https://put.io/about/")
-        link("Terms of service", "https://put.io/terms-of-service/")
-        link("Privacy policy", "https://put.io/privacy-policy/")
+        link(String(localized: "About put.io"), "https://put.io/about/")
+        link(String(localized: "Terms of service"), "https://put.io/terms-of-service/")
+        link(String(localized: "Privacy policy"), "https://put.io/privacy-policy/")
       }
       .listRowBackground(PutioTheme.Colors.surface)
       Section {
         link("putio-sdk-swift", "https://github.com/putdotio/putio-sdk-swift")
-        link("Google Cast SDK", "https://developers.google.com/cast/docs/ios_sender")
+        link(
+          String(localized: "Google Cast SDK"), "https://developers.google.com/cast/docs/ios_sender"
+        )
       } header: {
         Text("Acknowledgements")
       } footer: {

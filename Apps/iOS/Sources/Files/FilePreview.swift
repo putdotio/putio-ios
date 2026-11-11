@@ -38,48 +38,61 @@ struct PutioPreviewFailure: Equatable {
   let message: String
 
   static func resolving(_ error: Error, kind previewKind: PutioPreviewRoute.Kind) -> Self? {
-    let noun = previewKind == .image ? "image" : "document"
+    let isImage = previewKind == .image
     if error is PutioPreviewTooLargeError {
       return Self(
-        kind: .tooLarge, title: "\(noun.capitalized) too large to preview",
-        message: "Open it on put.io from a browser instead.")
+        kind: .tooLarge,
+        title: isImage
+          ? String(localized: "Image too large to preview")
+          : String(localized: "Document too large to preview"),
+        message: String(localized: "Open it on put.io from a browser instead."))
     }
+    let couldNotOpen =
+      isImage
+      ? String(localized: "Could not open image") : String(localized: "Could not open document")
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
       return nil
     case .notFound:
       return Self(
-        kind: .notFound, title: "\(noun.capitalized) not found",
-        message: "It may have been moved or deleted.")
+        kind: .notFound,
+        title: isImage
+          ? String(localized: "Image not found") : String(localized: "Document not found"),
+        message: String(localized: "It may have been moved or deleted."))
     case .rateLimited:
       return Self(
-        kind: .rateLimited, title: "Could not open \(noun)",
-        message: "put.io is receiving too many requests. Try again shortly.")
+        kind: .rateLimited, title: couldNotOpen,
+        message: String(localized: "put.io is receiving too many requests. Try again shortly."))
     case .transient:
       return Self(
-        kind: .transient, title: "Could not open \(noun)",
-        message: "Check your connection and try again.")
+        kind: .transient, title: couldNotOpen,
+        message: String(localized: "Check your connection and try again."))
     case .invalidResponse:
       return Self(
-        kind: .invalidResponse, title: "Could not open \(noun)",
-        message: "put.io returned an invalid response. Try again.")
+        kind: .invalidResponse, title: couldNotOpen,
+        message: String(localized: "put.io returned an invalid response. Try again."))
     case .unknown, nil:
       if let urlError = error as? URLError, urlError.code != .cancelled {
         return Self(
-          kind: .transient, title: "Could not open \(noun)",
-          message: "Check your connection and try again.")
+          kind: .transient, title: couldNotOpen,
+          message: String(localized: "Check your connection and try again."))
       }
       return Self(
-        kind: .unknown, title: "Could not open \(noun)",
-        message: "put.io could not prepare this \(noun). Try again.")
+        kind: .unknown, title: couldNotOpen,
+        message: isImage
+          ? String(localized: "put.io could not prepare this image. Try again.")
+          : String(localized: "put.io could not prepare this document. Try again."))
     }
   }
 
   static func unreadable(kind previewKind: PutioPreviewRoute.Kind) -> Self {
-    let noun = previewKind == .image ? "image" : "document"
-    return Self(
-      kind: .unreadable, title: "Could not display \(noun)",
-      message: "The \(noun) could not be read. Try again.")
+    previewKind == .image
+      ? Self(
+        kind: .unreadable, title: String(localized: "Could not display image"),
+        message: String(localized: "The image could not be read. Try again."))
+      : Self(
+        kind: .unreadable, title: String(localized: "Could not display document"),
+        message: String(localized: "The document could not be read. Try again."))
   }
 }
 
@@ -321,7 +334,8 @@ struct PutioPreviewView: View {
     switch model.state {
     case .loading:
       PutioLoadingStateView(
-        title: model.route.kind == .image ? "Loading image" : "Loading document"
+        title: model.route.kind == .image
+          ? String(localized: "Loading image") : String(localized: "Loading document")
       )
       .accessibilityIdentifier("preview.loading")
     case .image(let image):
@@ -333,7 +347,7 @@ struct PutioPreviewView: View {
         .accessibilityIdentifier("preview.document")
     case .failed(let failure):
       PutioErrorStateView(
-        title: failure.title, message: failure.message, retryTitle: "Try again",
+        title: failure.title, message: failure.message, retryTitle: String(localized: "Try again"),
         retryIdentifier: "preview.retry"
       ) {
         Task { await model.retry() }
@@ -482,7 +496,7 @@ struct PutioUnsupportedFileView: View {
     NavigationStack {
       PutioEmptyStateView(
         icon: .file,
-        title: "Unsupported file type",
+        title: String(localized: "Unsupported file type"),
         message: message
       )
       .accessibilityIdentifier("unsupported.screen.\(route.id.rawValue)")
@@ -499,11 +513,16 @@ struct PutioUnsupportedFileView: View {
   }
 
   private var message: String {
-    let subject =
-      PutioUnsupportedFileView.typeName(for: route.item.kind).map { "\($0) files" }
-      ?? "this type of file"
-    return
-      "put.io for iOS can’t display \(subject) yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
+    guard let typeName = PutioUnsupportedFileView.typeName(for: route.item.kind) else {
+      return String(
+        localized:
+          "put.io for iOS can’t display this type of file yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
+      )
+    }
+    return String(
+      localized:
+        "put.io for iOS can’t display \(typeName) files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
+    )
   }
 
   /// `nil` when the server sent no usable type name.

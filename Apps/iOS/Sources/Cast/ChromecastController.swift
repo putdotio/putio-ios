@@ -241,7 +241,9 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
 
   private func castStateChanged() {
     let context = GCKCastContext.sharedInstance()
-    let name = context.sessionManager.currentCastSession?.device.friendlyName ?? "Chromecast"
+    let name =
+      context.sessionManager.currentCastSession?.device.friendlyName
+      ?? String(localized: "Chromecast")
     let next: PutioCastConnection =
       switch context.castState {
       case .noDevicesAvailable: .unavailable

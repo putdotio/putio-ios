@@ -68,28 +68,34 @@ struct PutioExternalPlaybackFailure: Equatable {
       return nil
     case .notFound:
       return Self(
-        title: "File not found", message: "It may have been moved or deleted.", canRetry: false)
+        title: String(localized: "File not found"),
+        message: String(localized: "It may have been moved or deleted."), canRetry: false)
     case .rateLimited:
       return Self(
-        title: "Could not open in VLC",
-        message: "put.io is receiving too many requests. Try again shortly.", canRetry: true)
+        title: String(localized: "Could not open in VLC"),
+        message: String(localized: "put.io is receiving too many requests. Try again shortly."),
+        canRetry: true)
     case .transient:
       return Self(
-        title: "Could not open in VLC", message: "Check your connection and try again.",
+        title: String(localized: "Could not open in VLC"),
+        message: String(localized: "Check your connection and try again."),
         canRetry: true)
     case .invalidResponse:
       return Self(
-        title: "Could not open in VLC", message: "put.io returned an invalid response. Try again.",
+        title: String(localized: "Could not open in VLC"),
+        message: String(localized: "put.io returned an invalid response. Try again."),
         canRetry: true)
     case .unknown, nil:
       return Self(
-        title: "Could not open in VLC", message: "put.io could not prepare this file. Try again.",
+        title: String(localized: "Could not open in VLC"),
+        message: String(localized: "put.io could not prepare this file. Try again."),
         canRetry: true)
     }
   }
 
   static let launch = Self(
-    title: "Could not open in VLC", message: "VLC did not accept the file. Try again.",
+    title: String(localized: "Could not open in VLC"),
+    message: String(localized: "VLC did not accept the file. Try again."),
     canRetry: true)
 }
 
@@ -223,7 +229,7 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
 
   private var title: String {
     switch model.outcome {
-    case .notInstalled: "VLC is not installed"
+    case .notInstalled: String(localized: "VLC is not installed")
     case .failed(let failure): failure.title
     case .opened, nil: ""
     }
@@ -232,7 +238,7 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
   private var message: String {
     switch model.outcome {
     case .notInstalled:
-      "Install VLC for iOS from the App Store to stream this file there."
+      String(localized: "Install VLC for iOS from the App Store to stream this file there.")
     case .failed(let failure): failure.message
     case .opened, nil: ""
     }

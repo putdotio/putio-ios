@@ -4,14 +4,23 @@ import Observation
 /// Asks a signed-in account once whether it allows product analytics. The
 /// copy matches the App Store app's prompt word for word.
 public enum PutioProductAnalyticsPrompt {
-  public static let title = "Turn on product analytics?"
+  public static let title = String(localized: "Turn on product analytics?", bundle: .module)
   public static let intro =
-    "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls."
-  public static let neverSentTitle = "What we never send"
-  public static let neverSent = ["Filenames or media titles", "URLs or search text", "Tokens"]
-  public static let sentTitle = "What we'd send"
+    String(
+      localized:
+        "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls.",
+      bundle: .module)
+  public static let neverSentTitle = String(localized: "What we never send", bundle: .module)
+  public static let neverSent = [
+    String(localized: "Filenames or media titles", bundle: .module),
+    String(localized: "URLs or search text", bundle: .module),
+    String(localized: "Tokens", bundle: .module),
+  ]
+  public static let sentTitle = String(localized: "What we'd send", bundle: .module)
   public static let sent = [
-    "Features you use", "App and device type", "Playback and billing events",
+    String(localized: "Features you use", bundle: .module),
+    String(localized: "App and device type", bundle: .module),
+    String(localized: "Playback and billing events", bundle: .module),
   ]
 
   /// An unset setting reads as off, so an account is asked until it turns
@@ -83,10 +92,15 @@ public final class PutioProductAnalyticsPromptModel {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return "Check your connection and try again."
-    case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
-    case .invalidResponse: return "put.io returned an invalid response. Try again."
-    case .notFound, .unknown, nil: return "Could not save your choice. Try again."
+    case .transient:
+      return String(localized: "Check your connection and try again.", bundle: .module)
+    case .rateLimited:
+      return String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+    case .invalidResponse:
+      return String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
+    case .notFound, .unknown, nil:
+      return String(localized: "Could not save your choice. Try again.", bundle: .module)
     }
   }
 }

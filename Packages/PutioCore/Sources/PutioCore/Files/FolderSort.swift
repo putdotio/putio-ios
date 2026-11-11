@@ -7,12 +7,12 @@ public enum PutioFolderSortKey: CaseIterable, Hashable {
 
   public var title: String {
     switch self {
-    case .name: "Name"
-    case .size: "Size"
-    case .dateAdded: "Date Added"
-    case .dateModified: "Date Modified"
-    case .type: "Type"
-    case .watchStatus: "Watch Status"
+    case .name: String(localized: "Name", bundle: .module)
+    case .size: String(localized: "Size", bundle: .module)
+    case .dateAdded: String(localized: "Date Added", bundle: .module)
+    case .dateModified: String(localized: "Date Modified", bundle: .module)
+    case .type: String(localized: "Type", bundle: .module)
+    case .watchStatus: String(localized: "Watch Status", bundle: .module)
     }
   }
 
@@ -63,7 +63,9 @@ extension PutioFolderSort {
   }
 
   public var directionTitle: String {
-    isAscending ? "Ascending" : "Descending"
+    isAscending
+      ? String(localized: "Ascending", bundle: .module)
+      : String(localized: "Descending", bundle: .module)
   }
 
   public var title: String {

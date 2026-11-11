@@ -754,7 +754,8 @@ final class PutioOfflineQueue {
       fail(
         fileID,
         PutioOfflineFailure(
-          kind: .resolution, message: "A selected audio language is no longer available."))
+          kind: .resolution,
+          message: String(localized: "A selected audio language is no longer available.")))
     } catch is PutioOfflineConversionError {
       guard isLive(), !Task.isCancelled else { return }
       fail(fileID, .conversion)
@@ -764,7 +765,8 @@ final class PutioOfflineQueue {
         fileID,
         PutioOfflineFailure.resolving(error)
           ?? PutioOfflineFailure(
-            kind: .resolution, message: "put.io could not prepare this file. Try again."))
+            kind: .resolution,
+            message: String(localized: "put.io could not prepare this file. Try again.")))
     }
   }
 

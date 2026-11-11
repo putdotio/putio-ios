@@ -17,7 +17,8 @@ struct FilePreferencesView: View {
       if model.isStale {
         Section {
           Text(
-            model.failure ?? "Account settings could not be confirmed. Refresh to continue."
+            model.failure
+              ?? String(localized: "Account settings could not be confirmed. Refresh to continue.")
           )
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           Button(model.isRefreshing ? "Refreshing…" : "Refresh account") {
@@ -92,7 +93,7 @@ struct FilePreferencesView: View {
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .confirmationDialog(
-      confirmation?.title ?? "Update settings?",
+      confirmation?.title ?? String(localized: "Update settings?"),
       isPresented: Binding(
         get: { confirmation != nil },
         set: { if !$0 { confirmation = nil } }),
@@ -151,20 +152,24 @@ struct FilePreferencesView: View {
 
     var title: String {
       switch self {
-      case .trash: "Turn off Trash?"
-      case .history: "Turn off History?"
-      case .resetSort: "Reset all folder sorts?"
+      case .trash: String(localized: "Turn off Trash?")
+      case .history: String(localized: "Turn off History?")
+      case .resetSort: String(localized: "Reset all folder sorts?")
       }
     }
 
     var message: String {
       switch self {
       case .trash:
-        "Every item in Trash will be permanently deleted. Future deletions cannot be restored."
+        String(
+          localized:
+            "Every item in Trash will be permanently deleted. Future deletions cannot be restored.")
       case .history:
-        "Existing history will be cleared and new account events will no longer be saved."
+        String(
+          localized:
+            "Existing history will be cleared and new account events will no longer be saved.")
       case .resetSort:
-        "Every folder will use your account's default sort."
+        String(localized: "Every folder will use your account's default sort.")
       }
     }
   }

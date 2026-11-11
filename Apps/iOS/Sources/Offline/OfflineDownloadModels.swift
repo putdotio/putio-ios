@@ -91,26 +91,36 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
   var canRetry: Bool { kind != .notFound }
 
   static let authentication = Self(
-    kind: .authentication, message: "Sign in again to continue this download.")
+    kind: .authentication, message: String(localized: "Sign in again to continue this download."))
 
-  static let download = Self(kind: .download, message: "The download could not finish. Try again.")
+  static let download = Self(
+    kind: .download, message: String(localized: "The download could not finish. Try again."))
   static let conversion = Self(
-    kind: .conversion, message: "The conversion did not finish. Try again.")
+    kind: .conversion, message: String(localized: "The conversion did not finish. Try again."))
   static let storage = Self(
-    kind: .storage, message: "Not enough space on this device. Free up storage and try again.")
-  static let notFound = Self(kind: .notFound, message: "It may have been moved or deleted.")
+    kind: .storage,
+    message: String(localized: "Not enough space on this device. Free up storage and try again."))
+  static let notFound = Self(
+    kind: .notFound, message: String(localized: "It may have been moved or deleted."))
 
   static func resolving(_ error: Error) -> Self? {
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: .authentication
     case .notFound: .notFound
     case .rateLimited:
-      Self(kind: .resolution, message: "put.io is receiving too many requests. Try again shortly.")
-    case .transient: Self(kind: .resolution, message: "Check your connection and try again.")
+      Self(
+        kind: .resolution,
+        message: String(localized: "put.io is receiving too many requests. Try again shortly."))
+    case .transient:
+      Self(kind: .resolution, message: String(localized: "Check your connection and try again."))
     case .invalidResponse:
-      Self(kind: .resolution, message: "put.io returned an invalid response. Try again.")
+      Self(
+        kind: .resolution,
+        message: String(localized: "put.io returned an invalid response. Try again."))
     case .unknown, nil:
-      Self(kind: .resolution, message: "put.io could not prepare this file. Try again.")
+      Self(
+        kind: .resolution,
+        message: String(localized: "put.io could not prepare this file. Try again."))
     }
   }
 }
@@ -159,9 +169,9 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
 
   var title: String {
     switch self {
-    case .unsaved: "Could not save downloads"
-    case .removalNotStarted(_, 1): "Could not remove download"
-    case .removalNotStarted: "Could not remove downloads"
+    case .unsaved: String(localized: "Could not save downloads")
+    case .removalNotStarted(_, 1): String(localized: "Could not remove download")
+    case .removalNotStarted: String(localized: "Could not remove downloads")
     }
   }
 
@@ -169,16 +179,32 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
     switch self {
     case .unsaved(let outOfSpace):
       outOfSpace
-        ? "This device is out of space, so changes to your downloads were not saved. Free up storage and try again."
-        : "Changes to your downloads could not be saved on this device. Try again."
+        ? String(
+          localized:
+            "This device is out of space, so changes to your downloads were not saved. Free up storage and try again."
+        )
+        : String(
+          localized: "Changes to your downloads could not be saved on this device. Try again.")
     case .removalNotStarted(true, 1):
-      "Nothing was removed because this device is out of space. Free up storage and remove the download again."
+      String(
+        localized:
+          "Nothing was removed because this device is out of space. Free up storage and remove the download again."
+      )
     case .removalNotStarted(true, _):
-      "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
+      String(
+        localized:
+          "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
+      )
     case .removalNotStarted(false, 1):
-      "Nothing was removed because this device could not save the change. Remove the download again."
+      String(
+        localized:
+          "Nothing was removed because this device could not save the change. Remove the download again."
+      )
     case .removalNotStarted(false, _):
-      "Nothing was removed because this device could not save the change. Remove the downloads again."
+      String(
+        localized:
+          "Nothing was removed because this device could not save the change. Remove the downloads again."
+      )
     }
   }
 }

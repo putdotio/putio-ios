@@ -94,12 +94,17 @@ public final class PutioAccountPreferencesModel {
         let result = try await actions.save(mutation)
         if !result.accountRefreshed {
           failure =
-            "Saved, but the latest account settings could not be loaded. Refresh to continue."
+            String(
+              localized:
+                "Saved, but the latest account settings could not be loaded. Refresh to continue.",
+              bundle: .module)
         }
       } catch {
         guard let message = Self.message(for: error) else { return }
         if isStale {
-          failure = "Could not confirm your change. Refresh account settings before continuing."
+          failure = String(
+            localized: "Could not confirm your change. Refresh account settings before continuing.",
+            bundle: .module)
         } else {
           failure = message
           failedMutation = mutation
@@ -121,7 +126,8 @@ public final class PutioAccountPreferencesModel {
     let task = Task { @MainActor in
       defer { isRefreshing = false }
       if !(await actions.refresh()), account != nil {
-        failure = "Could not refresh account settings. Try again."
+        failure = String(
+          localized: "Could not refresh account settings. Try again.", bundle: .module)
       }
     }
     await task.value
@@ -131,10 +137,15 @@ public final class PutioAccountPreferencesModel {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return "Check your connection and try again."
-    case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
-    case .invalidResponse: return "put.io returned an invalid response. Try again."
-    case .notFound, .unknown, nil: return "Could not save account settings. Try again."
+    case .transient:
+      return String(localized: "Check your connection and try again.", bundle: .module)
+    case .rateLimited:
+      return String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+    case .invalidResponse:
+      return String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
+    case .notFound, .unknown, nil:
+      return String(localized: "Could not save account settings. Try again.", bundle: .module)
     }
   }
 }

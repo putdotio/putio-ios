@@ -56,8 +56,9 @@ struct ProductAnalyticsPromptView: View {
           .accessibilityIdentifier("analytics-prompt.failure")
       }
       HStack(spacing: 8) {
-        answerButton("Don't allow", choice: false, identifier: "analytics-prompt.deny")
-        answerButton("Allow", choice: true, identifier: "analytics-prompt.allow")
+        answerButton(
+          String(localized: "Don't allow"), choice: false, identifier: "analytics-prompt.deny")
+        answerButton(String(localized: "Allow"), choice: true, identifier: "analytics-prompt.allow")
       }
       Link(destination: PutioPrivacyControls.privacyPolicyURL) {
         Text("Privacy policy")
