@@ -595,9 +595,12 @@ enum BoardCaptureContract {
         "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
+      BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
+      BoardCapture(
+        "rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -828,9 +831,10 @@ enum BrowserJourneyContract {
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
-        "runtime-preview-document", "runtime-preview-cannot-show", "runtime-vlc-missing",
+        "runtime-preview-image-landscape", "runtime-preview-document",
+        "runtime-preview-cannot-show", "runtime-vlc-missing",
       ],
-      timeAllowance: 150),
+      timeAllowance: 180),
     JourneyPreflight(
       "deep-links", "DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens",
       attachmentNames: [

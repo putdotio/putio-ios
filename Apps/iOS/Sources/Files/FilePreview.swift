@@ -279,6 +279,8 @@ final class PutioPreviewModel {
 
 struct PutioPreviewView: View {
   @State private var model: PutioPreviewModel
+  @State private var barsHidden = false
+  @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   private let onDismiss: @MainActor () -> Void
 
   init(
@@ -295,13 +297,43 @@ struct PutioPreviewView: View {
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
+        .overlay(alignment: .top) { topFade }
         .navigationTitle(model.route.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar }
+        .toolbar(showsBars ? .visible : .hidden, for: .navigationBar)
+        .statusBarHidden(!showsBars)
     }
     .task { await model.load() }
     .onDisappear { model.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
+  }
+
+  private var showsImage: Bool {
+    if case .image = model.state { true } else { false }
+  }
+
+  private var showsBars: Bool {
+    !(barsHidden && showsImage && !voiceOverEnabled)
+  }
+
+  private func toggleBars() {
+    withAnimation(.easeInOut(duration: 0.2)) { barsHidden.toggle() }
+  }
+
+  @ViewBuilder
+  private var topFade: some View {
+    if showsImage, showsBars {
+      LinearGradient(
+        colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
+        startPoint: .top, endPoint: .bottom
+      )
+      .frame(height: 120)
+      .ignoresSafeArea(edges: .top)
+      .allowsHitTesting(false)
+      .accessibilityHidden(true)
+      .transition(.opacity)
+    }
   }
 
   @ToolbarContentBuilder
@@ -357,7 +389,8 @@ struct PutioPreviewView: View {
         .ignoresSafeArea()
         .accessibilityIdentifier("preview.loading")
     case .image(let image):
-      PutioZoomableImageView(image: image, title: model.route.title)
+      PutioZoomableImageView(image: image, title: model.route.title, onSingleTap: toggleBars)
+        .ignoresSafeArea()
         .accessibilityIdentifier("preview.image")
     case .document(let document):
       PutioPDFView(document: document)
@@ -385,22 +418,26 @@ struct PutioPreviewView: View {
 struct PutioZoomableImageView: UIViewRepresentable {
   let image: UIImage
   let title: String
+  let onSingleTap: @MainActor () -> Void
 
   func makeUIView(context: Context) -> PutioZoomingScrollView {
     let scrollView = PutioZoomingScrollView(image: image, title: title)
     scrollView.accessibilityLabel = title
+    scrollView.onSingleTap = onSingleTap
     return scrollView
   }
 
   func updateUIView(_ scrollView: PutioZoomingScrollView, context: Context) {
     // SwiftUI re-runs this on unrelated invalidations; only a new image resets zoom.
     scrollView.update(image: image, title: title)
+    scrollView.onSingleTap = onSingleTap
   }
 }
 
 final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   private let imageView = UIImageView()
   private var fittedSize: CGSize = .zero
+  var onSingleTap: (@MainActor () -> Void)?
 
   init(image: UIImage, title: String) {
     super.init(frame: .zero)
@@ -419,6 +456,9 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     let doubleTap = UITapGestureRecognizer(target: self, action: #selector(toggleZoom(_:)))
     doubleTap.numberOfTapsRequired = 2
     addGestureRecognizer(doubleTap)
+    let singleTap = UITapGestureRecognizer(target: self, action: #selector(toggleBars))
+    singleTap.require(toFail: doubleTap)
+    addGestureRecognizer(singleTap)
   }
 
   @available(*, unavailable)
@@ -463,6 +503,10 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     // Back at 1x the picture is smaller than the bounds; any leftover pan
     // offset would park it off-center.
     if scale <= minimumZoomScale { setContentOffset(.zero, animated: false) }
+  }
+
+  @objc private func toggleBars() {
+    onSingleTap?()
   }
 
   /// Zooms 3x into the tapped point of the fitted image. The rect is in the
