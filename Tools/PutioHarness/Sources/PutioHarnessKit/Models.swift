@@ -556,7 +556,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-14-ipad-portrait", .ipad, "testIPadPortrait"),
     ] + galleryPages.flatMap { page in BoardDevice.allCases.map { .gallery(page, $0) } }
 
-  static let galleryPages = ["buttons", "files", "states", "feedback", "forms", "sheets", "shell"]
+  static let galleryPages = [
+    "buttons", "files", "states", "feedback", "forms", "sheets", "shell", "menus", "text-alert",
+    "confirm-alert",
+  ]
 
   static func resolve(_ ids: [String]) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
@@ -726,6 +729,13 @@ enum BrowserJourneyContract {
       timeAllowance: 180),
     JourneyPreflight(
       "file-row-gallery", "FileRowGalleryTests/testTrailingControlsReportTheActionForTheirState"),
+    JourneyPreflight(
+      "item-menus", "ItemActionsGalleryTests/testLongPressAndSwipeMoreListTheSameItemsInOrder",
+      attachmentNames: ["item-menu-long-press", "item-menu-swipe-more"]),
+    JourneyPreflight(
+      "text-alert-retry",
+      "ItemActionsGalleryTests/testTextAlertFailureClosesAndTryAgainResendsTheSameName",
+      attachmentNames: ["text-alert-failure-toast"]),
     JourneyPreflight(
       "shell-tabs", "ShellJourneyTests/testEveryTabKeepsTheOpenFolder",
       attachmentNames: ["shell-folder-open"]),
