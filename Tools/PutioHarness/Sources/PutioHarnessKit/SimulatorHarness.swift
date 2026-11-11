@@ -536,24 +536,6 @@ public final class SimulatorLifecycle: @unchecked Sendable {
   }
 }
 
-private final class BackgroundWork<T>: @unchecked Sendable {
-  private let finished = DispatchSemaphore(value: 0)
-  private var result: Result<T, Error> = .failure(HarnessFailure("background work did not finish"))
-
-  init(_ body: @escaping () throws -> T) {
-    nonisolated(unsafe) let body = body
-    DispatchQueue.global().async {
-      self.result = Result { try body() }
-      self.finished.signal()
-    }
-  }
-
-  func wait() -> Result<T, Error> {
-    finished.wait()
-    return result
-  }
-}
-
 private final class SimulatorSession {
   let deviceIdentifier: String
   let deviceName: String
@@ -1957,12 +1939,18 @@ public struct SimulatorHarness {
     alongside preparation: () throws -> Void = {},
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
-    let booting = BackgroundWork {
-      try createSession(platform: platform, runID: runID, device: device)
+    nonisolated(unsafe) let harness = self
+    nonisolated(unsafe) var booted: Result<SimulatorSession, Error>?
+    let booting = DispatchGroup()
+    DispatchQueue.global().async(group: booting) {
+      booted = Result {
+        try harness.createSession(platform: platform, runID: runID, device: device)
+      }
     }
     let prepared = Result { try preparation() }
+    booting.wait()
     let session: SimulatorSession
-    switch (prepared, booting.wait()) {
+    switch (prepared, booted ?? .failure(HarnessFailure("Simulator boot did not finish"))) {
     case (.success, .success(let booted)):
       session = booted
     case (.success, .failure(let bootError)):
