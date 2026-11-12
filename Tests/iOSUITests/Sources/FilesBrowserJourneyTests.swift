@@ -359,6 +359,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     cancel.tap()
     XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
     XCTAssertTrue(extras.exists, "cancelling the move removed its source")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
   }
 
   private func openMoveLevel(_ id: Int, path: String) {
