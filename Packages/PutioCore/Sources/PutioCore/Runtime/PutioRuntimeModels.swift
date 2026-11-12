@@ -350,7 +350,9 @@ public struct PutioTrashMutationResult: Equatable, Sendable {
 /// A tokened put.io download URL for a single file, resolved for previews and
 /// external players. The URL is a bearer credential and is redacted from every
 /// textual rendering.
-public struct PutioDownloadTokenUnavailable: Error, Equatable, Sendable {}
+public struct PutioDownloadTokenUnavailable: Error, Equatable, Sendable {
+  public init() {}
+}
 
 public struct PutioFileDownloadSource: Equatable, Sendable, CustomStringConvertible,
   CustomDebugStringConvertible, CustomReflectable

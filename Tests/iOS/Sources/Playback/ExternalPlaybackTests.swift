@@ -176,7 +176,8 @@ final class ExternalPlaybackTests: XCTestCase {
       return self.source
     }
     await model.open(route(kind: .image))
-    XCTAssertNil(model.outcome)
+    XCTAssertNil(model.toast)
+    XCTAssertNil(model.missingVLCRoute)
     XCTAssertTrue(opener.opened.isEmpty)
   }
 }
