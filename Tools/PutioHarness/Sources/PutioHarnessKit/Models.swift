@@ -604,6 +604,14 @@ enum BoardCaptureContract {
         "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
+      BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
+      BoardCapture(
+        "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),
+      BoardCapture("rd-ios-ses-04-waiting", .iphone, "testCheckingSession", screenBase: false),
+      BoardCapture("rd-ios-ses-05-failed", .iphone, "testSignInFailed"),
+      BoardCapture("rd-ios-ses-06-expired", .iphone, "testSessionExpired"),
+      BoardCapture("rd-ios-ses-11-ipad-welcome", .ipad, "testWelcome"),
+      BoardCapture("rd-ios-ses-12-ipad-failed", .ipad, "testSignInFailed", screenBase: false),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
       BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
       BoardCapture("rd-ios-pv-04-text", .iphone, "testPreviewText"),
@@ -816,6 +824,20 @@ enum BrowserJourneyContract {
       "selection-mode",
       "SelectionGalleryTests/testSelectionHeaderAndBarReplaceTheTabBarUntilClosed",
       attachmentNames: ["selection-mode-some", "selection-mode-all"], timeAllowance: 90),
+    JourneyPreflight(
+      "session-welcome-motion",
+      "SessionWelcomeJourneyTests/testFramesRollAndReduceMotionHoldsFrameOne",
+      attachmentNames: [
+        "runtime-session-welcome-rolled", "runtime-session-welcome-reduce-motion",
+      ],
+      timeAllowance: 120),
+    JourneyPreflight(
+      "session-welcome-sign-in", "SessionWelcomeJourneyTests/testCancelFailRetryAndExpiry",
+      attachmentNames: [
+        "runtime-session-welcome", "runtime-session-cancelled", "runtime-session-sign-in-failed",
+        "runtime-session-checking", "runtime-session-expired",
+      ],
+      timeAllowance: 120),
     JourneyPreflight(
       "shell-tabs", "ShellJourneyTests/testEveryTabKeepsTheOpenFolder",
       attachmentNames: ["shell-folder-open"]),

@@ -497,6 +497,17 @@
         }
       }
     },
+    "Checking your session" : {
+      "comment" : "android: mobile_auth_validating",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your session"
+          }
+        }
+      }
+    },
     "Choose another folder." : {
       "comment" : "ios-only: no Android string for the iOS move picker",
       "localizations" : {
@@ -2656,6 +2667,17 @@
         }
       }
     },
+    "Nothing was saved, so you can try again." : {
+      "comment" : "android: mobile_welcome_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was saved, so you can try again."
+          }
+        }
+      }
+    },
     "Now Playing" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
       "localizations" : {
@@ -2795,6 +2817,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Opening link"
+          }
+        }
+      }
+    },
+    "Or keep it offline." : {
+      "comment" : "android: mobile_welcome_caption_offline",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Or keep it offline."
           }
         }
       }
@@ -3866,17 +3899,6 @@
         }
       }
     },
-    "Sign in to stream, download and manage your files." : {
-      "comment" : "android: mobile_welcome_lede | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign in to stream, download and manage your files."
-          }
-        }
-      }
-    },
     "Sign out" : {
       "comment" : "android: mobile_account_sign_out",
       "localizations" : {
@@ -3895,6 +3917,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in"
+          }
+        }
+      }
+    },
+    "Sign-in didn’t finish" : {
+      "comment" : "android: mobile_welcome_failed_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in didn’t finish"
           }
         }
       }
@@ -4097,6 +4130,17 @@
         }
       }
     },
+    "Stream it anywhere." : {
+      "comment" : "android: mobile_welcome_caption_stream",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream it anywhere."
+          }
+        }
+      }
+    },
     "Subtitles" : {
       "comment" : "android: mobile_playback_subtitles_title",
       "localizations" : {
@@ -4137,6 +4181,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Terms of service"
+          }
+        }
+      }
+    },
+    "That didn’t work." : {
+      "comment" : "android: mobile_welcome_caption_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That didn’t work."
           }
         }
       }
@@ -4907,6 +4962,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your current codes stop working."
+          }
+        }
+      }
+    },
+    "Your put.io files, streaming and offline on this iPad." : {
+      "comment" : "android: mobile_welcome_lede | differs: names the iPad instead of the phone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your put.io files, streaming and offline on this iPad."
+          }
+        }
+      }
+    },
+    "Your put.io files, streaming and offline on this iPhone." : {
+      "comment" : "android: mobile_welcome_lede | differs: names the iPhone instead of the phone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your put.io files, streaming and offline on this iPhone."
           }
         }
       }

@@ -202,6 +202,50 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("gallery-split-ipad-detail")
   }
 
+  func testWelcome() throws {
+    launchSignedOut(welcomeFrame: 0)
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    try captureBoard("rd-ios-ses-01-welcome")
+  }
+
+  func testWelcomeSecondFrame() throws {
+    launchSignedOut(welcomeFrame: 1)
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    let stage = element("welcome.stage").firstMatch
+    XCTAssertTrue(stage.appears(within: 5), "the welcome stage probe is missing")
+    XCTAssertEqual(
+      stage.value as? String, "frame=1;rolling=false;dots=true", "the second frame is not shown")
+    try captureBoard("rd-ios-ses-02-welcome-frame-2")
+  }
+
+  func testCheckingSession() throws {
+    launchSignedOut(welcomeFrame: 0, extra: ["--putio-harness-sign-in-check-seconds", "600"])
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    signInButton.tap()
+    XCTAssertTrue(
+      app.buttons.matching(NSPredicate(format: "label == %@", "Checking your session"))
+        .firstMatch.appears(within: 10),
+      "the button never became busy")
+    try captureBoard("rd-ios-ses-04-waiting")
+  }
+
+  func testSignInFailed() throws {
+    launchSignedOut(welcomeFrame: nil, extra: ["--putio-harness-sign-in-fails-once"])
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    signInButton.tap()
+    XCTAssertTrue(element("auth.notice").appears(within: 10), "the failed notice never appeared")
+    try captureBoard("rd-ios-ses-05-failed")
+  }
+
+  func testSessionExpired() throws {
+    launchSignedOut(welcomeFrame: 0, extra: ["--putio-harness-session-expires"])
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    signInButton.tap()
+    XCTAssertTrue(
+      app.staticTexts["Welcome back!"].appears(within: 15), "the session never expired")
+    try captureBoard("rd-ios-ses-06-expired")
+  }
+
   func testPreviewLoading() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-previews")
@@ -427,6 +471,18 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(prompt.appears(within: 15), "the analytics prompt never appeared")
     XCTAssertTrue(
       app.buttons["analytics-prompt.allow"].appears(within: 5), "the prompt has no Allow")
+  }
+
+  private var signInButton: XCUIElement { element("auth.sign-in").firstMatch }
+
+  private func launchSignedOut(welcomeFrame: Int?, extra: [String] = []) {
+    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+    app.launchArguments += ["--putio-harness-signed-out-at-launch"] + extra
+    if let welcomeFrame {
+      app.launchArguments += ["--putio-harness-welcome-frame", String(welcomeFrame)]
+    }
+    app.launch()
   }
 
   private static let listDetailFileName = "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv"

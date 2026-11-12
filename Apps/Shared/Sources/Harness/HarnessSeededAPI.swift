@@ -411,6 +411,8 @@ import Foundation
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFails = false
+    nonisolated(unsafe) private static var sessionExpiryPending = ProcessInfo.processInfo
+      .arguments.contains("--putio-harness-session-expires")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     /// The seeded root video's original: its first delete fails so the
     /// downloads journey proves the remote failure report and retry.
@@ -458,6 +460,13 @@ import Foundation
     /// Fails the next account load once, for recovery tests.
     static func failNextAccountRefresh() {
       fileActionsLock.withLock { accountRefreshFailuresRemaining = 1 }
+    }
+
+    private static func consumeSessionExpiry() -> Bool {
+      logoutLock.withLock {
+        defer { sessionExpiryPending = false }
+        return sessionExpiryPending
+      }
     }
 
     static func configureSignOutFailure(_ enabled: Bool) {
@@ -966,6 +975,12 @@ import Foundation
         )
       }
       let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
+      if routeKey == "GET /v2/files/list", consumeSessionExpiry() {
+        return (
+          401,
+          fixtureError(statusCode: 401, type: "invalid_token", message: "Session expired")
+        )
+      }
       if request.httpMethod == "GET", let fileID = dynamicFileID(from: url.path),
         let response = actionFolderResponse(fileID: fileID)
       {
