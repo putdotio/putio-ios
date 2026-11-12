@@ -609,14 +609,46 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadSidebar() throws {
     orient(.landscapeLeft)
+    app.launchArguments += ["--putio-harness-pins", "three"]
     app.launch()
     openHarnessFolder()
-    let toggle = sidebarToggle()
-    XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
-    toggle.tap()
-    XCTAssertTrue(element("shell.storage").appears(within: 5), "the sidebar has no storage meter")
+    openSidebar()
     XCTAssertTrue(element("files.screen.410").exists, "opening the sidebar reset the Files path")
+    assertSidebarPins([440, 410, 412])
     try captureBoard("rd-ios-13-ipad-sidebar")
+
+    sidebarPin(440).tap()
+    XCTAssertTrue(element("files.screen.440").appears(within: 10), "the pinned folder never opened")
+    sidebarPin(410).tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 10), "the second pin never opened")
+
+    let pinnedRow = element("files.item.440")
+    XCTAssertTrue(pinnedRow.appears(within: 10), "the pinned folder row never appeared")
+    pinnedRow.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Unpin"].appears(within: 5), "the pinned folder offers no Unpin")
+    app.buttons["Unpin"].tap()
+    XCTAssertTrue(sidebarPin(440).disappears(within: 5), "Unpin left the pin in the sidebar")
+    assertSidebarPins([410, 412])
+
+    let nested = element("files.item.411")
+    nested.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Pin"].appears(within: 5), "the nested video offers no Pin")
+    app.buttons["Pin"].tap()
+    assertSidebarPins([411, 410, 412])
+
+    sidebarPin(411).tap()
+    let selection = element("files.selection")
+    XCTAssertTrue(selection.appears(within: 10), "the pinned file never opened")
+    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
+
+    app.terminate()
+    app.launchArguments[app.launchArguments.count - 1] = "fail"
+    app.launch()
+    openHarnessFolder()
+    openSidebar()
+    XCTAssertTrue(labeled("Account").exists, "failed pins hid the tabs")
+    XCTAssertFalse(labeled("Pinned").appears(within: 3), "failed pins drew the Pinned section")
+    XCTAssertEqual(sidebarPins().count, 0, "failed pins listed a pin")
   }
 
   func testIPadPortrait() throws {
@@ -1635,6 +1667,40 @@ final class BoardCaptureTests: XCTestCase {
       previous = current
     }
     return false
+  }
+
+  private func openSidebar() {
+    let toggle = sidebarToggle()
+    XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
+    toggle.tap()
+    XCTAssertTrue(element("shell.storage").appears(within: 5), "the sidebar has no storage meter")
+  }
+
+  private func sidebarPin(_ id: Int) -> XCUIElement {
+    element("shell.pinned.item.\(id)")
+  }
+
+  private func sidebarPins() -> [XCUIElement] {
+    app.descendants(matching: .any)
+      .matching(NSPredicate(format: "identifier BEGINSWITH %@", "shell.pinned.item."))
+      .allElementsBoundByIndex
+  }
+
+  private func assertSidebarPins(
+    _ ids: [Int], file: StaticString = #filePath, line: UInt = #line
+  ) {
+    XCTAssertTrue(
+      labeled("Pinned").appears(within: 10), "the sidebar has no Pinned section",
+      file: file, line: line)
+    let rows = ids.map(sidebarPin)
+    for (id, row) in zip(ids, rows) {
+      XCTAssertTrue(row.appears(within: 10), "sidebar pin \(id) is missing", file: file, line: line)
+    }
+    let tops = rows.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "sidebar pins are out of order", file: file, line: line)
+    XCTAssertEqual(
+      Set(sidebarPins().map(\.identifier)).count, ids.count, "the sidebar lists other pins",
+      file: file, line: line)
   }
 
   private func sidebarToggle() -> XCUIElement {
