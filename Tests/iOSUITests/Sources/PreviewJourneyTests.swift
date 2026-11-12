@@ -287,25 +287,9 @@ final class PreviewJourneyTests: XCTestCase {
   }
 
   private func assertShares(_ name: String, from control: XCUIElement, capture: String? = nil) {
-    XCTAssertTrue(control.isEnabled, "Share is disabled for \(name)")
-    control.tap()
-    let sheet = app.otherElements["ActivityListView"]
-    XCTAssertTrue(sheet.appears(within: 10), "no share sheet for \(name)")
-    let item = sheet.descendants(matching: .any)
-      .matching(NSPredicate(format: "label == %@", name)).firstMatch
-    XCTAssertTrue(item.appears(within: 20), "the share sheet does not name \(name)")
-    XCTAssertFalse(
-      sheet.descendants(matching: .any)
-        .matching(NSPredicate(format: "label CONTAINS 'put.io'")).firstMatch.exists,
-      "the share sheet shows a put.io link")
+    let sheet = app.openShareSheet(from: control, sharing: name)
     if let capture { screenshot("runtime-preview-share-\(capture)") }
-    let close = sheet.buttons["Close"]
-    if close.exists {
-      close.tap()
-    } else {
-      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
-    }
-    XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
+    app.dismissShareSheet(sheet)
   }
 
   private func copyLine(_ line: Int, in text: XCUIElement) {
