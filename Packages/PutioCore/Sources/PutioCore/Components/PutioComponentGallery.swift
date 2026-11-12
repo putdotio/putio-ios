@@ -820,6 +820,13 @@ private struct FeedbackPage: View {
       }
       .dynamicTypeSize(.xxLarge)
     }
+    #if os(iOS)
+      GallerySection(caption: "Toasts with an icon") {
+        PutioToastView(PutioSettingSaveFailures.failureToast)
+        PutioToastView(PutioSettingSaveFailures.failureToast)
+          .dynamicTypeSize(.xxLarge)
+      }
+    #endif
   }
 }
 
