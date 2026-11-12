@@ -1015,6 +1015,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "preview-vlc-failed", "PreviewJourneyTests/testVLCFailureToastNamesTheCause",
       attachmentNames: ["runtime-preview-vlc-failed"],
+      timeAllowance: 180),
+    JourneyPreflight(
       "preview-trash", "PreviewJourneyTests/testTrashShowsTheNextFileAndUndoBringsItBack",
       attachmentNames: ["runtime-preview-trashed", "runtime-preview-trashed-last"],
       timeAllowance: 180),
