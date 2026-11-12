@@ -390,18 +390,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func openSeasonFolder() {
     let signIn = element(identifier: "auth.sign-in")
     let harness = element(identifier: "files.item.410")
-    let season = element(identifier: "files.item.440")
+    let seasonRow = element(identifier: "files.item.440")
+    let season = element(identifier: "files.screen.440")
     let deadline = Date.now.addingTimeInterval(15)
-    while !signIn.exists, !harness.exists, !season.exists, Date.now < deadline {
+    while !signIn.exists, !harness.exists, !seasonRow.exists, !season.exists, Date.now < deadline {
       _ = season.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
     if !season.exists {
-      XCTAssertTrue(waitUntilHittable(harness, timeout: 10), "seeded folder never appeared")
-      harness.tap()
+      if !seasonRow.exists {
+        XCTAssertTrue(waitUntilHittable(harness, timeout: 10), "seeded folder never appeared")
+        harness.tap()
+      }
+      XCTAssertTrue(waitUntilHittable(seasonRow, timeout: 10), "season folder never appeared")
+      seasonRow.tap()
     }
-    XCTAssertTrue(waitUntilHittable(season, timeout: 10), "season folder never appeared")
-    season.tap()
     XCTAssertTrue(element(identifier: "files.header.440").appears(within: 10))
   }
 
@@ -1644,22 +1647,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForFirstItem("files.item.\(id)"), "files.item.\(id) is not first", file: file,
       line: line)
-  }
-
-  private func openSeasonFolder() {
-    let season = element(identifier: "files.screen.440")
-    if season.appears(within: 5) { return }
-    if !element(identifier: "files.screen.410").exists {
-      let root = element(identifier: "files.screen.0")
-      XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
-      let folder = element(identifier: "files.item.410")
-      XCTAssertTrue(folder.appears(within: 10), "seeded folder row never appeared")
-      folder.tap()
-    }
-    let seasonRow = element(identifier: "files.item.440")
-    XCTAssertTrue(seasonRow.appears(within: 10), "seeded season folder never appeared")
-    seasonRow.tap()
-    XCTAssertTrue(season.appears(within: 10), "season folder did not open")
   }
 
   private func openBrowseMenu() {
