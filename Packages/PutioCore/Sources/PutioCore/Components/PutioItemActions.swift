@@ -199,7 +199,8 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       .disabled(action.isDisabled)
       .tint(
         action.role == .destructive
-          ? PutioTheme.Colors.destructive : PutioTheme.Components.Button.secondaryBackground)
+          ? PutioTheme.Colors.destructive : PutioTheme.Components.Button.secondaryBackground
+      )
       .accessibilityIdentifier("item-swipe.\(action.id)")
     }
   }
