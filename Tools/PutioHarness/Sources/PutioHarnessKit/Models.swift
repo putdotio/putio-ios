@@ -809,6 +809,9 @@ enum BrowserJourneyContract {
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"], timeAllowance: 120),
     JourneyPreflight(
+      "account-rows", "AccountJourneyTests/testEveryAccountRowOpensAndClosesFromTopToEnd",
+      timeAllowance: 180),
+    JourneyPreflight(
       "analytics-prompt",
       "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",
       attachmentNames: ["runtime-analytics-prompt"]),
