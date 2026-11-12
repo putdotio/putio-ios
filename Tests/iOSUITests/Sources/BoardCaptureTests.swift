@@ -246,6 +246,43 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-ses-06-expired")
   }
 
+  func testRestoring() throws {
+    launchSavedCredential(extra: ["--putio-harness-restore-seconds", "600"])
+    XCTAssertTrue(
+      app.staticTexts["Restoring your session"].appears(within: 15), "restore showed no progress")
+    try captureBoard("rd-ios-ses-13-restoring")
+  }
+
+  func testSessionCheckFailed() throws {
+    launchSavedCredential(extra: ["--putio-harness-restore-offline-once"])
+    XCTAssertTrue(element("auth.retry").appears(within: 15), "the session check never failed")
+    try captureBoard("rd-ios-ses-14-check-failed")
+  }
+
+  func testSecureStorageUnavailable() throws {
+    launchSavedCredential(extra: ["--putio-harness-credential-read-fails-once"])
+    XCTAssertTrue(element("auth.retry").appears(within: 15), "the credential read never failed")
+    try captureBoard("rd-ios-ses-07-storage")
+  }
+
+  func testSigningOut() throws {
+    launchSignedOut(welcomeFrame: 0, extra: ["--putio-harness-sign-out-seconds", "600"])
+    XCTAssertTrue(signInButton.appears(within: 15), "the welcome screen never appeared")
+    signInButton.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 15), "sign-in never finished")
+    let account = tabButton("Account")
+    if !account.appears(within: 3) { sidebarToggle().tap() }
+    XCTAssertTrue(account.appears(within: 5), "the Account tab is missing")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "Account has no Sign out")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      app.staticTexts["Signing out"].appears(within: 10), "sign-out showed no progress")
+    try captureBoard("rd-ios-ses-15-signing-out")
+  }
+
   func testPreviewLoading() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-previews")
@@ -513,6 +550,13 @@ final class BoardCaptureTests: XCTestCase {
     if let welcomeFrame {
       app.launchArguments += ["--putio-harness-welcome-frame", String(welcomeFrame)]
     }
+    app.launch()
+  }
+
+  private func launchSavedCredential(extra: [String]) {
+    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+    app.launchArguments += ["--putio-harness-saved-credential-at-launch"] + extra
     app.launch()
   }
 

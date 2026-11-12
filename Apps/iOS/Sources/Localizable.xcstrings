@@ -1003,6 +1003,17 @@
         }
       }
     },
+    "Couldn’t check your session" : {
+      "comment" : "android: mobile_auth_unavailable_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t check your session"
+          }
+        }
+      }
+    },
     "Couldn’t rename." : {
       "comment" : "android: mobile_files_rename_error | differs: the toast carries Try again as its action",
       "localizations" : {
@@ -3547,6 +3558,17 @@
         }
       }
     },
+    "Reset and sign in" : {
+      "comment" : "android: mobile_auth_storage_reset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset and sign in"
+          }
+        }
+      }
+    },
     "Reset Folder Sorts" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
       "localizations" : {
@@ -3587,6 +3609,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore started!"
+          }
+        }
+      }
+    },
+    "Restoring your session" : {
+      "comment" : "android: mobile_auth_restoring",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restoring your session"
           }
         }
       }
@@ -3730,6 +3763,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Secret"
+          }
+        }
+      }
+    },
+    "Secure storage is unavailable" : {
+      "comment" : "android: mobile_auth_storage_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure storage is unavailable"
           }
         }
       }
@@ -3932,17 +3976,6 @@
         }
       }
     },
-    "Signing in again removes the saved sign-in from this device." : {
-      "comment" : "ios-only: no Android string for the iOS welcome screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signing in again removes the saved sign-in from this device."
-          }
-        }
-      }
-    },
     "Signing in asks for a code from your authenticator app. Recovery codes get you in without it." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -3954,13 +3987,13 @@
         }
       }
     },
-    "Signing out…" : {
-      "comment" : "android: mobile_auth_signing_out | differs: iOS adds an ellipsis",
+    "Signing out" : {
+      "comment" : "android: mobile_auth_signing_out",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Signing out…"
+            "value" : "Signing out"
           }
         }
       }
@@ -4999,6 +5032,28 @@
         }
       }
     },
+    "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again." : {
+      "comment" : "android: mobile_auth_storage_message | differs: names the iPad instead of the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again."
+          }
+        }
+      }
+    },
+    "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again." : {
+      "comment" : "android: mobile_auth_storage_message | differs: names the iPhone instead of the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again."
+          }
+        }
+      }
+    },
     "Your session expired. Sign in again to continue." : {
       "comment" : "android: mobile_welcome_expired",
       "localizations" : {
@@ -5006,6 +5061,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your session expired. Sign in again to continue."
+          }
+        }
+      }
+    },
+    "Your sign-in is still saved. Check your connection and try again." : {
+      "comment" : "android: mobile_auth_unavailable_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in is still saved. Check your connection and try again."
           }
         }
       }

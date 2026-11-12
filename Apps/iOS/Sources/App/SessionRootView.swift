@@ -19,9 +19,9 @@ struct SessionRootView: View {
     Group {
       switch runtime.session.state {
       case .unknown:
-        PutioLoadingStateView()
+        SessionProgressScreen(title: String(localized: "Restoring your session"))
       case .signingOut:
-        PutioLoadingStateView(title: String(localized: "Signing out…"))
+        SessionProgressScreen(title: String(localized: "Signing out"))
       case .signedOut, .authenticating:
         // One branch keeps the welcome screen mounted under the browser
         // sheet instead of swapping in a loading screen.

@@ -324,7 +324,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   func testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch() {
     let failure = "--putio-harness-sign-out-failure"
-    app.launchArguments.append(failure)
+    app.launchArguments += [failure, "--putio-harness-sign-out-seconds", "3"]
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
     let root = element(identifier: "files.screen.0")
@@ -338,8 +338,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
     signOut.tap()
     app.confirmSignOut()
+    XCTAssertTrue(
+      app.staticTexts["Signing out"].appears(within: 5), "sign-out showed no progress")
+    XCTAssertFalse(app.buttons["Account"].exists, "the tab bar stayed while signing out")
+    XCTAssertFalse(root.exists, "signed-in content stayed while signing out")
+    addScreenshot(named: "runtime-signing-out")
     XCTAssertTrue(signIn.appears(within: 15), "failed sign-out did not land on the welcome")
     XCTAssertEqual(element(identifier: "auth.welcome-title").label, "Welcome!")
+    XCTAssertEqual(signIn.label, "Sign in", "a failed sign-out changed the welcome")
+    XCTAssertFalse(
+      element(identifier: "auth.notice").exists, "a failed sign-out showed a notice")
     addScreenshot(named: "runtime-sign-out-failure")
 
     app.terminate()

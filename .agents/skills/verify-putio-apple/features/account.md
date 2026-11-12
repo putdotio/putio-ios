@@ -6,8 +6,12 @@ from a sign-out that did not finish.
 
 ## Sub-features
 
-- `sign-out-recovery` lands a failed sign-out on the welcome and never
-  restores the account on relaunch; the cleanup finishes once the fault clears.
+- `sign-out-recovery` shows "Signing out", lands a failed sign-out on the
+  welcome, and never restores the account on relaunch; the cleanup finishes
+  once the fault clears.
+- `session-restore-storage` and `session-restore-check` restore through an
+  unreadable credential and an offline session check: retry restores, a failed
+  reset keeps the screen, and the secondary action lands on the fresh welcome.
 - `security` shows recovery codes, links a device by code, lists apps, clears
   data, and destroys the account.
 - `file-preferences` recovers a failed save, resets, keeps settings across
@@ -37,8 +41,15 @@ Preconditions:
   removal until a launch without it.
 
 - **Sign-out recovery.** Run `--only sign-out-recovery`. The failed sign-out
-  and each relaunch show the welcome, never Files. Screenshot:
-  `runtime-sign-out-failure`.
+  and each relaunch show the welcome, never Files. Screenshots:
+  `runtime-signing-out`, `runtime-sign-out-failure`.
+- **Restore recovery.** Run `--only session-restore-storage,session-restore-check`.
+  `--putio-harness-saved-credential-at-launch` seeds the credential;
+  `--putio-harness-credential-read-fails-once` and
+  `--putio-harness-restore-offline-once` fail the first restore;
+  `--putio-harness-restore-seconds` and `--putio-harness-sign-out-seconds` hold
+  the progress screens. Screenshots: `runtime-session-storage`,
+  `runtime-session-restoring`, `runtime-session-check-failed`.
 - **Security.** Run `--only account-security`. Screenshots:
   `runtime-security-recovery-codes`, `runtime-security-apps`,
   `runtime-danger-clear-data`.
