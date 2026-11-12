@@ -6,6 +6,8 @@ extension XCUIApplication {
     file: StaticString = #filePath, line: UInt = #line
   ) -> XCUIElement {
     XCTAssertTrue(control.isEnabled, "Share is disabled for \(name)", file: file, line: line)
+    let anchor = control.frame
+    let anchorName = control.identifier
     control.tap()
     let sheet = otherElements["ActivityListView"]
     XCTAssertTrue(sheet.appears(within: 10), "no share sheet for \(name)", file: file, line: line)
@@ -23,7 +25,7 @@ extension XCUIApplication {
       labels.matching(NSPredicate(format: "label CONTAINS 'put.io'")).firstMatch.exists,
       "the share sheet shows a put.io link", file: file, line: line)
     if UIDevice.current.userInterfaceIdiom == .pad {
-      assertAnchored(sheet, to: control, file: file, line: line)
+      assertAnchored(sheet, to: anchor, named: anchorName, file: file, line: line)
     }
     return sheet
   }
@@ -42,11 +44,11 @@ extension XCUIApplication {
   }
 
   private func assertAnchored(
-    _ sheet: XCUIElement, to control: XCUIElement, file: StaticString, line: UInt
+    _ sheet: XCUIElement, to anchor: CGRect, named anchorName: String, file: StaticString,
+    line: UInt
   ) {
     let window = windows.firstMatch.frame
     let popover = sheet.frame
-    let anchor = control.frame
     let reach: CGFloat = 32
     let beside =
       popover.minY >= anchor.maxY - reach || popover.maxY <= anchor.minY + reach
@@ -55,7 +57,7 @@ extension XCUIApplication {
       || popover.midX >= anchor.minX && popover.midX <= anchor.maxX
     XCTAssertTrue(
       popover.width < window.width * 0.8 && beside && aligned,
-      "the share sheet is not anchored to \(control.identifier) at \(anchor): \(popover) in \(window)",
+      "the share sheet is not anchored to \(anchorName) at \(anchor): \(popover) in \(window)",
       file: file, line: line)
   }
 }
