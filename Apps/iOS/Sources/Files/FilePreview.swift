@@ -1525,9 +1525,17 @@ final class PutioInsetPDFView: PDFView {
     didSet { if insets != oldValue { setNeedsLayout() } }
   }
   private var placed = false
+  private var fittedSize: CGSize = .zero
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    if bounds.size != fittedSize, bounds.width > 0, bounds.height > 0 {
+      if fittedSize != .zero, document != nil {
+        scaleFactor = scaleFactorForSizeToFit
+        autoScales = true
+      }
+      fittedSize = bounds.size
+    }
     guard let scrollView = firstScrollView else { return }
     scrollView.topEdgeEffect.isHidden = true
     scrollView.contentInsetAdjustmentBehavior = .never
