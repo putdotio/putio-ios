@@ -705,10 +705,16 @@ final class PutioOfflineQueue {
   private func schedule() {
     guard isLive(), !awaitsRestore else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
+    var requeued = false
     resumeWhenFree.removeAll { fileID in
-      guard suspended.contains(fileID), let stage = item(for: fileID)?.stage else { return true }
-      return !isPaused(stage)
+      guard let index = items.firstIndex(where: { $0.id == fileID }), isPaused(items[index].stage)
+      else { return true }
+      guard !suspended.contains(fileID), workers[fileID] == nil else { return false }
+      items[index].stage = .queued
+      requeued = true
+      return true
     }
+    if requeued { persist() }
     for item in items where slots > 0 {
       if resumeWhenFree.contains(item.id), case .paused(let progress) = item.stage {
         resumeWhenFree.removeAll { $0 == item.id }

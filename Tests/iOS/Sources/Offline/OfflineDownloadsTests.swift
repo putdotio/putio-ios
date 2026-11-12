@@ -95,6 +95,7 @@ final class OfflineDownloadsTests: XCTestCase {
     var started: [PutioFileID] = []
     var resumed: [PutioFileID] = []
     var cancelled: [PutioFileID] = []
+    var reportsCancellation = true
     private let gate: AsyncGate
 
     init(gate: AsyncGate) { self.gate = gate }
@@ -111,7 +112,7 @@ final class OfflineDownloadsTests: XCTestCase {
     func resume(fileID: PutioFileID) { resumed.append(fileID) }
     func cancel(fileID: PutioFileID) {
       cancelled.append(fileID)
-      onCancelled?(fileID)
+      if reportsCancellation { onCancelled?(fileID) }
     }
     func restoreTasks() async -> [PutioFileID] { [] }
     func stop() {}
@@ -469,6 +470,31 @@ final class OfflineDownloadsTests: XCTestCase {
     try engine.finish(ids[0], at: directory)
     await settle()
     XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[1], ids[1]], "the waiter never restarted")
+  }
+
+  func testADownloadStillStartingWhenItYieldsGoesBackInLine() async {
+    let gate = makeGate()
+    let slow = SlowStartEngine(gate: gate)
+    slow.reportsCancellation = false
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: slow, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(slow.cancelled, [PutioFileID(rawValue: 2)])
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .queued)
+    XCTAssertFalse(queue.isWaitingForSlot(PutioFileID(rawValue: 2)))
   }
 
   func testLoweringTheLimitRequeuesADownloadStillResolving() async {
