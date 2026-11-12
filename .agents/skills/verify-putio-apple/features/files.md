@@ -63,8 +63,12 @@ Preconditions:
 - **Folder header.** Run `--only folder-header`. Screenshot:
   `runtime-folder-header`.
 - **Sort and continuation.** Run `--only sort-continuation`. `Season Pack.zip`
-  appends without a tap; Name descending puts `Document.pdf` first. Screenshot:
+  appends without a tap; `Z to A` puts `Document.pdf` first. Screenshot:
   `runtime-sorted-root`.
+- **Sort menu.** Run `--only sort-menu`. Blue Lights walks every field and both
+  orders, `Unwatched first` and `Watched first`, a failed first `Type, Z to A`,
+  then a relaunch keeps the folder's order while Harness Folder keeps the
+  account default.
 - **Search.** Run `--only search-restoration`. A failed second page offers
   retry, results append, and a relaunch reopens Harness Folder until sign-out.
   Screenshot: `runtime-search-results`.

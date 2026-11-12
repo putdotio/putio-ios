@@ -1032,6 +1032,14 @@ enum BrowserJourneyContract {
       "FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage",
       attachmentNames: ["runtime-sorted-root"], timeAllowance: 90),
     JourneyPreflight(
+      "sort-menu",
+      "FilesBrowserJourneyTests/testSortMenuSectionsFailureRelaunchAndAccountDefault",
+      attachmentNames: [
+        "runtime-sort-account-default", "runtime-sort-failed", "runtime-sort-unwatched-first",
+        "runtime-sort-other-folder-default",
+      ],
+      timeAllowance: 240),
+    JourneyPreflight(
       "search-restoration",
       "FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration",
       attachmentNames: ["runtime-search-results"], timeAllowance: 180),
