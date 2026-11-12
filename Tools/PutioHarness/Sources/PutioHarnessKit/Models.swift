@@ -584,6 +584,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-32-load-more-failed", .iphone, "testFolderLoadMoreFailed"),
       BoardCapture("rd-ios-40-loading", .iphone, "testFolderLoading"),
       BoardCapture("rd-ios-41-loading-more", .iphone, "testFolderLoadingMore"),
+      BoardCapture("rd-ios-09-error", .iphone, "testFolderLoadFailed"),
+      BoardCapture("rd-ios-43-offline", .iphone, "testFolderOffline"),
+      BoardCapture("rd-ios-44-no-access", .iphone, "testFolderNoAccess"),
+      BoardCapture("rd-ios-74-rate-limited", .iphone, "testFolderRateLimited"),
+      BoardCapture("rd-ios-75-unavailable", .iphone, "testFolderUnavailable"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
       BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
@@ -1056,6 +1061,10 @@ enum BrowserJourneyContract {
       "folder-states", "FilesBrowserJourneyTests/testFolderEmptyPagingFailedPageAndPullToRefresh",
       attachmentNames: ["runtime-folder-empty", "runtime-folder-load-more-failed"],
       timeAllowance: 240),
+    JourneyPreflight(
+      "folder-errors", "FilesBrowserJourneyTests/testFolderFailuresNameTheirReasonAndRecover",
+      attachmentNames: ["runtime-folder-forbidden", "runtime-folder-offline"],
+      timeAllowance: 180),
     JourneyPreflight(
       "folder-reconciliation",
       "FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs",

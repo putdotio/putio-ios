@@ -8,10 +8,26 @@ extension PutioRuntime {
     parentID: PutioFileID = .root, perPage: Int? = nil
   ) async throws -> PutioFolderContents {
     let result = try await performAuthenticatedOperation {
-      try await sdk.getFiles(
-        parentID: parentID.rawValue, query: PutioFilesListQuery(perPage: perPage, total: true))
+      do {
+        return try await sdk.getFiles(
+          parentID: parentID.rawValue, query: PutioFilesListQuery(perPage: perPage, total: true))
+      } catch let error as PutioSDKError {
+        throw Self.folderLoadError(error) ?? error
+      }
     }
     return folderContents(from: result)
+  }
+
+  static func folderLoadError(_ error: PutioSDKError) -> PutioFolderLoadError? {
+    switch error.statusCode {
+    case 403 where !["invalid_grant", "invalid_token"].contains(error.apiErrorType):
+      return .forbidden
+    case 503: return .unavailable
+    default: break
+    }
+    if neverLeftDevice(error) { return .offline }
+    if (error.underlyingError as? URLError)?.code == .networkConnectionLost { return .offline }
+    return nil
   }
 
   /// Lists only the folders under `parentID`, for picking a move destination.

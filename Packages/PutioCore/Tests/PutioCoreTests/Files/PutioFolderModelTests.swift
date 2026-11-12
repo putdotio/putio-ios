@@ -533,6 +533,96 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(recovered))
   }
 
+  func testOfflineRetryKeepsTheFailureOnScreenUntilTheFolderLoads() async throws {
+    let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
+    let recovered = BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: 9)])
+    let model = PutioFolderModel(folderID: .root) { folderID in
+      try await loader.load(folderID: folderID)
+    }
+
+    let initialTask = Task { await model.loadIfNeeded() }
+    try await loader.waitForRequestCount(1)
+    await loader.fail(request: 0, with: PutioFolderLoadError.offline)
+    await initialTask.value
+    guard case .failed(let offline) = model.state, offline.isOffline else {
+      return XCTFail("expected offline, got \(model.state)")
+    }
+
+    let stillOffline = Task { await model.retryKeepingFailure() }
+    try await loader.waitForRequestCount(2)
+    XCTAssertEqual(model.state, .failed(offline))
+    await loader.fail(request: 1, with: PutioFolderLoadError.offline)
+    let failedAgain = await stillOffline.value
+    XCTAssertFalse(failedAgain)
+    XCTAssertEqual(model.state, .failed(offline))
+
+    let backOnline = Task { await model.retryKeepingFailure() }
+    try await loader.waitForRequestCount(3)
+    XCTAssertEqual(model.state, .failed(offline))
+    await loader.succeed(request: 2, with: recovered)
+    let loaded = await backOnline.value
+    XCTAssertTrue(loaded)
+    XCTAssertEqual(model.state, .loaded(recovered))
+    let afterLoad = await model.retryKeepingFailure()
+    XCTAssertFalse(afterLoad)
+  }
+
+  func testCancelledRetryKeepsTheFailure() async throws {
+    let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
+    let model = PutioFolderModel(folderID: .root) { folderID in
+      try await loader.load(folderID: folderID)
+    }
+    let initialTask = Task { await model.loadIfNeeded() }
+    try await loader.waitForRequestCount(1)
+    await loader.fail(request: 0, with: PutioFolderLoadError.forbidden)
+    await initialTask.value
+    guard case .failed(let forbidden) = model.state else {
+      return XCTFail("expected failed, got \(model.state)")
+    }
+
+    let retry = Task { await model.retry() }
+    try await loader.waitForRequestCount(2)
+    retry.cancel()
+    await loader.fail(request: 1, with: CancellationError())
+    await retry.value
+
+    XCTAssertEqual(model.state, .failed(forbidden))
+  }
+
+  func testFolderFailuresNameTheirReason() {
+    let expected: [(Error, String, String)] = [
+      (PutioRuntimeError.transient, "Couldn’t load this", "Check your connection and try again."),
+      (
+        PutioRuntimeError.unknown, "Couldn’t load this",
+        "put.io could not complete the request. Try again."
+      ),
+      (
+        PutioFolderLoadError.forbidden, "Couldn’t load this",
+        "You don’t have access to this folder."
+      ),
+      (
+        PutioRuntimeError.rateLimited, "Couldn’t load this",
+        "put.io is receiving too many requests. Try again shortly."
+      ),
+      (
+        PutioFolderLoadError.unavailable, "Couldn’t load this",
+        "put.io is temporarily unavailable. Try again."
+      ),
+      (
+        PutioFolderLoadError.offline, "put.io is out of reach",
+        "Your connection dropped, or we did. Retrying on its own."
+      ),
+    ]
+    for (error, title, message) in expected {
+      let presentation = PutioBrowserErrorPresentation(error: error)
+      XCTAssertEqual(presentation?.title, title, "\(error)")
+      XCTAssertEqual(presentation?.message, message, "\(error)")
+      XCTAssertEqual(presentation?.isOffline, error as? PutioFolderLoadError == .offline)
+    }
+  }
+
   func testInitialSessionFailureNeverBecomesAnInlineBrowserError() async {
     let model = PutioFolderModel(folderID: .root) { _ in
       throw PutioRuntimeError.authenticationRequired
@@ -2529,7 +2619,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertFalse(appended)
     XCTAssertEqual(model.state, .loaded(initial))
-    XCTAssertEqual(model.loadMoreFailure?.title, "Could not load files")
+    XCTAssertEqual(model.loadMoreFailure?.title, "Couldn’t load this")
     XCTAssertTrue(model.canLoadMore)
   }
 
@@ -2783,7 +2873,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.sort, .sizeDescending)
     XCTAssertEqual(
       model.state, .loaded(BrowserTestFixtures.contents(items: [item], sort: .sizeDescending)))
-    XCTAssertEqual(model.refreshFailure?.title, "Could not load files")
+    XCTAssertEqual(model.refreshFailure?.title, "Couldn’t load this")
   }
 
   func testSetSortToTheCurrentValueIsANoOp() async {

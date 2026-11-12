@@ -6,6 +6,7 @@ import XCTest
 @MainActor
 final class PutioRuntimeTests: XCTestCase {
   static let filesRoute = "GET /v2/files/list"
+  static let searchProbeRoute = "GET /v2/files/search"
   private static let logoutRoute = "POST /v2/oauth/grants/logout"
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
@@ -106,11 +107,11 @@ final class PutioRuntimeTests: XCTestCase {
       fixtures.setFixture(
         #"{"status":"ERROR","error_type":"invalid_grant"}"#,
         statusCode: statusCode,
-        for: Self.filesRoute
+        for: Self.searchProbeRoute
       )
 
       await assertRuntimeError(.sessionExpired) {
-        _ = try await runtime.listFiles()
+        _ = try await runtime.searchFiles(query: "video")
       }
 
       XCTAssertEqual(
@@ -122,7 +123,7 @@ final class PutioRuntimeTests: XCTestCase {
 
       let requestCount = fixtures.capturedRequests().count
       await assertRuntimeError(.sessionExpired) {
-        _ = try await runtime.listFiles()
+        _ = try await runtime.searchFiles(query: "video")
       }
       XCTAssertEqual(
         fixtures.capturedRequests().count,
@@ -143,27 +144,27 @@ final class PutioRuntimeTests: XCTestCase {
       fixtures.setFixture(
         #"{"status":"ERROR"}"#,
         statusCode: statusCode,
-        for: Self.filesRoute
+        for: Self.searchProbeRoute
       )
       await assertRuntimeError(expected) {
-        _ = try await runtime.listFiles()
+        _ = try await runtime.searchFiles(query: "video")
       }
     }
 
-    fixtures.setNetworkFailure(true, for: Self.filesRoute)
+    fixtures.setNetworkFailure(true, for: Self.searchProbeRoute)
     await assertRuntimeError(.transient) {
-      _ = try await runtime.listFiles()
+      _ = try await runtime.searchFiles(query: "video")
     }
-    fixtures.setNetworkFailure(false, for: Self.filesRoute)
+    fixtures.setNetworkFailure(false, for: Self.searchProbeRoute)
 
-    fixtures.setFixture("{", for: Self.filesRoute)
+    fixtures.setFixture("{", for: Self.searchProbeRoute)
     await assertRuntimeError(.invalidResponse) {
-      _ = try await runtime.listFiles()
+      _ = try await runtime.searchFiles(query: "video")
     }
 
-    fixtures.setNonHTTPResponse(true, for: Self.filesRoute)
+    fixtures.setNonHTTPResponse(true, for: Self.searchProbeRoute)
     await assertRuntimeError(.unknown) {
-      _ = try await runtime.listFiles()
+      _ = try await runtime.searchFiles(query: "video")
     }
   }
 

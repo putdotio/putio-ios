@@ -218,7 +218,7 @@ public struct PutioErrorStateView: View {
           .frame(width: iconSize, height: iconSize)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityHidden(true)
-        Text(String(localized: "Offline. Showing what’s on this iPhone.", bundle: .module))
+        Text(message)
           .putioFont(PutioScreenStateLayout.messageFont)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .frame(maxWidth: .infinity, alignment: .leading)
@@ -231,6 +231,15 @@ public struct PutioErrorStateView: View {
           cornerRadius: PutioScreenStateLayout.bannerCornerRadius, style: .continuous)
       )
       .accessibilityElement(children: .combine)
+    }
+
+    private var message: String {
+      #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+          return String(localized: "Offline. Showing what’s on this iPad.", bundle: .module)
+        }
+      #endif
+      return String(localized: "Offline. Showing what’s on this iPhone.", bundle: .module)
     }
   }
 

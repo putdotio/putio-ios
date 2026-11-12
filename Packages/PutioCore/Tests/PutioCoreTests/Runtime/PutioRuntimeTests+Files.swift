@@ -27,6 +27,55 @@ extension PutioRuntimeTests {
     XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
+  func testListNamesForbiddenUnavailableAndOfflineFoldersWithoutExpiringTheSession() async {
+    let cases: [(statusCode: Int?, expected: PutioFolderLoadError)] = [
+      (403, .forbidden), (503, .unavailable), (nil, .offline),
+    ]
+    for (statusCode, expected) in cases {
+      fixtures.reset()
+      let (runtime, tokenStore) = await makeSignedInRuntime()
+      if let statusCode {
+        fixtures.setFixture(
+          #"{"status":"ERROR","error_type":"HARNESS"}"#, statusCode: statusCode,
+          for: Self.filesRoute)
+      } else {
+        fixtures.setNetworkFailure(true, for: Self.filesRoute)
+      }
+      do {
+        _ = try await runtime.listFiles()
+        XCTFail("expected \(expected)")
+      } catch {
+        XCTAssertEqual(error as? PutioFolderLoadError, expected)
+      }
+      guard case .signedIn = runtime.session.state else {
+        return XCTFail("a \(expected) folder ended the session")
+      }
+      XCTAssertNotNil(try? tokenStore.read())
+    }
+  }
+
+  func testListKeepsRateLimitAndExpiresTheSessionOnAuthenticationFailure() async {
+    fixtures.reset()
+    var (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"RATE"}"#, statusCode: 429, for: Self.filesRoute)
+    await assertRuntimeError(.rateLimited) { _ = try await runtime.listFiles() }
+
+    fixtures.reset()
+    (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401, for: Self.filesRoute)
+    await assertRuntimeError(.sessionExpired) { _ = try await runtime.listFiles() }
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+
+    fixtures.reset()
+    (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 403, for: Self.filesRoute)
+    await assertRuntimeError(.sessionExpired) { _ = try await runtime.listFiles() }
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+  }
+
   func testListMapsAppOwnedValuesAndKeepsCursorAndSort() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(

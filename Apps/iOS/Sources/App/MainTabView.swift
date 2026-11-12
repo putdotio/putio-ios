@@ -569,7 +569,8 @@ struct MainTabView: View {
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
       castButton: { AnyView(PutioCastButton(model: cast)) },
-      accountNotice: PutioInactiveAccountNotice(account: account)
+      accountNotice: PutioInactiveAccountNotice(account: account),
+      offlineFiles: PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
     )
     .environment(
       \.putioPreviewOpen,

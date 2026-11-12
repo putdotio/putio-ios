@@ -1066,6 +1066,62 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  func testFolderFailuresNameTheirReasonAndRecover() {
+    app.launchArguments += ["--putio-harness-folder-fault", "403,429,503,offline@440"]
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    element(identifier: "files.item.410").tap()
+    XCTAssertTrue(element(identifier: "files.header.410").appears(within: 10))
+    let season = element(identifier: "files.item.440")
+    XCTAssertTrue(waitUntilHittable(season, timeout: 5), "the season folder never appeared")
+    season.tap()
+
+    let retry = element(identifier: "files.retry.440")
+    let reasons = [
+      "You don’t have access to this folder.",
+      "put.io is receiving too many requests. Try again shortly.",
+      "put.io is temporarily unavailable. Try again.",
+    ]
+    for reason in reasons {
+      XCTAssertTrue(app.staticTexts[reason].appears(within: 10), "never said: \(reason)")
+      XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists, "the failure has no title")
+      XCTAssertTrue(app.navigationBars["Blue Lights"].exists, "the failure lost its folder")
+      if reason == reasons[0] { addScreenshot(named: "runtime-folder-forbidden") }
+      XCTAssertTrue(waitUntilHittable(retry, timeout: 5), "the failure offers no Try again")
+      retry.tap()
+    }
+
+    XCTAssertTrue(
+      app.staticTexts["put.io is out of reach"].appears(within: 10), "the folder never went offline"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists,
+      "the offline state does not say it retries")
+    XCTAssertFalse(
+      element(identifier: "files.offline-banner").exists, "the banner shows with no downloads")
+    addScreenshot(named: "runtime-folder-offline")
+    let header = element(identifier: "files.header.440")
+    XCTAssertTrue(header.appears(within: 15), "the offline folder never retried on its own")
+
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      element(identifier: "files.header.410").appears(within: 5), "recovery lost the folder path")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
+    let account = app.buttons["Account"]
+    if !account.exists { app.buttons["Files"].tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
   func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
     app.launch()
     let signIn = element(identifier: "auth.sign-in")

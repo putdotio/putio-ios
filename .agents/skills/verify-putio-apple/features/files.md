@@ -73,6 +73,12 @@ Preconditions:
   `--putio-harness-folder-states` adds `Empty` (423) and the 450-file
   `Paging Folder` (460), whose page 2 fails once. Screenshots:
   `runtime-folder-empty`, `runtime-folder-load-more-failed`.
+- **Folder errors.** Run `--only folder-errors`.
+  `--putio-harness-folder-fault <faults>@<folder id>` fails that folder's next
+  listings in order, then lists it; a fault is a status code or `offline`.
+  Blue Lights walks 403, 429, 503 and offline, then retries on its own; the
+  offline banner shows only above finished downloads.
+  Screenshots: `runtime-folder-forbidden`, `runtime-folder-offline`.
 - **Search.** Run `--only search-restoration`. A failed second page offers
   retry, results append, and a relaunch reopens Harness Folder until sign-out.
   Screenshot: `runtime-search-results`.

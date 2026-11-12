@@ -392,6 +392,12 @@ public enum PutioRuntimeError: Error, Equatable, Sendable {
   case unknown
 }
 
+public enum PutioFolderLoadError: Error, Equatable, Sendable {
+  case forbidden
+  case unavailable
+  case offline
+}
+
 public enum PutioHistoryEventKind: Equatable, Sendable {
   case upload(name: String, sizeBytes: Int64, fileID: PutioFileID?)
   case fileShared(name: String, sharingUserName: String, fileID: PutioFileID?)

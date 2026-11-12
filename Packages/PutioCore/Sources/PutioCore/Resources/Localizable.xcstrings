@@ -1183,6 +1183,17 @@
         }
       }
     },
+    "Offline. Showing what’s on this iPad." : {
+      "comment" : "android: mobile_files_offline_banner | differs: iOS board names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline. Showing what’s on this iPad."
+          }
+        }
+      }
+    },
     "Offline. Showing what’s on this iPhone." : {
       "comment" : "android: mobile_files_offline_banner | differs: iOS board names the iPhone",
       "localizations" : {
@@ -1887,6 +1898,17 @@
         }
       }
     },
+    "You don’t have access to this folder." : {
+      "comment" : "android: mobile_state_error_forbidden",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You don’t have access to this folder."
+          }
+        }
+      }
+    },
     "Your account has been deactivated 😢" : {
       "comment" : "android: account_inactive_title",
       "localizations" : {
@@ -2027,6 +2049,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io is receiving too many requests. Try again shortly."
+          }
+        }
+      }
+    },
+    "put.io is temporarily unavailable. Try again." : {
+      "comment" : "android: mobile_state_error_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io is temporarily unavailable. Try again."
           }
         }
       }

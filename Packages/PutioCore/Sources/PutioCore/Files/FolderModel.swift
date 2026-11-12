@@ -193,6 +193,12 @@ public final class PutioFolderModel {
   }
 
   @discardableResult
+  public func retryKeepingFailure() async -> Bool {
+    guard case .failed = state else { return false }
+    return await performLoad(mode: .retryKeepingFailure)
+  }
+
+  @discardableResult
   public func refresh() async -> Bool {
     guard case .loaded = state else { return false }
     guard !mutationIsActive else {
@@ -630,7 +636,7 @@ public final class PutioFolderModel {
     case .replace:
       state = .loading
       refreshFailure = nil
-    case .refresh:
+    case .refresh, .retryKeepingFailure:
       refreshFailure = nil
     }
 
@@ -658,7 +664,7 @@ public final class PutioFolderModel {
         return false
       }
       switch mode {
-      case .replace:
+      case .replace, .retryKeepingFailure:
         state = .failed(presentation)
         refreshFailure = nil
       case .refresh:
@@ -782,4 +788,5 @@ extension PutioFileItem {
 private enum LoadMode {
   case replace
   case refresh
+  case retryKeepingFailure
 }
