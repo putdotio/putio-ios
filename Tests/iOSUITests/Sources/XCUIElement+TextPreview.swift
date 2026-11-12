@@ -19,6 +19,7 @@ extension XCUIElement {
     while !end.isOnScreen, Date.now < deadline {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.2))
     }
+    coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.99)).tap()
   }
 
   var isOnScreen: Bool {
