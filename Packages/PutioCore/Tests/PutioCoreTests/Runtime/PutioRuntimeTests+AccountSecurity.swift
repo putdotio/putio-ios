@@ -32,7 +32,7 @@ extension PutioRuntimeTests {
           id: 3001, name: "put.io iOS", lastUsedAt: used("2026-11-12T09:00:00"), hasIcon: true,
           isCurrentClient: true),
         PutioAuthorizedApp(
-          id: 46, name: "Plex", lastUsedAt: used("2026-11-10T08:00:00"), isCurrentClient: true),
+          id: 46, name: "Plex", lastUsedAt: used("2026-11-10T08:00:00"), isCurrentClient: false),
         PutioAuthorizedApp(
           id: 42, name: "Living Room TV", lastUsedAt: used("2026-11-09T18:30:00"), hasIcon: true,
           isCurrentClient: false),
@@ -43,6 +43,14 @@ extension PutioRuntimeTests {
     XCTAssertEqual(
       fixtures.capturedRequests().suffix(2).compactMap(\.url?.path),
       ["/v2/oauth/grants", "/v2/oauth/clients"])
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"Unavailable","message":"no"}"#, statusCode: 503,
+      for: "GET /v2/oauth/clients")
+    let withoutSessions = try await runtime.listAuthorizedApps()
+    XCTAssertEqual(withoutSessions.map(\.id), [3001, 44, 45, 42, 46])
+    XCTAssertTrue(withoutSessions.allSatisfy { $0.lastUsedAt == nil })
+    XCTAssertEqual(withoutSessions.first { $0.id == 44 }?.name, "")
 
     fixtures.setFixture("PNGDATA", for: "GET /v2/oauth/apps/42/icon")
     let icon = try await runtime.authorizedAppIcon(id: 42)

@@ -309,22 +309,48 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertFalse(model.isSigningOutOthers)
   }
 
-  func testIconsLoadOnlyForAppsThatHaveOneAndAreCached() async {
+  func testIconsLoadOnceOnlyForAppsThatHaveOne() async {
     var requested: [Int] = []
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(appIcon: { id in
         requested.append(id)
+        if id == 43 { throw PutioRuntimeError.notFound }
         return Data([UInt8(id)])
       }))
     let withIcon = PutioAuthorizedApp(id: 42, name: "TV", hasIcon: true, isCurrentClient: false)
+    let broken = PutioAuthorizedApp(id: 43, name: "Android", hasIcon: true, isCurrentClient: false)
     let withoutIcon = PutioAuthorizedApp(id: 44, name: "Infuse", isCurrentClient: false)
     let first = await model.icon(for: withIcon)
     let second = await model.icon(for: withIcon)
+    let missing = await model.icon(for: broken)
+    let missingAgain = await model.icon(for: broken)
     let none = await model.icon(for: withoutIcon)
     XCTAssertEqual(first, Data([42]))
     XCTAssertEqual(second, Data([42]))
+    XCTAssertNil(missing)
+    XCTAssertNil(missingAgain)
     XCTAssertNil(none)
-    XCTAssertEqual(requested, [42])
+    XCTAssertEqual(requested, [42, 43], "an icon was requested twice")
+  }
+
+  func testSignOutOthersStopsWhenTheSessionEnds() async {
+    var revoked: [Int] = []
+    let apps = [
+      PutioAuthorizedApp(id: 3001, name: "This", isCurrentClient: true),
+      PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false),
+      PutioAuthorizedApp(id: 43, name: "Android", isCurrentClient: false),
+    ]
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(
+        listApps: { apps },
+        revokeApp: { id in
+          revoked.append(id)
+          throw PutioRuntimeError.sessionExpired
+        }))
+    await model.load()
+    await model.signOutOthers()
+    XCTAssertEqual(revoked, [42], "revokes kept going after the session ended")
+    XCTAssertFalse(model.isSigningOutOthers)
   }
 
   func testReloadDropsARevokeFailureWhoseGrantIsGone() async {

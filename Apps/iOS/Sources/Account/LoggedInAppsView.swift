@@ -35,7 +35,7 @@ struct LoggedInAppsView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .refreshable { await model.load() }
+    .refreshable { if !model.isBusy { await model.load() } }
     .navigationTitle(String(localized: "Logged-in apps"))
     .navigationBarTitleDisplayMode(.inline)
     .putioFont(PutioTheme.Typography.body)

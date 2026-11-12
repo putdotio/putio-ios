@@ -383,7 +383,8 @@ public final class PutioAuthorizedAppsModel {
   public private(set) var isSigningOutOthers = false
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var generation = 0
-  @ObservationIgnored private var icons: [Int: Data] = [:]
+  @ObservationIgnored private var icons: [Int: Data?] = [:]
+  @ObservationIgnored private var iconRequests: [Int: Task<Data?, Never>] = [:]
 
   public init(actions: PutioAccountSecurityActions) {
     self.actions = actions
@@ -425,26 +426,28 @@ public final class PutioAuthorizedAppsModel {
   public func signOutOthers() async {
     guard !isBusy, canSignOutOthers else { return }
     isSigningOutOthers = true
-    let task = Task { @MainActor in
-      defer { isSigningOutOthers = false }
-      for app in apps where !app.isCurrentClient {
-        await runRevoke(id: app.id)
-      }
+    defer { isSigningOutOthers = false }
+    for app in apps where !app.isCurrentClient {
+      guard await runRevoke(id: app.id) else { return }
     }
-    await task.value
   }
 
   public func icon(for app: PutioAuthorizedApp) async -> Data? {
     guard app.hasIcon else { return nil }
     if let icon = icons[app.id] { return icon }
-    guard let icon = try? await actions.appIcon(app.id) else { return nil }
+    if let pending = iconRequests[app.id] { return await pending.value }
+    let actions = actions
+    let request = Task { @MainActor in try? await actions.appIcon(app.id) }
+    iconRequests[app.id] = request
+    let icon = await request.value
     icons[app.id] = icon
     return icon
   }
 
-  private func runRevoke(id: Int) async {
+  @discardableResult
+  private func runRevoke(id: Int) async -> Bool {
     guard revokingID == nil, let app = apps.first(where: { $0.id == id }), !app.isCurrentClient
-    else { return }
+    else { return true }
     revokingID = id
     revokeFailures[id] = nil
     let task = Task { @MainActor in
@@ -453,12 +456,16 @@ public final class PutioAuthorizedAppsModel {
         try await actions.revokeApp(id)
         generation += 1
         state = .loaded(apps.filter { $0.id != id })
+        return true
       } catch {
-        guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
+        guard let message = PutioAccountSecurityPresentation.message(for: error) else {
+          return false
+        }
         revokeFailures[id] = message
+        return true
       }
     }
-    await task.value
+    return await task.value
   }
 }
 

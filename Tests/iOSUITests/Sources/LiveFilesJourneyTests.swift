@@ -42,7 +42,6 @@ final class LiveFilesJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.descendants(matching: .any)["preview.screen.\(fileID)"].waitForNonExistence(timeout: 5))
 
-    // The account's grants, read-only: this run's own grant is "This iPhone".
     selectTab("Account", in: app)
     let apps = app.revealed("security.apps")
     XCTAssertTrue(apps.waitForExistence(timeout: 10))

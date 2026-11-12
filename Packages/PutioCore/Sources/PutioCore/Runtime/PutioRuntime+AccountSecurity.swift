@@ -5,9 +5,11 @@ extension PutioRuntime {
   /// Grants the account has issued, with this app's own grant flagged so it
   /// is never offered for revocation.
   public func listAuthorizedApps() async throws -> [PutioAuthorizedApp] {
-    let (grants, clients, clientID) = try await performAuthenticatedOperation {
-      (try await sdk.getGrants(), try await sdk.getClients(), sdk.config.clientID)
+    let (grants, clientID) = try await performAuthenticatedOperation {
+      (try await sdk.getGrants(), sdk.config.clientID)
     }
+    let clients =
+      (try? await performAuthenticatedOperation { try await sdk.getClients() }) ?? []
     let sessions = Dictionary(grouping: clients, by: \.appID)
     var ids = Set<Int>()
     let apps = try grants.map { grant in
@@ -24,7 +26,7 @@ extension PutioRuntime {
           $0.lastUsedAt.flatMap(PutioAccountSnapshot.timestamp)
         }.max(),
         hasIcon: grant.hasIcon == true,
-        isCurrentClient: String(grant.id) == clientID || appSessions.contains(where: \.isActive))
+        isCurrentClient: String(grant.id) == clientID)
     }
     return apps.sorted { lhs, rhs in
       if lhs.isCurrentClient != rhs.isCurrentClient { return lhs.isCurrentClient }
