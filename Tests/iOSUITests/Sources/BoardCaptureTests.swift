@@ -69,6 +69,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(app.revealed("files.item.407").exists, "the archive row never appeared")
     openItemMenu("files.item.407")
     try captureBoard("rd-ios-63-file-menu")
+  }
+
   func testMoreMenu() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
@@ -81,7 +83,7 @@ final class BoardCaptureTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
     openSeasonFolder()
-    let alert = openRename(Self.subtitleName)
+    let alert = openRename()
     XCTAssertEqual(alert.textFields.firstMatch.value as? String, Self.subtitleName)
     XCTAssertFalse(
       alert.buttons["Rename"].firstMatch.isEnabled, "Rename is enabled for an unchanged name")
@@ -110,7 +112,7 @@ final class BoardCaptureTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
     openSeasonFolder()
-    let alert = openRename(Self.subtitleName)
+    let alert = openRename()
     app.typeText("Blue.Lights.S04E01.de")
     XCTAssertEqual(
       alert.textFields.firstMatch.value as? String, "Blue.Lights.S04E01.de.srt",
@@ -534,6 +536,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the item menu never opened")
+  }
+
   private static let subtitleName = "Blue.Lights.S04E01.en.srt"
 
   private func openMoreMenu() {
@@ -544,13 +548,9 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["New folder"].appears(within: 5), "More never listed New folder")
   }
 
-  private func openRename(_ name: String) -> XCUIElement {
-    let row = element("files.item.445")
-    XCTAssertTrue(row.appears(within: 10), "the subtitle row never appeared")
-    row.press(forDuration: 1)
-    let rename = app.buttons["Rename"].firstMatch
-    XCTAssertTrue(rename.appears(within: 5), "the row menu has no Rename")
-    rename.tap()
+  private func openRename() -> XCUIElement {
+    openItemMenu("files.item.445")
+    app.buttons["Rename"].firstMatch.tap()
     let alert = app.alerts["Rename"]
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")

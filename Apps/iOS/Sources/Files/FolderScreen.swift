@@ -1023,7 +1023,9 @@ private struct PutioFolderActionNotifier {
   func settleNameAction(
     of model: PutioFolderModel, matching isNameAction: (PutioFileAction) -> Bool
   ) throws {
-    guard let outcome = model.actionOutcome, isNameAction(outcome.action) else { return }
+    guard let outcome = model.actionOutcome, isNameAction(outcome.action) else {
+      throw PutioNameActionFailure()
+    }
     model.clearActionOutcome()
     notify(outcome.action)
     if case .failed = outcome { throw PutioNameActionFailure() }

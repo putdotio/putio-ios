@@ -1708,17 +1708,6 @@
         }
       }
     },
-    "Folders use the default sort unless you choose a different order inside them." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Folders use the default sort unless you choose a different order inside them."
-          }
-        }
-      }
-    },
     "Forward %lld seconds" : {
       "comment" : "android: mobile_playback_seek_forward",
       "localizations" : {
