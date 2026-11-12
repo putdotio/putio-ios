@@ -892,11 +892,18 @@ struct PutioPreviewView: View {
   }
 
   private func lookUpActedOnFile() async {
-    guard let id = actedOn,
-      let item = try? await fileActions.lookUp(id),
-      !Task.isCancelled
-    else { return }
-    pager.update(item)
+    guard let id = actedOn else { return }
+    for delay in [Duration.zero, .seconds(1), .seconds(3)] {
+      do {
+        try await Task.sleep(for: delay)
+        pager.update(try await fileActions.lookUp(id))
+        return
+      } catch is CancellationError {
+        return
+      } catch {
+        continue
+      }
+    }
   }
 
   private var shareLabel: some View {
