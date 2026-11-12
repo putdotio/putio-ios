@@ -5,15 +5,15 @@ import XCTest
 
 private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+private func link(_ id: Int, hours: Double?) -> PutioPublicLink {
+  PutioPublicLink(
+    id: id, fileName: "File \(id).mkv", kind: .video,
+    expiresAt: hours.map { now.addingTimeInterval($0 * 3600) },
+    url: URL(string: "https://app.put.io/exclusive-access/t\(id)")!)
+}
+
 @MainActor
 final class PublicLinksTests: XCTestCase {
-  private func link(_ id: Int, hours: Double?) -> PutioPublicLink {
-    PutioPublicLink(
-      id: id, fileName: "File \(id).mkv", kind: .video,
-      expiresAt: hours.map { now.addingTimeInterval($0 * 3600) },
-      url: URL(string: "https://app.put.io/exclusive-access/t\(id)")!)
-  }
-
   func testExpiredLinksAreHiddenAndAFailedLoadRetries() async {
     var loads = 0
     let links = [link(1, hours: 71.9), link(2, hours: nil), link(3, hours: -0.1)]
