@@ -498,10 +498,10 @@ final class PreviewJourneyTests: XCTestCase {
   ) -> Bool {
     let deadline = Date.now.addingTimeInterval(timeout)
     while Date.now < deadline {
-      if labels.contains(element.label) { return true }
+      if element.exists, labels.contains(element.label) { return true }
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
-    return labels.contains(element.label)
+    return element.exists && labels.contains(element.label)
   }
 
   private func waitForFit(_ image: XCUIElement) -> Bool {
@@ -593,7 +593,14 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
-    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    signOut()
+  }
+
+  private func signOut() {
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    for _ in 0..<4 where !element("files.screen.0").appears(within: 2) && back.exists {
+      back.tap()
+    }
     XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
 
     let account = app.buttons["Account"]
@@ -654,6 +661,7 @@ final class PreviewJourneyTests: XCTestCase {
     screenshot("runtime-preview-trashed-last")
     app.buttons["Undo"].firstMatch.tap()
     XCTAssertTrue(cover.appears(within: 15), "Undo did not restore the file to its folder")
+    signOut()
   }
 
   func testTrashOffDeletesTheShownFileAfterAsking() {
@@ -693,6 +701,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.475").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(element("files.item.474").disappears(within: 10), "the folder kept the file")
+    signOut()
   }
 
   private func openGalleryImage(_ id: Int, title: String) {
