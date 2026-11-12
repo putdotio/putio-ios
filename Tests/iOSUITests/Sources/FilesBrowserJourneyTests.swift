@@ -960,17 +960,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let renameFailure = app.staticTexts["Couldn’t rename."]
     XCTAssertTrue(renameFailure.appears(within: 10), "rename failure was not surfaced")
-    XCTAssertTrue(
-      createdFolderButton.appears(within: 5) && createdFolderButton.isHittable,
-      "folder navigation did not re-enable after rename failure"
-    )
-    XCTAssertEqual(
-      createdFolderButton.label.components(separatedBy: ", ").first, "Watch Later",
-      "failed rename did not roll back")
-    addScreenshot(named: "runtime-rename-failed-toast")
     let tryAgain = app.buttons["Try again"]
-    XCTAssertTrue(waitUntilHittable(tryAgain, timeout: 5), "the rename toast offers no Try again")
+    XCTAssertTrue(tryAgain.isHittable, "the rename toast offers no Try again")
+    let rolledBack = createdFolderButton.label
+    let reenabled = createdFolderButton.isEnabled
+    addScreenshot(named: "runtime-rename-failed-toast")
     tryAgain.tap()
+    XCTAssertTrue(reenabled, "folder navigation did not re-enable after rename failure")
+    XCTAssertEqual(
+      rolledBack.components(separatedBy: ", ").first, "Watch Later",
+      "failed rename did not roll back")
 
     let renamedFolder = element(identifier: "files.item.415")
     let renamed = XCTNSPredicateExpectation(
