@@ -40,6 +40,9 @@ enum PutioRuntimeFactory {
         let signOutIntentStore: PutioSignOutIntentStore
         if scenario == .filesBrowser || scenario == .deviceSignIn {
           let keychain = PutioKeychainTokenStore(service: harnessKeychainService)
+          if ProcessInfo.processInfo.arguments.contains(signedOutAtLaunchArgument) {
+            try? keychain.clear()
+          }
           tokenStore = failSignOut ? HarnessFailingClearTokenStore(storage: keychain) : keychain
           signOutIntentStore = harnessSignOutIntentStore
         } else {
@@ -87,6 +90,8 @@ enum PutioRuntimeFactory {
   }
 
   #if DEBUG
+    static let signedOutAtLaunchArgument = "--putio-harness-signed-out-at-launch"
+
     // Harness sign-in still round-trips the keychain for cold restore, but
     // never under the real login's item, which a proof run would overwrite
     // and a harness sign-out would delete.
