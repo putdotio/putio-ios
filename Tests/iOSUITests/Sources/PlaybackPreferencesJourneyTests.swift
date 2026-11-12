@@ -112,7 +112,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     assertToggle(resume, value: "1")
 
     tapToggle(resume)
-    let alert = app.alerts["Turn off resume?"]
+    let alert = app.putioAlert("Turn off resume?")
     XCTAssertTrue(alert.appears(within: 5))
     XCTAssertTrue(
       alert.staticTexts[
@@ -202,7 +202,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(current.appears(within: 10))
     let london = choice("London", in: app)
     london.tap()
-    let alert = app.alerts["That proxy isn’t available for your account."]
+    let alert = app.putioAlert("That proxy isn’t available for your account.")
     XCTAssertTrue(alert.appears(within: 10), "the refused proxy showed no alert")
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = "runtime-proxy-refused"

@@ -176,7 +176,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 10), "the download survived")
 
     tapSignOut(in: app)
-    let alert = app.alerts["Sign out of put.io?"]
+    let alert = app.putioAlert("Sign out of put.io?")
     XCTAssertTrue(alert.appears(within: 5), "sign-out with no downloads asked no question")
     XCTAssertFalse(remove.exists, "the alert offers download removal with no downloads")
     XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")

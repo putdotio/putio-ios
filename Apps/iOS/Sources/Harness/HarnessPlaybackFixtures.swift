@@ -135,12 +135,16 @@ import SwiftUI
   /// tokened stream URL is reduced to its scheme, host, and path before it is
   /// exposed.
   final class HarnessExternalURLOpener: PutioExternalURLOpening, @unchecked Sendable {
-    let vlcInstalled: Bool
+    private var vlcInstalled: Bool
+    private var removesVLCAfterFirstCheck: Bool
+    private var refusesNextHandoff: Bool
     private static var requests: [String] = []
     private static let lock = NSLock()
 
-    init(vlcInstalled: Bool) {
-      self.vlcInstalled = vlcInstalled
+    init(vlcInstalled: Bool, removesVLCAfterFirstCheck: Bool, refusesFirstHandoff: Bool) {
+      self.vlcInstalled = vlcInstalled || removesVLCAfterFirstCheck
+      self.removesVLCAfterFirstCheck = removesVLCAfterFirstCheck
+      refusesNextHandoff = refusesFirstHandoff
     }
 
     static func summary() -> String {
@@ -148,10 +152,17 @@ import SwiftUI
     }
 
     @MainActor func canOpen(_ url: URL) -> Bool {
-      url.scheme == PutioVLCHandoff.scheme ? vlcInstalled : true
+      guard url.scheme == PutioVLCHandoff.scheme else { return true }
+      let installed = vlcInstalled
+      if removesVLCAfterFirstCheck {
+        removesVLCAfterFirstCheck = false
+        vlcInstalled = false
+      }
+      return installed
     }
 
     @MainActor func open(_ url: URL) async -> Bool {
+      if url == PutioVLCHandoff.appStoreURL { vlcInstalled = true }
       let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
       var summary = "\(url.scheme ?? "")://\(components?.host ?? "")\(components?.path ?? "")"
       if let target = components?.queryItems?.first(where: { $0.name == "url" })?.value,
@@ -163,7 +174,9 @@ import SwiftUI
         summary += "&x-success=\(success)"
       }
       Self.lock.withLock { Self.requests.append(summary) }
-      return true
+      guard url.scheme == PutioVLCHandoff.scheme, refusesNextHandoff else { return true }
+      refusesNextHandoff = false
+      return false
     }
   }
 

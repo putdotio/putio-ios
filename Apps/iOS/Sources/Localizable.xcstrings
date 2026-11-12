@@ -938,17 +938,6 @@
         }
       }
     },
-    "Could not open in VLC" : {
-      "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not open in VLC"
-          }
-        }
-      }
-    },
     "Could not play audio" : {
       "comment" : "android: mobile_playback_error_title_audio | differs: iOS spells out “Could not”",
       "localizations" : {
@@ -1099,6 +1088,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load proxies"
+          }
+        }
+      }
+    },
+    "Couldn’t prepare “%@” for VLC. %@" : {
+      "comment" : "android: mobile_files_vlc_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t prepare “%@” for VLC. %@"
+          }
+        }
+      }
+    },
+    "Couldn’t prepare “%@” for VLC. Sign in again." : {
+      "comment" : "android: mobile_files_vlc_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t prepare “%@” for VLC. Sign in again."
           }
         }
       }
@@ -2115,6 +2126,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Install VLC for iOS from the App Store to stream this file there."
+          }
+        }
+      }
+    },
+    "Install VLC to open “%@”." : {
+      "comment" : "android: mobile_files_vlc_missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install VLC to open “%@”."
           }
         }
       }
@@ -3448,6 +3470,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Proxy"
+          }
+        }
+      }
+    },
+    "put.io is temporarily unavailable. Try again." : {
+      "comment" : "android: mobile_state_error_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io is temporarily unavailable. Try again."
           }
         }
       }
@@ -5208,17 +5241,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video ready"
-          }
-        }
-      }
-    },
-    "VLC did not accept the file. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS VLC handoff",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "VLC did not accept the file. Try again."
           }
         }
       }

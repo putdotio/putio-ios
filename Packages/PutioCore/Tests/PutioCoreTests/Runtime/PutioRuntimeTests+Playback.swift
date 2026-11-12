@@ -770,8 +770,11 @@ extension PutioRuntimeTests {
           fileID: PutioFileID(rawValue: 411), playbackType: playbackType)
       }
     }
-    await assertRuntimeError(.invalidResponse) {
+    do {
       _ = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 411))
+      XCTFail("resolved a download source without a download token")
+    } catch {
+      XCTAssertTrue(error is PutioDownloadTokenUnavailable, "\(error)")
     }
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.resolveVideoPlaybackSource(fileID: PutioFileID(rawValue: 411))

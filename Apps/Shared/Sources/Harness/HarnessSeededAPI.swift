@@ -558,6 +558,10 @@ import Foundation
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
+    private static var downloadTokenField: String {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-download-token-missing")
+        ? "" : #""download_token": "harness-download-token","#
+    }
     private static var usesPreviews: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
     }
@@ -1886,6 +1890,8 @@ import Foundation
         return clearPlaybackPosition(fileID: 411)
       case "GET /v2/files/412/start-from/delete":
         return clearPlaybackPosition(fileID: 412)
+      case "GET /v2/files/441":
+        return (200, seasonEpisodeFile(id: 441))
       case "POST /v2/files/443/start-from/set":
         return setPlaybackPosition(request: request, fileID: 443)
       case "POST /v2/files/441/start-from/set" where refusesWatchedEpisode:
@@ -1939,6 +1945,17 @@ import Foundation
 
     private static func seasonFileSize(_ fileID: Int) -> Int64? {
       seasonEpisodes.first { $0.id == fileID }?.size ?? seasonSubtitles[fileID]?.size
+    }
+
+    private static func seasonEpisodeFile(id: Int) -> String {
+      let episode = seasonEpisodes.first { $0.id == id }
+      return """
+        {"file":{"id":\(id),"name":\(jsonString(episode?.name ?? "")),"file_type":"VIDEO",
+        "parent_id":\(seasonFolderID),"size":\(episode?.size ?? 0),
+        "created_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
+        "updated_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
+        "start_from":\(playbackPosition(fileID: id))}}
+        """
     }
 
     private static var seasonFiles: String {
@@ -2959,7 +2976,7 @@ import Foundation
             "avatar_url": "https://static.put.io/e2e-avatar.png",
             "user_hash": "harness-hash",
             "features": {},
-            "download_token": "harness-download-token",
+            \(downloadTokenField)
             "trash_size": \(trashSizeBytes),
             \(accountStatusFieldsLocked)
             "password_last_changed_at": "",

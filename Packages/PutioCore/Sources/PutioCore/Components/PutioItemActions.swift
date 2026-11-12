@@ -313,21 +313,22 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     @Binding var request: PutioConfirmAlert?
 
     func body(content: Content) -> some View {
-      content.alert(
-        Text(request?.title ?? String()),
+      content.putioAlert(
+        request?.title ?? String(),
         isPresented: isPresented,
-        presenting: request
-      ) { alert in
-        Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
-        Button(alert.confirmTitle, role: .destructive) {
-          alert.confirm()
-        }
-        .accessibilityIdentifier("confirm-alert.confirm")
-      } message: { alert in
-        if let message = alert.message {
-          Text(message)
-        }
-      }
+        message: request?.message,
+        actions: actions
+      )
+    }
+
+    private var actions: [PutioAlertAction] {
+      guard let request else { return [] }
+      return [
+        PutioAlertAction(String(localized: "Cancel", bundle: .module), tier: .cancel),
+        PutioAlertAction(
+          request.confirmTitle, tier: .destructive, id: "confirm-alert.confirm",
+          perform: request.confirm),
+      ]
     }
 
     private var isPresented: Binding<Bool> {

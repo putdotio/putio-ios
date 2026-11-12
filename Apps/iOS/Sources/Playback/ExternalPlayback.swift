@@ -51,52 +51,41 @@ struct PutioSystemURLOpener: PutioExternalURLOpening {
   }
 }
 
-enum PutioExternalPlaybackOutcome: Equatable {
-  case opened
-  case notInstalled
-  case failed(PutioExternalPlaybackFailure)
-}
-
-struct PutioExternalPlaybackFailure: Equatable {
-  let title: String
-  let message: String
-  let canRetry: Bool
+enum PutioExternalPlaybackFailure: Equatable {
+  case downloadTokenUnavailable
+  case refused
+  case failed(PutioRuntimeError)
 
   static func resolving(_ error: Error) -> Self? {
+    if error is PutioDownloadTokenUnavailable { return .downloadTokenUnavailable }
     switch error as? PutioRuntimeError {
-    case .authenticationRequired, .sessionExpired:
-      return nil
-    case .notFound:
-      return Self(
-        title: String(localized: "File not found"),
-        message: String(localized: "It may have been moved or deleted."), canRetry: false)
-    case .rateLimited:
-      return Self(
-        title: String(localized: "Could not open in VLC"),
-        message: String(localized: "put.io is receiving too many requests. Try again shortly."),
-        canRetry: true)
-    case .transient:
-      return Self(
-        title: String(localized: "Could not open in VLC"),
-        message: String(localized: "Check your connection and try again."),
-        canRetry: true)
-    case .invalidResponse:
-      return Self(
-        title: String(localized: "Could not open in VLC"),
-        message: String(localized: "put.io returned an invalid response. Try again."),
-        canRetry: true)
-    case .unknown, nil:
-      return Self(
-        title: String(localized: "Could not open in VLC"),
-        message: String(localized: "put.io could not prepare this file. Try again."),
-        canRetry: true)
+    case .authenticationRequired, .sessionExpired: return nil
+    case .some(let error): return .failed(error)
+    case nil: return .failed(.unknown)
     }
   }
 
-  static let launch = Self(
-    title: String(localized: "Could not open in VLC"),
-    message: String(localized: "VLC did not accept the file. Try again."),
-    canRetry: true)
+  func message(fileName name: String) -> String {
+    switch self {
+    case .downloadTokenUnavailable:
+      String(localized: "Couldn’t prepare “\(name)” for VLC. Sign in again.")
+    case .refused:
+      String(localized: "Install VLC to open “\(name)”.")
+    case .failed(let error):
+      String(localized: "Couldn’t prepare “\(name)” for VLC. \(Self.reason(error))")
+    }
+  }
+
+  private static func reason(_ error: PutioRuntimeError) -> String {
+    switch error {
+    case .rateLimited:
+      String(localized: "put.io is receiving too many requests. Try again shortly.")
+    case .transient:
+      String(localized: "Check your connection and try again.")
+    case .authenticationRequired, .sessionExpired, .notFound, .invalidResponse, .unknown:
+      String(localized: "put.io is temporarily unavailable. Try again.")
+    }
+  }
 }
 
 typealias PutioExternalPlaybackResolve =
@@ -105,10 +94,9 @@ typealias PutioExternalPlaybackResolve =
 @MainActor
 @Observable
 final class PutioExternalPlaybackModel {
-  private(set) var pendingRoute: PutioFileRoute?
-  private(set) var outcome: PutioExternalPlaybackOutcome?
-  private(set) var isResolving = false
-  /// Counts URLs handed to the opener; the harness probe re-renders on it.
+  private(set) var isVLCInstalled = false
+  private(set) var missingVLCRoute: PutioFileRoute?
+  var toast: PutioToast?
   private(set) var openedRequestCount = 0
   private let opener: PutioExternalURLOpening
   private let resolve: PutioExternalPlaybackResolve
@@ -125,29 +113,21 @@ final class PutioExternalPlaybackModel {
     self.resolve = resolve
   }
 
-  var isVLCInstalled: Bool {
-    opener.canOpen(PutioVLCHandoff.probeURL)
-  }
-
-  var presentsOutcome: Bool {
-    switch outcome {
-    case .notInstalled, .failed: true
-    case .opened, nil: false
-    }
+  func refreshInstallation() {
+    isVLCInstalled = opener.canOpen(PutioVLCHandoff.probeURL)
   }
 
   func open(_ route: PutioFileRoute) async {
     guard route.supportsExternalPlayback else { return }
     generation &+= 1
     let request = generation
-    pendingRoute = route
-    outcome = nil
+    missingVLCRoute = nil
+    toast = nil
     guard opener.canOpen(PutioVLCHandoff.probeURL) else {
-      outcome = .notInstalled
+      isVLCInstalled = false
+      missingVLCRoute = route
       return
     }
-    isResolving = true
-    defer { if request == generation { isResolving = false } }
     do {
       let source = try await resolve(route.id)
       try Task.checkCancellation()
@@ -156,49 +136,34 @@ final class PutioExternalPlaybackModel {
         let url = PutioVLCHandoff.streamURL(
           for: source.url, returnTo: returnsToFolder ? route.item.parentID : nil)
       else {
-        outcome = .failed(.launch)
+        report(.refused, for: route)
         return
       }
       let opened = await opener.open(url)
       openedRequestCount += 1
       guard request == generation else { return }
-      outcome = opened ? .opened : .failed(.launch)
-      if opened { pendingRoute = nil }
+      if !opened { report(.refused, for: route) }
     } catch {
-      guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
-        return
-      }
-      guard let failure = PutioExternalPlaybackFailure.resolving(error) else {
-        dismiss()
-        return
-      }
-      outcome = .failed(failure)
+      guard request == generation, !Task.isCancelled, !(error is CancellationError),
+        let failure = PutioExternalPlaybackFailure.resolving(error)
+      else { return }
+      report(failure, for: route)
     }
   }
 
-  func retry() async {
-    guard let pendingRoute else { return }
-    await open(pendingRoute)
-  }
-
   func openAppStore() async {
-    dismiss()
+    missingVLCRoute = nil
     _ = await opener.open(PutioVLCHandoff.appStoreURL)
     openedRequestCount += 1
+    refreshInstallation()
   }
 
-  /// The alert's own closing. iOS 27 closes it after "Try again" has
-  /// already started the retry, so a request in flight survives.
-  func dismissAlert() {
-    guard !isResolving else { return }
-    dismiss()
+  func dismissMissingVLC() {
+    missingVLCRoute = nil
   }
 
-  func dismiss() {
-    generation &+= 1
-    pendingRoute = nil
-    outcome = nil
-    isResolving = false
+  private func report(_ failure: PutioExternalPlaybackFailure, for route: PutioFileRoute) {
+    toast = PutioToast(failure.message(fileName: route.item.name))
   }
 }
 
@@ -206,46 +171,20 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
   let model: PutioExternalPlaybackModel
 
   func body(content: Content) -> some View {
-    content.alert(
-      title,
+    content.putioAlert(
+      String(localized: "VLC is not installed"),
       isPresented: Binding(
-        get: { model.presentsOutcome },
-        set: { if !$0 { model.dismissAlert() } }
+        get: { model.missingVLCRoute != nil },
+        set: { if !$0 { model.dismissMissingVLC() } }
       ),
-      presenting: model.pendingRoute
-    ) { route in
-      switch model.outcome {
-      case .notInstalled:
-        Button("Get VLC") { Task { await model.openAppStore() } }
-        Button("Cancel", role: .cancel) { model.dismiss() }
-      case .failed(let failure):
-        if failure.canRetry {
-          Button("Try again") { Task { await model.open(route) } }
-        }
-        Button("OK", role: .cancel) { model.dismiss() }
-      case .opened, nil:
-        Button("OK", role: .cancel) { model.dismiss() }
-      }
-    } message: { _ in
-      Text(message)
-    }
+      message: String(
+        localized: "Install VLC for iOS from the App Store to stream this file there."),
+      actions: [
+        PutioAlertAction(String(localized: "Cancel"), tier: .cancel),
+        PutioAlertAction(String(localized: "Get VLC"), tier: .primary, id: "vlc.get") {
+          Task { await model.openAppStore() }
+        },
+      ]
+    )
   }
-
-  private var title: String {
-    switch model.outcome {
-    case .notInstalled: String(localized: "VLC is not installed")
-    case .failed(let failure): failure.title
-    case .opened, nil: ""
-    }
-  }
-
-  private var message: String {
-    switch model.outcome {
-    case .notInstalled:
-      String(localized: "Install VLC for iOS from the App Store to stream this file there.")
-    case .failed(let failure): failure.message
-    case .opened, nil: ""
-    }
-  }
-
 }

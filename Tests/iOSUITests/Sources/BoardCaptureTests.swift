@@ -165,6 +165,35 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-64-vlc-menu")
   }
 
+  func testPreviewVLCNotInstalled() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-vlc-removed")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.441")
+    app.buttons["Open in VLC"].firstMatch.tap()
+    XCTAssertTrue(
+      app.putioAlert("VLC is not installed").appears(within: 5), "a missing VLC raised no alert")
+    try captureBoard("rd-ios-pv-06-vlc")
+  }
+
+  func testPreviewVLCFailedToast() throws {
+    orient(.portrait)
+    app.launchArguments += [
+      "--putio-harness-vlc-installed", "--putio-harness-download-token-missing",
+    ]
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.441")
+    app.buttons["Open in VLC"].firstMatch.tap()
+    XCTAssertTrue(
+      app.staticTexts[
+        "Couldn’t prepare “Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv” for VLC. "
+          + "Sign in again."
+      ].appears(within: 5), "the failed handoff showed no toast")
+    try captureBoard("rd-ios-pv-21-vlc-failed-toast")
+  }
+
   func testSwipeActions() throws {
     orient(.portrait)
     app.launch()
@@ -195,7 +224,7 @@ final class BoardCaptureTests: XCTestCase {
     openItemMenu("files.item.442")
     app.buttons["Delete permanently"].firstMatch.tap()
     XCTAssertTrue(
-      app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never asked")
+      app.putioAlert("Delete 1 item permanently?").appears(within: 5), "the delete never asked")
     try captureBoard("rd-ios-22-delete-permanently")
   }
 
@@ -241,7 +270,7 @@ final class BoardCaptureTests: XCTestCase {
     openItemMenu("files.item.410")
     app.buttons["Move to trash"].firstMatch.tap()
     XCTAssertTrue(
-      app.alerts["We couldn’t send these files to trash"].appears(within: 10),
+      app.putioAlert("We couldn’t send these files to trash").appears(within: 10),
       "the refused Trash move never asked")
     try captureBoard("rd-ios-53-trash-limit")
   }
@@ -669,7 +698,7 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     reachFilesRoot()
     openSignOut()
-    let alert = app.alerts["Sign out of put.io?"]
+    let alert = app.putioAlert("Sign out of put.io?")
     XCTAssertTrue(alert.appears(within: 5), "sign-out with no downloads showed no alert")
     XCTAssertFalse(
       app.buttons["auth.sign-out-remove-downloads"].exists,
@@ -1052,7 +1081,7 @@ final class BoardCaptureTests: XCTestCase {
     app.bringIntoView(reset)
     reset.tap()
     XCTAssertTrue(
-      app.alerts["Reset all folder sorts?"].appears(within: 5), "the reset alert never showed")
+      app.putioAlert("Reset all folder sorts?").appears(within: 5), "the reset alert never showed")
     try captureBoard("rd-ios-acc-23-reset-sort")
   }
 
@@ -1061,7 +1090,8 @@ final class BoardCaptureTests: XCTestCase {
     let trash = app.switches["settings.trash"]
     app.bringIntoView(trash)
     trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-    XCTAssertTrue(app.alerts["Turn off trash?"].appears(within: 5), "the trash alert never showed")
+    XCTAssertTrue(
+      app.putioAlert("Turn off trash?").appears(within: 5), "the trash alert never showed")
     try captureBoard("rd-ios-acc-24-trash-off")
   }
 
@@ -1079,7 +1109,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(resume.appears(within: 5))
     resume.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     XCTAssertTrue(
-      app.alerts["Turn off resume?"].appears(within: 5), "the resume alert never showed")
+      app.putioAlert("Turn off resume?").appears(within: 5), "the resume alert never showed")
     try captureBoard("rd-ios-acc-60-resume-off-confirm")
   }
 
@@ -1146,7 +1176,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(london.appears(within: 10), "proxies never loaded")
     london.tap()
     XCTAssertTrue(
-      app.alerts["That proxy isn’t available for your account."].appears(within: 10),
+      app.putioAlert("That proxy isn’t available for your account.").appears(within: 10),
       "the refused proxy showed no alert")
     try captureBoard("rd-ios-acc-33-proxy-unavailable")
   }

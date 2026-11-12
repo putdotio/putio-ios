@@ -1,6 +1,14 @@
 import XCTest
 
 extension XCUIApplication {
+  var putioAlerts: XCUIElementQuery {
+    descendants(matching: .any).matching(identifier: "putio-alert")
+  }
+
+  func putioAlert(_ title: String) -> XCUIElement {
+    putioAlerts.matching(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
   /// Lazy List rows below the fold, such as the Account list's Sign out, are
   /// absent from the accessibility tree until scrolled into view. Bounded so
   /// a missing row still fails instead of scrolling forever.

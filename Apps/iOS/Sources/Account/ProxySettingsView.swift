@@ -41,15 +41,14 @@ struct ProxySettingsView: View {
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .putioSettingSaveFailures(saveFailures)
-    .alert(
+    .putioAlert(
       String(localized: "That proxy isn’t available for your account."),
-      isPresented: $refusesRoute
-    ) {
-      Button(String(localized: "OK"), role: .cancel) {}
-        .accessibilityIdentifier("proxy.unavailable-dismiss")
-    } message: {
-      Text(String(localized: "Choose another one."))
-    }
+      isPresented: $refusesRoute,
+      message: String(localized: "Choose another one."),
+      actions: [
+        PutioAlertAction(String(localized: "OK"), tier: .neutral, id: "proxy.unavailable-dismiss")
+      ]
+    )
     .task { if routes == nil { await loadRoutes() } }
   }
 
