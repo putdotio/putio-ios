@@ -13,7 +13,7 @@ public enum PutioFileAction: Equatable, Sendable {
     destinationName: String
   )
   case setWatched(fileID: PutioFileID, parentID: PutioFileID, name: String, watched: Bool)
-  case restore(fileID: PutioFileID, name: String)
+  case restore(fileIDs: [PutioFileID])
 }
 
 /// put.io refused a move because the destination already holds an item with

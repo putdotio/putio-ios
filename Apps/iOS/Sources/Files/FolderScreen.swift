@@ -17,7 +17,7 @@ struct PutioFolderScreen: View {
   @State private var reportedLoaded = false
   @State private var nameAlert: PutioTextAlert?
   @State private var confirmAlert: PutioConfirmAlert?
-  @State private var queuedUndo: PutioFileItem?
+  @State private var queuedUndo: [PutioFileItem]?
   @State private var pendingMove: MoveSelection?
   @State private var actionRequest: FileActionRequest?
   @State private var startedActionRequest: FileActionRequest?
@@ -178,22 +178,6 @@ struct PutioFolderScreen: View {
       )
     }
     .putioConfirmAlert($confirmAlert)
-    .alert(
-      bulkFailureTitle,
-      isPresented: bulkFailurePresented,
-      presenting: model.bulkOutcome
-    ) { outcome in
-      Button("Try Again") {
-        actionRequest = .bulkRetry(outcome)
-      }
-      .accessibilityIdentifier("files.bulk.retry")
-      Button("Done", role: .cancel) {
-        model.clearBulkOutcome()
-      }
-      .accessibilityIdentifier("files.bulk.dismiss")
-    } message: { outcome in
-      Text(bulkOutcomeMessage(outcome))
-    }
     .putioToast($toast)
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
@@ -1022,8 +1006,8 @@ struct PutioFolderScreen: View {
         await model.setSort(sort)
       case .delete(let item, let permanently):
         await model.delete(item, permanently: permanently)
-      case .restore(let item):
-        await model.restore(item)
+      case .restore(let items):
+        await model.restore(items)
       case .setWatched(let item, let watched):
         await model.setWatched(item, watched)
       case .bulkDelete(let items):
@@ -1064,9 +1048,9 @@ struct PutioFolderScreen: View {
       presentActionOutcome()
     }
     presentBulkOutcome()
-    if let item = queuedUndo {
+    if let items = queuedUndo {
       queuedUndo = nil
-      actionRequest = .restore(item)
+      actionRequest = .restore(items)
     }
   }
 
@@ -1078,7 +1062,7 @@ struct PutioFolderScreen: View {
       toast = PutioToast(
         PutioFileDeletionCopy.trashed,
         action: item.map { item in
-          PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: item) }
+          PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: [item]) }
         })
     case .succeeded(let action):
       toast = successToast(for: action)
@@ -1106,12 +1090,12 @@ struct PutioFolderScreen: View {
     actionRequest = request
   }
 
-  private func undoTrash(of item: PutioFileItem) {
+  private func undoTrash(of items: [PutioFileItem]) {
     guard actionRequest == nil else {
-      queuedUndo = item
+      queuedUndo = items
       return
     }
-    actionRequest = .restore(item)
+    actionRequest = .restore(items)
   }
 
   private func presentBulkOutcome() {
@@ -1129,42 +1113,55 @@ struct PutioFolderScreen: View {
       }
     }
 
+    model.clearBulkOutcome()
     if outcome.failures.isEmpty {
       selection.end()
-      toast = PutioToast(bulkOutcomeMessage(outcome))
-      model.clearBulkOutcome()
+      toast = bulkSuccessToast(outcome)
     } else {
       selection = PutioSelection(
         isActive: true, selectedIDs: Set(outcome.retryableItems(in: currentItems).map(\.id)))
+      toast = PutioToast(
+        bulkFailureMessage(outcome),
+        action: PutioToast.Action(String(localized: "Try again")) {
+          retryBulk(outcome)
+        })
     }
   }
 
-  private var bulkFailurePresented: Binding<Bool> {
-    Binding(
-      get: { model.bulkOutcome?.failures.isEmpty == false },
-      set: { isPresented in
-        if !isPresented { model.clearBulkOutcome() }
-      }
-    )
+  private func retryBulk(_ outcome: PutioBulkFileOutcome) {
+    guard actionRequest == nil else { return }
+    actionRequest = .bulkRetry(outcome)
   }
 
-  private var bulkFailureTitle: String {
-    guard let outcome = model.bulkOutcome else {
-      return String(localized: "Could not update items")
-    }
+  private func bulkSuccessToast(_ outcome: PutioBulkFileOutcome) -> PutioToast {
+    let count = outcome.succeeded.count
     switch outcome.action {
+    case .delete where trashEnabled:
+      let trashed = outcome.succeeded
+      return PutioToast(
+        String(localized: "Moved \(count) items to trash"),
+        action: PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: trashed) })
     case .delete:
-      return deletionPresentation.failureTitle(
-        allItemsFailed: outcome.failures.count == outcome.completedCount
-      )
-    case .setWatched:
-      return String(localized: "Could not update items")
+      return PutioToast(deletionPresentation.outcomeMessage(succeeded: count, failed: 0))
     case .move:
-      break
+      return PutioToast(PutioMoveCopy.moved(count))
+    case .setWatched(let watched):
+      return PutioToast(
+        watched
+          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
     }
-    return outcome.failures.count == outcome.completedCount
-      ? String(localized: "Could not move items")
-      : String(localized: "Some items couldn’t be moved")
+  }
+
+  private func bulkFailureMessage(_ outcome: PutioBulkFileOutcome) -> String {
+    let failed = outcome.failures.count
+    switch outcome.action {
+    case .delete, .move:
+      return String(localized: "\(failed) items are still in Files.")
+    case .setWatched(let watched):
+      return watched
+        ? String(localized: "Couldn’t mark \(failed) items as watched.")
+        : String(localized: "Couldn’t mark \(failed) items as unwatched.")
+    }
   }
 
   private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {
@@ -1181,28 +1178,6 @@ struct PutioFolderScreen: View {
       break
     }
     return String(localized: "Moving item \(currentCount) of \(progress.totalCount)…")
-  }
-
-  private func bulkOutcomeMessage(_ outcome: PutioBulkFileOutcome) -> String {
-    let succeeded = outcome.succeeded.count
-    let failed = outcome.failures.count
-    switch outcome.action {
-    case .delete:
-      return deletionPresentation.outcomeMessage(succeeded: succeeded, failed: failed)
-    case .setWatched(let watched):
-      if failed > 0 {
-        return watched
-          ? String(localized: "Couldn’t mark \(failed) items as watched.")
-          : String(localized: "Couldn’t mark \(failed) items as unwatched.")
-      }
-      return watched
-        ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched")
-    case .move:
-      break
-    }
-    guard failed > 0 else { return PutioMoveCopy.moved(succeeded) }
-    let successText = String(localized: "Moved \(succeeded) items.")
-    return String(localized: "\(successText) \(failed) couldn’t be moved.")
   }
 
   private func successToast(for action: PutioFileAction) -> PutioToast? {
@@ -1235,7 +1210,7 @@ struct PutioFolderScreen: View {
   private enum FileActionRequest: Equatable {
     case sort(PutioFolderSort)
     case delete(PutioFileItem, permanently: Bool)
-    case restore(PutioFileItem)
+    case restore([PutioFileItem])
     case setWatched(PutioFileItem, Bool)
     case bulkDelete([PutioFileItem])
     case bulkWatched([PutioFileItem], Bool)

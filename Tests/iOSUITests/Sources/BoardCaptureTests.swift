@@ -543,6 +543,34 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-70-selection-all")
   }
 
+  func testSelectionTrashed() throws {
+    orient(.portrait)
+    app.launch()
+    openSeasonFolder()
+    select(["files.item.441", "files.item.442", "files.item.443"])
+    element("selection.action.trash").tap()
+    XCTAssertTrue(
+      app.staticTexts["Moved 3 items to trash"].appears(within: 10), "no bulk trash toast")
+    XCTAssertTrue(element("selection.bar").disappears(within: 5), "bulk Trash kept selection")
+    XCTAssertTrue(app.buttons["Undo"].exists, "the bulk trash toast has no Undo")
+    try captureBoard("rd-ios-60-selection-trashed")
+  }
+
+  func testSelectionFailed() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-bulk-trash-refusal")
+    app.launch()
+    openSeasonFolder()
+    select(["files.item.441", "files.item.442"])
+    element("selection.action.trash").tap()
+    XCTAssertTrue(
+      app.staticTexts["2 items are still in Files."].appears(within: 10), "no failure toast")
+    XCTAssertTrue(app.buttons["Try again"].exists, "the failure toast has no Try again")
+    XCTAssertEqual(element("files.item.441").value as? String, "Selected")
+    XCTAssertEqual(element("files.item.442").value as? String, "Selected")
+    try captureBoard("rd-ios-61-selection-failed")
+  }
+
   func testIPadSelection() throws {
     orient(.landscapeLeft)
     app.launch()

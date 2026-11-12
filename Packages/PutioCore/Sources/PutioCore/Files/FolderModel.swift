@@ -275,16 +275,30 @@ public final class PutioFolderModel {
 
   @discardableResult
   public func restore(_ item: PutioFileItem) async -> Bool {
-    guard let actions, canStartAction, case .loaded(let contents) = state,
-      !contents.items.contains(where: { $0.id == item.id })
+    await restore([item])
+  }
+
+  /// Puts trashed rows back where they were and asks put.io to restore them
+  /// in one request.
+  @discardableResult
+  public func restore(_ items: [PutioFileItem]) async -> Bool {
+    guard let actions, canStartAction, case .loaded(let contents) = state, !items.isEmpty
     else { return false }
-    let action = PutioFileAction.restore(fileID: item.id, name: item.name)
+    let currentIDs = Set(contents.items.map(\.id))
+    guard items.allSatisfy({ !currentIDs.contains($0.id) }) else { return false }
+    let fileIDs = items.map(\.id)
+    let action = PutioFileAction.restore(fileIDs: fileIDs)
     begin(action)
-    let index = min(trashedPositions.removeValue(forKey: item.id) ?? 0, contents.items.count)
-    state = .loaded(contents.inserting(item, at: index))
+    let placed = items.map { ($0, trashedPositions.removeValue(forKey: $0.id) ?? 0) }
+      .sorted { $0.1 < $1.1 }
+    var restored = contents
+    for (item, position) in placed {
+      restored = restored.inserting(item, at: min(position, restored.items.count))
+    }
+    state = .loaded(restored)
 
     return await run(action, rollback: contents) {
-      try await actions.restoreFiles([item.id])
+      try await actions.restoreFiles(fileIDs)
       return nil
     }
   }
@@ -339,7 +353,12 @@ public final class PutioFolderModel {
 
     let action = PutioBulkFileAction.delete
     beginBulk(action, items: items)
-    state = .loaded(contents.removing(Set(items.map(\.id))))
+    let itemIDs = Set(items.map(\.id))
+    trashedPositions = Dictionary(
+      uniqueKeysWithValues: contents.items.enumerated()
+        .filter { itemIDs.contains($0.element.id) }
+        .map { ($0.element.id, $0.offset) })
+    state = .loaded(contents.removing(itemIDs))
 
     await runBulk(
       action, items: items, batchSize: actions.batchSize, originalContents: contents

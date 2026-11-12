@@ -620,6 +620,10 @@ enum BoardCaptureContract {
         "rd-ios-68-selection-trash-off", .iphone, "testSelectionTrashOff", screenBase: false),
       BoardCapture("rd-ios-70-selection-all", .iphone, "testSelectionAll", screenBase: false),
       BoardCapture("rd-ios-24-ipad-selection", .ipad, "testIPadSelection"),
+      BoardCapture(
+        "rd-ios-60-selection-trashed", .iphone, "testSelectionTrashed", screenBase: false),
+      BoardCapture(
+        "rd-ios-61-selection-failed", .iphone, "testSelectionFailed", screenBase: false),
       BoardCapture("Main", .iphone, "testFilesRoot"),
       BoardCapture(
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
@@ -1093,6 +1097,9 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "pinned", "FilesBrowserJourneyTests/testPinnedFilesPinUnpinSeeAllGoneFailureAndRelaunch",
       attachmentNames: ["runtime-pinned", "runtime-pinned-list"], timeAllowance: 180),
+    JourneyPreflight(
+      "bulk-results", "FilesBrowserJourneyTests/testBulkTrashUndoAndWatchedLeaveSelection",
+      attachmentNames: ["runtime-bulk-trashed"], timeAllowance: 120),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),

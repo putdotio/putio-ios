@@ -610,12 +610,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["3 selected"].exists, "Cancel ended the selection")
 
     app.buttons["selection.action.watched"].tap()
-    let failure = app.alerts["Could not update items"]
+    let failure = app.staticTexts["Couldn’t mark 1 item as watched."]
     XCTAssertTrue(failure.appears(within: 10), "the refused video was not reported")
-    XCTAssertTrue(failure.staticTexts["Couldn’t mark 1 item as watched."].exists)
+    XCTAssertTrue(app.buttons["Try again"].exists, "the watched failure offers no Try again")
     XCTAssertTrue(waitForValuePrefix(element(identifier: "files.item.443"), "Not selected"))
-    app.buttons["files.bulk.dismiss"].firstMatch.tap()
-    XCTAssertTrue(failure.disappears(within: 5))
     XCTAssertEqual(
       element(identifier: "files.item.441").value as? String, "Selected",
       "the refused video left the selection")
@@ -627,6 +625,41 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForValuePrefix(element(identifier: "files.item.441"), "Not watched"),
       "the refused video did not roll back")
+  }
+
+  func testBulkTrashUndoAndWatchedLeaveSelection() {
+    app.launch()
+    openSeasonFolder()
+    let episodes = ["files.item.441", "files.item.442", "files.item.443"]
+
+    beginSelection()
+    episodes.forEach { toggle($0) }
+    app.buttons["selection.action.trash"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Moved 3 items to trash"].appears(within: 10), "bulk Trash has no toast")
+    XCTAssertTrue(
+      element(identifier: "selection.bar").disappears(within: 5), "bulk Trash kept selection")
+    for id in episodes {
+      XCTAssertTrue(element(identifier: id).disappears(within: 5), "\(id) stayed after Trash")
+    }
+    addScreenshot(named: "runtime-bulk-trashed")
+    let undo = app.buttons["Undo"]
+    XCTAssertTrue(waitUntilHittable(undo, timeout: 5), "the bulk Trash toast has no Undo")
+    undo.tap()
+    for id in episodes {
+      XCTAssertTrue(element(identifier: id).appears(within: 10), "Undo did not restore \(id)")
+    }
+
+    beginSelection()
+    episodes.forEach { toggle($0) }
+    app.buttons["selection.action.watched"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Marked as watched"].appears(within: 10), "bulk Watched has no toast")
+    XCTAssertTrue(
+      element(identifier: "selection.bar").disappears(within: 5), "bulk Watched kept selection")
+    for id in episodes {
+      XCTAssertTrue(waitForValuePrefix(element(identifier: id), "Watched"), "\(id) is not watched")
+    }
   }
 
   private func beginSelection() {
@@ -1834,12 +1867,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkMoveHere = app.buttons["Move to Harness Folder"]
     XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move is disabled")
     bulkMoveHere.tap()
-    // One batch; the server reports Bulk Retry failed and moves Bulk Success.
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item. 1 couldn’t be moved."].appears(within: 10),
+      app.staticTexts["1 item is still in Files."].appears(within: 10),
       "partial bulk-move failure was not surfaced"
     )
-    let retryBulkMove = app.buttons["files.bulk.retry"].firstMatch
+    XCTAssertTrue(bulkSuccessFolder.disappears(within: 5), "the moved item stayed in the list")
+    XCTAssertEqual(
+      bulkRetryFolder.value as? String, "Selected", "the failed item left the selection")
+    XCTAssertTrue(app.staticTexts["1 selected"].exists, "the selection kept the moved item")
+    let retryBulkMove = app.buttons["Try again"]
     XCTAssertTrue(waitUntilHittable(retryBulkMove, timeout: 5), "bulk move retry is unavailable")
     retryBulkMove.tap()
     XCTAssertTrue(
@@ -1900,20 +1936,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     XCTAssertTrue(
-      app.staticTexts["Could not move items to Trash"].appears(within: 10),
+      app.staticTexts["2 items are still in Files."].appears(within: 10),
       "failed bulk-Trash batch was not surfaced"
-    )
-    XCTAssertTrue(
-      app.staticTexts["Moved 0 items to Trash. 2 couldn’t be moved to Trash."].exists
     )
     addScreenshot(named: "runtime-file-actions")
     XCTAssertTrue(movedBulkRetryFolder.exists, "failed bulk item was not restored")
     XCTAssertTrue(movedBulkSuccessFolder.exists, "failed bulk item was not restored")
-    let retryBulkRemove = app.buttons["files.bulk.retry"].firstMatch
+    XCTAssertEqual(movedBulkRetryFolder.value as? String, "Selected")
+    XCTAssertEqual(movedBulkSuccessFolder.value as? String, "Selected")
+    let retryBulkRemove = app.buttons["Try again"]
     XCTAssertTrue(waitUntilHittable(retryBulkRemove, timeout: 5), "bulk retry is unavailable")
     retryBulkRemove.tap()
     XCTAssertTrue(
-      app.staticTexts["Moved 2 items to Trash."].appears(within: 10),
+      app.staticTexts["Moved 2 items to trash"].appears(within: 10),
       "failed bulk batch did not succeed on retry"
     )
     XCTAssertTrue(
@@ -1940,16 +1975,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     moveAmbiguousToRoot.tap()
 
     XCTAssertTrue(
-      app.staticTexts["Could not move items"].appears(within: 10),
+      app.staticTexts["1 item is still in Files."].appears(within: 10),
       "ambiguous bulk-move failure was not surfaced"
     )
     XCTAssertTrue(
       ambiguousMoveFolder.disappears(within: 5),
       "authoritative source refresh did not remove the applied move"
     )
-    let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
-    XCTAssertTrue(waitUntilHittable(dismissAmbiguousMove, timeout: 5))
-    dismissAmbiguousMove.tap()
     let ambiguousDone = app.buttons["selection.close"]
     XCTAssertTrue(waitUntilHittable(ambiguousDone, timeout: 5))
     ambiguousDone.tap()

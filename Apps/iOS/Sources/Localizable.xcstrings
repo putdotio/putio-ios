@@ -1,17 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%@ %lld couldn’t be moved." : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ %lld couldn’t be moved."
-          }
-        }
-      }
-    },
     "%@ (build %@)" : {
       "comment" : "android: mobile_settings_about_version_value",
       "localizations" : {
@@ -172,6 +161,29 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld items are in the selected folder."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items are still in Files." : {
+      "comment" : "android: mobile_files_delete_still_present_many | differs: the iOS toast carries Try again in place of the select hint",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item is still in Files."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items are still in Files."
                 }
               }
             }
@@ -927,17 +939,6 @@
         }
       }
     },
-    "Could not move items" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not move items"
-          }
-        }
-      }
-    },
     "Could not move original to Trash" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -1081,17 +1082,6 @@
         }
       }
     },
-    "Could not update items" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not update items"
-          }
-        }
-      }
-    },
     "Couldn’t check your session" : {
       "comment" : "android: mobile_auth_unavailable_title",
       "localizations" : {
@@ -1148,7 +1138,7 @@
       }
     },
     "Couldn’t mark %lld items as unwatched." : {
-      "comment" : "android: mobile_files_mark_unwatched_failed_many | differs: the iOS alert names no reason",
+      "comment" : "android: mobile_files_mark_unwatched_failed_many | differs: the iOS toast names no reason",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -1171,7 +1161,7 @@
       }
     },
     "Couldn’t mark %lld items as watched." : {
-      "comment" : "android: mobile_files_mark_watched_failed_many | differs: the iOS alert names no reason",
+      "comment" : "android: mobile_files_mark_watched_failed_many | differs: the iOS toast names no reason",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -2637,8 +2627,8 @@
         }
       }
     },
-    "Moved %lld items." : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
+    "Moved %lld items to trash" : {
+      "comment" : "android: mobile_files_trash_done_many",
       "localizations" : {
         "en" : {
           "variations" : {
@@ -2646,13 +2636,13 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Moved %lld item."
+                  "value" : "Moved %lld item to trash"
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "Moved %lld items."
+                  "value" : "Moved %lld items to trash"
                 }
               }
             }
@@ -4607,17 +4597,6 @@
         }
       }
     },
-    "Some items couldn’t be moved" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Some items couldn’t be moved"
-          }
-        }
-      }
-    },
     "Something went wrong while casting. Try again." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -5098,17 +5077,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again"
-          }
-        }
-      }
-    },
-    "Try Again" : {
-      "comment" : "android: mobile_action_retry | differs: iOS uses title case",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Again"
           }
         }
       }
