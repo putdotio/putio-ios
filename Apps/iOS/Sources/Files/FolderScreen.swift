@@ -116,7 +116,7 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(folderTitle)
-    .navigationBarTitleDisplayMode(.inline)
+    .navigationBarTitleDisplayMode(route.id == .root && !isEditing ? .large : .inline)
     .navigationBarBackButtonHidden(fileActionPending || isEditing)
     .putioContentBackground()
     .toolbar {
@@ -358,6 +358,7 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
       List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
+        folderHeader(contents)
         ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
           VStack(spacing: 0) {
             row(
@@ -389,6 +390,27 @@ struct PutioFolderScreen: View {
         _ = await model.refresh()
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+    }
+  }
+
+  @ViewBuilder
+  private func folderHeader(_ contents: PutioFolderContents) -> some View {
+    if route.id != .root, let folder = contents.folder, folder.id == route.id {
+      HStack(alignment: .firstTextBaseline) {
+        if let itemCount = contents.itemCount {
+          Text("\(itemCount) items")
+            .putioFont(PutioTheme.Typography.numeric)
+        }
+        Spacer(minLength: PutioTheme.Spacing.space2)
+        Text(PutioFileRowModel.sizeText(bytes: folder.sizeBytes, locale: locale))
+          .putioFont(PutioTheme.Typography.numeric)
+      }
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("files.header.\(route.id.rawValue)")
+      .listRowSeparator(.hidden)
+      .listRowBackground(PutioTheme.Colors.background)
+      .selectionDisabled()
     }
   }
 

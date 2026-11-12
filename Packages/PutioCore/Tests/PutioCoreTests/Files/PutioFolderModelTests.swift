@@ -233,6 +233,59 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(contents.hasMore)
   }
 
+  func testItemCountKeepsTheServerTotalThroughOptimisticAndCommittedActions() async throws {
+    let mutation = SuspendedFileMutation()
+    let renaming = SuspendedFileMutation()
+    addTeardownBlock {
+      await mutation.cancelPending()
+      await renaming.cancelPending()
+    }
+    let first = BrowserTestFixtures.item(id: 1)
+    let second = BrowserTestFixtures.item(id: 2)
+    let firstPage = BrowserTestFixtures.contents(items: [first, second], hasMore: true)
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in
+        PutioFolderContents(
+          folder: firstPage.folder, items: firstPage.items, nextCursor: "next", totalCount: 3)
+      },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await renaming.run() },
+        deleteFile: { _ in try await mutation.run() }
+      )
+    )
+
+    _ = await model.loadIfNeeded()
+    guard case .loaded(let paged) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(paged.itemCount, 3)
+
+    let task = Task { await model.delete(first) }
+    try await mutation.waitUntilStarted()
+    guard case .loaded(let optimistic) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(optimistic.itemCount, 2)
+    await mutation.fail(with: PutioRuntimeError.unknown)
+    await task.value
+
+    guard case .loaded(let restored) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(restored.itemCount, 3)
+
+    let rename = Task { await model.rename(second, to: "Renamed") }
+    try await renaming.waitUntilStarted()
+    await renaming.succeed()
+    await rename.value
+    guard case .loaded(let renamed) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(renamed.items.count, 2)
+    XCTAssertEqual(renamed.itemCount, 3)
+  }
+
+  func testItemCountIsUnknownWhileAPageIsMissingAndTheServerSentNoTotal() {
+    let contents = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)], hasMore: true)
+
+    XCTAssertNil(contents.itemCount)
+  }
+
   func testContinuationStopsWhenTheServerHandsBackAConsumedCursor() async {
     func page(_ id: Int, cursor: String?) -> PutioFolderContents {
       let base = BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: id)])

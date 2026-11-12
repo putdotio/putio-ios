@@ -129,7 +129,9 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertNil(nested.nextCursor)
     XCTAssertEqual(folderRoute.id, folderID)
     XCTAssertEqual(nested.folder?.id, folderID)
-    XCTAssertEqual(nested.items.map(\.id), [fileID])
+    XCTAssertEqual(
+      nested.items.map(\.id), [fileID, PutioFileID(rawValue: HarnessSeededAPI.seasonFolderID)])
+    XCTAssertEqual(nested.itemCount, 2)
     XCTAssertEqual(fileRoute.id, fileID)
     XCTAssertEqual(fileRoute.item.parentID, folderID)
     XCTAssertEqual(fileRoute.item.kind, .video)

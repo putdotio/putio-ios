@@ -675,7 +675,8 @@ extension PutioFolderContents {
       folder: folder,
       items: items + page.items.filter { !knownIDs.contains($0.id) },
       nextCursor: page.nextCursor,
-      sort: sort
+      sort: sort,
+      totalCount: page.totalCount ?? totalCount
     )
   }
 
@@ -692,15 +693,19 @@ extension PutioFolderContents {
   }
 
   fileprivate func sorted(by sort: PutioFolderSort) -> PutioFolderContents {
-    PutioFolderContents(folder: folder, items: items, nextCursor: nextCursor, sort: sort)
+    PutioFolderContents(
+      folder: folder, items: items, nextCursor: nextCursor, sort: sort, totalCount: totalCount)
   }
 
   fileprivate func droppingCursor() -> PutioFolderContents {
-    PutioFolderContents(folder: folder, items: items, nextCursor: nil, sort: sort)
+    PutioFolderContents(
+      folder: folder, items: items, nextCursor: nil, sort: sort, totalCount: totalCount)
   }
 
-  private func withItems(_ items: [PutioFileItem]) -> PutioFolderContents {
-    PutioFolderContents(folder: folder, items: items, nextCursor: nextCursor, sort: sort)
+  private func withItems(_ newItems: [PutioFileItem]) -> PutioFolderContents {
+    PutioFolderContents(
+      folder: folder, items: newItems, nextCursor: nextCursor, sort: sort,
+      totalCount: totalCount.map { max($0 + newItems.count - items.count, 0) })
   }
 }
 

@@ -1352,6 +1352,57 @@ import Foundation
       }
     }
 
+    static let seasonFolderID = 440
+    private static let seasonFolderSize: Int64 = 13_100_000_000
+    private static let harnessFolderSize: Int64 = 1_073_741_824 + seasonFolderSize
+
+    #if os(iOS)
+      private static let seasonFolderSeeded = true
+    #else
+      private static let seasonFolderSeeded = false
+    #endif
+
+    private static var seasonFiles: String {
+      let episodes: [(id: Int, name: String, size: Int64, day: Int, startFrom: Int)] = [
+        (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13, 0),
+        (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13, 1_260),
+        (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20, 0),
+        (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20, 0),
+      ]
+      let subtitles: [(id: Int, name: String, size: Int64)] = [
+        (445, "Blue.Lights.S04E01.en.srt", 41_000),
+        (446, "Blue.Lights.S04E02.en.srt", 39_000),
+      ]
+      let videoRows = episodes.map { episode in
+        """
+        {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
+        "parent_id":\(seasonFolderID),"size":\(episode.size),
+        "created_at":"2026-10-\(episode.day)T10:00:00Z",
+        "updated_at":"2026-10-\(episode.day)T10:00:00Z","start_from":\(episode.startFrom)}
+        """
+      }
+      let subtitleRows = subtitles.map { subtitle in
+        """
+        {"id":\(subtitle.id),"name":\(jsonString(subtitle.name)),"file_type":"TEXT",
+        "parent_id":\(seasonFolderID),"size":\(subtitle.size),
+        "created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z"}
+        """
+      }
+      let rows = videoRows + subtitleRows
+      return """
+        {"parent":\(seasonFolderObject),"files":[\(rows.joined(separator: ","))],
+        "total":\(rows.count)}
+        """
+    }
+
+    private static var seasonFolderObject: String {
+      """
+      {"id":\(seasonFolderID),"name":"Blue Lights","file_type":"FOLDER","parent_id":410,
+      "size":\(seasonFolderSize),"created_at":"2026-10-20T10:00:00Z",
+      "updated_at":"2026-10-20T10:00:00Z"}
+      """
+    }
+
     static let rootContinuationCursor = "files-root-page-2"
     static let rootContinuationFileID = 422
     static let imageFileID = 406
@@ -1427,7 +1478,9 @@ import Foundation
         .flatMap(Int.init)
       if let parentID {
         let deleted = fileActionsLock.withLock {
-          harnessFolderDeleted && (parentID == 410 || actionFolders[parentID]?.parentID == 410)
+          harnessFolderDeleted
+            && (parentID == 410 || parentID == seasonFolderID
+              || actionFolders[parentID]?.parentID == 410)
         }
         if deleted {
           return (
@@ -1451,6 +1504,8 @@ import Foundation
       case 410:
         if usesTVBrowse { fileActionsLock.withLock { tvHarnessFolderOpened = true } }
         return (200, nestedFiles)
+      case seasonFolderID where seasonFolderSeeded:
+        return (200, seasonFiles)
       case tvEmptyFolderID where usesTVBrowse:
         return (
           200,
@@ -2142,7 +2197,7 @@ import Foundation
             "name": \(jsonString(folderName)),
             "file_type": "FOLDER",
             "parent_id": 0,
-            "size": 0,
+            "size": \(seasonFolderSeeded ? harnessFolderSize : 0),
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z"
           }
@@ -2258,8 +2313,9 @@ import Foundation
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
+      let folderRows = (seasonFolderSeeded ? [seasonFolderObject] : []) + mutableFolderRows
       let extraRows =
-        mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
+        folderRows.isEmpty ? "" : ",\n" + folderRows.joined(separator: ",\n")
       return """
         {
           "parent": {
@@ -2267,7 +2323,7 @@ import Foundation
             "name": \(jsonString(folderName)),
             "file_type": "FOLDER",
             "parent_id": 0,
-            "size": 0,
+            "size": \(seasonFolderSeeded ? harnessFolderSize : 0),
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z"
           },
@@ -2283,7 +2339,7 @@ import Foundation
               "start_from": \(playbackPosition(fileID: 411))
             }\(extraRows)
           ],
-          "total": \(1 + mutableFolders.count)
+          "total": \(1 + folderRows.count)
         }
         """
     }

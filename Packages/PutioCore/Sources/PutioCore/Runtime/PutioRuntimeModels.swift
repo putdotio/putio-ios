@@ -200,21 +200,29 @@ public struct PutioFolderContents: Equatable, Sendable {
   /// The folder's own sort as reported by the server, or `nil` when it inherits
   /// the account default or reports an unknown key.
   public let sort: PutioFolderSort?
+  public let totalCount: Int?
 
   public init(
     folder: PutioFileItem?,
     items: [PutioFileItem],
     nextCursor: String? = nil,
-    sort: PutioFolderSort? = nil
+    sort: PutioFolderSort? = nil,
+    totalCount: Int? = nil
   ) {
     self.folder = folder
     self.items = items
     self.nextCursor = nextCursor
     self.sort = sort
+    self.totalCount = totalCount
   }
 
   public var hasMore: Bool {
     nextCursor != nil
+  }
+
+  public var itemCount: Int? {
+    guard let totalCount else { return hasMore ? nil : items.count }
+    return max(totalCount, items.count)
   }
 }
 

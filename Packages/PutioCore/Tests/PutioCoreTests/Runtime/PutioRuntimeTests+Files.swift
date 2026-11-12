@@ -324,6 +324,17 @@ extension PutioRuntimeTests {
       components.queryItems?.first(where: { $0.name == "parent_id" })?.value,
       "42"
     )
+    XCTAssertEqual(components.queryItems?.first(where: { $0.name == "total" })?.value, "1")
+  }
+
+  func testListReportsTheServerTotalWhilePagesRemain() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(Self.filesList(cursor: "next-page"), for: Self.filesRoute)
+
+    let contents = try await runtime.listFiles()
+
+    XCTAssertEqual(contents.totalCount, 6)
+    XCTAssertEqual(contents.itemCount, 6)
   }
 
   func testFileActionsUseSDKOwnedRoutesAndMapCreatedFolder() async throws {

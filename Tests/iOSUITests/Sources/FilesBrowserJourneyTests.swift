@@ -130,6 +130,51 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-signed-out")
   }
 
+  func testFolderHeadersCountItemsAndBackKeepsTheParentPlace() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    XCTAssertFalse(element(identifier: "files.header.0").exists, "the root drew a folder header")
+
+    let harnessRow = element(identifier: "files.item.410")
+    XCTAssertTrue(harnessRow.appears(within: 10), "seeded folder never appeared")
+    let rootPlace = harnessRow.frame
+    harnessRow.tap()
+    let harnessHeader = element(identifier: "files.header.410")
+    XCTAssertTrue(harnessHeader.appears(within: 10), "the folder has no header")
+    XCTAssertTrue(harnessHeader.label.hasPrefix("2 items"), harnessHeader.label)
+
+    let seasonRow = element(identifier: "files.item.440")
+    XCTAssertTrue(seasonRow.appears(within: 5), "nested folder row never appeared")
+    let parentPlace = seasonRow.frame
+    seasonRow.tap()
+    let seasonHeader = element(identifier: "files.header.440")
+    XCTAssertTrue(seasonHeader.appears(within: 10), "the nested folder has no header")
+    XCTAssertEqual(seasonHeader.label, "6 items, 13.1 GB")
+    XCTAssertTrue(
+      (element(identifier: "files.item.442").value as? String)?.hasPrefix("Watched") == true,
+      "the watched episode is not reported as watched")
+    addScreenshot(named: "runtime-folder-header")
+
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(seasonRow.appears(within: 5), "back did not return to the parent folder")
+    XCTAssertEqual(seasonRow.frame, parentPlace, "back moved the parent folder's rows")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(harnessRow.appears(within: 5), "back did not return to the root")
+    XCTAssertEqual(harnessRow.frame, rootPlace, "back moved the root's rows")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
   func testSignOutFailureRecoversWithExplicitRetry() {
     app.launchArguments = [
       "--putio-harness-scenario", "signed-in", "--putio-harness-sign-out-failure",
@@ -979,6 +1024,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let harnessFolderAfterBulkMove = element(identifier: "files.item.410")
     XCTAssertTrue(waitUntilHittable(harnessFolderAfterBulkMove, timeout: 5))
+    XCTAssertTrue(
+      waitUntilSettled(harnessFolderAfterBulkMove, timeout: 5),
+      "root rows kept moving after selection ended")
     harnessFolderAfterBulkMove.tap()
     XCTAssertTrue(
       element(identifier: "files.screen.410").appears(within: 5),
@@ -1200,6 +1248,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
       object: element
     )
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func waitUntilSettled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    var previous = element.frame
+    while Date() < deadline {
+      RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+      let current = element.frame
+      if current == previous { return true }
+      previous = current
+    }
+    return false
   }
 
   private func assertCurrentBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {

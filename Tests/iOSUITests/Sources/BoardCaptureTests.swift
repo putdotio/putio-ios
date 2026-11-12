@@ -21,7 +21,7 @@ final class BoardCaptureTests: XCTestCase {
   func testFolder() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
-    openHarnessFolder()
+    openSeasonFolder()
     try captureBoard("rd-ios-02-folder")
   }
 
@@ -63,7 +63,7 @@ final class BoardCaptureTests: XCTestCase {
   func testIPadPortrait() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
-    openHarnessFolder()
+    openSeasonFolder()
     let toggle = sidebarToggle()
     XCTAssertTrue(toggle.appears(within: 5), "the top tabs have no sidebar button")
     toggle.tap()
@@ -73,7 +73,7 @@ final class BoardCaptureTests: XCTestCase {
       element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(
-      element("files.screen.410").appears(within: 5), "rotating reset the Files path")
+      element("files.screen.440").appears(within: 5), "rotating reset the Files path")
     try captureBoard("rd-ios-14-ipad-portrait")
   }
 
@@ -256,6 +256,16 @@ final class BoardCaptureTests: XCTestCase {
       folder.tap()
     }
     XCTAssertTrue(folderScreen.appears(within: 10), "folder did not open")
+  }
+
+  private func openSeasonFolder() {
+    if !element("files.screen.440").appears(within: 5) {
+      if !element("files.screen.410").exists { openHarnessFolder() }
+      let folder = element("files.item.440")
+      XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
+      folder.tap()
+    }
+    XCTAssertTrue(element("files.header.440").appears(within: 10), "season folder has no header")
   }
 
   private func captureBoard(_ defaultBoard: String) throws {
