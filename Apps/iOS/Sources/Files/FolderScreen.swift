@@ -163,15 +163,21 @@ struct PutioFolderScreen: View {
           .accessibilityIdentifier("files.selection.menu")
         }
       } else if model.supportsActions {
-        ToolbarItemGroup(placement: .primaryAction) {
-          if let castButton { castButton }
-          PutioFolderSortMenu(
-            current: model.sort ?? defaultSort,
-            isDisabled: !model.canStartAction || actionRequest != nil
-          ) { sort in
-            actionRequest = .sort(sort)
+        if #available(iOS 27, *) {
+          if let castButton {
+            ToolbarItem(placement: .primaryAction) { castButton }
           }
-          browseMenu
+          ToolbarItemGroup(placement: .primaryAction) {
+            sortMenu
+            browseMenu
+          }
+          .visibilityPriority(.high)
+        } else {
+          ToolbarItemGroup(placement: .primaryAction) {
+            if let castButton { castButton }
+            sortMenu
+            browseMenu
+          }
         }
       } else if let castButton {
         ToolbarItem(placement: .primaryAction) { castButton }
@@ -601,6 +607,15 @@ struct PutioFolderScreen: View {
     }
     .disabled(selectedItems.isEmpty || fileActionPending || !model.canDelete)
     .accessibilityIdentifier("files.bulk.remove")
+  }
+
+  private var sortMenu: some View {
+    PutioFolderSortMenu(
+      current: model.sort ?? defaultSort,
+      isDisabled: !model.canStartAction || actionRequest != nil
+    ) { sort in
+      actionRequest = .sort(sort)
+    }
   }
 
   private var browseMenu: some View {
