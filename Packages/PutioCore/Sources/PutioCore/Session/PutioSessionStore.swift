@@ -435,8 +435,8 @@ public final class PutioSessionStore {
   func applyAcknowledgedPreferences(
     defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil,
     routeName: String? = nil, rememberVideoTime: Bool? = nil, hideSubtitles: Bool? = nil,
-    dontAutoSelectSubtitles: Bool? = nil, twoFactorEnabled: Bool? = nil, diagnosticsEnabled: Bool? = nil,
-    productAnalyticsEnabled: Bool? = nil
+    dontAutoSelectSubtitles: Bool? = nil, twoFactorEnabled: Bool? = nil,
+    diagnosticsEnabled: Bool? = nil, productAnalyticsEnabled: Bool? = nil
   ) {
     guard case .signedIn(let account) = state else { return }
     state = .signedIn(
