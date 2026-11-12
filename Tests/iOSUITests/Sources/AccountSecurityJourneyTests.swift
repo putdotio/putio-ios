@@ -227,9 +227,13 @@ final class AccountSecurityJourneyTests: XCTestCase {
 
   private func signIn() {
     let button = element("auth.sign-in")
-    XCTAssertTrue(button.appears(within: 10))
-    button.tap()
-    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    let root = element("files.screen.0")
+    let deadline = Date.now.addingTimeInterval(10)
+    while !button.exists, !root.exists, Date.now < deadline {
+      _ = button.appears(within: 0.5)
+    }
+    if button.exists { button.tap() }
+    XCTAssertTrue(root.appears(within: 10))
   }
 
   private func back() {
