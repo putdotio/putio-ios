@@ -106,7 +106,7 @@ struct PutioFolderScreen: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: String(localized: "Loading files"))
+        PutioLoadingStateView.files
       case .loaded(let contents):
         loadedContent(contents)
       case .failed(let failure):
@@ -301,11 +301,10 @@ struct PutioFolderScreen: View {
             if let accountNotice {
               PutioInactiveAccountNoticeView(notice: accountNotice)
             }
-            PutioEmptyStateView(
-              icon: .folderFill,
-              title: String(localized: "This folder is empty"),
-              message: String(localized: "Files added here appear in this list.")
+            PutioEmptyStateView.folder(
+              createFolder: model.supportsActions ? { nameAlert = newFolderAlert() } : nil
             )
+            .disabled(!model.canStartAction || actionRequest != nil)
             if let refreshFailure = model.refreshFailure {
               refreshFailureRow(refreshFailure)
             }
@@ -333,6 +332,8 @@ struct PutioFolderScreen: View {
     }
   }
 
+  private static let prefetchDistance = 5
+
   private enum ListTop: Hashable {
     case notice
     case header
@@ -353,7 +354,9 @@ struct PutioFolderScreen: View {
           .selectionDisabled()
       }
       listTop(contents)
-      ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
+      let items = contents.items.filter { !trashingIDs.contains($0.id) }
+      let prefetchIDs = contents.hasMore ? Set(items.suffix(Self.prefetchDistance).map(\.id)) : []
+      ForEach(items) { item in
         VStack(spacing: 0) {
           row(
             PutioBrowserItemPresentation(
@@ -364,13 +367,20 @@ struct PutioFolderScreen: View {
             )
           )
         }
+        .task(id: prefetchIDs.contains(item.id) ? model.continuationKey : nil) {
+          guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
+          await model.loadMore()
+        }
         .tag(item.id)
         .listRowBackground(PutioTheme.Colors.background)
       }
 
       if contents.hasMore {
         loadMoreRow
+          .listRowInsets(EdgeInsets())
+          .listRowSeparator(.hidden)
           .listRowBackground(PutioTheme.Colors.background)
+          .selectionDisabled()
       }
 
       if let refreshFailure = model.refreshFailure {
@@ -651,36 +661,18 @@ struct PutioFolderScreen: View {
 
   @ViewBuilder
   private var loadMoreRow: some View {
-    if let failure = model.loadMoreFailure {
-      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
-        Text("Could not load more files")
-          .putioFont(PutioTheme.Typography.subheading)
-          .foregroundStyle(PutioTheme.Colors.textPrimary)
-        Text(failure.message)
-          .putioFont(PutioTheme.Typography.body)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Button("Try again") {
-          Task { await model.loadMore() }
-        }
-        .buttonStyle(.borderless)
+    if model.loadMoreFailure != nil {
+      PutioNextPageFailedFooter.files(retryIdentifier: "files.more-retry.\(route.id.rawValue)") {
+        Task { await model.loadMore() }
       }
+      .accessibilityElement(children: .contain)
       .accessibilityIdentifier("files.more-error.\(route.id.rawValue)")
     } else {
-      HStack {
-        Spacer()
-        if model.isLoadingMore {
-          ProgressView()
-        } else {
-          Text("Loading more files")
-            .putioFont(PutioTheme.Typography.caption)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
+      PutioNextPageLoadingFooter(accessibilityLabel: String(localized: "Loading more files"))
+        .accessibilityIdentifier("files.more.\(route.id.rawValue)")
+        .task(id: model.continuationKey) {
+          await model.loadMore()
         }
-        Spacer()
-      }
-      .accessibilityIdentifier("files.more.\(route.id.rawValue)")
-      .task(id: model.continuationKey) {
-        await model.loadMore()
-      }
     }
   }
 

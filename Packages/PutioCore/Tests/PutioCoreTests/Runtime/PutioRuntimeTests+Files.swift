@@ -325,6 +325,7 @@ extension PutioRuntimeTests {
       "42"
     )
     XCTAssertEqual(components.queryItems?.first(where: { $0.name == "total" })?.value, "1")
+    XCTAssertEqual(components.queryItems?.first(where: { $0.name == "per_page" })?.value, "50")
   }
 
   func testListReportsTheServerTotalWhilePagesRemain() async throws {

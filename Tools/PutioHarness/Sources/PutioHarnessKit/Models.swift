@@ -580,6 +580,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-04-sort", .iphone, "testSortMenu"),
       BoardCapture("rd-ios-72-sorting", .iphone, "testSortingUpdate"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+      BoardCapture("rd-ios-08-empty", .iphone, "testEmptyFolder"),
+      BoardCapture("rd-ios-32-load-more-failed", .iphone, "testFolderLoadMoreFailed"),
+      BoardCapture("rd-ios-40-loading", .iphone, "testFolderLoading"),
+      BoardCapture("rd-ios-41-loading-more", .iphone, "testFolderLoadingMore"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
       BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
@@ -1047,6 +1051,10 @@ enum BrowserJourneyContract {
       "search-restoration",
       "FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration",
       attachmentNames: ["runtime-search-results"], timeAllowance: 180),
+    JourneyPreflight(
+      "folder-states", "FilesBrowserJourneyTests/testFolderEmptyPagingFailedPageAndPullToRefresh",
+      attachmentNames: ["runtime-folder-empty", "runtime-folder-load-more-failed"],
+      timeAllowance: 240),
     JourneyPreflight(
       "folder-reconciliation",
       "FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs",
