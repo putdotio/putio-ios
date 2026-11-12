@@ -878,8 +878,13 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     let body = PutioTheme.Typography.body.scaledUIFont(
       compatibleWith: traitCollection, fallback: UIFont.systemFont(ofSize:weight:)
     ).font
-    shareButton.configuration?.attributedTitle = AttributedString(
-      String(localized: "Share"), attributes: AttributeContainer([.font: body]))
+    shareButton.configuration?.title = String(localized: "Share")
+    shareButton.configuration?.titleTextAttributesTransformer =
+      UIConfigurationTextAttributesTransformer { incoming in
+        var outgoing = incoming
+        outgoing.font = body
+        return outgoing
+      }
     setNeedsLayout()
   }
 
