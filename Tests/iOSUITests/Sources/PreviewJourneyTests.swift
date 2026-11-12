@@ -521,6 +521,14 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func assertMoreMenu() {
