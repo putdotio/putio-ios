@@ -298,7 +298,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(sizeChoice.appears(within: 5), "the sort menu has no Size row")
     sizeChoice.tap()
     XCTAssertTrue(
-      element("files.sorting.440").appears(within: 2), "the folder never said it was updating")
+      element("files.sorting.440").shows(within: 2), "the folder never said it was updating")
     try captureBoard("rd-ios-72-sorting")
   }
 

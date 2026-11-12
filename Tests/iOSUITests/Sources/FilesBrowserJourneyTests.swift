@@ -1639,7 +1639,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   ) {
     let updating = element(identifier: "files.sorting.440")
     XCTAssertTrue(
-      updating.appears(within: 3), "no Updating file order row", file: file, line: line)
+      updating.shows(within: 3), "no Updating file order row", file: file, line: line)
     XCTAssertTrue(
       updating.disappears(within: 10), "the order update never settled", file: file, line: line)
     XCTAssertTrue(

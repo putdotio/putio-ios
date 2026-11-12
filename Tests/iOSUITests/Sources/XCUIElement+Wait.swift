@@ -13,6 +13,12 @@ extension XCUIElement {
     poll("appear", timeout: timeout) { $0.exists && $0.hasSettled(by: $1) }
   }
 
+  /// For transient elements, such as a progress row, that may go away before
+  /// a settle check could read their frame twice.
+  func shows(within timeout: TimeInterval) -> Bool {
+    poll("show", timeout: timeout) { element, _ in element.exists }
+  }
+
   func becomesHittable(within timeout: TimeInterval) -> Bool {
     poll("become hittable", timeout: timeout) { element, _ in element.isHittable }
   }
