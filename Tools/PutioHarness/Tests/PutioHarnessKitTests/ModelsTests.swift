@@ -294,7 +294,7 @@ import Testing
   #expect(board.testEnvironment["PUTIO_BOARD_DEVICE"] == "duo-open")
   #expect(board.device.requiredDeviceTypeIdentifier == foldableDeviceTypeIdentifier)
   try requireBoardScreenshot(
-    pixelWidth: 2007, pixelHeight: 2853, matches: BoardLayout(width: 669, height: 951, scale: 3),
+    pixelWidth: 2853, pixelHeight: 2007, matches: BoardLayout(width: 951, height: 669, scale: 3),
     board: "rd-ios-duo-02-open-folder")
 }
 

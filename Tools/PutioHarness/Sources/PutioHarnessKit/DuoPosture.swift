@@ -5,7 +5,7 @@ struct DuoPosture {
   let runner: ProcessRunner
   let fileManager: FileManager
 
-  static let openSteps = [["angle", "180"], ["orientation", "landscape-left"]]
+  static let openSteps = [["angle", "180"]]
 
   var source: URL { context.root.appending(path: "Tools/PutioHarness/Guest/DuoPosture.m") }
 

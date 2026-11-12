@@ -37,9 +37,9 @@ static void appendHeader(NSMutableData *data, uint32_t length, uint8_t type) {
   [data appendBytes:bytes length:sizeof bytes];
 }
 
-static void appendText(NSMutableData *data, const char *text, BOOL isKey, BOOL isLast) {
+static void appendText(NSMutableData *data, const char *text, BOOL isKey) {
   size_t length = strlen(text) + (isKey ? 1 : 0);
-  appendHeader(data, (uint32_t)length, (isKey ? 0x08 : 0x09) | (isLast ? 0x80 : 0));
+  appendHeader(data, (uint32_t)length, isKey ? 0x08 : 0x09);
   [data appendBytes:text length:length];
   uint8_t zero = 0;
   while (data.length % 4) [data appendBytes:&zero length:1];
@@ -49,13 +49,13 @@ static NSMutableData *controlPayload(const char *source, const char *type) {
   NSMutableData *data = [NSMutableData data];
   appendHeader(data, 0xd3, 0);
   appendHeader(data, 4, 0x81);
-  appendText(data, "provider", YES, NO);
-  appendText(data, "com.apple.Virtualization.VirtualMachines", NO, NO);
-  appendText(data, "source", YES, NO);
-  appendText(data, source, NO, NO);
-  appendText(data, "type", YES, NO);
-  appendText(data, type, NO, NO);
-  appendText(data, "value", YES, NO);
+  appendText(data, "provider", YES);
+  appendText(data, "com.apple.Virtualization.VirtualMachines", NO);
+  appendText(data, "source", YES);
+  appendText(data, source, NO);
+  appendText(data, "type", YES);
+  appendText(data, type, NO);
+  appendText(data, "value", YES);
   return data;
 }
 
@@ -63,12 +63,6 @@ static NSData *anglePayload(double degrees) {
   NSMutableData *data = controlPayload("hinge-slider-control", "range");
   appendHeader(data, 0x3f, 0x84);
   [data appendBytes:&degrees length:sizeof degrees];
-  return data;
-}
-
-static NSData *orientationPayload(const char *value) {
-  NSMutableData *data = controlPayload("orientation-picker-control", "enum");
-  appendText(data, value, NO, YES);
   return data;
 }
 
@@ -100,12 +94,6 @@ static NSData *payloadForArguments(int argc, char **argv) {
     if (*end != '\0' || !isfinite(degrees) || degrees < 0 || degrees > 180) return nil;
     return anglePayload(degrees);
   }
-  if (strcmp(argv[1], "orientation") == 0) {
-    const char *values[] = {"portrait", "pud", "landscape-left", "landscape-right"};
-    for (size_t index = 0; index < sizeof values / sizeof *values; index++) {
-      if (strcmp(argv[2], values[index]) == 0) return orientationPayload(values[index]);
-    }
-  }
   return nil;
 }
 
@@ -113,9 +101,7 @@ int main(int argc, char **argv) {
   @autoreleasepool {
     NSData *payload = payloadForArguments(argc, argv);
     if (!payload) {
-      fprintf(stderr,
-              "usage: duo-posture angle <0-180> | orientation "
-              "<portrait|pud|landscape-left|landscape-right>\n");
+      fprintf(stderr, "usage: duo-posture angle <0-180>\n");
       return 64;
     }
     if (!dlopen("/System/Library/PrivateFrameworks/HID.framework/HID", RTLD_NOW)) {
