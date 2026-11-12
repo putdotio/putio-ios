@@ -1053,7 +1053,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(element(identifier: "files.more.460").exists, "the last page kept a footer")
     XCTAssertFalse(failed.exists, "a later page failed")
 
-    app.buttons["Account"].tap()
+    let account = app.buttons["Account"]
+    if !account.exists { app.swipeDown() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
