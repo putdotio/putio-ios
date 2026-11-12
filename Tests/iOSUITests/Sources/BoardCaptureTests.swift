@@ -43,12 +43,15 @@ final class BoardCaptureTests: XCTestCase {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")
     app.launch()
-    openHarnessFolder()
-    let folder = element("files.item.440")
-    XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
-    folder.tap()
-    XCTAssertTrue(
-      labeled("Loading files").appears(within: 5), "the folder shows no loading spinner")
+    let spinner = labeled("Loading files")
+    let restoredIntoSeason = spinner.appears(within: 8) && app.navigationBars["Blue Lights"].exists
+    if !restoredIntoSeason {
+      openHarnessFolder()
+      let folder = element("files.item.440")
+      XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
+      folder.tap()
+      XCTAssertTrue(spinner.appears(within: 5), "the folder shows no loading spinner")
+    }
     XCTAssertTrue(app.navigationBars["Blue Lights"].exists, "the loading folder has no title")
     try captureBoard("rd-ios-40-loading")
   }
@@ -1137,11 +1140,16 @@ final class BoardCaptureTests: XCTestCase {
   private func openRoot() {
     let root = element("files.screen.0")
     let signIn = element("auth.sign-in")
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
     let deadline = Date.now.addingTimeInterval(15)
-    while !root.exists, !signIn.exists, Date.now < deadline {
+    while !root.exists, !signIn.exists, !back.exists, Date.now < deadline {
       _ = root.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
+    for _ in 0..<5 where !root.exists && back.exists {
+      back.tap()
+      _ = root.appears(within: 2)
+    }
     XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
   }
 
