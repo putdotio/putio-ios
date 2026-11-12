@@ -171,18 +171,20 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
   let model: PutioExternalPlaybackModel
 
   func body(content: Content) -> some View {
-    content.alert(
+    content.putioAlert(
       String(localized: "VLC is not installed"),
       isPresented: Binding(
         get: { model.missingVLCRoute != nil },
         set: { if !$0 { model.dismissMissingVLC() } }
-      )
-    ) {
-      Button(String(localized: "Cancel"), role: .cancel) { model.dismissMissingVLC() }
-      Button(String(localized: "Get VLC")) { Task { await model.openAppStore() } }
-        .keyboardShortcut(.defaultAction)
-    } message: {
-      Text(String(localized: "Install VLC for iOS from the App Store to stream this file there."))
-    }
+      ),
+      message: String(
+        localized: "Install VLC for iOS from the App Store to stream this file there."),
+      actions: [
+        PutioAlertAction(String(localized: "Cancel"), tier: .cancel),
+        PutioAlertAction(String(localized: "Get VLC"), tier: .primary, id: "vlc.get") {
+          Task { await model.openAppStore() }
+        },
+      ]
+    )
   }
 }

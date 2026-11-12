@@ -55,7 +55,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let reset = app.revealed("settings.reset-sort")
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
-    let resetAlert = app.alerts["Reset all folder sorts?"]
+    let resetAlert = app.putioAlert("Reset all folder sorts?")
     let resetConfirm = resetAlert.buttons["Reset folder sorts"].firstMatch
     XCTAssertTrue(resetConfirm.appears(within: 5))
     XCTAssertTrue(
@@ -91,7 +91,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
 
     let trash = app.switches["settings.trash"]
     let history = app.switches["settings.history"]
-    let trashAlert = app.alerts["Turn off trash?"]
+    let trashAlert = app.putioAlert("Turn off trash?")
     let trashConfirm = trashAlert.buttons["Turn off"].firstMatch
     let historyAlert = app.alerts["Turn off history?"]
     let historyConfirm = historyAlert.buttons["Turn off"].firstMatch

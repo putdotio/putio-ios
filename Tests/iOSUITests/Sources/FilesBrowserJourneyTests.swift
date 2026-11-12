@@ -620,7 +620,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntilHittable(swipeDelete, timeout: 5), "the swipe does not say Delete permanently")
     swipeDelete.tap()
-    let alert = app.alerts["Delete 1 item permanently?"]
+    let alert = app.putioAlert("Delete 1 item permanently?")
     XCTAssertTrue(alert.appears(within: 5), "the swipe deleted without asking")
     alert.buttons["Cancel"].firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5))
@@ -660,7 +660,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let third = element(identifier: "files.item.443")
     let fourth = element(identifier: "files.item.444")
     openContextMenu(for: third, actionLabel: "Move to trash").tap()
-    XCTAssertFalse(app.alerts.firstMatch.exists, "a recoverable Trash move asked to confirm")
+    XCTAssertFalse(app.putioAlerts.firstMatch.exists, "a recoverable Trash move asked to confirm")
     XCTAssertTrue(third.disappears(within: 5), "the trashed row stayed")
     XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 5), "no trashed toast")
     XCTAssertTrue(waitForLabelPrefix(header, "5 items"), "the header still counts the row")
@@ -680,7 +680,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let swipeTrash = app.buttons["Move to trash"]
     XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "the swipe offers no Move to trash")
     swipeTrash.tap()
-    XCTAssertFalse(app.alerts.firstMatch.exists, "a swiped Trash move asked to confirm")
+    XCTAssertFalse(app.putioAlerts.firstMatch.exists, "a swiped Trash move asked to confirm")
     XCTAssertTrue(subtitle.disappears(within: 5), "the swiped row stayed")
     XCTAssertTrue(app.buttons["Undo"].appears(within: 5), "the swipe toast offers no Undo")
 
@@ -706,7 +706,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let folder = element(identifier: "files.item.410")
     XCTAssertTrue(waitUntilHittable(folder, timeout: 10))
     openContextMenu(for: folder, actionLabel: "Move to trash").tap()
-    let limit = app.alerts["We couldn’t send these files to trash"]
+    let limit = app.putioAlert("We couldn’t send these files to trash")
     XCTAssertTrue(limit.appears(within: 10), "the refused Trash move did not ask")
     XCTAssertTrue(
       limit.staticTexts["This folder contains too many files. Delete it permanently?"].exists)
