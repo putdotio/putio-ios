@@ -85,8 +85,11 @@ final class PublicLinksTests: XCTestCase {
         list: {
           loads += 1
           if loads == 2 { throw PutioRuntimeError.transient }
-          if loads == 3 { await withCheckedContinuation { release = $0 } }
-          return [link(1, hours: 10), link(2, hours: 20), link(3, hours: 30)]
+          guard loads == 3 else {
+            return [link(1, hours: 10), link(2, hours: 20), link(3, hours: 30)]
+          }
+          await withCheckedContinuation { release = $0 }
+          return [link(1, hours: 10), link(2, hours: 20), link(3, hours: 30), link(4, hours: 40)]
         },
         now: { now }))
     await model.load()
@@ -100,7 +103,7 @@ final class PublicLinksTests: XCTestCase {
     release?.resume()
     let landed = await refresh.value
     XCTAssertTrue(landed)
-    XCTAssertEqual(model.links.map(\.id), [2, 3], "the refresh dropped or undid the revoke")
+    XCTAssertEqual(model.links.map(\.id), [2, 3, 4], "the refresh was dropped or undid the revoke")
   }
 
   func testLinksThatExpireWhileShownLeaveTheList() async {
