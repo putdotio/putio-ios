@@ -624,6 +624,10 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-ses-14-check-failed", .iphone, "testSessionCheckFailed", screenBase: false),
       BoardCapture("rd-ios-ses-15-signing-out", .iphone, "testSigningOut", screenBase: false),
+      BoardCapture("rd-ios-ses-08-sign-out", .iphone, "testSignOutWithDownloads"),
+      BoardCapture(
+        "rd-ios-ses-16-sign-out-no-downloads", .iphone, "testSignOutWithoutDownloads"),
+      BoardCapture("rd-ios-ses-24-ipad-sign-out", .ipad, "testSignOutWithDownloads"),
       BoardCapture("rd-ios-ses-11-ipad-welcome", .ipad, "testWelcome"),
       BoardCapture("rd-ios-ses-12-ipad-failed", .ipad, "testSignInFailed", screenBase: false),
       BoardCapture(
@@ -900,6 +904,11 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"], timeAllowance: 120),
+    JourneyPreflight(
+      "sign-out-downloads",
+      "AccountJourneyTests/testSignOutKeepsOrRemovesDownloadsAndDismissChangesNothing",
+      attachmentNames: ["runtime-sign-out-downloads", "runtime-sign-out-no-downloads"],
+      timeAllowance: 180),
     JourneyPreflight(
       "account-rows", "AccountJourneyTests/testEveryAccountRowOpensAndClosesFromTopToEnd",
       timeAllowance: 180),

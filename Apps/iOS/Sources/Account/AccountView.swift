@@ -10,13 +10,16 @@ struct AccountView: View {
   let appConfig: PutioAppConfigModel
   @Binding var showsLinkDevice: Bool
   let linkDeviceCode: String?
+  let downloadedBytes: Int64?
+  let removeDownloads: @MainActor () -> Void
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.openURL) private var openURL
   @Environment(\.locale) private var locale
   @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
-  @State private var confirmsSignOut = false
+  @State private var signOutAlert: PutioConfirmAlert?
+  @State private var signOutDownloadedBytes: Int64?
   @State private var confirmation: AccountSettingConfirmation?
   @State private var saveFailures = PutioSettingSaveFailures()
   @State private var revealRequest: AccountSettingReveal?
@@ -30,6 +33,8 @@ struct AccountView: View {
     appConfig: PutioAppConfigModel,
     showsLinkDevice: Binding<Bool>,
     linkDeviceCode: String?,
+    downloadedBytes: Int64?,
+    removeDownloads: @escaping @MainActor () -> Void,
     onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void,
     onAccountDestroyed: @escaping @MainActor () -> Void
   ) {
@@ -41,6 +46,8 @@ struct AccountView: View {
     self.appConfig = appConfig
     _showsLinkDevice = showsLinkDevice
     self.linkDeviceCode = linkDeviceCode
+    self.downloadedBytes = downloadedBytes
+    self.removeDownloads = removeDownloads
     self.onDataCleared = onDataCleared
     self.onAccountDestroyed = onAccountDestroyed
     _preferences = State(
@@ -113,10 +120,7 @@ struct AccountView: View {
         }
         if preferences.settingsState != .loading {
           Section {
-            PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
-              confirmsSignOut = true
-            }
-            .accessibilityIdentifier("auth.sign-out")
+            signOutRow
           }
         }
         if preferences.settingsState == .ready {
@@ -139,14 +143,7 @@ struct AccountView: View {
     .putioContentBackground()
     .task { await preferences.loadSettingsIfNeeded() }
     .task { await appConfig.loadIfNeeded() }
-    .alert("Are you sure?", isPresented: $confirmsSignOut) {
-      Button("Cancel", role: .cancel) {}
-      Button("Log out", role: .destructive) {
-        PutioFilesNavigationRestoration().clear(accountID: account.id)
-        Task { await runtime.session.signOut() }
-      }
-      .accessibilityIdentifier("auth.sign-out-confirm")
-    }
+    .putioConfirmAlert($signOutAlert)
     .confirmationDialog(
       confirmation?.title ?? String(localized: "Update settings?"),
       isPresented: Binding(
@@ -174,6 +171,57 @@ struct AccountView: View {
     .navigationDestination(isPresented: $showsLinkDevice) {
       LinkDeviceView(actions: .init(runtime: runtime), code: linkDeviceCode)
     }
+  }
+
+  private var signOutRow: some View {
+    PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
+      askToSignOut()
+    }
+    .accessibilityIdentifier("auth.sign-out")
+    .confirmationDialog(
+      PutioSignOutPrompt.title,
+      isPresented: Binding(
+        get: { signOutDownloadedBytes != nil },
+        set: { if !$0 { signOutDownloadedBytes = nil } }),
+      titleVisibility: .visible,
+      presenting: signOutDownloadedBytes
+    ) { bytes in
+      Button(String(localized: "Sign out"), role: .destructive) {
+        signOut(removingDownloads: false)
+      }
+      .accessibilityIdentifier("auth.sign-out-confirm")
+      Button(PutioSignOutPrompt.removeDownloadsTitle(bytes: bytes), role: .destructive) {
+        signOut(removingDownloads: true)
+      }
+      .accessibilityIdentifier("auth.sign-out-remove-downloads")
+      Button("Cancel", role: .cancel) {}
+    } message: { _ in
+      Text(PutioSignOutPrompt.message)
+    }
+  }
+
+  private func askToSignOut() {
+    if let downloadedBytes {
+      signOutDownloadedBytes = downloadedBytes
+      return
+    }
+    let runtime = runtime
+    let accountID = account.id
+    signOutAlert = PutioConfirmAlert(
+      title: PutioSignOutPrompt.title,
+      message: PutioSignOutPrompt.message,
+      confirmTitle: String(localized: "Sign out")
+    ) {
+      PutioFilesNavigationRestoration().clear(accountID: accountID)
+      Task { await runtime.session.signOut() }
+    }
+  }
+
+  private func signOut(removingDownloads: Bool) {
+    signOutDownloadedBytes = nil
+    if removingDownloads { removeDownloads() }
+    PutioFilesNavigationRestoration().clear(accountID: account.id)
+    Task { await runtime.session.signOut() }
   }
 
   private var storageSection: some View {
@@ -557,6 +605,21 @@ private struct AccountProfileHeader: View {
     .frame(width: avatarSize, height: avatarSize)
     .clipShape(Circle())
     .accessibilityHidden(true)
+  }
+}
+
+private enum PutioSignOutPrompt {
+  static var title: String { String(localized: "Sign out of put.io?") }
+
+  static var message: String {
+    UIDevice.current.userInterfaceIdiom == .pad
+      ? String(localized: "Downloads stay on this iPad and come back when you sign in again.")
+      : String(localized: "Downloads stay on this iPhone and come back when you sign in again.")
+  }
+
+  static func removeDownloadsTitle(bytes: Int64) -> String {
+    let size = PutioFileRowModel.sizeText(bytes: bytes)
+    return String(localized: "Sign out and remove downloads (\(size))")
   }
 }
 

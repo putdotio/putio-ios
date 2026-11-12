@@ -362,6 +362,37 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-ses-15-signing-out")
   }
 
+  func testSignOutWithDownloads() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    downloadHarnessTrack()
+    openSignOut()
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    XCTAssertTrue(remove.appears(within: 5), "the dialog offers no download removal")
+    XCTAssertTrue(
+      app.buttons["auth.sign-out-confirm"].firstMatch.exists, "the dialog has no plain Sign out")
+    try captureBoard("rd-ios-ses-08-sign-out")
+    remove.tap()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 15), "sign-out never reached Welcome")
+  }
+
+  func testSignOutWithoutDownloads() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    openSignOut()
+    let alert = app.alerts["Sign out of put.io?"]
+    XCTAssertTrue(alert.appears(within: 5), "sign-out with no downloads showed no alert")
+    XCTAssertFalse(
+      app.buttons["auth.sign-out-remove-downloads"].exists,
+      "the alert offers download removal; a download outlived an earlier capture")
+    XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
+    try captureBoard("rd-ios-ses-16-sign-out-no-downloads")
+    alert.buttons["Cancel"].tap()
+    XCTAssertTrue(alert.disappears(within: 5), "Cancel left the alert open")
+  }
+
   func testPreviewLoading() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-previews")
@@ -706,6 +737,36 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 5), "the list column is hidden after \(step)")
     XCTAssertTrue(row.isSelected, "the open row lost its selection after \(step)")
     XCTAssertFalse(app.staticTexts["No file selected"].exists, "the detail emptied after \(step)")
+  }
+
+  private func orientForBoardDevice() {
+    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+  }
+
+  private func downloadHarnessTrack() {
+    openItemMenu("files.item.408")
+    app.buttons["Download"].firstMatch.tap()
+    tabButton("Downloads").tap()
+    let item = element("downloads.item.408")
+    XCTAssertTrue(item.appears(within: 10), "the harness track never queued")
+    let completed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "completed"), object: item)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [completed], timeout: 60), .completed,
+      "the harness track never finished downloading")
+  }
+
+  private func openSignOut() {
+    let account = tabButton("Account")
+    if !account.appears(within: 3) { sidebarToggle().tap() }
+    XCTAssertTrue(account.appears(within: 5), "the Account tab is missing")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "Account has no Sign out")
+    app.bringIntoView(signOut)
+    XCTAssertTrue(signOut.becomesHittable(within: 5), "Sign out never became tappable")
+    signOut.tap()
   }
 
   private func openAccount() {
