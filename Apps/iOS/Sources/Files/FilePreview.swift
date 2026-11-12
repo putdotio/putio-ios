@@ -1821,7 +1821,8 @@ final class PutioInsetPDFView: PDFView {
   private func fit(resized: Bool) {
     guard let document, document.pageCount > 0 else { return }
     let sizeToFit = scaleFactorForSizeToFit
-    let pageWidth = (0..<document.pageCount).lazy
+    let pageWidth =
+      (0..<document.pageCount).lazy
       .compactMap { document.page(at: $0) }
       .map { page in
         let box = page.bounds(for: self.displayBox)
