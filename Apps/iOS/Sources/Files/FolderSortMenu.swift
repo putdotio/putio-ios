@@ -1,8 +1,6 @@
 import PutioCore
 import SwiftUI
 
-/// The folder's sort button: one stock menu with Sort by, Order and Videos,
-/// each choice checked in place.
 struct PutioFolderSortMenu: View {
   let current: PutioFolderSort?
   let isDisabled: Bool
@@ -12,8 +10,6 @@ struct PutioFolderSortMenu: View {
     PutioFolderSortChoices(current: current)
   }
 
-  /// VoiceOver label for the button. The sort rides in the label because
-  /// iOS 27 drops a `Menu`'s accessibility value.
   static func accessibilityLabel(for current: PutioFolderSort?) -> String {
     guard let current else { return String(localized: "Sort files") }
     return String(localized: "Sort files, \(current.menuLabel)")
@@ -46,8 +42,6 @@ struct PutioFolderSortMenu: View {
     .accessibilityLabel(Self.accessibilityLabel(for: current))
   }
 
-  /// A checked row stays checked: choosing it again sends nothing, so a
-  /// folder that follows the account default keeps following it.
   private func row(
     _ title: String, isChecked: Bool, sort: @escaping @MainActor () -> PutioFolderSort
   ) -> some View {

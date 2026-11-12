@@ -589,12 +589,8 @@ import Foundation
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
     nonisolated(unsafe) private static var folderSorts: [Int: String] = persistedFolderSorts()
-    /// The season folder's first `TYPE_DESC` request fails, for rollback proof.
     nonisolated(unsafe) private static var seasonSortFailureDelivered = false
     private static let folderSortsKey = "putio.harness.folder-sorts.server"
-    /// `--putio-harness-persist-folder-sorts` keeps folder sorts across
-    /// launches, as the server does; `--putio-harness-reset-folder-sorts`
-    /// starts that store empty.
     private static var persistsFolderSorts: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-persist-folder-sorts")
     }
@@ -612,7 +608,6 @@ import Foundation
         })
     }
 
-    // Caller holds fileActionsLock.
     private static func persistFolderSortsLocked() {
       guard persistsFolderSorts else { return }
       UserDefaults.standard.set(
@@ -853,7 +848,6 @@ import Foundation
       } else if url.path == "/v2/files/set-sort-by",
         Self.requestPayload(replayableRequest)?["file_id"] as? Int == Self.seasonFolderID
       {
-        // Long enough for journeys and board captures to see the order update.
         DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else {
         deliverResponse()

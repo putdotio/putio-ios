@@ -834,7 +834,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
       assertChecked([step.field, other], unchecked: [current])
     }
 
-    // The season folder's first Type, Z to A request fails.
     XCTAssertFalse(ascending, "the walk should leave a descending order checked")
     app.sortChoice("Type").tap()
     XCTAssertTrue(
@@ -1671,27 +1670,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func dismissMenu() {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
-  }
-
-  /// iOS 27 drops the sort rows' custom identifiers; the selected row's label
-  /// carries its direction subtitle there.
-  private func sortRow(_ title: String) -> XCUIElement {
-    app.buttons.matching(
-      NSPredicate(format: "label == %@ OR label BEGINSWITH %@", title, title + ",")
-    ).firstMatch
-  }
-
-  private func assertSortRowSelected(_ row: XCUIElement, label: String) {
-    XCTAssertEqual(row.label, label)
-  }
-
-  /// The menu announces the sort in its label on every runtime.
-  private func assertSortValue(_ value: String, on menu: XCUIElement) {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@", "More, sorted by " + value),
-      object: menu
-    )
-    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
   }
 
   private func assertMovePickerCreatesAFolder(for row: XCUIElement) {

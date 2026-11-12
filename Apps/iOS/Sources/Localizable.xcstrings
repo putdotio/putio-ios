@@ -2403,28 +2403,6 @@
         }
       }
     },
-    "More, sorted by %@" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "More, sorted by %@"
-          }
-        }
-      }
-    },
-    "More, using the account default sort" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "More, using the account default sort"
-          }
-        }
-      }
-    },
     "Move" : {
       "comment" : "android: mobile_files_move",
       "localizations" : {
@@ -5074,17 +5052,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Used recovery code"
-          }
-        }
-      }
-    },
-    "Using the account default" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Using the account default"
           }
         }
       }

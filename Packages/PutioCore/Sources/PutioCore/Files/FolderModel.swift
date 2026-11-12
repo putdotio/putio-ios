@@ -30,8 +30,6 @@ public final class PutioFolderModel {
   /// a mutation keeps only the first page, so later-page rows vanish until
   /// paging reaches them again.
   public private(set) var firstPageIDs: Set<PutioFileID> = []
-  /// True from a sort request until the folder's first page in the new order
-  /// arrives, or the request fails.
   public private(set) var isUpdatingSortOrder = false
 
   @ObservationIgnored private let load: PutioFolderLoad

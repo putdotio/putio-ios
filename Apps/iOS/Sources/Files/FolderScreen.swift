@@ -1003,10 +1003,8 @@ struct PutioFolderScreen: View {
 
   private func successToast(for action: PutioFileAction) -> PutioToast? {
     switch action {
-    case .createFolder, .rename:
+    case .createFolder, .rename, .sort:
       nil
-    case .sort:
-      PutioToast(String(localized: "Sorting changed"))
     case .delete:
       PutioToast(PutioFileDeletionCopy.deleted)
     case .restore:

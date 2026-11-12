@@ -73,8 +73,6 @@ extension PutioFolderSort {
   }
 }
 
-/// The mobile sort menu's three sections: a Sort by field, the two orders of
-/// that field, and the two Videos orders, which leave Sort by unchecked.
 public struct PutioFolderSortChoices: Equatable, Sendable {
   public static let fields: [PutioFolderSortKey] = [.name, .size, .dateAdded, .dateModified, .type]
   public static let videoOrders: [PutioFolderSort] = [
@@ -92,7 +90,6 @@ public struct PutioFolderSortChoices: Equatable, Sendable {
     return current.key
   }
 
-  /// The Order rows follow the checked field, or Name while none is checked.
   public var orders: [PutioFolderSort] {
     let field = checkedField ?? .name
     return [field.sort(ascending: true), field.sort(ascending: false)]
@@ -102,7 +99,6 @@ public struct PutioFolderSortChoices: Equatable, Sendable {
     sort == current
   }
 
-  /// A new field keeps the checked order; after a Videos order it starts ascending.
   public func selecting(_ field: PutioFolderSortKey) -> PutioFolderSort {
     field.sort(ascending: checkedField == nil || current?.isAscending == true)
   }
@@ -122,7 +118,6 @@ extension PutioFolderSortKey {
 }
 
 extension PutioFolderSort {
-  /// The row title under Order or Videos.
   public var orderTitle: String {
     switch self {
     case .nameAscending, .typeAscending: String(localized: "A to Z", bundle: .module)
@@ -138,7 +133,6 @@ extension PutioFolderSort {
     }
   }
 
-  /// The whole choice in one phrase, for the sort button's VoiceOver label.
   public var menuLabel: String {
     switch self {
     case .nameAscending: String(localized: "Name, A to Z", bundle: .module)
