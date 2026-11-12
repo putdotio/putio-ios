@@ -93,7 +93,8 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let history = app.switches["settings.history"]
     let trashAlert = app.alerts["Turn off trash?"]
     let trashConfirm = trashAlert.buttons["Turn off"].firstMatch
-    let historyConfirm = app.buttons["settings.history-disable"].firstMatch
+    let historyAlert = app.alerts["Turn off history?"]
+    let historyConfirm = historyAlert.buttons["Turn off"].firstMatch
     XCTAssertTrue(waitUntilHittable(trash))
     tapToggle(trash)
     XCTAssertTrue(trashConfirm.appears(within: 5))
@@ -107,6 +108,10 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(app.revealed("settings.history")))
     tapToggle(history)
     XCTAssertTrue(historyConfirm.appears(within: 5))
+    XCTAssertTrue(
+      historyAlert.staticTexts[
+        "Existing history will be cleared and new account events will no longer be saved."
+      ].exists)
     cancelConfirmation(historyConfirm)
     assertToggle(history, enabled: true)
     app.showTabBar()
@@ -141,7 +146,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     // product analytics starts off, and both survive the relaunch below.
     let diagnostics = app.switches["privacy.diagnostics"]
     let analytics = app.switches["privacy.product-analytics"]
-    assertPrivacySummary("Diagnostics on · Product analytics off")
+    assertPrivacySummary("Diagnostics on · Analytics off")
     openPrivacy()
     XCTAssertTrue(element("privacy.strictly-necessary").exists)
     XCTAssertTrue(element("privacy.policy").exists)
@@ -153,6 +158,8 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(diagnostics)
     assertToggle(diagnostics, enabled: false)
     addScreenshot(named: "runtime-privacy-controls")
+    app.navigationBars.buttons["BackButton"].tap()
+    assertPrivacySummary("Diagnostics off · Analytics on")
 
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
@@ -167,7 +174,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
-    assertPrivacySummary("Diagnostics off · Product analytics on")
+    assertPrivacySummary("Diagnostics off · Analytics on")
     openPrivacy()
     assertToggle(diagnostics, enabled: false)
     assertToggle(analytics, enabled: true)
@@ -222,7 +229,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
   private func assertPrivacySummary(_ summary: String) {
     let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
-    XCTAssertTrue(entry.label.contains(summary), "Account row read \(entry.label)")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "label CONTAINS %@", summary), entry),
+      "Account row read \(entry.label)")
   }
 
   private func assertFirstFile(_ name: String) {

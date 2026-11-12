@@ -101,6 +101,28 @@
         }
       }
     },
+    "Analytics off" : {
+      "comment" : "android: mobile_settings_analytics_off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analytics off"
+          }
+        }
+      }
+    },
+    "Analytics on" : {
+      "comment" : "android: mobile_settings_analytics_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analytics on"
+          }
+        }
+      }
+    },
     "Ancient times" : {
       "comment" : "ios-only: no Android string for the shared history day groups",
       "localizations" : {
@@ -770,6 +792,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
+          }
+        }
+      }
+    },
+    "Diagnostics off" : {
+      "comment" : "android: mobile_settings_diagnostics_off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics off"
+          }
+        }
+      }
+    },
+    "Diagnostics on" : {
+      "comment" : "android: mobile_settings_diagnostics_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics on"
           }
         }
       }

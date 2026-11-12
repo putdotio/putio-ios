@@ -6,10 +6,10 @@ final class PrivacyControlsTests: XCTestCase {
   func testSummaryNamesEachControlState() {
     XCTAssertEqual(
       PutioPrivacyControls.summary(for: Self.account(diagnostics: true, productAnalytics: false)),
-      "Diagnostics on · Product analytics off")
+      "Diagnostics on · Analytics off")
     XCTAssertEqual(
       PutioPrivacyControls.summary(for: Self.account(diagnostics: false, productAnalytics: true)),
-      "Diagnostics off · Product analytics on")
+      "Diagnostics off · Analytics on")
   }
 
   func testDescriptionsKeepTheApprovedCopy() {

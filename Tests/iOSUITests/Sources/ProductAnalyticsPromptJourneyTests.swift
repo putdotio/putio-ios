@@ -49,7 +49,7 @@ final class ProductAnalyticsPromptJourneyTests: XCTestCase {
     let privacy = app.revealed("account.privacy")
     XCTAssertTrue(privacy.appears(within: 5))
     let summary = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label CONTAINS %@", "Product analytics on"),
+      predicate: NSPredicate(format: "label CONTAINS %@", "Analytics on"),
       object: privacy)
     XCTAssertEqual(XCTWaiter.wait(for: [summary], timeout: 5), .completed)
     let signOut = app.revealed("auth.sign-out", maximumSwipes: 12)

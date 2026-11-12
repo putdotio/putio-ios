@@ -130,17 +130,20 @@ public struct PutioNavigationRow<Destination: View>: View {
 
 public struct PutioValueRow: View {
   private let title: String
+  private let subtitle: String?
   private let icon: PutioIcon?
   private let value: String
   private let valueStyle: PutioSettingValueStyle
 
   public init(
     _ title: String,
+    subtitle: String? = nil,
     icon: PutioIcon? = nil,
     value: String,
     valueStyle: PutioSettingValueStyle = .text
   ) {
     self.title = title
+    self.subtitle = subtitle
     self.icon = icon
     self.value = value
     self.valueStyle = valueStyle
@@ -148,7 +151,7 @@ public struct PutioValueRow: View {
 
   public var body: some View {
     PutioSettingsValueLayout(
-      title: title, subtitle: nil, icon: icon, value: value, valueStyle: valueStyle
+      title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle
     )
     .accessibilityElement(children: .combine)
   }
@@ -665,9 +668,17 @@ private struct PutioSettingsValueLayout: View {
   let icon: PutioIcon?
   let value: String?
   let valueStyle: PutioSettingValueStyle
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   var body: some View {
-    if let value {
+    if let value, subtitle != nil {
+      describedLayout {
+        PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        valueText(value)
+          .fixedSize()
+      }
+    } else if let value {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: PutioTheme.Spacing.space2) {
           PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
@@ -685,6 +696,12 @@ private struct PutioSettingsValueLayout: View {
     } else {
       PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
     }
+  }
+
+  private var describedLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: PutioTheme.Spacing.space1))
+      : AnyLayout(HStackLayout(spacing: PutioTheme.Spacing.space2))
   }
 
   @ViewBuilder private func valueText(_ value: String) -> some View {

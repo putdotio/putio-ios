@@ -1798,7 +1798,7 @@
       }
     },
     "Existing history will be cleared and new account events will no longer be saved." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4836,24 +4836,13 @@
         }
       }
     },
-    "Turn Off History" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+    "Turn off history?" : {
+      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn Off History"
-          }
-        }
-      }
-    },
-    "Turn off History?" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn off History?"
+            "value" : "Turn off history?"
           }
         }
       }

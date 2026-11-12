@@ -18,7 +18,6 @@ struct AccountView: View {
   @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
   @State private var signOutDownloadedBytes: Int64?
-  @State private var confirmsHistoryOff = false
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var saveFailures = PutioSettingSaveFailures()
   @State private var revealRequest: AccountSettingReveal?
@@ -143,19 +142,6 @@ struct AccountView: View {
     .putioContentBackground()
     .task { await preferences.loadSettingsIfNeeded() }
     .task { await appConfig.loadIfNeeded() }
-    .confirmationDialog(
-      String(localized: "Turn off History?"), isPresented: $confirmsHistoryOff,
-      titleVisibility: .visible
-    ) {
-      Button("Turn Off History", role: .destructive) { save(.history, .history(false)) }
-        .accessibilityIdentifier("settings.history-disable")
-      Button("Cancel", role: .cancel) {}
-    } message: {
-      Text(
-        String(
-          localized:
-            "Existing history will be cleared and new account events will no longer be saved."))
-    }
     .putioConfirmAlert($confirmAlert)
     .navigationDestination(isPresented: $showsLinkDevice) {
       LinkDeviceView(actions: .init(runtime: runtime), code: linkDeviceCode)
@@ -486,7 +472,7 @@ struct AccountView: View {
     Binding(
       get: { preferences.account?.historyEnabled ?? false },
       set: { enabled in
-        if enabled { save(.history, .history(true)) } else { confirmsHistoryOff = true }
+        if enabled { save(.history, .history(true)) } else { confirmHistoryOff() }
       })
   }
 
@@ -506,6 +492,18 @@ struct AccountView: View {
       confirmTitle: String(localized: "Turn off")
     ) {
       save(.resume, .resumePlayback(false))
+    }
+  }
+
+  private func confirmHistoryOff() {
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Turn off history?"),
+      message: String(
+        localized:
+          "Existing history will be cleared and new account events will no longer be saved."),
+      confirmTitle: String(localized: "Turn off")
+    ) {
+      save(.history, .history(false))
     }
   }
 
