@@ -92,14 +92,16 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-unconfirmed-settings")
     app.launch()
     reachFilesRoot()
-    app.buttons["Account"].tap()
+    let account = tabButton("Account")
+    XCTAssertTrue(account.appears(within: 10), "the Account tab never appeared")
+    account.tap()
     let subtitles = app.switches["playback-settings.subtitles"]
     app.bringIntoView(subtitles)
     XCTAssertTrue(subtitles.appears(within: 10), "Show subtitles never appeared")
     // Form exposes the full row as the switch accessibility frame.
     subtitles.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     app.showTabBar()
-    app.buttons["Files"].tap()
+    tabButton("Files").tap()
     openSeasonFolder()
     openItemMenu("files.item.442")
     let trash = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Move to trash"))
