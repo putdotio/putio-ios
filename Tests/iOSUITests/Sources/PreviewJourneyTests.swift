@@ -521,6 +521,8 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
 
     let account = app.buttons["Account"]
     app.scrollDown(toHit: account)
