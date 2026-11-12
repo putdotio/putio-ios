@@ -786,7 +786,10 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      try notifier.settleNameAction(of: model)
+      try notifier.settleNameAction(of: model) { action in
+        guard case .rename(let fileID, _, _) = action else { return false }
+        return fileID == item.id
+      }
     }
   }
 
@@ -801,7 +804,10 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Could not create folder")
     ) { name in
       await model.createFolder(name: name)
-      try notifier.settleNameAction(of: model)
+      try notifier.settleNameAction(of: model) { action in
+        guard case .createFolder = action else { return false }
+        return true
+      }
     }
   }
 
@@ -999,7 +1005,6 @@ private struct PutioFolderActionNotifier {
 
   func notify(_ action: PutioFileAction) {
     if case .delete = action {
-      // A deleted folder can contain any of the other mounted destinations.
       requests.requestAllLoadedFolders(excludingOwner: owner)
     } else {
       requests.request(folderID: folderID, excludingOwner: owner)
@@ -1015,11 +1020,13 @@ private struct PutioFolderActionNotifier {
     }
   }
 
-  func settleNameAction(of model: PutioFolderModel) throws {
-    let outcome = model.actionOutcome
+  func settleNameAction(
+    of model: PutioFolderModel, matching isNameAction: (PutioFileAction) -> Bool
+  ) throws {
+    guard let outcome = model.actionOutcome, isNameAction(outcome.action) else { return }
     model.clearActionOutcome()
-    if let outcome { notify(outcome.action) }
-    guard case .succeeded = outcome else { throw PutioNameActionFailure() }
+    notify(outcome.action)
+    if case .failed = outcome { throw PutioNameActionFailure() }
   }
 }
 

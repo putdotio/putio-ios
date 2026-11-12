@@ -135,9 +135,15 @@ struct PutioFileItemActionsHost: ViewModifier {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      let outcome = model.outcome
-      model.clearOutcome()
-      guard case .succeeded = outcome else { throw PutioRenameFailure() }
+      switch model.outcome {
+      case .succeeded(.rename):
+        model.clearOutcome()
+      case .failed(.rename, _):
+        model.clearOutcome()
+        throw PutioRenameFailure()
+      default:
+        break
+      }
     }
   }
 

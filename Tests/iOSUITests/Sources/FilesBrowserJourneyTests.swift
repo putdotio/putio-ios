@@ -916,7 +916,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     newFolder.tap()
 
     let newFolderAlert = nameAlert("New folder")
-    XCTAssertTrue(newFolderAlert.staticTexts["In Files"].exists, "New folder does not name its folder")
+    XCTAssertTrue(
+      newFolderAlert.staticTexts["In Files"].exists, "New folder does not name its folder")
     let create = newFolderAlert.buttons["Create"]
     XCTAssertFalse(create.isEnabled, "Create is enabled for an empty name")
     submitName("Watch Later", in: newFolderAlert, as: "Create")
