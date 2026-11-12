@@ -1633,6 +1633,86 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-37-links-revoke")
   }
 
+  func testIPadAccount() throws {
+    openIPadAccount()
+    XCTAssertTrue(
+      element("putio.list-detail.empty").appears(within: 5), "a screen opened before a row")
+    XCTAssertFalse(element("account.public-links").isSelected, "a row is open before a tap")
+    try captureBoard("rd-ios-acc-57-ipad-account")
+  }
+
+  func testIPadAccountPrivacy() throws {
+    openIPadAccount()
+    let privacy = scrollIPadAccount(toHit: "account.privacy")
+    privacy.tap()
+    XCTAssertTrue(
+      app.switches["privacy.diagnostics"].appears(within: 5), "Privacy controls never opened")
+    assertIPadAccountOpen("account.privacy", "opening Privacy controls")
+    try captureBoard("rd-ios-acc-18-ipad-privacy")
+  }
+
+  func testIPadAccountProxyKeepsScreenAcrossRotation() throws {
+    app.launchArguments += ["--putio-harness-proxy", "ready"]
+    openIPadAccount()
+    let proxy = scrollIPadAccount(toHit: "playback-settings.route")
+    proxy.tap()
+    XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "proxies never loaded")
+    assertIPadAccountOpen("playback-settings.route", "opening Proxy")
+    rotate(.portrait)
+    XCTAssertTrue(
+      app.navigationBars["Choose your proxy"].appears(within: 5), "portrait closed Proxy")
+    XCTAssertTrue(
+      element("playback-settings.route").becomesUnhittable(within: 5),
+      "portrait kept the Account list beside Proxy")
+    rotate(.landscapeLeft)
+    XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "landscape closed Proxy")
+    assertIPadAccountOpen("playback-settings.route", "rotating back to landscape")
+    try captureBoard("rd-ios-acc-20-ipad-proxy")
+  }
+
+  func testIPadAccountClearData() throws {
+    openIPadAccount()
+    let clear = scrollIPadAccount(toHit: "account.clear-data")
+    clear.tap()
+    XCTAssertTrue(
+      element("danger.clear.files").appears(within: 5), "Clear your data never opened")
+    assertIPadAccountOpen("account.clear-data", "opening Clear your data")
+    try captureBoard("rd-ios-acc-58-ipad-danger")
+  }
+
+  private func openIPadAccount() {
+    orient(.landscapeLeft)
+    app.launch()
+    reachFilesRoot()
+    tabButton("Account").tap()
+    XCTAssertTrue(element("account.profile").appears(within: 10), "Account never opened")
+    XCTAssertTrue(
+      element("settings.default-sort").appears(within: 15), "account settings never loaded")
+  }
+
+  private func scrollIPadAccount(toHit identifier: String) -> XCUIElement {
+    let target = element(identifier)
+    var steps = 0
+    while !(target.exists && target.isHittable), steps < 12 {
+      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.8))
+      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.45))
+      start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+      steps += 1
+    }
+    XCTAssertTrue(target.isHittable, "\(identifier) never scrolled into the list column")
+    return target
+  }
+
+  private func assertIPadAccountOpen(_ identifier: String, _ step: String) {
+    let row = element(identifier)
+    XCTAssertTrue(row.appears(within: 5), "the Account list is hidden after \(step)")
+    XCTAssertTrue(row.becomesHittable(within: 5), "the open row is off screen after \(step)")
+    XCTAssertTrue(row.isSelected, "the open row is not highlighted after \(step)")
+    let window = app.windows.firstMatch.frame
+    XCTAssertLessThan(
+      row.frame.maxX, window.midX, "the Account list is not the left column after \(step)")
+  }
+
   private func openPublicLinks(_ mode: String) {
     app.launchArguments += ["--putio-harness-public-links", mode]
     openAccount()

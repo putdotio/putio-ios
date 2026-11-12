@@ -3,8 +3,7 @@
 
   public struct PutioListDetail<Item: Hashable, ListContent: View, DetailContent: View>: View {
     @Binding private var selection: Item?
-    private let emptyTitle: String
-    private let emptyMessage: String
+    private let emptyState: (title: String, message: String)?
     private let list: (Binding<Item?>) -> ListContent
     private let detail: (Item) -> DetailContent
 
@@ -20,8 +19,18 @@
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
-      self.emptyTitle = emptyTitle
-      self.emptyMessage = emptyMessage
+      self.emptyState = (emptyTitle, emptyMessage)
+      self.list = list
+      self.detail = detail
+    }
+
+    public init(
+      selection: Binding<Item?>,
+      @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
+      @ViewBuilder detail: @escaping (Item) -> DetailContent
+    ) {
+      _selection = selection
+      self.emptyState = nil
       self.list = list
       self.detail = detail
     }
@@ -41,9 +50,15 @@
             detail(selection)
           }
           .id(selection)
+        } else if let emptyState {
+          PutioEmptyStateView.detailPlaceholder(
+            title: emptyState.title, message: emptyState.message
+          )
+          .putioContentBackground()
+          .accessibilityIdentifier("putio.list-detail.empty")
         } else {
-          PutioEmptyStateView.detailPlaceholder(title: emptyTitle, message: emptyMessage)
-            .putioContentBackground()
+          PutioTheme.Colors.background
+            .ignoresSafeArea()
             .accessibilityIdentifier("putio.list-detail.empty")
         }
       }
@@ -72,15 +87,23 @@
     }
   }
 
+  public enum PutioListDetailRowStyle: Sendable {
+    case plain
+    case grouped
+  }
+
   extension View {
-    public func putioListDetailRow<Item: Hashable>(_ item: Item) -> some View {
-      modifier(PutioListDetailRow(item: AnyHashable(item)))
+    public func putioListDetailRow<Item: Hashable>(
+      _ item: Item, style: PutioListDetailRowStyle = .plain
+    ) -> some View {
+      modifier(PutioListDetailRow(item: AnyHashable(item), style: style))
         .tag(item)
     }
   }
 
   private struct PutioListDetailRow: ViewModifier {
     let item: AnyHashable
+    let style: PutioListDetailRowStyle
 
     @Environment(\.putioListDetailSelection) private var selection
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -94,6 +117,15 @@
     }
 
     @ViewBuilder private var background: some View {
+      switch style {
+      case .plain: plainBackground
+      case .grouped:
+        isOpen && horizontalSizeClass == .regular
+          ? PutioTheme.Colors.surfaceActive : PutioTheme.Colors.surface
+      }
+    }
+
+    @ViewBuilder private var plainBackground: some View {
       if isOpen, horizontalSizeClass == .regular {
         RoundedRectangle(cornerRadius: PutioListDetailLayout.selectedRowRadius)
           .fill(PutioListDetailLayout.selectedRowTint)

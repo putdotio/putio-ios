@@ -748,6 +748,14 @@ enum BoardCaptureContract {
         "rd-ios-acc-36-links-swipe", .iphone, "testAccountPublicLinkSwipe", screenBase: false),
       BoardCapture(
         "rd-ios-acc-37-links-revoke", .iphone, "testAccountPublicLinkRevoke", screenBase: false),
+      BoardCapture("rd-ios-acc-57-ipad-account", .ipad, "testIPadAccount"),
+      BoardCapture(
+        "rd-ios-acc-18-ipad-privacy", .ipad, "testIPadAccountPrivacy", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-20-ipad-proxy", .ipad, "testIPadAccountProxyKeepsScreenAcrossRotation",
+        screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-58-ipad-danger", .ipad, "testIPadAccountClearData", screenBase: false),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),

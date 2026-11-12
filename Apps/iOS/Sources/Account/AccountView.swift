@@ -4,51 +4,17 @@ import SwiftUI
 struct AccountView: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
-  let refreshRequests: PutioFolderRefreshRequests
-  let trashReconciliation: PutioTrashReconciliation
-  let cast: PutioCastModel
+  let preferences: PutioAccountPreferencesModel
   let appConfig: PutioAppConfigModel
-  @Binding var showsLinkDevice: Bool
-  let linkDeviceCode: String?
   let downloads: PutioOfflineQueue
-  let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
-  let onAccountDestroyed: @MainActor () -> Void
+  let selection: Binding<AccountDestination?>?
   @Environment(\.openURL) private var openURL
   @Environment(\.locale) private var locale
-  @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
   @State private var signOutDownloadedBytes: Int64?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var saveFailures = PutioSettingSaveFailures()
   @State private var revealRequest: AccountSettingReveal?
-
-  init(
-    runtime: PutioRuntime,
-    account: PutioAccountSnapshot,
-    refreshRequests: PutioFolderRefreshRequests,
-    trashReconciliation: PutioTrashReconciliation,
-    cast: PutioCastModel,
-    appConfig: PutioAppConfigModel,
-    showsLinkDevice: Binding<Bool>,
-    linkDeviceCode: String?,
-    downloads: PutioOfflineQueue,
-    onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void,
-    onAccountDestroyed: @escaping @MainActor () -> Void
-  ) {
-    self.runtime = runtime
-    self.account = account
-    self.refreshRequests = refreshRequests
-    self.trashReconciliation = trashReconciliation
-    self.cast = cast
-    self.appConfig = appConfig
-    _showsLinkDevice = showsLinkDevice
-    self.linkDeviceCode = linkDeviceCode
-    self.downloads = downloads
-    self.onDataCleared = onDataCleared
-    self.onAccountDestroyed = onAccountDestroyed
-    _preferences = State(
-      initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
-  }
 
   var body: some View {
     ScrollViewReader { proxy in
@@ -57,99 +23,111 @@ struct AccountView: View {
           guard let request else { return }
           withAnimation { proxy.scrollTo(request.row, anchor: .center) }
         }
+        .onAppear {
+          guard let open = selection?.wrappedValue else { return }
+          Task { proxy.scrollTo(open, anchor: .center) }
+        }
+        .onChange(of: selection?.wrappedValue) { _, open in
+          guard let open else { return }
+          withAnimation { proxy.scrollTo(open) }
+        }
     }
     .putioSettingSaveFailures(saveFailures)
   }
 
-  private var settingsList: some View {
-    List {
-      if let notice = PutioInactiveAccountNotice(account: account) {
-        PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
-          .listRowInsets(
-            EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0)
-          )
-          .listRowSeparator(.hidden)
-          .listRowBackground(Color.clear)
-      }
-      AccountProfileHeader(account: account)
-      Group {
-        storageSection
-        PutioSettingsSection(String(localized: "Library")) {
-          PutioNavigationRow(String(localized: "Exclusive links"), icon: .link) {
-            PublicLinksView(runtime: runtime)
-          }
+  @ViewBuilder private var settingsList: some View {
+    if let selection {
+      List(selection: selection) { settingsRows }
+        .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
+        .putioConfirmAlert($confirmAlert)
+    } else {
+      List { settingsRows }
+        .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
+        .putioConfirmAlert($confirmAlert)
+    }
+  }
+
+  @ViewBuilder private var settingsRows: some View {
+    if let notice = PutioInactiveAccountNotice(account: account) {
+      PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
+        .listRowInsets(
+          EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0)
+        )
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+    }
+    AccountProfileHeader(account: account)
+    Group {
+      storageSection
+      PutioSettingsSection(String(localized: "Library")) {
+        row(String(localized: "Exclusive links"), icon: .link, opens: .publicLinks)
           .accessibilityIdentifier("account.public-links")
-          if account.trashEnabled {
-            PutioNavigationRow(
-              String(localized: "Trash"), icon: .trash,
-              value: PutioFileRowModel.sizeText(bytes: account.trashSizeBytes),
-              valueStyle: .measurement
-            ) {
-              TrashManagementView(
-                runtime: runtime,
-                reconciliation: trashReconciliation,
-                onRestored: reconcileRestoredFile
-              )
-            }
-            .accessibilityIdentifier("account.trash")
-          }
-        }
-        switch settingsState {
-        case .loading:
-          Section {
-            PutioSettingsLoadingRow(String(localized: "Loading account settings"))
-              .accessibilityIdentifier("account.settings-loading")
-          }
-          downloadsSection
-        case .failed:
-          Section {
-            PutioSettingsFailedRows(
-              String(localized: "Couldn’t load account settings"),
-              identifier: "account.settings-failed",
-              retryIdentifier: "account.settings-retry"
-            ) {
-              retrySettingsLoad()
-            }
-          }
-          downloadsSection
-        case .ready:
-          filesSection
-          playbackSection
-          subtitlesSection
-          downloadsSection
-          privacySection
-          securitySection
-          aboutSection
-        }
-        if preferences.settingsState != .loading {
-          Section {
-            signOutRow
-          }
-        }
-        if settingsState == .ready {
-          PutioSettingsSection(String(localized: "Danger zone")) {
-            PutioNavigationRow(String(localized: "Clear your data"), icon: .eraser) {
-              ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
-            }
-            .accessibilityIdentifier("account.clear-data")
-            PutioNavigationRow(String(localized: "Destroy your account"), icon: .userCircleMinus) {
-              DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
-            }
-            .accessibilityIdentifier("account.destroy-account")
-          }
+        if account.trashEnabled {
+          row(
+            String(localized: "Trash"), icon: .trash,
+            value: PutioFileRowModel.sizeText(bytes: account.trashSizeBytes),
+            valueStyle: .measurement, opens: .trash
+          )
+          .accessibilityIdentifier("account.trash")
         }
       }
-      .listRowBackground(PutioTheme.Colors.surface)
+      switch settingsState {
+      case .loading:
+        Section {
+          PutioSettingsLoadingRow(String(localized: "Loading account settings"))
+            .accessibilityIdentifier("account.settings-loading")
+        }
+        downloadsSection
+      case .failed:
+        Section {
+          PutioSettingsFailedRows(
+            String(localized: "Couldn’t load account settings"),
+            identifier: "account.settings-failed",
+            retryIdentifier: "account.settings-retry"
+          ) {
+            retrySettingsLoad()
+          }
+        }
+        downloadsSection
+      case .ready:
+        filesSection
+        playbackSection
+        subtitlesSection
+        downloadsSection
+        privacySection
+        securitySection
+        aboutSection
+      }
+      if preferences.settingsState != .loading {
+        Section {
+          signOutRow
+        }
+      }
+      if settingsState == .ready {
+        PutioSettingsSection(String(localized: "Danger zone")) {
+          row(String(localized: "Clear your data"), icon: .eraser, opens: .clearData)
+            .accessibilityIdentifier("account.clear-data")
+          row(
+            String(localized: "Destroy your account"), icon: .userCircleMinus,
+            opens: .destroyAccount
+          )
+          .accessibilityIdentifier("account.destroy-account")
+        }
+      }
     }
-    .navigationTitle("Account")
-    .putioFont(PutioTheme.Typography.body)
-    .putioContentBackground()
-    .task { await preferences.loadSettingsIfNeeded() }
-    .task { await appConfig.loadIfNeeded() }
-    .putioConfirmAlert($confirmAlert)
-    .navigationDestination(isPresented: $showsLinkDevice) {
-      LinkDeviceView(actions: .init(runtime: runtime), code: linkDeviceCode)
-    }
+    .listRowBackground(PutioTheme.Colors.surface)
+  }
+
+  private func row(
+    _ title: String, subtitle: String? = nil, icon: PutioIcon, value: String? = nil,
+    valueStyle: PutioSettingValueStyle = .text, opens destination: AccountDestination
+  ) -> some View {
+    PutioNavigationValueRow(
+      title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle,
+      destination: destination
+    )
+    .putioListDetailRow(destination, style: .grouped)
+    .id(destination)
   }
 
   private var signOutRow: some View {
@@ -314,24 +292,19 @@ struct AccountView: View {
           case .playbackMethod: break
           }
         })
-      PutioNavigationRow(
+      row(
         String(localized: "Playback method"), icon: .filmStrip,
-        value: appConfig.playbackMethod.title
-      ) {
-        PlaybackMethodView(appConfig: appConfig)
-      }
+        value: appConfig.playbackMethod.title, opens: .playbackMethod
+      )
       .accessibilityIdentifier("playback-settings.method")
-      PutioNavigationRow(
+      row(
         String(localized: "Proxy"), icon: .globe,
-        value: preferences.account.map { PutioProxyChoices.title(for: $0.routeName) }
-      ) {
-        ProxySettingsView(runtime: runtime, preferences: preferences)
-      }
+        value: preferences.account.map { PutioProxyChoices.title(for: $0.routeName) },
+        opens: .proxy
+      )
       .accessibilityIdentifier("playback-settings.route")
-      PutioNavigationRow(String(localized: "Chromecast"), icon: .screencast) {
-        PutioCastPreferencesView(model: cast)
-      }
-      .accessibilityIdentifier("account.chromecast")
+      row(String(localized: "Chromecast"), icon: .screencast, opens: .chromecast)
+        .accessibilityIdentifier("account.chromecast")
     }
   }
 
@@ -362,13 +335,11 @@ struct AccountView: View {
 
   private var downloadsSection: some View {
     PutioSettingsSection(String(localized: "Downloads")) {
-      PutioNavigationRow(
+      row(
         String(localized: "Downloads"), icon: .arrowCircleDown,
         value: PutioFileRowModel.sizeText(bytes: downloads.storedBytes),
-        valueStyle: .measurement
-      ) {
-        DownloadSettingsView(queue: downloads)
-      }
+        valueStyle: .measurement, opens: .downloads
+      )
       .accessibilityIdentifier("account.downloads")
     }
   }
@@ -382,53 +353,42 @@ struct AccountView: View {
       .disabled(settingsLocked)
       .id(AccountSettingRow.history)
       .accessibilityIdentifier("settings.history")
-      PutioNavigationRow(
+      row(
         PutioPrivacyControls.title, subtitle: PutioPrivacyControls.summary(for: account),
-        icon: .shieldCheck
-      ) {
-        PrivacyControlsView(runtime: runtime)
-      }
+        icon: .shieldCheck, opens: .privacy
+      )
       .accessibilityIdentifier("account.privacy")
     }
   }
 
   private var securitySection: some View {
     PutioSettingsSection(String(localized: "Security")) {
-      PutioNavigationRow(String(localized: "Logged-in apps"), icon: .devices) {
-        LoggedInAppsView(actions: .init(runtime: runtime))
-      }
-      .accessibilityIdentifier("security.apps")
-      PutioNavigationRow(String(localized: "Link a device"), icon: .plugs) {
-        LinkDeviceView(actions: .init(runtime: runtime))
-      }
-      .accessibilityIdentifier("security.link-device")
-      PutioNavigationRow(
+      row(String(localized: "Logged-in apps"), icon: .devices, opens: .loggedInApps)
+        .accessibilityIdentifier("security.apps")
+      row(String(localized: "Link a device"), icon: .plugs, opens: .linkDevice)
+        .accessibilityIdentifier("security.link-device")
+      row(
         String(localized: "Two-factor authentication"), icon: .lockKey,
-        value: account.twoFactorEnabled ? String(localized: "On") : String(localized: "Off")
-      ) {
-        TwoFactorSettingsView(runtime: runtime)
-      }
+        value: account.twoFactorEnabled ? String(localized: "On") : String(localized: "Off"),
+        opens: .twoFactor
+      )
       .accessibilityIdentifier("account.two-factor")
     }
   }
 
   private var aboutSection: some View {
     PutioSettingsSection(String(localized: "About")) {
-      PutioNavigationRow(
+      row(
         String(localized: "App info"), icon: .info, value: PutioAppInfo.shortVersion,
-        valueStyle: .measurement
-      ) {
-        AppInfoView()
-      }
+        valueStyle: .measurement, opens: .appInfo
+      )
       .accessibilityIdentifier("account.about")
       PutioLinkRow(String(localized: "Privacy policy"), icon: .fileText) {
         openURL(PutioPrivacyControls.privacyPolicyURL)
       }
       .accessibilityIdentifier("account.privacy-policy")
-      PutioNavigationRow(String(localized: "Open source licenses"), icon: .list) {
-        OpenSourceLicensesView()
-      }
-      .accessibilityIdentifier("account.licenses")
+      row(String(localized: "Open source licenses"), icon: .list, opens: .licenses)
+        .accessibilityIdentifier("account.licenses")
       if let reviewURL = PutioAppStoreReview.url() {
         PutioLinkRow(String(localized: "Rate put.io on App Store"), icon: .star) {
           openURL(reviewURL)
@@ -547,10 +507,6 @@ struct AccountView: View {
   private func reveal(_ row: AccountSettingRow) {
     revealRequest = AccountSettingReveal(row: row)
   }
-
-  private func reconcileRestoredFile(destinationID: PutioFileID?) {
-    PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
-  }
 }
 
 struct PutioPlaybackConfigRows: View {
@@ -596,6 +552,21 @@ struct PutioPlaybackConfigRows: View {
     let outcome = await save()
     if outcome == .failed { onSaveFailed(write) }
     try outcome.requireSaved()
+  }
+}
+
+private struct AccountListStyle: ViewModifier {
+  let preferences: PutioAccountPreferencesModel
+  let appConfig: PutioAppConfigModel
+
+  func body(content: Content) -> some View {
+    content
+      .listStyle(.insetGrouped)
+      .navigationTitle("Account")
+      .putioFont(PutioTheme.Typography.body)
+      .putioContentBackground()
+      .task { await preferences.loadSettingsIfNeeded() }
+      .task { await appConfig.loadIfNeeded() }
   }
 }
 

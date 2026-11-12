@@ -128,6 +128,38 @@ public struct PutioNavigationRow<Destination: View>: View {
   }
 }
 
+public struct PutioNavigationValueRow<Value: Hashable>: View {
+  private let title: String
+  private let subtitle: String?
+  private let icon: PutioIcon?
+  private let value: String?
+  private let valueStyle: PutioSettingValueStyle
+  private let destination: Value
+
+  public init(
+    _ title: String,
+    subtitle: String? = nil,
+    icon: PutioIcon? = nil,
+    value: String? = nil,
+    valueStyle: PutioSettingValueStyle = .text,
+    destination: Value
+  ) {
+    self.title = title
+    self.subtitle = subtitle
+    self.icon = icon
+    self.value = value
+    self.valueStyle = valueStyle
+    self.destination = destination
+  }
+
+  public var body: some View {
+    NavigationLink(value: destination) {
+      PutioSettingsValueLayout(
+        title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+    }
+  }
+}
+
 public struct PutioValueRow: View {
   private let title: String
   private let subtitle: String?

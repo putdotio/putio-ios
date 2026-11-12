@@ -127,33 +127,31 @@ struct MainTabView: View {
         }
       }
       Tab(value: SelectedTab.account) {
-        NavigationStack {
-          AccountView(
-            runtime: runtime,
-            account: account,
-            refreshRequests: folderRefreshRequests,
-            trashReconciliation: trashReconciliation,
-            cast: cast,
-            appConfig: appConfig,
-            showsLinkDevice: $showsLinkDevice,
-            linkDeviceCode: linkDeviceCode,
-            downloads: offlineQueue,
-            onDataCleared: { categories, committed in
-              if !categories.isDisjoint(with: [.files, .trash]) {
-                folderRefreshRequests.requestAllLoadedFolders()
-              }
-              if categories.contains(.history) { historyRevision &+= 1 }
-              // Downloaded copies of cleared files would only play as orphans.
-              if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
-            },
-            onAccountDestroyed: {
-              // Nothing account-scoped may outlive an account that can never
-              // sign in again: local media and the saved Files location.
-              offlineQueue.purgeAccountStorage()
-              PutioFilesNavigationRestoration().clear(accountID: account.id)
+        AccountScreen(
+          runtime: runtime,
+          account: account,
+          refreshRequests: folderRefreshRequests,
+          trashReconciliation: trashReconciliation,
+          cast: cast,
+          appConfig: appConfig,
+          showsLinkDevice: $showsLinkDevice,
+          linkDeviceCode: linkDeviceCode,
+          downloads: offlineQueue,
+          onDataCleared: { categories, committed in
+            if !categories.isDisjoint(with: [.files, .trash]) {
+              folderRefreshRequests.requestAllLoadedFolders()
             }
-          )
-        }
+            if categories.contains(.history) { historyRevision &+= 1 }
+            // Downloaded copies of cleared files would only play as orphans.
+            if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
+          },
+          onAccountDestroyed: {
+            // Nothing account-scoped may outlive an account that can never
+            // sign in again: local media and the saved Files location.
+            offlineQueue.purgeAccountStorage()
+            PutioFilesNavigationRestoration().clear(accountID: account.id)
+          }
+        )
         .putioToast(shellToast)
         .id(accountNavigationRevision)
       } label: {
