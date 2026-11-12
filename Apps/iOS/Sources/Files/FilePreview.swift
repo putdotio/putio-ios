@@ -1029,6 +1029,10 @@ struct PutioPreviewView: View {
         if zoomedID == item.id { zoomedID = nil }
         if !pager.remove(item.id) { onDismiss() }
         toast = removalToast(for: item, permanently: permanently, in: pager)
+      case .failed(.delete, let failure) where failure.isTrashLimit:
+        confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
+          remove(item, permanently: true)
+        }
       case .failed(.delete, _):
         toast = PutioToast(
           PutioFileDeletionPresentation(trashEnabled: fileActions.trashEnabled && !permanently)

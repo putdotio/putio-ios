@@ -704,6 +704,41 @@ final class PreviewJourneyTests: XCTestCase {
     signOut()
   }
 
+  func testTrashLimitAsksBeforeDeletingTheShownFile() {
+    app.launchArguments.append("--putio-harness-trash-limit")
+    app.launch()
+    signIn()
+
+    let title = element("preview.title")
+    let position = element("preview.position")
+    openGalleryImage(473, title: "Gallery 2.png")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["2 of 4"], timeout: 10), "position: \(position.label)")
+    removeShownFile(row: "Move to trash")
+    let limit = app.alerts["We couldn’t send these files to trash"]
+    XCTAssertTrue(limit.appears(within: 10), "the refused Trash move did not ask")
+    XCTAssertTrue(
+      limit.staticTexts["This folder contains too many files. Delete it permanently?"].exists)
+    XCTAssertFalse(app.buttons["Undo"].exists, "the refused Trash move offered Undo")
+    screenshot("runtime-preview-trash-limit")
+    limit.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(limit.disappears(within: 5))
+    XCTAssertEqual(title.label, "Gallery 2.png", "Cancel removed the file")
+
+    removeShownFile(row: "Move to trash")
+    XCTAssertTrue(limit.appears(within: 10))
+    limit.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 10), "no delete message")
+    XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
+    XCTAssertTrue(waitForLabel(title, in: ["Gallery 3.png"]), "the viewer did not move on")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["2 of 3"], timeout: 10), "position: \(position.label)")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.474").disappears(within: 5))
+    XCTAssertTrue(element("files.item.473").disappears(within: 10), "the folder kept the file")
+    signOut()
+  }
+
   private func openGalleryImage(_ id: Int, title: String) {
     let gallery = app.revealed("files.item.470", maximumSwipes: 8)
     XCTAssertTrue(gallery.exists, "the gallery folder never appeared")

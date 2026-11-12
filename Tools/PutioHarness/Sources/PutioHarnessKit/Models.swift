@@ -1023,6 +1023,10 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-preview-more-trash-off", "runtime-preview-delete-confirm"],
       timeAllowance: 180),
     JourneyPreflight(
+      "preview-trash-limit", "PreviewJourneyTests/testTrashLimitAsksBeforeDeletingTheShownFile",
+      attachmentNames: ["runtime-preview-trash-limit"],
+      timeAllowance: 180),
+    JourneyPreflight(
       "preview-paging", "PreviewJourneyTests/testSwipesBetweenFilesOfTheSameKind",
       attachmentNames: ["runtime-preview-position"],
       timeAllowance: 180),

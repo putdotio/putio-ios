@@ -632,7 +632,7 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
-    private static var refusesHarnessFolderTrash: Bool {
+    private static var trashHitsChildrenLimit: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
     }
     private static var settingsStayUnconfirmed: Bool {
@@ -2594,6 +2594,14 @@ import Foundation
         fileActionsLock.withLock { tvSeasonPackTrashed = true }
         return (200, #"{"status":"OK"}"#)
       }
+      if fileID == 473, trashHitsChildrenLimit, !requestSkipsTrash(request) {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "FileDeleteChildrenLimitError",
+            message: "Gallery 2 is refused by Trash")
+        )
+      }
       if removeGalleryFile(fileID, skipsTrash: requestSkipsTrash(request)) {
         return (200, #"{"status":"OK"}"#)
       }
@@ -2614,7 +2622,7 @@ import Foundation
           )
         )
       }
-      if fileID == 410, refusesHarnessFolderTrash, !requestSkipsTrash(request) {
+      if fileID == 410, trashHitsChildrenLimit, !requestSkipsTrash(request) {
         fileActionsLock.unlock()
         return (
           400,
