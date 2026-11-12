@@ -255,7 +255,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(text.appears(within: 10), "the long text never loaded")
     let notice = element("preview.text.truncated")
     text.scrollTextToEnd(revealing: notice)
-    XCTAssertTrue(notice.isHittable, "scrolling never reached the end line")
+    XCTAssertTrue(notice.isOnScreen, "scrolling never reached the end line")
     XCTAssertTrue(notice.appears(within: 5))
     try captureBoard("rd-ios-pv-10-text-truncated")
   }
