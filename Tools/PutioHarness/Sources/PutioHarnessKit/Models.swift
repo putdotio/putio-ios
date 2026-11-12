@@ -975,6 +975,13 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-preview-position"],
       timeAllowance: 180),
     JourneyPreflight(
+      "preview-more", "PreviewJourneyTests/testMoreMenuRenamesAndMovesTheShownFile",
+      attachmentNames: [
+        "runtime-preview-more-pdf", "runtime-preview-more-image", "runtime-preview-rename",
+        "runtime-preview-rename-failed", "runtime-preview-moved",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
       "deep-links", "DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens",
       attachmentNames: [
         "runtime-deep-link-loading", "runtime-deep-link-error", "runtime-deep-link-folder",
