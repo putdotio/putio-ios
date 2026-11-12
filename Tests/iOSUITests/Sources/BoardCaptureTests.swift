@@ -47,7 +47,8 @@ final class BoardCaptureTests: XCTestCase {
     let harnessFolder = element("files.item.410")
     XCTAssertTrue(harnessFolder.appears(within: 10), "seeded folder row never appeared")
     harnessFolder.tap()
-    let folder = element("files.item.440")
+    XCTAssertTrue(element("files.screen.410").appears(within: 10), "folder did not open")
+    let folder = app.revealed("files.item.440")
     XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
     folder.tap()
     XCTAssertTrue(
