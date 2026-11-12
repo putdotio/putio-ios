@@ -3,9 +3,11 @@ import XCTest
 extension XCUIElement {
   func scrollTextToEnd(revealing end: XCUIElement) {
     let bottom = coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0.99))
-    for thumbY in [0.16, 0.14, 0.18, 0.12] where !end.isOnScreen {
+    let barBottom = XCUIApplication().navigationBars.firstMatch.frame.maxY - frame.minY
+    for thumbOffset in [32.0, 16, 48, 8, 64] where !end.isOnScreen {
       swipeUp(velocity: .fast)
-      coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: thumbY))
+      coordinate(withNormalizedOffset: CGVector(dx: 0.99, dy: 0))
+        .withOffset(CGVector(dx: -2, dy: barBottom + thumbOffset))
         .press(forDuration: 0.5, thenDragTo: bottom)
       var swipes = 0
       while !end.isOnScreen, swipes < 4 {
