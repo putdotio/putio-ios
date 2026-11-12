@@ -140,7 +140,9 @@ final class BoardCaptureTests: XCTestCase {
   func testMoveIntoItself() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
-    openHarnessFolder()
+    openSeasonFolder()
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 10), "Harness Folder never reopened")
     openMoveSheet(for: "files.item.440")
     openMoveLevel(410)
     openMoveLevel(440)
