@@ -396,7 +396,8 @@ public final class PutioFolderModel {
       return .failed
     }
     bulkOutcome = nil
-    return .ready(outcome.retryableItems(in: contents.items))
+    return .ready(
+      outcome.retryableItems(in: contents.items, listingIsComplete: !contents.hasMore))
   }
 
   private func begin(_ action: PutioFileAction) {

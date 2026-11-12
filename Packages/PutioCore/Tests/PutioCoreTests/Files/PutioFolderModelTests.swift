@@ -402,6 +402,52 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
+  func testBulkRetryKeepsFailuresPastTheRefreshedFirstPage() async throws {
+    let onFirstPage = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Page 1.mkv")
+    let pastFirstPage = BrowserTestFixtures.item(id: 60, parentID: 42, name: "Page 2.mkv")
+    let gone = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Gone.mkv")
+    let refreshedFirstPage = BrowserTestFixtures.contents(
+      folderID: 42, items: [onFirstPage], hasMore: true)
+    let outcome = PutioBulkFileOutcome(
+      action: .delete,
+      succeeded: [],
+      failures: [onFirstPage, pastFirstPage].map {
+        PutioBulkFileItemFailure(item: $0, error: .transient, presentation: nil)
+      }
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in refreshedFirstPage },
+      initialContents: BrowserTestFixtures.contents(
+        folderID: 42, items: [onFirstPage, gone], hasMore: true)
+    )
+
+    let preparation = await model.prepareBulkRetry(outcome)
+
+    XCTAssertEqual(preparation, .ready([onFirstPage, pastFirstPage]))
+  }
+
+  func testBulkRetryDropsFailuresMissingFromACompleteListing() async throws {
+    let kept = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Kept.mkv")
+    let gone = BrowserTestFixtures.item(id: 60, parentID: 42, name: "Gone.mkv")
+    let outcome = PutioBulkFileOutcome(
+      action: .delete,
+      succeeded: [],
+      failures: [kept, gone].map {
+        PutioBulkFileItemFailure(item: $0, error: .transient, presentation: nil)
+      }
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in BrowserTestFixtures.contents(folderID: 42, items: [kept]) },
+      initialContents: BrowserTestFixtures.contents(folderID: 42, items: [kept, gone])
+    )
+
+    let preparation = await model.prepareBulkRetry(outcome)
+
+    XCTAssertEqual(preparation, .ready([kept]))
+  }
+
   func testMovePickerStatesFollowThePathFromFiles() {
     let parent = PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Series")
     let firstFolder = BrowserTestFixtures.item(
