@@ -231,7 +231,9 @@ extension PutioRuntime {
       (try await sdk.getFile(fileID: fileID.rawValue), session.downloadToken)
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
-    let token = try requireDownloadToken(downloadToken)
+    guard let token = try? requireDownloadToken(downloadToken) else {
+      throw PutioDownloadTokenUnavailable()
+    }
     let item = snapshot(file)
     guard item.kind != .folder else { throw PutioRuntimeError.invalidResponse }
     return PutioFileDownloadSource(

@@ -165,6 +165,7 @@ struct MainTabView: View {
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
     .task {
+      externalPlayback.refreshInstallation()
       await appConfig.loadIfNeeded()
       askProductAnalyticsIfNeeded()
     }
@@ -254,6 +255,7 @@ struct MainTabView: View {
     }
     .onChange(of: scenePhase) { _, phase in
       guard phase == .active else { return }
+      externalPlayback.refreshInstallation()
       Task { await offlineQueue.syncPendingPositions() }
       Task { await runtime.refreshAccount() }
     }
@@ -585,6 +587,7 @@ struct MainTabView: View {
       accountNotice: PutioInactiveAccountNotice(account: account),
       offlineFiles: PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
     )
+    .putioToast($externalPlayback.toast)
     .environment(
       \.putioPreviewOpen,
       PutioPreviewOpenAction { route, source in selectFile(route, in: source) })

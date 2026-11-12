@@ -19,30 +19,98 @@ final class PreviewJourneyTests: XCTestCase {
     super.tearDown()
   }
 
-  func testVLCHandoffRetriesAfterResolutionFailure() {
+  func testVLCFailureToastsAndTheNextTapHandsOff() {
     app.launchArguments += [
       "--putio-harness-vlc-installed", "--putio-harness-vlc-resolution-fails-once",
     ]
     app.launch()
     signIn()
 
-    assertVLCRetry()
+    assertVLCFailureThenHandoff()
   }
 
-  private func assertVLCRetry() {
+  func testVLCNotInstalledOffersTheAppStore() {
+    app.launchArguments.append("--putio-harness-vlc-removed")
+    app.launch()
+    signIn()
+
+    let requests = element("vlc.requests")
     openInVLC(fileID: 412)
-    let failure = app.alerts["Could not open in VLC"]
-    XCTAssertTrue(failure.appears(within: 10))
+    let missing = app.alerts["VLC is not installed"]
+    XCTAssertTrue(missing.appears(within: 10), "a missing VLC raised no alert")
+    XCTAssertTrue(
+      missing.staticTexts["Install VLC for iOS from the App Store to stream this file there."]
+        .exists)
+    XCTAssertTrue(missing.buttons["Cancel"].exists)
+    screenshot("runtime-preview-vlc-missing")
+    XCTAssertEqual(requests.value as? String, "0|")
+    missing.buttons["Get VLC"].tap()
+    XCTAssertTrue(
+      waitForValue(requests, "1|https://apps.apple.com/app/id650377962"),
+      "Get VLC did not open the App Store: \(requests.value ?? "")")
+    XCTAssertTrue(missing.disappears(within: 5))
+
+    openInVLC(fileID: 412)
+    XCTAssertTrue(
+      waitForValue(
+        requests,
+        "2|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/412/download"
+          + "&x-success=putio:///files/0"),
+      "the handoff after installing VLC did not open: \(requests.value ?? "")")
+    XCTAssertFalse(app.alerts["VLC is not installed"].exists)
+  }
+
+  func testVLCFailureToastNamesTheCause() {
+    app.launchArguments += [
+      "--putio-harness-vlc-installed", "--putio-harness-download-token-missing",
+    ]
+    app.launch()
+    signIn()
+
+    let requests = element("vlc.requests")
+    openInVLC(fileID: 412)
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t prepare “Root Movie.mkv” for VLC. Sign in again."]
+        .appears(within: 10), "a missing download token showed no toast")
+    screenshot("runtime-preview-vlc-failed")
+    XCTAssertEqual(app.alerts.count, 0)
+    XCTAssertEqual(requests.value as? String, "0|")
+
+    app.terminate()
+    app.launchArguments = app.launchArguments.filter {
+      $0 != "--putio-harness-download-token-missing"
+    } + ["--putio-harness-vlc-refuses-once"]
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    openInVLC(fileID: 412)
+    XCTAssertTrue(
+      app.staticTexts["Install VLC to open “Root Movie.mkv”."].appears(within: 10),
+      "a refused handoff showed no toast")
+    XCTAssertEqual(app.alerts.count, 0)
+    openInVLC(fileID: 412)
+    XCTAssertTrue(
+      waitForValue(
+        requests,
+        "2|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/412/download"
+          + "&x-success=putio:///files/0"),
+      "the second tap did not hand off: \(requests.value ?? "")")
+  }
+
+  private func assertVLCFailureThenHandoff() {
+    openInVLC(fileID: 412)
+    let failure = app.staticTexts[
+      "Couldn’t prepare “Root Movie.mkv” for VLC. Check your connection and try again."]
+    XCTAssertTrue(failure.appears(within: 10), "the failed handoff showed no toast")
+    XCTAssertEqual(app.alerts.count, 0)
     let requests = element("vlc.requests")
     XCTAssertEqual(requests.value as? String, "0|")
-    failure.buttons["Try again"].tap()
+    openInVLC(fileID: 412)
     XCTAssertTrue(
       waitForValue(
         requests,
         "1|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/412/download"
           + "&x-success=putio:///files/0"),
-      "retry did not hand the file to VLC: \(requests.value ?? "")")
-    XCTAssertFalse(failure.exists)
+      "the next tap did not hand the file to VLC: \(requests.value ?? "")")
   }
 
   func testImagePDFUnsupportedAndVLCHandoffOutcomes() {
@@ -183,7 +251,7 @@ final class PreviewJourneyTests: XCTestCase {
     app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
-    assertVLCRetry()
+    assertVLCFailureThenHandoff()
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")

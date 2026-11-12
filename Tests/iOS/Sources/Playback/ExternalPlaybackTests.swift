@@ -24,7 +24,8 @@ final class ExternalPlaybackTests: XCTestCase {
     url: URL(string: "https://api.put.io/v2/files/412/download?oauth_token=secret")!)
 
   private func route(kind: PutioFileKind = .video) -> PutioFileRoute {
-    PutioFileRoute(item: BrowserTestFixtures.item(id: 412, parentID: 410, kind: kind))
+    PutioFileRoute(
+      item: BrowserTestFixtures.item(id: 412, parentID: 410, name: "Movie.mkv", kind: kind))
   }
 
   func testStreamURLCarriesTheSourceAndAnOptionalReturnLink() throws {
@@ -45,7 +46,7 @@ final class ExternalPlaybackTests: XCTestCase {
         .first { $0.name == "x-success" })
   }
 
-  func testInstalledHandoffOpensOnceAndClearsThePendingRoute() async {
+  func testInstalledHandoffOpensTheOriginalStreamOnce() async throws {
     let opener = Opener()
     var resolved = 0
     let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: true) { _ in
@@ -53,89 +54,105 @@ final class ExternalPlaybackTests: XCTestCase {
       return self.source
     }
     await model.open(route())
-    XCTAssertEqual(model.outcome, .opened)
-    XCTAssertFalse(model.presentsOutcome)
-    XCTAssertNil(model.pendingRoute)
+    XCTAssertNil(model.toast)
+    XCTAssertNil(model.missingVLCRoute)
     XCTAssertEqual(resolved, 1)
     XCTAssertEqual(opener.opened.count, 1)
-    XCTAssertEqual(opener.opened.first?.scheme, "vlc-x-callback")
+    let handoff = try XCTUnwrap(
+      URLComponents(url: try XCTUnwrap(opener.opened.first), resolvingAgainstBaseURL: false))
+    XCTAssertEqual(handoff.scheme, "vlc-x-callback")
     XCTAssertEqual(
-      opener.opened.first?.query?.contains("x-success=putio:///files/410"), true)
+      handoff.queryItems?.first { $0.name == "url" }?.value,
+      "https://api.put.io/v2/files/412/download?oauth_token=secret")
+    XCTAssertEqual(
+      handoff.queryItems?.first { $0.name == "x-success" }?.value, "putio:///files/410")
   }
 
   func testMissingVLCSkipsResolutionAndOffersTheStore() async {
     let opener = Opener()
-    opener.installed = false
-    var resolved = 0
     let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: true) { _ in
-      resolved += 1
+      XCTFail("resolved a file for a missing VLC")
       return self.source
     }
+    model.refreshInstallation()
+    XCTAssertTrue(model.isVLCInstalled)
+    opener.installed = false
     await model.open(route())
-    XCTAssertEqual(model.outcome, .notInstalled)
-    XCTAssertTrue(model.presentsOutcome)
-    XCTAssertEqual(resolved, 0)
+    XCTAssertEqual(model.missingVLCRoute?.id, PutioFileID(rawValue: 412))
+    XCTAssertFalse(model.isVLCInstalled)
+    XCTAssertNil(model.toast)
+    opener.installed = true
     await model.openAppStore()
     XCTAssertEqual(opener.opened, [PutioVLCHandoff.appStoreURL])
-    XCTAssertNil(model.outcome)
+    XCTAssertNil(model.missingVLCRoute)
+    XCTAssertTrue(model.isVLCInstalled)
   }
 
-  func testResolutionAndLaunchFailuresStayRetryable() async {
+  func testFailuresShowAndroidsMessageAndTheNextTapHandsOff() async {
     let opener = Opener()
-    var attempts = 0
+    var errors: [Error] = [
+      PutioDownloadTokenUnavailable(), PutioRuntimeError.transient, PutioRuntimeError.rateLimited,
+      PutioRuntimeError.notFound, PutioRuntimeError.invalidResponse,
+    ]
     let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
-      attempts += 1
-      if attempts == 1 { throw PutioRuntimeError.transient }
+      if !errors.isEmpty { throw errors.removeFirst() }
       return self.source
     }
-    await model.open(route())
-    guard case .failed(let failure) = model.outcome else {
-      return XCTFail("\(model.outcome as Any)")
+    let expected = [
+      "Couldn’t prepare “Movie.mkv” for VLC. Sign in again.",
+      "Couldn’t prepare “Movie.mkv” for VLC. Check your connection and try again.",
+      "Couldn’t prepare “Movie.mkv” for VLC. "
+        + "put.io is receiving too many requests. Try again shortly.",
+      "Couldn’t prepare “Movie.mkv” for VLC. put.io is temporarily unavailable. Try again.",
+      "Couldn’t prepare “Movie.mkv” for VLC. put.io is temporarily unavailable. Try again.",
+    ]
+    for message in expected {
+      await model.open(route())
+      XCTAssertEqual(model.toast?.text, message)
+      XCTAssertNil(model.toast?.action)
+      XCTAssertNil(model.missingVLCRoute)
     }
-    XCTAssertTrue(failure.canRetry)
-    XCTAssertEqual(failure.message, "Check your connection and try again.")
+    XCTAssertTrue(opener.opened.isEmpty)
+
     opener.accepts = false
-    await model.retry()
-    XCTAssertEqual(model.outcome, .failed(.launch))
-    XCTAssertNotNil(model.pendingRoute)
+    await model.open(route())
+    XCTAssertEqual(model.toast?.text, "Install VLC to open “Movie.mkv”.")
     opener.accepts = true
-    await model.retry()
-    XCTAssertEqual(model.outcome, .opened)
-    XCTAssertEqual(attempts, 3)
+    await model.open(route())
+    XCTAssertNil(model.toast)
+    XCTAssertEqual(opener.opened.count, 2)
   }
 
-  /// iOS 27 closes the alert after "Try again" has already started the
-  /// retry; that closing must not invalidate the request in flight.
-  func testAlertClosingAfterRetryStartsKeepsTheRetryAlive() async {
+  func testSessionLossShowsNothing() async {
+    let opener = Opener()
+    let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
+      throw PutioRuntimeError.sessionExpired
+    }
+    await model.open(route())
+    XCTAssertNil(model.toast)
+    XCTAssertNil(model.missingVLCRoute)
+    XCTAssertTrue(opener.opened.isEmpty)
+  }
+
+  func testALaterTapSupersedesAFailureInFlight() async {
     let opener = Opener()
     let gate = Gate()
     var attempts = 0
     let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
       attempts += 1
-      if attempts == 1 { throw PutioRuntimeError.transient }
-      if attempts == 2 { await gate.wait() }
+      if attempts == 1 {
+        await gate.wait()
+        throw PutioRuntimeError.transient
+      }
       return self.source
     }
+    let first = Task { await model.open(self.route()) }
+    while attempts == 0 { await Task.yield() }
     await model.open(route())
-    XCTAssertTrue(model.presentsOutcome)
-
-    let retry = Task { await model.open(self.route()) }
-    while !model.isResolving { await Task.yield() }
-    model.dismissAlert()
-    XCTAssertTrue(model.isResolving)
     gate.open()
-    await retry.value
-    XCTAssertEqual(model.outcome, .opened)
+    await first.value
+    XCTAssertNil(model.toast)
     XCTAssertEqual(opener.opened.count, 1)
-    XCTAssertEqual(attempts, 2)
-
-    // Closing an idle alert still clears the presentation.
-    opener.accepts = false
-    await model.open(route())
-    XCTAssertEqual(model.outcome, .failed(.launch))
-    model.dismissAlert()
-    XCTAssertNil(model.outcome)
-    XCTAssertNil(model.pendingRoute)
   }
 
   @MainActor
@@ -150,26 +167,6 @@ final class ExternalPlaybackTests: XCTestCase {
       continuation?.resume()
       continuation = nil
     }
-  }
-
-  func testNotFoundIsTerminalAndSessionLossDismissesQuietly() async {
-    let opener = Opener()
-    let missing = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
-      throw PutioRuntimeError.notFound
-    }
-    await missing.open(route())
-    guard case .failed(let failure) = missing.outcome else {
-      return XCTFail("\(missing.outcome as Any)")
-    }
-    XCTAssertFalse(failure.canRetry)
-
-    let expired = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
-      throw PutioRuntimeError.sessionExpired
-    }
-    await expired.open(route())
-    XCTAssertNil(expired.outcome)
-    XCTAssertNil(expired.pendingRoute)
-    XCTAssertTrue(opener.opened.isEmpty)
   }
 
   func testNonMediaRoutesAreIgnored() async {

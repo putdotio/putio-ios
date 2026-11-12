@@ -558,6 +558,10 @@ import Foundation
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
+    private static var downloadTokenField: String {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-download-token-missing")
+        ? "" : #""download_token": "harness-download-token","#
+    }
     private static var usesPreviews: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
     }
@@ -2959,7 +2963,7 @@ import Foundation
             "avatar_url": "https://static.put.io/e2e-avatar.png",
             "user_hash": "harness-hash",
             "features": {},
-            "download_token": "harness-download-token",
+            \(downloadTokenField)
             "trash_size": \(trashSizeBytes),
             \(accountStatusFieldsLocked)
             "password_last_changed_at": "",

@@ -165,6 +165,35 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-64-vlc-menu")
   }
 
+  func testPreviewVLCNotInstalled() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-vlc-removed")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.441")
+    app.buttons["Open in VLC"].firstMatch.tap()
+    XCTAssertTrue(
+      app.alerts["VLC is not installed"].appears(within: 5), "a missing VLC raised no alert")
+    try captureBoard("rd-ios-pv-06-vlc")
+  }
+
+  func testPreviewVLCFailedToast() throws {
+    orient(.portrait)
+    app.launchArguments += [
+      "--putio-harness-vlc-installed", "--putio-harness-download-token-missing",
+    ]
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.441")
+    app.buttons["Open in VLC"].firstMatch.tap()
+    XCTAssertTrue(
+      app.staticTexts[
+        "Couldn’t prepare “Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv” for VLC. "
+          + "Sign in again."
+      ].appears(within: 5), "the failed handoff showed no toast")
+    try captureBoard("rd-ios-pv-21-vlc-failed-toast")
+  }
+
   func testSwipeActions() throws {
     orient(.portrait)
     app.launch()

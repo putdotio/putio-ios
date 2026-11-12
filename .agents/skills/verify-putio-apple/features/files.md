@@ -41,6 +41,9 @@ images and documents, and opens put.io links into the same screens.
   from Search.
 - `preview-more` renames and moves the shown file from the viewer's More menu,
   and shows a failed rename's toast.
+- `preview-vlc` offers the App Store when VLC is gone, then hands off.
+- `preview-vlc-failed` shows the failed handoff's toast for a missing download
+  token and a refused handoff, then hands off on the next tap.
 - `deep-links` opens links cold, warm, and signed out.
 - `large-text` keeps long names, selection, and the download picker usable at
   the largest text size.
@@ -126,6 +129,8 @@ Preconditions:
   `runtime-preview-more-pdf`, `runtime-preview-more-image`,
   `runtime-preview-rename`, `runtime-preview-rename-failed`,
   `runtime-preview-moved`.
+- **Open in VLC outcomes.** Run `--only preview-vlc,preview-vlc-failed`.
+  Screenshots: `runtime-preview-vlc-missing`, `runtime-preview-vlc-failed`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in
