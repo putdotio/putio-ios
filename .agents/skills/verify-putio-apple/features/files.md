@@ -69,12 +69,15 @@ Preconditions:
   `runtime-trash-refresh-error`, `runtime-trash-loaded`, `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new
   name, then "Folder not found" after the delete.
-- **Previews.** Run `--only previews`. Screenshots: `runtime-preview-loading`,
-  `runtime-preview-error`, `runtime-preview-image`,
-  `runtime-preview-image-landscape`, `runtime-preview-document`,
-  `runtime-preview-document-middle`, `runtime-preview-document-landscape`,
-  `runtime-preview-cannot-show`, `runtime-preview-text`,
-  `runtime-preview-text-truncated`.
+- **Previews.** Run `--only previews`. Share opens the share sheet for the
+  image, the PDF and the long text, from the toolbar and from the text's end
+  row. Screenshots: `runtime-preview-loading`, `runtime-preview-error`,
+  `runtime-preview-image`, `runtime-preview-image-landscape`,
+  `runtime-preview-document`, `runtime-preview-document-middle`,
+  `runtime-preview-document-landscape`, `runtime-preview-cannot-show`,
+  `runtime-preview-text`, `runtime-preview-text-truncated`,
+  `runtime-preview-share-image`, `runtime-preview-share-document`,
+  `runtime-preview-share-text`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in

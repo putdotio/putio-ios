@@ -900,6 +900,8 @@ enum BrowserJourneyContract {
         "runtime-preview-image-landscape", "runtime-preview-document",
         "runtime-preview-document-middle", "runtime-preview-document-landscape",
         "runtime-preview-cannot-show", "runtime-preview-text", "runtime-preview-text-truncated",
+        "runtime-preview-share-image", "runtime-preview-share-document",
+        "runtime-preview-share-text",
       ],
       timeAllowance: 300),
     JourneyPreflight(
