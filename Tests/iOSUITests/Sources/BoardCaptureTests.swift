@@ -321,7 +321,7 @@ final class BoardCaptureTests: XCTestCase {
     sidebarToggle().tap()
     XCTAssertTrue(
       element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
-    orient(.portrait)
+    rotate(.portrait)
     XCTAssertTrue(
       element("files.screen.440").appears(within: 5), "rotating reset the Files path")
     try captureBoard("rd-ios-14-ipad-portrait")
@@ -343,9 +343,9 @@ final class BoardCaptureTests: XCTestCase {
     let row = listDetailRow(0)
     row.tap()
     assertListDetailOpen(row, "selecting a row")
-    orient(.portrait)
+    rotate(.portrait)
     assertListDetailOpen(row, "rotating to portrait")
-    orient(.landscapeLeft)
+    rotate(.landscapeLeft)
     assertListDetailOpen(row, "rotating back to landscape")
     XCTAssertFalse(listDetailRow(1).isSelected, "a second row opened")
     try captureBoard("gallery-split-ipad-detail")
@@ -1137,6 +1137,14 @@ final class BoardCaptureTests: XCTestCase {
 
   private func orient(_ orientation: UIDeviceOrientation) {
     guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
+    XCUIDevice.shared.orientation = orientation
+  }
+
+  private func rotate(_ orientation: UIDeviceOrientation) {
+    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "duo-open" else {
+      XCTFail("this board rotates the device, and the open iPhone Duo is never rotated")
+      return
+    }
     XCUIDevice.shared.orientation = orientation
   }
 

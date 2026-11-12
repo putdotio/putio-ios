@@ -95,8 +95,8 @@ A board state needs one row there and one seeded test step.
 - `duo-open` unfolds the Duo after boot with
   [a guest tool](../../../../Tools/PutioHarness/Guest/DuoPosture.m) that sends
   Device Hub's private posture event: the hinge at 180 degrees, held like a
-  book. The test never rotates it and fails unless the window measures
-  951x669 pt with regular width and height. If the open step fails after a
+  book. The test never rotates it and fails unless the window has the open
+  landscape size with regular width and height. If the open step fails after a
   Simulator runtime update, the event format changed.
 - The run fails on an id with no table row, and when any board produces no
   capture.
