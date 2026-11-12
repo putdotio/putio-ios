@@ -437,6 +437,7 @@ final class FilePreviewTests: XCTestCase {
 
     listed = []
     XCTAssertEqual(pager.item(for: images[1].id), images[1], "the next file lost its More rows")
+    XCTAssertEqual(pager.position?.text, "1 / 2+", "the next file lost its position")
     XCTAssertTrue(pager.remove(images[1].id), "an unlisted file closed the viewer")
     XCTAssertEqual(pager.current.id, images[2].id)
 

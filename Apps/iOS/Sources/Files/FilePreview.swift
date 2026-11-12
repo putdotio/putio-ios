@@ -473,8 +473,11 @@ final class PutioPreviewPager {
 
   var folderSet: PutioPreviewSet? {
     guard let source, let kind else { return nil }
+    let listed = source.items().filter { !removed.contains($0.id) }
+    if let set = PutioPreviewSet(items: listed, shownID: current.id, kind: kind) { return set }
+    guard !unsettled.contains(current.id), lookedUp[current.id] == nil else { return nil }
     return PutioPreviewSet(
-      items: source.items().filter { !removed.contains($0.id) }, shownID: current.id, kind: kind)
+      items: known.filter { !removed.contains($0.id) }, shownID: current.id, kind: kind)
   }
 
   var routes: [PutioViewerRoute] {

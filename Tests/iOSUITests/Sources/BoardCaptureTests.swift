@@ -801,6 +801,7 @@ final class BoardCaptureTests: XCTestCase {
     openPreviewMore()
     XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
     try captureBoard("rd-ios-pv-18-more-trash-off")
+    leaveAlbum()
   }
 
   func testPreviewDeleteConfirm() throws {
@@ -812,6 +813,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never confirmed")
     try captureBoard("rd-ios-pv-19-delete-confirm")
+    app.alerts.buttons["Cancel"].firstMatch.tap()
+    leaveAlbum()
   }
 
   private func openPreviewMore() {
@@ -951,6 +954,20 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
     cover.tap()
     XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10), "the cover never loaded")
+  }
+
+  private func leaveAlbum() {
+    let viewer = element("preview.screen.497")
+    for _ in 0..<3 where viewer.exists {
+      app.buttons["preview.back"].tap()
+      _ = viewer.disappears(within: 2)
+    }
+    let root = element("files.screen.0")
+    for _ in 0..<3 where !root.isHittable {
+      app.navigationBars.buttons.firstMatch.tap()
+      _ = root.appears(within: 2)
+    }
+    XCTAssertTrue(root.isHittable, "the album stayed open for the next launch")
   }
 
   private func openPosterPreview() {
