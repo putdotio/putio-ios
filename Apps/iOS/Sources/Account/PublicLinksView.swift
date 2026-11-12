@@ -30,33 +30,52 @@ struct PublicLinksView: View {
       PutioErrorStateView(kind: .failed, retryIdentifier: "public-links.retry") {
         Task { await model.load() }
       }
-    case .loaded(let links) where links.isEmpty:
-      ScrollView {
-        PutioEmptyStateView(
-          kaomoji: .nothingYet,
-          title: String(localized: "No exclusive links"),
-          message: String(localized: "Links you make with Exclusive access show up here.")
-        )
-        .containerRelativeFrame([.horizontal, .vertical])
-        .accessibilityIdentifier("public-links.empty")
-      }
-      .refreshable { await model.load() }
-    case .loaded(let links):
-      List {
-        PutioSettingsSection(String(localized: "Anyone with a link can open the file for 72 hours"))
-        {
-          ForEach(links) { link in
-            row(link)
-          }
+    case .loaded:
+      TimelineView(.periodic(from: .now, by: 60)) { timeline in
+        let links = model.links(at: timeline.date)
+        if links.isEmpty {
+          emptyState
+        } else {
+          list(links, at: timeline.date)
         }
-        .listRowBackground(PutioTheme.Colors.surface)
       }
-      .refreshable { await model.load() }
-      .accessibilityIdentifier("public-links.list")
     }
   }
 
-  private func row(_ link: PutioPublicLink) -> some View {
+  private var emptyState: some View {
+    ScrollView {
+      PutioEmptyStateView(
+        kaomoji: .nothingYet,
+        title: String(localized: "No exclusive links"),
+        message: String(localized: "Links you make with Exclusive access show up here.")
+      )
+      .containerRelativeFrame([.horizontal, .vertical])
+      .accessibilityIdentifier("public-links.empty")
+    }
+    .refreshable { await refresh() }
+  }
+
+  private func list(_ links: [PutioPublicLink], at now: Date) -> some View {
+    List {
+      PutioSettingsSection(String(localized: "Anyone with a link can open the file for 72 hours")) {
+        ForEach(links) { link in
+          row(link, at: now)
+        }
+      }
+      .listRowBackground(PutioTheme.Colors.surface)
+    }
+    .refreshable { await refresh() }
+    .accessibilityIdentifier("public-links.list")
+  }
+
+  private func refresh() async {
+    guard await model.load() else {
+      toast = PutioToast(PutioScreenErrorKind.failed.title, icon: .warning)
+      return
+    }
+  }
+
+  private func row(_ link: PutioPublicLink, at now: Date) -> some View {
     Menu {
       Section {
         Button {
@@ -98,13 +117,13 @@ struct PublicLinksView: View {
         PutioFileRowModel(
           name: link.fileName,
           kind: PutioBrowserItemPresentation.rowKind(for: link.kind),
-          dateText: link.expiryText(at: .now)
+          dateText: link.expiryText(at: now)
         )
       )
       .contentShape(Rectangle())
     }
     .menuOrder(.fixed)
-    .disabled(model.revokingID == link.id)
+    .disabled(model.revokingID != nil)
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
       Button(String(localized: "Revoke")) {
         askToRevoke(link)

@@ -39,6 +39,12 @@ import Foundation
 
     static var delaysList: Bool { mode == .slow }
 
+    static func handles(method: String, path: String) -> Bool {
+      path == listPath && method == "GET"
+        || method == "DELETE" && path.hasPrefix(pathPrefix)
+          && Int(path.dropFirst(pathPrefix.count)) != nil
+    }
+
     private static let boardLinks = [
       Link(
         id: 901, token: "hX7kQ2pLm9", fileID: 4101,
@@ -115,12 +121,16 @@ import Foundation
         """#
     }
 
-    private static func timestamp(hoursFromNow hours: Double) -> String {
+    private static let formatter: DateFormatter = {
       let formatter = DateFormatter()
       formatter.locale = Locale(identifier: "en_US_POSIX")
       formatter.timeZone = TimeZone(identifier: "UTC")
       formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
-      return formatter.string(from: Date.now.addingTimeInterval(hours * 3600))
+      return formatter
+    }()
+
+    private static func timestamp(hoursFromNow hours: Double) -> String {
+      formatter.string(from: Date.now.addingTimeInterval(hours * 3600))
     }
 
     private static func failure(_ status: Int, _ type: String, _ message: String) -> (Int, String) {

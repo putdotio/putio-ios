@@ -1508,7 +1508,7 @@ import Foundation
           fixtureError(statusCode: 401, type: "invalid_token", message: "Session expired")
         )
       }
-      if url.path.hasPrefix(HarnessPublicLinks.pathPrefix) {
+      if HarnessPublicLinks.handles(method: request.httpMethod ?? "GET", path: url.path) {
         return HarnessPublicLinks.response(method: request.httpMethod ?? "GET", path: url.path)
       }
       if request.httpMethod == "GET", let fileID = dynamicFileID(from: url.path),

@@ -5,10 +5,10 @@ extension PutioRuntime {
   public func listPublicLinks() async throws -> [PutioPublicLink] {
     let shares = try await performAuthenticatedOperation { try await sdk.listPublicShares() }
     var ids = Set<Int>()
-    return try shares.map { share in
+    return shares.compactMap { share in
       guard share.id > 0, ids.insert(share.id).inserted,
         let url = PutioPublicLink.url(token: share.token.value)
-      else { throw PutioRuntimeError.invalidResponse }
+      else { return nil }
       return PutioPublicLink(
         id: share.id,
         fileName: share.userFile.name,

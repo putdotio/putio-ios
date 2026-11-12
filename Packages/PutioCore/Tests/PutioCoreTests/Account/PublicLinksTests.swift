@@ -77,6 +77,40 @@ final class PublicLinksTests: XCTestCase {
     XCTAssertEqual(revoked, [1, 1, 2])
   }
 
+  func testAFailedRefreshKeepsTheRowsAndARevokeSurvivesARefreshInFlight() async {
+    var loads = 0
+    var release: CheckedContinuation<Void, Never>?
+    let model = PutioPublicLinksModel(
+      actions: PutioPublicLinkActions(
+        list: {
+          loads += 1
+          if loads == 2 { throw PutioRuntimeError.transient }
+          if loads == 3 { await withCheckedContinuation { release = $0 } }
+          return [link(1, hours: 10), link(2, hours: 20), link(3, hours: 30)]
+        },
+        now: { now }))
+    await model.load()
+    let refreshed = await model.load()
+    XCTAssertFalse(refreshed, "a failed refresh reported success")
+    XCTAssertEqual(model.links.map(\.id), [1, 2, 3], "a failed refresh dropped the rows")
+    let refresh = Task { await model.load() }
+    while release == nil { await Task.yield() }
+    let outcome = await model.revoke(model.links[0])
+    XCTAssertEqual(outcome, .revoked)
+    release?.resume()
+    let landed = await refresh.value
+    XCTAssertTrue(landed)
+    XCTAssertEqual(model.links.map(\.id), [2, 3], "the refresh dropped or undid the revoke")
+  }
+
+  func testLinksThatExpireWhileShownLeaveTheList() async {
+    let model = PutioPublicLinksModel(
+      actions: PutioPublicLinkActions(list: { [link(1, hours: 0.2)] }, now: { now }))
+    await model.load()
+    XCTAssertEqual(model.links(at: now).map(\.id), [1])
+    XCTAssertTrue(model.links(at: now.addingTimeInterval(3600)).isEmpty)
+  }
+
   func testExpiryTextCountsWholeHoursLeft() {
     XCTAssertEqual(link(1, hours: 71.99).expiryText(at: now), "Expires in 71 hours")
     XCTAssertEqual(link(1, hours: 0.4).expiryText(at: now), "Expires in 1 hour")

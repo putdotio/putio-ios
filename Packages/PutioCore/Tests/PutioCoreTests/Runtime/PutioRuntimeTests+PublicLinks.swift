@@ -41,7 +41,8 @@ extension PutioRuntimeTests {
          "owner":{"name":"m"},"user_file":{"id":71,"name":"B","file_type":"VIDEO"}}
       ]}
       """, for: "GET /v2/public_share/list")
-    await assertRuntimeError(.invalidResponse) { _ = try await runtime.listPublicLinks() }
+    let deduplicated = try await runtime.listPublicLinks()
+    XCTAssertEqual(deduplicated.map(\.fileName), ["A"], "a repeated share id hid every link")
 
     fixtures.setFixture(#"{"status":"OK"}"#, for: "DELETE /v2/public_share/7")
     try await runtime.revokePublicLink(id: 7)

@@ -46,7 +46,7 @@ public struct PutioPublicLink: Identifiable, Hashable, Sendable {
     guard let expiresAt else {
       return String(localized: "Expires within 72 hours", bundle: .module)
     }
-    let hours = max(1, Int(expiresAt.timeIntervalSince(now) / 3600))
+    let hours = max(1, Int(max(0, expiresAt.timeIntervalSince(now)) / 3600))
     let remaining = String(localized: "\(hours) hours", bundle: .module)
     return String(localized: "Expires in \(remaining)", bundle: .module)
   }
@@ -94,6 +94,7 @@ public final class PutioPublicLinksModel {
   @ObservationIgnored private let actions: PutioPublicLinkActions
   @ObservationIgnored private var generation = 0
   @ObservationIgnored private var hasLoaded = false
+  @ObservationIgnored private var revokedIDs = Set<Int>()
 
   public init(actions: PutioPublicLinkActions) {
     self.actions = actions
@@ -104,26 +105,34 @@ public final class PutioPublicLinksModel {
     return []
   }
 
+  public func links(at now: Date) -> [PutioPublicLink] {
+    links.filter { !$0.isExpired(at: now) }
+  }
+
   public func loadOnOpen() async {
     guard !hasLoaded else { return }
     hasLoaded = true
     await load()
   }
 
-  public func load() async {
+  @discardableResult
+  public func load() async -> Bool {
     generation += 1
     let generation = generation
     if case .failed = state { state = .loading }
     do {
       let loaded = try await actions.list()
-      guard generation == self.generation, !Task.isCancelled else { return }
+      guard generation == self.generation, !Task.isCancelled else { return true }
       let now = actions.now()
-      state = .loaded(loaded.filter { !$0.isExpired(at: now) })
+      state = .loaded(loaded.filter { !$0.isExpired(at: now) && !revokedIDs.contains($0.id) })
+      return true
     } catch {
       guard generation == self.generation, !Task.isCancelled,
         PutioAccountSecurityPresentation.message(for: error) != nil
-      else { return }
+      else { return true }
+      if case .loaded = state { return false }
       state = .failed
+      return true
     }
   }
 
@@ -146,7 +155,7 @@ public final class PutioPublicLinksModel {
         return .failed(
           String(localized: "Couldn’t revoke the link. \(reason)", bundle: .module))
       }
-      generation += 1
+      revokedIDs.insert(link.id)
       state = .loaded(links.filter { $0.id != link.id })
       return .revoked
     }
