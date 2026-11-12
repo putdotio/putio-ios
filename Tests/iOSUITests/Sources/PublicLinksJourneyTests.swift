@@ -44,7 +44,8 @@ final class PublicLinksJourneyTests: XCTestCase {
     let url = "https://app.put.io/exclusive-access/Rt4vW8nZq1"
     let copied = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", url), object: pasteboard)
-    XCTAssertEqual(XCTWaiter.wait(for: [copied], timeout: 5), .completed, "Copy link copied nothing")
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [copied], timeout: 5), .completed, "Copy link copied nothing")
     XCTAssertFalse(
       (pasteboard.value as? String ?? "").contains("putio-harness-session-token"),
       "the copied link carries the account token")
