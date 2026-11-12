@@ -2685,10 +2685,10 @@ import Foundation
       switch sortBy {
       case "NAME_DESC":
         return rows.reversed()
-      case "SIZE_ASC":
-        return rows.sorted { rowSize($0) < rowSize($1) }
-      case "SIZE_DESC":
-        return rows.sorted { rowSize($0) > rowSize($1) }
+      case "SIZE_ASC", "SIZE_DESC":
+        let sized = rows.map { (size: rowSize($0), row: $0) }.sorted { $0.size < $1.size }
+        let ascending = sized.map(\.row)
+        return sortBy == "SIZE_ASC" ? ascending : ascending.reversed()
       default:
         return rows
       }
