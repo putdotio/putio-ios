@@ -551,7 +551,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   func testTrashLimitAsksBeforeDeletingAndUnknownSettingBlocksTrash() {
-    app.launchArguments += ["--putio-harness-trash-limit", "--putio-harness-hold-settings-save"]
+    app.launchArguments += ["--putio-harness-trash-limit", "--putio-harness-unconfirmed-settings"]
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
     XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")

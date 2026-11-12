@@ -82,8 +82,8 @@ Preconditions:
   `S04E04` (444) fails. Screenshots: `runtime-trash-undo`, `runtime-trash-failed`.
 - **Trash limit and unknown setting.** Run `--only trash-limit`.
   `--putio-harness-trash-limit` refuses Harness Folder (410) for Trash;
-  `--putio-harness-hold-settings-save` never answers a settings save. Screenshots:
-  `runtime-trash-limit`, `runtime-trash-unknown`.
+  `--putio-harness-unconfirmed-settings` fails account loads after a settings
+  save. Screenshots: `runtime-trash-limit`, `runtime-trash-unknown`.
 - **Trash.** Run `--only trash-management`. Screenshots:
   `runtime-trash-refresh-error`, `runtime-trash-loaded`, `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new

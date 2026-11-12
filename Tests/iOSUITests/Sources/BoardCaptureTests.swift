@@ -89,7 +89,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testTrashUnknownMenu() throws {
     XCUIDevice.shared.orientation = .portrait
-    app.launchArguments.append("--putio-harness-hold-settings-save")
+    app.launchArguments.append("--putio-harness-unconfirmed-settings")
     app.launch()
     reachFilesRoot()
     app.buttons["Account"].tap()

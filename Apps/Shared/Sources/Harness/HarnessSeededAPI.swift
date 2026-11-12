@@ -523,9 +523,10 @@ import Foundation
     private static var refusesHarnessFolderTrash: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
     }
-    private static var holdsSettingsSave: Bool {
-      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-settings-save")
+    private static var settingsStayUnconfirmed: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-unconfirmed-settings")
     }
+    nonisolated(unsafe) private static var settingsSaved = false
     nonisolated(unsafe) private static var removedSeasonFileIDs: Set<Int> = []
     nonisolated(unsafe) private static var trashedSeasonFileIDs: Set<Int> = []
     nonisolated(unsafe) private static var seasonDeleteFailureDelivered = false
@@ -657,6 +658,7 @@ import Foundation
       removedSeasonFileIDs = []
       trashedSeasonFileIDs = []
       seasonDeleteFailureDelivered = false
+      settingsSaved = false
       trashListRequests = 0
       folderSorts = [:]
       trashEmptyRefreshFailed = false
@@ -1237,6 +1239,14 @@ import Foundation
             )
           }
           prepareFilePreferencesLocked()
+          if settingsStayUnconfirmed, settingsSaved {
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_SETTINGS_UNCONFIRMED",
+                message: "Account loads fail after a settings save")
+            )
+          }
           if usesFilePreferences, preferencesSortCommitted || preferencesRouteCommitted,
             !preferencesRefreshFailed
           {
@@ -1344,6 +1354,7 @@ import Foundation
       case "POST /v2/account/settings" where requestPayload(request)?["two_factor_enabled"] != nil:
         return setTwoFactor(request: request)
       case "POST /v2/account/settings":
+        fileActionsLock.withLock { settingsSaved = true }
         return updateFilePreferences(request: request)
       case "POST /v2/two_factor/generate/totp":
         return securityFixture {
