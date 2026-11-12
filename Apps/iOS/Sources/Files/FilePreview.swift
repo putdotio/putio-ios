@@ -4,6 +4,7 @@ import PDFKit
 import PutioCore
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 enum PutioPreviewState: Equatable {
   case loading
@@ -20,6 +21,14 @@ enum PutioPreviewState: Equatable {
     case (.text(let left), .text(let right)): left == right
     case (.failed(let left), .failed(let right)): left == right
     default: false
+    }
+  }
+
+  var holdsWholeFile: Bool {
+    switch self {
+    case .image, .document: true
+    case .text(let text): !text.isTruncated
+    case .loading, .failed: false
     }
   }
 }
@@ -45,7 +54,7 @@ enum PutioViewerRoute: Identifiable, Equatable {
     switch action {
     case .video, .audio:
       return nil
-    case .preview(let route) where route.exceedsSizeCap:
+    case .preview(let route) where route.exceedsSizeCap && route.kind != .text:
       self = .cannotShow(id: route.id, title: route.title)
     case .preview(let route):
       self = .preview(route)
@@ -69,7 +78,13 @@ enum PutioViewerRoute: Identifiable, Equatable {
   }
 }
 
-typealias PutioPreviewDownload = @MainActor @Sendable (PutioPreviewRoute) async throws -> Data
+enum PutioPreviewExtent: Sendable {
+  case preview
+  case whole
+}
+
+typealias PutioPreviewDownload =
+  @MainActor @Sendable (PutioPreviewRoute, PutioPreviewExtent) async throws -> Data
 
 struct PutioPreviewTooLargeError: Error {}
 
@@ -215,12 +230,19 @@ final class PutioPreviewModel {
   let route: PutioViewerRoute
   private(set) var state: PutioPreviewState
   private let download: PutioPreviewDownload
+  let shareDirectory: URL
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
+  private var loadedBytes: Data?
+  private var sharedFile: URL?
+  private var shareExport: Task<URL, any Error>?
 
   init(route: PutioViewerRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
     self.download = download
+    shareDirectory = URL.temporaryDirectory
+      .appending(path: "PreviewShare", directoryHint: .isDirectory)
+      .appending(path: UUID().uuidString, directoryHint: .isDirectory)
     if case .cannotShow = route {
       state = .failed(.cannotShow)
     } else {
@@ -238,13 +260,15 @@ final class PutioPreviewModel {
       return
     }
     state = .loading
+    loadedBytes = nil
     let task = Task { [weak self] in
       guard let self else { return }
       do {
-        let data = try await download(route)
+        let data = try await download(route, .preview)
         try Task.checkCancellation()
         let decoded = try await Self.decode(data, kind: route.kind)
         guard request == generation, !Task.isCancelled else { return }
+        loadedBytes = decoded.holdsWholeFile ? data : nil
         state = decoded
       } catch {
         guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
@@ -266,6 +290,70 @@ final class PutioPreviewModel {
     loadTask?.cancel()
     loadTask = nil
     generation &+= 1
+    loadedBytes = nil
+    sharedFile = nil
+    shareExport?.cancel()
+    shareExport = nil
+    try? FileManager.default.removeItem(at: shareDirectory)
+  }
+
+  var share: PutioPreviewShareFile? {
+    guard case .preview(let route) = route else { return nil }
+    switch state {
+    case .image, .document: break
+    case .text(let text) where !text.isTruncated || !route.exceedsSizeCap: break
+    case .loading, .text, .failed: return nil
+    }
+    return PutioPreviewShareFile(name: route.title, kind: route.kind) { [weak self] in
+      guard let self else { throw CancellationError() }
+      return try await exportShareFile()
+    }
+  }
+
+  func exportShareFile() async throws -> URL {
+    if let sharedFile { return sharedFile }
+    if let shareExport { return try await shareExport.value }
+    let request = generation
+    let export = Task { [weak self] in
+      guard let self else { throw CancellationError() }
+      defer { if request == generation { shareExport = nil } }
+      return try await writeShareFile(request: request)
+    }
+    shareExport = export
+    return try await export.value
+  }
+
+  private func writeShareFile(request: UInt64) async throws -> URL {
+    guard case .preview(let route) = route else { throw PutioPreviewTooLargeError() }
+    let bytes: Data
+    if let loadedBytes {
+      bytes = loadedBytes
+    } else {
+      bytes = try await download(route, .whole)
+    }
+    try Task.checkCancellation()
+    let file = shareDirectory.appending(path: Self.shareFileName(route.title))
+    try await Self.write(bytes, to: file)
+    guard request == generation else {
+      try? FileManager.default.removeItem(at: file)
+      let left = try? FileManager.default.contentsOfDirectory(atPath: shareDirectory.path)
+      if left?.isEmpty == true { try? FileManager.default.removeItem(at: shareDirectory) }
+      throw CancellationError()
+    }
+    sharedFile = file
+    return file
+  }
+
+  static func shareFileName(_ title: String) -> String {
+    let name = title.replacing("/", with: ":")
+    return name.isEmpty || name == "." || name == ".." ? "file" : name
+  }
+
+  @concurrent
+  nonisolated private static func write(_ data: Data, to file: URL) async throws {
+    try FileManager.default.createDirectory(
+      at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try data.write(to: file, options: .atomic)
   }
 
   /// The longest edge a decoded preview bitmap may have; ImageIO downsamples
@@ -317,6 +405,51 @@ final class PutioPreviewModel {
     }
     try Task.checkCancellation()
     return UIImage(cgImage: cgImage)
+  }
+}
+
+struct PutioPreviewShareFile: Transferable {
+  let name: String
+  let kind: PutioPreviewRoute.Kind
+  let export: @Sendable () async throws -> URL
+
+  static var transferRepresentation: some TransferRepresentation {
+    FileRepresentation(exportedContentType: .png) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .png }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .jpeg) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .jpeg }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .heic) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .heic }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .gif) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .gif }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .webP) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .webP }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .image) { try await $0.sent() }
+      .exportingCondition { $0.kind == .image && $0.imageType == nil }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .pdf) { try await $0.sent() }
+      .exportingCondition { $0.kind == .pdf }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .plainText) { try await $0.sent() }
+      .exportingCondition { $0.kind == .text }
+      .suggestedFileName { $0.name }
+  }
+
+  static let concreteImageTypes: [UTType] = [.png, .jpeg, .heic, .gif, .webP]
+
+  var imageType: UTType? {
+    guard kind == .image else { return nil }
+    let named = UTType(filenameExtension: (name as NSString).pathExtension)
+    return Self.concreteImageTypes.first { named?.conforms(to: $0) == true }
+  }
+
+  private func sent() async throws -> SentTransferredFile {
+    SentTransferredFile(try await export(), allowAccessingOriginalFile: false)
   }
 }
 
@@ -463,15 +596,18 @@ struct PutioPreviewView: View {
         .accessibilityIdentifier("preview.title")
     }
     ToolbarItemGroup(placement: .topBarTrailing) {
-      Button {
-      } label: {
-        Label {
-          Text("Share")
-        } icon: {
-          Image(putioIcon: .export)
+      Group {
+        if let share = model.share {
+          ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
+        } else {
+          Button {
+          } label: {
+            shareLabel
+          }
+          .disabled(true)
         }
       }
-      .disabled(true)
+      .tint(PutioTheme.Colors.textPrimary)
       .accessibilityIdentifier("preview.share")
       Button {
       } label: {
@@ -483,6 +619,14 @@ struct PutioPreviewView: View {
       }
       .disabled(true)
       .accessibilityIdentifier("preview.more")
+    }
+  }
+
+  private var shareLabel: some View {
+    Label {
+      Text("Share")
+    } icon: {
+      Image(putioIcon: .export)
     }
   }
 
@@ -507,7 +651,8 @@ struct PutioPreviewView: View {
         preview: preview,
         truncationNotice: PutioTextPreviewNotice(
           text: String(localized: "Showing the first \(Self.textLimitLabel)."),
-          figure: Self.textLimitLabel)
+          figure: Self.textLimitLabel),
+        share: model.share
       )
       .ignoresSafeArea(edges: .vertical)
     case .failed(.loadFailed):
@@ -661,6 +806,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 struct PutioTextPreviewView: UIViewRepresentable {
   let preview: PutioTextPreview
   let truncationNotice: PutioTextPreviewNotice
+  let share: PutioPreviewShareFile?
 
   func makeUIView(context: Context) -> PutioTextPreviewContainer {
     PutioTextPreviewContainer()
@@ -668,6 +814,7 @@ struct PutioTextPreviewView: UIViewRepresentable {
 
   func updateUIView(_ view: PutioTextPreviewContainer, context: Context) {
     view.show(preview, truncationNotice: truncationNotice)
+    view.share = share
   }
 }
 
@@ -688,6 +835,7 @@ struct PutioTextPreviewNotice: Equatable {
 final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   private let textView = UITextView(usingTextLayoutManager: true)
   private let notice = UILabel()
+  private let shareButton = UIButton(configuration: .gray())
   private lazy var textElement = PutioVisibleTextElement(container: self, textView: textView)
   private var shown: PutioTextPreview?
   private var shownNotice: PutioTextPreviewNotice?
@@ -695,6 +843,11 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   private static let inset = PutioTheme.Spacing.space3
   private static let noticeSpacing = PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2
   private static let noticeInset = PutioTheme.Spacing.space4
+  private static let shareSpacing = PutioTheme.Spacing.space3
+
+  var share: PutioPreviewShareFile? {
+    didSet { shareButton.isEnabled = share != nil }
+  }
 
   init() {
     super.init(frame: .zero)
@@ -712,6 +865,15 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     notice.accessibilityIdentifier = "preview.text.truncated"
     notice.isHidden = true
     addSubview(notice)
+    shareButton.configuration?.cornerStyle = .capsule
+    shareButton.configuration?.buttonSize = .large
+    shareButton.configuration?.baseForegroundColor = UIColor(PutioTheme.Colors.textPrimary)
+    shareButton.accessibilityIdentifier = "preview.text.share"
+    shareButton.isHidden = true
+    shareButton.isEnabled = false
+    shareButton.addAction(
+      UIAction { [weak self] _ in self?.presentShare() }, for: .primaryActionTriggered)
+    addSubview(shareButton)
     registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
       (view: PutioTextPreviewContainer, _) in
       view.restyle()
@@ -723,7 +885,9 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
 
   func show(_ preview: PutioTextPreview, truncationNotice: PutioTextPreviewNotice) {
     notice.isHidden = !preview.isTruncated
-    accessibilityElements = preview.isTruncated ? [textElement, notice] : [textElement]
+    shareButton.isHidden = !preview.isTruncated
+    accessibilityElements =
+      preview.isTruncated ? [textElement, notice, shareButton] : [textElement]
     guard preview != shown || truncationNotice != shownNotice else { return }
     shown = preview
     shownNotice = truncationNotice
@@ -751,6 +915,16 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
         figureFont: mono.font,
         color: UIColor(PutioTheme.Colors.textSecondary))
     }
+    let body = PutioTheme.Typography.body.scaledUIFont(
+      compatibleWith: traitCollection, fallback: UIFont.systemFont(ofSize:weight:)
+    ).font
+    shareButton.configuration?.title = String(localized: "Share")
+    shareButton.configuration?.titleTextAttributesTransformer =
+      UIConfigurationTextAttributesTransformer { incoming in
+        var outgoing = incoming
+        outgoing.font = body
+        return outgoing
+      }
     setNeedsLayout()
   }
 
@@ -761,17 +935,28 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     let noticeHeight =
       notice.isHidden
       ? 0 : notice.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
-    let bottom =
-      notice.isHidden ? Self.noticeInset : Self.noticeSpacing + noticeHeight + Self.noticeInset
+    let shareWidth = max(0, bounds.width - 2 * Self.inset)
+    let shareHeight =
+      shareButton.isHidden
+      ? 0
+      : shareButton.sizeThatFits(CGSize(width: shareWidth, height: .greatestFiniteMagnitude))
+        .height
+    let footer =
+      notice.isHidden ? 0 : Self.noticeSpacing + noticeHeight + Self.footerHeight(shareHeight)
     let insets = UIEdgeInsets(
-      top: Self.inset, left: Self.inset, bottom: bottom, right: Self.inset)
+      top: Self.inset, left: Self.inset, bottom: footer + Self.noticeInset, right: Self.inset)
     if textView.textContainerInset != insets { textView.textContainerInset = insets }
     notice.frame.size = CGSize(width: width, height: noticeHeight)
+    shareButton.frame.size = CGSize(width: shareWidth, height: shareHeight)
     placeNotice()
   }
 
   func scrollViewDidScroll(_ scrollView: UIScrollView) {
     placeNotice()
+  }
+
+  private static func footerHeight(_ shareHeight: CGFloat) -> CGFloat {
+    shareHeight > 0 ? shareSpacing + shareHeight : 0
   }
 
   private func placeNotice() {
@@ -780,6 +965,33 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     notice.frame.origin = CGPoint(
       x: Self.noticeInset,
       y: textEnd + Self.noticeSpacing - textView.contentOffset.y)
+    shareButton.frame.origin = CGPoint(
+      x: Self.inset, y: notice.frame.maxY + Self.shareSpacing)
+  }
+
+  private func presentShare() {
+    guard let share, let presenter = presentingController else { return }
+    let provider = NSItemProvider()
+    provider.register(share)
+    provider.suggestedName = share.name
+    let configuration = UIActivityItemsConfiguration(itemProviders: [provider])
+    configuration.metadataProvider = { key in key == .title ? share.name : nil }
+    let controller = UIActivityViewController(activityItemsConfiguration: configuration)
+    controller.popoverPresentationController?.sourceItem = shareButton
+    presenter.present(controller, animated: true)
+  }
+
+  private var presentingController: UIViewController? {
+    var responder: UIResponder? = self
+    while let current = responder {
+      if let controller = current as? UIViewController {
+        var top = controller
+        while let presented = top.presentedViewController { top = presented }
+        return top
+      }
+      responder = current.next
+    }
+    return nil
   }
 }
 

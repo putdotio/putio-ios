@@ -87,6 +87,7 @@ final class PreviewJourneyTests: XCTestCase {
     let poster = app.images["Harness Poster.png"]
     XCTAssertTrue(poster.exists)
     assertImageGestures(poster)
+    assertShares("Harness Poster.png", from: app.buttons["preview.share"], capture: "image")
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
@@ -100,6 +101,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(pill.appears(within: 5), "a twelve-page document has no page pill")
     XCTAssertEqual(pill.label, "Page 1 of 12")
     screenshot("runtime-preview-document")
+    assertShares("Document.pdf", from: app.buttons["preview.share"], capture: "document")
     assertDocumentScrollsAndZooms(pill)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
@@ -274,9 +276,20 @@ final class PreviewJourneyTests: XCTestCase {
       notice.isOnScreen, "scrolling never reached the end line: \(notice.debugDescription)")
     XCTAssertEqual(notice.label, "Showing the first 250 kB.")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    let row = app.buttons["preview.text.share"]
+    XCTAssertTrue(row.isOnScreen, "the Share row is off screen: \(row.frame)")
+    XCTAssertGreaterThan(row.frame.minY, notice.frame.maxY)
     screenshot("runtime-preview-text-truncated")
+    assertShares("Blue.Lights.S04.en.srt", from: row, capture: "text")
+    assertShares("Blue.Lights.S04.en.srt", from: app.buttons["preview.share"])
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
+  }
+
+  private func assertShares(_ name: String, from control: XCUIElement, capture: String? = nil) {
+    let sheet = app.openShareSheet(from: control, sharing: name)
+    if let capture { screenshot("runtime-preview-share-\(capture)") }
+    app.dismissShareSheet(sheet)
   }
 
   private func copyLine(_ line: Int, in text: XCUIElement) {

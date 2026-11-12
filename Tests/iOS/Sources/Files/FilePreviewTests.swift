@@ -1,5 +1,6 @@
 import PDFKit
 import UIKit
+import UniformTypeIdentifiers
 import XCTest
 
 @testable import Putio
@@ -67,7 +68,7 @@ final class FilePreviewTests: XCTestCase {
         return XCTFail("\(item.kind) opened a preview")
       }
       var downloads = 0
-      let model = PutioPreviewModel(route: route) { _ in
+      let model = PutioPreviewModel(route: route) { _, _ in
         downloads += 1
         return Self.pngData()
       }
@@ -83,7 +84,7 @@ final class FilePreviewTests: XCTestCase {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 5), parentID: .root, title: "Poster.png", kind: .image)
     var attempts = 0
-    let model = PutioPreviewModel(route: .preview(route)) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _, _ in
       attempts += 1
       switch attempts {
       case 1: throw PutioRuntimeError.transient
@@ -105,19 +106,19 @@ final class FilePreviewTests: XCTestCase {
   func testDocumentPreviewRequiresAtLeastOnePageAndShowsNotFoundAsLoadFailed() async throws {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 6), parentID: .root, title: "Doc.pdf", kind: .pdf)
-    let notFound = PutioPreviewModel(route: .preview(route)) { _ in
+    let notFound = PutioPreviewModel(route: .preview(route)) { _, _ in
       throw PutioRuntimeError.notFound
     }
     await notFound.load()
     XCTAssertEqual(notFound.state, .failed(.loadFailed))
 
-    let empty = PutioPreviewModel(route: .preview(route)) { _ in Data("%PDF-1.4".utf8) }
+    let empty = PutioPreviewModel(route: .preview(route)) { _, _ in Data("%PDF-1.4".utf8) }
     await empty.load()
     XCTAssertEqual(empty.state, .failed(.cannotShow))
 
     let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 100, height: 100))
     let data = renderer.pdfData { context in context.beginPage() }
-    let loaded = PutioPreviewModel(route: .preview(route)) { _ in data }
+    let loaded = PutioPreviewModel(route: .preview(route)) { _, _ in data }
     await loaded.load()
     guard case .document(let document) = loaded.state else { return XCTFail("\(loaded.state)") }
     XCTAssertEqual(document.pageCount, 1)
@@ -176,11 +177,11 @@ final class FilePreviewTests: XCTestCase {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 11), parentID: .root, title: "Notes.txt", kind: .text)
     for body in [Self.pngData(), Data([0x61, 0x00, 0x62]), Data([0xFF, 0xFE, 0x61, 0x00])] {
-      let model = PutioPreviewModel(route: .preview(route)) { _ in body }
+      let model = PutioPreviewModel(route: .preview(route)) { _, _ in body }
       await model.load()
       XCTAssertEqual(model.state, .failed(.cannotShow), "\(Array(body.prefix(4)))")
     }
-    let loaded = PutioPreviewModel(route: .preview(route)) { _ in Data("Aye. Grand.".utf8) }
+    let loaded = PutioPreviewModel(route: .preview(route)) { _, _ in Data("Aye. Grand.".utf8) }
     await loaded.load()
     XCTAssertEqual(loaded.state, .text(PutioTextPreview(text: "Aye. Grand.", isTruncated: false)))
   }
@@ -208,6 +209,143 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(PreviewStubURLProtocol.ranges, ["bytes=0-5", "bytes=0-5", "bytes=0-5"])
   }
 
+  func testShareHandsOverTheLoadedBytesAsALocalFileAndRemovesItOnClose() async throws {
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 12), parentID: .root, title: "Poster.png", kind: .image)
+    let bytes = Self.pngData()
+    var extents: [PutioPreviewExtent] = []
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      extents.append(extent)
+      return bytes
+    }
+    XCTAssertNil(model.share, "Share is enabled while loading")
+    await model.load()
+    let share = try XCTUnwrap(model.share)
+    XCTAssertEqual(share.name, "Poster.png")
+
+    let file = try await share.export()
+    XCTAssertTrue(file.isFileURL)
+    XCTAssertTrue(
+      file.standardizedFileURL.path.hasPrefix(URL.temporaryDirectory.standardizedFileURL.path),
+      "\(file.path) is outside the temporary directory")
+    XCTAssertFalse(file.absoluteString.contains("put.io"))
+    XCTAssertEqual(file.lastPathComponent, "Poster.png")
+    XCTAssertEqual(try Data(contentsOf: file), bytes)
+    let again = try await share.export()
+    XCTAssertEqual(again, file)
+    XCTAssertEqual(extents, [.preview])
+
+    model.cancel()
+    XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+  }
+
+  func testShareFetchesTheWholeTextFileUpToTheCap() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let whole = Data(repeating: 0x61, count: limit + 4_000)
+    var extents: [PutioPreviewExtent] = []
+    let download: PutioPreviewDownload = { _, extent in
+      extents.append(extent)
+      return extent == .whole ? whole : whole.prefix(limit + 1)
+    }
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 13), parentID: .root, title: "Blue.Lights.S04.en.srt", kind: .text)
+    let model = PutioPreviewModel(route: .preview(route), download: download)
+    await model.load()
+    guard case .text(let text) = model.state, text.isTruncated else {
+      return XCTFail("\(model.state)")
+    }
+    let file = try await XCTUnwrap(model.share).export()
+    XCTAssertEqual(try Data(contentsOf: file), whole)
+    XCTAssertEqual(extents, [.preview, .whole])
+    model.cancel()
+
+    let oversized = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 14), parentID: .root, title: "Huge.srt", kind: .text,
+      exceedsSizeCap: true)
+    let capped = PutioPreviewModel(route: .preview(oversized), download: download)
+    await capped.load()
+    guard case .text = capped.state else { return XCTFail("\(capped.state)") }
+    XCTAssertNil(capped.share, "Share is enabled above the size cap")
+  }
+
+  func testShareIsDisabledWithoutLoadedBytes() async {
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 15), parentID: .root, title: "Doc.pdf", kind: .pdf)
+    let failed = PutioPreviewModel(route: .preview(route)) { _, _ in
+      throw PutioRuntimeError.transient
+    }
+    await failed.load()
+    XCTAssertEqual(failed.state, .failed(.loadFailed))
+    XCTAssertNil(failed.share)
+
+    let unreadable = PutioPreviewModel(route: .preview(route)) { _, _ in Data("%PDF-1.4".utf8) }
+    await unreadable.load()
+    XCTAssertEqual(unreadable.state, .failed(.cannotShow))
+    XCTAssertNil(unreadable.share)
+
+    let archive = PutioViewerRoute.cannotShow(id: PutioFileID(rawValue: 16), title: "a.zip")
+    XCTAssertNil(PutioPreviewModel(route: archive) { _, _ in Data() }.share)
+  }
+
+  func testSharedImagesNameTheirConcreteType() {
+    let cases: [(String, UTType?)] = [
+      ("Poster.png", .png), ("Photo.JPG", .jpeg), ("Photo.jpeg", .jpeg), ("Live.heic", .heic),
+      ("Loop.gif", .gif), ("Still.webp", .webP), ("Scan.bmp", nil), ("Untitled", nil),
+    ]
+    for (name, expected) in cases {
+      let share = PutioPreviewShareFile(name: name, kind: .image) { URL.temporaryDirectory }
+      XCTAssertEqual(share.imageType, expected, name)
+    }
+    let text = PutioPreviewShareFile(name: "Notes.png", kind: .text) { URL.temporaryDirectory }
+    XCTAssertNil(text.imageType)
+  }
+
+  func testOverlappingSharesFetchTheWholeTextOnce() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let whole = Data(repeating: 0x61, count: limit + 4_000)
+    var wholeFetches = 0
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 17), parentID: .root, title: "Long.srt", kind: .text)
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      guard extent == .whole else { return whole.prefix(limit + 1) }
+      wholeFetches += 1
+      for _ in 0..<5 { await Task.yield() }
+      return whole
+    }
+    await model.load()
+    let share = try XCTUnwrap(model.share)
+    async let first = share.export()
+    async let second = share.export()
+    let files = try await [first, second]
+    XCTAssertEqual(files[0], files[1])
+    XCTAssertEqual(wholeFetches, 1)
+    model.cancel()
+  }
+
+  func testClosingDuringAShareLeavesNoTemporaryDirectory() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let gate = PreviewDownloadGate()
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 18), parentID: .root, title: "Long.srt", kind: .text)
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      let body = Data(repeating: 0x61, count: limit + 4_000)
+      guard extent == .whole else { return body.prefix(limit + 1) }
+      await gate.wait()
+      return body
+    }
+    await model.load()
+    let share = try XCTUnwrap(model.share)
+    let export = Task { try await share.export() }
+    while !gate.isWaiting { await Task.yield() }
+    model.cancel()
+    gate.open()
+    do {
+      _ = try await export.value
+      XCTFail("a closed preview still shared a file")
+    } catch {}
+    XCTAssertFalse(FileManager.default.fileExists(atPath: model.shareDirectory.path))
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)
@@ -219,7 +357,7 @@ final class FilePreviewTests: XCTestCase {
   func testOversizedPreviewsAreRejectedBeforeDecoding() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 8), parentID: .root, title: "Huge.png", kind: .image)
-    let model = PutioPreviewModel(route: .preview(route)) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _, _ in
       throw PutioPreviewTooLargeError()
     }
     await model.load()
@@ -232,7 +370,7 @@ final class FilePreviewTests: XCTestCase {
     let started = expectation(description: "first download started")
     let cancelled = expectation(description: "first download observed cancellation")
     var attempts = 0
-    let model = PutioPreviewModel(route: .preview(route)) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _, _ in
       attempts += 1
       if attempts == 1 {
         started.fulfill()
@@ -259,7 +397,7 @@ final class FilePreviewTests: XCTestCase {
   func testSessionLossLeavesThePreviewLoadingForTheSignedOutShell() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 7), parentID: .root, title: "Poster.png", kind: .image)
-    let model = PutioPreviewModel(route: .preview(route)) { _ in
+    let model = PutioPreviewModel(route: .preview(route)) { _, _ in
       throw PutioRuntimeError.sessionExpired
     }
     await model.load()
@@ -394,4 +532,20 @@ private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
   }
 
   override func stopLoading() {}
+}
+
+@MainActor
+private final class PreviewDownloadGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  var isWaiting: Bool { continuation != nil }
+
+  func wait() async {
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func open() {
+    continuation?.resume()
+    continuation = nil
+  }
 }

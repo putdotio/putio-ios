@@ -357,6 +357,16 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(notice.isOnScreen, "scrolling never reached the end line")
     XCTAssertTrue(notice.appears(within: 5))
     try captureBoard("rd-ios-pv-10-text-truncated")
+    guard UIDevice.current.userInterfaceIdiom == .pad else { return }
+    for control in [app.buttons["preview.text.share"], app.buttons["preview.share"]] {
+      let name = control.identifier.replacing(".", with: "-")
+      let sheet = app.openShareSheet(from: control, sharing: "Blue.Lights.S04.en.srt")
+      let anchored = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+      anchored.name = "share-anchor-\(name)"
+      anchored.lifetime = .keepAlways
+      add(anchored)
+      app.dismissShareSheet(sheet)
+    }
   }
 
   private func openPosterPreview() {
