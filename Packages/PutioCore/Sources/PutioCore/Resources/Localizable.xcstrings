@@ -1535,6 +1535,17 @@
         }
       }
     },
+    "That proxy isn’t available for your account. Choose another one." : {
+      "comment" : "android: mobile_settings_tunnel_route_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That proxy isn’t available for your account. Choose another one."
+          }
+        }
+      }
+    },
     "The change could not be confirmed. Try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
       "localizations" : {

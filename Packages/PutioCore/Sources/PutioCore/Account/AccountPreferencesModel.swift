@@ -164,6 +164,9 @@ public final class PutioAccountPreferencesModel {
         }
         return .saved
       } catch is PutioPlaybackRouteUnavailable {
+        failure = String(
+          localized: "That proxy isn’t available for your account. Choose another one.",
+          bundle: .module)
         return .unavailable
       } catch {
         guard let message = Self.message(for: error) else { return .skipped }
