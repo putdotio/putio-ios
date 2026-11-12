@@ -252,7 +252,7 @@ struct PutioFolderScreen: View {
     .task(id: retryRequest) {
       await runRetryRequest()
     }
-    .task(id: isOffline) {
+    .task(id: isOffline && retryRequest == nil) {
       await retryWhileOffline()
     }
     .task(id: actionRequest) {
@@ -720,10 +720,11 @@ struct PutioFolderScreen: View {
     GeometryReader { geometry in
       ScrollView {
         VStack(spacing: PutioTheme.Spacing.space3) {
-          PutioOfflineBanner()
-            .accessibilityIdentifier("files.offline-banner")
-          if let offlineFiles {
-            ForEach(offlineFiles.items(route.id)) { item in
+          let items = offlineFiles?.items(route.id) ?? []
+          if let offlineFiles, !items.isEmpty {
+            PutioOfflineBanner()
+              .accessibilityIdentifier("files.offline-banner")
+            ForEach(items) { item in
               offlineRow(item, open: offlineFiles.open)
             }
           }
@@ -775,7 +776,13 @@ struct PutioFolderScreen: View {
         return
       }
       guard isOffline, retryRequest == nil else { return }
-      if await model.retryKeepingFailure() { return }
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
+      if await model.retryKeepingFailure() {
+        if let pending, !Task.isCancelled {
+          refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
+        }
+        return
+      }
       attempt += 1
     }
   }

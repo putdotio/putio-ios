@@ -67,6 +67,13 @@ extension PutioRuntimeTests {
       #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401, for: Self.filesRoute)
     await assertRuntimeError(.sessionExpired) { _ = try await runtime.listFiles() }
     XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+
+    fixtures.reset()
+    (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 403, for: Self.filesRoute)
+    await assertRuntimeError(.sessionExpired) { _ = try await runtime.listFiles() }
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
   }
 
   func testListMapsAppOwnedValuesAndKeepsCursorAndSort() async throws {

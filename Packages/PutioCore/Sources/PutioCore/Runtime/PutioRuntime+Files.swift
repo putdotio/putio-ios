@@ -20,7 +20,8 @@ extension PutioRuntime {
 
   static func folderLoadError(_ error: PutioSDKError) -> PutioFolderLoadError? {
     switch error.statusCode {
-    case 403: return .forbidden
+    case 403 where !["invalid_grant", "invalid_token"].contains(error.apiErrorType):
+      return .forbidden
     case 503: return .unavailable
     default: break
     }

@@ -594,7 +594,10 @@ final class PutioFolderModelTests: XCTestCase {
   func testFolderFailuresNameTheirReason() {
     let expected: [(Error, String, String)] = [
       (PutioRuntimeError.transient, "Couldn’t load this", "Check your connection and try again."),
-      (PutioRuntimeError.unknown, "Couldn’t load this", "Check your connection and try again."),
+      (
+        PutioRuntimeError.unknown, "Couldn’t load this",
+        "put.io could not complete the request. Try again."
+      ),
       (
         PutioFolderLoadError.forbidden, "Couldn’t load this",
         "You don’t have access to this folder."

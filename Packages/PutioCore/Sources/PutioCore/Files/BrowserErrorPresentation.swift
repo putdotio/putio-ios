@@ -39,17 +39,21 @@ public struct PutioBrowserErrorPresentation: Equatable, Sendable {
 
   private init(kind: PutioBrowserErrorKind) {
     self.kind = kind
-    if kind == .notFound {
-      title = String(localized: "Folder not found", bundle: .module)
-      message = String(localized: "It may have been moved or deleted.", bundle: .module)
-      return
-    }
-    #if os(tvOS)
-      title = String(localized: "Could not load files", bundle: .module)
-    #else
-      title = (kind == .offline ? PutioScreenErrorKind.offline : .failed).title
-    #endif
+    title = Self.title(for: kind)
     message = Self.message(for: kind)
+  }
+
+  private static func title(for kind: PutioBrowserErrorKind) -> String {
+    switch kind {
+    case .notFound:
+      String(localized: "Folder not found", bundle: .module)
+    default:
+      #if os(tvOS)
+        String(localized: "Could not load files", bundle: .module)
+      #else
+        (kind == .offline ? PutioScreenErrorKind.offline : .failed).title
+      #endif
+    }
   }
 
   private static func message(for kind: PutioBrowserErrorKind) -> String {
@@ -72,17 +76,9 @@ public struct PutioBrowserErrorPresentation: Equatable, Sendable {
     case .transient:
       PutioScreenErrorKind.failed.message
     case .invalidResponse:
-      #if os(tvOS)
-        String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
-      #else
-        PutioScreenErrorKind.failed.message
-      #endif
+      String(localized: "put.io returned an invalid response. Try again.", bundle: .module)
     case .unknown:
-      #if os(tvOS)
-        String(localized: "put.io could not complete the request. Try again.", bundle: .module)
-      #else
-        PutioScreenErrorKind.failed.message
-      #endif
+      String(localized: "put.io could not complete the request. Try again.", bundle: .module)
     }
   }
 }

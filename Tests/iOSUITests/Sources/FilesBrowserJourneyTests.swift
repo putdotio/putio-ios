@@ -1097,12 +1097,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["put.io is out of reach"].appears(within: 10), "the folder never went offline"
     )
-    XCTAssertTrue(element(identifier: "files.offline-banner").exists, "offline shows no banner")
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists,
+      "the offline state does not say it retries")
+    XCTAssertFalse(
+      element(identifier: "files.offline-banner").exists, "the banner shows with no downloads")
     addScreenshot(named: "runtime-folder-offline")
     let header = element(identifier: "files.header.440")
     XCTAssertTrue(header.appears(within: 15), "the offline folder never retried on its own")
-    XCTAssertFalse(
-      element(identifier: "files.offline-banner").exists, "the banner outlived offline")
 
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(
