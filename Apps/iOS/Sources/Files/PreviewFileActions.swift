@@ -36,7 +36,9 @@ struct PutioPreviewMoreMenu: View {
     }
     .accessibilityLabel(Text("More"))
     .menuOrder(.fixed)
-    .tint(PutioTheme.Colors.textPrimary)
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .foregroundStyle(PutioTheme.Colors.textPrimary)
     .disabled(isDisabled || menu.sections.isEmpty)
     .accessibilityIdentifier("preview.more")
   }

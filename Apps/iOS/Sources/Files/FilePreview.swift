@@ -969,7 +969,8 @@ struct PutioPreviewView: View {
             .disabled(true)
           }
         }
-        .tint(PutioTheme.Colors.textPrimary)
+        .buttonStyle(.plain)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
         .accessibilityLabel(Text("Share"))
         .accessibilityIdentifier("preview.share")
         PutioPreviewMoreMenu(
