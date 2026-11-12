@@ -59,7 +59,6 @@ struct PutioExclusiveLinkSheet: View {
       guard request > 0 else { return }
       await model.create()
     }
-    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.exclusive-link")
   }
 
