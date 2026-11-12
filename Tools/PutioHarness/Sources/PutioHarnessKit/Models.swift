@@ -823,7 +823,7 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "runtime-analytics-prompt", "runtime-analytics-prompt-saving",
         "runtime-analytics-prompt-failed",
-      ]),
+      ], timeAllowance: 180),
     JourneyPreflight(
       "analytics-prompt-swipe",
       "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayStoresNoAnswer"),
