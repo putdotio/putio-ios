@@ -684,6 +684,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-19-delete-confirm", .iphone, "testPreviewDeleteConfirm"),
       BoardCapture("rd-ios-pv-17-duo-folded-image", .duoFolded, "testPreviewImage"),
       BoardCapture("rd-ios-pv-16-duo-image", .duoOpen, "testPreviewImage"),
+      BoardCapture("rd-ios-pv-14-ipad-image", .ipad, "testIPadPreviewImage"),
+      BoardCapture("rd-ios-pv-15-ipad-pdf", .ipad, "testIPadPreviewDocument"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
       BoardCapture(
