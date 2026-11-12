@@ -518,6 +518,9 @@ import Foundation
     // codes stay pending. The margin lets the UI test observe each state.
     static let expiringDeviceCode = "TVXP1"
     static let approvedDeviceCode = "TVOK2"
+    /// Signed-out launches show a code that never expires or signs in.
+    static let pendingDeviceCode = "TVWT1"
+    nonisolated(unsafe) static var holdsDeviceCodes = false
     private static let deviceCodeLock = NSLock()
     nonisolated(unsafe) private static var deviceCodesIssued = 0
     nonisolated(unsafe) private static var deviceCodePolls: [String: Int] = [:]
@@ -1113,6 +1116,7 @@ import Foundation
           deviceCodesIssued += 1
           let code =
             switch deviceCodesIssued {
+            case _ where holdsDeviceCodes: pendingDeviceCode
             case 1: expiringDeviceCode
             case 2: approvedDeviceCode
             default: "TVWT\(deviceCodesIssued)"

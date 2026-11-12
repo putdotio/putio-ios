@@ -36,9 +36,11 @@ session, API, and feature logic belong in `Packages/PutioCore`.
   live, and the harness names the manual revocation. The Account > Security
   capture lists every app on that account, so review captures before uploading
   them.
-- **tvOS launch reaches put.io.** The default tvOS launch, including
-  `proof --platform all`, requests an activation code; the tvOS journey covers
-  sign-in offline.
+- **Activation codes are scarce.** put.io allows 10 code requests per 15
+  minutes per IP, shared by every lane and harness on the network, and each
+  blocked request extends the ban. Harness simulator launches show a seeded
+  code; a tvOS launch with no scenario (Xcode, a paired Apple TV) and the
+  live journeys request real ones.
 - **Simulators and devices.** The harness creates, shuts down, and deletes its
   own uniquely named simulators headlessly; keep automation headless too, never
   through Simulator.app. If cleanup fails, delete only the run's reported
