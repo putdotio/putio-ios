@@ -65,7 +65,7 @@ import Foundation
     /// The recorded journey proves autoplay, so the default config document
     /// enables it. The playback-preferences fixture persists the production
     /// default (off) and fails the first save once for retry proof.
-    nonisolated(unsafe) private static var autoplayNextVideo = true
+    nonisolated(unsafe) private static var autoplayNextVideo = accountSettingsMode == nil
     nonisolated(unsafe) private static var autoplaySaveFailed = false
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool?
@@ -163,6 +163,27 @@ import Foundation
     private static var historyDisablesAfterClear: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled-after-clear")
     }
+
+    private enum AccountSettingsMode: String {
+      case slowLoad = "slow-load"
+      case failLoad = "fail-load"
+    }
+
+    private enum AccountSettingsFault {
+      case unavailable
+      case offline
+    }
+
+    private static let accountSettingsMode: AccountSettingsMode? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: "--putio-harness-account-settings"),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return AccountSettingsMode(rawValue: arguments[flag + 1])
+    }()
+    nonisolated(unsafe) private static var accountInfoRequests = 0
+    nonisolated(unsafe) private static var accountSettingsAutoplaySaves = 0
+    private static let accountSettingsLoadDelay: TimeInterval = 6
 
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
@@ -623,6 +644,8 @@ import Foundation
       trashEmptyRefreshFailed = false
       trashFreedBytes = 0
       accountRefreshFailuresRemaining = 0
+      accountInfoRequests = 0
+      accountSettingsAutoplaySaves = 0
       fileActionsLock.unlock()
     }
 
@@ -656,7 +679,22 @@ import Foundation
         return
       }
       let replayableRequest = Self.replayableRequest(request)
-      let (statusCode, body) = Self.fixture(for: replayableRequest)
+      let fault = Self.accountSettingsFault(for: replayableRequest)
+      if fault == .offline {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
+      }
+      let (statusCode, body) =
+        fault == .unavailable
+        ? (
+          503,
+          Self.fixtureError(
+            statusCode: 503, type: "HARNESS_ACCOUNT_SETTINGS_SAVE",
+            message: "The first autoplay save fails for revert proof")
+        )
+        : Self.fixture(for: replayableRequest)
       let response = HTTPURLResponse(
         url: url,
         statusCode: statusCode,
@@ -680,6 +718,9 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if Self.delaysAccountSettingsLoad(url) {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url) {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -698,6 +739,25 @@ import Foundation
       } else {
         deliverResponse()
       }
+    }
+
+    private static func accountSettingsFault(for request: URLRequest) -> AccountSettingsFault? {
+      guard accountSettingsMode != nil, request.httpMethod == "PUT",
+        request.url?.path == "/v2/config/autoplay_next_video"
+      else { return nil }
+      return fileActionsLock.withLock {
+        accountSettingsAutoplaySaves += 1
+        switch accountSettingsAutoplaySaves {
+        case 1: return .unavailable
+        case 2: return .offline
+        default: return nil
+        }
+      }
+    }
+
+    private static func delaysAccountSettingsLoad(_ url: URL) -> Bool {
+      guard accountSettingsMode == .slowLoad, url.path == "/v2/account/info" else { return false }
+      return fileActionsLock.withLock { accountInfoRequests > 1 }
     }
 
     private static func holdsPreviewLookup(_ url: URL) -> Bool {
@@ -1130,6 +1190,15 @@ import Foundation
         )
       case "GET /v2/account/info":
         return fileActionsLock.withLock {
+          accountInfoRequests += 1
+          if accountSettingsMode == .failLoad, accountInfoRequests == 2 {
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_ACCOUNT_SETTINGS_LOAD",
+                message: "The first account settings load fails for retry proof")
+            )
+          }
           prepareFilePreferencesLocked()
           if usesFilePreferences, preferencesSortCommitted || preferencesRouteCommitted,
             !preferencesRefreshFailed

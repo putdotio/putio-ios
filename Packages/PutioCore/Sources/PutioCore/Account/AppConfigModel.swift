@@ -104,14 +104,16 @@ public final class PutioAppConfigModel {
     return autoplayNextVideo
   }
 
-  public func setAutoplayNextVideo(_ enabled: Bool) async {
-    guard enabled != autoplayNextVideo else { return }
-    await save(.autoplayNextVideo(enabled))
+  @discardableResult
+  public func setAutoplayNextVideo(_ enabled: Bool) async -> PutioSettingSaveOutcome {
+    guard enabled != autoplayNextVideo else { return .skipped }
+    return await save(.autoplayNextVideo(enabled))
   }
 
-  public func setAutoRotateVideo(_ enabled: Bool) async {
-    guard enabled != autoRotateVideo else { return }
-    await save(.autoRotateVideo(enabled))
+  @discardableResult
+  public func setAutoRotateVideo(_ enabled: Bool) async -> PutioSettingSaveOutcome {
+    guard enabled != autoRotateVideo else { return .skipped }
+    return await save(.autoRotateVideo(enabled))
   }
 
   /// Repeats the failed write when one is pending; otherwise reloads the
@@ -124,13 +126,14 @@ public final class PutioAppConfigModel {
     }
   }
 
-  private func save(_ write: PutioAppConfigWrite) async {
-    guard canSave else { return }
+  @discardableResult
+  private func save(_ write: PutioAppConfigWrite) async -> PutioSettingSaveOutcome {
+    guard canSave else { return .skipped }
     isSaving = true
     failure = nil
     failedWrite = nil
     // A save must settle even when the settings screen disappears mid-flight.
-    let task = Task { @MainActor in
+    let task = Task { @MainActor () -> PutioSettingSaveOutcome in
       defer { isSaving = false }
       do {
         try await actions.save(write)
@@ -138,18 +141,20 @@ public final class PutioAppConfigModel {
         case .autoplayNextVideo(let enabled): config?.autoplayNextVideo = enabled
         case .autoRotateVideo(let enabled): config?.autoRotateVideo = enabled
         }
+        return .saved
       } catch {
         guard
           let message = Self.message(
             for: error,
             fallback: String(
               localized: "Could not save playback settings. Try again.", bundle: .module))
-        else { return }
+        else { return .skipped }
         failure = message
         failedWrite = write
+        return .failed
       }
     }
-    await task.value
+    return await task.value
   }
 
   private static func message(for error: Error, fallback: String) -> String? {

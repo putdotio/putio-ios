@@ -5,6 +5,7 @@ import SwiftUI
 struct ProxySettingsView: View {
   let runtime: PutioRuntime
   let preferences: PutioAccountPreferencesModel
+  let onSelect: @MainActor (String) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var routes: [PutioPlaybackRoute]?
   @State private var routeFailure: String?
@@ -59,7 +60,7 @@ struct ProxySettingsView: View {
       set: { name in
         guard name != preferences.account?.routeName else { return }
         dismiss()
-        Task { await preferences.save(.route(name)) }
+        onSelect(name)
       })
   }
 

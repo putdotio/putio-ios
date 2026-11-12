@@ -17,6 +17,8 @@ struct AccountView: View {
   @State private var isRefreshingStorage = false
   @State private var confirmsSignOut = false
   @State private var confirmation: AccountSettingConfirmation?
+  @State private var saveFailures = PutioSettingSaveFailures()
+  @State private var revealRequest: AccountSettingReveal?
 
   init(
     runtime: PutioRuntime,
@@ -45,6 +47,17 @@ struct AccountView: View {
   }
 
   var body: some View {
+    ScrollViewReader { proxy in
+      settingsList
+        .onChange(of: revealRequest) { _, request in
+          guard let request else { return }
+          withAnimation { proxy.scrollTo(request.row, anchor: .center) }
+        }
+    }
+    .putioSettingSaveFailures(saveFailures)
+  }
+
+  private var settingsList: some View {
     List {
       AccountProfileHeader(account: account)
       Group {
@@ -65,28 +78,49 @@ struct AccountView: View {
             .accessibilityIdentifier("account.trash")
           }
         }
-        preferencesStatusSection
-        filesSection
-        playbackSection
-        subtitlesSection
-        privacySection
-        securitySection
-        aboutSection
-        Section {
-          PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
-            confirmsSignOut = true
+        switch preferences.settingsState {
+        case .loading:
+          Section {
+            PutioSettingsLoadingRow(String(localized: "Loading account settings"))
+              .accessibilityIdentifier("account.settings-loading")
           }
-          .accessibilityIdentifier("auth.sign-out")
+        case .failed:
+          Section {
+            PutioSettingsFailedRows(
+              String(localized: "Couldn’t load account settings"),
+              identifier: "account.settings-failed",
+              retryIdentifier: "account.settings-retry"
+            ) {
+              Task { await preferences.loadSettings() }
+            }
+          }
+        case .ready:
+          filesSection
+          playbackSection
+          subtitlesSection
+          privacySection
+          securitySection
+          aboutSection
         }
-        PutioSettingsSection(String(localized: "Danger zone")) {
-          PutioNavigationRow(String(localized: "Clear your data"), icon: .eraser) {
-            ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
+        if preferences.settingsState != .loading {
+          Section {
+            PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
+              confirmsSignOut = true
+            }
+            .accessibilityIdentifier("auth.sign-out")
           }
-          .accessibilityIdentifier("account.clear-data")
-          PutioNavigationRow(String(localized: "Destroy your account"), icon: .userCircleMinus) {
-            DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
+        }
+        if preferences.settingsState == .ready {
+          PutioSettingsSection(String(localized: "Danger zone")) {
+            PutioNavigationRow(String(localized: "Clear your data"), icon: .eraser) {
+              ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
+            }
+            .accessibilityIdentifier("account.clear-data")
+            PutioNavigationRow(String(localized: "Destroy your account"), icon: .userCircleMinus) {
+              DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
+            }
+            .accessibilityIdentifier("account.destroy-account")
           }
-          .accessibilityIdentifier("account.destroy-account")
         }
       }
       .listRowBackground(PutioTheme.Colors.surface)
@@ -94,6 +128,7 @@ struct AccountView: View {
     .navigationTitle("Account")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
+    .task { await preferences.loadSettingsIfNeeded() }
     .task { await appConfig.loadIfNeeded() }
     .alert("Are you sure?", isPresented: $confirmsSignOut) {
       Button("Cancel", role: .cancel) {}
@@ -112,13 +147,13 @@ struct AccountView: View {
     ) {
       switch confirmation {
       case .trash:
-        Button("Turn Off Trash", role: .destructive) { save(.trash(false)) }
+        Button("Turn Off Trash", role: .destructive) { save(.trash, .trash(false)) }
           .accessibilityIdentifier("settings.trash-disable")
       case .history:
-        Button("Turn Off History", role: .destructive) { save(.history(false)) }
+        Button("Turn Off History", role: .destructive) { save(.history, .history(false)) }
           .accessibilityIdentifier("settings.history-disable")
       case .resetSort:
-        Button("Reset Folder Sorts", role: .destructive) { save(.resetFolderSorts) }
+        Button("Reset Folder Sorts", role: .destructive) { save(nil, .resetFolderSorts) }
           .accessibilityIdentifier("settings.reset-sort-confirm")
       case nil:
         EmptyView()
@@ -178,50 +213,29 @@ struct AccountView: View {
       .accessibilityIdentifier("account.storage-used")
   }
 
-  @ViewBuilder private var preferencesStatusSection: some View {
-    if preferences.isStale {
-      Section {
-        Text(
-          preferences.failure
-            ?? String(localized: "Account settings could not be confirmed. Refresh to continue.")
-        )
-        .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Button(preferences.isRefreshing ? "Refreshing…" : "Refresh account") {
-          Task { await preferences.retryRefresh() }
-        }
-        .disabled(preferences.isBusy)
-        .accessibilityIdentifier("settings.refresh")
-      }
-    } else if let failure = preferences.failure {
-      Section {
-        Text(failure)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-        if preferences.failedMutation != nil {
-          Button("Try again") { Task { await preferences.retrySave() } }
-            .disabled(preferences.isBusy)
-            .accessibilityIdentifier("settings.retry-save")
-        }
-      }
-    }
-  }
-
   private var filesSection: some View {
     PutioSettingsSection(String(localized: "Files")) {
       PutioPickerRow(
-        title: String(localized: "Default sort order"),
+        String(localized: "Default sort order"),
         icon: .sortAscending,
-        selection: defaultSort,
-        options: sortOptions
+        selection: preferences.account?.defaultSort,
+        options: sortOptions,
+        save: { sort in
+          guard let sort else { throw CancellationError() }
+          try await commit(.defaultSort, .defaultSort(sort))
+        }
       ) { sort in
         sort?.accountValue ?? String(localized: "Current server setting")
       }
       .disabled(settingsLocked)
+      .id(AccountSettingRow.defaultSort)
       .accessibilityIdentifier("settings.default-sort")
       PutioToggleRow(
         title: String(localized: "Move deleted files to trash"), icon: .trash,
         isOn: trashEnabled
       )
       .disabled(settingsLocked)
+      .id(AccountSettingRow.trash)
       .accessibilityIdentifier("settings.trash")
       PutioActionRow(String(localized: "Reset all sort settings"), icon: .arrowCounterClockwise) {
         confirmation = .resetSort
@@ -236,12 +250,21 @@ struct AccountView: View {
       PutioPlaybackConfigRows(
         suggestsNextVideo: account.suggestNextVideo,
         showsRotation: UIDevice.current.userInterfaceIdiom == .phone,
-        appConfig: appConfig)
+        appConfig: appConfig,
+        onSaveFailed: { write in
+          switch write {
+          case .autoplayNextVideo: reveal(.autoplay)
+          case .autoRotateVideo: reveal(.autoRotate)
+          }
+        })
       PutioNavigationRow(
         String(localized: "Proxy"), icon: .globe, value: preferences.account?.routeName
       ) {
-        ProxySettingsView(runtime: runtime, preferences: preferences)
+        ProxySettingsView(runtime: runtime, preferences: preferences) { name in
+          Task { await commitReporting(.proxy, .route(name)) }
+        }
       }
+      .id(AccountSettingRow.proxy)
       .accessibilityIdentifier("playback-settings.route")
       PutioNavigationRow(String(localized: "Chromecast"), icon: .screencast) {
         PutioCastPreferencesView(model: cast)
@@ -253,16 +276,23 @@ struct AccountView: View {
   private var subtitlesSection: some View {
     PutioSettingsSection(String(localized: "Subtitles")) {
       PutioToggleRow(
-        title: String(localized: "Show subtitles"), icon: .closedCaptioning, isOn: showSubtitles
-      )
+        String(localized: "Show subtitles"), icon: .closedCaptioning,
+        isOn: !(preferences.account ?? account).hideSubtitles
+      ) { show in
+        try await commit(.showSubtitles, .showSubtitles(show))
+      }
       .disabled(settingsLocked)
+      .id(AccountSettingRow.showSubtitles)
       .accessibilityIdentifier("playback-settings.subtitles")
       if !(preferences.account ?? account).hideSubtitles {
         PutioToggleRow(
-          title: String(localized: "Pick matching subtitles"), icon: .listChecks,
-          isOn: pickMatchingSubtitles
-        )
+          String(localized: "Pick matching subtitles"), icon: .listChecks,
+          isOn: !(preferences.account ?? account).dontAutoSelectSubtitles
+        ) { pick in
+          try await commit(.pickMatchingSubtitles, .dontAutoSelectSubtitles(!pick))
+        }
         .disabled(settingsLocked)
+        .id(AccountSettingRow.pickMatchingSubtitles)
         .accessibilityIdentifier("playback-settings.subtitle-selection")
       }
     }
@@ -275,6 +305,7 @@ struct AccountView: View {
         isOn: historyEnabled
       )
       .disabled(settingsLocked)
+      .id(AccountSettingRow.history)
       .accessibilityIdentifier("settings.history")
       PutioNavigationRow(
         PutioPrivacyControls.title, subtitle: PutioPrivacyControls.summary(for: account),
@@ -343,17 +374,11 @@ struct AccountView: View {
     return preferences.account?.defaultSort == nil ? [nil] + sorts : sorts
   }
 
-  private var defaultSort: Binding<PutioFolderSort?> {
-    Binding(
-      get: { preferences.account?.defaultSort },
-      set: { if let sort = $0 { save(.defaultSort(sort)) } })
-  }
-
   private var trashEnabled: Binding<Bool> {
     Binding(
       get: { preferences.account?.trashEnabled ?? false },
       set: { enabled in
-        if enabled { save(.trash(true)) } else { confirmation = .trash }
+        if enabled { save(.trash, .trash(true)) } else { confirmation = .trash }
       })
   }
 
@@ -361,25 +386,33 @@ struct AccountView: View {
     Binding(
       get: { preferences.account?.historyEnabled ?? false },
       set: { enabled in
-        if enabled { save(.history(true)) } else { confirmation = .history }
+        if enabled { save(.history, .history(true)) } else { confirmation = .history }
       })
   }
 
-  private var showSubtitles: Binding<Bool> {
-    Binding(
-      get: { !(preferences.account ?? account).hideSubtitles },
-      set: { save(.showSubtitles($0)) })
-  }
-
-  private var pickMatchingSubtitles: Binding<Bool> {
-    Binding(
-      get: { !(preferences.account ?? account).dontAutoSelectSubtitles },
-      set: { save(.dontAutoSelectSubtitles(!$0)) })
-  }
-
-  private func save(_ mutation: PutioAccountPreferenceMutation) {
+  private func save(_ row: AccountSettingRow?, _ mutation: PutioAccountPreferenceMutation) {
     confirmation = nil
-    Task { await preferences.save(mutation) }
+    Task { await commitReporting(row, mutation) }
+  }
+
+  private func commit(_ row: AccountSettingRow, _ mutation: PutioAccountPreferenceMutation)
+    async throws
+  {
+    let outcome = await preferences.save(mutation)
+    if outcome == .failed { reveal(row) }
+    try outcome.requireSaved()
+  }
+
+  private func commitReporting(
+    _ row: AccountSettingRow?, _ mutation: PutioAccountPreferenceMutation
+  ) async {
+    guard await preferences.save(mutation) == .failed else { return }
+    if let row { reveal(row) }
+    saveFailures.report()
+  }
+
+  private func reveal(_ row: AccountSettingRow) {
+    revealRequest = AccountSettingReveal(row: row)
   }
 
   private func reconcileRestoredFile(destinationID: PutioFileID?) {
@@ -391,47 +424,69 @@ struct PutioPlaybackConfigRows: View {
   let suggestsNextVideo: Bool
   let showsRotation: Bool
   let appConfig: PutioAppConfigModel
+  var onSaveFailed: @MainActor (PutioAppConfigWrite) -> Void = { _ in }
 
   var body: some View {
     if appConfig.config != nil {
       if suggestsNextVideo {
         PutioToggleRow(
-          title: String(localized: "Autoplay next video"), icon: .skipForward,
-          isOn: autoplayNextVideo
-        )
+          String(localized: "Autoplay next video"), icon: .skipForward,
+          isOn: appConfig.autoplayNextVideo
+        ) { enabled in
+          try await commit(.autoplayNextVideo(enabled)) {
+            await appConfig.setAutoplayNextVideo(enabled)
+          }
+        }
         .disabled(!appConfig.canSave)
+        .id(AccountSettingRow.autoplay)
         .accessibilityIdentifier("playback-settings.autoplay")
       }
       if showsRotation {
         PutioToggleRow(
-          title: String(localized: "Rotate to landscape"), icon: .deviceRotate,
-          isOn: autoRotateVideo
-        )
+          String(localized: "Rotate to landscape"), icon: .deviceRotate,
+          isOn: appConfig.autoRotateVideo
+        ) { enabled in
+          try await commit(.autoRotateVideo(enabled)) {
+            await appConfig.setAutoRotateVideo(enabled)
+          }
+        }
         .disabled(!appConfig.canSave)
+        .id(AccountSettingRow.autoRotate)
         .accessibilityIdentifier("playback-settings.auto-rotate")
       }
-    } else if appConfig.isLoading, suggestsNextVideo || showsRotation {
-      ProgressView("Loading playback settings")
-    }
-    if let failure = appConfig.failure, suggestsNextVideo || showsRotation {
-      Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-      Button("Try again") { Task { await appConfig.retry() } }
+    } else if suggestsNextVideo || showsRotation {
+      if appConfig.isLoading {
+        PutioSettingsLoadingRow(String(localized: "Loading playback settings"))
+      } else if appConfig.failure != nil {
+        PutioSettingsFailedRows(
+          String(localized: "Couldn’t load account settings"),
+          identifier: "playback-settings.failed",
+          retryIdentifier: "playback-settings.retry-autoplay"
+        ) {
+          Task { await appConfig.retry() }
+        }
         .disabled(appConfig.isBusy)
-        .accessibilityIdentifier("playback-settings.retry-autoplay")
+      }
     }
   }
 
-  private var autoplayNextVideo: Binding<Bool> {
-    Binding(
-      get: { appConfig.autoplayNextVideo },
-      set: { enabled in Task { await appConfig.setAutoplayNextVideo(enabled) } })
+  private func commit(
+    _ write: PutioAppConfigWrite, _ save: () async -> PutioSettingSaveOutcome
+  ) async throws {
+    let outcome = await save()
+    if outcome == .failed { onSaveFailed(write) }
+    try outcome.requireSaved()
   }
+}
 
-  private var autoRotateVideo: Binding<Bool> {
-    Binding(
-      get: { appConfig.autoRotateVideo },
-      set: { enabled in Task { await appConfig.setAutoRotateVideo(enabled) } })
-  }
+enum AccountSettingRow: Hashable {
+  case defaultSort, trash, autoplay, autoRotate, proxy, showSubtitles, pickMatchingSubtitles
+  case history
+}
+
+private struct AccountSettingReveal: Equatable {
+  let row: AccountSettingRow
+  let id = UUID()
 }
 
 private struct AccountProfileHeader: View {

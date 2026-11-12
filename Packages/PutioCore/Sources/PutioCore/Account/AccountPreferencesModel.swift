@@ -63,10 +63,40 @@ public struct PutioAccountPreferenceActions: Sendable {
   }
 }
 
+public enum PutioSettingSaveOutcome: Equatable, Sendable {
+  case saved
+  case savedUnconfirmed
+  case failed
+  case skipped
+}
+
+extension PutioSettingSaveOutcome {
+  public func requireSaved() throws {
+    switch self {
+    case .saved, .savedUnconfirmed: return
+    case .skipped: throw CancellationError()
+    case .failed: throw PutioSettingNotSaved()
+    }
+  }
+}
+
+public enum PutioAccountSettingsState: Equatable, Sendable {
+  case loading
+  case failed
+  case ready
+}
+
 @MainActor
 @Observable
 public final class PutioAccountPreferencesModel {
+  private enum SettingsLoad {
+    case notStarted
+    case loaded
+    case failed
+  }
+
   private(set) var saving: PutioAccountPreferenceMutation?
+  private var settingsLoad = SettingsLoad.notStarted
   public private(set) var isRefreshing = false
   public private(set) var failure: String?
   public private(set) var failedMutation: PutioAccountPreferenceMutation?
@@ -81,26 +111,57 @@ public final class PutioAccountPreferencesModel {
   public var isBusy: Bool { isSaving || isRefreshing }
   public var canSave: Bool { !isBusy && !isStale && account != nil }
 
-  public func save(_ mutation: PutioAccountPreferenceMutation) async {
-    guard canSave else { return }
+  public var settingsState: PutioAccountSettingsState {
+    if isRefreshing || settingsLoad == .notStarted { return .loading }
+    if settingsLoad == .failed || (isStale && !isSaving) { return .failed }
+    return .ready
+  }
+
+  public func loadSettingsIfNeeded() async {
+    guard settingsLoad == .notStarted else { return }
+    await loadSettings()
+  }
+
+  public func loadSettings() async {
+    guard !isRefreshing else { return }
+    guard account != nil else {
+      settingsLoad = .failed
+      return
+    }
+    isRefreshing = true
+    failure = nil
+    let task = Task { @MainActor in
+      defer { isRefreshing = false }
+      settingsLoad = await actions.refresh() ? .loaded : .failed
+    }
+    await task.value
+  }
+
+  @discardableResult
+  public func save(_ mutation: PutioAccountPreferenceMutation) async
+    -> PutioSettingSaveOutcome
+  {
+    guard canSave else { return .skipped }
     saving = mutation
     failure = nil
     failedMutation = nil
     // The view can disappear while disabling History or signing out. Once
     // started, a mutation must settle even when its calling task is cancelled.
-    let task = Task { @MainActor in
+    let task = Task { @MainActor () -> PutioSettingSaveOutcome in
       defer { saving = nil }
       do {
         let result = try await actions.save(mutation)
-        if !result.accountRefreshed {
+        guard result.accountRefreshed else {
           failure =
             String(
               localized:
                 "Saved, but the latest account settings could not be loaded. Refresh to continue.",
               bundle: .module)
+          return .savedUnconfirmed
         }
+        return .saved
       } catch {
-        guard let message = Self.message(for: error) else { return }
+        guard let message = Self.message(for: error) else { return .skipped }
         if isStale {
           failure = String(
             localized: "Could not confirm your change. Refresh account settings before continuing.",
@@ -109,9 +170,10 @@ public final class PutioAccountPreferencesModel {
           failure = message
           failedMutation = mutation
         }
+        return .failed
       }
     }
-    await task.value
+    return await task.value
   }
 
   public func retrySave() async {
@@ -125,7 +187,9 @@ public final class PutioAccountPreferencesModel {
     failure = nil
     let task = Task { @MainActor in
       defer { isRefreshing = false }
-      if !(await actions.refresh()), account != nil {
+      if await actions.refresh() {
+        settingsLoad = .loaded
+      } else if account != nil {
         failure = String(
           localized: "Could not refresh account settings. Try again.", bundle: .module)
       }

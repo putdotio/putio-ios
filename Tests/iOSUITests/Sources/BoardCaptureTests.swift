@@ -589,6 +589,36 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-ses-25-ipad-analytics")
   }
 
+  func testAccountSettingsLoading() throws {
+    app.launchArguments += ["--putio-harness-account-settings", "slow-load"]
+    openAccount()
+    XCTAssertTrue(element("account.settings-loading").appears(within: 5), "settings never loaded")
+    try captureBoard("rd-ios-acc-26-settings-loading")
+  }
+
+  func testAccountSettingsFailed() throws {
+    app.launchArguments += ["--putio-harness-account-settings", "fail-load"]
+    openAccount()
+    XCTAssertTrue(element("account.settings-failed").appears(within: 10), "settings never failed")
+    try captureBoard("rd-ios-acc-27-settings-failed")
+  }
+
+  func testAccountSaveFailed() throws {
+    app.launchArguments += ["--putio-harness-account-settings", "slow-load"]
+    openAccount()
+    XCTAssertTrue(element("settings.default-sort").appears(within: 15), "settings never loaded")
+    scrollAccount(untilNearTop: "settings.default-sort")
+    let autoplay = app.switches["playback-settings.autoplay"]
+    XCTAssertTrue(autoplay.appears(within: 5))
+    autoplay.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t save this setting"].appears(within: 10), "no save failure toast")
+    let reverted = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@ AND enabled == true", "0"), object: autoplay)
+    XCTAssertEqual(XCTWaiter.wait(for: [reverted], timeout: 5), .completed)
+    try captureBoard("rd-ios-acc-21-save-failed")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])

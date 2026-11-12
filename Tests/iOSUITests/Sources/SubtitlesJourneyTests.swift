@@ -165,11 +165,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     if retryingSeededFailure {
-      app.showTabBar()
-      let retry = app.buttons["settings.retry-save"]
-      XCTAssertTrue(retry.appears(within: 10))
-      retry.tap()
+      let toast = app.staticTexts["Couldn’t save this setting"]
+      XCTAssertTrue(toast.appears(within: 10))
+      XCTAssertTrue(toast.disappears(within: 10))
+      XCTAssertTrue(
+        waitFor(NSPredicate(format: "value != %@ AND enabled == true", value), toggle, timeout: 10),
+        "\(identifier) did not revert after the failed save")
       app.bringIntoView(toggle)
+      toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     }
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value == %@ AND enabled == true", value), toggle, timeout: 10),

@@ -60,7 +60,7 @@ public struct PutioSettingsSection<Content: View>: View {
     Group(subviews: content) { rows in
       if !rows.isEmpty {
         Section {
-          rows
+          content
         } header: {
           if let title {
             Text(title)
@@ -389,21 +389,93 @@ public struct PutioDestructiveRow: View {
   }
 }
 
-extension View {
-  public func putioSettingSaveFailures() -> some View {
-    modifier(PutioSettingSaveFailurePresenter())
+public struct PutioSettingsLoadingRow: View {
+  private let title: String
+
+  public init(_ title: String) {
+    self.title = title
+  }
+
+  public var body: some View {
+    HStack(spacing: PutioSettingsLayout.iconGap) {
+      ProgressView()
+        .tint(PutioTheme.Colors.textSecondary)
+      Text(title)
+        .putioFont(PutioFormLayout.titleFont)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 
+public struct PutioSettingsFailedRows: View {
+  private let title: String
+  private let identifier: String
+  private let retryIdentifier: String
+  private let retry: () -> Void
+
+  public init(
+    _ title: String, identifier: String, retryIdentifier: String, retry: @escaping () -> Void
+  ) {
+    self.title = title
+    self.identifier = identifier
+    self.retryIdentifier = retryIdentifier
+    self.retry = retry
+  }
+
+  public var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: PutioSettingsLayout.iconGap) {
+      PutioIconView(.warningCircle, size: PutioSettingsLayout.iconSize)
+        .foregroundStyle(PutioTheme.Colors.destructive)
+        .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+        Text(title)
+          .putioFont(PutioFormLayout.titleFont)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+        Text(PutioScreenErrorKind.failed.message)
+          .putioFont(PutioFormLayout.labelFont)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
+      .modifier(PutioSettingsSeparatorLeading())
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier(identifier)
+    Button(action: retry) {
+      Text(String(localized: "Try again", bundle: .module))
+        .putioFont(PutioFormLayout.titleFont)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+    .accessibilityIdentifier(retryIdentifier)
+  }
+}
+
+extension View {
+  public func putioSettingSaveFailures() -> some View {
+    modifier(PutioOwnedSettingSaveFailurePresenter())
+  }
+
+  public func putioSettingSaveFailures(_ failures: PutioSettingSaveFailures) -> some View {
+    modifier(PutioSettingSaveFailurePresenter(failures: failures))
+  }
+}
+
+public struct PutioSettingNotSaved: Error, Sendable {
+  public init() {}
+}
+
 @MainActor @Observable
-final class PutioSettingSaveFailures {
+public final class PutioSettingSaveFailures {
   var toast: PutioToast?
+
+  public init() {}
 
   static var failureToast: PutioToast {
     PutioToast(String(localized: "Couldn’t save this setting", bundle: .module))
   }
 
-  func report() {
+  public func report() {
     toast = Self.failureToast
   }
 }
@@ -412,8 +484,16 @@ extension EnvironmentValues {
   @Entry var putioSettingSaveFailures: PutioSettingSaveFailures? = nil
 }
 
-private struct PutioSettingSaveFailurePresenter: ViewModifier {
+private struct PutioOwnedSettingSaveFailurePresenter: ViewModifier {
   @State private var failures = PutioSettingSaveFailures()
+
+  func body(content: Content) -> some View {
+    content.modifier(PutioSettingSaveFailurePresenter(failures: failures))
+  }
+}
+
+private struct PutioSettingSaveFailurePresenter: ViewModifier {
+  let failures: PutioSettingSaveFailures
 
   func body(content: Content) -> some View {
     @Bindable var presented = failures

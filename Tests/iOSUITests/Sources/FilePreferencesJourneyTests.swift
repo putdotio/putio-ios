@@ -27,22 +27,25 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let sort = element("settings.default-sort")
     let initialSort = sort.label
     XCTAssertEqual(initialSort, "Default sort order, Name, A to Z")
-    sort.tap()
     let descending = app.buttons["Name, Z to A"].firstMatch
+    sort.tap()
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
-    let retrySave = app.buttons["settings.retry-save"]
-    XCTAssertTrue(retrySave.appears(within: 10))
-    XCTAssertEqual(sort.label, initialSort, "failed save changed the account preference")
-    retrySave.tap()
-    let refresh = app.buttons["settings.refresh"]
-    XCTAssertTrue(refresh.appears(within: 10))
-    XCTAssertFalse(retrySave.exists, "committed save offered another mutation")
-    XCTAssertFalse(sort.isEnabled, "stale account preferences remained editable")
+    XCTAssertTrue(app.staticTexts["Couldn’t save this setting"].appears(within: 10))
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "label == %@ AND enabled == true", initialSort), sort),
+      "failed save changed the account preference")
+    sort.tap()
+    XCTAssertTrue(waitUntilHittable(descending))
+    descending.tap()
+    let retry = app.revealed("account.settings-retry")
+    XCTAssertTrue(retry.appears(within: 10))
+    XCTAssertTrue(element("account.settings-failed").exists)
+    XCTAssertFalse(sort.exists, "unconfirmed account preferences stayed editable")
     addScreenshot(named: "runtime-file-preferences-refresh")
-    refresh.tap()
-    XCTAssertTrue(refresh.disappears(within: 10))
-    XCTAssertTrue(waitUntilHittable(sort))
+    retry.tap()
+    XCTAssertTrue(retry.disappears(within: 10))
+    XCTAssertTrue(waitUntilHittable(app.revealed("settings.default-sort")))
     let savedSort = sort.label
     XCTAssertEqual(savedSort, "Default sort order, Name, Z to A")
 
@@ -163,6 +166,11 @@ final class FilePreferencesJourneyTests: XCTestCase {
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).tap()
     }
     XCTAssertTrue(confirmation.disappears(within: 5))
+  }
+
+  private func waitFor(_ predicate: NSPredicate, _ element: XCUIElement) -> Bool {
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
   }
 
   private func openPreferences() {

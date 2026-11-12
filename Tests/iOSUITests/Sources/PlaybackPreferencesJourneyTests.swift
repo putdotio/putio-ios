@@ -21,16 +21,18 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let alternate = app.descendants(matching: .any)["playback-settings.route.edge"]
     XCTAssertTrue(alternate.appears(within: 5))
     alternate.tap()
-    let saveRetry = app.revealed("settings.retry-save")
-    XCTAssertTrue(saveRetry.appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Couldn’t save this setting"].appears(within: 10))
     XCTAssertTrue(proxy.label.hasSuffix("default"), "proxy row read \(proxy.label)")
-    saveRetry.tap()
-    let refresh = app.buttons["settings.refresh"]
+    _ = openProxy(app, retryingRoutes: false)
+    XCTAssertTrue(alternate.appears(within: 5))
+    alternate.tap()
+    let refresh = app.revealed("account.settings-retry")
     XCTAssertTrue(refresh.appears(within: 10))
-    XCTAssertFalse(saveRetry.exists)
-    XCTAssertTrue(proxy.label.hasSuffix("edge"), "proxy row read \(proxy.label)")
+    XCTAssertFalse(proxy.exists, "unconfirmed account preferences stayed editable")
     refresh.tap()
     XCTAssertTrue(refresh.disappears(within: 10))
+    XCTAssertTrue(app.revealed("playback-settings.route").appears(within: 10))
+    XCTAssertTrue(proxy.label.hasSuffix("edge"), "proxy row read \(proxy.label)")
     let subtitles = app.switches["playback-settings.subtitles"]
     let autoSelection = app.switches["playback-settings.subtitle-selection"]
     XCTAssertTrue(app.revealed("playback-settings.subtitle-selection").appears(within: 5))
@@ -43,18 +45,16 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     assertToggle(subtitles, value: "1")
     XCTAssertTrue(autoSelection.appears(within: 5))
     assertToggle(autoSelection, value: "0")
-    // Autoplay lives in the config document, not the account settings: the
-    // first write fails and the switch keeps the authoritative value.
     let autoplay = app.switches["playback-settings.autoplay"]
     app.scrollDown(toHit: autoplay)
     XCTAssertTrue(autoplay.appears(within: 5))
     assertToggle(autoplay, value: "0")
     tapToggle(autoplay)
-    let autoplayRetry = app.buttons["playback-settings.retry-autoplay"]
-    XCTAssertTrue(autoplayRetry.appears(within: 10))
+    let toast = app.staticTexts["Couldn’t save this setting"]
+    XCTAssertTrue(toast.appears(within: 10))
     assertToggle(autoplay, value: "0")
-    autoplayRetry.tap()
-    XCTAssertTrue(autoplayRetry.disappears(within: 10))
+    XCTAssertTrue(toast.disappears(within: 10))
+    tapToggle(autoplay)
     assertToggle(autoplay, value: "1")
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = "runtime-playback-preferences"
@@ -129,13 +129,15 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
   }
 
-  private func openProxy(_ app: XCUIApplication) -> XCUIElement {
+  private func openProxy(_ app: XCUIApplication, retryingRoutes: Bool = true) -> XCUIElement {
     let proxy = app.revealed("playback-settings.route")
     XCTAssertTrue(proxy.appears(within: 10))
     proxy.tap()
-    let routeRetry = app.buttons["playback-settings.retry-routes"]
-    XCTAssertTrue(routeRetry.appears(within: 10))
-    routeRetry.tap()
+    if retryingRoutes {
+      let routeRetry = app.buttons["playback-settings.retry-routes"]
+      XCTAssertTrue(routeRetry.appears(within: 10))
+      routeRetry.tap()
+    }
     return proxy
   }
 
