@@ -65,7 +65,9 @@ struct AccountScreen: View {
       }
     }
     .onGeometryChange(for: Bool.self) { geometry in
-      geometry.size.width > geometry.size.height
+      let insets = geometry.safeAreaInsets
+      return geometry.size.width + insets.leading + insets.trailing
+        > geometry.size.height + insets.top + insets.bottom
     } action: { landscape in
       isLandscape = landscape
     }
