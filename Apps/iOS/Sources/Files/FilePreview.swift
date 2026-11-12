@@ -705,7 +705,10 @@ struct PutioPreviewView: View {
       else { return }
       pager.show(routes[index].id)
     }
-    .onChange(of: routes.map(\.id)) { align(width: alignedWidth) }
+    .onChange(of: routes.map(\.id)) { old, new in
+      guard !new.starts(with: old) else { return }
+      align(width: alignedWidth)
+    }
   }
 
   private static func pageIndex(_ geometry: ScrollGeometry) -> Int? {
