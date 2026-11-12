@@ -22,13 +22,12 @@ state.
 If the keychain cannot be read at launch, restore fails with a retry and keeps
 the saved token; both web and device-code sign-in are blocked until restore
 succeeds or rejects the credential. A network failure during restore keeps the
-token the same way. The iOS and tvOS recovery screens offer "Try again" and
-"Sign in again". "Try again" re-runs restore with the saved token and never
-starts a browser sign-in. Only the user can abandon the saved credential: "Sign
-in again" calls `discardUnrestoredCredential()`, which removes it from the
-keychain and returns to the normal sign-in. The abandoned grant is not revoked;
-it stays listed under "Where you are logged in" until revoked there. If removal
-fails, restore recovery stays with the `secureStorage` cause.
+token the same way. The recovery screens' retry re-runs restore with the saved
+token and never starts a browser sign-in. Only the user can abandon the saved
+credential: the secondary action calls `discardUnrestoredCredential()`, which
+removes it from the keychain; iOS then opens sign-in. The abandoned grant is
+not revoked; it stays listed under "Where you are logged in" until revoked
+there. If removal fails, restore recovery stays with the `secureStorage` cause.
 
 If a new sign-in saves its token but the account then fails to load for a
 non-authentication reason, the store enters the same recovery with the

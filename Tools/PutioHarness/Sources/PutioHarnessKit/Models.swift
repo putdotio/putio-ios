@@ -610,8 +610,17 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-ses-04-waiting", .iphone, "testCheckingSession", screenBase: false),
       BoardCapture("rd-ios-ses-05-failed", .iphone, "testSignInFailed"),
       BoardCapture("rd-ios-ses-06-expired", .iphone, "testSessionExpired"),
+      BoardCapture("rd-ios-ses-07-storage", .iphone, "testSecureStorageUnavailable"),
+      BoardCapture("rd-ios-ses-13-restoring", .iphone, "testRestoring"),
+      BoardCapture(
+        "rd-ios-ses-14-check-failed", .iphone, "testSessionCheckFailed", screenBase: false),
+      BoardCapture("rd-ios-ses-15-signing-out", .iphone, "testSigningOut", screenBase: false),
       BoardCapture("rd-ios-ses-11-ipad-welcome", .ipad, "testWelcome"),
       BoardCapture("rd-ios-ses-12-ipad-failed", .ipad, "testSignInFailed", screenBase: false),
+      BoardCapture(
+        "rd-ios-ses-22-ipad-check-failed", .ipad, "testSessionCheckFailed", screenBase: false),
+      BoardCapture(
+        "rd-ios-ses-23-ipad-storage", .ipad, "testSecureStorageUnavailable", screenBase: false),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
       BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
       BoardCapture("rd-ios-pv-04-text", .iphone, "testPreviewText"),
@@ -851,6 +860,15 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 120),
     JourneyPreflight(
+      "session-restore-storage",
+      "SessionRecoveryJourneyTests/testUnreadableCredentialRetriesKeepsItOnFailedResetAndResets",
+      attachmentNames: ["runtime-session-storage"], timeAllowance: 150),
+    JourneyPreflight(
+      "session-restore-check",
+      "SessionRecoveryJourneyTests/testFailedSessionCheckRetriesAndSignInAgainRemovesTheCredential",
+      attachmentNames: ["runtime-session-restoring", "runtime-session-check-failed"],
+      timeAllowance: 150),
+    JourneyPreflight(
       "shell-tabs", "ShellJourneyTests/testEveryTabKeepsTheOpenFolder",
       attachmentNames: ["shell-folder-open"]),
     JourneyPreflight(
@@ -924,7 +942,7 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "sign-out-recovery",
       "FilesBrowserJourneyTests/testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch",
-      attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 120),
+      attachmentNames: ["runtime-signing-out", "runtime-sign-out-failure"], timeAllowance: 120),
     JourneyPreflight(
       "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
       attachmentNames: ["runtime-rename-failed-toast", "runtime-file-actions"],

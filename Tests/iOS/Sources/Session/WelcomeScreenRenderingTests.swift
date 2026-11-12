@@ -16,6 +16,8 @@ final class WelcomeScreenRenderingTests: XCTestCase {
       ),
       ("welcome-sign-in-failed", WelcomeScreen(mode: .signInFailed)),
       ("welcome-session-expired", WelcomeScreen(mode: .sessionExpired, pinnedFrame: 0)),
+      ("welcome-session-check-failed", WelcomeScreen(mode: .restoreFailed(.sessionCheck))),
+      ("welcome-secure-storage", WelcomeScreen(mode: .restoreFailed(.secureStorage))),
     ]
     for (name, screen) in states {
       _ = try assertRenderingSnapshot(name: name, view: Self.phone(screen), size: Self.phoneSize)
@@ -27,9 +29,30 @@ final class WelcomeScreenRenderingTests: XCTestCase {
     let states: [(String, WelcomeScreen)] = [
       ("welcome-fresh-regular", WelcomeScreen(mode: .fresh, deviceNoun: .iPad, pinnedFrame: 0)),
       ("welcome-sign-in-failed-regular", WelcomeScreen(mode: .signInFailed, deviceNoun: .iPad)),
+      (
+        "welcome-session-check-failed-regular",
+        WelcomeScreen(mode: .restoreFailed(.sessionCheck), deviceNoun: .iPad)
+      ),
+      (
+        "welcome-secure-storage-regular",
+        WelcomeScreen(mode: .restoreFailed(.secureStorage), deviceNoun: .iPad)
+      ),
     ]
     for (name, screen) in states {
       _ = try assertRenderingSnapshot(name: name, view: Self.pad(screen), size: Self.padSize)
+    }
+  }
+
+  @MainActor
+  func testSessionProgressKeepsTheWordmarkAndCentresTheSpinner() throws {
+    let states = [
+      ("session-restoring", SessionProgressScreen(title: "Restoring your session")),
+      ("session-signing-out", SessionProgressScreen(title: "Signing out")),
+    ]
+    for (name, screen) in states {
+      _ = try assertRenderingSnapshot(name: name, view: Self.phone(screen), size: Self.phoneSize)
+      _ = try assertRenderingSnapshot(
+        name: "\(name)-regular", view: Self.pad(screen), size: Self.padSize)
     }
   }
 
@@ -43,9 +66,7 @@ final class WelcomeScreenRenderingTests: XCTestCase {
     )
     _ = try assertRenderingSnapshot(
       name: "welcome-restore-failed-accessibility3",
-      view: Self.phone(
-        WelcomeScreen(
-          mode: .restoreFailed("put.io is unreachable. Check your connection and try again."))),
+      view: Self.phone(WelcomeScreen(mode: .restoreFailed(.secureStorage))),
       size: Self.phoneSize,
       dynamicTypeSize: .accessibility3
     )
@@ -57,19 +78,19 @@ final class WelcomeScreenRenderingTests: XCTestCase {
 
   @MainActor
   private static func phone(
-    _ screen: WelcomeScreen, top: CGFloat = 62, bottom: CGFloat = 34
+    _ screen: some View, top: CGFloat = 62, bottom: CGFloat = 34
   ) -> some View {
     device(screen, top: top, bottom: bottom, sizeClass: .compact)
   }
 
   @MainActor
-  private static func pad(_ screen: WelcomeScreen) -> some View {
+  private static func pad(_ screen: some View) -> some View {
     device(screen, top: 24, bottom: 20, sizeClass: .regular)
   }
 
   @MainActor
   private static func device(
-    _ screen: WelcomeScreen, top: CGFloat, bottom: CGFloat, sizeClass: UserInterfaceSizeClass
+    _ screen: some View, top: CGFloat, bottom: CGFloat, sizeClass: UserInterfaceSizeClass
   ) -> some View {
     screen
       .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: top) }

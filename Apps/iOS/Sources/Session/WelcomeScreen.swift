@@ -7,7 +7,7 @@ struct WelcomeScreen: View {
     case fresh
     case sessionExpired
     case signInFailed
-    case restoreFailed(String)
+    case restoreFailed(PutioRestoreFailureCause)
   }
 
   enum DeviceNoun: Equatable {
@@ -76,16 +76,7 @@ struct WelcomeScreen: View {
 
   private var frameAlignment: Alignment { isRegular ? .center : .leading }
 
-  private var header: some View {
-    Image.putioWordmark
-      .resizable()
-      .scaledToFit()
-      .frame(width: WelcomeMetrics.wordmarkWidth)
-      .frame(maxWidth: .infinity)
-      .frame(height: WelcomeMetrics.headerHeight)
-      .accessibilityLabel("put.io")
-      .accessibilityRemoveTraits(.isImage)
-  }
+  private var header: some View { WelcomeWordmark() }
 
   private var copy: some View {
     VStack(spacing: 0) {
@@ -120,10 +111,31 @@ struct WelcomeScreen: View {
         title: String(localized: "Sign-in didn’t finish"),
         message: String(localized: "Nothing was saved, so you can try again.")
       )
-    case .restoreFailed(let message):
+    case .restoreFailed(.sessionCheck):
       WelcomeNotice(
-        title: message,
-        message: String(localized: "Signing in again removes the saved sign-in from this device.")
+        title: String(localized: "Couldn’t check your session"),
+        message: String(
+          localized: "Your sign-in is still saved. Check your connection and try again.")
+      )
+    case .restoreFailed(.secureStorage):
+      WelcomeNotice(
+        title: String(localized: "Secure storage is unavailable"),
+        message: secureStorageMessage
+      )
+    }
+  }
+
+  private var secureStorageMessage: String {
+    switch deviceNoun {
+    case .iPhone:
+      String(
+        localized:
+          "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again."
+      )
+    case .iPad:
+      String(
+        localized:
+          "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again."
       )
     }
   }
@@ -139,13 +151,11 @@ struct WelcomeScreen: View {
           action: signIn
         )
         .accessibilityIdentifier("auth.sign-in")
-      case .restoreFailed:
+      case .restoreFailed(let cause):
         WelcomeButton(String(localized: "Try again"), prominent: true, action: retryRestore)
           .accessibilityIdentifier("auth.retry")
-        WelcomeButton(
-          String(localized: "Sign in again"), prominent: false, action: discardCredential
-        )
-        .accessibilityIdentifier("auth.discard-credential")
+        WelcomeButton(discardTitle(cause), prominent: false, action: discardCredential)
+          .accessibilityIdentifier("auth.discard-credential")
       }
     }
     .padding(.horizontal, WelcomeMetrics.sideMargin)
@@ -154,6 +164,13 @@ struct WelcomeScreen: View {
     .padding(.bottom, bottomPadding)
     .frame(maxWidth: .infinity)
     .background(PutioTheme.Colors.background)
+  }
+
+  private func discardTitle(_ cause: PutioRestoreFailureCause) -> String {
+    switch cause {
+    case .sessionCheck: String(localized: "Sign in again")
+    case .secureStorage: String(localized: "Reset and sign in")
+    }
   }
 
   private var primaryTitle: String {
@@ -193,7 +210,7 @@ extension WelcomeScreen.Mode {
     case nil, .userSignedOut: self = .fresh
     case .sessionExpired: self = .sessionExpired
     case .authenticationFailed: self = .signInFailed
-    case .restoreFailed(_, let message): self = .restoreFailed(message)
+    case .restoreFailed(let cause, _): self = .restoreFailed(cause)
     }
   }
 }
@@ -208,8 +225,17 @@ struct SignInView: View {
   @Environment(\.webAuthenticationSession) private var webAuthenticationSession
   @State private var lastMode = WelcomeScreen.Mode.fresh
   @State private var isBrowserOpen = false
+  @State private var isRetryingRestore = false
 
   var body: some View {
+    if isRetryingRestore {
+      SessionProgressScreen(title: String(localized: "Restoring your session"))
+    } else {
+      welcome
+    }
+  }
+
+  private var welcome: some View {
     WelcomeScreen(
       mode: mode,
       isCheckingSession: session.state == .authenticating && !isBrowserOpen,
@@ -217,11 +243,8 @@ struct SignInView: View {
       pinnedFrame: pinnedFrame,
       exposesStageProbe: exposesStageProbe,
       signIn: { Task { await startSignIn() } },
-      retryRestore: { Task { await session.restore() } },
-      discardCredential: {
-        session.discardUnrestoredCredential()
-        Task { await startSignIn() }
-      }
+      retryRestore: { Task { await retryRestore() } },
+      discardCredential: discardCredential
     )
     .onChange(of: session.state, initial: true) { _, state in
       if case .signedOut(let reason) = state { lastMode = WelcomeScreen.Mode(reason: reason) }
@@ -247,6 +270,19 @@ struct SignInView: View {
     #else
       false
     #endif
+  }
+
+  private func retryRestore() async {
+    guard !isRetryingRestore else { return }
+    isRetryingRestore = true
+    defer { isRetryingRestore = false }
+    await session.restore()
+  }
+
+  private func discardCredential() {
+    session.discardUnrestoredCredential()
+    guard case .signedOut(nil) = session.state else { return }
+    Task { await startSignIn() }
   }
 
   private func startSignIn() async {
@@ -282,6 +318,29 @@ struct SignInView: View {
     } catch {
       session.failSignIn(error)
     }
+  }
+}
+
+struct SessionProgressScreen: View {
+  let title: String
+
+  var body: some View {
+    PutioLoadingStateView(title: title)
+      .overlay(alignment: .top) { WelcomeWordmark() }
+      .background(PutioTheme.Colors.background.ignoresSafeArea())
+  }
+}
+
+private struct WelcomeWordmark: View {
+  var body: some View {
+    Image.putioWordmark
+      .resizable()
+      .scaledToFit()
+      .frame(width: WelcomeMetrics.wordmarkWidth)
+      .frame(maxWidth: .infinity)
+      .frame(height: WelcomeMetrics.headerHeight)
+      .accessibilityLabel("put.io")
+      .accessibilityRemoveTraits(.isImage)
   }
 }
 
@@ -500,9 +559,11 @@ private struct WelcomeButton: View {
       .buttonStyle(.borderedProminent)
       .modifier(WelcomeButtonShape())
     } else {
-      Button(action: action) { label }
-        .buttonStyle(.bordered)
-        .modifier(WelcomeButtonShape())
+      Button(action: action) {
+        label.foregroundStyle(PutioTheme.Components.Button.secondaryForeground)
+      }
+      .buttonStyle(.borderedProminent)
+      .modifier(WelcomeButtonShape(tint: PutioTheme.Components.Button.secondaryBackground))
     }
   }
 
@@ -514,11 +575,13 @@ private struct WelcomeButton: View {
 }
 
 private struct WelcomeButtonShape: ViewModifier {
+  var tint = PutioTheme.Colors.accent
+
   func body(content: Content) -> some View {
     content
       .controlSize(.large)
       .buttonBorderShape(.capsule)
-      .tint(PutioTheme.Colors.accent)
+      .tint(tint)
   }
 }
 

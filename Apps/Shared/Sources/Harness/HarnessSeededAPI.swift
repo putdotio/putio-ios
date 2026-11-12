@@ -480,6 +480,8 @@ import Foundation
     nonisolated(unsafe) private static var logoutFails = false
     nonisolated(unsafe) private static var sessionExpiryPending = ProcessInfo.processInfo
       .arguments.contains("--putio-harness-session-expires")
+    nonisolated(unsafe) private static var restoreOfflinePending = ProcessInfo.processInfo
+      .arguments.contains("--putio-harness-restore-offline-once")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     /// The seeded root video's original: its first delete fails so the
     /// downloads journey proves the remote failure report and retry.
@@ -534,6 +536,27 @@ import Foundation
         defer { sessionExpiryPending = false }
         return sessionExpiryPending
       }
+    }
+
+    private static func consumeRestoreOffline() -> Bool {
+      logoutLock.withLock {
+        defer { restoreOfflinePending = false }
+        return restoreOfflinePending
+      }
+    }
+
+    private static func sessionProgressDelay(_ url: URL) -> TimeInterval {
+      let argument =
+        switch url.path {
+        case "/v2/oauth2/validate": "--putio-harness-restore-seconds"
+        case "/v2/oauth/grants/logout": "--putio-harness-sign-out-seconds"
+        default: ""
+        }
+      let arguments = ProcessInfo.processInfo.arguments
+      guard !argument.isEmpty, let index = arguments.firstIndex(of: argument),
+        arguments.indices.contains(index + 1)
+      else { return 0 }
+      return TimeInterval(arguments[index + 1]) ?? 0
     }
 
     static func configureSignOutFailure(_ enabled: Bool) {
@@ -611,6 +634,19 @@ import Foundation
         }
         return
       }
+      let progressDelay = Self.delaysResponses ? Self.sessionProgressDelay(url) : 0
+      if url.path == "/v2/oauth2/validate", Self.consumeRestoreOffline() {
+        let deliverFailure: @Sendable () -> Void = { [weak self] in
+          self?.deliveryGate.deliver(generation: generation) {
+            guard let self else { return }
+            self.client?.urlProtocol(
+              self, didFailWithError: URLError(.notConnectedToInternet))
+          }
+        }
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + progressDelay, execute: deliverFailure)
+        return
+      }
       let replayableRequest = Self.replayableRequest(request)
       let (statusCode, body) = Self.fixture(for: replayableRequest)
       let response = HTTPURLResponse(
@@ -630,6 +666,9 @@ import Foundation
       let restorationDelay = Self.deepLinkRestorationDelay(url)
       if !Self.delaysResponses {
         deliverResponse()
+      } else if progressDelay > 0 {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + progressDelay, execute: deliverResponse)
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
