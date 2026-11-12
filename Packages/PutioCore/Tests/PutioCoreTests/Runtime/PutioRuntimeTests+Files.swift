@@ -333,8 +333,8 @@ extension PutioRuntimeTests {
 
     let contents = try await runtime.listFiles()
 
-    XCTAssertEqual(contents.totalCount, 6)
-    XCTAssertEqual(contents.itemCount, 6)
+    XCTAssertEqual(contents.totalCount, 7)
+    XCTAssertEqual(contents.itemCount, 7)
   }
 
   func testFileActionsUseSDKOwnedRoutesAndMapCreatedFolder() async throws {
