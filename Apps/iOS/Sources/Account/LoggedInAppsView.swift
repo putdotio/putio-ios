@@ -71,6 +71,7 @@ struct LoggedInAppsView: View {
               Task { await model.revoke(id: app.id) }
             }
             .disabled(model.isBusy)
+            .tint(PutioTheme.Colors.destructive)
             .accessibilityIdentifier("security.app.revoke.\(app.id)")
           }
         }
