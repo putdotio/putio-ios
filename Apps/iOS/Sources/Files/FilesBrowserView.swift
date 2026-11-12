@@ -120,6 +120,7 @@ struct FilesBrowserView: View {
       PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
     )
     .putioToast($pinToast)
+    .task { await pins.load() }
     .onChange(of: pins.editFailure) { _, failure in
       guard failure != nil else { return }
       pins.clearEditFailure()

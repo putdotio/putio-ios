@@ -630,18 +630,24 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(sidebarPin(440).disappears(within: 5), "Unpin left the pin in the sidebar")
     assertSidebarPins([410, 412])
 
-    sidebarPin(412).tap()
+    let nested = element("files.item.411")
+    nested.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Pin"].appears(within: 5), "the nested video offers no Pin")
+    app.buttons["Pin"].tap()
+    assertSidebarPins([411, 410, 412])
+
+    sidebarPin(411).tap()
     let selection = element("files.selection")
     XCTAssertTrue(selection.appears(within: 10), "the pinned file never opened")
-    XCTAssertEqual(selection.value as? String, "id=412;parent=0;kind=video")
+    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
 
     app.terminate()
     app.launchArguments[app.launchArguments.count - 1] = "fail"
     app.launch()
     openHarnessFolder()
     openSidebar()
-    XCTAssertTrue(tabButton("Account").exists, "failed pins hid the tabs")
-    XCTAssertFalse(labeled("Pinned").exists, "failed pins drew the Pinned section")
+    XCTAssertTrue(labeled("Account").exists, "failed pins hid the tabs")
+    XCTAssertFalse(labeled("Pinned").appears(within: 3), "failed pins drew the Pinned section")
     XCTAssertEqual(sidebarPins().count, 0, "failed pins listed a pin")
   }
 

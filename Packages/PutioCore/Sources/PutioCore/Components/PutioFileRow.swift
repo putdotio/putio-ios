@@ -47,25 +47,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
     return bytes.formatted(ByteCountFormatStyle(style: .file, locale: locale))
   }
 
-  public var icon: PutioIcon {
-    #if os(tvOS)
-      switch kind {
-      case .folder: .folderFill
-      case .video: .fileVideo
-      case .audio: .fileAudio
-      case .image: .image
-      case .file: .file
-      }
-    #else
-      switch kind {
-      case .folder: .folderFill
-      case .video: .fileVideoFill
-      case .audio: .fileAudioFill
-      case .image: .imageFill
-      case .file: .fileFill
-      }
-    #endif
-  }
+  var icon: PutioIcon { kind.icon }
 
   #if os(tvOS)
     var detailText: String? {
@@ -311,4 +293,26 @@ enum PutioFileRowLayout {
     static let dimmedOpacity = 0.4
     static let markerBaselineRatio = 0.85
   #endif
+}
+
+extension PutioFileRowModel.Kind {
+  public var icon: PutioIcon {
+    #if os(tvOS)
+      switch self {
+      case .folder: .folderFill
+      case .video: .fileVideo
+      case .audio: .fileAudio
+      case .image: .image
+      case .file: .file
+      }
+    #else
+      switch self {
+      case .folder: .folderFill
+      case .video: .fileVideoFill
+      case .audio: .fileAudioFill
+      case .image: .imageFill
+      case .file: .fileFill
+      }
+    #endif
+  }
 }

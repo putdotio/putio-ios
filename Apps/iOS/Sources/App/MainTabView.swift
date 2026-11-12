@@ -181,7 +181,8 @@ struct MainTabView: View {
               Label {
                 Text(pin.item.name)
               } icon: {
-                Image(putioIcon: pinIcon(pin))
+                Image(
+                  putioIcon: PutioBrowserItemPresentation.rowKind(for: pin.item.kind).icon)
               }
             }
             .defaultVisibility(.hidden, for: .tabBar)
@@ -200,7 +201,6 @@ struct MainTabView: View {
     .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
-    .task { await pins.load() }
     .task {
       externalPlayback.refreshInstallation()
       await appConfig.loadIfNeeded()
@@ -402,12 +402,6 @@ struct MainTabView: View {
       })
   }
 
-  private func pinIcon(_ pin: PutioPinnedFile) -> PutioIcon {
-    PutioFileRowModel(
-      name: pin.item.name, kind: PutioBrowserItemPresentation.rowKind(for: pin.item.kind)
-    ).icon
-  }
-
   private func openPin(_ pin: PutioPinnedFile) {
     let item = pin.item
     selectedTab = .files
@@ -416,10 +410,12 @@ struct MainTabView: View {
         path: [PutioFolderRoute(id: item.id, title: item.name)])
       return
     }
-    let parent = pin.location.flatMap { title in
-      item.parentID == .root ? nil : PutioFolderRoute(id: item.parentID, title: title)
+    if item.parentID == .root {
+      filesNavigation = PutioFilesNavigationRequest(path: [])
+    } else if let location = pin.location {
+      filesNavigation = PutioFilesNavigationRequest(
+        path: [PutioFolderRoute(id: item.parentID, title: location)])
     }
-    filesNavigation = PutioFilesNavigationRequest(path: parent.map { [$0] } ?? [])
     selectFile(PutioFileRoute(item: item))
   }
 
