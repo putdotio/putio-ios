@@ -125,6 +125,10 @@ final class PutioExternalPlaybackModel {
     self.resolve = resolve
   }
 
+  var isVLCInstalled: Bool {
+    opener.canOpen(PutioVLCHandoff.probeURL)
+  }
+
   var presentsOutcome: Bool {
     switch outcome {
     case .notInstalled, .failed: true

@@ -54,6 +54,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case star = "star-regular"
   case stopFill = "stop-fill"
   case trash = "trash-regular"
+  case trafficCone = "traffic-cone-regular"
   case userCircle = "user-circle-regular"
   case userCircleMinus = "user-circle-minus-regular"
   case warningCircle = "warning-circle-regular"

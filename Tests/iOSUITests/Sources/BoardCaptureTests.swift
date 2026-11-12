@@ -25,6 +25,52 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-02-folder")
   }
 
+  func testRowActions() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    try captureBoard("rd-ios-03-row-actions")
+  }
+
+  func testVLCMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-vlc-installed")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
+    try captureBoard("rd-ios-64-vlc-menu")
+  }
+
+  func testSwipeActions() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    let row = element("files.item.442")
+    XCTAssertTrue(row.appears(within: 5), "the watched episode never appeared")
+    row.swipeLeft()
+    XCTAssertTrue(app.buttons["Trash"].appears(within: 5), "the swipe showed no Trash")
+    try captureBoard("rd-ios-11-swipe")
+  }
+
+  func testFolderLongPress() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    openItemMenu("files.item.410")
+    try captureBoard("rd-ios-17-folder-long-press")
+  }
+
+  func testFileMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    XCTAssertTrue(app.revealed("files.item.407").exists, "the archive row never appeared")
+    openItemMenu("files.item.407")
+    try captureBoard("rd-ios-63-file-menu")
+  }
+
   func testIPadSplit() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
@@ -394,6 +440,13 @@ final class BoardCaptureTests: XCTestCase {
       folder.tap()
     }
     XCTAssertTrue(element("files.header.440").appears(within: 10), "season folder has no header")
+  }
+
+  private func openItemMenu(_ identifier: String) {
+    let row = element(identifier)
+    XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
+    row.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the item menu never opened")
   }
 
   private func captureBoard(_ defaultBoard: String) throws {

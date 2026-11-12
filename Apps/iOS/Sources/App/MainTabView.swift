@@ -537,10 +537,10 @@ struct MainTabView: View {
       runtime: runtime,
       trashEnabled: account.trashEnabled,
       accountID: account.id,
+      tracksWatched: account.rememberVideoTime,
       onFileSelected: { route in selectFile(route) },
-      onExternalPlayback: { route in Task { await externalPlayback.open(route) } },
+      onExternalPlayback: vlcAction,
       onDownload: { route in Task { await requestDownload(route) } },
-      onCast: castAction,
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
       castButton: { AnyView(PutioCastButton(model: cast)) }
@@ -650,16 +650,9 @@ struct MainTabView: View {
     }
   }
 
-  private var castAction: PutioFileSelection? {
-    guard cast.isConnected else { return nil }
-    return { route in castFile(route) }
-  }
-
-  /// Explicit "Cast" from a row: never falls back to the local player.
-  private func castFile(_ route: PutioFileRoute) {
-    guard let videoRoute = route.videoPlaybackRoute else { return }
-    selectedFileRoute = route
-    cast.cast(videoRoute)
+  private var vlcAction: PutioFileSelection? {
+    guard externalPlayback.isVLCInstalled else { return nil }
+    return { route in Task { await externalPlayback.open(route) } }
   }
 
   private func dismissPresentedVideo() {

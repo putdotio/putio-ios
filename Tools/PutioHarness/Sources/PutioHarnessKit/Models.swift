@@ -584,6 +584,11 @@ enum BoardCaptureContract {
     [
       BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+      BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
+      BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
+      BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
+      BoardCapture("rd-ios-63-file-menu", .iphone, "testFileMenu"),
+      BoardCapture("rd-ios-64-vlc-menu", .iphone, "testVLCMenu"),
       BoardCapture("Main", .iphone, "testFilesRoot"),
       BoardCapture(
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
@@ -854,7 +859,7 @@ enum BrowserJourneyContract {
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
         "runtime-preview-document-middle", "runtime-preview-document-landscape",
-        "runtime-preview-cannot-show", "runtime-vlc-missing",
+        "runtime-preview-cannot-show",
       ],
       timeAllowance: 180),
     JourneyPreflight(
@@ -867,6 +872,13 @@ enum BrowserJourneyContract {
       "folder-header",
       "FilesBrowserJourneyTests/testFolderHeadersCountItemsAndBackKeepsTheParentPlace",
       attachmentNames: ["runtime-folder-header"]),
+    JourneyPreflight(
+      "item-menus", "FilesBrowserJourneyTests/testItemMenusSwipesAndWatchStatus",
+      attachmentNames: [
+        "runtime-item-swipe-left", "runtime-item-menu-folder", "runtime-item-swipe-right",
+        "runtime-item-menu-vlc",
+      ],
+      timeAllowance: 120),
     JourneyPreflight(
       "sign-out-recovery",
       "FilesBrowserJourneyTests/testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch",
