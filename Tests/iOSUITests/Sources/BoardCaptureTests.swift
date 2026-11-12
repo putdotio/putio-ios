@@ -795,6 +795,11 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["Move to trash"].firstMatch.tap()
     XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 10), "no trash toast")
     XCTAssertTrue(app.images["Gallery 4.png"].appears(within: 10), "the next image never showed")
+    let settled = Date.now.addingTimeInterval(15)
+    while !(position.exists && position.label == "3 of 3"), Date.now < settled {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    XCTAssertEqual(position.label, "3 of 3", "the set still counts the trashed file")
     try captureBoard("rd-ios-pv-11-trashed")
   }
 

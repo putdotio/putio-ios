@@ -450,6 +450,7 @@ final class PutioPreviewPager {
   private var unsettled: Set<PutioFileID> = []
   private var removed: Set<PutioFileID> = []
   private var returning: PutioFileID?
+  private var shown: [PutioFileID: PutioFileItem] = [:]
   private let download: PutioPreviewDownload
   private(set) var current: PutioViewerRoute
   private(set) var reads = PutioPreviewPageReads()
@@ -500,7 +501,7 @@ final class PutioPreviewPager {
   }
 
   func item(for id: PutioFileID) -> PutioFileItem? {
-    if let item = lookedUp[id] ?? listed(id) { return item }
+    if let item = lookedUp[id] ?? listed(id) ?? shown[id] { return item }
     guard !unsettled.contains(id), opened?.id == id else { return nil }
     return opened
   }
@@ -525,6 +526,7 @@ final class PutioPreviewPager {
   }
 
   func remove(_ id: PutioFileID) -> Bool {
+    for item in folderSet?.items ?? [] where item.id != id { shown[item.id] = item }
     let routes = routes
     let rest = routes.filter { $0.id != id }
     removed.insert(id)
