@@ -3,7 +3,7 @@ import SwiftUI
 import UserNotifications
 
 /// The Downloads screen: storage accounting, the queue with per-item
-/// progress and controls, multi-select delete, and the concurrency limit.
+/// progress and controls, and multi-select delete.
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let trashEnabled: Bool
@@ -121,12 +121,6 @@ struct PutioOfflineDownloadsView: View {
         }
       } header: {
         Text("Storage")
-      }
-      Section {
-        Picker("Simultaneous downloads", selection: concurrency) {
-          ForEach(PutioOfflineQueue.concurrencyLimits, id: \.self) { Text("\($0)").tag($0) }
-        }
-        .accessibilityIdentifier("downloads.concurrency")
       }
       Section {
         ForEach(queue.items) { item in
@@ -249,10 +243,6 @@ struct PutioOfflineDownloadsView: View {
         }
       }
     }
-  }
-
-  private var concurrency: Binding<Int> {
-    Binding(get: { queue.concurrencyLimit }, set: { queue.setConcurrencyLimit($0) })
   }
 
   private func subtitle(_ item: PutioOfflineItem) -> String {

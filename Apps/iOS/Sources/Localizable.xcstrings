@@ -1566,6 +1566,28 @@
         }
       }
     },
+    "Downloads at the same time" : {
+      "comment" : "android: mobile_downloads_concurrency",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads at the same time"
+          }
+        }
+      }
+    },
+    "Downloads beyond this wait in line and start in the order you added them." : {
+      "comment" : "android: mobile_downloads_concurrency_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads beyond this wait in line and start in the order you added them."
+          }
+        }
+      }
+    },
     "Downloads stay on this iPad and come back when you sign in again." : {
       "comment" : "android: mobile_account_sign_out_message | differs: names the iPad",
       "localizations" : {
@@ -1893,6 +1915,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Forward 30 seconds"
+          }
+        }
+      }
+    },
+    "Free" : {
+      "comment" : "android: mobile_downloads_free | differs: a row label beside the size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Free"
           }
         }
       }
@@ -2841,6 +2874,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On"
+          }
+        }
+      }
+    },
+    "On this iPad" : {
+      "comment" : "android: mobile_downloads_section_on_device | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this iPad"
+          }
+        }
+      }
+    },
+    "On this iPhone" : {
+      "comment" : "android: mobile_downloads_section_on_device | differs: names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this iPhone"
           }
         }
       }
@@ -4227,17 +4282,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Signing out"
-          }
-        }
-      }
-    },
-    "Simultaneous downloads" : {
-      "comment" : "android: mobile_downloads_concurrency | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Simultaneous downloads"
           }
         }
       }

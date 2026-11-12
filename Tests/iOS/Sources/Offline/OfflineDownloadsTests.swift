@@ -287,6 +287,68 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertGreaterThan(queue.storedBytes, 0)
   }
 
+  func testANewLimitAppliesToTheRunningQueueAtOnce() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(4)
+    let ids = (1...5).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids.prefix(4) { engine.onProgress?(id, 0.3) }
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), Array(ids.prefix(4)))
+
+    queue.setConcurrencyLimit(1)
+    await settle()
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), [ids[0]], "one download runs")
+    XCTAssertEqual(engine.paused, Array(ids[1...3]))
+    for id in ids[1...3] {
+      XCTAssertEqual(queue.item(for: id)?.stage, .paused(progress: 0.3))
+      XCTAssertTrue(queue.isWaitingForSlot(id), "\(id.rawValue) does not wait for a slot")
+    }
+    XCTAssertEqual(queue.item(for: ids[4])?.stage, .queued)
+
+    queue.setConcurrencyLimit(4)
+    await settle()
+    XCTAssertEqual(engine.resumed, Array(ids[1...3]), "waiting downloads resume in place")
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), Array(ids.prefix(4)))
+    XCTAssertEqual(queue.item(for: ids[4])?.stage, .queued)
+
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), ids, "the freed slot starts the next in line")
+  }
+
+  func testLoweringTheLimitRequeuesADownloadStillResolving() async {
+    let gate = makeGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if fileID.rawValue == 2 { await gate.wait() }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1], "the resolving download never started")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .queued)
+  }
+
+  func testFreshQueueAllowsThreeAndAStoredLimitSurvivesTheUpgrade() throws {
+    XCTAssertEqual(makeQueue().concurrencyLimit, 3)
+    XCTAssertEqual(PutioOfflineQueue.concurrencyLimits, [1, 2, 3, 4])
+    try PutioOfflineStore(directory: directory).save(items: [], concurrencyLimit: 2)
+    XCTAssertEqual(makeQueue().concurrencyLimit, 2)
+  }
+
   func testSizeIsShownOnlyOnceTheDownloadCompletes() {
     var item = PutioOfflineItem(
       id: PutioFileID(rawValue: 8), parentID: .root, name: "h", kind: .video, createdAt: .now,

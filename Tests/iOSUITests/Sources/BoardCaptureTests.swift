@@ -806,6 +806,38 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-04-account-end")
   }
 
+  func testAccountDownloads() throws {
+    orient(.portrait)
+    app.launch()
+    reachFilesRoot()
+    downloadHarnessTrack()
+    XCTAssertFalse(element("downloads.concurrency").exists, "Downloads still sets the limit")
+    let header = element("downloads.storage-used")
+    XCTAssertTrue(header.appears(within: 5), "Downloads has no storage header")
+    let downloaded = try XCTUnwrap(
+      Self.byteSize(in: [header.label, header.value as? String ?? ""]),
+      "the Downloads header shows no size")
+    tabButton("Account").tap()
+    let row = app.revealed("account.downloads")
+    XCTAssertTrue(row.appears(within: 5), "Account has no Downloads row")
+    XCTAssertEqual(Self.byteSize(in: [row.label, row.value as? String ?? ""]), downloaded)
+    row.tap()
+    let limit = element("downloads.concurrency")
+    XCTAssertTrue(limit.appears(within: 5), "Account Downloads never opened")
+    XCTAssertTrue(
+      [limit.label, limit.value as? String ?? ""].contains { $0.hasSuffix("3") },
+      "a fresh install does not allow 3 at a time")
+    let stored = element("downloads.settings.stored")
+    XCTAssertTrue(stored.appears(within: 5), "Account Downloads has no stored size")
+    XCTAssertEqual(Self.byteSize(in: [stored.label, stored.value as? String ?? ""]), downloaded)
+    try captureBoard("rd-ios-acc-01-downloads")
+  }
+
+  private static func byteSize(in texts: [String]) -> String? {
+    let pattern = /[0-9][0-9.,]*\s?(?:bytes|B|KB|MB|GB|TB)/
+    return texts.lazy.compactMap { $0.firstMatch(of: pattern).map { String($0.output) } }.first
+  }
+
   func testAccountStorageFull() throws {
     app.launchArguments.append("--putio-harness-account-storage-full")
     openAccount()

@@ -14,8 +14,8 @@ typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async 
 @MainActor
 @Observable
 final class PutioOfflineQueue {
-  static let defaultConcurrencyLimit = 2
-  static let concurrencyLimits = [1, 2, 3]
+  static let defaultConcurrencyLimit = 3
+  static let concurrencyLimits = [1, 2, 3, 4]
   /// A single download may not exceed this many bytes of selected tracks.
   static let maximumSelectedBytes: Int64 = 8 * 1024 * 1024 * 1024
 
@@ -568,8 +568,26 @@ final class PutioOfflineQueue {
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
+    let inFlight = items.filter { $0.isActive || workers[$0.id] != nil }
+    for item in inFlight.dropFirst(limit) { yieldSlot(item.id) }
+    let order = Dictionary(uniqueKeysWithValues: items.enumerated().map { ($1.id, $0) })
+    resumeWhenFree.sort { order[$0, default: .max] < order[$1, default: .max] }
     persist()
     schedule()
+  }
+
+  private func yieldSlot(_ fileID: PutioFileID) {
+    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    if workers[fileID] == nil, case .downloading(let progress) = items[index].stage {
+      engine.pause(fileID: fileID)
+      suspended.insert(fileID)
+      items[index].stage = .paused(progress: progress)
+      if !resumeWhenFree.contains(fileID) { resumeWhenFree.append(fileID) }
+    } else {
+      workers[fileID]?.task.cancel()
+      workers[fileID] = nil
+      items[index].stage = .queued
+    }
   }
 
   // MARK: Playback

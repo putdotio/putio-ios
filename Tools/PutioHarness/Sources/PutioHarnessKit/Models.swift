@@ -653,6 +653,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-20-rename", .iphone, "testPreviewRename"),
       BoardCapture("rd-ios-pv-17-duo-folded-image", .duoFolded, "testPreviewImage"),
       BoardCapture("rd-ios-pv-16-duo-image", .duoOpen, "testPreviewImage"),
+      BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
       BoardCapture(
         "rd-ios-acc-03-account-middle", .iphone, "testAccountPlayback", screenBase: false),
