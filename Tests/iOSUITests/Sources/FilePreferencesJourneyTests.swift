@@ -66,7 +66,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertFirstFile("Harness Folder")
     openPreferences()
     reset.tap()
-    XCTAssertTrue(waitUntilHittable(resetConfirm))
+    XCTAssertTrue(resetConfirm.appears(within: 5))
     resetConfirm.tap()
     XCTAssertTrue(resetConfirm.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(reset))
