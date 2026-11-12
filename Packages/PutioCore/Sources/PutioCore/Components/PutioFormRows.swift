@@ -148,8 +148,9 @@ public struct PutioValueRow: View {
 
   public var body: some View {
     PutioSettingsValueLayout(
-      title: title, subtitle: nil, icon: icon, value: value, valueStyle: valueStyle)
-      .accessibilityElement(children: .combine)
+      title: title, subtitle: nil, icon: icon, value: value, valueStyle: valueStyle
+    )
+    .accessibilityElement(children: .combine)
   }
 }
 
