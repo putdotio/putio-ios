@@ -1249,6 +1249,28 @@
         }
       }
     },
+    "Create link" : {
+      "comment" : "android: mobile_public_links_create",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create link"
+          }
+        }
+      }
+    },
+    "Creating link…" : {
+      "comment" : "android: mobile_public_links_creating",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creating link…"
+          }
+        }
+      }
+    },
     "Current playback position" : {
       "comment" : "ios-only: no Android string for the iOS video player",
       "localizations" : {
@@ -1954,6 +1976,28 @@
         }
       }
     },
+    "Exclusive access" : {
+      "comment" : "android: mobile_public_links_action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclusive access"
+          }
+        }
+      }
+    },
+    "Exclusive link" : {
+      "comment" : "android: mobile_files_exclusive_link",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclusive link"
+          }
+        }
+      }
+    },
     "Exclusive links" : {
       "comment" : "android: mobile_settings_exclusive_links",
       "localizations" : {
@@ -1983,6 +2027,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Expires on %@"
+          }
+        }
+      }
+    },
+    "Expires within 72 hours" : {
+      "comment" : "android: mobile_public_links_expiry_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires within 72 hours"
           }
         }
       }
@@ -2380,6 +2435,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Link a device"
+          }
+        }
+      }
+    },
+    "Link copied" : {
+      "comment" : "android: mobile_public_links_link_copied",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link copied"
+          }
+        }
+      }
+    },
+    "Link created. Copy or share it below." : {
+      "comment" : "android: mobile_public_links_created",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link created. Copy or share it below."
           }
         }
       }

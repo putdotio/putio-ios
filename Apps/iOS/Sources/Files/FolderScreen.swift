@@ -34,6 +34,8 @@ struct PutioFolderScreen: View {
   @Environment(\.putioPinnedFiles) private var pinned
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.putioFileShare) private var fileShare
+  @Environment(\.putioExclusiveLink) private var exclusiveLink
+  @State private var linkItem: PutioFileItem?
   @State private var share = PutioFileShareModel()
   @State private var preparingToast: PutioToast.ID?
   private let relativeDateReference: Date?
@@ -105,6 +107,11 @@ struct PutioFolderScreen: View {
     self.onExternalPlayback = onExternalPlayback
     self.onDownload = onDownload
     self.onBulkDownload = onBulkDownload
+  }
+
+  private var linkAction: (@MainActor @Sendable (PutioFileItem) -> Void)? {
+    guard exclusiveLink != nil else { return nil }
+    return { linkItem = $0 }
   }
 
   private var folderTitle: String {
@@ -179,6 +186,7 @@ struct PutioFolderScreen: View {
       )
     }
     .putioConfirmAlert($confirmAlert)
+    .putioExclusiveLinkSheet($linkItem)
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
       if toast?.id == preparingToast { toast = nil }
@@ -380,7 +388,8 @@ struct PutioFolderScreen: View {
         canEdit: model.supportsActions,
         isDisabled: navigationLocked || pinItemActions?.canStartAction == false,
         onOpen: onFileSelected,
-        onMove: { pinMoveRequest = .move($0) })
+        onMove: { pinMoveRequest = .move($0) },
+        onLink: linkAction)
     }
   }
 
@@ -505,6 +514,7 @@ struct PutioFolderScreen: View {
         vlcInstalled: onExternalPlayback != nil,
         tracksWatched: tracksWatched,
         canShare: fileShare != nil,
+        canLink: exclusiveLink != nil,
         pinned: pinned.map { $0.model.isPinned(item.id) }),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
@@ -589,6 +599,11 @@ struct PutioFolderScreen: View {
         id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
         isDisabled: editingBlocked
       ) { pendingMove = MoveSelection(items: [item], isBulk: false) }
+    case .exclusiveLink:
+      return PutioItemAction(
+        id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
+        isDisabled: fileActionPending
+      ) { linkItem = item }
     case .trash:
       return PutioItemAction(
         id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,

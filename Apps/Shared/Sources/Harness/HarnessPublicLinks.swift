@@ -19,7 +19,23 @@ import Foundation
       let expiresInHours: Double?
     }
 
+    enum CreateMode: String {
+      case ready
+      case slow
+      case refusals
+      case failing
+    }
+
     static let argument = "--putio-harness-public-links"
+    static let createArgument = "--putio-harness-public-link-create"
+    static let createDelay: TimeInterval = 600
+    static let refusals = [
+      "PUBLIC_SHARE_NOT_ALLOWED_PLAN", "PUBLIC_SHARE_UNSUPPORTED_FILE_TYPE",
+      "PUBLIC_SHARE_EXCEEDED_LIMIT", "PUBLIC_SHARE_FOLDER_MAX_SIZE_LIMIT_EXCEEDED",
+      "PUBLIC_SHARE_FOLDER_MAX_CHILDREN_LIMIT_EXCEEDED",
+      "PUBLIC_SHARE_DAILY_TOTAL_LINK_COUNT_EXCEEDED",
+      "PUBLIC_SHARE_WEEKLY_TOTAL_LINK_COUNT_EXCEEDED",
+    ]
     static let listPath = "/v2/public_share/list"
     static let pathPrefix = "/v2/public_share/"
     static let slowDelay: TimeInterval = 6
@@ -29,6 +45,7 @@ import Foundation
     nonisolated(unsafe) private static var links: [Link]?
     nonisolated(unsafe) private static var listsServed = 0
     nonisolated(unsafe) private static var revokeFailed = false
+    nonisolated(unsafe) private static var createsServed = 0
 
     static let mode: Mode = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -37,12 +54,28 @@ import Foundation
       return Mode(rawValue: arguments[flag + 1]) ?? .empty
     }()
 
+    static let createMode: CreateMode = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: createArgument),
+        arguments.indices.contains(flag + 1)
+      else { return .ready }
+      return CreateMode(rawValue: arguments[flag + 1]) ?? .ready
+    }()
+
     static var delaysList: Bool { mode == .slow }
+
+    static func delaysCreate(method: String, path: String) -> Bool {
+      createMode == .slow && method == "POST" && fileID(in: path) != nil
+    }
+
+    private static func fileID(in path: String) -> Int? {
+      guard path.hasPrefix(pathPrefix) else { return nil }
+      return Int(path.dropFirst(pathPrefix.count))
+    }
 
     static func handles(method: String, path: String) -> Bool {
       path == listPath && method == "GET"
-        || method == "DELETE" && path.hasPrefix(pathPrefix)
-          && Int(path.dropFirst(pathPrefix.count)) != nil
+        || (method == "DELETE" || method == "POST") && fileID(in: path) != nil
     }
 
     private static let boardLinks = [
@@ -76,6 +109,9 @@ import Foundation
         if method == "GET", path == listPath {
           return list(current)
         }
+        if method == "POST", let fileID = fileID(in: path) {
+          return create(fileID: fileID, current: current)
+        }
         guard method == "DELETE", let id = Int(path.dropFirst(pathPrefix.count)) else {
           return failure(404, "HARNESS_FIXTURE_NOT_FOUND", "No public share fixture for \(path)")
         }
@@ -89,6 +125,26 @@ import Foundation
         links = current.filter { $0.id != id }
         return (200, #"{"status":"OK"}"#)
       }
+    }
+
+    private static let createdToken = "8f3KxQ2mVt7"
+
+    private static func create(fileID: Int, current: [Link]) -> (Int, String) {
+      createsServed += 1
+      switch createMode {
+      case .refusals where createsServed <= refusals.count:
+        return failure(403, refusals[createsServed - 1], "Public share refused")
+      case .failing where createsServed == 1:
+        return failure(500, "HARNESS_PUBLIC_SHARE_CREATE", "The first link creation fails")
+      default:
+        break
+      }
+      let (name, fileType) = HarnessSeededAPI.publicLinkFile(id: fileID)
+      let link = Link(
+        id: 950 + createsServed, token: "\(createdToken)\(createsServed)", fileID: fileID,
+        name: name, fileType: fileType, expiresInHours: 72)
+      links = current + [link]
+      return (200, #"{"status":"OK","public_share":\#(json(link))}"#)
     }
 
     private static var initialLinks: [Link] {

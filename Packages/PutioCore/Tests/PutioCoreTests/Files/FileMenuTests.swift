@@ -164,6 +164,29 @@ final class FileMenuTests: XCTestCase {
       PutioFileMenu.pinnedRow(item: item(.video), canEdit: false).sections, [[.unpin]])
   }
 
+  func testExclusiveLinkFollowsMoveOnOwnItemsOnly() {
+    var linking = everything
+    linking.canLink = true
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.other("iso")), capabilities: linking).sections,
+      [[.select], [.rename, .move, .exclusiveLink], [.trash]])
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.folder), capabilities: linking).sections,
+      [[.select], [.rename, .move, .exclusiveLink], [.trash]])
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.folder, shared: true), capabilities: linking)
+        .contains(.exclusiveLink))
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.folder), capabilities: everything).contains(.exclusiveLink))
+    XCTAssertEqual(
+      PutioFileMenu.pinnedRow(item: item(.folder), canEdit: true, canLink: true).sections,
+      [[.unpin], [.move, .exclusiveLink]])
+    XCTAssertEqual(
+      PutioFileMenu.pinnedRow(item: item(.folder, shared: true), canEdit: true, canLink: true)
+        .sections,
+      [[.unpin]])
+  }
+
   private func item(
     _ kind: PutioFileKind, resume: Int = 0, shared: Bool = false, size: Int64 = 1
   ) -> PutioFileItem {

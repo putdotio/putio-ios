@@ -604,6 +604,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-52-trash-unknown-menu", .iphone, "testTrashUnknownMenu"),
       BoardCapture("rd-ios-53-trash-limit", .iphone, "testTrashLimit"),
       BoardCapture("rd-ios-19-move", .iphone, "testMove"),
+      BoardCapture("rd-ios-78-link-create", .iphone, "testExclusiveLinkCreating"),
+      BoardCapture("rd-ios-79-link-created", .iphone, "testExclusiveLinkCreated"),
+      BoardCapture("rd-ios-80-link-refused", .iphone, "testExclusiveLinkRefused"),
       BoardCapture("rd-ios-35-move-folder", .iphone, "testMoveFolder", screenBase: false),
       BoardCapture("rd-ios-36-move-loading", .iphone, "testMoveLoading", screenBase: false),
       BoardCapture(
@@ -1133,6 +1136,21 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "bulk-results", "FilesBrowserJourneyTests/testBulkTrashUndoAndWatchedLeaveSelection",
       attachmentNames: ["runtime-bulk-trashed"], timeAllowance: 120),
+    JourneyPreflight(
+      "exclusive-link",
+      "ExclusiveLinkJourneyTests/testLinksForAFileAndAFolderCopyShareAndShowUpInAccount",
+      attachmentNames: ["runtime-exclusive-link-created", "runtime-exclusive-link-account"],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "exclusive-link-refused",
+      "ExclusiveLinkJourneyTests/testEveryRefusalNamesItsReasonAndCreateLinkTriesAgain",
+      attachmentNames: ["runtime-exclusive-link-refused"], timeAllowance: 120),
+    JourneyPreflight(
+      "exclusive-link-failed", "ExclusiveLinkJourneyTests/testAFailureOffersTryAgain",
+      attachmentNames: ["runtime-exclusive-link-failed"]),
+    JourneyPreflight(
+      "exclusive-link-cancel", "ExclusiveLinkJourneyTests/testClosingWhileCreatingCancels",
+      attachmentNames: ["runtime-exclusive-link-creating"]),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),

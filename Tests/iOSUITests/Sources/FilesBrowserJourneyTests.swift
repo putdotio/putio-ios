@@ -182,7 +182,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let unwatched = element(identifier: "files.item.443")
     XCTAssertEqual(
       itemMenu(for: unwatched),
-      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Move to trash"])
+      [
+        "Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
+        "Move to trash",
+      ])
     app.buttons["Mark as watched"].tap()
     XCTAssertTrue(app.staticTexts["Marked as watched"].appears(within: 5), "no watched toast")
     XCTAssertTrue(
@@ -191,7 +194,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let watched = element(identifier: "files.item.442")
     XCTAssertEqual(
       itemMenu(for: watched),
-      ["Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Move to trash"])
+      [
+        "Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Exclusive link",
+        "Move to trash",
+      ])
     app.buttons["Mark as unwatched"].tap()
     XCTAssertTrue(
       app.staticTexts["Could not update watch status"].appears(within: 5),
@@ -205,7 +211,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValuePrefix(watched, "Not watched"), "the eye stayed after unwatched")
 
     let subtitle = element(identifier: "files.item.445")
-    XCTAssertEqual(itemMenu(for: subtitle), ["Select", "Rename", "Move", "Move to trash"])
+    XCTAssertEqual(
+      itemMenu(for: subtitle), ["Select", "Rename", "Move", "Exclusive link", "Move to trash"])
     dismissMenu()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
 
@@ -219,14 +226,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
     more.tap()
     XCTAssertEqual(
       menuLabels(),
-      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Move to trash"])
+      [
+        "Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
+        "Move to trash",
+      ])
     dismissMenu()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
 
     app.navigationBars.buttons["BackButton"].tap()
     let folder = element(identifier: "files.item.440")
     XCTAssertTrue(folder.appears(within: 5))
-    XCTAssertEqual(itemMenu(for: folder), ["Select", "Rename", "Move", "Move to trash"])
+    XCTAssertEqual(
+      itemMenu(for: folder), ["Select", "Rename", "Move", "Exclusive link", "Move to trash"])
     addScreenshot(named: "runtime-item-menu-folder")
     app.buttons["Select"].tap()
     XCTAssertTrue(
@@ -250,6 +261,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       itemMenu(for: element(identifier: "files.item.444")),
       [
         "Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move",
+        "Exclusive link",
         "Move to trash",
       ])
     addScreenshot(named: "runtime-item-menu-vlc")
@@ -274,7 +286,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private static let itemMenuLabels = [
     "Play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched", "Mark as unwatched",
-    "Rename", "Move", "Move to trash",
+    "Rename", "Move", "Exclusive link", "Move to trash",
   ]
 
   private func itemMenu(for row: XCUIElement) -> [String] {
@@ -2122,7 +2134,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func dismissMenu() {
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.7)).tap()
   }
 
   private func assertMovePickerCreatesAFolder(for row: XCUIElement) {

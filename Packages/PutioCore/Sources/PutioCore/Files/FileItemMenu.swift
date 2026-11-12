@@ -12,6 +12,7 @@ public enum PutioFileMenuRow: String, Hashable, Sendable {
   case markUnwatched
   case rename
   case move
+  case exclusiveLink
   case trash
 }
 
@@ -22,18 +23,20 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var vlcInstalled: Bool
     public var tracksWatched: Bool
     public var canShare: Bool
+    public var canLink: Bool
     /// Whether the item is pinned; `nil` leaves Pin and Unpin out.
     public var pinned: Bool?
 
     public init(
       canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
-      canShare: Bool = false, pinned: Bool? = nil
+      canShare: Bool = false, canLink: Bool = false, pinned: Bool? = nil
     ) {
       self.canEdit = canEdit
       self.canDownload = canDownload
       self.vlcInstalled = vlcInstalled
       self.tracksWatched = tracksWatched
       self.canShare = canShare
+      self.canLink = canLink
       self.pinned = pinned
     }
   }
@@ -63,7 +66,7 @@ public struct PutioFileMenu: Equatable, Sendable {
       if capabilities.tracksWatched, item.kind == .video {
         organize.append(item.isWatched ? .markUnwatched : .markWatched)
       }
-      edit = [.rename, .move]
+      edit = capabilities.canLink ? [.rename, .move, .exclusiveLink] : [.rename, .move]
       destructive = [.trash]
     }
     sections = [playback, organize, edit, destructive].filter { !$0.isEmpty }
@@ -74,8 +77,11 @@ public struct PutioFileMenu: Equatable, Sendable {
   }
 
   /// The long-press menu of a row in the Pinned section.
-  public static func pinnedRow(item: PutioFileItem, canEdit: Bool) -> PutioFileMenu {
-    PutioFileMenu(sections: canEdit && !item.isShared ? [[.unpin], [.move]] : [[.unpin]])
+  public static func pinnedRow(
+    item: PutioFileItem, canEdit: Bool, canLink: Bool = false
+  ) -> PutioFileMenu {
+    guard canEdit, !item.isShared else { return PutioFileMenu(sections: [[.unpin]]) }
+    return PutioFileMenu(sections: [[.unpin], canLink ? [.move, .exclusiveLink] : [.move]])
   }
 
   /// A search result's menu: the item menu without Select, Rename and Trash.

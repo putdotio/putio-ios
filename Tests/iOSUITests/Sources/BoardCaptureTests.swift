@@ -294,6 +294,7 @@ final class BoardCaptureTests: XCTestCase {
     element("files.pinned.item.440").press(forDuration: 1)
     XCTAssertTrue(app.buttons["Unpin"].appears(within: 5), "the pin menu has no Unpin")
     XCTAssertTrue(app.buttons["Move"].exists, "the pin menu has no Move")
+    XCTAssertTrue(app.buttons["Exclusive link"].exists, "the pin menu has no Exclusive link")
     try captureBoard("rd-ios-34-pinned-long-press")
   }
 
@@ -336,6 +337,41 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openMoveSheet(for: "files.item.445")
     try captureBoard("rd-ios-19-move")
+  }
+
+  func testExclusiveLinkCreating() throws {
+    openExclusiveLink(create: "slow")
+    app.buttons["files.exclusive-link.create"].tap()
+    XCTAssertTrue(app.staticTexts["Creating link…"].appears(within: 5), "creation never started")
+    try captureBoard("rd-ios-78-link-create")
+  }
+
+  func testExclusiveLinkCreated() throws {
+    openExclusiveLink(create: "ready")
+    app.buttons["files.exclusive-link.create"].tap()
+    XCTAssertTrue(
+      element("files.exclusive-link.created").appears(within: 10), "the link was never created")
+    try captureBoard("rd-ios-79-link-created")
+  }
+
+  func testExclusiveLinkRefused() throws {
+    openExclusiveLink(create: "refusals")
+    app.buttons["files.exclusive-link.create"].tap()
+    XCTAssertTrue(
+      app.staticTexts["You can’t create public links with your current plan."].appears(within: 10),
+      "the plan refusal never showed")
+    try captureBoard("rd-ios-80-link-refused")
+  }
+
+  private func openExclusiveLink(create mode: String) {
+    orient(.portrait)
+    app.launchArguments += ["--putio-harness-public-link-create", mode]
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    app.buttons["Exclusive link"].firstMatch.tap()
+    XCTAssertTrue(
+      app.buttons["files.exclusive-link.create"].appears(within: 5), "Exclusive link never opened")
   }
 
   func testMoveFolder() throws {

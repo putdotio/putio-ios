@@ -52,6 +52,53 @@ extension PutioRuntimeTests {
     await assertRuntimeError(.invalidResponse) { try await runtime.revokePublicLink(id: 0) }
   }
 
+  func testCreatingALinkReturnsTheShareAddressAndRefusalsKeepTheSession() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/public_share/442"
+    fixtures.setFixture(
+      """
+      {"status":"OK","public_share":{"id":9,"token":"8f3KxQ2mVt7","push_token":"p9",
+       "created_at":"2026-11-12T10:00:00","expiration_date":null,"owner":{"name":"moviebuff"},
+       "user_file":{"id":442,"name":"Blue.Lights.S04E02.mkv","file_type":"VIDEO"}}}
+      """, for: route)
+    let url = try await runtime.createPublicLink(fileID: PutioFileID(rawValue: 442))
+    XCTAssertEqual(url.absoluteString, "https://app.put.io/exclusive-access/8f3KxQ2mVt7")
+    XCTAssertEqual(fixtures.capturedRequests().last?.httpMethod, "POST")
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":403,"error_type":"PUBLIC_SHARE_NOT_ALLOWED_PLAN"}"#,
+      statusCode: 403, for: route)
+    do {
+      _ = try await runtime.createPublicLink(fileID: PutioFileID(rawValue: 442))
+      XCTFail("a refused link was created")
+    } catch {
+      XCTAssertEqual(error as? PutioPublicLinkRefusal, .plan)
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("a refusal signed the user out")
+    }
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":403,"error_type":"PUBLIC_SHARE_FOLDER_ROOT_NOT_ALLOWED"}"#,
+      statusCode: 403, for: route)
+    await assertRuntimeError(.unknown) {
+      _ = try await runtime.createPublicLink(fileID: PutioFileID(rawValue: 442))
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("an unknown refusal signed the user out")
+    }
+
+    fixtures.setFixture(
+      """
+      {"status":"OK","public_share":{"id":9,"token":"t","push_token":"p","created_at":"",
+       "expiration_date":null,"owner":{"name":"m"},
+       "user_file":{"id":1,"name":"Other","file_type":"VIDEO"}}}
+      """, for: route)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.createPublicLink(fileID: PutioFileID(rawValue: 442))
+    }
+  }
+
   func testPublicLinkExpiriesAcceptOffsetsAndRejectGarbage() {
     let utc = ISO8601DateFormatter().date(from: "2026-10-07T19:36:01Z")
     XCTAssertEqual(PutioPublicLink.expiryDate("2026-10-07T19:36:01"), utc)
