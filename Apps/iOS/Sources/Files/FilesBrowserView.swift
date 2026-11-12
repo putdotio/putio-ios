@@ -35,6 +35,8 @@ struct FilesBrowserView: View {
   @State private var appliedNavigationRequest: UUID?
   @State private var path: [PutioFolderRoute] = []
   @State private var didRestoreNavigation = false
+  @State private var pins: PutioPinnedFilesModel
+  @State private var pinToast: PutioToast?
 
   init(
     runtime: PutioRuntime,
@@ -64,6 +66,9 @@ struct FilesBrowserView: View {
       try await runtime.continueFiles(cursor: cursor)
     }
     actions = PutioFileActions(runtime: runtime)
+    _pins = State(
+      initialValue: PutioPinnedFilesModel(
+        actions: PutioPinnedFilesActions(runtime: runtime), rootName: PutioFolderRoute.root.title))
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -96,22 +101,31 @@ struct FilesBrowserView: View {
         offlineFiles: offlineFiles
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
-        PutioFolderScreen(
-          route: route,
-          load: load,
-          continueLoad: continueLoad,
-          actions: actions,
-          trashEnabled: trashEnabled,
-          tracksWatched: tracksWatched,
-          refreshRequests: refreshRequests,
-          onFileSelected: onFileSelected,
-          onExternalPlayback: onExternalPlayback,
-          onDownload: onDownload,
-          onBulkDownload: onBulkDownload,
-          castButton: castButton,
-          offlineFiles: offlineFiles
-        )
+        if route == .pinnedList {
+          PutioPinnedListScreen(
+            model: pins,
+            actions: actions,
+            load: load,
+            continueLoad: continueLoad,
+            trashEnabled: trashEnabled,
+            refreshRequests: refreshRequests,
+            onFileSelected: onFileSelected
+          )
+        } else {
+          folderScreen(route)
+        }
       }
+    }
+    .environment(
+      \.putioPinnedFiles,
+      PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
+    )
+    .putioToast($pinToast)
+    .task { await pins.load() }
+    .onChange(of: pins.editFailure) { _, failure in
+      guard failure != nil else { return }
+      pins.clearEditFailure()
+      pinToast = PutioToast(PutioScreenErrorKind.failed.message)
     }
     .onChange(of: path) { oldPath, newPath in
       if didRestoreNavigation, let accountID {
@@ -138,6 +152,24 @@ struct FilesBrowserView: View {
       }
       didRestoreNavigation = true
     }
+  }
+
+  private func folderScreen(_ route: PutioFolderRoute) -> some View {
+    PutioFolderScreen(
+      route: route,
+      load: load,
+      continueLoad: continueLoad,
+      actions: actions,
+      trashEnabled: trashEnabled,
+      tracksWatched: tracksWatched,
+      refreshRequests: refreshRequests,
+      onFileSelected: onFileSelected,
+      onExternalPlayback: onExternalPlayback,
+      onDownload: onDownload,
+      onBulkDownload: onBulkDownload,
+      castButton: castButton,
+      offlineFiles: offlineFiles
+    )
   }
 }
 

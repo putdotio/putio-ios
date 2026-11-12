@@ -105,6 +105,62 @@ import Foundation
       case family
     }
 
+    static let pinsArgument = "--putio-harness-pins"
+    private static let pinsKey = "putio.harness.pinned-files.server"
+    private static let pinsLock = NSLock()
+    nonisolated(unsafe) private static var storedPins: [Int]?
+
+    private static var pinsMode: String? {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: pinsArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return arguments[flag + 1]
+    }
+
+    private static func pinsLocked() -> [Int] {
+      if let storedPins { return storedPins }
+      let seeded: [Int]
+      switch pinsMode {
+      case "three": seeded = [seasonFolderID, 410, 412]
+      case "seven": seeded = [seasonFolderID, 410, 412, 411, 413, imageFileID, 441]
+      case "gone": seeded = [seasonFolderID, 999, 412]
+      case "keep": seeded = UserDefaults.standard.array(forKey: pinsKey) as? [Int] ?? []
+      default: seeded = []
+      }
+      storedPins = seeded
+      UserDefaults.standard.set(seeded, forKey: pinsKey)
+      return seeded
+    }
+
+    private static func readPins() -> (Int, String) {
+      guard pinsMode != "fail" else {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_PINS_UNAVAILABLE",
+            message: "Pins fail to load for the absent-section proof")
+        )
+      }
+      let pins = pinsLock.withLock { pinsLocked() }
+      return (200, #"{"status":"OK","value":[\#(pins.map(String.init).joined(separator: ","))]}"#)
+    }
+
+    private static func writePins(request: URLRequest) -> (Int, String) {
+      guard let values = requestPayload(request)?["value"] as? [Int] else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_INVALID_PINS", message: "value must list file ids")
+        )
+      }
+      pinsLock.withLock {
+        storedPins = values
+        UserDefaults.standard.set(values, forKey: pinsKey)
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
     static let inactiveAccountArgument = "--putio-harness-account-inactive"
     static let accountRenewsInBackgroundArgument = "--putio-harness-account-renews-in-background"
     static let inactiveAccountDeletionDays = 12
@@ -1537,6 +1593,10 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/autoplay_next_video":
         return updateAutoplayConfig(request: request)
+      case "GET /v2/config/pinned_files":
+        return readPins()
+      case "PUT /v2/config/pinned_files":
+        return writePins(request: request)
       case "PUT /v2/config/streaming_method":
         return updateStreamingMethodConfig(request: request)
       case "PUT /v2/config/auto_rotate_video":
@@ -1722,6 +1782,18 @@ import Foundation
           )
         }
         return (200, folderEnvelope(id: 410, name: "Harness Folder", parentID: 0))
+      case "GET /v2/files/\(seasonFolderID)" where seasonFolderSeeded:
+        return (200, #"{"file":\#(seasonFolderObject(sortBy: nil))}"#)
+      case "GET /v2/files/441" where seasonFolderSeeded:
+        return (
+          200,
+          """
+          {"file":{"id":441,"name":"\(seasonEpisodes[0].name)","file_type":"VIDEO",
+          "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
+          "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
+          "start_from":0}}
+          """
+        )
       case "GET /v2/files/413":
         return (
           200,

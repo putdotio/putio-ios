@@ -122,6 +122,34 @@ final class FileMenuTests: XCTestCase {
     XCTAssertFalse(PutioFileMenu(item: item(.image), capabilities: everything).contains(.share))
   }
 
+  func testPinFollowsSelectAndUnpinShowsOnPinnedItems() {
+    var capabilities = everything
+    capabilities.pinned = false
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities).sections,
+      [
+        [.play, .download, .openInVLC], [.select, .pin, .markWatched], [.rename, .move],
+        [.trash],
+      ])
+    capabilities.pinned = true
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.folder), capabilities: capabilities).sections,
+      [[.select, .unpin], [.rename, .move], [.trash]])
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.folder, shared: true), capabilities: capabilities).sections,
+      [[.unpin]])
+  }
+
+  func testPinnedRowsOfferUnpinThenMove() {
+    let menu = PutioFileMenu.pinnedRow(item: item(.folder), canEdit: true)
+    XCTAssertEqual(menu.sections, [[.unpin], [.move]])
+    XCTAssertEqual(
+      PutioFileMenu.pinnedRow(item: item(.folder, shared: true), canEdit: true).sections,
+      [[.unpin]])
+    XCTAssertEqual(
+      PutioFileMenu.pinnedRow(item: item(.video), canEdit: false).sections, [[.unpin]])
+  }
+
   private func item(
     _ kind: PutioFileKind, resume: Int = 0, shared: Bool = false, size: Int64 = 1
   ) -> PutioFileItem {

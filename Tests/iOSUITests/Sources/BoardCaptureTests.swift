@@ -283,6 +283,44 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-17-folder-long-press")
   }
 
+  func testPinned() throws {
+    try reachPins("three")
+    XCTAssertFalse(element("files.pinned.see-all").exists, "three pins offered See all")
+    try captureBoard("rd-ios-18-pinned")
+  }
+
+  func testPinnedLongPress() throws {
+    try reachPins("three")
+    element("files.pinned.item.440").press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Unpin"].appears(within: 5), "the pin menu has no Unpin")
+    XCTAssertTrue(app.buttons["Move"].exists, "the pin menu has no Move")
+    try captureBoard("rd-ios-34-pinned-long-press")
+  }
+
+  func testPinnedSeeAll() throws {
+    try reachPins("seven")
+    XCTAssertTrue(element("files.pinned.see-all").exists, "seven pins offered no See all")
+    XCTAssertFalse(element("files.pinned.item.441").exists, "the section lists more than five")
+    try captureBoard("rd-ios-66-pinned-see-all")
+  }
+
+  func testPinnedList() throws {
+    try reachPins("seven")
+    element("files.pinned.see-all").tap()
+    XCTAssertTrue(element("files.pinned-list").appears(within: 5), "See all opened no list")
+    XCTAssertTrue(app.staticTexts["7 items"].appears(within: 5), "the list does not count pins")
+    XCTAssertTrue(element("files.pinned.item.441").exists, "the list leaves out a pin")
+    try captureBoard("rd-ios-67-pinned-list")
+  }
+
+  private func reachPins(_ mode: String) throws {
+    orient(.portrait)
+    app.launchArguments += ["--putio-harness-pins", mode]
+    app.launch()
+    reachFilesRoot()
+    XCTAssertTrue(element("files.pinned.item.440").appears(within: 10), "the pins never loaded")
+  }
+
   func testFileMenu() throws {
     orient(.portrait)
     app.launch()

@@ -372,6 +372,118 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  func testPinnedFilesPinUnpinSeeAllGoneFailureAndRelaunch() {
+    launch(pins: "three")
+    reachRoot()
+    assertPins([440, 410, 412])
+    XCTAssertTrue(app.staticTexts["in Harness Folder"].exists, "a pin does not name its folder")
+    XCTAssertFalse(element(identifier: "files.pinned.see-all").exists, "three pins offered See all")
+    addScreenshot(named: "runtime-pinned")
+
+    let harness = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(harness, timeout: 5), "the root list lost its rows")
+    harness.tap()
+    let nested = element(identifier: "files.item.411")
+    XCTAssertTrue(waitUntilHittable(nested, timeout: 10), "the folder never listed its video")
+    openContextMenu(for: nested, actionLabel: "Pin").tap()
+    _ = openContextMenu(for: nested, actionLabel: "Unpin")
+    XCTAssertFalse(app.buttons["Pin"].exists, "the pinned video still offers Pin")
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.7)).tap()
+    XCTAssertTrue(app.buttons["Unpin"].disappears(within: 5), "the item menu never closed")
+    tapSheetBack()
+    reachRoot()
+    assertPins([411, 440, 410, 412])
+
+    openContextMenu(for: pin(412), actionLabel: "Unpin").tap()
+    XCTAssertTrue(pin(412).disappears(within: 5), "Unpin left the row in the section")
+    XCTAssertTrue(element(identifier: "files.item.412").exists, "Unpin touched All files")
+
+    app.terminate()
+    launch(pins: "keep")
+    reachRoot()
+    assertPins([411, 440, 410])
+
+    app.terminate()
+    launch(pins: "seven")
+    reachRoot()
+    assertPins([440, 410, 412, 411, 413])
+    let seeAll = element(identifier: "files.pinned.see-all")
+    XCTAssertTrue(waitUntilHittable(seeAll, timeout: 5), "seven pins offered no See all")
+    seeAll.tap()
+    XCTAssertTrue(element(identifier: "files.pinned-list").appears(within: 5))
+    XCTAssertTrue(app.staticTexts["7 items"].appears(within: 5), "the list does not count pins")
+    XCTAssertTrue(waitUntilHittable(pin(441), timeout: 5), "the list leaves out the last pin")
+    openContextMenu(for: pin(441), actionLabel: "Unpin").tap()
+    XCTAssertTrue(pin(441).disappears(within: 5), "Unpin left the row in the list")
+    XCTAssertTrue(app.staticTexts["6 items"].appears(within: 5), "the count kept the unpinned row")
+    addScreenshot(named: "runtime-pinned-list")
+    tapSheetBack()
+    reachRoot()
+    XCTAssertTrue(seeAll.appears(within: 5), "six pins lost See all")
+
+    app.terminate()
+    launch(pins: "gone")
+    reachRoot()
+    assertPins([440, 412])
+    XCTAssertFalse(pin(999).exists, "a pin whose file is gone was shown")
+
+    app.terminate()
+    launch(pins: "fail")
+    reachRoot()
+    XCTAssertTrue(
+      element(identifier: "files.item.410").appears(within: 10), "failed pins blocked the list")
+    XCTAssertFalse(
+      element(identifier: "files.pinned").appears(within: 3), "failed pins drew the section")
+  }
+
+  private func launch(pins mode: String) {
+    if let flag = app.launchArguments.firstIndex(of: "--putio-harness-pins") {
+      app.launchArguments.removeSubrange(flag...(flag + 1))
+    }
+    app.launchArguments += ["--putio-harness-pins", mode]
+    app.launch()
+  }
+
+  private func reachRoot() {
+    let root = element(identifier: "files.screen.0")
+    let signIn = element(identifier: "auth.sign-in")
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    let deadline = Date.now.addingTimeInterval(20)
+    while Date.now < deadline {
+      if signIn.exists {
+        signIn.tap()
+      } else if root.exists, root.isHittable {
+        break
+      } else if back.exists {
+        back.tap()
+      }
+      _ = root.waitForExistence(timeout: 0.5)
+    }
+    XCTAssertTrue(root.appears(within: 5), "the seeded session never reached the Files root")
+  }
+
+  private func pin(_ id: Int) -> XCUIElement {
+    element(identifier: "files.pinned.item.\(id)")
+  }
+
+  private func assertPins(_ ids: [Int], file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertTrue(
+      element(identifier: "files.pinned").appears(within: 10), "the section never appeared",
+      file: file, line: line)
+    let rows = ids.map(pin)
+    for (id, row) in zip(ids, rows) {
+      XCTAssertTrue(row.appears(within: 10), "pin \(id) is missing", file: file, line: line)
+    }
+    let tops = rows.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "pins are out of order", file: file, line: line)
+    let shown = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "identifier BEGINSWITH %@", "files.pinned.item."))
+      .allElementsBoundByIndex.map(\.identifier)
+    XCTAssertEqual(
+      Set(shown), Set(ids.map { "files.pinned.item.\($0)" }), "the section shows other pins",
+      file: file, line: line)
+  }
+
   private func openMoveLevel(_ id: Int, path: String) {
     let row = element(identifier: "files.move-folder.\(id)")
     XCTAssertTrue(waitUntilHittable(row, timeout: 10), "move folder \(id) never appeared")
