@@ -3,33 +3,33 @@
 lockfile_version = 4
 
 [[tools."github:rorkai/App-Store-Connect-CLI"]]
-version = "5.15.0"
+version = "5.17.1"
 backend = "github:rorkai/App-Store-Connect-CLI"
-specifiers = ["5.15.0"]
+specifiers = ["5.17.1"]
 
 [tools."github:rorkai/App-Store-Connect-CLI"."platforms.linux-arm64"]
-checksum = "sha256:07203e9e961f44e376b5117852d8a11a043c8cfee9628e8471379e9c21b1a2c5"
+checksum = "sha256:7b2dce63a3bfc3544a21e7749480b3f15c8555845e82a12f594c1d0a5ac880cb"
 checksum_source = "mise-versions"
-url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.15.0/asc_5.15.0_linux_arm64"
-url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/651092968"
+url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.17.1/asc_5.17.1_linux_arm64"
+url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/680395999"
 
 [tools."github:rorkai/App-Store-Connect-CLI"."platforms.linux-x64"]
-checksum = "sha256:614ae3190938f4826c8cfbbb836a1926f765963614c17fdeb86750883f71aa70"
+checksum = "sha256:2a8f516f1b7f7afa9394e2f739990f82d5e8f6c0a851fa5d8bf16f682d6996b8"
 checksum_source = "mise-versions"
-url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.15.0/asc_5.15.0_linux_amd64"
-url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/651092811"
+url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.17.1/asc_5.17.1_linux_amd64"
+url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/680395879"
 
 [tools."github:rorkai/App-Store-Connect-CLI"."platforms.macos-arm64"]
-checksum = "sha256:29b3f747acd94d1dc49884f4c0a7404181ec058c635d0ce20fc4202c930edf22"
+checksum = "sha256:f7d9882127854f36aa2b00cd935d5f76a3a4faae955980d3c91f2c0158d688d8"
 checksum_source = "mise-versions"
-url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.15.0/asc_5.15.0_macOS_arm64"
-url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/651093291"
+url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.17.1/asc_5.17.1_macOS_arm64"
+url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/680396246"
 
 [tools."github:rorkai/App-Store-Connect-CLI"."platforms.macos-x64"]
-checksum = "sha256:4945df669cd2b59aeef64f1867c02b11e7f06558c251afbba96227d5b447fd8f"
+checksum = "sha256:5a71dbd252afd73bcf361770449eb5187530f794b6c29abcec3618b485533d53"
 checksum_source = "mise-versions"
-url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.15.0/asc_5.15.0_macOS_amd64"
-url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/651093103"
+url = "https://github.com/rorkai/App-Store-Connect-CLI/releases/download/5.17.1/asc_5.17.1_macOS_amd64"
+url_api = "https://api.github.com/repos/rorkai/App-Store-Connect-CLI/releases/assets/680396096"
 
 [[tools.java]]
 version = "temurin-21.0.13+9.0.LTS"
@@ -120,30 +120,30 @@ url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505550"
 provenance = "github-attestations"
 
 [[tools.tuist]]
-version = "4.215.1"
+version = "4.216.0"
 backend = "aqua:tuist/tuist"
-specifiers = ["4.215.1"]
+specifiers = ["4.216.0"]
 
 [tools.tuist."platforms.linux-arm64"]
-checksum = "sha256:ea06070087ccbb1e5b7d5321d09e16ce9b74402b157898668e5ba3a30f5f8eeb"
+checksum = "sha256:bfb8cf9cb4348191e94431cea8b32c45597b8f1ec61c230ae94048ff402d724b"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.215.1/tuist-linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/723326892"
+url = "https://github.com/tuist/tuist/releases/download/4.216.0/tuist-linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/726532572"
 
 [tools.tuist."platforms.linux-x64"]
-checksum = "sha256:7bae5d42ea771e6e9d6a028906e538b895f165b8078447a0dfe7c351ea3638be"
+checksum = "sha256:0a4e56863fef413977a92d3000b09ca4f0b3ac07e80f8a79d2b82516f15ea016"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.215.1/tuist-linux-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/723326894"
+url = "https://github.com/tuist/tuist/releases/download/4.216.0/tuist-linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/726532592"
 
 [tools.tuist."platforms.macos-arm64"]
-checksum = "sha256:4742a647ba53f68b0c932f249b34492406f6f0caa4144359f216e14abf626696"
+checksum = "sha256:eef9b9b0c5722052cc54ec6e114bd557cfcf8f695e483fb39cb80d53959354fc"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.215.1/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/723326895"
+url = "https://github.com/tuist/tuist/releases/download/4.216.0/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/726532577"
 
 [tools.tuist."platforms.macos-x64"]
-checksum = "sha256:4742a647ba53f68b0c932f249b34492406f6f0caa4144359f216e14abf626696"
+checksum = "sha256:eef9b9b0c5722052cc54ec6e114bd557cfcf8f695e483fb39cb80d53959354fc"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.215.1/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/723326895"
+url = "https://github.com/tuist/tuist/releases/download/4.216.0/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/726532577"
