@@ -35,13 +35,14 @@ struct FilesBrowserView: View {
   @State private var appliedNavigationRequest: UUID?
   @State private var path: [PutioFolderRoute] = []
   @State private var didRestoreNavigation = false
-  @State private var pins: PutioPinnedFilesModel
+  private let pins: PutioPinnedFilesModel
   @State private var pinToast: PutioToast?
 
   init(
     runtime: PutioRuntime,
     trashEnabled: Bool,
     accountID: Int,
+    pins: PutioPinnedFilesModel,
     tracksWatched: Bool = false,
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
@@ -66,9 +67,7 @@ struct FilesBrowserView: View {
       try await runtime.continueFiles(cursor: cursor)
     }
     actions = PutioFileActions(runtime: runtime)
-    _pins = State(
-      initialValue: PutioPinnedFilesModel(
-        actions: PutioPinnedFilesActions(runtime: runtime), rootName: PutioFolderRoute.root.title))
+    self.pins = pins
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -121,7 +120,6 @@ struct FilesBrowserView: View {
       PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
     )
     .putioToast($pinToast)
-    .task { await pins.load() }
     .onChange(of: pins.editFailure) { _, failure in
       guard failure != nil else { return }
       pins.clearEditFailure()

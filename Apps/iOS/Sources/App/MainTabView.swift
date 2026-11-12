@@ -41,9 +41,15 @@ struct MainTabView: View {
           onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() })
       })
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
+    _pins = State(
+      initialValue: PutioPinnedFilesModel(
+        actions: PutioPinnedFilesActions(runtime: runtime), rootName: PutioFolderRoute.root.title))
   }
 
-  private enum SelectedTab: Hashable { case files, downloads, history, account, search }
+  private enum SelectedTab: Hashable {
+    case files, downloads, history, account, search
+    case pin(PutioFileID)
+  }
   @State private var selectedTab: SelectedTab = .files
   @State private var filesNavigation: PutioFilesNavigationRequest?
   @State private var accountNavigationRevision: UInt64 = 0
@@ -68,6 +74,7 @@ struct MainTabView: View {
   @State private var offlineQueueHolder: PutioOfflineQueueHolder
   private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
   @State private var appConfig: PutioAppConfigModel
+  @State private var pins: PutioPinnedFilesModel
   @State private var analyticsPrompt: PutioProductAnalyticsPromptModel?
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
@@ -78,7 +85,7 @@ struct MainTabView: View {
   }
 
   var body: some View {
-    TabView(selection: $selectedTab) {
+    TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
           .putioToast(shellToast)
@@ -165,6 +172,25 @@ struct MainTabView: View {
         )
         .putioToast(shellToast)
       }
+      if !pins.sectionItems.isEmpty {
+        TabSection {
+          ForEach(pins.sectionItems) { pin in
+            Tab(value: SelectedTab.pin(pin.id)) {
+              EmptyView()
+            } label: {
+              Label {
+                Text(pin.item.name)
+              } icon: {
+                Image(putioIcon: pinIcon(pin))
+              }
+            }
+            .defaultVisibility(.hidden, for: .tabBar)
+            .accessibilityIdentifier("shell.pinned.item.\(pin.id.rawValue)")
+          }
+        } header: {
+          Text("Pinned")
+        }
+      }
     }
     .tabViewStyle(.sidebarAdaptable)
     .defaultAdaptableTabBarPlacement(.tabBar)
@@ -174,6 +200,7 @@ struct MainTabView: View {
     .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .task { await pins.load() }
     .task {
       externalPlayback.refreshInstallation()
       await appConfig.loadIfNeeded()
@@ -361,6 +388,39 @@ struct MainTabView: View {
         opensLaunchLink: deepLinks.hasReceivedLink)
     else { return }
     analyticsPrompt = PutioProductAnalyticsPromptModel(actions: .init(runtime: runtime))
+  }
+
+  private var tabSelection: Binding<SelectedTab> {
+    Binding(
+      get: { selectedTab },
+      set: { tab in
+        guard case .pin(let id) = tab else {
+          selectedTab = tab
+          return
+        }
+        if let pin = pins.sectionItems.first(where: { $0.id == id }) { openPin(pin) }
+      })
+  }
+
+  private func pinIcon(_ pin: PutioPinnedFile) -> PutioIcon {
+    PutioFileRowModel(
+      name: pin.item.name, kind: PutioBrowserItemPresentation.rowKind(for: pin.item.kind)
+    ).icon
+  }
+
+  private func openPin(_ pin: PutioPinnedFile) {
+    let item = pin.item
+    selectedTab = .files
+    if item.kind == .folder {
+      filesNavigation = PutioFilesNavigationRequest(
+        path: [PutioFolderRoute(id: item.id, title: item.name)])
+      return
+    }
+    let parent = pin.location.flatMap { title in
+      item.parentID == .root ? nil : PutioFolderRoute(id: item.parentID, title: title)
+    }
+    filesNavigation = PutioFilesNavigationRequest(path: parent.map { [$0] } ?? [])
+    selectFile(PutioFileRoute(item: item))
   }
 
   private func selectFile(_ route: PutioFileRoute, in source: PutioPreviewSource? = nil) {
@@ -590,6 +650,7 @@ struct MainTabView: View {
       runtime: runtime,
       trashEnabled: account.trashEnabled,
       accountID: account.id,
+      pins: pins,
       tracksWatched: account.rememberVideoTime,
       onFileSelected: { route in selectFile(route) },
       onExternalPlayback: vlcAction,

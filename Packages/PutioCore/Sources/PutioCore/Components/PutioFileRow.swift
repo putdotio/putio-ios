@@ -47,7 +47,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
     return bytes.formatted(ByteCountFormatStyle(style: .file, locale: locale))
   }
 
-  var icon: PutioIcon {
+  public var icon: PutioIcon {
     #if os(tvOS)
       switch kind {
       case .folder: .folderFill
