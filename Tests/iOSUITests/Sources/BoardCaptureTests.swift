@@ -162,6 +162,29 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-13-landscape-image")
   }
 
+  func testPreviewDocument() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.413")
+    XCTAssertTrue(row.exists, "the document row never appeared")
+    row.tap()
+    XCTAssertTrue(
+      app.staticTexts["put.io harness page 1"].appears(within: 10), "the document never loaded")
+    let pill = element("preview.page")
+    XCTAssertTrue(pill.appears(within: 5), "the document has no page pill")
+    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+    var drags = 0
+    while pill.label != "Page 2 of 12", drags < 12 {
+      start.press(forDuration: 0.05, thenDragTo: end)
+      drags += 1
+    }
+    XCTAssertEqual(pill.label, "Page 2 of 12", "the document did not reach page 2")
+    try captureBoard("rd-ios-pv-03-pdf")
+  }
+
   private func openPosterPreview() {
     app.launchArguments.append("--putio-harness-previews")
     app.launch()

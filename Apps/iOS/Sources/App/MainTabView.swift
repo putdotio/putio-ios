@@ -462,6 +462,8 @@ struct MainTabView: View {
       }
       switch source.kind {
       case .image: return baseURL.appending(path: "runtime-proof-image.png")
+      case .pdf where source.id.rawValue == HarnessSeededAPI.corruptDocumentFileID:
+        return baseURL.appending(path: "runtime-proof-image.png")
       case .pdf: return baseURL.appending(path: "runtime-proof-document.pdf")
       default: return nil
       }

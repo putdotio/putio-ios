@@ -596,6 +596,7 @@ enum BoardCaptureContract {
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
+      BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
@@ -831,6 +832,7 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
+        "runtime-preview-document-middle", "runtime-preview-document-landscape",
         "runtime-preview-cannot-show", "runtime-vlc-missing",
       ],
       timeAllowance: 180),

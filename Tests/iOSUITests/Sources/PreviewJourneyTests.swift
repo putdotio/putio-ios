@@ -90,14 +90,17 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
-    // PDF renders through PDFKit with the page count exposed to accessibility.
     let document = element("files.item.413")
     XCTAssertTrue(document.appears(within: 5))
     XCTAssertEqual(document.value as? String, "Document")
     document.tap()
     XCTAssertTrue(element("preview.document").appears(within: 10))
     XCTAssertTrue(app.staticTexts["put.io harness page 1"].appears(within: 10))
+    let pill = element("preview.page")
+    XCTAssertTrue(pill.appears(within: 5), "a twelve-page document has no page pill")
+    XCTAssertEqual(pill.label, "Page 1 of 12")
     screenshot("runtime-preview-document")
+    assertDocumentScrollsAndZooms(pill)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
 
@@ -108,6 +111,8 @@ final class PreviewJourneyTests: XCTestCase {
       screenshot: "runtime-preview-cannot-show")
     assertCannotShow(rowID: 430, title: "Harness Panorama.png", rowValue: "Image")
     XCTAssertEqual(requests.value as? String, loadedRequests)
+    assertCannotShow(rowID: 431, title: "Harness Scan.pdf", rowValue: "Document")
+    XCTAssertEqual(requests.value as? String, (loadedRequests ?? "") + ",431:loaded")
     var swipes = 0
     while !element("files.item.412").isHittable, swipes < 3 {
       app.swipeDown()
@@ -242,6 +247,57 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(back.isHittable)
   }
 
+  private func assertDocumentScrollsAndZooms(_ pill: XCUIElement) {
+    let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+    let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+    var drags = 0
+    while pill.label == "Page 1 of 12", drags < 10 {
+      start.press(forDuration: 0.05, thenDragTo: end)
+      drags += 1
+    }
+    let middle = (2...11).map { "Page \($0) of 12" }
+    XCTAssertTrue(
+      waitForLabel(pill, in: middle), "scrolling did not move the pill: \(pill.label)")
+    let number = pill.label.split(separator: " ")[1]
+    let page = app.staticTexts["put.io harness page \(number)"]
+    let window = app.windows.firstMatch.frame
+    let bar = app.navigationBars.firstMatch.frame
+    XCTAssertTrue(
+      page.exists && page.frame.minY >= bar.maxY && page.frame.maxY <= window.maxY,
+      "page \(number) is not on screen: \(page.frame)")
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    screenshot("runtime-preview-document-middle")
+
+    XCUIDevice.shared.orientation = .landscapeLeft
+    XCTAssertTrue(
+      waitForFrame(pill) { _ in app.windows.firstMatch.frame.width > window.width },
+      "the document did not rotate")
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    XCTAssertTrue(pill.exists, "the landscape document has no page pill")
+    screenshot("runtime-preview-document-landscape")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(
+      waitForFrame(pill) { _ in app.windows.firstMatch.frame.width == window.width },
+      "the document did not rotate back")
+
+    let fitted = page.frame
+    element("preview.document").pinch(withScale: 2.5, velocity: 2)
+    XCTAssertTrue(
+      waitForFrame(page) { $0.width > fitted.width * 1.5 },
+      "pinch did not zoom the page: \(fitted) -> \(page.frame)")
+  }
+
+  private func waitForLabel(
+    _ element: XCUIElement, in labels: [String], timeout: TimeInterval = 5
+  ) -> Bool {
+    let deadline = Date.now.addingTimeInterval(timeout)
+    while Date.now < deadline {
+      if labels.contains(element.label) { return true }
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    return labels.contains(element.label)
+  }
+
   private func waitForFit(_ image: XCUIElement) -> Bool {
     waitForFrame(image) { frame in
       let window = app.windows.firstMatch.frame
@@ -309,6 +365,12 @@ final class PreviewJourneyTests: XCTestCase {
   private func openInVLC(fileID: Int) {
     let row = element("files.item.\(fileID)")
     XCTAssertTrue(row.appears(within: 5))
+    let bar = app.navigationBars.firstMatch
+    var swipes = 0
+    while row.frame.minY < bar.frame.maxY, swipes < 3 {
+      app.swipeDown()
+      swipes += 1
+    }
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]
     XCTAssertTrue(action.appears(within: 5), "Open in VLC never appeared")
