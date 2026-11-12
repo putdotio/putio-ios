@@ -418,7 +418,8 @@ struct MainTabView: View {
     }
   }
 
-  /// Previews download the whole file; the tokened URL never leaves this call.
+  /// Image and PDF previews download the whole file and text previews only its
+  /// start; the tokened URL never leaves this call.
   /// A rejected token on the raw GET is re-checked through the runtime, which
   /// signs the account out when the session really expired.
   private func downloadPreview(_ route: PutioPreviewRoute) async throws -> Data {
