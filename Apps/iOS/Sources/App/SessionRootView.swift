@@ -19,7 +19,9 @@ struct SessionRootView: View {
     Group {
       switch runtime.session.state {
       case .unknown:
-        SessionProgressScreen(title: String(localized: "Restoring your session"))
+        SessionProgressScreen(
+          title: runtime.session.isSignOutCleanupPending
+            ? String(localized: "Signing out") : String(localized: "Restoring your session"))
       case .signingOut:
         SessionProgressScreen(title: String(localized: "Signing out"))
       case .signedOut, .authenticating:
