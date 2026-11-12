@@ -2152,6 +2152,17 @@
         }
       }
     },
+    "in %@" : {
+      "comment" : "ios-only: Android pin rows show no location",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in %@"
+          }
+        }
+      }
+    },
     "Install VLC for iOS from the App Store to stream this file there." : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
       "localizations" : {
@@ -3243,6 +3254,28 @@
         }
       }
     },
+    "Pin" : {
+      "comment" : "ios-only: Android's mobile_files_pin is newer than the Android snapshot",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin"
+          }
+        }
+      }
+    },
+    "Pinned" : {
+      "comment" : "ios-only: Android's mobile_files_pinned is newer than the Android snapshot",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pinned"
+          }
+        }
+      }
+    },
     "Play" : {
       "comment" : "android: mobile_now_playing_play",
       "localizations" : {
@@ -3562,6 +3595,17 @@
         }
       }
     },
+    "See all" : {
+      "comment" : "ios-only: board wording; Android's pinned list expands in place with Show all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See all"
+          }
+        }
+      }
+    },
     "Sort by" : {
       "comment" : "android: mobile_files_sort_by",
       "localizations" : {
@@ -3624,6 +3668,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
+          }
+        }
+      }
+    },
+    "Unpin" : {
+      "comment" : "ios-only: Android's mobile_files_unpin is newer than the Android snapshot",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpin"
           }
         }
       }

@@ -93,6 +93,8 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case streamingMethod = "streaming_method"
   /// One flat key, dot included, as the App Store app writes it.
   case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
+  /// File ids, newest pin first, as the Android apps write them.
+  case pinnedFiles = "pinned_files"
 }
 
 /// This app's view of the config document. Missing or unknown values decode

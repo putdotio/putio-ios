@@ -6,6 +6,8 @@ public enum PutioFileMenuRow: String, Equatable, Sendable {
   case openInVLC
   case share
   case select
+  case pin
+  case unpin
   case markWatched
   case markUnwatched
   case rename
@@ -20,16 +22,19 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var vlcInstalled: Bool
     public var tracksWatched: Bool
     public var canShare: Bool
+    /// Whether the item is pinned; `nil` leaves Pin and Unpin out.
+    public var pinned: Bool?
 
     public init(
       canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
-      canShare: Bool = false
+      canShare: Bool = false, pinned: Bool? = nil
     ) {
       self.canEdit = canEdit
       self.canDownload = canDownload
       self.vlcInstalled = vlcInstalled
       self.tracksWatched = tracksWatched
       self.canShare = canShare
+      self.pinned = pinned
     }
   }
 
@@ -51,8 +56,10 @@ public struct PutioFileMenu: Equatable, Sendable {
     var organize: [PutioFileMenuRow] = []
     var edit: [PutioFileMenuRow] = []
     var destructive: [PutioFileMenuRow] = []
-    if capabilities.canEdit, !item.isShared {
-      organize.append(.select)
+    let editable = capabilities.canEdit && !item.isShared
+    if editable { organize.append(.select) }
+    if let pinned = capabilities.pinned { organize.append(pinned ? .unpin : .pin) }
+    if editable {
       if capabilities.tracksWatched, item.kind == .video {
         organize.append(item.isWatched ? .markUnwatched : .markWatched)
       }
@@ -60,6 +67,15 @@ public struct PutioFileMenu: Equatable, Sendable {
       destructive = [.trash]
     }
     sections = [playback, organize, edit, destructive].filter { !$0.isEmpty }
+  }
+
+  private init(sections: [[PutioFileMenuRow]]) {
+    self.sections = sections
+  }
+
+  /// The long-press menu of a row in the Pinned section.
+  public static func pinnedRow(item: PutioFileItem, canEdit: Bool) -> PutioFileMenu {
+    PutioFileMenu(sections: canEdit && !item.isShared ? [[.unpin], [.move]] : [[.unpin]])
   }
 
   public var trailingSwipe: [PutioFileMenuRow] {

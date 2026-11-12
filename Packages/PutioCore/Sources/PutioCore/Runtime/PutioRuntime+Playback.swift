@@ -97,7 +97,7 @@ extension PutioRuntime {
     try await setAppConfigValue(.productAnalyticsPromptAnswered, true)
   }
 
-  private func setAppConfigValue<Value: Encodable & Sendable>(
+  func setAppConfigValue<Value: Encodable & Sendable>(
     _ key: PutioAppConfigKey, _ value: Value
   ) async throws {
     let response = try await performAuthenticatedOperation(commits: true) {

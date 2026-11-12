@@ -28,7 +28,10 @@ struct PutioFolderScreen: View {
   @State private var trashingIDs: Set<PutioFileID> = []
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var lastKnownFolderName: String?
+  @State private var pinMoveRequest: PutioFileItemActionRequest?
+  @State private var pinItemActions: PutioFileItemActionModel?
   @Environment(\.putioDefaultFolderSort) private var defaultSort
+  @Environment(\.putioPinnedFiles) private var pinned
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.putioFileShare) private var fileShare
   @State private var share = PutioFileShareModel()
@@ -85,6 +88,10 @@ struct PutioFolderScreen: View {
     )
     _refreshRegistration = State(
       initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
+    _pinItemActions = State(
+      initialValue: route.id == .root
+        ? actions.map { PutioFileItemActionModel(actions: $0, refreshRequests: refreshRequests) }
+        : nil)
     self.relativeDateReference = relativeDateReference
     self.locale = locale
     self.actions = actions
@@ -194,6 +201,12 @@ struct PutioFolderScreen: View {
       preparingToast = nil
     }
     .onDisappear { share.leave() }
+    .modifier(
+      PutioPinnedMoveHost(
+        request: $pinMoveRequest, itemActions: pinItemActions, actions: actions, load: load,
+        continueLoad: continueLoad, trashEnabled: trashEnabled,
+        refreshRequests: refreshRequests, pins: pinnedSectionContext?.model)
+    )
     .overlay {
       if let progress = model.bulkProgress {
         ProgressView(
@@ -248,6 +261,7 @@ struct PutioFolderScreen: View {
       let refreshed = await model.refreshWhenIdle()
       guard refreshed, !Task.isCancelled else { return }
       refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
+      await pinnedSectionContext?.model.load()
     }
     .onChange(of: model.state, initial: true) { _, state in
       if case .loaded(let contents) = state,
@@ -258,6 +272,10 @@ struct PutioFolderScreen: View {
       guard !reportedLoaded, case .loaded = state else { return }
       reportedLoaded = true
       onLoaded()
+    }
+    .onChange(of: fileActionPending) { _, pending in
+      guard !pending, let pinnedSectionContext else { return }
+      Task { await pinnedSectionContext.model.load() }
     }
     .onChange(of: isEditing) { _, editing in
       if editing { share.leave() }
@@ -326,6 +344,7 @@ struct PutioFolderScreen: View {
           .selectionDisabled()
       }
       listTop(contents)
+      pinnedSection
       let items = contents.items.filter { !trashingIDs.contains($0.id) }
       let prefetchIDs = contents.hasMore ? Set(items.suffix(Self.prefetchDistance).map(\.id)) : []
       ForEach(items) { item in
@@ -360,8 +379,25 @@ struct PutioFolderScreen: View {
     .listStyle(.plain)
     .refreshable {
       _ = await model.refresh()
+      await pinnedSectionContext?.model.load()
     }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+  }
+
+  private var pinnedSectionContext: PutioPinnedFilesContext? {
+    route.id == .root ? pinned : nil
+  }
+
+  @ViewBuilder
+  private var pinnedSection: some View {
+    if let pinnedSectionContext, !isEditing {
+      PutioPinnedSection(
+        context: pinnedSectionContext,
+        canEdit: model.supportsActions,
+        isDisabled: navigationLocked || pinItemActions?.canStartAction == false,
+        onOpen: onFileSelected,
+        onMove: { pinMoveRequest = .move($0) })
+    }
   }
 
   private func hasHeader(_ contents: PutioFolderContents) -> Bool {
@@ -484,7 +520,8 @@ struct PutioFolderScreen: View {
         canDownload: onDownload != nil,
         vlcInstalled: onExternalPlayback != nil,
         tracksWatched: tracksWatched,
-        canShare: fileShare != nil),
+        canShare: fileShare != nil,
+        pinned: pinned.map { $0.model.isPinned(item.id) }),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
     let row = content.frame(maxWidth: .infinity, alignment: .leading)
@@ -539,6 +576,16 @@ struct PutioFolderScreen: View {
         selection.begin()
         selection.toggle(item.id)
       }
+    case .pin, .unpin:
+      let pins = pinned?.model
+      let location = folderTitle
+      return row == .pin
+        ? PutioItemAction(id: "pin", title: String(localized: "Pin"), icon: .pushPin) {
+          Task { await pins?.pin(item, in: location) }
+        }
+        : PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
+          Task { await pins?.unpin(item) }
+        }
     case .markWatched, .markUnwatched:
       let watched = row == .markWatched
       return PutioItemAction(
