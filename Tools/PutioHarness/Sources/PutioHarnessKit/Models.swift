@@ -1056,6 +1056,10 @@ enum BrowserJourneyContract {
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
       attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
     JourneyPreflight(
+      "resume-setting",
+      "PlaybackPreferencesJourneyTests/testResumeOffAsksFirstAndSavedVideosStartAtZeroInPortrait",
+      attachmentNames: ["runtime-resume-off-confirm"], timeAllowance: 180),
+    JourneyPreflight(
       "subtitles",
       "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
