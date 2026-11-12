@@ -108,13 +108,14 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     attachment.name = "runtime-resume-off-confirm"
     attachment.lifetime = .keepAlways
     add(attachment)
-    alert.buttons["Cancel"].tap()
+    XCTAssertEqual(alert.buttons["confirm-alert.confirm"].label, "Turn off")
+    alert.buttons["Cancel"].firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5))
     assertToggle(resume, value: "1")
 
     tapToggle(resume)
     XCTAssertTrue(alert.appears(within: 5))
-    alert.buttons["Turn off"].tap()
+    alert.buttons["confirm-alert.confirm"].tap()
     let toast = app.staticTexts["Couldn’t save this setting"]
     XCTAssertTrue(toast.appears(within: 10))
     assertToggle(resume, value: "1")
@@ -122,7 +123,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
 
     tapToggle(resume)
     XCTAssertTrue(alert.appears(within: 5))
-    alert.buttons["Turn off"].tap()
+    alert.buttons["confirm-alert.confirm"].tap()
     assertToggle(resume, value: "0")
 
     let rotate = app.switches["playback-settings.auto-rotate"]
