@@ -24,6 +24,10 @@ images and documents, and opens put.io links into the same screens.
   retry, and trashes with batch retry.
 - `trash-disabled` deletes permanently, with copy that says so, when the account
   has Trash off.
+- `trash-undo` moves to Trash with Undo, by menu and swipe, and rolls back a
+  failed move.
+- `trash-limit` asks before a permanent delete when Trash refuses a folder, and
+  disables Trash while the setting is unconfirmed.
 - `trash` restores, retries, deletes, and empties Trash.
 - `reconcile` updates other tabs after an open folder is renamed or deleted.
 - `previews` shows images and PDFs, reports unsupported files, and hands video
@@ -72,8 +76,14 @@ Preconditions:
 - **Move sheet.** Run `--only move-sheet`. Moving `Blue.Lights.S04E01.en.srt`
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
-- **Trash off.** Run `--only trash-disabled`. The context menu says Delete, and
-  the confirmation says the item cannot be restored.
+- **Trash off.** Run `--only trash-disabled`. The swipe and menu say Delete
+  permanently, and the alert says Trash is off.
+- **Trash and Undo.** Run `--only trash-undo`. The first Trash move of
+  `S04E04` (444) fails. Screenshots: `runtime-trash-undo`, `runtime-trash-failed`.
+- **Trash limit and unknown setting.** Run `--only trash-limit`.
+  `--putio-harness-trash-limit` refuses Harness Folder (410) for Trash;
+  `--putio-harness-unconfirmed-settings` fails account loads after a settings
+  save. Screenshots: `runtime-trash-limit`, `runtime-trash-unknown`.
 - **Trash.** Run `--only trash-management`. Screenshots:
   `runtime-trash-refresh-error`, `runtime-trash-loaded`, `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new

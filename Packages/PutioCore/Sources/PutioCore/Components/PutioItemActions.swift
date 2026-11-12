@@ -15,6 +15,8 @@ public struct PutioItemAction: Identifiable, Sendable {
   public let icon: PutioIcon
   public let role: Role
   public let isDisabled: Bool
+  public let subtitle: String?
+  public let asksFirst: Bool
   let perform: @MainActor @Sendable () -> Void
 
   public init(
@@ -23,6 +25,8 @@ public struct PutioItemAction: Identifiable, Sendable {
     icon: PutioIcon,
     role: Role = .standard,
     isDisabled: Bool = false,
+    subtitle: String? = nil,
+    asksFirst: Bool = false,
     perform: @escaping @MainActor @Sendable () -> Void
   ) {
     self.id = id
@@ -30,6 +34,8 @@ public struct PutioItemAction: Identifiable, Sendable {
     self.icon = icon
     self.role = role
     self.isDisabled = isDisabled
+    self.subtitle = subtitle
+    self.asksFirst = asksFirst
     self.perform = perform
   }
 }
@@ -132,10 +138,16 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     let action: PutioItemAction
 
     var body: some View {
-      Label {
+      if let subtitle = action.subtitle {
         Text(action.title)
-      } icon: {
+        Text(subtitle)
         Image(putioIcon: action.icon)
+      } else {
+        Label {
+          Text(action.title)
+        } icon: {
+          Image(putioIcon: action.icon)
+        }
       }
     }
   }
@@ -193,11 +205,15 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     }
 
     private func swipeButton(_ action: PutioItemAction) -> some View {
-      Button(role: action.role == .destructive ? .destructive : nil) {
+      Button(role: action.role == .destructive && !action.asksFirst ? .destructive : nil) {
         action.perform()
       } label: {
-        PutioItemActionLabel(action: action)
-          .labelStyle(.iconOnly)
+        Label {
+          Text(action.title)
+        } icon: {
+          Image(putioIcon: action.icon)
+        }
+        .labelStyle(.iconOnly)
       }
       .disabled(action.isDisabled)
       .tint(

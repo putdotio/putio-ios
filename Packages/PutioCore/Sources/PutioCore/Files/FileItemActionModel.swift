@@ -45,11 +45,16 @@ public final class PutioFileItemActionModel {
     }
   }
 
-  public func delete(_ item: PutioFileItem) async {
+  public func delete(_ item: PutioFileItem, permanently: Bool = false) async {
     let settled: PutioFileActionOutcome? =
       canDelete
-      ? await run(.delete(fileID: item.id, name: item.name)) { [actions] in
-        try await actions.deleteFile(item.id)
+      ? await run(.delete(fileID: item.id, name: item.name, permanently: permanently)) {
+        [actions] in
+        if permanently {
+          try await actions.deleteFilePermanently(item.id)
+        } else {
+          try await actions.deleteFile(item.id)
+        }
         // Hidden before the refresh this delete requests can reload results.
         self.hiddenIDs.insert(item.id)
       } : nil
@@ -116,8 +121,8 @@ public final class PutioFileItemActionModel {
 
   private func requestRefreshes(after action: PutioFileAction) {
     switch action {
-    case .delete:
-      // A deleted folder can contain any mounted folder.
+    case .delete, .restore:
+      // A deleted or restored folder can contain any mounted folder.
       refreshRequests.requestAllLoadedFolders()
     case .rename(let fileID, _, _):
       refreshRequests.requestAllLoadedFolders()

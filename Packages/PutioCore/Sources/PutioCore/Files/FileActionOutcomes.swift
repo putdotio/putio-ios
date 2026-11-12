@@ -4,7 +4,7 @@ public enum PutioFileAction: Equatable, Sendable {
   case createFolder(name: String)
   case sort(folderID: PutioFileID, sort: PutioFolderSort)
   case rename(fileID: PutioFileID, oldName: String, newName: String)
-  case delete(fileID: PutioFileID, name: String)
+  case delete(fileID: PutioFileID, name: String, permanently: Bool = false)
   case move(
     fileID: PutioFileID,
     name: String,
@@ -13,16 +13,20 @@ public enum PutioFileAction: Equatable, Sendable {
     destinationName: String
   )
   case setWatched(fileID: PutioFileID, parentID: PutioFileID, name: String, watched: Bool)
+  case restore(fileID: PutioFileID, name: String)
 }
 
 /// put.io refused a move because the destination already holds an item with
 /// the moved item's name.
 public struct PutioMoveNameTaken: Error, Equatable, Sendable {}
 
+public struct PutioTrashChildrenLimit: Error, Equatable, Sendable {}
+
 public struct PutioFileActionFailure: Equatable, Sendable {
   public let title: String
   public let message: String
   public let isNameTaken: Bool
+  public let isTrashLimit: Bool
 
   init?(action: PutioFileAction, error: Error) {
     guard let browserFailure = PutioBrowserErrorPresentation(error: error) else {
@@ -41,9 +45,12 @@ public struct PutioFileActionFailure: Equatable, Sendable {
       title = String(localized: "Could not change sorting", bundle: .module)
     case .setWatched:
       title = String(localized: "Could not update watch status", bundle: .module)
+    case .restore:
+      title = String(localized: "Could not restore item", bundle: .module)
     }
     message = browserFailure.message
     isNameTaken = error is PutioMoveNameTaken
+    isTrashLimit = error is PutioTrashChildrenLimit
   }
 }
 

@@ -1236,6 +1236,17 @@
         }
       }
     },
+    "Delete permanently" : {
+      "comment" : "android: mobile_files_delete_permanently",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete permanently"
+          }
+        }
+      }
+    },
     "Delete Permanently" : {
       "comment" : "android: mobile_trash_delete | differs: iOS uses title case",
       "localizations" : {
@@ -2459,6 +2470,17 @@
         }
       }
     },
+    "Move to trash" : {
+      "comment" : "android: mobile_files_trash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to trash"
+          }
+        }
+      }
+    },
     "Moved %lld items." : {
       "comment" : "ios-only: no Android string for the iOS file browser",
       "localizations" : {
@@ -2478,6 +2500,17 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Moved to trash" : {
+      "comment" : "android: mobile_files_trash_done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved to trash"
           }
         }
       }
@@ -4429,6 +4462,17 @@
         }
       }
     },
+    "This folder contains too many files. Delete it permanently?" : {
+      "comment" : "android: mobile_files_trash_limit_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder contains too many files. Delete it permanently?"
+          }
+        }
+      }
+    },
     "This folder is empty" : {
       "comment" : "android: mobile_files_empty_title | differs: iOS board wording",
       "localizations" : {
@@ -4583,6 +4627,17 @@
         }
       }
     },
+    "Trash is off for this account, so this can’t be undone." : {
+      "comment" : "android: mobile_files_delete_permanently_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trash is off for this account, so this can’t be undone."
+          }
+        }
+      }
+    },
     "Try a different file name." : {
       "comment" : "ios-only: no Android string for the iOS search screen",
       "localizations" : {
@@ -4711,6 +4766,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Type, Z to A"
+          }
+        }
+      }
+    },
+    "Undo" : {
+      "comment" : "android: mobile_files_undo",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
           }
         }
       }
@@ -4968,6 +5034,17 @@
         }
       }
     },
+    "Waiting for confirmed trash settings." : {
+      "comment" : "android: mobile_files_delete_settings_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for confirmed trash settings."
+          }
+        }
+      }
+    },
     "Waiting to convert" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -4997,6 +5074,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Watched, resume at %@"
+          }
+        }
+      }
+    },
+    "We couldn’t send these files to trash" : {
+      "comment" : "android: mobile_files_trash_limit_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn’t send these files to trash"
           }
         }
       }

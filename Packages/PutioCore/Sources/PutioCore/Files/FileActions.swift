@@ -14,6 +14,8 @@ typealias PutioFileDelete =
   @MainActor @Sendable (PutioFileID) async throws -> Void
 typealias PutioFileMove =
   @MainActor @Sendable (PutioFileID, PutioFileID) async throws -> Void
+typealias PutioFileRestore =
+  @MainActor @Sendable ([PutioFileID]) async throws -> Void
 typealias PutioFileWatchedUpdate =
   @MainActor @Sendable (PutioFileID, Bool) async throws -> Void
 /// Deletes a batch in one request. A throw fails every item in the batch;
@@ -31,6 +33,8 @@ public struct PutioFileActions: Sendable {
   let createFolder: PutioFolderCreate
   let renameFile: PutioFileRename
   let deleteFile: PutioFileDelete
+  let deleteFilePermanently: PutioFileDelete
+  let restoreFiles: PutioFileRestore
   let moveFile: PutioFileMove
   let deleteFiles: PutioFileBatchDelete
   let moveFiles: PutioFileBatchMove
@@ -62,6 +66,12 @@ public struct PutioFileActions: Sendable {
     deleteFile = { fileID in
       try await runtime.deleteFile(fileID: fileID)
     }
+    deleteFilePermanently = { fileID in
+      try await runtime.deleteFile(fileID: fileID, permanently: true)
+    }
+    restoreFiles = { fileIDs in
+      try await runtime.restoreTrashItems(fileIDs: fileIDs)
+    }
     moveFile = { fileID, parentID in
       try await runtime.moveFile(fileID: fileID, to: parentID)
     }
@@ -87,6 +97,8 @@ public struct PutioFileActions: Sendable {
     createFolder: @escaping PutioFolderCreate,
     renameFile: @escaping PutioFileRename,
     deleteFile: @escaping PutioFileDelete,
+    deleteFilePermanently: PutioFileDelete? = nil,
+    restoreFiles: @escaping PutioFileRestore = { _ in throw PutioRuntimeError.unknown },
     moveFile: @escaping PutioFileMove = { _, _ in throw PutioRuntimeError.unknown },
     deleteFiles: PutioFileBatchDelete? = nil,
     moveFiles: PutioFileBatchMove? = nil,
@@ -100,6 +112,8 @@ public struct PutioFileActions: Sendable {
     self.createFolder = createFolder
     self.renameFile = renameFile
     self.deleteFile = deleteFile
+    self.deleteFilePermanently = deleteFilePermanently ?? deleteFile
+    self.restoreFiles = restoreFiles
     self.moveFile = moveFile
     self.deleteFiles =
       deleteFiles ?? { fileIDs in

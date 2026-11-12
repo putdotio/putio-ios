@@ -56,9 +56,7 @@ struct PutioFileItemActionButtons: View {
     Button(role: .destructive) {
       onRequest(.delete(item))
     } label: {
-      Label(
-        PutioFileDeletionPresentation(trashEnabled: trashEnabled).actionTitle,
-        systemImage: "trash")
+      Label(PutioFileDeletionCopy(trashEnabled: trashEnabled).actionTitle, systemImage: "trash")
     }
     .disabled(isDisabled || !canDelete)
     .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
@@ -78,6 +76,7 @@ struct PutioFileItemActionsHost: ViewModifier {
 
   @State private var toast: PutioToast?
   @State private var renameAlert: PutioTextAlert?
+  @State private var confirmAlert: PutioConfirmAlert?
 
   func body(content: Content) -> some View {
     content
@@ -100,32 +99,25 @@ struct PutioFileItemActionsHost: ViewModifier {
           }
         )
       }
-      .confirmationDialog(
-        deletionTitle,
-        isPresented: deleteConfirmationPresented,
-        titleVisibility: .visible
-      ) {
-        Button(deletion.actionTitle, role: .destructive) {
-          guard case .delete(let item) = request else { return }
-          request = nil
-          perform { await model.delete(item) }
-        }
-        .disabled(!model.canDelete)
-        .accessibilityIdentifier("files.delete-confirm")
-        Button("Cancel", role: .cancel) { request = nil }
-      } message: {
-        Text(deletion.confirmationMessage(itemCount: 1))
-      }
+      .putioConfirmAlert($confirmAlert)
       .onChange(of: request) { _, request in
-        if case .rename(let item) = request {
+        switch request {
+        case .rename(let item):
           self.request = nil
           renameAlert = Self.renameAlert(for: item, model: model)
-          return
+        case .delete(let item):
+          self.request = nil
+          // Trash is recoverable, so only a permanent deletion asks first.
+          if trashEnabled {
+            perform { await model.delete(item) }
+          } else {
+            confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
+              perform { await model.delete(item, permanently: true) }
+            }
+          }
+        case .move, nil:
+          break
         }
-        // Trash is recoverable, so only a permanent deletion asks first.
-        guard trashEnabled, case .delete(let item) = request else { return }
-        self.request = nil
-        perform { await model.delete(item) }
       }
       .putioToast($toast)
   }
@@ -152,11 +144,6 @@ struct PutioFileItemActionsHost: ViewModifier {
     PutioFileDeletionPresentation(trashEnabled: trashEnabled)
   }
 
-  private var deletionTitle: String {
-    guard case .delete(let item) = request else { return deletion.actionTitle }
-    return deletion.confirmationTitle(itemName: item.name)
-  }
-
   private func perform(_ operation: @escaping @MainActor () async -> Void) {
     Task {
       await operation()
@@ -167,8 +154,9 @@ struct PutioFileItemActionsHost: ViewModifier {
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .succeeded(.delete):
-      toast = PutioToast(deletion.singleSuccessTitle)
+    case .succeeded(.delete(_, _, let permanently)):
+      toast = PutioToast(
+        permanently ? PutioFileDeletionCopy.deleted : PutioFileDeletionCopy.trashed)
     case .succeeded(.move):
       toast = PutioToast(PutioMoveCopy.moved(1))
     case .succeeded:
@@ -192,16 +180,6 @@ struct PutioFileItemActionsHost: ViewModifier {
         return item
       },
       set: { if $0 == nil, case .move = request { request = nil } }
-    )
-  }
-
-  private var deleteConfirmationPresented: Binding<Bool> {
-    Binding(
-      get: {
-        guard !trashEnabled, case .delete = request else { return false }
-        return true
-      },
-      set: { if !$0, case .delete = request { request = nil } }
     )
   }
 }

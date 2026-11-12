@@ -593,6 +593,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
       BoardCapture("rd-ios-63-file-menu", .iphone, "testFileMenu"),
       BoardCapture("rd-ios-64-vlc-menu", .iphone, "testVLCMenu"),
+      BoardCapture("rd-ios-10-trashed", .iphone, "testTrashed"),
+      BoardCapture("rd-ios-22-delete-permanently", .iphone, "testDeletePermanently"),
+      BoardCapture("rd-ios-51-trash-off-menu", .iphone, "testTrashOffMenu"),
+      BoardCapture("rd-ios-52-trash-unknown-menu", .iphone, "testTrashUnknownMenu"),
+      BoardCapture("rd-ios-53-trash-limit", .iphone, "testTrashLimit"),
       BoardCapture("rd-ios-19-move", .iphone, "testMove"),
       BoardCapture("rd-ios-35-move-folder", .iphone, "testMoveFolder", screenBase: false),
       BoardCapture("rd-ios-36-move-loading", .iphone, "testMoveLoading", screenBase: false),
@@ -1007,6 +1012,13 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
+    JourneyPreflight(
+      "trash-undo", "FilesBrowserJourneyTests/testTrashUndoSwipeAndFailedTrashKeepRowsInPlace",
+      attachmentNames: ["runtime-trash-undo", "runtime-trash-failed"], timeAllowance: 120),
+    JourneyPreflight(
+      "trash-limit",
+      "FilesBrowserJourneyTests/testTrashLimitAsksBeforeDeletingAndUnknownSettingBlocksTrash",
+      attachmentNames: ["runtime-trash-limit", "runtime-trash-unknown"], timeAllowance: 120),
     JourneyPreflight(
       "trash-management", "FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty",
       attachmentNames: [

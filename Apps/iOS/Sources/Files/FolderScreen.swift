@@ -16,8 +16,8 @@ struct PutioFolderScreen: View {
   @State private var retrySequence: UInt64 = 0
   @State private var reportedLoaded = false
   @State private var nameAlert: PutioTextAlert?
-  @State private var pendingDeletion: PutioFileItem?
-  @State private var pendingBulkDeletion: [PutioFileItem] = []
+  @State private var confirmAlert: PutioConfirmAlert?
+  @State private var queuedUndo: PutioFileItem?
   @State private var pendingMove: MoveSelection?
   @State private var actionRequest: FileActionRequest?
   @State private var startedActionRequest: FileActionRequest?
@@ -190,42 +190,7 @@ struct PutioFolderScreen: View {
         }
       )
     }
-    .confirmationDialog(
-      deleteConfirmationTitle,
-      isPresented: deleteConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button(deleteActionTitle, role: .destructive) {
-        guard let item = pendingDeletion else { return }
-        actionRequest = .delete(item)
-        pendingDeletion = nil
-      }
-      .disabled(!model.canDelete)
-      .accessibilityIdentifier("files.delete-confirm")
-      Button("Cancel", role: .cancel) {
-        pendingDeletion = nil
-      }
-    } message: {
-      Text(deleteConfirmationMessage)
-    }
-    .confirmationDialog(
-      bulkDeleteConfirmationTitle,
-      isPresented: bulkDeleteConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button(deleteActionTitle, role: .destructive) {
-        let items = pendingBulkDeletion
-        pendingBulkDeletion = []
-        actionRequest = .bulkDelete(items)
-      }
-      .disabled(!model.canDelete)
-      .accessibilityIdentifier("files.bulk.remove-confirm")
-      Button("Cancel", role: .cancel) {
-        pendingBulkDeletion = []
-      }
-    } message: {
-      Text(deleteConfirmationMessage)
-    }
+    .putioConfirmAlert($confirmAlert)
     .alert(
       bulkFailureTitle,
       isPresented: bulkFailurePresented,
@@ -524,17 +489,22 @@ struct PutioFolderScreen: View {
     case .trash:
       return PutioItemAction(
         id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,
-        isDisabled: !model.canDelete || actionRequest != nil
+        isDisabled: !model.canDelete || actionRequest != nil,
+        subtitle: model.trashSettingKnown ? nil : PutioFileDeletionCopy.settingUnknown,
+        asksFirst: !trashEnabled
       ) { requestDeletion(of: item) }
     }
   }
 
   private func requestDeletion(of item: PutioFileItem) {
+    guard model.canDelete, actionRequest == nil else { return }
     if trashEnabled {
       trashingIDs.insert(item.id)
-      actionRequest = .delete(item)
+      actionRequest = .delete(item, permanently: false)
     } else {
-      pendingDeletion = item
+      confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
+        startDeletion(.delete(item, permanently: true))
+      }
     }
   }
 
@@ -568,12 +538,14 @@ struct PutioFolderScreen: View {
 
   private var bulkDeleteButton: some View {
     Button(role: .destructive) {
+      let items = selectedItems
+      guard !items.isEmpty else { return }
       if trashEnabled {
-        let items = selectedItems
-        guard !items.isEmpty else { return }
         actionRequest = .bulkDelete(items)
       } else {
-        pendingBulkDeletion = selectedItems
+        confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: items.count) {
+          startDeletion(.bulkDelete(items))
+        }
       }
     } label: {
       Label(deleteActionTitle, systemImage: "trash")
@@ -724,39 +696,8 @@ struct PutioFolderScreen: View {
     retryRequest = nil
   }
 
-  private var deleteConfirmationPresented: Binding<Bool> {
-    Binding(
-      get: { pendingDeletion != nil },
-      set: { isPresented in
-        if !isPresented { pendingDeletion = nil }
-      }
-    )
-  }
-
   private var deleteActionTitle: String {
-    deletionPresentation.actionTitle
-  }
-
-  private var deleteConfirmationTitle: String {
-    guard let item = pendingDeletion else { return deleteActionTitle }
-    return deletionPresentation.confirmationTitle(itemName: item.name)
-  }
-
-  private var deleteConfirmationMessage: String {
-    deletionPresentation.confirmationMessage(itemCount: max(pendingBulkDeletion.count, 1))
-  }
-
-  private var bulkDeleteConfirmationPresented: Binding<Bool> {
-    Binding(
-      get: { !pendingBulkDeletion.isEmpty },
-      set: { isPresented in
-        if !isPresented { pendingBulkDeletion = [] }
-      }
-    )
-  }
-
-  private var bulkDeleteConfirmationTitle: String {
-    deletionPresentation.confirmationTitle(itemCount: pendingBulkDeletion.count)
+    PutioFileDeletionCopy(trashEnabled: trashEnabled).actionTitle
   }
 
   private var deletionPresentation: PutioFileDeletionPresentation {
@@ -862,8 +803,10 @@ struct PutioFolderScreen: View {
       switch request {
       case .sort(let sort):
         await model.setSort(sort)
-      case .delete(let item):
-        await model.delete(item)
+      case .delete(let item, let permanently):
+        await model.delete(item, permanently: permanently)
+      case .restore(let item):
+        await model.restore(item)
       case .setWatched(let item, let watched):
         await model.setWatched(item, watched)
       case .bulkDelete(let items):
@@ -895,26 +838,60 @@ struct PutioFolderScreen: View {
     actionRequest = nil
     startedActionRequest = nil
     selectedIDs.formIntersection(currentItems.map(\.id))
-    presentActionOutcome()
+    if case .delete(let item, _) = request {
+      presentActionOutcome(deleting: item)
+    } else {
+      presentActionOutcome()
+    }
     presentBulkOutcome()
+    if let item = queuedUndo {
+      queuedUndo = nil
+      actionRequest = .restore(item)
+    }
   }
 
-  private func presentActionOutcome() {
+  private func presentActionOutcome(deleting item: PutioFileItem? = nil) {
     guard let outcome = model.actionOutcome else { return }
     actionNotifier.notify(outcome.action)
     switch outcome {
+    case .succeeded(.delete(_, _, let permanently)) where trashEnabled && !permanently:
+      toast = PutioToast(
+        PutioFileDeletionCopy.trashed,
+        action: item.map { item in
+          PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: item) }
+        })
     case .succeeded(let action):
       toast = successToast(for: action)
-    case .failed(let action, let failure):
-      let title: String
-      if case .delete = action {
-        title = deletionPresentation.singleFailureTitle
+    case .failed(.delete(_, _, let permanently), let failure):
+      if failure.isTrashLimit, let item {
+        confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
+          startDeletion(.delete(item, permanently: true))
+        }
       } else {
-        title = failure.title
+        toast = PutioToast(
+          PutioFileDeletionPresentation(trashEnabled: trashEnabled && !permanently)
+            .singleFailureTitle)
       }
-      toast = PutioToast(title)
+    case .failed(_, let failure):
+      toast = PutioToast(failure.title)
     }
     model.clearActionOutcome()
+  }
+
+  private func startDeletion(_ request: FileActionRequest) {
+    guard model.canDelete, actionRequest == nil else {
+      toast = PutioToast(PutioFileDeletionPresentation(trashEnabled: false).singleFailureTitle)
+      return
+    }
+    actionRequest = request
+  }
+
+  private func undoTrash(of item: PutioFileItem) {
+    guard actionRequest == nil else {
+      queuedUndo = item
+      return
+    }
+    actionRequest = .restore(item)
   }
 
   private func presentBulkOutcome() {
@@ -995,7 +972,9 @@ struct PutioFolderScreen: View {
     case .sort:
       PutioToast(String(localized: "Sorting changed"))
     case .delete:
-      PutioToast(deletionPresentation.singleSuccessTitle)
+      PutioToast(PutioFileDeletionCopy.deleted)
+    case .restore:
+      nil
     case .move:
       PutioToast(PutioMoveCopy.moved(1))
     case .setWatched(_, _, _, let watched):
@@ -1017,7 +996,8 @@ struct PutioFolderScreen: View {
 
   private enum FileActionRequest: Equatable {
     case sort(PutioFolderSort)
-    case delete(PutioFileItem)
+    case delete(PutioFileItem, permanently: Bool)
+    case restore(PutioFileItem)
     case setWatched(PutioFileItem, Bool)
     case bulkDelete([PutioFileItem])
     case bulkMove([PutioFileItem], PutioFolderRoute)
@@ -1041,9 +1021,10 @@ private struct PutioFolderActionNotifier {
   let requests: PutioFolderRefreshRequests
 
   func notify(_ action: PutioFileAction) {
-    if case .delete = action {
+    switch action {
+    case .delete, .restore:
       requests.requestAllLoadedFolders(excludingOwner: owner)
-    } else {
+    default:
       requests.request(folderID: folderID, excludingOwner: owner)
     }
     switch action {

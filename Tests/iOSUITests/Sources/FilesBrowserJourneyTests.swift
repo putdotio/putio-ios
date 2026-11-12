@@ -182,7 +182,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let unwatched = element(identifier: "files.item.443")
     XCTAssertEqual(
       itemMenu(for: unwatched),
-      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Move to trash"])
     app.buttons["Mark as watched"].tap()
     XCTAssertTrue(app.staticTexts["Marked as watched"].appears(within: 5), "no watched toast")
     XCTAssertTrue(
@@ -191,7 +191,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let watched = element(identifier: "files.item.442")
     XCTAssertEqual(
       itemMenu(for: watched),
-      ["Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Trash"])
+      ["Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Move to trash"])
     app.buttons["Mark as unwatched"].tap()
     XCTAssertTrue(
       app.staticTexts["Could not update watch status"].appears(within: 5),
@@ -205,7 +205,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValuePrefix(watched, "Not watched"), "the eye stayed after unwatched")
 
     let subtitle = element(identifier: "files.item.445")
-    XCTAssertEqual(itemMenu(for: subtitle), ["Select", "Rename", "Move", "Trash"])
+    XCTAssertEqual(itemMenu(for: subtitle), ["Select", "Rename", "Move", "Move to trash"])
     dismissMenu()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
 
@@ -214,19 +214,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let more = swipeMore(beside: episode)
     XCTAssertTrue(more.appears(within: 5), "the left swipe has no More")
     XCTAssertTrue(app.buttons["Download"].exists, "the left swipe has no Download")
-    XCTAssertTrue(app.buttons["Trash"].exists, "the left swipe has no Trash")
+    XCTAssertTrue(app.buttons["Move to trash"].exists, "the left swipe has no Trash")
     addScreenshot(named: "runtime-item-swipe-left")
     more.tap()
     XCTAssertEqual(
       menuLabels(),
-      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Move to trash"])
     dismissMenu()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
 
     app.navigationBars.buttons["BackButton"].tap()
     let folder = element(identifier: "files.item.440")
     XCTAssertTrue(folder.appears(within: 5))
-    XCTAssertEqual(itemMenu(for: folder), ["Select", "Rename", "Move", "Trash"])
+    XCTAssertEqual(itemMenu(for: folder), ["Select", "Rename", "Move", "Move to trash"])
     addScreenshot(named: "runtime-item-menu-folder")
     app.buttons["Select"].tap()
     XCTAssertTrue(
@@ -248,7 +248,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     openSeasonFolder()
     XCTAssertEqual(
       itemMenu(for: element(identifier: "files.item.444")),
-      ["Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+      [
+        "Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move",
+        "Move to trash",
+      ])
     addScreenshot(named: "runtime-item-menu-vlc")
     dismissMenu()
     let root = element(identifier: "files.screen.0")
@@ -271,7 +274,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private static let itemMenuLabels = [
     "Play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched", "Mark as unwatched",
-    "Rename", "Move", "Trash",
+    "Rename", "Move", "Move to trash",
   ]
 
   private func itemMenu(for row: XCUIElement) -> [String] {
@@ -467,18 +470,28 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let folder = createFolder(named: "Delete Forever", expectedID: 415)
     XCTAssertFalse(app.buttons["files.actions.415"].exists)
-    let delete = openContextMenu(for: folder, actionLabel: "Delete")
-    XCTAssertEqual(delete.label, "Delete")
-    delete.tap()
+    folder.swipeLeft()
+    let swipeDelete = app.buttons["Delete permanently"]
     XCTAssertTrue(
-      app.staticTexts["Delete “Delete Forever” permanently?"].appears(within: 5)
-    )
-    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
-    let confirm = app.buttons["files.delete-confirm"].firstMatch
+      waitUntilHittable(swipeDelete, timeout: 5), "the swipe does not say Delete permanently")
+    swipeDelete.tap()
+    let alert = app.alerts["Delete 1 item permanently?"]
+    XCTAssertTrue(alert.appears(within: 5), "the swipe deleted without asking")
+    alert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertTrue(folder.exists, "Cancel removed the row")
+
+    let delete = openContextMenu(for: folder, actionLabel: "Delete permanently")
+    delete.tap()
+    XCTAssertTrue(alert.appears(within: 5), "the menu deleted without asking")
+    XCTAssertTrue(
+      alert.staticTexts["Trash is off for this account, so this can’t be undone."].exists)
+    let confirm = alert.buttons["confirm-alert.confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
     XCTAssertEqual(confirm.label, "Delete")
     confirm.tap()
     XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
+    XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offered Undo")
     XCTAssertTrue(folder.disappears(within: 5))
 
     app.buttons["Account"].tap()
@@ -491,6 +504,121 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  func testTrashUndoSwipeAndFailedTrashKeepRowsInPlace() {
+    app.launch()
+    openSeasonFolder()
+
+    let header = element(identifier: "files.header.440")
+    let second = element(identifier: "files.item.442")
+    let third = element(identifier: "files.item.443")
+    let fourth = element(identifier: "files.item.444")
+    openContextMenu(for: third, actionLabel: "Move to trash").tap()
+    XCTAssertFalse(app.alerts.firstMatch.exists, "a recoverable Trash move asked to confirm")
+    XCTAssertTrue(third.disappears(within: 5), "the trashed row stayed")
+    XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 5), "no trashed toast")
+    XCTAssertTrue(waitForLabelPrefix(header, "5 items"), "the header still counts the row")
+    let undo = app.buttons["Undo"]
+    XCTAssertTrue(waitUntilHittable(undo, timeout: 5), "the toast offers no Undo")
+    addScreenshot(named: "runtime-trash-undo")
+    undo.tap()
+    XCTAssertTrue(third.appears(within: 5), "Undo did not put the row back")
+    XCTAssertTrue(waitForLabelPrefix(header, "6 items"), "the restore did not reach the server")
+    XCTAssertTrue(waitUntilHittable(third, timeout: 5))
+    XCTAssertLessThan(second.frame.minY, third.frame.minY, "Undo moved the row up")
+    XCTAssertLessThan(third.frame.minY, fourth.frame.minY, "Undo moved the row down")
+
+    let subtitle = element(identifier: "files.item.446")
+    XCTAssertTrue(waitUntilHittable(subtitle, timeout: 5))
+    subtitle.swipeLeft()
+    let swipeTrash = app.buttons["Move to trash"]
+    XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "the swipe offers no Move to trash")
+    swipeTrash.tap()
+    XCTAssertFalse(app.alerts.firstMatch.exists, "a swiped Trash move asked to confirm")
+    XCTAssertTrue(subtitle.disappears(within: 5), "the swiped row stayed")
+    XCTAssertTrue(app.buttons["Undo"].appears(within: 5), "the swipe toast offers no Undo")
+
+    XCTAssertTrue(waitUntilHittable(fourth, timeout: 5))
+    openContextMenu(for: fourth, actionLabel: "Move to trash").tap()
+    XCTAssertTrue(
+      app.staticTexts["Could not move item to Trash"].appears(within: 10),
+      "the failed Trash move was not reported")
+    XCTAssertTrue(fourth.appears(within: 5), "the failed Trash move did not put the row back")
+    XCTAssertTrue(waitForLabelPrefix(header, "5 items"), "the failed row is not counted again")
+    addScreenshot(named: "runtime-trash-failed")
+    signOutToWelcome()
+  }
+
+  func testTrashLimitAsksBeforeDeletingAndUnknownSettingBlocksTrash() {
+    app.launchArguments += ["--putio-harness-trash-limit", "--putio-harness-unconfirmed-settings"]
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    let folder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(folder, timeout: 10))
+    openContextMenu(for: folder, actionLabel: "Move to trash").tap()
+    let limit = app.alerts["We couldn’t send these files to trash"]
+    XCTAssertTrue(limit.appears(within: 10), "the refused Trash move did not ask")
+    XCTAssertTrue(
+      limit.staticTexts["This folder contains too many files. Delete it permanently?"].exists)
+    XCTAssertTrue(folder.exists, "the refused Trash move removed the row")
+    addScreenshot(named: "runtime-trash-limit")
+    limit.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(limit.disappears(within: 5))
+    XCTAssertTrue(waitUntilHittable(folder, timeout: 5), "Cancel removed the row")
+
+    openContextMenu(for: folder, actionLabel: "Move to trash").tap()
+    XCTAssertTrue(limit.appears(within: 10))
+    limit.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 10), "no deleted toast")
+    XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offered Undo")
+    XCTAssertTrue(folder.disappears(within: 5), "the permanently deleted row stayed")
+
+    app.buttons["Account"].tap()
+    let subtitles = app.switches["playback-settings.subtitles"]
+    app.bringIntoView(subtitles)
+    XCTAssertTrue(waitUntilHittable(subtitles, timeout: 10))
+    // Form exposes the full row as the switch accessibility frame.
+    subtitles.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    app.showTabBar()
+    app.buttons["Files"].tap()
+    let document = element(identifier: "files.item.413")
+    XCTAssertTrue(waitUntilHittable(document, timeout: 10))
+    document.press(forDuration: 1)
+    let trash = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Move to trash"))
+      .firstMatch
+    XCTAssertTrue(trash.appears(within: 5), "the menu has no Trash row")
+    XCTAssertFalse(trash.isEnabled, "Trash ran before the setting was confirmed")
+    XCTAssertTrue(
+      trash.label.contains("Waiting for confirmed trash settings.")
+        || app.staticTexts["Waiting for confirmed trash settings."].exists,
+      "the disabled row does not say why")
+    addScreenshot(named: "runtime-trash-unknown")
+    dismissMenu()
+    signOutToWelcome()
+  }
+
+  private func signOutToWelcome() {
+    app.showTabBar()
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  private func waitForLabelPrefix(_ element: XCUIElement, _ prefix: String) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label BEGINSWITH %@", prefix), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
   }
 
   func testTrashManagementRestoreRetryDeleteAndEmpty() {
@@ -707,7 +835,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     // Search results offer the same file actions as folder rows.
     let searchMove = openContextMenu(for: videoResult, actionLabel: "Move")
     XCTAssertTrue(app.buttons["Rename"].exists, "search result menu lacks Rename")
-    XCTAssertTrue(app.buttons["Trash"].exists, "search result menu lacks Trash")
+    XCTAssertTrue(app.buttons["Move to trash"].exists, "search result menu lacks Trash")
     dismissMenu()
     XCTAssertTrue(searchMove.disappears(within: 5))
     videoResult.tap()
@@ -825,7 +953,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     app.buttons["Files"].tap()
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
-    let trash = openContextMenu(for: folder, actionLabel: "Trash")
+    let trash = openContextMenu(for: folder, actionLabel: "Move to trash")
     trash.tap()
     XCTAssertTrue(folder.disappears(within: 10))
 
@@ -1161,17 +1289,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(movedFolderAtRoot.label.components(separatedBy: ", ").first, "Weekend")
 
     movedFolderAtRoot.swipeLeft()
-    let swipeTrash = app.buttons["Trash"]
+    let swipeTrash = app.buttons["Move to trash"]
     XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "trailing swipe did not offer Trash")
     swipeTrash.tap()
     XCTAssertFalse(
-      app.buttons["files.delete-confirm"].exists, "a recoverable Trash move asked to confirm")
+      app.buttons["confirm-alert.confirm"].exists, "a recoverable Trash move asked to confirm")
     XCTAssertTrue(
-      app.staticTexts["Moved to Trash"].appears(within: 5),
+      app.staticTexts["Moved to trash"].appears(within: 5),
       "Trash success was not surfaced"
     )
     XCTAssertTrue(
       movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
+    XCTAssertTrue(
+      app.buttons["Undo"].disappears(within: 10), "the Undo toast never timed out")
 
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
@@ -1280,10 +1410,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
       waitUntilHittable(bulkRemove, timeout: 5),
       "bulk Trash is not hittable: \(bulkRemove.debugDescription)"
     )
-    XCTAssertEqual(bulkRemove.label, "Trash")
+    XCTAssertEqual(bulkRemove.label, "Move to trash")
     bulkRemove.tap()
     XCTAssertFalse(
-      app.buttons["files.bulk.remove-confirm"].exists, "a recoverable bulk Trash asked to confirm")
+      app.buttons["confirm-alert.confirm"].exists, "a recoverable bulk Trash asked to confirm")
     let bulkProgress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(bulkProgress.appears(within: 5))
     XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")

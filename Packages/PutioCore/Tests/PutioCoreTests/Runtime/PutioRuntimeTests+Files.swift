@@ -669,6 +669,32 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testDeleteSkipsTrashOnlyWhenPermanentAndReportsTheTrashLimit() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.deleteFilesRoute)
+
+    try await runtime.deleteFile(fileID: PutioFileID(rawValue: 91))
+    try await runtime.deleteFile(fileID: PutioFileID(rawValue: 92), permanently: true)
+
+    let skipTrash = fixtures.capturedRequests()
+      .filter { $0.url?.path == "/v2/files/delete" }
+      .map { request in
+        request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?.queryItems?
+          .first { $0.name == "skip_trash" }?.value
+      }
+    XCTAssertEqual(skipTrash, [nil, "1"])
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"FileDeleteChildrenLimitError","status_code":400}"#,
+      statusCode: 400, for: Self.deleteFilesRoute)
+    do {
+      try await runtime.deleteFile(fileID: PutioFileID(rawValue: 93))
+      XCTFail("a refused Trash move read as deleted")
+    } catch {
+      XCTAssertTrue(error is PutioTrashChildrenLimit, "unexpected error \(error)")
+    }
+  }
+
   func testMoveFileAuthenticationFailureUsesTheSharedSessionBoundary() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     fixtures.setFixture(

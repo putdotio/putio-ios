@@ -50,8 +50,78 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("files.item.442")
     XCTAssertTrue(row.appears(within: 5), "the watched episode never appeared")
     row.swipeLeft()
-    XCTAssertTrue(app.buttons["Trash"].appears(within: 5), "the swipe showed no Trash")
+    XCTAssertTrue(app.buttons["Move to trash"].appears(within: 5), "the swipe showed no Trash")
     try captureBoard("rd-ios-11-swipe")
+  }
+
+  func testTrashed() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.443")
+    app.buttons["Move to trash"].firstMatch.tap()
+    XCTAssertTrue(app.buttons["Undo"].appears(within: 5), "the trashed toast offers no Undo")
+    XCTAssertTrue(element("files.item.443").disappears(within: 5), "the trashed row stayed")
+    try captureBoard("rd-ios-10-trashed")
+  }
+
+  func testDeletePermanently() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    app.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(
+      app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never asked")
+    try captureBoard("rd-ios-22-delete-permanently")
+  }
+
+  func testTrashOffMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    XCTAssertTrue(app.buttons["Delete permanently"].exists, "the menu does not delete for good")
+    try captureBoard("rd-ios-51-trash-off-menu")
+  }
+
+  func testTrashUnknownMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-unconfirmed-settings")
+    app.launch()
+    reachFilesRoot()
+    let account = tabButton("Account")
+    XCTAssertTrue(account.appears(within: 10), "the Account tab never appeared")
+    account.tap()
+    let subtitles = app.switches["playback-settings.subtitles"]
+    app.bringIntoView(subtitles)
+    XCTAssertTrue(subtitles.appears(within: 10), "Show subtitles never appeared")
+    // Form exposes the full row as the switch accessibility frame.
+    subtitles.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    app.showTabBar()
+    tabButton("Files").tap()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    let trash = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Move to trash"))
+      .firstMatch
+    XCTAssertTrue(trash.exists, "the menu has no Trash row")
+    XCTAssertFalse(trash.isEnabled, "Trash is enabled before the setting is confirmed")
+    try captureBoard("rd-ios-52-trash-unknown-menu")
+  }
+
+  func testTrashLimit() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-limit")
+    app.launch()
+    reachFilesRoot()
+    openItemMenu("files.item.410")
+    app.buttons["Move to trash"].firstMatch.tap()
+    XCTAssertTrue(
+      app.alerts["We couldn’t send these files to trash"].appears(within: 10),
+      "the refused Trash move never asked")
+    try captureBoard("rd-ios-53-trash-limit")
   }
 
   func testFolderLongPress() throws {

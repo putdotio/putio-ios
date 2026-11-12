@@ -1565,6 +1565,87 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
+  func testUndoPutsTheTrashedRowBackInPlaceAndRemovesItIfRefused() async throws {
+    let first = BrowserTestFixtures.item(id: 6)
+    let trashed = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
+    let last = BrowserTestFixtures.item(id: 8)
+    let original = BrowserTestFixtures.contents(items: [first, trashed, last])
+    let afterTrash = BrowserTestFixtures.contents(items: [first, last])
+    let recorder = TrashRecorder()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in recorder.refuseRestore || recorder.restores.isEmpty ? afterTrash : original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in },
+        restoreFiles: { ids in
+          if recorder.refuseRestore { throw PutioRuntimeError.notFound }
+          recorder.restores.append(ids)
+        }
+      ),
+      initialContents: original
+    )
+
+    await model.delete(trashed)
+    try await waitForState(model, .loaded(afterTrash))
+    let restored = await model.restore(trashed)
+
+    XCTAssertTrue(restored)
+    XCTAssertEqual(recorder.restores, [[trashed.id]])
+    guard case .loaded(let contents) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    XCTAssertEqual(contents.items.map(\.id), [first.id, trashed.id, last.id])
+
+    recorder.refuseRestore = true
+    await model.delete(trashed)
+    try await waitForState(model, .loaded(afterTrash))
+    let refused = await model.restore(trashed)
+
+    XCTAssertFalse(refused)
+    XCTAssertEqual(model.state, .loaded(afterTrash))
+    guard case .failed(.restore(let fileID, _), let failure) = model.actionOutcome else {
+      return XCTFail("expected failed restore, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertEqual(fileID, trashed.id)
+    XCTAssertEqual(failure.title, "Could not restore item")
+  }
+
+  func testRefusedTrashMoveRollsBackAsTrashLimitAndPermanentDeleteSkipsTrash() async {
+    let item = BrowserTestFixtures.item(id: 7, name: "Big Folder")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let recorder = TrashRecorder()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in BrowserTestFixtures.contents(items: []) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioTrashChildrenLimit() },
+        deleteFilePermanently: { id in recorder.permanent.append(id) }
+      ),
+      initialContents: original
+    )
+
+    let trashed = await model.delete(item)
+
+    XCTAssertFalse(trashed)
+    XCTAssertEqual(model.state, .loaded(original))
+    guard case .failed(.delete(_, _, false), let failure) = model.actionOutcome else {
+      return XCTFail("expected failed Trash move, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertTrue(failure.isTrashLimit)
+
+    let deleted = await model.delete(item, permanently: true)
+
+    XCTAssertTrue(deleted)
+    XCTAssertEqual(recorder.permanent, [item.id])
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.delete(fileID: item.id, name: "Big Folder", permanently: true)))
+  }
+
   func testMoveUsesTheLatestItemAndOptimisticallyRemovesIt() async throws {
     let mutation = SuspendedFileMutation()
     addTeardownBlock { await mutation.cancelPending() }
@@ -2705,4 +2786,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(action, .sort(folderID: .root, sort: .typeAscending))
     XCTAssertEqual(failure.title, "Could not change sorting")
   }
+}
+
+@MainActor
+private final class TrashRecorder {
+  var restores: [[PutioFileID]] = []
+  var refuseRestore = false
+  var permanent: [PutioFileID] = []
 }
