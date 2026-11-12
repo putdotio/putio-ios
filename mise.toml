@@ -1,9 +1,9 @@
 [tools]
 node = "24.22.2"
 pnpm = "12.18.0"
-tuist = "4.215.1"
+tuist = "4.216.0"
 periphery = "3.8.0"
-"github:rorkai/App-Store-Connect-CLI" = { version = "5.15.0", bin = "asc" }
+"github:rorkai/App-Store-Connect-CLI" = { version = "5.17.1", bin = "asc" }
 
 [task_config]
 includes = ["mise-tasks.toml"]
