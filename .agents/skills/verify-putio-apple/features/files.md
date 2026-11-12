@@ -12,6 +12,9 @@ images and documents, and opens put.io links into the same screens.
   next page on scroll.
 - `search` pages results, retries a failed page, and restores the open folder
   after a relaunch.
+- `row-menus` lists each item kind's long-press rows in order, marks watched
+  and unwatched with a seeded failure, swipes both ways, and shows Open in VLC
+  only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it,
   moves by context menu and swipe, and trashes by swipe.
 - `bulk` selects all, deselects, ends selection, moves with partial-failure
@@ -21,7 +24,7 @@ images and documents, and opens put.io links into the same screens.
 - `trash` restores, retries, deletes, and empties Trash.
 - `reconcile` updates other tabs after an open folder is renamed or deleted.
 - `previews` shows images and PDFs, reports unsupported files, and hands video
-  to VLC.
+  to VLC when it is installed.
 - `deep-links` opens links cold, warm, and signed out.
 - `large-text` keeps long names, selection, and the download picker usable at
   the largest text size.
@@ -30,8 +33,8 @@ images and documents, and opens put.io links into the same screens.
 
 - Files tab: rows open folders and files; the `More` menu (`files.menu`) holds
   Select, New Folder, and sort.
-- Long-press a row for Rename, Move, and Trash. Swipe right for Move, left for
-  Trash.
+- Long-press a row for its menu. Swipe right for Move; left for More,
+  Download, and Trash.
 - Search tab: type a query and submit.
 - Account > Trash for Trash management.
 - A put.io link opened from outside the app.
@@ -52,6 +55,9 @@ Preconditions:
 - **Search.** Run `--only search-restoration`. A failed second page offers
   retry, results append, and a relaunch reopens Harness Folder until sign-out.
   Screenshot: `runtime-search-results`.
+- **Item menus.** Run `--only row-menus`. The first Mark as unwatched on
+  `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
+  `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.
 - **File actions and bulk.** Run `--only file-actions`. The first rename fails
   and rolls back, the retry applies, and bulk Trash fails once, then moves both
   items on retry. Screenshot: `runtime-file-actions`.
@@ -65,8 +71,7 @@ Preconditions:
   `runtime-preview-error`, `runtime-preview-image`,
   `runtime-preview-image-landscape`, `runtime-preview-document`,
   `runtime-preview-document-middle`, `runtime-preview-document-landscape`,
-  `runtime-preview-cannot-show`,
-  `runtime-vlc-missing`.
+  `runtime-preview-cannot-show`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in

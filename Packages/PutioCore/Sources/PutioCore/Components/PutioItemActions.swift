@@ -183,6 +183,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
             .labelStyle(.iconOnly)
           }
           .menuOrder(.fixed)
+          .tint(PutioTheme.Components.Button.secondaryBackground)
           .accessibilityIdentifier("item-swipe.more")
         }
         .menuOrder(.fixed)
@@ -196,6 +197,10 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
           .labelStyle(.iconOnly)
       }
       .disabled(action.isDisabled)
+      .tint(
+        action.role == .destructive
+          ? PutioTheme.Colors.destructive : PutioTheme.Components.Button.secondaryBackground
+      )
       .accessibilityIdentifier("item-swipe.\(action.id)")
     }
   }

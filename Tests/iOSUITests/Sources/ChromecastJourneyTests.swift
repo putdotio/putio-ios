@@ -108,11 +108,12 @@ final class ChromecastJourneyTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.height > self.app.frame.width })
 
-    // Explicit row action while connected, then disconnect drops everything.
     row.press(forDuration: 1)
-    let castAction = app.buttons["Cast"]
-    XCTAssertTrue(castAction.appears(within: 5))
-    castAction.tap()
+    XCTAssertTrue(app.buttons["Play"].appears(within: 5))
+    XCTAssertFalse(app.buttons["Cast"].exists, "the row menu still offers Cast")
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
+    XCTAssertTrue(app.buttons["Play"].disappears(within: 5))
+    row.tap()
     XCTAssertTrue(toggle.appears(within: 15))
     tapAction("cast.disconnect")
     XCTAssertTrue(bar.disappears(within: 5))

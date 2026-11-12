@@ -25,6 +25,52 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-02-folder")
   }
 
+  func testRowActions() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    try captureBoard("rd-ios-03-row-actions")
+  }
+
+  func testVLCMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-vlc-installed")
+    app.launch()
+    openSeasonFolder()
+    openItemMenu("files.item.442")
+    XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
+    try captureBoard("rd-ios-64-vlc-menu")
+  }
+
+  func testSwipeActions() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    let row = element("files.item.442")
+    XCTAssertTrue(row.appears(within: 5), "the watched episode never appeared")
+    row.swipeLeft()
+    XCTAssertTrue(app.buttons["Trash"].appears(within: 5), "the swipe showed no Trash")
+    try captureBoard("rd-ios-11-swipe")
+  }
+
+  func testFolderLongPress() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    openItemMenu("files.item.410")
+    try captureBoard("rd-ios-17-folder-long-press")
+  }
+
+  func testFileMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    XCTAssertTrue(app.revealed("files.item.407").exists, "the archive row never appeared")
+    openItemMenu("files.item.407")
+    try captureBoard("rd-ios-63-file-menu")
+  }
+
   func testIPadSplit() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
@@ -349,14 +395,19 @@ final class BoardCaptureTests: XCTestCase {
 
   private func reachFilesRoot() {
     let root = element("files.screen.0")
-    let folderScreen = element("files.screen.410")
+    let folderScreens = ["files.screen.410", "files.screen.440"].map(element)
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
-    while !root.exists, !signIn.exists, !folderScreen.exists, Date.now < deadline {
+    while !root.exists, !signIn.exists, !folderScreens.contains(where: \.exists),
+      Date.now < deadline
+    {
       _ = root.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
-    if folderScreen.exists, !root.isHittable { app.navigationBars.buttons.firstMatch.tap() }
+    for _ in folderScreens where !root.isHittable && folderScreens.contains(where: \.exists) {
+      app.navigationBars.buttons.firstMatch.tap()
+      _ = root.appears(within: 2)
+    }
     XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
   }
 
@@ -394,6 +445,13 @@ final class BoardCaptureTests: XCTestCase {
       folder.tap()
     }
     XCTAssertTrue(element("files.header.440").appears(within: 10), "season folder has no header")
+  }
+
+  private func openItemMenu(_ identifier: String) {
+    let row = element(identifier)
+    XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
+    row.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the item menu never opened")
   }
 
   private func captureBoard(_ defaultBoard: String) throws {

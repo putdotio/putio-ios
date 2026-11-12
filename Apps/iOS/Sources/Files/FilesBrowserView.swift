@@ -20,7 +20,7 @@ struct FilesBrowserView: View {
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
-  private let onCast: PutioFileSelection?
+  private let tracksWatched: Bool
   private let castButton: AnyView?
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
@@ -36,17 +36,17 @@ struct FilesBrowserView: View {
     runtime: PutioRuntime,
     trashEnabled: Bool,
     accountID: Int,
+    tracksWatched: Bool = false,
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
-    onCast: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil,
     castButton: (() -> AnyView)? = nil
   ) {
-    self.onCast = onCast
+    self.tracksWatched = tracksWatched
     self.castButton = castButton?()
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
@@ -74,12 +74,12 @@ struct FilesBrowserView: View {
         continueLoad: continueLoad,
         actions: actions,
         trashEnabled: trashEnabled,
+        tracksWatched: tracksWatched,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected,
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
-        onCast: onCast,
         castButton: castButton
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
@@ -89,11 +89,11 @@ struct FilesBrowserView: View {
           continueLoad: continueLoad,
           actions: actions,
           trashEnabled: trashEnabled,
+          tracksWatched: tracksWatched,
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected,
           onExternalPlayback: onExternalPlayback,
           onDownload: onDownload,
-          onCast: onCast,
           castButton: castButton
         )
       }

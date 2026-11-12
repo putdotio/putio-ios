@@ -175,6 +175,153 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  func testItemMenusSwipesAndWatchStatus() {
+    app.launch()
+    openSeasonFolder()
+
+    let unwatched = element(identifier: "files.item.443")
+    XCTAssertEqual(
+      itemMenu(for: unwatched),
+      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+    app.buttons["Mark as watched"].tap()
+    XCTAssertTrue(app.staticTexts["Marked as watched"].appears(within: 5), "no watched toast")
+    XCTAssertTrue(
+      waitForValuePrefix(unwatched, "Watched"), "the eye did not follow Mark as watched")
+
+    let watched = element(identifier: "files.item.442")
+    XCTAssertEqual(
+      itemMenu(for: watched),
+      ["Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Trash"])
+    app.buttons["Mark as unwatched"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Could not update watch status"].appears(within: 5),
+      "the seeded watch-status failure was not reported")
+    XCTAssertTrue(
+      waitForValuePrefix(watched, "Watched"), "the eye did not roll back after the failure")
+    XCTAssertEqual(
+      itemMenu(for: watched).filter { $0.hasPrefix("Mark") }, ["Mark as unwatched"])
+    app.buttons["Mark as unwatched"].tap()
+    XCTAssertTrue(app.staticTexts["Marked as unwatched"].appears(within: 5))
+    XCTAssertTrue(waitForValuePrefix(watched, "Not watched"), "the eye stayed after unwatched")
+
+    let subtitle = element(identifier: "files.item.445")
+    XCTAssertEqual(itemMenu(for: subtitle), ["Select", "Rename", "Move", "Trash"])
+    dismissMenu()
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
+
+    let episode = element(identifier: "files.item.441")
+    episode.swipeLeft()
+    let more = swipeMore(beside: episode)
+    XCTAssertTrue(more.appears(within: 5), "the left swipe has no More")
+    XCTAssertTrue(app.buttons["Download"].exists, "the left swipe has no Download")
+    XCTAssertTrue(app.buttons["Trash"].exists, "the left swipe has no Trash")
+    addScreenshot(named: "runtime-item-swipe-left")
+    more.tap()
+    XCTAssertEqual(
+      menuLabels(),
+      ["Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+    dismissMenu()
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
+
+    app.navigationBars.buttons["BackButton"].tap()
+    let folder = element(identifier: "files.item.440")
+    XCTAssertTrue(folder.appears(within: 5))
+    XCTAssertEqual(itemMenu(for: folder), ["Select", "Rename", "Move", "Trash"])
+    addScreenshot(named: "runtime-item-menu-folder")
+    app.buttons["Select"].tap()
+    XCTAssertTrue(
+      waitForValuePrefix(folder, "Selected"), "Select did not start selection on the row")
+    app.buttons["files.selection.toggle"].tap()
+    XCTAssertTrue(waitUntilHittable(folder, timeout: 5))
+    folder.swipeRight()
+    let move = app.buttons["Move"]
+    XCTAssertTrue(waitUntilHittable(move, timeout: 5), "the right swipe has no Move")
+    addScreenshot(named: "runtime-item-swipe-right")
+    move.tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").appears(within: 5))
+    app.buttons["files.move-cancel"].tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
+
+    app.terminate()
+    app.launchArguments.append("--putio-harness-vlc-installed")
+    app.launch()
+    openSeasonFolder()
+    XCTAssertEqual(
+      itemMenu(for: element(identifier: "files.item.444")),
+      ["Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move", "Trash"])
+    addScreenshot(named: "runtime-item-menu-vlc")
+    dismissMenu()
+    let root = element(identifier: "files.screen.0")
+    for _ in 0..<2 where !root.exists {
+      app.navigationBars.buttons["BackButton"].tap()
+      _ = root.appears(within: 3)
+    }
+    XCTAssertTrue(root.appears(within: 5), "Files never returned to its root")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  private static let itemMenuLabels = [
+    "Play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched", "Mark as unwatched",
+    "Rename", "Move", "Trash",
+  ]
+
+  private func itemMenu(for row: XCUIElement) -> [String] {
+    XCTAssertTrue(waitUntilHittable(row, timeout: 5), "row is not available for its menu")
+    row.press(forDuration: 1)
+    return menuLabels()
+  }
+
+  private func menuLabels() -> [String] {
+    XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "item menu never opened")
+    return app.buttons.matching(NSPredicate(format: "label IN %@", Self.itemMenuLabels))
+      .allElementsBoundByIndex
+      .filter { $0.isHittable }
+      .sorted { $0.frame.minY < $1.frame.minY }
+      .map(\.label)
+  }
+
+  private func swipeMore(beside row: XCUIElement) -> XCUIElement {
+    let identified = app.buttons["item-swipe.more"].firstMatch
+    if identified.appears(within: 2) { return identified }
+    let labelled = app.buttons.matching(
+      NSPredicate(format: "label == %@ AND identifier != %@", "More", "files.menu"))
+    return labelled.allElementsBoundByIndex.first { abs($0.frame.midY - row.frame.midY) < 30 }
+      ?? labelled.firstMatch
+  }
+
+  private func openSeasonFolder() {
+    let signIn = element(identifier: "auth.sign-in")
+    let harness = element(identifier: "files.item.410")
+    let season = element(identifier: "files.item.440")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !signIn.exists, !harness.exists, !season.exists, Date.now < deadline {
+      _ = season.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !season.exists {
+      XCTAssertTrue(waitUntilHittable(harness, timeout: 10), "seeded folder never appeared")
+      harness.tap()
+    }
+    XCTAssertTrue(waitUntilHittable(season, timeout: 10), "season folder never appeared")
+    season.tap()
+    XCTAssertTrue(element(identifier: "files.header.440").appears(within: 10))
+  }
+
+  private func waitForValuePrefix(_ element: XCUIElement, _ prefix: String) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value BEGINSWITH %@", prefix), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+  }
+
   func testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch() {
     let failure = "--putio-harness-sign-out-failure"
     app.launchArguments.append(failure)

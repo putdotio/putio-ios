@@ -359,7 +359,9 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-disabled")
     }
     nonisolated(unsafe) static var trashEnabled = !trashDisabledAtLaunch
-    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
+    private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
+    nonisolated(unsafe) private static var playbackPositions = initialPlaybackPositions
+    nonisolated(unsafe) private static var watchedUpdateFailurePending = true
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
@@ -464,7 +466,8 @@ import Foundation
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
-      playbackPositions = [411: 90, 412: 589, 414: 37]
+      playbackPositions = initialPlaybackPositions
+      watchedUpdateFailurePending = true
       playbackPositionLock.unlock()
     }
 
@@ -1352,6 +1355,21 @@ import Foundation
         return clearPlaybackPosition(fileID: 411)
       case "GET /v2/files/412/start-from/delete":
         return clearPlaybackPosition(fileID: 412)
+      case "POST /v2/files/443/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 443)
+      case "GET /v2/files/442/start-from/delete":
+        let fails = playbackPositionLock.withLock {
+          defer { watchedUpdateFailurePending = false }
+          return watchedUpdateFailurePending
+        }
+        guard !fails else {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_WATCHED_RETRY", message: "Retry watch status")
+          )
+        }
+        return clearPlaybackPosition(fileID: 442)
       default:
         return (
           404,
@@ -1375,11 +1393,11 @@ import Foundation
     #endif
 
     private static var seasonFiles: String {
-      let episodes: [(id: Int, name: String, size: Int64, day: Int, startFrom: Int)] = [
-        (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13, 0),
-        (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13, 1_260),
-        (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20, 0),
-        (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20, 0),
+      let episodes: [(id: Int, name: String, size: Int64, day: Int)] = [
+        (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13),
+        (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13),
+        (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
+        (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
       ]
       let subtitles: [(id: Int, name: String, size: Int64)] = [
         (445, "Blue.Lights.S04E01.en.srt", 41_000),
@@ -1390,7 +1408,8 @@ import Foundation
         {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
         "parent_id":\(seasonFolderID),"size":\(episode.size),
         "created_at":"2026-10-\(episode.day)T10:00:00Z",
-        "updated_at":"2026-10-\(episode.day)T10:00:00Z","start_from":\(episode.startFrom)}
+        "updated_at":"2026-10-\(episode.day)T10:00:00Z",
+        "start_from":\(playbackPosition(fileID: episode.id))}
         """
       }
       let subtitleRows = subtitles.map { subtitle in

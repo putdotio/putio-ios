@@ -152,19 +152,13 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
 
-    // VLC handoff without VLC: the explicit not-installed outcome with a store link.
     let vlcRequests = element("vlc.requests")
     XCTAssertTrue(vlcRequests.appears(within: 5))
     XCTAssertEqual(vlcRequests.value as? String, "0|")
     assertNoVLCAction(fileID: 407)
     assertNoVLCAction(fileID: 406)
-    openInVLC(fileID: 412)
-    XCTAssertTrue(app.staticTexts["VLC is not installed"].appears(within: 5))
-    screenshot("runtime-vlc-missing")
-    app.buttons["Get VLC"].tap()
-    XCTAssertTrue(
-      waitForValue(vlcRequests, "1|https://apps.apple.com/app/id650377962"),
-      "store link was not requested: \(vlcRequests.value ?? "")")
+    assertNoVLCAction(fileID: 412)
+    XCTAssertEqual(vlcRequests.value as? String, "0|")
 
     // VLC handoff with VLC: the tokened stream URL leaves the app once, with a
     // return link to the file's folder. The relaunch starts a fresh request log.
@@ -351,10 +345,10 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["preview.more"].isEnabled)
   }
 
-  /// Preview and unsupported rows show a context menu without the handoff.
   private func assertNoVLCAction(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+    XCTAssertTrue(row.appears(within: 5), "row \(fileID) never appeared")
+    revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5))
     XCTAssertFalse(app.buttons["Open in VLC"].exists)
@@ -362,15 +356,19 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
   }
 
-  private func openInVLC(fileID: Int) {
-    let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+  private func revealBelowNavigationBar(_ row: XCUIElement) {
     let bar = app.navigationBars.firstMatch
     var swipes = 0
     while row.frame.minY < bar.frame.maxY, swipes < 3 {
       app.swipeDown()
       swipes += 1
     }
+  }
+
+  private func openInVLC(fileID: Int) {
+    let row = element("files.item.\(fileID)")
+    XCTAssertTrue(row.appears(within: 5))
+    revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]
     XCTAssertTrue(action.appears(within: 5), "Open in VLC never appeared")

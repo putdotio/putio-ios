@@ -36,11 +36,11 @@ struct PutioFolderScreen: View {
   private let continueLoad: PutioFolderContinue?
   private let actions: PutioFileActions?
   private let trashEnabled: Bool
+  private let tracksWatched: Bool
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
-  private let onCast: PutioFileSelection?
   private let castButton: AnyView?
   private let refreshRequests: PutioFolderRefreshRequests
 
@@ -50,6 +50,7 @@ struct PutioFolderScreen: View {
     continueLoad: PutioFolderContinue? = nil,
     actions: PutioFileActions? = nil,
     trashEnabled: Bool = true,
+    tracksWatched: Bool = false,
     initialContents: PutioFolderContents? = nil,
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
@@ -58,10 +59,8 @@ struct PutioFolderScreen: View {
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
-    onCast: PutioFileSelection? = nil,
     castButton: AnyView? = nil
   ) {
-    self.onCast = onCast
     self.castButton = castButton
     self.route = route
     _model = State(
@@ -81,6 +80,7 @@ struct PutioFolderScreen: View {
     self.load = load
     self.continueLoad = continueLoad
     self.trashEnabled = trashEnabled
+    self.tracksWatched = tracksWatched
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
     self.onFileSelected = onFileSelected
@@ -449,113 +449,92 @@ struct PutioFolderScreen: View {
     }
   }
 
+  @ViewBuilder
   private func fileActions<Content: View>(
     for item: PutioFileItem,
     content: Content
   ) -> some View {
-    content
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .contextMenu {
-        actionButtons(for: item)
-      }
-      .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-        if model.supportsActions {
-          deleteButton(for: item)
-            .tint(PutioTheme.Colors.destructive)
-        }
-      }
-      .swipeActions(edge: .leading, allowsFullSwipe: false) {
-        if model.supportsActions {
-          moveButton(for: item)
-            .tint(PutioTheme.Colors.accent)
-        }
-      }
-  }
-
-  @ViewBuilder
-  private func actionButtons(for item: PutioFileItem) -> some View {
-    if let route = PutioBrowserItemPresentation(item: item).fileRoute,
-      (onDownload != nil && route.supportsOfflineDownload)
-        || (onExternalPlayback != nil && route.supportsExternalPlayback)
-        || (onCast != nil && route.supportsCasting)
-    {
-      Section {
-        if let onCast, route.supportsCasting {
-          Button {
-            onCast(route)
-          } label: {
-            Label("Cast", systemImage: "tv")
-          }
-          .disabled(fileActionPending)
-          .accessibilityIdentifier("files.cast.\(item.id.rawValue)")
-        }
-        if let onDownload, route.supportsOfflineDownload {
-          Button {
-            onDownload(route)
-          } label: {
-            Label("Download", systemImage: "arrow.down.circle")
-          }
-          .disabled(fileActionPending)
-          .accessibilityIdentifier("files.download.\(item.id.rawValue)")
-        }
-        if let onExternalPlayback, route.supportsExternalPlayback {
-          Button {
-            onExternalPlayback(route)
-          } label: {
-            Label("Open in VLC", systemImage: "play.rectangle")
-          }
-          .disabled(fileActionPending)
-          .accessibilityIdentifier("files.open-in-vlc.\(item.id.rawValue)")
-        }
-      }
-    }
-    if model.supportsActions {
-      ControlGroup {
-        moveButton(for: item)
-      }
-      Section {
-        renameButton(for: item)
-      }
-      Section {
-        deleteButton(for: item)
-      }
+    let menu = PutioFileMenu(
+      item: item,
+      capabilities: .init(
+        canEdit: model.supportsActions,
+        canDownload: onDownload != nil,
+        vlcInstalled: onExternalPlayback != nil,
+        tracksWatched: tracksWatched))
+    let row = content.frame(maxWidth: .infinity, alignment: .leading)
+    if menu.sections.isEmpty {
+      row
+    } else {
+      let actions = Dictionary(
+        uniqueKeysWithValues: menu.sections.joined().map { ($0, itemAction($0, for: item)) })
+      row.putioItemActions(
+        PutioItemMenu(menu.sections.map { $0.compactMap { actions[$0] } }),
+        leading: menu.leadingSwipe.compactMap { actions[$0] },
+        trailing: menu.trailingSwipe.compactMap { actions[$0] })
     }
   }
 
-  private func moveButton(for item: PutioFileItem) -> some View {
-    Button {
-      pendingMove = MoveSelection(items: [item], isBulk: false)
-    } label: {
-      Label("Move", systemImage: "folder")
-    }
-    .disabled(!model.canStartAction || actionRequest != nil)
-    .accessibilityIdentifier("files.move.\(item.id.rawValue)")
-  }
-
-  private func renameButton(for item: PutioFileItem) -> some View {
-    Button {
-      editor = .rename(item)
-    } label: {
-      Label("Rename", systemImage: "pencil")
-    }
-    .disabled(!model.canStartAction || actionRequest != nil)
-    .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
-  }
-
-  private func deleteButton(for item: PutioFileItem) -> some View {
-    Button(role: .destructive) {
-      // Trash is recoverable, so only a permanent deletion asks first.
-      if trashEnabled {
-        trashingIDs.insert(item.id)
-        actionRequest = .delete(item)
-      } else {
-        pendingDeletion = item
+  private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction {
+    let route = PutioFileRoute(item: item)
+    let editingBlocked = !model.canStartAction || actionRequest != nil
+    switch row {
+    case .play:
+      return PutioItemAction(
+        id: "play", title: String(localized: "Play"), icon: .play,
+        isDisabled: fileActionPending
+      ) { onFileSelected(route) }
+    case .download:
+      return PutioItemAction(
+        id: "download", title: String(localized: "Download"), icon: .arrowCircleDown,
+        isDisabled: fileActionPending
+      ) { onDownload?(route) }
+    case .openInVLC:
+      return PutioItemAction(
+        id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone,
+        isDisabled: fileActionPending
+      ) { onExternalPlayback?(route) }
+    case .select:
+      return PutioItemAction(
+        id: "select", title: String(localized: "Select"), icon: .checkCircle,
+        isDisabled: fileActionPending
+      ) {
+        editMode = .active
+        selectedIDs = [item.id]
       }
-    } label: {
-      Label(deleteActionTitle, systemImage: "trash")
+    case .markWatched, .markUnwatched:
+      let watched = row == .markWatched
+      return PutioItemAction(
+        id: watched ? "watched" : "unwatched",
+        title: watched
+          ? String(localized: "Mark as watched") : String(localized: "Mark as unwatched"),
+        icon: watched ? .eye : .eyeSlash,
+        isDisabled: editingBlocked
+      ) { actionRequest = .setWatched(item, watched) }
+    case .rename:
+      return PutioItemAction(
+        id: "rename", title: String(localized: "Rename"), icon: .pencilSimple,
+        isDisabled: editingBlocked
+      ) { editor = .rename(item) }
+    case .move:
+      return PutioItemAction(
+        id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
+        isDisabled: editingBlocked
+      ) { pendingMove = MoveSelection(items: [item], isBulk: false) }
+    case .trash:
+      return PutioItemAction(
+        id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,
+        isDisabled: !model.canDelete || actionRequest != nil
+      ) { requestDeletion(of: item) }
     }
-    .disabled(!model.canDelete || actionRequest != nil)
-    .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
+  }
+
+  private func requestDeletion(of item: PutioFileItem) {
+    if trashEnabled {
+      trashingIDs.insert(item.id)
+      actionRequest = .delete(item)
+    } else {
+      pendingDeletion = item
+    }
   }
 
   private func refreshFailureRow(_ failure: PutioBrowserErrorPresentation) -> some View {
@@ -826,6 +805,8 @@ struct PutioFolderScreen: View {
         await model.rename(item, to: name)
       case .delete(let item):
         await model.delete(item)
+      case .setWatched(let item, let watched):
+        await model.setWatched(item, watched)
       case .move(let item, let destination):
         await model.move(item, to: destination)
       case .bulkDelete(let items):
@@ -1011,6 +992,7 @@ struct PutioFolderScreen: View {
     case sort(PutioFolderSort)
     case rename(PutioFileItem, String)
     case delete(PutioFileItem)
+    case setWatched(PutioFileItem, Bool)
     case move(PutioFileItem, PutioFolderRoute)
     case bulkDelete([PutioFileItem])
     case bulkMove([PutioFileItem], PutioFolderRoute)

@@ -2204,6 +2204,28 @@
         }
       }
     },
+    "Mark as unwatched" : {
+      "comment" : "android: mobile_files_mark_unwatched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as unwatched"
+          }
+        }
+      }
+    },
+    "Mark as watched" : {
+      "comment" : "android: mobile_files_mark_watched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as watched"
+          }
+        }
+      }
+    },
     "Marked as unwatched" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
       "localizations" : {
