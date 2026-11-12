@@ -593,7 +593,7 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(decoded.size.height * decoded.scale, 10)
   }
 
-  func testUnfoldingTheDuoRefitsAZoomedDocument() throws {
+  func testUnfoldingTheDuoRefitsAZoomedDocumentToTheReadableWidth() throws {
     let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
     let data = renderer.pdfData { context in
       context.beginPage()
@@ -609,8 +609,13 @@ final class FilePreviewTests: XCTestCase {
 
     view.frame = CGRect(origin: .zero, size: Self.duoOpen)
     view.layoutIfNeeded()
-    XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
+    XCTAssertEqual(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 612, accuracy: 0.01)
+    XCTAssertLessThan(view.scaleFactor, view.scaleFactorForSizeToFit)
     XCTAssertTrue(view.document === document)
+
+    view.frame = CGRect(origin: .zero, size: Self.duoFolded)
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
   }
 
   private static let duoFolded = CGSize(width: 466, height: 678)
