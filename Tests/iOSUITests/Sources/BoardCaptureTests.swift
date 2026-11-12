@@ -1515,8 +1515,8 @@ final class BoardCaptureTests: XCTestCase {
 
   func testAccountAppsSignOutOthers() throws {
     openLoggedInApps()
-    let row = element("security.apps.sign-out-others")
-    XCTAssertTrue(row.appears(within: 5), "the sign-out row is missing")
+    let row = app.revealed("security.apps.sign-out-others")
+    XCTAssertTrue(row.becomesHittable(within: 10), "the sign-out row is missing")
     row.tap()
     XCTAssertTrue(
       app.alerts["Sign out of all other apps?"].appears(within: 5), "the alert never showed")
