@@ -609,6 +609,7 @@ final class FilePreviewTests: XCTestCase {
 
     view.frame = CGRect(origin: .zero, size: Self.duoOpen)
     view.traitOverrides.horizontalSizeClass = .regular
+    view.updateTraitsIfNeeded()
     view.layoutIfNeeded()
     XCTAssertEqual(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 612, accuracy: 0.01)
     XCTAssertLessThan(view.scaleFactor, view.scaleFactorForSizeToFit)
@@ -616,6 +617,7 @@ final class FilePreviewTests: XCTestCase {
 
     view.frame = CGRect(origin: .zero, size: Self.duoFolded)
     view.traitOverrides.horizontalSizeClass = .compact
+    view.updateTraitsIfNeeded()
     view.layoutIfNeeded()
     XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
   }
@@ -625,6 +627,7 @@ final class FilePreviewTests: XCTestCase {
     let document = try XCTUnwrap(PDFDocument(data: renderer.pdfData { $0.beginPage() }))
     let view = PutioInsetPDFView(frame: CGRect(x: 0, y: 0, width: 874, height: 402))
     view.traitOverrides.horizontalSizeClass = .compact
+    view.updateTraitsIfNeeded()
     view.autoScales = true
     view.displayMode = .singlePageContinuous
     view.document = document
@@ -642,6 +645,7 @@ final class FilePreviewTests: XCTestCase {
     let document = try XCTUnwrap(PDFDocument(data: data))
     let view = PutioInsetPDFView(frame: CGRect(origin: .zero, size: Self.duoOpen))
     view.traitOverrides.horizontalSizeClass = .regular
+    view.updateTraitsIfNeeded()
     view.autoScales = true
     view.displayMode = .singlePageContinuous
     view.document = document
