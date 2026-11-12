@@ -135,6 +135,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
     XCTAssertFalse(element(app, "settings.default-sort").exists)
     attach(app, "runtime-account-settings-failed")
+    XCTAssertTrue(app.revealed("auth.sign-out").appears(within: 5), "a failed load hid Sign out")
     app.buttons["account.settings-retry"].tap()
     XCTAssertTrue(element(app, "settings.default-sort").appears(within: 10))
     XCTAssertFalse(failed.exists)
