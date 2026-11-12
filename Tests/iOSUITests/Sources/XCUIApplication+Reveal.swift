@@ -34,6 +34,16 @@ extension XCUIApplication {
     scrollDown(toHit: buttons["Files"])
   }
 
+  func sortChoice(_ title: String) -> XCUIElement {
+    descendants(matching: .any).matching(
+      NSPredicate(
+        format: "label == %@ AND elementType IN %@", title,
+        [
+          XCUIElement.ElementType.button, .switch, .menuItem, .toggle,
+        ].map { NSNumber(value: $0.rawValue) })
+    ).firstMatch
+  }
+
   /// Sign out asks once: an alert with no downloads, otherwise a dialog
   /// whose plain Sign out keeps them.
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {

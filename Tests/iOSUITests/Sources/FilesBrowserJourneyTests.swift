@@ -390,18 +390,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func openSeasonFolder() {
     let signIn = element(identifier: "auth.sign-in")
     let harness = element(identifier: "files.item.410")
-    let season = element(identifier: "files.item.440")
+    let seasonRow = element(identifier: "files.item.440")
+    let season = element(identifier: "files.screen.440")
     let deadline = Date.now.addingTimeInterval(15)
-    while !signIn.exists, !harness.exists, !season.exists, Date.now < deadline {
+    while !signIn.exists, !harness.exists, !seasonRow.exists, !season.exists, Date.now < deadline {
       _ = season.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
     if !season.exists {
-      XCTAssertTrue(waitUntilHittable(harness, timeout: 10), "seeded folder never appeared")
-      harness.tap()
+      if !seasonRow.exists {
+        XCTAssertTrue(waitUntilHittable(harness, timeout: 10), "seeded folder never appeared")
+        harness.tap()
+      }
+      XCTAssertTrue(waitUntilHittable(seasonRow, timeout: 10), "season folder never appeared")
+      seasonRow.tap()
     }
-    XCTAssertTrue(waitUntilHittable(season, timeout: 10), "season folder never appeared")
-    season.tap()
     XCTAssertTrue(element(identifier: "files.header.440").appears(within: 10))
   }
 
@@ -777,24 +780,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(secondPageRow.appears(within: 10), "continuation page never appended")
     XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
 
-    openBrowseMenu()
-    let nameSort = sortRow("Name")
-    XCTAssertTrue(waitUntilHittable(nameSort, timeout: 5), "name sort is unavailable")
-    assertSortRowSelected(nameSort, label: "Name, Ascending")
-    addScreenshot(named: "runtime-browse-menu-ascending")
-    nameSort.tap()
-    XCTAssertTrue(app.staticTexts["Sorting changed"].appears(within: 10))
-    openBrowseMenu()
-    assertSortRowSelected(nameSort, label: "Name, Descending")
-    addScreenshot(named: "runtime-browse-menu-descending")
-    dismissMenu()
-    assertSortValue("Name, descending", on: app.buttons["files.menu"])
-    let firstRow = app.cells.firstMatch
-    XCTAssertTrue(firstRow.appears(within: 5))
+    app.swipeUp()
+    openSortMenu()
+    assertChecked(["Name", "A to Z"], unchecked: ["Z to A", "Unwatched first", "Watched first"])
+    addScreenshot(named: "runtime-sort-menu-ascending")
+    app.sortChoice("Z to A").tap()
     XCTAssertTrue(
-      firstRow.staticTexts["Document.pdf"].exists,
-      "reload did not apply the server order: \(firstRow.debugDescription)"
-    )
+      waitForFirstItem("files.item.413"), "reload did not apply the server order from the top")
+    XCTAssertTrue(firstItem().isHittable, "the sorted list did not scroll to the top")
+    XCTAssertFalse(app.staticTexts["Sorting changed"].exists, "sorting still shows a toast")
+    openSortMenu()
+    assertChecked(["Name", "Z to A"], unchecked: ["A to Z"])
+    addScreenshot(named: "runtime-sort-menu-descending")
+    dismissMenu()
     addScreenshot(named: "runtime-sorted-root")
 
     app.buttons["Account"].tap()
@@ -803,6 +801,97 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  func testSortMenuSectionsFailureRelaunchAndAccountDefault() {
+    app.launchArguments += [
+      "--putio-harness-persist-folder-sorts", "--putio-harness-reset-folder-sorts",
+    ]
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    openSeasonFolder()
+
+    openSortMenu()
+    assertChecked(["Name", "A to Z"], unchecked: ["Size", "Unwatched first", "Watched first"])
+    addScreenshot(named: "runtime-sort-account-default")
+
+    let steps: [(field: String, orders: [String], ascendingFirst: Int, descendingFirst: Int)] = [
+      ("Size", ["Smallest first", "Largest first"], 446, 444),
+      ("Date added", ["Oldest first", "Newest first"], 441, 444),
+      ("Date modified", ["Oldest first", "Newest first"], 441, 444),
+    ]
+    var ascending = true
+    for step in steps {
+      app.sortChoice(step.field).tap()
+      assertSortUpdated(firstItem: ascending ? step.ascendingFirst : step.descendingFirst)
+      openSortMenu()
+      let current = ascending ? step.orders[0] : step.orders[1]
+      let other = ascending ? step.orders[1] : step.orders[0]
+      assertChecked([step.field, current], unchecked: ["Name", other])
+      app.sortChoice(other).tap()
+      ascending.toggle()
+      assertSortUpdated(firstItem: ascending ? step.ascendingFirst : step.descendingFirst)
+      openSortMenu()
+      assertChecked([step.field, other], unchecked: [current])
+    }
+
+    XCTAssertFalse(ascending, "the walk should leave a descending order checked")
+    app.sortChoice("Type").tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t change sorting."].appears(within: 10),
+      "a failed sort did not say so")
+    XCTAssertTrue(waitForFirstItem("files.item.444"), "a failed sort changed the order")
+    addScreenshot(named: "runtime-sort-failed")
+    openSortMenu()
+    assertChecked(["Date modified", "Newest first"], unchecked: ["Type", "Z to A"])
+
+    app.sortChoice("Type").tap()
+    assertSortUpdated(firstItem: 444)
+    openSortMenu()
+    assertChecked(["Type", "Z to A"], unchecked: ["A to Z"])
+    app.sortChoice("A to Z").tap()
+    assertSortUpdated(firstItem: 445)
+    openSortMenu()
+    app.sortChoice("Name").tap()
+    assertSortUpdated(firstItem: 441)
+    openSortMenu()
+    assertChecked(["Name", "A to Z"], unchecked: ["Type"])
+    app.sortChoice("Z to A").tap()
+    assertSortUpdated(firstItem: 444)
+
+    openSortMenu()
+    app.sortChoice("Unwatched first").tap()
+    assertSortUpdated(firstItem: 441)
+    openSortMenu()
+    assertChecked(
+      ["Unwatched first"],
+      unchecked: [
+        "Name", "Size", "Date added", "Date modified", "Type", "A to Z", "Z to A", "Watched first",
+      ])
+    addScreenshot(named: "runtime-sort-unwatched-first")
+    app.sortChoice("Watched first").tap()
+    assertSortUpdated(firstItem: 442)
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-reset-folder-sorts" }
+    app.launch()
+    if signIn.appears(within: 3) { signIn.tap() }
+    openSeasonFolder()
+    XCTAssertTrue(waitForFirstItem("files.item.442"), "relaunch lost the folder's own order")
+    openSortMenu()
+    assertChecked(["Watched first"], unchecked: ["Name", "Unwatched first"])
+    dismissMenu()
+
+    let back = app.navigationBars.buttons["BackButton"]
+    XCTAssertTrue(waitUntilHittable(back, timeout: 5))
+    back.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 5))
+    openSortMenu()
+    assertChecked(["Name", "A to Z"], unchecked: ["Unwatched first", "Z to A"])
+    addScreenshot(named: "runtime-sort-other-folder-default")
+    dismissMenu()
   }
 
   func testSearchPaginationRetryAndFolderRestoration() {
@@ -1505,6 +1594,61 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  private func openSortMenu() {
+    let sort = app.buttons["files.sort"]
+    let ready = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: sort)
+    XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, "sort is unavailable")
+    sort.tap()
+    XCTAssertTrue(app.staticTexts["Sort by"].appears(within: 5), "the sort menu did not open")
+  }
+
+  private func isChecked(_ choice: XCUIElement) -> Bool {
+    choice.isSelected || choice.value as? String == "1"
+  }
+
+  private func assertChecked(
+    _ checked: [String], unchecked: [String], file: StaticString = #filePath, line: UInt = #line
+  ) {
+    for title in checked {
+      let choice = app.sortChoice(title)
+      XCTAssertTrue(choice.appears(within: 5), "no \(title) row", file: file, line: line)
+      XCTAssertTrue(
+        isChecked(choice), "\(title) is not checked: \(choice.debugDescription)", file: file,
+        line: line)
+    }
+    for title in unchecked {
+      let choice = app.sortChoice(title)
+      guard choice.exists else { continue }
+      XCTAssertFalse(isChecked(choice), "\(title) is checked", file: file, line: line)
+    }
+  }
+
+  private func firstItem() -> XCUIElement {
+    app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "files.item.")
+    ).firstMatch
+  }
+
+  private func waitForFirstItem(_ identifier: String) -> Bool {
+    let ordered = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "identifier == %@", identifier), object: firstItem())
+    return XCTWaiter.wait(for: [ordered], timeout: 10) == .completed
+  }
+
+  private func assertSortUpdated(
+    firstItem id: Int, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let updating = element(identifier: "files.sorting.440")
+    XCTAssertTrue(
+      updating.shows(within: 3), "no Updating file order row", file: file, line: line)
+    XCTAssertTrue(
+      updating.disappears(within: 10), "the order update never settled", file: file, line: line)
+    XCTAssertTrue(
+      waitForFirstItem("files.item.\(id)"), "files.item.\(id) is not first", file: file,
+      line: line)
+  }
+
   private func openBrowseMenu() {
     let menu = app.buttons["files.menu"]
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5), "browser menu is unavailable")
@@ -1513,27 +1657,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func dismissMenu() {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
-  }
-
-  /// iOS 27 drops the sort rows' custom identifiers; the selected row's label
-  /// carries its direction subtitle there.
-  private func sortRow(_ title: String) -> XCUIElement {
-    app.buttons.matching(
-      NSPredicate(format: "label == %@ OR label BEGINSWITH %@", title, title + ",")
-    ).firstMatch
-  }
-
-  private func assertSortRowSelected(_ row: XCUIElement, label: String) {
-    XCTAssertEqual(row.label, label)
-  }
-
-  /// The menu announces the sort in its label on every runtime.
-  private func assertSortValue(_ value: String, on menu: XCUIElement) {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@", "More, sorted by " + value),
-      object: menu
-    )
-    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
   }
 
   private func assertMovePickerCreatesAFolder(for row: XCUIElement) {

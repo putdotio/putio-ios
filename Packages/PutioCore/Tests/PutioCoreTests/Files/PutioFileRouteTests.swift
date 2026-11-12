@@ -4,14 +4,31 @@ import XCTest
 @testable import PutioCore
 
 final class PutioFileRouteTests: XCTestCase {
-  func testSortSelectionFlipsActiveKeyAndStartsNewKeysAscending() {
-    XCTAssertEqual(PutioFolderSortKey.name.selection(from: nil), .nameAscending)
-    XCTAssertEqual(PutioFolderSortKey.name.selection(from: .nameAscending), .nameDescending)
-    XCTAssertEqual(PutioFolderSortKey.name.selection(from: .nameDescending), .nameAscending)
-    XCTAssertEqual(PutioFolderSortKey.size.selection(from: .nameDescending), .sizeAscending)
+  func testSortMenuChecksOneFieldAndOneOrderAndVideosClearsTheField() {
+    let inherited = PutioFolderSortChoices(current: nil)
+    XCTAssertNil(inherited.checkedField)
+    XCTAssertEqual(inherited.orders.map(\.orderTitle), ["A to Z", "Z to A"])
+    XCTAssertEqual(inherited.selecting(.size), .sizeAscending)
+
+    let largest = PutioFolderSortChoices(current: .sizeDescending)
+    XCTAssertEqual(largest.checkedField, .size)
+    XCTAssertEqual(largest.orders.map(\.orderTitle), ["Smallest first", "Largest first"])
+    XCTAssertTrue(largest.isChecked(.sizeDescending))
+    XCTAssertEqual(largest.selecting(.dateAdded), .dateAddedDescending)
     XCTAssertEqual(
-      PutioFolderSortKey.watchStatus.selection(from: .watchStatusAscending),
-      .watchStatusDescending)
+      PutioFolderSortChoices(current: .dateModifiedAscending).orders.map(\.orderTitle),
+      ["Oldest first", "Newest first"])
+
+    let watched = PutioFolderSortChoices(current: .watchStatusDescending)
+    XCTAssertNil(watched.checkedField)
+    XCTAssertEqual(watched.orders, [.nameAscending, .nameDescending])
+    XCTAssertFalse(watched.orders.contains(where: watched.isChecked))
+    XCTAssertEqual(
+      PutioFolderSortChoices.videoOrders.map(\.orderTitle), ["Unwatched first", "Watched first"])
+    XCTAssertEqual(watched.selecting(.type), .typeAscending)
+    XCTAssertEqual(
+      PutioFolderSortChoices.fields.map(\.menuTitle),
+      ["Name", "Size", "Date added", "Date modified", "Type"])
   }
 
   func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {

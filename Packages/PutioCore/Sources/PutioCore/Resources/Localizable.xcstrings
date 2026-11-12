@@ -68,6 +68,17 @@
         }
       }
     },
+    "A to Z" : {
+      "comment" : "android: mobile_files_sort_a_to_z",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A to Z"
+          }
+        }
+      }
+    },
     "Account storage could not be updated after the last deletion." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -185,17 +196,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converting"
-          }
-        }
-      }
-    },
-    "Could not change sorting" : {
-      "comment" : "android: mobile_files_sort_error | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not change sorting"
           }
         }
       }
@@ -508,6 +508,17 @@
         }
       }
     },
+    "Couldn’t change sorting." : {
+      "comment" : "android: mobile_files_sort_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t change sorting."
+          }
+        }
+      }
+    },
     "Couldn’t load more files." : {
       "comment" : "android: mobile_files_paging_error",
       "localizations" : {
@@ -581,6 +592,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Date Modified"
+          }
+        }
+      }
+    },
+    "Date added" : {
+      "comment" : "android: mobile_files_sort_field_date_added",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date added"
+          }
+        }
+      }
+    },
+    "Date added, newest first" : {
+      "comment" : "android: mobile_files_sort_date_added_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date added, newest first"
+          }
+        }
+      }
+    },
+    "Date added, oldest first" : {
+      "comment" : "android: mobile_files_sort_date_added_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date added, oldest first"
+          }
+        }
+      }
+    },
+    "Date modified" : {
+      "comment" : "android: mobile_files_sort_field_date_modified",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date modified"
+          }
+        }
+      }
+    },
+    "Date modified, newest first" : {
+      "comment" : "android: mobile_files_sort_date_modified_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date modified, newest first"
+          }
+        }
+      }
+    },
+    "Date modified, oldest first" : {
+      "comment" : "android: mobile_files_sort_date_modified_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date modified, oldest first"
           }
         }
       }
@@ -851,6 +928,17 @@
         }
       }
     },
+    "Largest first" : {
+      "comment" : "android: mobile_files_sort_largest_first",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largest first"
+          }
+        }
+      }
+    },
     "Last week" : {
       "comment" : "ios-only: no Android string for the shared history day groups",
       "localizations" : {
@@ -1007,6 +1095,28 @@
         }
       }
     },
+    "Name, A to Z" : {
+      "comment" : "android: mobile_files_sort_name_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, A to Z"
+          }
+        }
+      }
+    },
+    "Name, Z to A" : {
+      "comment" : "android: mobile_files_sort_name_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name, Z to A"
+          }
+        }
+      }
+    },
     "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices." : {
       "comment" : "android: privacy_strictly_necessary_description",
       "localizations" : {
@@ -1014,6 +1124,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices."
+          }
+        }
+      }
+    },
+    "Newest first" : {
+      "comment" : "android: mobile_files_sort_newest_first",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Newest first"
           }
         }
       }
@@ -1069,6 +1190,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Offline. Showing what’s on this iPhone."
+          }
+        }
+      }
+    },
+    "Oldest first" : {
+      "comment" : "android: mobile_files_sort_oldest_first",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oldest first"
           }
         }
       }
@@ -1267,6 +1399,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Size"
+          }
+        }
+      }
+    },
+    "Size, largest first" : {
+      "comment" : "android: mobile_files_sort_size_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size, largest first"
+          }
+        }
+      }
+    },
+    "Size, smallest first" : {
+      "comment" : "android: mobile_files_sort_size_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size, smallest first"
+          }
+        }
+      }
+    },
+    "Smallest first" : {
+      "comment" : "android: mobile_files_sort_smallest_first",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smallest first"
           }
         }
       }
@@ -1535,6 +1700,28 @@
         }
       }
     },
+    "Type, A to Z" : {
+      "comment" : "android: mobile_files_sort_type_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type, A to Z"
+          }
+        }
+      }
+    },
+    "Type, Z to A" : {
+      "comment" : "android: mobile_files_sort_type_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type, Z to A"
+          }
+        }
+      }
+    },
     "URLs or search text" : {
       "comment" : "android: mobile_product_analytics_prompt_never_urls",
       "localizations" : {
@@ -1546,6 +1733,17 @@
         }
       }
     },
+    "Unwatched first" : {
+      "comment" : "android: mobile_files_sort_watch_ascending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unwatched first"
+          }
+        }
+      }
+    },
     "Video not found" : {
       "comment" : "ios-only: no Android string for the shared video playback and resume",
       "localizations" : {
@@ -1553,6 +1751,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video not found"
+          }
+        }
+      }
+    },
+    "Videos" : {
+      "comment" : "android: mobile_files_sort_videos",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videos"
           }
         }
       }
@@ -1597,6 +1806,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Watched"
+          }
+        }
+      }
+    },
+    "Watched first" : {
+      "comment" : "android: mobile_files_sort_watch_descending",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watched first"
           }
         }
       }
@@ -1719,6 +1939,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your recovery codes could not be loaded. Try again."
+          }
+        }
+      }
+    },
+    "Z to A" : {
+      "comment" : "android: mobile_files_sort_z_to_a",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z to A"
           }
         }
       }
