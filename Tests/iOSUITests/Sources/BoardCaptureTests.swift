@@ -369,7 +369,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openSharedRoot() {
-    reachFilesRoot()
+    openRoot()
     let shared = app.revealed("files.item.520", maximumSwipes: 12)
     XCTAssertTrue(shared.exists, "Items shared with you never appeared")
     shared.tap()
