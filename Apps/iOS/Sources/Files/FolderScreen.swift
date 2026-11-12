@@ -121,7 +121,7 @@ struct PutioFolderScreen: View {
     }
     .navigationTitle(folderTitle)
     .navigationBarTitleDisplayMode(route.id == .root && !isEditing ? .large : .inline)
-    .navigationBarBackButtonHidden(fileActionPending || isEditing)
+    .navigationBarBackButtonHidden(navigationLocked || isEditing)
     .putioContentBackground()
     .toolbar {
       if model.supportsActions, isEditing {
@@ -445,7 +445,7 @@ struct PutioFolderScreen: View {
         content: NavigationLink(value: folderRoute) {
           PutioFileRow(presentation.row)
         }
-        .disabled(fileActionPending)
+        .disabled(navigationLocked)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       )
     } else {
@@ -463,7 +463,7 @@ struct PutioFolderScreen: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(fileActionPending)
+        .disabled(navigationLocked)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
         .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
       )
@@ -782,6 +782,12 @@ struct PutioFolderScreen: View {
 
   private var fileActionPending: Bool {
     actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
+  }
+
+  private var navigationLocked: Bool {
+    if model.isUpdatingSortOrder { return false }
+    if case .sort = actionRequest { return false }
+    return fileActionPending
   }
 
   private var actionNotifier: PutioFolderActionNotifier {
