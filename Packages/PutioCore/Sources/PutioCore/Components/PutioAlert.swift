@@ -105,6 +105,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
     let choose: (PutioAlertAction) -> Void
 
     @State private var appeared = false
+    @State private var viewportHeight: CGFloat = 0
     @FocusState private var fieldFocused: Bool
     @PutioScaledMetric private var width: CGFloat
     @PutioScaledMetric private var fieldHeight: CGFloat
@@ -128,6 +129,18 @@ public struct PutioAlertAction: Identifiable, Sendable {
           .ignoresSafeArea()
           .opacity(appeared ? 1 : 0)
           .accessibilityHidden(true)
+        container
+          .opacity(appeared ? 1 : 0)
+          .scaleEffect(appeared ? 1 : 1.05)
+      }
+      .onAppear {
+        withAnimation(.easeOut(duration: PutioTheme.Motion.durationBase)) { appeared = true }
+        fieldFocused = field != nil
+      }
+    }
+
+    @ViewBuilder private var container: some View {
+      if field == nil {
         ViewThatFits(in: .vertical) {
           card
           ScrollView { card }
@@ -135,12 +148,19 @@ public struct PutioAlertAction: Identifiable, Sendable {
         }
         .frame(maxWidth: width)
         .padding(PutioTheme.Spacing.space3)
-        .opacity(appeared ? 1 : 0)
-        .scaleEffect(appeared ? 1 : 1.05)
-      }
-      .onAppear {
-        withAnimation(.easeOut(duration: PutioTheme.Motion.durationBase)) { appeared = true }
-        fieldFocused = field != nil
+      } else {
+        ScrollView {
+          card
+            .frame(maxWidth: width)
+            .padding(PutioTheme.Spacing.space3)
+            .frame(maxWidth: .infinity, minHeight: viewportHeight)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+          geometry.containerSize.height
+        } action: { _, height in
+          viewportHeight = height
+        }
       }
     }
 
@@ -179,6 +199,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
             Button(action.title) { dismiss(choosing: action) }
               .buttonStyle(PutioAlertButtonStyle(tier: action.tier))
               .disabled(action.isDisabled)
+              .keyboardShortcut(Self.shortcut(for: action.tier))
               .opacity(action.isDisabled ? PutioAlertMetrics.disabledOpacity : 1)
               .accessibilityIdentifier(action.accessibilityIdentifier)
           }
@@ -204,7 +225,16 @@ public struct PutioAlertAction: Identifiable, Sendable {
     }
 
     private var escape: PutioAlertAction? {
-      actions.first { $0.tier == .cancel } ?? (actions.count == 1 ? actions.first : nil)
+      let enabled = actions.filter { !$0.isDisabled }
+      return enabled.first { $0.tier == .cancel } ?? (enabled.count == 1 ? enabled.first : nil)
+    }
+
+    private static func shortcut(for tier: PutioAlertAction.Tier) -> KeyboardShortcut? {
+      switch tier {
+      case .cancel: .cancelAction
+      case .primary: .defaultAction
+      case .neutral, .destructive: nil
+      }
     }
 
     private var ordered: [PutioAlertAction] {
@@ -213,7 +243,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
 
     private func submit() {
       guard let primary = actions.first(where: { $0.tier == .primary && !$0.isDisabled }) else {
-        fieldFocused = true
+        Task { fieldFocused = true }
         return
       }
       dismiss(choosing: primary)
