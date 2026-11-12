@@ -1013,6 +1013,7 @@ struct PutioPreviewView: View {
       itemActions.clearOutcome()
       switch outcome {
       case .succeeded(.delete):
+        if zoomedID == item.id { zoomedID = nil }
         if pager.remove(item.id) {
           toast = removalToast(for: item, permanently: permanently, inViewer: true)
         } else {
