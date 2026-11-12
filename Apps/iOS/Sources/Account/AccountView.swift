@@ -411,10 +411,10 @@ struct AccountView: View {
   private var aboutSection: some View {
     PutioSettingsSection(String(localized: "About")) {
       PutioNavigationRow(
-        String(localized: "App info"), icon: .info, value: AboutView.shortVersion,
+        String(localized: "App info"), icon: .info, value: PutioAppInfo.shortVersion,
         valueStyle: .measurement
       ) {
-        AboutView()
+        AppInfoView()
       }
       .accessibilityIdentifier("account.about")
       PutioLinkRow(String(localized: "Privacy policy"), icon: .fileText) {

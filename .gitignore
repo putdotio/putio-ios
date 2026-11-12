@@ -33,3 +33,6 @@ Resources/BrandFonts/
 
 Putio/
 dist/
+
+# Generated from Config/OpenSourceLicenses.json and the resolved packages
+Apps/iOS/Generated/

@@ -84,7 +84,7 @@ final class AccountJourneyTests: XCTestCase {
       ("security.apps", "Where you are logged in"),
       ("security.link-device", "Link your account"),
       ("account.two-factor", "Two-factor authentication"),
-      ("account.about", "About"),
+      ("account.about", "App info"),
       ("account.privacy-policy", ""),
       ("account.licenses", "Open source licenses"),
       ("account.clear-data", "Clear your data"),
@@ -187,6 +187,92 @@ final class AccountJourneyTests: XCTestCase {
     tapSignOut(in: app)
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 15))
+  }
+
+  func testAppInfoCopiesFiveAnonymousFieldsAndLicensesListEveryBundledPackage() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--putio-harness-scenario", "files-browser"]
+    app.launch()
+    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    if signIn.appears(within: 10) { signIn.tap() }
+    let account = app.buttons["Account"]
+    XCTAssertTrue(account.appears(within: 10))
+    account.tap()
+
+    let about = app.revealed("account.about")
+    XCTAssertTrue(about.appears(within: 10))
+    app.bringIntoView(about)
+    about.tap()
+    let copy = app.buttons["app-info.copy"]
+    XCTAssertTrue(copy.appears(within: 10), "App info never opened")
+    copy.tap()
+    XCTAssertTrue(app.staticTexts["Copied to clipboard"].appears(within: 5))
+    let pasteboard = element(app, "harness.pasteboard")
+    let copied = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value BEGINSWITH %@", "Version: "), object: pasteboard)
+    XCTAssertEqual(XCTWaiter.wait(for: [copied], timeout: 5), .completed)
+    let text = try XCTUnwrap(pasteboard.value as? String)
+    let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    let patterns = [
+      #"^Version: \d+(\.\d+)* \(build \d+\)$"#,
+      "^Channel: (App Store|TestFlight|Nightly)$",
+      "^Device: \(deviceNoun)$",
+      #"^iOS: \d+(\.\d+)*$"#,
+      "^Player: AVPlayer$",
+    ]
+    XCTAssertEqual(lines.count, patterns.count, text)
+    for (line, pattern) in zip(lines, patterns) {
+      XCTAssertNotNil(line.range(of: pattern, options: .regularExpression), line)
+    }
+    for personal in ["moviebuff", "harness@example.com", "Harness"] {
+      XCTAssertFalse(text.contains(personal), "the support text names \(personal)")
+    }
+    attach(app, "runtime-app-info-copied")
+    app.navigationBars["App info"].buttons.element(boundBy: 0).tap()
+
+    let expected = try bundledLicenseTitles()
+    let licenses = app.revealed("account.licenses")
+    XCTAssertTrue(licenses.appears(within: 5))
+    app.bringIntoView(licenses)
+    licenses.tap()
+    XCTAssertTrue(app.navigationBars["Open source licenses"].appears(within: 10))
+    let notices = app.descendants(matching: .any).matching(identifier: "licenses.notice")
+    XCTAssertTrue(notices.firstMatch.appears(within: 5))
+    var seen: [String] = []
+    for _ in 0..<12 {
+      for label in notices.allElementsBoundByIndex.map(\.label) where !seen.contains(label) {
+        seen.append(label)
+      }
+      if expected.allSatisfy({ title in seen.contains { $0.hasPrefix(title) } }) { break }
+      app.swipeUp()
+    }
+    attach(app, "runtime-open-source-licenses")
+    XCTAssertEqual(seen.count, expected.count, "rendered \(seen), expected \(expected)")
+    for title in expected {
+      XCTAssertTrue(seen.contains { $0.hasPrefix(title) }, "\(title) is not listed")
+    }
+    app.navigationBars["Open source licenses"].buttons.element(boundBy: 0).tap()
+    tapSignOut(in: app)
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 15))
+  }
+
+  private func bundledLicenseTitles() throws -> [String] {
+    struct Manifest: Decodable {
+      struct Notice: Decodable {
+        let name: String
+        let version: String
+      }
+      let packages: [Notice]
+    }
+    let root = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let data = try Data(
+      contentsOf: root.appending(path: "Apps/iOS/Generated/OpenSourceLicenses.json"))
+    let manifest = try JSONDecoder().decode(Manifest.self, from: data)
+    return ["put.io "] + manifest.packages.map { "\($0.name) \($0.version)" }
   }
 
   private var deviceNoun: String {

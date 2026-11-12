@@ -1,0 +1,38 @@
+{
+  "app": {
+    "name": "put.io",
+    "license": "MIT",
+    "copyright": "Copyright © put.io",
+    "source": "https://github.com/putdotio/putio-ios",
+    "licenseText": "https://github.com/putdotio/putio-ios/blob/main/LICENSE"
+  },
+  "packages": {
+    "putio-sdk-swift": {
+      "name": "putio-sdk-swift",
+      "license": "MIT",
+      "copyright": "Copyright © put.io",
+      "source": "https://github.com/putdotio/putio-sdk-swift",
+      "licenseText": "https://github.com/putdotio/putio-sdk-swift/blob/main/LICENSE"
+    },
+    "SentrySDK": {
+      "name": "Sentry",
+      "license": "MIT",
+      "copyright": "Copyright © 2015 Sentry",
+      "source": "https://github.com/getsentry/sentry-cocoa",
+      "licenseText": "https://github.com/getsentry/sentry-cocoa/blob/main/LICENSE.md"
+    },
+    "GoogleCastSDK": {
+      "name": "Google Cast SDK",
+      "license": "Google Cast SDK Additional Developer Terms",
+      "copyright": "Copyright © Google LLC",
+      "licenseText": "https://developers.google.com/cast/docs/terms"
+    },
+    "intercom-ios-sp": {
+      "name": "Intercom",
+      "license": "Intercom SDK license",
+      "copyright": "Copyright © Intercom, Inc.",
+      "licenseText": "https://github.com/intercom/intercom-ios-sp/blob/master/LICENSE"
+    }
+  },
+  "testOnly": ["swift-custom-dump", "swift-issue-reporting", "swift-snapshot-testing", "swift-syntax"]
+}

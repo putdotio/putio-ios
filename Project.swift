@@ -46,6 +46,9 @@ private func brandFontResources(for platform: String) -> ResourceFileElements {
   .resources(brandFontResourceElements(for: platform))
 }
 
+private let openSourceLicenses = ResourceFileElement.glob(
+  pattern: .relativeToManifest("Apps/iOS/Generated/OpenSourceLicenses.json"))
+
 private func brandFontInfoPlist(for platform: String) -> Plist.Value {
   .array(brandFontNames(for: platform).map(Plist.Value.string))
 }
@@ -157,7 +160,7 @@ let project = Project(
         "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
         "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
-      resources: brandFontResources(for: "ios"),
+      resources: .resources(brandFontResourceElements(for: "ios") + [openSourceLicenses]),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
       scripts: [
         .post(
@@ -235,7 +238,8 @@ let project = Project(
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [
-          .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets"))
+          openSourceLicenses,
+          .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets")),
         ]
       ),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
