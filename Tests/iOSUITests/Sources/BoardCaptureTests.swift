@@ -14,19 +14,19 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   override func tearDown() {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     super.tearDown()
   }
 
   func testFolder() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     try captureBoard("rd-ios-02-folder")
   }
 
   func testRowActions() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.442")
@@ -34,7 +34,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testVLCMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-vlc-installed")
     app.launch()
     openSeasonFolder()
@@ -44,7 +44,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testSwipeActions() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     let row = element("files.item.442")
@@ -55,7 +55,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testTrashed() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.443")
@@ -66,7 +66,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testDeletePermanently() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-trash-disabled")
     app.launch()
     openSeasonFolder()
@@ -78,7 +78,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testTrashOffMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-trash-disabled")
     app.launch()
     openSeasonFolder()
@@ -88,7 +88,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testTrashUnknownMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-unconfirmed-settings")
     app.launch()
     reachFilesRoot()
@@ -112,7 +112,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testTrashLimit() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-trash-limit")
     app.launch()
     reachFilesRoot()
@@ -125,7 +125,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testFolderLongPress() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     openItemMenu("files.item.410")
@@ -133,7 +133,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testFileMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     XCTAssertTrue(app.revealed("files.item.407").exists, "the archive row never appeared")
@@ -142,7 +142,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMove() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoveSheet(for: "files.item.445")
@@ -150,7 +150,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoveFolder() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoveSheet(for: "files.item.445")
@@ -160,7 +160,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoveLoading() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-move-folders")
     app.launch()
     openSeasonFolder()
@@ -171,7 +171,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoveCurrentFolder() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoveSheet(for: "files.item.445")
@@ -183,7 +183,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoveNameTaken() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoveSheet(for: "files.item.445")
@@ -195,7 +195,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoved() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoveSheet(for: "files.item.446")
@@ -208,7 +208,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoveIntoItself() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     app.navigationBars.buttons["BackButton"].firstMatch.tap()
@@ -221,7 +221,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testMoreMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     openMoreMenu()
@@ -229,7 +229,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testRename() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     let alert = openRename()
@@ -240,7 +240,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testNewFolder() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     openMoreMenu()
@@ -258,7 +258,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testRenameFailedToast() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     let alert = openRename()
@@ -276,21 +276,21 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testIPadSplit() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     app.launch()
     openHarnessFolder()
     try captureBoard("rd-ios-12-ipad-split")
   }
 
   func testFilesRoot() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     try captureBoard("Main")
   }
 
   func testHistoryTabHidden() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-history-disabled")
     app.launch()
     reachFilesRoot()
@@ -299,7 +299,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testIPadSidebar() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     app.launch()
     openHarnessFolder()
     let toggle = sidebarToggle()
@@ -311,7 +311,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testIPadPortrait() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     app.launch()
     openSeasonFolder()
     let toggle = sidebarToggle()
@@ -321,14 +321,14 @@ final class BoardCaptureTests: XCTestCase {
     sidebarToggle().tap()
     XCTAssertTrue(
       element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     XCTAssertTrue(
       element("files.screen.440").appears(within: 5), "rotating reset the Files path")
     try captureBoard("rd-ios-14-ipad-portrait")
   }
 
   func testListDetailNothingSelected() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     launchListDetailGallery()
     XCTAssertTrue(
       app.staticTexts["No file selected"].appears(within: 5), "the empty detail has no title")
@@ -338,14 +338,14 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testListDetailKeepsSelectionAcrossRotation() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     launchListDetailGallery()
     let row = listDetailRow(0)
     row.tap()
     assertListDetailOpen(row, "selecting a row")
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     assertListDetailOpen(row, "rotating to portrait")
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     assertListDetailOpen(row, "rotating back to landscape")
     XCTAssertFalse(listDetailRow(1).isSelected, "a second row opened")
     try captureBoard("gallery-split-ipad-detail")
@@ -470,7 +470,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewLoading() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     openLongPreview()
@@ -480,7 +480,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewError() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     openLongPreview()
@@ -497,7 +497,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewCannotShow() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     reachFilesRoot()
@@ -510,7 +510,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewImage() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     openPosterPreview()
     try captureBoard("rd-ios-pv-01-image")
   }
@@ -544,7 +544,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewPosition() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     reachFilesRoot()
@@ -568,9 +568,9 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewLandscapeImage() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     openPosterPreview()
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     let window = app.windows.firstMatch
     let deadline = Date.now.addingTimeInterval(10)
     while window.frame.width < window.frame.height, Date.now < deadline {
@@ -583,7 +583,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewDocument() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     reachFilesRoot()
@@ -606,7 +606,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewText() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     openSeasonFolder()
@@ -618,7 +618,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewTextTruncated() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-previews")
     app.launch()
     reachFilesRoot()
@@ -657,13 +657,13 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testInactiveNotice() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     try launchInactiveAccount()
     try captureBoard("rd-ios-ses-19-inactive")
   }
 
   func testIPadInactiveNotice() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     try launchInactiveAccount()
     try captureBoard("rd-ios-ses-26-ipad-inactive")
   }
@@ -733,13 +733,13 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testAnalyticsPrompt() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     launchAnalyticsPrompt()
     try captureBoard("rd-ios-ses-10-analytics")
   }
 
   func testAnalyticsPromptSaving() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     launchAnalyticsPrompt()
     let allow = app.buttons["analytics-prompt.allow"]
     allow.tap()
@@ -750,7 +750,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testAnalyticsPromptFailed() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     launchAnalyticsPrompt()
     app.buttons["analytics-prompt.allow"].tap()
     XCTAssertTrue(
@@ -759,7 +759,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testIPadAnalyticsPrompt() throws {
-    XCUIDevice.shared.orientation = .landscapeLeft
+    orient(.landscapeLeft)
     launchAnalyticsPrompt()
     try captureBoard("rd-ios-ses-25-ipad-analytics")
   }
@@ -861,7 +861,7 @@ final class BoardCaptureTests: XCTestCase {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
     let page = try XCTUnwrap(environment["PUTIO_GALLERY_PAGE"])
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments = [
       "--putio-harness-scenario", "gallery", "--putio-harness-gallery-page", page,
     ]
@@ -892,7 +892,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func launchSignedOut(welcomeFrame: Int?, extra: [String] = []) {
     let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
-    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+    orient(isPad ? .landscapeLeft : .portrait)
     app.launchArguments += ["--putio-harness-signed-out-at-launch"] + extra
     if let welcomeFrame {
       app.launchArguments += ["--putio-harness-welcome-frame", String(welcomeFrame)]
@@ -902,7 +902,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func launchSavedCredential(extra: [String]) {
     let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
-    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+    orient(isPad ? .landscapeLeft : .portrait)
     app.launchArguments += ["--putio-harness-saved-credential-at-launch"] + extra
     app.launch()
   }
@@ -932,7 +932,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func orientForBoardDevice() {
     let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
-    XCUIDevice.shared.orientation = isPad ? .landscapeLeft : .portrait
+    orient(isPad ? .landscapeLeft : .portrait)
   }
 
   private func downloadHarnessTrack() {
@@ -961,7 +961,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openAccount() {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     tabButton("Account").tap()
@@ -1122,6 +1122,9 @@ final class BoardCaptureTests: XCTestCase {
       return
     }
     XCTAssertEqual(
+      window.frame.size, Self.openDuoSize,
+      "open iPhone Duo window is \(window.frame.size) pt, not the book posture")
+    XCTAssertEqual(
       window.horizontalSizeClass, .regular,
       "open iPhone Duo window is \(window.frame.size) pt with compact width")
     XCTAssertEqual(
@@ -1130,6 +1133,12 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static let regularWidthThreshold: CGFloat = 600
+  private static let openDuoSize = CGSize(width: 951, height: 669)
+
+  private func orient(_ orientation: UIDeviceOrientation) {
+    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
+    XCUIDevice.shared.orientation = orientation
+  }
 
   private static func screenshot(showing size: CGSize) -> UIImage {
     let main = XCUIScreen.main.screenshot().image
@@ -1159,7 +1168,9 @@ final class BoardCaptureTests: XCTestCase {
   private static func rotated(_ image: UIImage, toMatch size: CGSize) -> UIImage {
     let landscapeImage = image.size.width > image.size.height
     guard landscapeImage != (size.width > size.height) else { return image }
-    let clockwise = XCUIDevice.shared.orientation == .landscapeRight
+    let clockwise =
+      XCUIDevice.shared.orientation == .landscapeRight
+      || ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-open"
     let rotated = CGSize(width: image.size.height, height: image.size.width)
     return UIGraphicsImageRenderer(size: rotated, format: rendererFormat(image)).image {
       context in

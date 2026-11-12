@@ -94,9 +94,10 @@ A board state needs one row there and one seeded test step.
   fails unless the window reports compact width under 600 pt.
 - `duo-open` unfolds the Duo after boot with
   [a guest tool](../../../../Tools/PutioHarness/Guest/DuoPosture.m) that sends
-  Device Hub's private posture event. The test fails unless the window reports
-  regular width and height. If the open step fails after a Simulator runtime
-  update, the event format changed.
+  Device Hub's private posture event: the hinge at 180 degrees, held like a
+  book. The test never rotates it and fails unless the window measures
+  951x669 pt with regular width and height. If the open step fails after a
+  Simulator runtime update, the event format changed.
 - The run fails on an id with no table row, and when any board produces no
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with
