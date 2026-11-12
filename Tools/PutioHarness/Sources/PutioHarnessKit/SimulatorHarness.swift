@@ -1741,7 +1741,6 @@ public struct SimulatorHarness {
     _ boards: [BoardCapture], xxl: Bool = false, runID: String, sourceRevision: String
   ) throws -> SurfaceRun {
     let platform = HarnessPlatform.ios
-    for board in boards { try board.device.requireHeadlessPosture() }
     try requireCleanSource()
     try requireRevision(sourceRevision)
     try regenerateWorkspace()
@@ -2128,6 +2127,10 @@ public struct SimulatorHarness {
       try boot(deviceIdentifier, label: platform.rawValue)
       if platform == .ios {
         try unloadUnusedJobs(deviceIdentifier, runtime: runtime)
+      }
+      if device == .duoOpen {
+        try DuoPosture(context: context, runner: runner, fileManager: fileManager)
+          .open(simulator: deviceIdentifier)
       }
       if platform == .watchos {
         _ = try runner.checked(

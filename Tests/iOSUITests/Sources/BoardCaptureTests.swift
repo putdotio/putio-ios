@@ -1051,7 +1051,7 @@ final class BoardCaptureTests: XCTestCase {
       }
     }
     let window = app.windows.firstMatch.frame
-    let screen = XCUIScreen.main.screenshot().image
+    let screen = Self.screenshot(showing: window.size)
     let capture = Self.oriented(screen, toMatch: window.size)
     let image = XCTAttachment(image: capture)
     image.name = board
@@ -1072,15 +1072,37 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func requireBoardDevicePosture() throws {
-    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-folded" else { return }
+    let device = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"]
+    guard device == "duo-folded" || device == "duo-open" else { return }
     let window = app.windows.firstMatch
     XCTAssertTrue(window.appears(within: 10), "app window never appeared")
-    XCTAssertLessThan(
-      window.frame.width, Self.regularWidthThreshold,
-      "folded iPhone Duo window is \(window.frame.width) pt wide")
+    if device == "duo-folded" {
+      XCTAssertLessThan(
+        window.frame.width, Self.regularWidthThreshold,
+        "folded iPhone Duo window is \(window.frame.width) pt wide")
+      return
+    }
+    XCTAssertEqual(
+      window.horizontalSizeClass, .regular,
+      "open iPhone Duo window is \(window.frame.size) pt with compact width")
+    XCTAssertEqual(
+      window.verticalSizeClass, .regular,
+      "open iPhone Duo window is \(window.frame.size) pt with compact height")
   }
 
   private static let regularWidthThreshold: CGFloat = 600
+
+  private static func screenshot(showing size: CGSize) -> UIImage {
+    let main = XCUIScreen.main.screenshot().image
+    guard !fits(main.size, size) else { return main }
+    return XCUIScreen.screens.lazy.map { $0.screenshot().image }.first { fits($0.size, size) }
+      ?? main
+  }
+
+  private static func fits(_ image: CGSize, _ window: CGSize) -> Bool {
+    let sides = { (size: CGSize) in [size.width, size.height].sorted() }
+    return zip(sides(image), sides(window)).allSatisfy { abs($0 - $1) < 1 }
+  }
 
   private static func oriented(_ screen: UIImage, toMatch size: CGSize) -> UIImage {
     let upright = UIGraphicsImageRenderer(size: screen.size, format: rendererFormat(screen)).image {

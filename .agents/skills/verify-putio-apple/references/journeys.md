@@ -92,8 +92,11 @@ A board state needs one row there and one seeded test step.
   that device instead of the one their row names.
 - `duo-folded` runs on the iPhone Duo runtime, on its outer display. The test
   fails unless the window reports compact width under 600 pt.
-- `duo-open` fails before any simulator starts. No headless tool sets the Duo
-  posture; capture the open posture by hand in Device Hub (Xcode 27.1+).
+- `duo-open` unfolds the Duo after boot with
+  [a guest tool](../../../../Tools/PutioHarness/Guest/DuoPosture.m) that sends
+  Device Hub's private posture event. The test fails unless the window reports
+  regular width and height. If the open step fails after a Simulator runtime
+  update, the event format changed.
 - The run fails on an id with no table row, and when any board produces no
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with

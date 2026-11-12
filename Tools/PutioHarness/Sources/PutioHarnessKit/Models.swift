@@ -525,16 +525,6 @@ public enum BoardDevice: String, CaseIterable, Codable, Sendable {
     case .duoFolded, .duoOpen: foldableDeviceTypeIdentifier
     }
   }
-
-  func requireHeadlessPosture() throws {
-    guard self == .duoOpen else { return }
-    throw HarnessFailure(
-      "duo-open needs the iPhone Duo unfolded, and no headless tool sets its posture: "
-        + "simctl has no fold command and screenConfig power does not fold. "
-        + "Device Hub (Xcode 27.1+, Xcode > Open Developer Tool > Device Hub) is the only way "
-        + "to set Closed, Partially Open, or Open; capture the open posture there by hand. "
-        + "No simulator was created.")
-  }
 }
 
 struct BoardCapture: Equatable, Sendable {
@@ -618,6 +608,7 @@ enum BoardCaptureContract {
         "gallery-split-ipad-detail", .ipad, "testListDetailKeepsSelectionAcrossRotation",
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
+      BoardCapture("rd-ios-duo-02-open-folder", .duoOpen, "testFolder"),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),
@@ -713,11 +704,9 @@ enum BoardCaptureContract {
     guard Set(ids).count == ids.count else {
       throw HarnessFailure("--boards lists a board id twice")
     }
-    let captures = ids.compactMap { id in boards.first { $0.id == id } }.map { capture in
+    return ids.compactMap { id in boards.first { $0.id == id } }.map { capture in
       device.map(capture.on) ?? capture
     }
-    for capture in captures { try capture.device.requireHeadlessPosture() }
-    return captures
   }
 }
 
