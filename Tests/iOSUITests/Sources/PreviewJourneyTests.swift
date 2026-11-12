@@ -593,27 +593,16 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
-    signOut()
+    signOutFromFiles()
   }
 
-  private func signOut() {
+  private func signOutFromFiles() {
     let back = app.navigationBars.buttons["BackButton"].firstMatch
     for _ in 0..<4 where !element("files.screen.0").appears(within: 2) && back.exists {
       back.tap()
     }
     XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
-
-    let account = app.buttons["Account"]
-    app.scrollDown(toHit: account)
-    if !account.exists { app.tabBars.buttons["Files"].firstMatch.tap() }
-    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed minimized")
-    account.tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    if !signOut.isHittable { app.swipeUp() }
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+    signOut()
   }
 
   func testTrashShowsTheNextFileAndUndoBringsItBack() {
@@ -661,7 +650,7 @@ final class PreviewJourneyTests: XCTestCase {
     screenshot("runtime-preview-trashed-last")
     app.buttons["Undo"].firstMatch.tap()
     XCTAssertTrue(cover.appears(within: 15), "Undo did not restore the file to its folder")
-    signOut()
+    signOutFromFiles()
   }
 
   func testTrashOffDeletesTheShownFileAfterAsking() {
@@ -701,7 +690,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.475").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(element("files.item.474").disappears(within: 10), "the folder kept the file")
-    signOut()
+    signOutFromFiles()
   }
 
   func testTrashLimitAsksBeforeDeletingTheShownFile() {
@@ -739,7 +728,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5), "no delete message")
     XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
     XCTAssertTrue(cover.disappears(within: 10), "the folder kept the file")
-    signOut()
+    signOutFromFiles()
   }
 
   private func openGalleryImage(_ id: Int, title: String) {
