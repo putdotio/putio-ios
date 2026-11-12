@@ -30,11 +30,15 @@ public final class PutioFolderModel {
   /// a mutation keeps only the first page, so later-page rows vanish until
   /// paging reaches them again.
   public private(set) var firstPageIDs: Set<PutioFileID> = []
+  /// True from a sort request until the folder's first page in the new order
+  /// arrives, or the request fails.
+  public private(set) var isUpdatingSortOrder = false
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let continueLoad: PutioFolderContinue?
   @ObservationIgnored private let actions: PutioFileActions?
   @ObservationIgnored private var generation: UInt64 = 0
+  @ObservationIgnored private var sortUpdate: UInt64 = 0
   @ObservationIgnored private var inFlightLoadGeneration: UInt64?
   @ObservationIgnored private var actionTask: Task<Void, Never>?
   // The refresh queued behind the latest mutation. Retained until the next
@@ -161,6 +165,12 @@ public final class PutioFolderModel {
     guard sort != self.sort else { return }
     let action = PutioFileAction.sort(folderID: folderID, sort: sort)
     begin(action)
+    sortUpdate &+= 1
+    let update = sortUpdate
+    isUpdatingSortOrder = true
+    defer {
+      if sortUpdate == update { isUpdatingSortOrder = false }
+    }
 
     await run(action, rollback: contents) { [folderID] in
       try await actions.setSort(folderID, sort)

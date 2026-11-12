@@ -2,7 +2,7 @@ import Foundation
 
 /// A sort key as the Files app presents it: one row per key, direction as a
 /// subtitle, and re-selecting the current key flips direction.
-public enum PutioFolderSortKey: CaseIterable, Hashable {
+public enum PutioFolderSortKey: CaseIterable, Hashable, Sendable {
   case name, size, dateAdded, dateModified, type, watchStatus
 
   public var title: String {
@@ -70,5 +70,90 @@ extension PutioFolderSort {
 
   public var title: String {
     "\(key.title), \(directionTitle.lowercased())"
+  }
+}
+
+/// The mobile sort menu's three sections: a Sort by field, the two orders of
+/// that field, and the two Videos orders, which leave Sort by unchecked.
+public struct PutioFolderSortChoices: Equatable, Sendable {
+  public static let fields: [PutioFolderSortKey] = [.name, .size, .dateAdded, .dateModified, .type]
+  public static let videoOrders: [PutioFolderSort] = [
+    .watchStatusAscending, .watchStatusDescending,
+  ]
+
+  public let current: PutioFolderSort?
+
+  public init(current: PutioFolderSort?) {
+    self.current = current
+  }
+
+  public var checkedField: PutioFolderSortKey? {
+    guard let current, current.key != .watchStatus else { return nil }
+    return current.key
+  }
+
+  /// The Order rows follow the checked field, or Name while none is checked.
+  public var orders: [PutioFolderSort] {
+    let field = checkedField ?? .name
+    return [field.sort(ascending: true), field.sort(ascending: false)]
+  }
+
+  public func isChecked(_ sort: PutioFolderSort) -> Bool {
+    sort == current
+  }
+
+  /// A new field keeps the checked order; after a Videos order it starts ascending.
+  public func selecting(_ field: PutioFolderSortKey) -> PutioFolderSort {
+    field.sort(ascending: checkedField == nil || current?.isAscending == true)
+  }
+}
+
+extension PutioFolderSortKey {
+  public var menuTitle: String {
+    switch self {
+    case .name: String(localized: "Name", bundle: .module)
+    case .size: String(localized: "Size", bundle: .module)
+    case .dateAdded: String(localized: "Date added", bundle: .module)
+    case .dateModified: String(localized: "Date modified", bundle: .module)
+    case .type: String(localized: "Type", bundle: .module)
+    case .watchStatus: String(localized: "Videos", bundle: .module)
+    }
+  }
+}
+
+extension PutioFolderSort {
+  /// The row title under Order or Videos.
+  public var orderTitle: String {
+    switch self {
+    case .nameAscending, .typeAscending: String(localized: "A to Z", bundle: .module)
+    case .nameDescending, .typeDescending: String(localized: "Z to A", bundle: .module)
+    case .sizeAscending: String(localized: "Smallest first", bundle: .module)
+    case .sizeDescending: String(localized: "Largest first", bundle: .module)
+    case .dateAddedAscending, .dateModifiedAscending:
+      String(localized: "Oldest first", bundle: .module)
+    case .dateAddedDescending, .dateModifiedDescending:
+      String(localized: "Newest first", bundle: .module)
+    case .watchStatusAscending: String(localized: "Unwatched first", bundle: .module)
+    case .watchStatusDescending: String(localized: "Watched first", bundle: .module)
+    }
+  }
+
+  /// The whole choice in one phrase, for the sort button's VoiceOver label.
+  public var menuLabel: String {
+    switch self {
+    case .nameAscending: String(localized: "Name, A to Z", bundle: .module)
+    case .nameDescending: String(localized: "Name, Z to A", bundle: .module)
+    case .sizeAscending: String(localized: "Size, smallest first", bundle: .module)
+    case .sizeDescending: String(localized: "Size, largest first", bundle: .module)
+    case .dateAddedAscending: String(localized: "Date added, oldest first", bundle: .module)
+    case .dateAddedDescending: String(localized: "Date added, newest first", bundle: .module)
+    case .dateModifiedAscending: String(localized: "Date modified, oldest first", bundle: .module)
+    case .dateModifiedDescending:
+      String(localized: "Date modified, newest first", bundle: .module)
+    case .typeAscending: String(localized: "Type, A to Z", bundle: .module)
+    case .typeDescending: String(localized: "Type, Z to A", bundle: .module)
+    case .watchStatusAscending: String(localized: "Unwatched first", bundle: .module)
+    case .watchStatusDescending: String(localized: "Watched first", bundle: .module)
+    }
   }
 }

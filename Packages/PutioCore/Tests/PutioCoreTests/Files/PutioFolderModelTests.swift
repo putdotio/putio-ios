@@ -2694,13 +2694,16 @@ final class PutioFolderModelTests: XCTestCase {
     try await sortRequests.waitForRequestCount(1)
     XCTAssertEqual(model.activeAction, .sort(folderID: .root, sort: .sizeDescending))
     XCTAssertFalse(model.canStartAction)
+    XCTAssertTrue(model.isUpdatingSortOrder)
     await sortRequests.succeed(request: 0)
     try await loader.waitForRequestCount(1)
     XCTAssertNil(model.activeAction)
     XCTAssertEqual(model.sort, .sizeDescending)
+    XCTAssertTrue(model.isUpdatingSortOrder, "the old rows showed before the new order arrived")
     await loader.succeed(request: 0, with: sorted)
     await task.value
 
+    XCTAssertFalse(model.isUpdatingSortOrder)
     XCTAssertEqual(model.state, .loaded(sorted))
     XCTAssertEqual(
       model.actionOutcome, .succeeded(.sort(folderID: .root, sort: .sizeDescending)))
@@ -2778,13 +2781,14 @@ final class PutioFolderModelTests: XCTestCase {
 
     await model.setSort(.typeAscending)
 
+    XCTAssertFalse(model.isUpdatingSortOrder)
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertEqual(model.sort, .nameAscending)
     guard case .failed(let action, let failure) = model.actionOutcome else {
       return XCTFail("expected a failed sort outcome")
     }
     XCTAssertEqual(action, .sort(folderID: .root, sort: .typeAscending))
-    XCTAssertEqual(failure.title, "Could not change sorting")
+    XCTAssertEqual(failure.title, "Couldn’t change sorting.")
   }
 }
 

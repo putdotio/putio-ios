@@ -14,6 +14,33 @@ final class PutioFileRouteTests: XCTestCase {
       .watchStatusDescending)
   }
 
+  func testSortMenuChecksOneFieldAndOneOrderAndVideosClearsTheField() {
+    let inherited = PutioFolderSortChoices(current: nil)
+    XCTAssertNil(inherited.checkedField)
+    XCTAssertEqual(inherited.orders.map(\.orderTitle), ["A to Z", "Z to A"])
+    XCTAssertEqual(inherited.selecting(.size), .sizeAscending)
+
+    let largest = PutioFolderSortChoices(current: .sizeDescending)
+    XCTAssertEqual(largest.checkedField, .size)
+    XCTAssertEqual(largest.orders.map(\.orderTitle), ["Smallest first", "Largest first"])
+    XCTAssertTrue(largest.isChecked(.sizeDescending))
+    XCTAssertEqual(largest.selecting(.dateAdded), .dateAddedDescending)
+    XCTAssertEqual(
+      PutioFolderSortChoices(current: .dateModifiedAscending).orders.map(\.orderTitle),
+      ["Oldest first", "Newest first"])
+
+    let watched = PutioFolderSortChoices(current: .watchStatusDescending)
+    XCTAssertNil(watched.checkedField)
+    XCTAssertEqual(watched.orders, [.nameAscending, .nameDescending])
+    XCTAssertFalse(watched.orders.contains(where: watched.isChecked))
+    XCTAssertEqual(
+      PutioFolderSortChoices.videoOrders.map(\.orderTitle), ["Unwatched first", "Watched first"])
+    XCTAssertEqual(watched.selecting(.type), .typeAscending)
+    XCTAssertEqual(
+      PutioFolderSortChoices.fields.map(\.menuTitle),
+      ["Name", "Size", "Date added", "Date modified", "Type"])
+  }
+
   func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {
     let trash = PutioFileDeletionPresentation(trashEnabled: true)
     XCTAssertEqual(trash.actionTitle, "Trash")

@@ -587,7 +587,37 @@ import Foundation
     static let seasonDeleteFailureFileID = 444
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
-    nonisolated(unsafe) private static var folderSorts: [Int: String] = [:]
+    nonisolated(unsafe) private static var folderSorts: [Int: String] = persistedFolderSorts()
+    /// The season folder's first `TYPE_DESC` request fails, for rollback proof.
+    nonisolated(unsafe) private static var seasonSortFailureDelivered = false
+    private static let folderSortsKey = "putio.harness.folder-sorts.server"
+    /// `--putio-harness-persist-folder-sorts` keeps folder sorts across
+    /// launches, as the server does; `--putio-harness-reset-folder-sorts`
+    /// starts that store empty.
+    private static var persistsFolderSorts: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-persist-folder-sorts")
+    }
+
+    private static func persistedFolderSorts() -> [Int: String] {
+      guard persistsFolderSorts else { return [:] }
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-reset-folder-sorts") {
+        UserDefaults.standard.removeObject(forKey: folderSortsKey)
+        return [:]
+      }
+      let stored = UserDefaults.standard.dictionary(forKey: folderSortsKey) as? [String: String]
+      return Dictionary(
+        uniqueKeysWithValues: (stored ?? [:]).compactMap { key, value in
+          Int(key).map { ($0, value) }
+        })
+    }
+
+    // Caller holds fileActionsLock.
+    private static func persistFolderSortsLocked() {
+      guard persistsFolderSorts else { return }
+      UserDefaults.standard.set(
+        Dictionary(uniqueKeysWithValues: folderSorts.map { (String($0.key), $0.value) }),
+        forKey: folderSortsKey)
+    }
     nonisolated(unsafe) private static var trashEmptyRefreshFailed = false
     // Bytes freed by permanent deletions; account storage reflects them.
     nonisolated(unsafe) private static var trashFreedBytes: Int64 = 0
@@ -720,6 +750,7 @@ import Foundation
       settingsSaved = false
       trashListRequests = 0
       folderSorts = [:]
+      seasonSortFailureDelivered = false
       trashEmptyRefreshFailed = false
       trashFreedBytes = 0
       accountRefreshFailuresRemaining = 0
@@ -817,6 +848,11 @@ import Foundation
         DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
+      } else if url.path == "/v2/files/set-sort-by",
+        Self.requestPayload(replayableRequest)?["file_id"] as? Int == Self.seasonFolderID
+      {
+        // Long enough for journeys and board captures to see the order update.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else {
         deliverResponse()
       }
@@ -1242,7 +1278,25 @@ import Foundation
           )
         )
       }
-      fileActionsLock.withLock { folderSorts[fileID] = sortBy }
+      let fails = fileActionsLock.withLock {
+        if fileID == seasonFolderID, sortBy == "TYPE_DESC", !seasonSortFailureDelivered {
+          seasonSortFailureDelivered = true
+          return true
+        }
+        folderSorts[fileID] = sortBy
+        persistFolderSortsLocked()
+        return false
+      }
+      guard !fails else {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_SORT_FAILURE",
+            message: "The season folder's first Type, Z to A request fails for rollback proof"
+          )
+        )
+      }
       return (200, #"{"status":"OK"}"#)
     }
 
@@ -1744,28 +1798,36 @@ import Foundation
     private static var seasonFiles: String {
       let removed = fileActionsLock.withLock { removedSeasonFileIDs }
       let videoRows = seasonEpisodes.filter { !removed.contains($0.id) }.map { episode in
-        """
-        {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
-        "parent_id":\(seasonFolderID),"size":\(episode.size),
-        "created_at":"2026-10-\(episode.day)T10:00:00Z",
-        "updated_at":"2026-10-\(episode.day)T10:00:00Z",
-        "start_from":\(playbackPosition(fileID: episode.id))}
-        """
+        SeasonRow(
+          id: episode.id, name: episode.name, type: "VIDEO", size: episode.size,
+          day: episode.day, watched: playbackPosition(fileID: episode.id) > 0,
+          json: """
+            {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
+            "parent_id":\(seasonFolderID),"size":\(episode.size),
+            "created_at":"2026-10-\(episode.day)T10:00:00Z",
+            "updated_at":"2026-10-\(episode.day)T10:00:00Z",
+            "start_from":\(playbackPosition(fileID: episode.id))}
+            """)
       }
-      let (movedAway, folderRows) = fileActionsLock.withLock {
-        (Set(movedSubtitleParents.keys), childFolderRowsLocked(of: seasonFolderID))
+      let (movedAway, folderRows, sortBy) = fileActionsLock.withLock {
+        (
+          Set(movedSubtitleParents.keys), childFolderRowsLocked(of: seasonFolderID),
+          folderSorts[seasonFolderID]
+        )
       }
       let subtitleRows = seasonSubtitles.keys.sorted().filter {
         !movedAway.contains($0) && !removed.contains($0)
       }.compactMap {
         id in
         seasonSubtitles[id].map {
-          subtitleRow(id: id, name: $0.name, size: $0.size, parentID: seasonFolderID)
+          SeasonRow(
+            id: id, name: $0.name, type: "TEXT", size: $0.size, day: 13, watched: false,
+            json: subtitleRow(id: id, name: $0.name, size: $0.size, parentID: seasonFolderID))
         }
       }
-      let rows = folderRows + videoRows + subtitleRows
+      let rows = folderRows + SeasonRow.ordered(videoRows + subtitleRows, by: sortBy).map(\.json)
       return """
-        {"parent":\(seasonFolderObject),"files":[\(rows.joined(separator: ","))],
+        {"parent":\(seasonFolderObject(sortBy: sortBy)),"files":[\(rows.joined(separator: ","))],
         "total":\(rows.count)}
         """
     }
@@ -1814,13 +1876,41 @@ import Foundation
       }
     }
 
-    private static var seasonFolderObject: String {
+    private struct SeasonRow {
+      let id: Int
+      let name: String
+      let type: String
+      let size: Int64
+      let day: Int
+      let watched: Bool
+      let json: String
+
+      static func ordered(_ rows: [SeasonRow], by sortBy: String?) -> [SeasonRow] {
+        guard let sortBy, let split = sortBy.lastIndex(of: "_") else { return rows }
+        let descending = sortBy[split...] == "_DESC"
+        let ascending: (SeasonRow, SeasonRow) -> Bool
+        switch sortBy[..<split] {
+        case "NAME": ascending = { ($0.name, $0.id) < ($1.name, $1.id) }
+        case "SIZE": ascending = { ($0.size, $0.id) < ($1.size, $1.id) }
+        case "DATE", "MODIFIED": ascending = { ($0.day, $0.id) < ($1.day, $1.id) }
+        case "TYPE": ascending = { ($0.type, $0.name) < ($1.type, $1.name) }
+        case "WATCH":
+          ascending = { ($0.watched ? 1 : 0, $0.id) < ($1.watched ? 1 : 0, $1.id) }
+        default: return rows
+        }
+        return rows.sorted { descending ? ascending($1, $0) : ascending($0, $1) }
+      }
+    }
+
+    private static var seasonFolderObject: String { seasonFolderObject(sortBy: nil) }
+
+    private static func seasonFolderObject(sortBy: String?) -> String {
       let removed = fileActionsLock.withLock { removedSeasonFileIDs }
       let size = seasonFolderSize - removed.compactMap(seasonFileSize).reduce(0, +)
       return """
         {"id":\(seasonFolderID),"name":"Blue Lights","file_type":"FOLDER","parent_id":410,
         "size":\(size),"created_at":"2026-10-20T10:00:00Z",
-        "updated_at":"2026-10-20T10:00:00Z"}
+        "updated_at":"2026-10-20T10:00:00Z","sort_by":\(sortBy.map { jsonString($0) } ?? "null")}
         """
     }
 

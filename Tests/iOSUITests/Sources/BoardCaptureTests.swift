@@ -275,6 +275,33 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-77-rename-failed-toast")
   }
 
+  func testSortMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    let sort = app.buttons["files.sort"]
+    XCTAssertTrue(sort.appears(within: 5), "the folder has no sort button")
+    sort.tap()
+    XCTAssertTrue(app.staticTexts["Sort by"].appears(within: 5), "the sort menu did not open")
+    XCTAssertTrue(app.staticTexts["Videos"].exists, "the sort menu has no Videos section")
+    try captureBoard("rd-ios-04-sort")
+  }
+
+  func testSortingUpdate() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    let sort = app.buttons["files.sort"]
+    XCTAssertTrue(sort.appears(within: 5), "the folder has no sort button")
+    sort.tap()
+    let sizeChoice = app.sortChoice("Size")
+    XCTAssertTrue(sizeChoice.appears(within: 5), "the sort menu has no Size row")
+    sizeChoice.tap()
+    XCTAssertTrue(
+      element("files.sorting.440").appears(within: 2), "the folder never said it was updating")
+    try captureBoard("rd-ios-72-sorting")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()

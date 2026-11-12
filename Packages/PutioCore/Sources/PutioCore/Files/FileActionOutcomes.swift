@@ -42,7 +42,7 @@ public struct PutioFileActionFailure: Equatable, Sendable {
     case .move:
       title = String(localized: "Could not move item", bundle: .module)
     case .sort:
-      title = String(localized: "Could not change sorting", bundle: .module)
+      title = String(localized: "Couldn’t change sorting.", bundle: .module)
     case .setWatched:
       title = String(localized: "Could not update watch status", bundle: .module)
     case .restore:

@@ -2955,6 +2955,17 @@
         }
       }
     },
+    "Order" : {
+      "comment" : "android: mobile_files_sort_order",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Order"
+          }
+        }
+      }
+    },
     "Password" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -3347,6 +3358,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Proxy"
+          }
+        }
+      }
+    },
+    "Sort by" : {
+      "comment" : "android: mobile_files_sort_by",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort by"
+          }
+        }
+      }
+    },
+    "Sort files" : {
+      "comment" : "android: mobile_files_sort",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort files"
+          }
+        }
+      }
+    },
+    "Updating file order" : {
+      "comment" : "android: mobile_files_sorting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating file order"
+          }
+        }
+      }
+    },
+    "Videos" : {
+      "comment" : "android: mobile_files_sort_videos",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Videos"
           }
         }
       }
@@ -4249,17 +4304,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Something went wrong. Try again."
-          }
-        }
-      }
-    },
-    "Sorting changed" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sorting changed"
           }
         }
       }

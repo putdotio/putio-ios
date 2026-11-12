@@ -577,6 +577,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-20-rename", .iphone, "testRename"),
       BoardCapture("rd-ios-21-new-folder", .iphone, "testNewFolder"),
       BoardCapture("rd-ios-77-rename-failed-toast", .iphone, "testRenameFailedToast"),
+      BoardCapture("rd-ios-04-sort", .iphone, "testSortMenu"),
+      BoardCapture("rd-ios-72-sorting", .iphone, "testSortingUpdate"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),

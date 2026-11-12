@@ -165,6 +165,12 @@ struct PutioFolderScreen: View {
       } else if model.supportsActions {
         ToolbarItemGroup(placement: .primaryAction) {
           if let castButton { castButton }
+          PutioFolderSortMenu(
+            current: model.sort ?? defaultSort,
+            isDisabled: !model.canStartAction || actionRequest != nil
+          ) { sort in
+            actionRequest = .sort(sort)
+          }
           browseMenu
         }
       } else if let castButton {
@@ -308,56 +314,100 @@ struct PutioFolderScreen: View {
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
-      List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
-        if let accountNotice {
-          PutioInactiveAccountNoticeView(notice: accountNotice)
-            .listRowInsets(
-              EdgeInsets(
-                top: PutioTheme.Spacing.space2, leading: PutioTheme.Spacing.space3,
-                bottom: PutioTheme.Spacing.space2, trailing: PutioTheme.Spacing.space3)
-            )
-            .listRowSeparator(.hidden)
-            .listRowBackground(PutioTheme.Colors.background)
-            .selectionDisabled()
-        }
-        folderHeader(contents)
-        ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
-          VStack(spacing: 0) {
-            row(
-              PutioBrowserItemPresentation(
-                item: item,
-                relativeTo: relativeDateReference ?? .now,
-                locale: locale,
-                sort: contents.sort ?? defaultSort
-              )
-            )
+      ScrollViewReader { proxy in
+        folderList(contents)
+          .onChange(of: model.isUpdatingSortOrder) { _, isUpdating in
+            guard isUpdating else { return }
+            proxy.scrollTo(accountNotice == nil ? ListTop.header : ListTop.notice, anchor: .top)
           }
-          .tag(item.id)
+      }
+    }
+  }
+
+  private enum ListTop: Hashable {
+    case notice
+    case header
+  }
+
+  private func folderList(_ contents: PutioFolderContents) -> some View {
+    List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
+      if let accountNotice {
+        PutioInactiveAccountNoticeView(notice: accountNotice)
+          .listRowInsets(
+            EdgeInsets(
+              top: PutioTheme.Spacing.space2, leading: PutioTheme.Spacing.space3,
+              bottom: PutioTheme.Spacing.space2, trailing: PutioTheme.Spacing.space3)
+          )
+          .id(ListTop.notice)
+          .listRowSeparator(.hidden)
           .listRowBackground(PutioTheme.Colors.background)
+          .selectionDisabled()
+      }
+      listTop(contents)
+      ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
+        VStack(spacing: 0) {
+          row(
+            PutioBrowserItemPresentation(
+              item: item,
+              relativeTo: relativeDateReference ?? .now,
+              locale: locale,
+              sort: contents.sort ?? defaultSort
+            )
+          )
         }
+        .tag(item.id)
+        .listRowBackground(PutioTheme.Colors.background)
+      }
 
-        if contents.hasMore {
-          loadMoreRow
-            .listRowBackground(PutioTheme.Colors.background)
+      if contents.hasMore {
+        loadMoreRow
+          .listRowBackground(PutioTheme.Colors.background)
+      }
+
+      if let refreshFailure = model.refreshFailure {
+        Section {
+          refreshFailureRow(refreshFailure)
         }
+      }
+    }
+    .listStyle(.plain)
+    .refreshable {
+      _ = await model.refresh()
+    }
+    .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+  }
 
-        if let refreshFailure = model.refreshFailure {
-          Section {
-            refreshFailureRow(refreshFailure)
+  private func hasHeader(_ contents: PutioFolderContents) -> Bool {
+    route.id != .root && contents.folder?.id == route.id
+  }
+
+  @ViewBuilder
+  private func listTop(_ contents: PutioFolderContents) -> some View {
+    if hasHeader(contents) || model.isUpdatingSortOrder {
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
+        folderHeader(contents)
+        if model.isUpdatingSortOrder {
+          HStack(spacing: PutioTheme.Spacing.space2) {
+            ProgressView()
+              .controlSize(.small)
+            Text("Updating file order")
+              .putioFont(PutioTheme.Typography.body)
           }
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .accessibilityElement(children: .combine)
+          .accessibilityIdentifier("files.sorting.\(route.id.rawValue)")
         }
       }
-      .listStyle(.plain)
-      .refreshable {
-        _ = await model.refresh()
-      }
-      .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+      .id(ListTop.header)
+      .listRowSeparator(.hidden)
+      .listRowBackground(PutioTheme.Colors.background)
+      .selectionDisabled()
     }
   }
 
   @ViewBuilder
   private func folderHeader(_ contents: PutioFolderContents) -> some View {
-    if route.id != .root, let folder = contents.folder, folder.id == route.id {
+    if hasHeader(contents), let folder = contents.folder {
       HStack(alignment: .firstTextBaseline) {
         if let itemCount = contents.itemCount {
           Text("\(itemCount) items")
@@ -370,9 +420,6 @@ struct PutioFolderScreen: View {
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityElement(children: .combine)
       .accessibilityIdentifier("files.header.\(route.id.rawValue)")
-      .listRowSeparator(.hidden)
-      .listRowBackground(PutioTheme.Colors.background)
-      .selectionDisabled()
     }
   }
 
@@ -578,23 +625,10 @@ struct PutioFolderScreen: View {
           ]
         ])
       )
-      Section {
-        sortSection
-      }
     } label: {
       Label("More", systemImage: "ellipsis.circle")
     }
     .accessibilityIdentifier("files.menu")
-    .accessibilityLabel(PutioFolderSortRows.menuLabel(for: model.sort))
-  }
-
-  private var sortSection: some View {
-    PutioFolderSortRows(
-      current: model.sort,
-      isDisabled: !model.canStartAction || actionRequest != nil
-    ) { sort in
-      actionRequest = .sort(sort)
-    }
   }
 
   @ViewBuilder
