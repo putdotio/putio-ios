@@ -1793,6 +1793,19 @@ final class PutioInsetPDFView: PDFView {
   private var placed = false
   private var fittedSize: CGSize = .zero
 
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    registerForTraitChanges([UITraitHorizontalSizeClass.self]) {
+      (view: PutioInsetPDFView, _: UITraitCollection) in
+      view.fittedSize = .zero
+      view.setNeedsLayout()
+    }
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
   override func layoutSubviews() {
     super.layoutSubviews()
     if bounds.size != fittedSize, bounds.width > 0, bounds.height > 0 {
@@ -1815,7 +1828,9 @@ final class PutioInsetPDFView: PDFView {
         return page.rotation.isMultiple(of: 180) ? box.width : box.height
       }
       .max() ?? 0
-    let capped = pageWidth > 0 ? Self.maximumPageWidth / pageWidth : sizeToFit
+    let capped =
+      pageWidth > 0 && traitCollection.horizontalSizeClass == .regular
+      ? Self.maximumPageWidth / pageWidth : sizeToFit
     if capped < sizeToFit {
       fittedScale = capped
       autoScales = false
