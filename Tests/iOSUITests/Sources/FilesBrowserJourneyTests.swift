@@ -1595,8 +1595,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     retry.tap()
     XCTAssertTrue(
       element(identifier: "files.search-item.411").appears(within: 10), "Try again never loaded")
-    let sent = (requests.value as? String ?? "").split(separator: ";").suffix(2)
-    XCTAssertEqual(sent, ["retry|VIDEO", "retry|VIDEO"], "Try again changed the query or filter")
+    let repeated = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value ENDSWITH %@", "retry|VIDEO;retry|VIDEO"),
+      object: requests)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [repeated], timeout: 5), .completed,
+      "Try again changed the query or filter")
 
     if app.keyboards.firstMatch.exists { searchField.typeText("\n") }
     app.terminate()

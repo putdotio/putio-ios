@@ -184,6 +184,6 @@ extension PutioFileSearchModel {
     let term = keyword(query)
     guard term.count > shownTermLength else { return term }
     let cut = term.prefix(shownTermLength)
-    return String(cut).trimmingCharacters(in: .whitespaces) + "…"
+    return String(cut).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
   }
 }

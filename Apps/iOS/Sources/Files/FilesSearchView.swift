@@ -244,6 +244,7 @@ struct FilesSearchView: View {
                     trailing: PutioTheme.Spacing.space1)
                 )
                 .listRowSeparator(.hidden)
+                .selectionDisabled()
               } else {
                 ProgressView("Loading more results")
                   .task(
