@@ -478,7 +478,7 @@ final class PreviewJourneyTests: XCTestCase {
     assertMoreMenu()
     screenshot("runtime-preview-more-image")
 
-    app.buttons["item-action.rename"].tap()
+    app.buttons["Rename"].firstMatch.tap()
     let alert = app.alerts["Rename"]
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
@@ -500,7 +500,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").exists)
 
     app.buttons["preview.more"].tap()
-    app.buttons["item-action.move"].tap()
+    app.buttons["Move"].firstMatch.tap()
     XCTAssertTrue(element("files.move-screen.0").appears(within: 5), "Move never opened")
     let harness = element("files.move-folder.410")
     XCTAssertTrue(harness.appears(within: 10), "the move sheet lists no Harness Folder")
@@ -535,9 +535,9 @@ final class PreviewJourneyTests: XCTestCase {
     let more = app.buttons["preview.more"]
     XCTAssertTrue(more.isEnabled, "More is disabled")
     more.tap()
-    let rename = app.buttons["item-action.rename"]
+    let rename = app.buttons["Rename"].firstMatch
     XCTAssertTrue(rename.appears(within: 5), "More never opened")
-    XCTAssertTrue(app.buttons["item-action.move"].exists)
+    XCTAssertTrue(app.buttons["Move"].firstMatch.exists)
     for absent in ["Play", "Select", "Pin", "Make a copy", "Mark as watched", "Download"] {
       XCTAssertFalse(app.buttons[absent].exists, "More lists \(absent)")
     }
@@ -545,7 +545,7 @@ final class PreviewJourneyTests: XCTestCase {
 
   private func dismissMenu() {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
-    XCTAssertTrue(app.buttons["item-action.rename"].disappears(within: 5))
+    XCTAssertTrue(app.buttons["Rename"].firstMatch.disappears(within: 5))
   }
 
   private func assertCannotShow(

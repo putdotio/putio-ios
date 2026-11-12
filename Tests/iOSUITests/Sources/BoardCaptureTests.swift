@@ -526,7 +526,7 @@ final class BoardCaptureTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     openPosterPreview()
     openPreviewMore()
-    app.buttons["item-action.rename"].tap()
+    app.buttons["Rename"].firstMatch.tap()
     let alert = app.alerts["Rename"]
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
@@ -537,7 +537,7 @@ final class BoardCaptureTests: XCTestCase {
   private func openPreviewMore() {
     app.buttons["preview.more"].tap()
     XCTAssertTrue(
-      app.buttons["item-action.rename"].appears(within: 5), "the viewer More never opened")
+      app.buttons["Rename"].firstMatch.appears(within: 5), "the viewer More never opened")
   }
 
   func testPreviewPosition() throws {
