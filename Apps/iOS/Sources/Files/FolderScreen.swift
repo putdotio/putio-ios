@@ -156,6 +156,7 @@ struct PutioFolderScreen: View {
         ToolbarItem(placement: .primaryAction) { castButton }
       }
     }
+    .putioToast($toast)
     .putioSelectionMode(
       $selection, among: currentItems.map(\.id), actions: selectionActions,
       isBusy: fileActionPending
@@ -178,7 +179,6 @@ struct PutioFolderScreen: View {
       )
     }
     .putioConfirmAlert($confirmAlert)
-    .putioToast($toast)
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
       if toast?.id == preparingToast { toast = nil }

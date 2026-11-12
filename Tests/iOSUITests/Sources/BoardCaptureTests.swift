@@ -566,6 +566,9 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["2 items are still in Files."].appears(within: 10), "no failure toast")
     XCTAssertTrue(app.buttons["Try again"].exists, "the failure toast has no Try again")
+    XCTAssertLessThanOrEqual(
+      app.buttons["Try again"].frame.maxY, element("selection.action.trash").frame.minY,
+      "the failure toast covers the selection bar")
     XCTAssertEqual(element("files.item.441").value as? String, "Selected")
     XCTAssertEqual(element("files.item.442").value as? String, "Selected")
     try captureBoard("rd-ios-61-selection-failed")
