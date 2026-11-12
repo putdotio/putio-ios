@@ -696,7 +696,6 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     notice.accessibilityIdentifier = "preview.text.truncated"
     notice.isHidden = true
     addSubview(notice)
-    accessibilityElements = [textElement, notice]
     registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
       (view: PutioTextPreviewContainer, _) in
       view.restyle()
@@ -709,6 +708,7 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   func show(_ preview: PutioTextPreview, truncationNotice: String) {
     notice.text = truncationNotice
     notice.isHidden = !preview.isTruncated
+    accessibilityElements = preview.isTruncated ? [textElement, notice] : [textElement]
     guard preview != shown else { return }
     shown = preview
     restyle()
