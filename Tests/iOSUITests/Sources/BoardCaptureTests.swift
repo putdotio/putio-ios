@@ -482,7 +482,7 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     select(["files.item.441", "files.item.442"])
     assertSelectionBar(["move", "download", "watched", "trash"])
-    XCTAssertTrue(app.staticTexts["No file selected"].exists, "selection changed the detail")
+    XCTAssertTrue(tabButton("Downloads").exists, "selection hid the iPad tab bar")
     try captureBoard("rd-ios-24-ipad-selection")
   }
 
