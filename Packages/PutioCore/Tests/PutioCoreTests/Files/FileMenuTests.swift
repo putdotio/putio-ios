@@ -70,43 +70,28 @@ final class FileMenuTests: XCTestCase {
 
   func testSelectionBarFollowsTheIssueTable() {
     let videos = [item(.video, resume: 0), item(.video, resume: 90)]
-    XCTAssertEqual(
-      PutioFileSelectionMenu(selected: videos, capabilities: everything).actions,
-      [.move, .download, .markWatched, .trash])
-    XCTAssertEqual(
-      PutioFileSelectionMenu(selected: videos + [item(.folder)], capabilities: everything)
-        .actions,
-      [.move, .trash])
-    XCTAssertEqual(
-      PutioFileSelectionMenu(
-        selected: [item(.video), item(.other("pdf"))], capabilities: everything
-      )
-      .actions,
-      [.move, .trash])
-    XCTAssertEqual(
-      PutioFileSelectionMenu(selected: [], capabilities: everything).actions, [.move, .trash])
+    XCTAssertEqual(selectionBar(videos), [.move, .download, .markWatched, .trash])
+    XCTAssertEqual(selectionBar(videos + [item(.folder)]), [.move, .trash])
+    XCTAssertEqual(selectionBar([item(.video), item(.other("pdf"))]), [.move, .trash])
+    XCTAssertEqual(selectionBar([]), [.move, .trash])
   }
 
   func testSelectionOffersUnwatchedOnlyWhenEveryVideoIsWatched() {
     XCTAssertEqual(
-      PutioFileSelectionMenu(
-        selected: [item(.video, resume: 1), item(.video, resume: 90)], capabilities: everything
-      ).actions,
+      selectionBar([item(.video, resume: 1), item(.video, resume: 90)]),
       [.move, .download, .markUnwatched, .trash])
   }
 
   func testSelectionWatchStatusIsForVideosOnlyWithResumeTrackingOn() {
+    XCTAssertEqual(selectionBar([item(.video), item(.audio)]), [.move, .download, .trash])
     XCTAssertEqual(
-      PutioFileSelectionMenu(selected: [item(.video), item(.audio)], capabilities: everything)
+      PutioFileSelectionMenu(selected: [item(.video)], canDownload: false, tracksWatched: false)
         .actions,
-      [.move, .download, .trash])
-    XCTAssertEqual(
-      PutioFileSelectionMenu(
-        selected: [item(.video)],
-        capabilities: .init(
-          canEdit: true, canDownload: false, vlcInstalled: true, tracksWatched: false)
-      ).actions,
       [.move, .trash])
+  }
+
+  private func selectionBar(_ items: [PutioFileItem]) -> [PutioFileSelectionAction] {
+    PutioFileSelectionMenu(selected: items, canDownload: true, tracksWatched: true).actions
   }
 
   private func item(_ kind: PutioFileKind, resume: Int = 0, shared: Bool = false)

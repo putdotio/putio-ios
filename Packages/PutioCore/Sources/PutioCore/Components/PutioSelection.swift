@@ -205,6 +205,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           }
         }
         .onChange(of: ids) { _, current in
+          guard !isBusy else { return }
           selection.retain(current)
         }
         .onDisappear {

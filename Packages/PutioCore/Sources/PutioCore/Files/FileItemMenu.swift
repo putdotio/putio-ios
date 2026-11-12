@@ -77,15 +77,15 @@ public enum PutioFileSelectionAction: String, Equatable, Sendable {
 public struct PutioFileSelectionMenu: Equatable, Sendable {
   public let actions: [PutioFileSelectionAction]
 
-  public init(selected items: [PutioFileItem], capabilities: PutioFileMenu.Capabilities) {
+  public init(selected items: [PutioFileItem], canDownload: Bool, tracksWatched: Bool) {
     let routes = items.map { $0.kind == .folder ? nil : PutioFileRoute(item: $0) }
     let onlyPlayable = !routes.isEmpty && routes.allSatisfy { $0?.isPlayable == true }
     var actions: [PutioFileSelectionAction] = [.move]
     if onlyPlayable {
-      if capabilities.canDownload, routes.allSatisfy({ $0?.supportsOfflineDownload == true }) {
+      if canDownload, routes.allSatisfy({ $0?.supportsOfflineDownload == true }) {
         actions.append(.download)
       }
-      if capabilities.tracksWatched, items.allSatisfy({ $0.kind == .video }) {
+      if tracksWatched, items.allSatisfy({ $0.kind == .video }) {
         actions.append(items.allSatisfy(\.isWatched) ? .markUnwatched : .markWatched)
       }
     }

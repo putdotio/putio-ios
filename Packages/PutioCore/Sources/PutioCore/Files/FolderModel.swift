@@ -377,10 +377,13 @@ public final class PutioFolderModel {
       let latest = latestItems(for: selectedItems, in: contents),
       latest.allSatisfy({ $0.kind == .video })
     else { return }
-    let items = latest.filter { $0.isWatched != watched }
-    guard !items.isEmpty else { return }
-
     let action = PutioBulkFileAction.setWatched(watched)
+    let items = latest.filter { $0.isWatched != watched }
+    guard !items.isEmpty else {
+      bulkOutcome = PutioBulkFileOutcome(action: action, succeeded: latest, failures: [])
+      return
+    }
+
     let resumePosition = watched ? 1 : 0
     let apply: BulkApply = { contents, ids in
       contents.settingResumePosition(resumePosition, of: ids)
@@ -389,8 +392,7 @@ public final class PutioFolderModel {
     state = .loaded(apply(contents, Set(items.map(\.id))))
 
     await runBulk(
-      action, items: items, batchSize: actions.batchSize, originalContents: contents,
-      apply: apply
+      action, items: items, batchSize: 1, originalContents: contents, apply: apply
     ) { batch in
       var failures: [PutioFileID: Error] = [:]
       for item in batch {

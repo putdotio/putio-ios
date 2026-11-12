@@ -366,27 +366,32 @@ struct MainTabView: View {
     }
   }
 
-  /// Multi-audio videos go through the picker; everything else queues directly.
   private func requestDownloads(_ routes: [PutioFileRoute]) async {
     for route in routes {
       await requestDownload(route, picksLanguages: false)
     }
   }
 
+  /// Multi-audio videos go through the picker unless `picksLanguages` is off,
+  /// which keeps every language; everything else queues directly.
   private func requestDownload(_ route: PutioFileRoute, picksLanguages: Bool = true) async {
     let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
     offlineQueue.refreshStorage()
     var estimate: Int64 = route.item.sizeBytes
     var awaitsLanguages = false
+    var audioLanguages: [String] = []
     do {
       switch try await offlineQueue.inventory(fileID: route.id, kind: kind) {
       case .ready(let inventory):
-        if picksLanguages, inventory.audioOptions.count > 1 {
-          trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
-          return
+        let languages = inventory.audioOptions.map(\.languageCode)
+        if languages.count > 1 {
+          guard !picksLanguages else {
+            trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
+            return
+          }
+          audioLanguages = languages
         }
-        estimate = inventory.estimatedBytes(
-          selecting: inventory.audioOptions.map(\.languageCode))
+        estimate = inventory.estimatedBytes(selecting: languages)
       case .needsConversion:
         // No stream to inspect yet; every language is kept after conversion.
         awaitsLanguages = true
@@ -402,7 +407,8 @@ struct MainTabView: View {
       return
     }
     enqueueDownload(
-      route, audioLanguages: [], estimatedBytes: estimate, awaitsLanguageSelection: awaitsLanguages)
+      route, audioLanguages: audioLanguages, estimatedBytes: estimate,
+      awaitsLanguageSelection: awaitsLanguages)
   }
 
   private func enqueueDownload(

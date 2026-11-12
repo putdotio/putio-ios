@@ -571,14 +571,10 @@ struct PutioFolderScreen: View {
   }
 
   private var selectionActions: [PutioSelectionAction] {
+    guard isEditing else { return [] }
     let items = selectedItems
     let menu = PutioFileSelectionMenu(
-      selected: items,
-      capabilities: .init(
-        canEdit: model.supportsActions,
-        canDownload: onBulkDownload != nil,
-        vlcInstalled: false,
-        tracksWatched: tracksWatched))
+      selected: items, canDownload: onBulkDownload != nil, tracksWatched: tracksWatched)
     return menu.actions.map { selectionAction($0, for: items) }
   }
 

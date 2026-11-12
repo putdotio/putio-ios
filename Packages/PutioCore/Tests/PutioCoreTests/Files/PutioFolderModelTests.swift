@@ -1356,6 +1356,30 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [refused])
   }
 
+  func testBulkWatchedReportsSuccessWhenEveryVideoAlreadyMatches() async {
+    let watched = BrowserTestFixtures.item(id: 7, resumePositionSeconds: 90)
+    let original = BrowserTestFixtures.contents(items: [watched])
+    var calls = 0
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { _, _ in calls += 1 }
+      ),
+      initialContents: original
+    )
+
+    await model.setWatched([watched], true)
+
+    XCTAssertEqual(calls, 0)
+    XCTAssertEqual(
+      model.bulkOutcome,
+      PutioBulkFileOutcome(action: .setWatched(true), succeeded: [watched], failures: []))
+  }
+
   func testBulkWatchedIgnoresSelectionsWithAnythingButVideos() async {
     let video = BrowserTestFixtures.item(id: 7)
     let audio = BrowserTestFixtures.item(id: 8, kind: .audio)

@@ -473,7 +473,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   func testSelectionBarWithTrashOffDeletesAndReportsPartialWatchedFailures() {
-    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launchArguments += [
+      "--putio-harness-trash-disabled", "--putio-harness-watched-refusal",
+    ]
     app.launch()
     openSeasonFolder()
 
