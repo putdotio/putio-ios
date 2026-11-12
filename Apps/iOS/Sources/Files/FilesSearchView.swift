@@ -398,7 +398,7 @@ struct FilesSearchView: View {
         id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
         isDisabled: editingBlocked
       ) { itemAction = .move(item) }
-    case .select, .rename, .trash:
+    case .select, .rename, .exclusiveLink, .trash:
       return nil
     }
   }
