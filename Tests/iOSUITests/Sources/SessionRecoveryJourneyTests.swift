@@ -109,7 +109,8 @@ final class SessionRecoveryJourneyTests: XCTestCase {
     title: String, message: String, discard discardTitle: String,
     file: StaticString = #filePath, line: UInt = #line
   ) {
-    XCTAssertTrue(retry.appears(within: 15), "the recovery screen never appeared", file: file, line: line)
+    XCTAssertTrue(
+      retry.appears(within: 15), "the recovery screen never appeared", file: file, line: line)
     XCTAssertEqual(retry.label, "Try again", file: file, line: line)
     XCTAssertEqual(discard.label, discardTitle, file: file, line: line)
     XCTAssertTrue(notice.label.contains(title), "missing \(title)", file: file, line: line)
