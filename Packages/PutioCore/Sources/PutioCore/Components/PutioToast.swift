@@ -19,11 +19,15 @@ public struct PutioToast: Identifiable, Equatable, Sendable {
   public let text: String
   public let icon: Icon?
   public let action: Action?
+  public let staysUntilDismissed: Bool
 
-  public init(_ text: String, icon: Icon? = nil, action: Action? = nil) {
+  public init(
+    _ text: String, icon: Icon? = nil, action: Action? = nil, staysUntilDismissed: Bool = false
+  ) {
     self.text = text
     self.icon = icon
     self.action = action
+    self.staysUntilDismissed = staysUntilDismissed
   }
 
   public static func == (lhs: PutioToast, rhs: PutioToast) -> Bool {
@@ -176,6 +180,7 @@ private struct PutioToastPresenter: ViewModifier {
       holdsVoiceOverFocus = false
       guard let presented = toast else { return }
       AccessibilityNotification.Announcement(presented.text).post()
+      guard !presented.staysUntilDismissed else { return }
       try? await Task.sleep(for: PutioToastLayout.duration)
       guard !Task.isCancelled else { return }
       timedOut = presented.id

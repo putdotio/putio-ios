@@ -1011,6 +1011,14 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 300),
     JourneyPreflight(
+      "share", "PreviewJourneyTests/testShareFetchesCancelsRetriesAndSharesDownloads",
+      attachmentNames: [
+        "runtime-share-menu-image", "runtime-share-sheet-image", "runtime-share-menu-document",
+        "runtime-share-sheet-document", "runtime-share-menu-over-cap", "runtime-share-preparing",
+        "runtime-share-failed", "runtime-share-menu-downloaded", "runtime-share-sheet-downloaded",
+      ],
+      timeAllowance: 240),
+    JourneyPreflight(
       "preview-more", "PreviewJourneyTests/testMoreMenuRenamesAndMovesTheShownFile",
       attachmentNames: [
         "runtime-preview-more-pdf", "runtime-preview-more-image", "runtime-preview-rename",

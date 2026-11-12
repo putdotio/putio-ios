@@ -30,6 +30,9 @@ struct PutioFolderScreen: View {
   @State private var lastKnownFolderName: String?
   @Environment(\.putioDefaultFolderSort) private var defaultSort
   @Environment(\.putioPreviewOpen) private var previewOpen
+  @Environment(\.putioFileShare) private var fileShare
+  @State private var share = PutioFileShareModel()
+  @State private var preparingToast: PutioToast.ID?
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -185,6 +188,12 @@ struct PutioFolderScreen: View {
       Text(bulkOutcomeMessage(outcome))
     }
     .putioToast($toast)
+    .onChange(of: share.state) { _, state in
+      if case .fetching = state { return }
+      if toast?.id == preparingToast { toast = nil }
+      preparingToast = nil
+    }
+    .onDisappear { share.leave() }
     .overlay {
       if let progress = model.bulkProgress {
         ProgressView(
@@ -249,6 +258,9 @@ struct PutioFolderScreen: View {
       guard !reportedLoaded, case .loaded = state else { return }
       reportedLoaded = true
       onLoaded()
+    }
+    .onChange(of: isEditing) { _, editing in
+      if editing { share.leave() }
     }
   }
 
@@ -471,9 +483,18 @@ struct PutioFolderScreen: View {
         canEdit: model.supportsActions,
         canDownload: onDownload != nil,
         vlcInstalled: onExternalPlayback != nil,
-        tracksWatched: tracksWatched))
+        tracksWatched: tracksWatched,
+        canShare: fileShare != nil),
+      isDownloaded: PutioFileShareSource.dependsOnDownload(item)
+        && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
     let row = content.frame(maxWidth: .infinity, alignment: .leading)
       .listRowBackground(PutioTheme.Colors.background)
+      .background {
+        if let file = share.presented(for: item.id) {
+          PutioShareSheetAnchor(file: file, name: item.name, model: share)
+        }
+      }
+      .onDisappear { share.leave(item.id) }
     if menu.sections.isEmpty {
       row
     } else {
@@ -505,6 +526,11 @@ struct PutioFolderScreen: View {
         id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone,
         isDisabled: fileActionPending
       ) { onExternalPlayback?(route) }
+    case .share:
+      return PutioItemAction(
+        id: "share", title: String(localized: "Share"), icon: .export,
+        isDisabled: fileActionPending
+      ) { startShare(item) }
     case .select:
       return PutioItemAction(
         id: "select", title: String(localized: "Select"), icon: .checkCircle,
@@ -540,6 +566,27 @@ struct PutioFolderScreen: View {
         asksFirst: !trashEnabled
       ) { requestDeletion(of: item) }
     }
+  }
+
+  private func startShare(_ item: PutioFileItem) {
+    guard let fileShare else { return }
+    let fetching = share.share(item, using: fileShare) { failure in
+      switch failure {
+      case .retryable:
+        toast = PutioToast(
+          PutioScreenErrorKind.failed.title,
+          action: PutioToast.Action(String(localized: "Try again")) { startShare(item) })
+      case .final:
+        toast = PutioToast(PutioScreenErrorKind.failed.title)
+      }
+    }
+    guard fetching else { return }
+    let preparing = PutioToast(
+      String(localized: "Preparing…"),
+      action: PutioToast.Action(String(localized: "Cancel")) { share.cancel() },
+      staysUntilDismissed: true)
+    toast = preparing
+    preparingToast = preparing.id
   }
 
   private func requestDeletion(of item: PutioFileItem) {

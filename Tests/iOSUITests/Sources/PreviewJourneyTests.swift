@@ -751,6 +751,88 @@ final class PreviewJourneyTests: XCTestCase {
     button.tap()
   }
 
+  func testShareFetchesCancelsRetriesAndSharesDownloads() {
+    app.launch()
+    signIn()
+    let requests = element("preview.requests")
+
+    shareFromMenu(rowID: 406, sharing: "Harness Poster.png", capture: "image")
+    XCTAssertTrue(waitForValue(requests, "406:shared"), "\(requests.value ?? "")")
+    shareFromMenu(rowID: 413, sharing: "Document.pdf", capture: "document")
+    XCTAssertTrue(waitForValue(requests, "406:shared,413:shared"), "\(requests.value ?? "")")
+
+    assertNoShare(rowID: 430, capture: "over-cap")
+    assertNoShare(rowID: 409)
+
+    let held = app.revealed("files.item.428")
+    openMenu(on: held).tap()
+    let preparing = app.staticTexts["Preparing…"]
+    XCTAssertTrue(preparing.appears(within: 5), "the fetch showed no Preparing toast")
+    screenshot("runtime-share-preparing")
+    app.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(
+      waitForValue(requests, "406:shared,413:shared,428:cancelled"),
+      "Cancel did not stop the fetch: \(requests.value ?? "")")
+    XCTAssertFalse(app.otherElements["ActivityListView"].exists)
+
+    openMenu(on: held).tap()
+    let failed = app.staticTexts["Couldn’t load this"]
+    XCTAssertTrue(failed.appears(within: 10), "the failed fetch showed no toast")
+    XCTAssertTrue(held.exists, "the failed fetch changed the list")
+    screenshot("runtime-share-failed")
+    let sheet = app.openShareSheet(
+      from: app.buttons["Try again"].firstMatch, sharing: longPreviewName, anchoredTo: held)
+    app.dismissShareSheet(sheet)
+    XCTAssertTrue(
+      waitForValue(requests, "406:shared,413:shared,428:cancelled,428:failed,428:shared"),
+      "Try again did not share: \(requests.value ?? "")")
+
+    let track = app.revealed("files.item.408")
+    openMenu(on: track, action: "Download").tap()
+    let downloads = app.buttons["Downloads"].firstMatch
+    app.scrollDown(toHit: downloads)
+    downloads.tap()
+    let downloaded = element("downloads.item.408")
+    XCTAssertTrue(
+      waitForValue(downloaded, "completed", timeout: 60), "the track never finished downloading")
+    app.buttons["Files"].firstMatch.tap()
+    let shared = requests.value as? String
+    shareFromMenu(rowID: 408, sharing: "Harness Track.m4a", capture: "downloaded")
+    XCTAssertEqual(requests.value as? String, shared, "a downloaded file was fetched again")
+  }
+
+  private let longPreviewName = "document-scan-from-the-harness-weekend-2026.png"
+
+  private func openMenu(on row: XCUIElement, action: String = "Share") -> XCUIElement {
+    XCTAssertTrue(row.appears(within: 10), "\(row) never appeared")
+    revealBelowNavigationBar(row)
+    row.press(forDuration: 1)
+    let button = app.buttons[action].firstMatch
+    XCTAssertTrue(button.appears(within: 5), "the menu has no \(action)")
+    return button
+  }
+
+  private func shareFromMenu(rowID: Int, sharing name: String, capture: String) {
+    let row = app.revealed("files.item.\(rowID)")
+    let share = openMenu(on: row)
+    screenshot("runtime-share-menu-\(capture)")
+    let sheet = app.openShareSheet(from: share, sharing: name, anchoredTo: row)
+    screenshot("runtime-share-sheet-\(capture)")
+    app.dismissShareSheet(sheet)
+  }
+
+  private func assertNoShare(rowID: Int, capture: String? = nil) {
+    let row = app.revealed("files.item.\(rowID)")
+    XCTAssertTrue(row.appears(within: 10), "row \(rowID) never appeared")
+    revealBelowNavigationBar(row)
+    row.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Select"].firstMatch.appears(within: 5), "the menu never opened")
+    XCTAssertFalse(app.buttons["Share"].exists, "row \(rowID) offers Share")
+    if let capture { screenshot("runtime-share-menu-\(capture)") }
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
+    XCTAssertTrue(app.buttons["Select"].firstMatch.disappears(within: 5))
+  }
+
   private func assertMoreMenu() {
     let more = app.buttons["preview.more"]
     XCTAssertTrue(more.isEnabled, "More is disabled")

@@ -604,7 +604,13 @@ struct MainTabView: View {
     .putioToast($externalPlayback.toast)
     .environment(
       \.putioPreviewOpen,
-      PutioPreviewOpenAction { route, source in selectFile(route, in: source) })
+      PutioPreviewOpenAction { route, source in selectFile(route, in: source) }
+    )
+    .environment(
+      \.putioFileShare,
+      PutioFileShareAction(
+        localFile: { offlineQueue.localSource(for: $0)?.url },
+        fetch: { route, extent in try await downloadPreview(route, extent) }))
   }
 
   private func videoPlayer(for route: PutioVideoRoute) -> some View {
