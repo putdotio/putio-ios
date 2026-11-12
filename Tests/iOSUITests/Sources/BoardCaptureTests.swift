@@ -1685,6 +1685,18 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-58-ipad-danger")
   }
 
+  func testIPadAccountScreen() throws {
+    let identifier = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_IPAD_ACCOUNT_ROW"], "no Account row to open")
+    openIPadAccount()
+    let row = scrollIPadAccount(toHit: identifier)
+    row.tap()
+    XCTAssertTrue(
+      element("putio.list-detail.empty").disappears(within: 5), "\(identifier) never opened")
+    assertIPadAccountOpen(identifier, "opening \(identifier)")
+    try captureBoard("ipad-account-screen")
+  }
+
   private func openIPadAccount() {
     orient(.landscapeLeft)
     app.launch()
@@ -1713,10 +1725,63 @@ final class BoardCaptureTests: XCTestCase {
     let row = element(identifier)
     XCTAssertTrue(row.appears(within: 5), "the Account list is hidden after \(step)")
     XCTAssertTrue(row.becomesHittable(within: 5), "the open row is off screen after \(step)")
-    XCTAssertTrue(row.isSelected, "the open row is not highlighted after \(step)")
+    XCTAssertTrue(row.isSelected, "the open row is not selected after \(step)")
+    XCTAssertTrue(holdsFrame(row, within: 5), "the open row never settled after \(step)")
+    let closedRow = Self.iPadAccountRows.lazy.filter { $0 != identifier }.map { self.element($0) }
+      .first {
+        $0.exists && $0.isHittable && self.isClearOfListEdges($0)
+      }
+    if let closedRow {
+      XCTAssertGreaterThan(
+        Self.fillLuminance(of: row), Self.fillLuminance(of: closedRow) + Self.openRowFillGain,
+        "the open row has no lighter fill than \(closedRow.identifier) after \(step)")
+    } else {
+      XCTFail("no closed Account row is in view to compare with after \(step)")
+    }
     let window = app.windows.firstMatch.frame
     XCTAssertLessThan(
       row.frame.maxX, window.midX, "the Account list is not the left column after \(step)")
+  }
+
+  private static let openRowFillGain = 0.02
+
+  private static let iPadAccountRows = [
+    "account.public-links", "account.trash", "playback-settings.method",
+    "playback-settings.route", "account.chromecast", "account.downloads", "account.privacy",
+    "security.apps", "security.link-device", "account.two-factor", "account.about",
+    "account.licenses", "account.clear-data", "account.destroy-account",
+  ]
+
+  private func isClearOfListEdges(_ row: XCUIElement) -> Bool {
+    let window = app.windows.firstMatch.frame
+    return row.frame.minY > window.minY + window.height * 0.25
+      && row.frame.maxY < window.maxY - window.height * 0.08
+  }
+
+  private static func fillLuminance(of row: XCUIElement) -> Double {
+    guard let image = row.screenshot().image.cgImage else { return 0 }
+    let patch = CGRect(x: image.width - 8, y: image.height / 5, width: 6, height: 6)
+    guard let corner = image.cropping(to: patch) else { return 0 }
+    let side = 6
+    var pixels = [UInt8](repeating: 0, count: side * side * 4)
+    let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+      guard
+        let context = CGContext(
+          data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8,
+          bytesPerRow: side * 4, space: CGColorSpaceCreateDeviceRGB(),
+          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+      else { return false }
+      context.draw(corner, in: CGRect(x: 0, y: 0, width: side, height: side))
+      return true
+    }
+    guard drawn else { return 0 }
+    var total = 0.0
+    for offset in stride(from: 0, to: pixels.count, by: 4) {
+      total +=
+        0.2126 * Double(pixels[offset]) + 0.7152 * Double(pixels[offset + 1]) + 0.0722
+        * Double(pixels[offset + 2])
+    }
+    return total / Double(side * side) / 255
   }
 
   private func openPublicLinks(_ mode: String) {

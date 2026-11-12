@@ -570,7 +570,7 @@ struct BoardCapture: Equatable, Sendable {
 enum BoardCaptureContract {
   static let fixtureSet = "seeded-runtime-loop-v5"
 
-  static let boards =
+  static let boards: [BoardCapture] =
     [
       BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
       BoardCapture("rd-ios-05-more", .iphone, "testMoreMenu"),
@@ -763,6 +763,20 @@ enum BoardCaptureContract {
         "rd-ios-acc-30-inactive-family", .iphone, "testAccountInactive", screenBase: false,
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
+    + iPadAccountScreens.map { screen, row in
+      BoardCapture(
+        "ipad-account-\(screen)", .ipad, "testIPadAccountScreen", screenBase: false,
+        environment: ["PUTIO_IPAD_ACCOUNT_ROW": row])
+    }
+
+  static let iPadAccountScreens: KeyValuePairs<String, String> = [
+    "public-links": "account.public-links", "trash": "account.trash",
+    "playback-method": "playback-settings.method", "chromecast": "account.chromecast",
+    "downloads": "account.downloads", "logged-in-apps": "security.apps",
+    "link-device": "security.link-device", "two-factor": "account.two-factor",
+    "app-info": "account.about", "licenses": "account.licenses",
+    "destroy-account": "account.destroy-account",
+  ]
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
 
