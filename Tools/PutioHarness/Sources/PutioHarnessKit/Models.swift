@@ -630,6 +630,10 @@ enum BoardCaptureContract {
         "rd-ios-ses-22-ipad-check-failed", .ipad, "testSessionCheckFailed", screenBase: false),
       BoardCapture(
         "rd-ios-ses-23-ipad-storage", .ipad, "testSecureStorageUnavailable", screenBase: false),
+      BoardCapture("rd-ios-ses-27-duo-closed-welcome", .duoFolded, "testWelcome"),
+      BoardCapture(
+        "rd-ios-ses-28-duo-closed-waiting", .duoFolded, "testCheckingSession", screenBase: false),
+      BoardCapture("rd-ios-ses-29-duo-open-welcome", .duoOpen, "testWelcome"),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
       BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
       BoardCapture("rd-ios-pv-04-text", .iphone, "testPreviewText"),

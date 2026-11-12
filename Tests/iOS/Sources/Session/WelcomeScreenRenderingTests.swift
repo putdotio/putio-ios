@@ -44,6 +44,32 @@ final class WelcomeScreenRenderingTests: XCTestCase {
   }
 
   @MainActor
+  func testDuoWelcomeKeepsClearOfTheTrailingBars() throws {
+    let folded: [(String, WelcomeScreen)] = [
+      ("welcome-duo-folded", WelcomeScreen(mode: .fresh, pinnedFrame: 0)),
+      (
+        "welcome-duo-folded-checking-session",
+        WelcomeScreen(mode: .fresh, isCheckingSession: true, pinnedFrame: 0)
+      ),
+    ]
+    for (name, screen) in folded {
+      _ = try assertRenderingSnapshot(
+        name: name,
+        view: Self.device(
+          screen, top: 20, bottom: 20, trailing: Self.duoTrailingBar, sizeClass: .compact),
+        size: Self.duoFoldedSize
+      )
+    }
+    _ = try assertRenderingSnapshot(
+      name: "welcome-duo-open",
+      view: Self.device(
+        WelcomeScreen(mode: .fresh, pinnedFrame: 0), top: 20, bottom: 20,
+        trailing: Self.duoTrailingBar, sizeClass: .regular),
+      size: Self.duoOpenSize
+    )
+  }
+
+  @MainActor
   func testSessionProgressKeepsTheWordmarkAndCentresTheSpinner() throws {
     let states = [
       ("session-restoring", SessionProgressScreen(title: "Restoring your session")),
@@ -75,6 +101,9 @@ final class WelcomeScreenRenderingTests: XCTestCase {
   private static let phoneSize = CGSize(width: 402, height: 874)
   private static let shortPhoneSize = CGSize(width: 375, height: 667)
   private static let padSize = CGSize(width: 1210, height: 834)
+  private static let duoFoldedSize = CGSize(width: 466, height: 678)
+  private static let duoOpenSize = CGSize(width: 951, height: 669)
+  private static let duoTrailingBar: CGFloat = 64
 
   @MainActor
   private static func phone(
@@ -90,11 +119,13 @@ final class WelcomeScreenRenderingTests: XCTestCase {
 
   @MainActor
   private static func device(
-    _ screen: some View, top: CGFloat, bottom: CGFloat, sizeClass: UserInterfaceSizeClass
+    _ screen: some View, top: CGFloat, bottom: CGFloat, trailing: CGFloat = 0,
+    sizeClass: UserInterfaceSizeClass
   ) -> some View {
     screen
       .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: top) }
       .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: bottom) }
+      .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: trailing) }
       .background(PutioTheme.Colors.background)
       .ignoresSafeArea()
       .environment(\.horizontalSizeClass, sizeClass)
