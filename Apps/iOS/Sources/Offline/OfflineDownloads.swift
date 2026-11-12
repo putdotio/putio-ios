@@ -175,6 +175,7 @@ final class PutioOfflineQueue {
     }
     let alive = Set(await engine.restoreTasks())
     guard isLive() else { return }
+    var lostWaiters: [(PutioFileID, String)] = []
     for index in items.indices {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
@@ -186,10 +187,10 @@ final class PutioOfflineQueue {
           finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         }
       case .paused where !alive.contains(items[index].id) && isWaitingForSlot(items[index].id):
-        resumeWhenFree.removeAll { $0 == items[index].id }
         if let localPath = items[index].localPath {
-          finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath, orRequeue: true)
+          lostWaiters.append((items[index].id, localPath))
         } else {
+          resumeWhenFree.removeAll { $0 == items[index].id }
           items[index].stage = .queued
         }
       case .paused where !alive.contains(items[index].id):
@@ -200,6 +201,8 @@ final class PutioOfflineQueue {
         }
       case .paused where alive.contains(items[index].id):
         // The system kept the task; it resumes in place instead of restarting.
+        // A pause recorded before the task was attached never reached it.
+        engine.pause(fileID: items[index].id)
         suspended.insert(items[index].id)
       case .converting:
         items[index].stage = .queued
@@ -207,25 +210,31 @@ final class PutioOfflineQueue {
         break
       }
     }
+    for (fileID, localPath) in lostWaiters {
+      let playable = await isPlayable(Self.localURL(for: localPath))
+      guard isLive() else { return }
+      guard isWaitingForSlot(fileID), case .paused = item(for: fileID)?.stage else { continue }
+      resumeWhenFree.removeAll { $0 == fileID }
+      if playable {
+        complete(fileID: fileID, localPath: localPath)
+      } else {
+        update(fileID, persisting: false) { $0.stage = .queued }
+      }
+    }
+    for item in inFlightItems.dropFirst(concurrencyLimit) { yieldSlot(item.id) }
     awaitsRestore = false
     persist()
     schedule()
   }
 
-  private func finishRestoredIfPlayable(
-    fileID: PutioFileID, localPath: String, orRequeue requeues: Bool = false
-  ) {
+  private func finishRestoredIfPlayable(fileID: PutioFileID, localPath: String) {
     let url = Self.localURL(for: localPath)
     let isPlayable = isPlayable
     Task { @MainActor [weak self] in
-      let playable = await isPlayable(url)
-      guard let self, self.isLive(), case .paused = self.item(for: fileID)?.stage else { return }
-      if playable {
-        complete(fileID: fileID, localPath: localPath)
-      } else if requeues {
-        update(fileID) { $0.stage = .queued }
-        schedule()
-      }
+      guard await isPlayable(url), let self, self.isLive(),
+        case .paused = self.item(for: fileID)?.stage
+      else { return }
+      complete(fileID: fileID, localPath: localPath)
     }
   }
 
@@ -586,7 +595,9 @@ final class PutioOfflineQueue {
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
-    for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
+    if !awaitsRestore {
+      for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
+    }
     persist()
     schedule()
   }
