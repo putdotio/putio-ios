@@ -413,13 +413,17 @@ final class PutioPreviewModel {
   }
 }
 
-@MainActor
-final class PutioPreviewOpener {
-  var open: (@MainActor (PutioFileRoute, PutioPreviewSource) -> Void)?
+struct PutioPreviewOpenAction {
+  let open: @MainActor (PutioFileRoute, PutioPreviewSource) -> Void
+
+  @MainActor
+  func callAsFunction(_ route: PutioFileRoute, in source: PutioPreviewSource) {
+    open(route, source)
+  }
 }
 
 extension EnvironmentValues {
-  @Entry var putioPreviewOpener: PutioPreviewOpener? = nil
+  @Entry var putioPreviewOpen: PutioPreviewOpenAction? = nil
 }
 
 @MainActor
@@ -497,7 +501,11 @@ final class PutioPreviewPager {
       reads.shouldRead(index: set.index, count: set.items.count, hasMore: source.hasMore())
     {
       let before = set.items.count
-      guard await source.loadMore() else { return }
+      guard await source.loadMore() else {
+        guard let delay = reads.didFail() else { return }
+        do { try await Task.sleep(for: delay) } catch { return }
+        continue
+      }
       reads.didRead(countBefore: before, countAfter: folderSet?.items.count ?? before)
     }
   }

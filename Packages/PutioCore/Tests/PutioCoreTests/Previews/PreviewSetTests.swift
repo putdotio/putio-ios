@@ -46,6 +46,16 @@ final class PreviewSetTests: XCTestCase {
     XCTAssertFalse(reads.stopped)
   }
 
+  func testAFailedPageIsRetriedTwiceWithGrowingDelaysThenGivenUp() {
+    var reads = PutioPreviewPageReads()
+    XCTAssertEqual(reads.didFail(), .seconds(2))
+    XCTAssertEqual(reads.didFail(), .seconds(4))
+    XCTAssertNil(reads.didFail())
+    XCTAssertEqual(reads.didFail(), .seconds(2))
+    reads.didRead(countBefore: 1, countAfter: 2)
+    XCTAssertEqual(reads.failures, 0)
+  }
+
   func testTheFolderSourceAppendsTheNextPage() async {
     let later = BrowserTestFixtures.item(id: 6, kind: .image)
     let model = PutioFolderModel(

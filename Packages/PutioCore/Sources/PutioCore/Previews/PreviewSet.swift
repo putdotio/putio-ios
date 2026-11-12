@@ -40,8 +40,10 @@ public struct PutioPreviewPosition: Equatable, Sendable {
 public struct PutioPreviewPageReads: Equatable, Sendable {
   public static let threshold = 5
   public static let fruitlessLimit = 3
+  public static let failureLimit = 3
 
   public private(set) var fruitless = 0
+  public private(set) var failures = 0
   private var wasAtLast = false
 
   public init() {}
@@ -60,7 +62,17 @@ public struct PutioPreviewPageReads: Equatable, Sendable {
   }
 
   public mutating func didRead(countBefore: Int, countAfter: Int) {
+    failures = 0
     fruitless = countAfter > countBefore ? 0 : fruitless + 1
+  }
+
+  public mutating func didFail() -> Duration? {
+    failures += 1
+    guard failures < Self.failureLimit else {
+      failures = 0
+      return nil
+    }
+    return .seconds(2 * failures)
   }
 }
 

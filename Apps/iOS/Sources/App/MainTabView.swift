@@ -60,7 +60,6 @@ struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreview: PutioPreviewPresentation?
-  @State private var previewOpener = PutioPreviewOpener()
   #if DEBUG
     @State private var harnessPreviewRequests = HarnessPreviewRequests()
   #endif
@@ -570,8 +569,9 @@ struct MainTabView: View {
       castButton: { AnyView(PutioCastButton(model: cast)) },
       accountNotice: PutioInactiveAccountNotice(account: account)
     )
-    .environment(\.putioPreviewOpener, previewOpener)
-    .onAppear { previewOpener.open = { route, source in selectFile(route, in: source) } }
+    .environment(
+      \.putioPreviewOpen,
+      PutioPreviewOpenAction { route, source in selectFile(route, in: source) })
   }
 
   private func videoPlayer(for route: PutioVideoRoute) -> some View {
