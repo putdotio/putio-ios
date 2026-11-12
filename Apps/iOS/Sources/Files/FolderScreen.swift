@@ -17,6 +17,7 @@ struct PutioFolderScreen: View {
   @State private var reportedLoaded = false
   @State private var nameAlert: PutioTextAlert?
   @State private var confirmAlert: PutioConfirmAlert?
+  @State private var queuedUndo: PutioFileItem?
   @State private var pendingMove: MoveSelection?
   @State private var actionRequest: FileActionRequest?
   @State private var startedActionRequest: FileActionRequest?
@@ -843,6 +844,10 @@ struct PutioFolderScreen: View {
       presentActionOutcome()
     }
     presentBulkOutcome()
+    if let item = queuedUndo {
+      queuedUndo = nil
+      actionRequest = .restore(item)
+    }
   }
 
   private func presentActionOutcome(deleting item: PutioFileItem? = nil) {
@@ -882,8 +887,10 @@ struct PutioFolderScreen: View {
   }
 
   private func undoTrash(of item: PutioFileItem) {
-    guard actionRequest == nil else { return }
-    toast = nil
+    guard actionRequest == nil else {
+      queuedUndo = item
+      return
+    }
     actionRequest = .restore(item)
   }
 
