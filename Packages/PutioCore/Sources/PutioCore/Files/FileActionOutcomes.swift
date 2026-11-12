@@ -34,7 +34,7 @@ public struct PutioFileActionFailure: Equatable, Sendable {
     }
     switch action {
     case .createFolder:
-      title = String(localized: "Could not create folder", bundle: .module)
+      title = String(localized: "Couldn’t create folder.", bundle: .module)
     case .rename:
       title = String(localized: "Could not rename item", bundle: .module)
     case .delete:

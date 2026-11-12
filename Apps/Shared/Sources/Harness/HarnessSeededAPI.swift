@@ -667,6 +667,8 @@ import Foundation
     nonisolated(unsafe) private static var longPreviewLookups = 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
+    nonisolated(unsafe) private static var createFolderFailurePending =
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-create-folder-fails-once")
     nonisolated(unsafe) private static var searchRetryFailed = false
     /// `--putio-harness-tv-browse` adds an empty folder and one whose first
     /// listing fails to the root, fails the root's first continuation and
@@ -909,6 +911,8 @@ import Foundation
       longPreviewLookups = 0
       externalPlaybackFailurePending =
         ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
+      createFolderFailurePending =
+        ProcessInfo.processInfo.arguments.contains("--putio-harness-create-folder-fails-once")
       searchRetryFailed = false
       tvRootContinuationFailed = false
       tvFlakyFolderFailed = false
@@ -2646,6 +2650,18 @@ import Foundation
       }
 
       fileActionsLock.lock()
+      guard !createFolderFailurePending else {
+        createFolderFailurePending = false
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_CREATE_FOLDER_FAILURE",
+            message: "The first create-folder request fails for the failure toast"
+          )
+        )
+      }
       let id = nextActionFolderID
       nextActionFolderID += 1
       actionFolders[id] = ActionFolder(name: name, parentID: parentID)

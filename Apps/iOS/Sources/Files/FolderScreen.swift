@@ -983,7 +983,7 @@ struct PutioFolderScreen: View {
       message: String(localized: "In \(folderTitle)"),
       initialText: "",
       submitTitle: String(localized: "Create"),
-      failureText: String(localized: "Could not create folder")
+      failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
       try notifier.settleNameAction(of: model) { action in
