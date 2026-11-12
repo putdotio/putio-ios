@@ -559,9 +559,12 @@ private struct WelcomeButton: View {
       .buttonStyle(.borderedProminent)
       .modifier(WelcomeButtonShape())
     } else {
-      Button(action: action) { label }
-        .buttonStyle(.bordered)
-        .modifier(WelcomeButtonShape())
+      Button(action: action) {
+        label.foregroundStyle(PutioTheme.Components.Button.secondaryForeground)
+      }
+      .buttonStyle(.borderedProminent)
+      .modifier(WelcomeButtonShape())
+      .tint(PutioTheme.Components.Button.secondaryBackground)
     }
   }
 
