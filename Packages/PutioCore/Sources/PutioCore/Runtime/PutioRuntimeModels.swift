@@ -501,15 +501,20 @@ public enum PutioAccountSecurityError: Error, Equatable, Sendable {
 public struct PutioAuthorizedApp: Equatable, Hashable, Identifiable, Sendable {
   public let id: Int
   public let name: String
-  public let description: String
+  public let lastUsedAt: Date?
+  public let hasIcon: Bool
   /// Revoking the grant this app signed in with would end the session, so
   /// the shell lists it without a revoke action.
   public let isCurrentClient: Bool
 
-  public init(id: Int, name: String, description: String, isCurrentClient: Bool) {
+  public init(
+    id: Int, name: String, lastUsedAt: Date? = nil, hasIcon: Bool = false,
+    isCurrentClient: Bool
+  ) {
     self.id = id
     self.name = name
-    self.description = description
+    self.lastUsedAt = lastUsedAt
+    self.hasIcon = hasIcon
     self.isCurrentClient = isCurrentClient
   }
 }

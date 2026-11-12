@@ -8,18 +8,47 @@ extension PutioRuntimeTests {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
       """
-      {"apps":[{"id":3001,"name":"put.io iOS","description":"This app"},
-               {"id":42,"name":"Living Room TV","description":"Apple TV","website":"https://put.io"}]}
+      {"apps":[{"id":44,"name":"","description":""},
+               {"id":42,"name":"Living Room TV","description":"Apple TV","has_icon":true},
+               {"id":3001,"name":"put.io iOS","description":"This app","has_icon":true},
+               {"id":45,"name":"Kodi","description":""},
+               {"id":46,"name":"Plex","description":""}]}
       """, for: "GET /v2/oauth/grants")
+    fixtures.setFixture(
+      """
+      {"status":"OK","clients":[
+        {"id":1,"app_id":42,"last_used_at":"2026-11-01T10:00:00","active":false},
+        {"id":2,"app_id":42,"last_used_at":"2026-11-09T18:30:00","active":false},
+        {"id":3,"app_id":3001,"last_used_at":"2026-11-12T09:00:00","active":true},
+        {"id":4,"app_id":44,"app_name":"Infuse","last_used_at":"2026-10-30T12:00:00"},
+        {"id":5,"app_id":46,"last_used_at":"2026-11-10T08:00:00","active":true}]}
+      """, for: "GET /v2/oauth/clients")
     let apps = try await runtime.listAuthorizedApps()
+    let used = { (value: String) in PutioAccountSnapshot.timestamp(value) }
     XCTAssertEqual(
       apps,
       [
         PutioAuthorizedApp(
-          id: 3001, name: "put.io iOS", description: "This app", isCurrentClient: true),
+          id: 3001, name: "put.io iOS", lastUsedAt: used("2026-11-12T09:00:00"), hasIcon: true,
+          isCurrentClient: true),
         PutioAuthorizedApp(
-          id: 42, name: "Living Room TV", description: "Apple TV", isCurrentClient: false),
+          id: 46, name: "Plex", lastUsedAt: used("2026-11-10T08:00:00"), isCurrentClient: true),
+        PutioAuthorizedApp(
+          id: 42, name: "Living Room TV", lastUsedAt: used("2026-11-09T18:30:00"), hasIcon: true,
+          isCurrentClient: false),
+        PutioAuthorizedApp(
+          id: 44, name: "Infuse", lastUsedAt: used("2026-10-30T12:00:00"), isCurrentClient: false),
+        PutioAuthorizedApp(id: 45, name: "Kodi", isCurrentClient: false),
       ])
+    XCTAssertEqual(
+      fixtures.capturedRequests().suffix(2).compactMap(\.url?.path),
+      ["/v2/oauth/grants", "/v2/oauth/clients"])
+
+    fixtures.setFixture("PNGDATA", for: "GET /v2/oauth/apps/42/icon")
+    let icon = try await runtime.authorizedAppIcon(id: 42)
+    XCTAssertEqual(icon, Data("PNGDATA".utf8))
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.authorizedAppIcon(id: 0) }
+
     fixtures.setFixture(
       #"{"apps":[{"id":42,"name":"A","description":""},{"id":42,"name":"B","description":""}]}"#,
       for: "GET /v2/oauth/grants")
@@ -46,8 +75,7 @@ extension PutioRuntimeTests {
     let app = try await runtime.linkDevice(code: " ABCD ")
     XCTAssertEqual(
       app,
-      PutioAuthorizedApp(
-        id: 77, name: "Apple TV", description: "Living room", isCurrentClient: false))
+      PutioAuthorizedApp(id: 77, name: "Apple TV", isCurrentClient: false))
     let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let body = try JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: request)))
     XCTAssertEqual(body as? [String: String], ["code": "ABCD"])

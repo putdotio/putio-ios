@@ -91,9 +91,11 @@ import Foundation
     nonisolated(unsafe) private static var securityRevokeFailed = false
     nonisolated(unsafe) private static var securityClearFailed = false
     nonisolated(unsafe) private static var securityGrants:
-      [(id: Int, name: String, description: String)] = [
-        (3001, "put.io for iOS", "iPhone, signed in just now"),
-        (42, "Living Room TV", "Apple TV, signed in 3 days ago"),
+      [(id: Int, name: String, lastUsedAt: String?, hasIcon: Bool)] = [
+        (3001, "put.io for iOS", "2026-11-12T09:41:00", true),
+        (42, "put.io for Apple TV", "2026-11-09T12:00:00", true),
+        (43, "put.io for Android", "2026-11-08T12:00:00", true),
+        (44, "Infuse", "2026-10-30T12:00:00", false),
       ]
     static let securityTwoFactorCode = "246810"
     static let securityDeviceCode = "HARN42"
@@ -483,6 +485,40 @@ import Foundation
         )
       }
       return securityLock.withLock(body)
+    }
+
+    private static func revokedGrantID(from path: String) -> Int? {
+      let parts = path.split(separator: "/")
+      guard parts.count == 5, parts[0] == "v2", parts[1] == "oauth", parts[2] == "grants",
+        parts[4] == "delete"
+      else { return nil }
+      return Int(parts[3])
+    }
+
+    private static func revokeGrant(_ id: Int) -> (Int, String) {
+      securityFixture {
+        if id == 42, !securityRevokeFailed {
+          securityRevokeFailed = true
+          return (
+            503,
+            fixtureError(statusCode: 503, type: "HARNESS_REVOKE_RETRY", message: "Retry revoking")
+          )
+        }
+        guard securityGrants.contains(where: { $0.id == id }) else {
+          return (404, fixtureError(statusCode: 404, type: "NotFound", message: "No such grant"))
+        }
+        securityGrants.removeAll { $0.id == id }
+        return (200, #"{"status":"OK"}"#)
+      }
+    }
+
+    private static func servesAppIcon(_ request: URLRequest) -> Bool {
+      guard usesAccountSecurity, request.httpMethod == "GET",
+        let parts = request.url?.path.split(separator: "/"),
+        parts.count == 5, parts[0] == "v2", parts[1] == "oauth", parts[2] == "apps",
+        parts[4] == "icon", let id = Int(parts[3])
+      else { return false }
+      return securityLock.withLock { securityGrants.contains { $0.id == id && $0.hasIcon } }
     }
 
     // Caller holds securityLock.
@@ -914,6 +950,21 @@ import Foundation
       guard let url = request.url else {
         deliveryGate.deliver(generation: generation) {
           self.client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        }
+        return
+      }
+      if Self.servesAppIcon(request) {
+        DispatchQueue.main.async { [weak self] in
+          let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }
+          self?.deliveryGate.deliver(generation: generation) {
+            guard let self else { return }
+            let response = HTTPURLResponse(
+              url: url, statusCode: 200, httpVersion: nil,
+              headerFields: ["Content-Type": "image/png"])!
+            self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            self.client?.urlProtocol(self, didLoad: icon)
+            self.client?.urlProtocolDidFinishLoading(self)
+          }
         }
         return
       }
@@ -1516,6 +1567,9 @@ import Foundation
       {
         return response
       }
+      if request.httpMethod == "POST", let grantID = revokedGrantID(from: url.path) {
+        return revokeGrant(grantID)
+      }
       if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
         return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
       }
@@ -1714,21 +1768,18 @@ import Foundation
       case "GET /v2/oauth/grants":
         return securityFixture {
           let apps = securityGrants.map {
-            #"{"id":\#($0.id),"name":\#(jsonString($0.name)),"description":\#(jsonString($0.description))}"#
+            #"{"id":\#($0.id),"name":\#(jsonString($0.name)),"description":"","has_icon":\#($0.hasIcon)}"#
           }
           return (200, #"{"apps":[\#(apps.joined(separator: ","))]}"#)
         }
-      case "POST /v2/oauth/grants/42/delete":
+      case "GET /v2/oauth/clients":
         return securityFixture {
-          if !securityRevokeFailed {
-            securityRevokeFailed = true
-            return (
-              503,
-              fixtureError(statusCode: 503, type: "HARNESS_REVOKE_RETRY", message: "Retry revoking")
-            )
+          let clients = securityGrants.map { grant in
+            let lastUsed = grant.lastUsedAt.map(jsonString) ?? "null"
+            return
+              #"{"id":\#(grant.id + 9000),"app_id":\#(grant.id),"client_name":"","last_used_at":\#(lastUsed),"active":\#(grant.id == 3001)}"#
           }
-          securityGrants.removeAll { $0.id == 42 }
-          return (200, #"{"status":"OK"}"#)
+          return (200, #"{"status":"OK","clients":[\#(clients.joined(separator: ","))]}"#)
         }
       case "POST /v2/oauth2/oob/code":
         return securityFixture {
@@ -1739,7 +1790,7 @@ import Foundation
                 statusCode: 400, type: "code_not_found", message: "Unknown device code")
             )
           }
-          securityGrants.append((77, "Bedroom TV", "Apple TV, linked just now"))
+          securityGrants.append((77, "Bedroom TV", nil, false))
           return (
             200, #"{"app":{"id":77,"name":"Bedroom TV","description":"Apple TV, linked just now"}}"#
           )

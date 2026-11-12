@@ -224,8 +224,8 @@ final class AccountSecurityTests: XCTestCase {
   func testRevokeFailureKeepsTheAppAndTheCurrentClientIsNeverRevoked() async {
     var revoked: [Int] = []
     let apps = [
-      PutioAuthorizedApp(id: 3001, name: "This", description: "", isCurrentClient: true),
-      PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false),
+      PutioAuthorizedApp(id: 3001, name: "This", isCurrentClient: true),
+      PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false),
     ]
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(
@@ -240,16 +240,95 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(revoked, [])
     await model.revoke(id: 42)
     XCTAssertEqual(model.apps, apps)
-    XCTAssertEqual(model.failedRevokeID, 42)
-    XCTAssertNotNil(model.revokeFailure)
-    await model.retryRevoke()
+    XCTAssertEqual(model.revokeFailures, [42: "Check your connection and try again."])
+    await model.revoke(id: 42)
     XCTAssertEqual(revoked, [42, 42])
     XCTAssertEqual(model.apps.map(\.id), [3001])
-    XCTAssertNil(model.revokeFailure)
+    XCTAssertEqual(model.revokeFailures, [:])
+    XCTAssertFalse(model.canSignOutOthers, "the row stayed with only this app listed")
+  }
+
+  func testSignOutOthersRevokesEveryOtherAppOnceAndKeepsTheFailures() async {
+    var revoked: [Int] = []
+    var failing: Set<Int> = [43]
+    let apps = [
+      PutioAuthorizedApp(id: 3001, name: "This", isCurrentClient: true),
+      PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false),
+      PutioAuthorizedApp(id: 43, name: "Android", isCurrentClient: false),
+      PutioAuthorizedApp(id: 44, name: "Infuse", isCurrentClient: false),
+    ]
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(
+        listApps: { apps },
+        revokeApp: { id in
+          revoked.append(id)
+          if failing.contains(id) { throw PutioRuntimeError.transient }
+        }))
+    await model.load()
+    XCTAssertTrue(model.canSignOutOthers)
+    await model.signOutOthers()
+    XCTAssertEqual(revoked, [42, 43, 44])
+    XCTAssertEqual(model.apps.map(\.id), [3001, 43])
+    XCTAssertEqual(Array(model.revokeFailures.keys), [43])
+    XCTAssertTrue(model.canSignOutOthers, "a partial failure hid the row")
+    XCTAssertFalse(model.isSigningOutOthers)
+    failing = []
+    await model.signOutOthers()
+    XCTAssertEqual(revoked, [42, 43, 44, 43])
+    XCTAssertEqual(model.apps.map(\.id), [3001])
+    XCTAssertEqual(model.revokeFailures, [:])
+    XCTAssertFalse(model.canSignOutOthers)
+  }
+
+  func testSwipeRevokeWaitsWhileSigningOutOthers() async throws {
+    let gate = RequestGate()
+    defer { gate.finish() }
+    var revoked: [Int] = []
+    let apps = [
+      PutioAuthorizedApp(id: 3001, name: "This", isCurrentClient: true),
+      PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false),
+      PutioAuthorizedApp(id: 43, name: "Android", isCurrentClient: false),
+    ]
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(
+        listApps: { apps },
+        revokeApp: { id in
+          revoked.append(id)
+          if id == 42 { await gate.wait() }
+        }))
+    await model.load()
+    let signOut = Task { await model.signOutOthers() }
+    try await gate.waitForRequest()
+    XCTAssertTrue(model.isSigningOutOthers)
+    XCTAssertEqual(model.revokingID, 42)
+    await model.revoke(id: 43)
+    XCTAssertEqual(revoked, [42], "a swipe revoke ran beside sign out of all other apps")
+    gate.finish()
+    await signOut.value
+    XCTAssertEqual(revoked, [42, 43])
+    XCTAssertFalse(model.isSigningOutOthers)
+  }
+
+  func testIconsLoadOnlyForAppsThatHaveOneAndAreCached() async {
+    var requested: [Int] = []
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(appIcon: { id in
+        requested.append(id)
+        return Data([UInt8(id)])
+      }))
+    let withIcon = PutioAuthorizedApp(id: 42, name: "TV", hasIcon: true, isCurrentClient: false)
+    let withoutIcon = PutioAuthorizedApp(id: 44, name: "Infuse", isCurrentClient: false)
+    let first = await model.icon(for: withIcon)
+    let second = await model.icon(for: withIcon)
+    let none = await model.icon(for: withoutIcon)
+    XCTAssertEqual(first, Data([42]))
+    XCTAssertEqual(second, Data([42]))
+    XCTAssertNil(none)
+    XCTAssertEqual(requested, [42])
   }
 
   func testReloadDropsARevokeFailureWhoseGrantIsGone() async {
-    var apps = [PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)]
+    var apps = [PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false)]
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(
         listApps: { apps },
@@ -259,11 +338,10 @@ final class AccountSecurityTests: XCTestCase {
         }))
     await model.load()
     await model.revoke(id: 42)
-    XCTAssertEqual(model.failedRevokeID, 42)
+    XCTAssertNotNil(model.revokeFailures[42])
     await model.load()
     XCTAssertTrue(model.apps.isEmpty)
-    XCTAssertNil(model.failedRevokeID)
-    XCTAssertNil(model.revokeFailure)
+    XCTAssertEqual(model.revokeFailures, [:])
   }
 
   func testRevokeOutlivesAListRequestThatStartedBeforeIt() async throws {
@@ -271,7 +349,7 @@ final class AccountSecurityTests: XCTestCase {
     defer { gate.finish() }
     var loads = 0
     let apps = [
-      PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)
+      PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false)
     ]
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(
@@ -314,7 +392,7 @@ final class AccountSecurityTests: XCTestCase {
 
   func testAppsLoadFailureIsRetryableAndSessionEndingsStaySilent() async {
     var loads = 0
-    let apps = [PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)]
+    let apps = [PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false)]
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(listApps: {
         loads += 1
@@ -341,7 +419,7 @@ final class AccountSecurityTests: XCTestCase {
       actions: PutioAccountSecurityActions(linkDevice: { code in
         submitted.append(code)
         guard code == "HARN42" else { throw PutioAccountSecurityError.invalidDeviceCode }
-        return PutioAuthorizedApp(id: 77, name: "TV", description: "", isCurrentClient: false)
+        return PutioAuthorizedApp(id: 77, name: "TV", isCurrentClient: false)
       }))
     XCTAssertFalse(model.canLink)
     model.code = "ZZZZZZ"
@@ -363,7 +441,7 @@ final class AccountSecurityTests: XCTestCase {
     let model = PutioLinkDeviceModel(
       actions: PutioAccountSecurityActions(linkDevice: { code in
         submitted.append(code)
-        return PutioAuthorizedApp(id: 77, name: "TV", description: "", isCurrentClient: false)
+        return PutioAuthorizedApp(id: 77, name: "TV", isCurrentClient: false)
       }))
     for code in ["HARN", " HARN4 ", "HARN421"] {
       model.code = code

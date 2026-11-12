@@ -719,6 +719,10 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-34-app-info-copied", .iphone, "testAccountAppInfoCopied", screenBase: false),
       BoardCapture("rd-ios-acc-10-licenses", .iphone, "testAccountLicenses"),
+      BoardCapture("rd-ios-acc-13-apps", .iphone, "testAccountApps"),
+      BoardCapture("rd-ios-acc-40-apps-swipe", .iphone, "testAccountAppsSwipe"),
+      BoardCapture("rd-ios-acc-41-apps-revoke-failed", .iphone, "testAccountAppsRevokeFailed"),
+      BoardCapture("rd-ios-acc-13b-apps-confirm", .iphone, "testAccountAppsSignOutOthers"),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),

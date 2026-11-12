@@ -395,7 +395,7 @@ struct AccountView: View {
   private var securitySection: some View {
     PutioSettingsSection(String(localized: "Security")) {
       PutioNavigationRow(String(localized: "Logged-in apps"), icon: .devices) {
-        AuthorizedAppsView(actions: .init(runtime: runtime))
+        LoggedInAppsView(actions: .init(runtime: runtime))
       }
       .accessibilityIdentifier("security.apps")
       PutioNavigationRow(String(localized: "Link a device"), icon: .plugs) {

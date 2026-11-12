@@ -42,13 +42,13 @@ final class LiveFilesJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.descendants(matching: .any)["preview.screen.\(fileID)"].waitForNonExistence(timeout: 5))
 
-    // The account's grants, read-only: this run's own grant is "This app".
+    // The account's grants, read-only: this run's own grant is "This iPhone".
     selectTab("Account", in: app)
     let apps = app.revealed("security.apps")
     XCTAssertTrue(apps.waitForExistence(timeout: 10))
     apps.tap()
     let thisApp = app.descendants(matching: .any).matching(
-      NSPredicate(format: "identifier BEGINSWITH 'security.app.' AND value == 'This app'")
+      NSPredicate(format: "identifier BEGINSWITH 'security.app.' AND value == 'This iPhone'")
     ).firstMatch
     XCTAssertTrue(thisApp.waitForExistence(timeout: 30), "this run's grant is not listed")
     attach("live-authorized-apps")

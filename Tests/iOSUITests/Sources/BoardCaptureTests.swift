@@ -1486,6 +1486,60 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
+  func testAccountApps() throws {
+    openLoggedInApps()
+    try captureBoard("rd-ios-acc-13-apps")
+  }
+
+  func testAccountAppsSwipe() throws {
+    openLoggedInApps()
+    let tv = element("security.app.42")
+    tv.swipeLeft()
+    XCTAssertTrue(
+      app.buttons["security.app.revoke.42"].appears(within: 5), "the swipe showed no Revoke")
+    try captureBoard("rd-ios-acc-40-apps-swipe")
+  }
+
+  func testAccountAppsRevokeFailed() throws {
+    openLoggedInApps()
+    element("security.app.42").swipeLeft()
+    let revoke = app.buttons["security.app.revoke.42"]
+    XCTAssertTrue(revoke.appears(within: 5), "the swipe showed no Revoke")
+    revoke.tap()
+    XCTAssertTrue(
+      app.staticTexts["Check your connection and try again."].appears(within: 10),
+      "the revoke never failed")
+    XCTAssertTrue(revoke.disappears(within: 5), "the swipe stayed open")
+    try captureBoard("rd-ios-acc-41-apps-revoke-failed")
+  }
+
+  func testAccountAppsSignOutOthers() throws {
+    openLoggedInApps()
+    let row = element("security.apps.sign-out-others")
+    XCTAssertTrue(row.appears(within: 5), "the sign-out row is missing")
+    row.tap()
+    XCTAssertTrue(
+      app.alerts["Sign out of all other apps?"].appears(within: 5), "the alert never showed")
+    try captureBoard("rd-ios-acc-13b-apps-confirm")
+  }
+
+  private func openLoggedInApps() {
+    app.launchArguments.append("--putio-harness-account-security")
+    openAccountSettings()
+    let apps = app.revealed("security.apps")
+    XCTAssertTrue(apps.appears(within: 5))
+    apps.tap()
+    XCTAssertTrue(
+      app.navigationBars["Logged-in apps"].appears(within: 5), "Logged-in apps never opened")
+    XCTAssertTrue(element("security.app.44").appears(within: 10), "the apps never loaded")
+    XCTAssertTrue(
+      app.staticTexts["Used on Oct 30, 2026"].appears(within: 5), "the dates never loaded")
+    app.showTabBar()
+    let downloads = tabButton("Downloads")
+    XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertTrue(holdsFrame(downloads, within: 5), "the tab bar never settled")
+  }
+
   private func openProxy() {
     openAccountSettings()
     let proxy = app.revealed("playback-settings.route")

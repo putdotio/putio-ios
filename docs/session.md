@@ -26,7 +26,7 @@ token the same way. The recovery screens' retry re-runs restore with the saved
 token and never starts a browser sign-in. Only the user can abandon the saved
 credential: the secondary action calls `discardUnrestoredCredential()`, which
 removes it from the keychain; iOS then opens sign-in. The abandoned grant is
-not revoked; it stays listed under "Where you are logged in" until revoked
+not revoked; it stays listed under "Logged-in apps" until revoked
 there. If removal fails, restore recovery stays with the `secureStorage` cause.
 
 If a new sign-in saves its token but the account then fails to load for a
@@ -53,6 +53,6 @@ credential stays until a later launch can read it.
 
 Sign-in from the welcome stays available. Saving its token replaces the
 credential and clears the intent; the replaced grant is not revoked and stays
-listed under "Where you are logged in". The
+listed under "Logged-in apps". The
 [session tests](../Packages/PutioCore/Tests/PutioCoreTests/Session/PutioSessionStoreTests.swift)
 cover each failure.
