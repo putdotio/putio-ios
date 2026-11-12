@@ -1147,11 +1147,11 @@ final class BoardCaptureTests: XCTestCase {
       _ = root.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
-    for _ in 0..<5 where !root.exists && back.exists {
-      back.tap()
-      _ = root.appears(within: 2)
-    }
     XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
+    for _ in 0..<5 where back.exists {
+      back.tap()
+      _ = back.disappears(within: 2)
+    }
   }
 
   private func labeled(_ label: String) -> XCUIElement {
