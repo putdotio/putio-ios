@@ -52,21 +52,19 @@ final class AccessibilityJourneyTests: XCTestCase {
   func testLongNamesSelectionAndDownloadPickerAtLargestTextSize() {
     let name = "Accessible archive with a very long name preserving the final chapter number 12345"
     app.buttons["files.menu"].tap()
-    app.buttons["files.new-folder"].tap()
-    let field = element("files.action-name")
-    XCTAssertTrue(field.appears(within: 5))
-    let focused = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: field)
-    XCTAssertEqual(XCTWaiter.wait(for: [focused], timeout: 5), .completed)
-    field.typeText(name)
-    app.buttons["files.action-submit"].tap()
+    app.buttons["New folder"].tap()
+    let alert = app.alerts["New folder"]
+    XCTAssertTrue(alert.appears(within: 5))
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5))
+    app.typeText(name)
+    alert.buttons["Create"].firstMatch.tap()
     let folder = reachable(element("files.item.415"))
     XCTAssertTrue(folder.label == name || folder.label.hasPrefix(name + ", "), folder.label)
     centerRow(folder)
     screenshot("runtime-accessibility-files")
 
     app.buttons["files.menu"].tap()
-    app.buttons["files.selection.toggle"].tap()
+    app.buttons["Select"].tap()
     _ = reachable(folder)
     XCTAssertTrue(waitForValue(folder, "Not selected"))
     reachable(folder).tap()

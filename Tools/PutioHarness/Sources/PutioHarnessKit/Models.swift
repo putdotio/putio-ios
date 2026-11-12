@@ -583,6 +583,10 @@ enum BoardCaptureContract {
   static let boards =
     [
       BoardCapture("rd-ios-02-folder", .iphone, "testFolder"),
+      BoardCapture("rd-ios-05-more", .iphone, "testMoreMenu"),
+      BoardCapture("rd-ios-20-rename", .iphone, "testRename"),
+      BoardCapture("rd-ios-21-new-folder", .iphone, "testNewFolder"),
+      BoardCapture("rd-ios-77-rename-failed-toast", .iphone, "testRenameFailedToast"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
@@ -887,7 +891,8 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 120),
     JourneyPreflight(
       "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
-      attachmentNames: ["runtime-file-actions"], timeAllowance: 300),
+      attachmentNames: ["runtime-rename-failed-toast", "runtime-file-actions"],
+      timeAllowance: 300),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),

@@ -65,73 +65,7 @@ struct PutioFileItemActionButtons: View {
   }
 }
 
-/// The New Folder and Rename sheet. The field takes focus as the sheet opens,
-/// and file names skip autocorrection.
-struct PutioFileNameEditor: View {
-  let title: String
-  let submitTitle: String
-  let isValid: (String) -> Bool
-  let onCancel: () -> Void
-  let onSubmit: (String) -> Void
-
-  @State private var name: String
-  @FocusState private var isFocused: Bool
-
-  init(
-    title: String,
-    submitTitle: String,
-    initialName: String = "",
-    isValid: @escaping (String) -> Bool,
-    onCancel: @escaping () -> Void,
-    onSubmit: @escaping (String) -> Void
-  ) {
-    self.title = title
-    self.submitTitle = submitTitle
-    self.isValid = isValid
-    self.onCancel = onCancel
-    self.onSubmit = onSubmit
-    _name = State(initialValue: initialName)
-  }
-
-  var body: some View {
-    NavigationStack {
-      Form {
-        TextField("Name", text: $name)
-          .focused($isFocused)
-          .autocorrectionDisabled()
-          .accessibilityIdentifier("files.action-name")
-      }
-      .navigationTitle(title)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel", role: .cancel, action: onCancel)
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button(submitTitle) { onSubmit(name) }
-            .disabled(!isValid(name))
-            .accessibilityIdentifier("files.action-submit")
-        }
-      }
-    }
-    // A fixed-height detent that the keyboard lifts as the sheet opens leaves
-    // a UIKit animation that never reports finishing, so the app never goes
-    // idle for XCTest again (#265). The system medium detent doesn't.
-    .presentationDetents([.medium])
-    .onAppear { isFocused = true }
-  }
-
-  static func isValidName(_ name: String) -> Bool {
-    !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-  }
-
-  static func isValidRename(_ name: String, of item: PutioFileItem) -> Bool {
-    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-    return !trimmed.isEmpty && trimmed != item.name
-  }
-}
-
-/// Presents the rename editor, move picker, and permanent-delete confirmation
+/// Presents the rename alert, move picker, and permanent-delete confirmation
 /// for `request`, runs the action, and reports it with a toast.
 struct PutioFileItemActionsHost: ViewModifier {
   @Binding var request: PutioFileItemActionRequest?
@@ -143,22 +77,11 @@ struct PutioFileItemActionsHost: ViewModifier {
   let refreshRequests: PutioFolderRefreshRequests
 
   @State private var toast: PutioToast?
+  @State private var renameAlert: PutioTextAlert?
 
   func body(content: Content) -> some View {
     content
-      .sheet(item: renameBinding) { item in
-        PutioFileNameEditor(
-          title: String(localized: "Rename Item"),
-          submitTitle: String(localized: "Rename"),
-          initialName: item.name,
-          isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
-          onCancel: { request = nil },
-          onSubmit: { name in
-            request = nil
-            perform { await model.rename(item, to: name) }
-          }
-        )
-      }
+      .putioTextAlert($renameAlert)
       .sheet(item: moveBinding) { item in
         PutioMovePicker(
           items: [item],
@@ -189,12 +112,35 @@ struct PutioFileItemActionsHost: ViewModifier {
         Text(deletion.confirmationMessage(itemCount: 1))
       }
       .onChange(of: request) { _, request in
+        if case .rename(let item) = request {
+          self.request = nil
+          renameAlert = Self.renameAlert(for: item, model: model)
+          return
+        }
         // Trash is recoverable, so only a permanent deletion asks first.
         guard trashEnabled, case .delete(let item) = request else { return }
         self.request = nil
         perform { await model.delete(item) }
       }
       .putioToast($toast)
+  }
+
+  private static func renameAlert(
+    for item: PutioFileItem, model: PutioFileItemActionModel
+  ) -> PutioTextAlert {
+    PutioTextAlert(
+      title: String(localized: "Rename"),
+      initialText: item.name,
+      submitTitle: String(localized: "Rename"),
+      failureText: String(localized: "Couldn’t rename.")
+    ) { name in
+      await model.rename(item, to: name)
+      guard case .succeeded(.rename) = model.outcome else {
+        if case .failed(.rename, _) = model.outcome { model.clearOutcome() }
+        throw PutioRenameFailure()
+      }
+      model.clearOutcome()
+    }
   }
 
   private var deletion: PutioFileDeletionPresentation {
@@ -216,8 +162,6 @@ struct PutioFileItemActionsHost: ViewModifier {
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .succeeded(.rename):
-      toast = PutioToast(String(localized: "Item renamed"))
     case .succeeded(.delete):
       toast = PutioToast(deletion.singleSuccessTitle)
     case .succeeded(.move):
@@ -234,16 +178,6 @@ struct PutioFileItemActionsHost: ViewModifier {
       toast = PutioToast(title)
     }
     model.clearOutcome()
-  }
-
-  private var renameBinding: Binding<PutioFileItem?> {
-    Binding(
-      get: {
-        guard case .rename(let item) = request else { return nil }
-        return item
-      },
-      set: { if $0 == nil, case .rename = request { request = nil } }
-    )
   }
 
   private var moveBinding: Binding<PutioFileItem?> {
@@ -266,3 +200,5 @@ struct PutioFileItemActionsHost: ViewModifier {
     )
   }
 }
+
+private struct PutioRenameFailure: Error {}

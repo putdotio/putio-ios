@@ -71,6 +71,61 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-63-file-menu")
   }
 
+  func testMoreMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    openMoreMenu()
+    try captureBoard("rd-ios-05-more")
+  }
+
+  func testRename() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    let alert = openRename()
+    XCTAssertEqual(alert.textFields.firstMatch.value as? String, Self.subtitleName)
+    XCTAssertFalse(
+      alert.buttons["Rename"].firstMatch.isEnabled, "Rename is enabled for an unchanged name")
+    try captureBoard("rd-ios-20-rename")
+  }
+
+  func testNewFolder() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoreMenu()
+    app.buttons["New folder"].tap()
+    let alert = app.alerts["New folder"]
+    XCTAssertTrue(alert.appears(within: 5), "New folder never opened")
+    XCTAssertTrue(alert.staticTexts["In Blue Lights"].exists, "New folder does not name its folder")
+    XCTAssertFalse(
+      alert.buttons["Create"].firstMatch.isEnabled, "Create is enabled for an empty name")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    app.typeText("Season 5")
+    XCTAssertTrue(
+      alert.buttons["Create"].firstMatch.isEnabled, "Create stayed disabled for a name")
+    try captureBoard("rd-ios-21-new-folder")
+  }
+
+  func testRenameFailedToast() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    let alert = openRename()
+    app.typeText("Blue.Lights.S04E01.de")
+    XCTAssertEqual(
+      alert.textFields.firstMatch.value as? String, "Blue.Lights.S04E01.de.srt",
+      "typing did not replace only the stem")
+    alert.buttons["Rename"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after Rename")
+    XCTAssertTrue(app.staticTexts["Couldn’t rename."].appears(within: 10), "no failure toast")
+    XCTAssertTrue(app.buttons["Try again"].exists, "the failure toast offers no Try again")
+    XCTAssertTrue(
+      element("files.item.445").label.hasPrefix(Self.subtitleName), "the failed rename stuck")
+    try captureBoard("rd-ios-77-rename-failed-toast")
+  }
+
   func testIPadSplit() throws {
     XCUIDevice.shared.orientation = .landscapeLeft
     app.launch()
@@ -481,6 +536,25 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the item menu never opened")
+  }
+
+  private static let subtitleName = "Blue.Lights.S04E01.en.srt"
+
+  private func openMoreMenu() {
+    let menu = app.buttons["files.menu"]
+    XCTAssertTrue(menu.appears(within: 10), "the folder has no More menu")
+    menu.tap()
+    XCTAssertTrue(
+      app.buttons["New folder"].appears(within: 5), "More never listed New folder")
+  }
+
+  private func openRename() -> XCUIElement {
+    openItemMenu("files.item.445")
+    app.buttons["Rename"].firstMatch.tap()
+    let alert = app.alerts["Rename"]
+    XCTAssertTrue(alert.appears(within: 5), "Rename never opened")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    return alert
   }
 
   private func captureBoard(_ defaultBoard: String) throws {

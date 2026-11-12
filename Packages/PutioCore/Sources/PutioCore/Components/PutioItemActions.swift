@@ -47,6 +47,7 @@ public struct PutioItemMenu: Sendable {
 public struct PutioTextAlert: Identifiable, Sendable {
   public let id = UUID()
   public let title: String
+  public let message: String?
   public let initialText: String
   public let submitTitle: String
   public let failureText: String
@@ -54,12 +55,14 @@ public struct PutioTextAlert: Identifiable, Sendable {
 
   public init(
     title: String,
+    message: String? = nil,
     initialText: String,
     submitTitle: String,
     failureText: String,
     submit: @escaping @MainActor @Sendable (String) async throws -> Void
   ) {
     self.title = title
+    self.message = message
     self.initialText = initialText
     self.submitTitle = submitTitle
     self.failureText = failureText
@@ -251,6 +254,10 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
           .keyboardShortcut(.defaultAction)
           .disabled(!PutioTextAlert.canSubmit(text, replacing: alert.initialText))
           .accessibilityIdentifier("text-alert.submit")
+        } message: { alert in
+          if let message = alert.message {
+            Text(message)
+          }
         }
         .onChange(of: request?.id, initial: true) {
           if let request {
