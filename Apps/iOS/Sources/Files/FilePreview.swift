@@ -683,18 +683,18 @@ struct PutioPreviewView: View {
         .toolbar { toolbar(model) }
         .toolbar(showsBars(model.state) ? .visible : .hidden, for: .navigationBar)
         .statusBarHidden(!showsBars(model.state))
+        .modifier(
+          PutioFileItemActionsHost(
+            request: $itemAction,
+            model: itemActions,
+            actions: fileActions.actions,
+            load: fileActions.load,
+            continueLoad: fileActions.continueLoad,
+            trashEnabled: fileActions.trashEnabled,
+            refreshRequests: fileActions.refreshRequests
+          )
+        )
     }
-    .modifier(
-      PutioFileItemActionsHost(
-        request: $itemAction,
-        model: itemActions,
-        actions: fileActions.actions,
-        load: fileActions.load,
-        continueLoad: fileActions.continueLoad,
-        trashEnabled: fileActions.trashEnabled,
-        refreshRequests: fileActions.refreshRequests
-      )
-    )
     .task(id: fileActions.refreshRequests.revision) { await lookUpActedOnFile() }
     .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
     .onDisappear { pager.cancel() }
