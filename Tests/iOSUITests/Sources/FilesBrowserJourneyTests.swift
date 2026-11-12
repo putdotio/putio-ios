@@ -337,10 +337,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(moveToExtras, timeout: 5), "Move to Extras is disabled")
     moveToExtras.tap()
     XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 10))
-    XCTAssertTrue(
-      app.staticTexts["1 item is in the selected folder."].appears(within: 5),
-      "the move showed no toast")
     XCTAssertTrue(subtitle.disappears(within: 5), "the moved subtitle stayed in its folder")
+    let movedToast = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "1 item is in the selected folder.")).firstMatch
+    XCTAssertTrue(movedToast.appears(within: 10), "the move showed no toast")
 
     let extras = element(identifier: "files.item.415")
     XCTAssertTrue(waitUntilHittable(extras, timeout: 10), "the folder made in the sheet is missing")
