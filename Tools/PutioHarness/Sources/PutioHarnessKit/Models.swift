@@ -1282,6 +1282,9 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 240),
     JourneyPreflight(
+      "link-device-cancel", "AccountSecurityJourneyTests/testLeavingMidLinkCancelsCleanly",
+      timeAllowance: 90),
+    JourneyPreflight(
       "sign-out-other-apps",
       "AccountSecurityJourneyTests/testSignOutOfAllOtherAppsAsksFirstAndKeepsFailedApps",
       attachmentNames: [
