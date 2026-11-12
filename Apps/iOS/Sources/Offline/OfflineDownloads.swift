@@ -182,8 +182,7 @@ final class PutioOfflineQueue {
         if let localPath = items[index].localPath {
           finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         }
-      case .paused where !alive.contains(items[index].id)
-        && resumeWhenFree.contains(items[index].id):
+      case .paused where !alive.contains(items[index].id) && isWaitingForSlot(items[index].id):
         resumeWhenFree.removeAll { $0 == items[index].id }
         items[index].stage = .queued
       case .paused where !alive.contains(items[index].id):
