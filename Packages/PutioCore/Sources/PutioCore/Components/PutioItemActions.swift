@@ -136,15 +136,19 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
 
   private struct PutioItemActionLabel: View {
     let action: PutioItemAction
+    var showsSubtitle = true
 
     var body: some View {
-      Label {
+      if showsSubtitle, let subtitle = action.subtitle {
         Text(action.title)
-        if let subtitle = action.subtitle {
-          Text(subtitle)
-        }
-      } icon: {
+        Text(subtitle)
         Image(putioIcon: action.icon)
+      } else {
+        Label {
+          Text(action.title)
+        } icon: {
+          Image(putioIcon: action.icon)
+        }
       }
     }
   }
@@ -205,7 +209,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       Button(role: action.role == .destructive && !action.asksFirst ? .destructive : nil) {
         action.perform()
       } label: {
-        PutioItemActionLabel(action: action)
+        PutioItemActionLabel(action: action, showsSubtitle: false)
           .labelStyle(.iconOnly)
       }
       .disabled(action.isDisabled)
