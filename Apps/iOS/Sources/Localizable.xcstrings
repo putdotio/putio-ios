@@ -12,6 +12,17 @@
         }
       }
     },
+    "%@ (build %@)" : {
+      "comment" : "android: mobile_settings_about_version_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (build %@)"
+          }
+        }
+      }
+    },
     "%@ is now signed in with your account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -234,17 +245,6 @@
         }
       }
     },
-    "About put.io" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About put.io"
-          }
-        }
-      }
-    },
     "Account" : {
       "comment" : "android: mobile_destination_account",
       "localizations" : {
@@ -263,17 +263,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Account settings could not be confirmed. Refresh to continue."
-          }
-        }
-      }
-    },
-    "Acknowledgements" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Acknowledgements"
           }
         }
       }
@@ -329,6 +318,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App info"
+          }
+        }
+      }
+    },
+    "App Store" : {
+      "comment" : "ios-only: App info channel for App Store installs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
           }
         }
       }
@@ -538,6 +538,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Changes to your downloads could not be saved on this device. Try again."
+          }
+        }
+      }
+    },
+    "Channel" : {
+      "comment" : "android: mobile_settings_about_channel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel"
           }
         }
       }
@@ -795,6 +806,17 @@
         }
       }
     },
+    "Copied to clipboard" : {
+      "comment" : "android: mobile_settings_about_copied",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied to clipboard"
+          }
+        }
+      }
+    },
     "Copy all" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -802,6 +824,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy all"
+          }
+        }
+      }
+    },
+    "Copy for support" : {
+      "comment" : "android: mobile_settings_about_copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy for support"
           }
         }
       }
@@ -1469,6 +1502,17 @@
         }
       }
     },
+    "Device" : {
+      "comment" : "android: mobile_settings_about_device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device"
+          }
+        }
+      }
+    },
     "Direct" : {
       "comment" : "android: mobile_settings_tunnel_route_default",
       "localizations" : {
@@ -2020,17 +2064,6 @@
         }
       }
     },
-    "Google Cast SDK" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Google Cast SDK"
-          }
-        }
-      }
-    },
     "Heads up: Files in trash have an expiry date of 14 days." : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -2141,6 +2174,17 @@
         }
       }
     },
+    "iOS" : {
+      "comment" : "ios-only: the App info row naming the operating system version",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iOS"
+          }
+        }
+      }
+    },
     "It may have been moved or deleted." : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -2207,17 +2251,6 @@
         }
       }
     },
-    "Libraries this app is built on." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Libraries this app is built on."
-          }
-        }
-      }
-    },
     "Library" : {
       "comment" : "android: mobile_settings_section_library",
       "localizations" : {
@@ -2225,6 +2258,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Library"
+          }
+        }
+      }
+    },
+    "License text" : {
+      "comment" : "android: mobile_settings_open_source_license",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "License text"
           }
         }
       }
@@ -2726,6 +2770,17 @@
         }
       }
     },
+    "Nightly" : {
+      "comment" : "ios-only: App info channel for the Nightly app; Android adds the build type",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nightly"
+          }
+        }
+      }
+    },
     "No downloads" : {
       "comment" : "android: mobile_downloads_empty_title | differs: iOS board wording",
       "localizations" : {
@@ -2832,6 +2887,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing casting"
+          }
+        }
+      }
+    },
+    "Nothing here identifies you or your files. Paste it into a support ticket." : {
+      "comment" : "android: mobile_settings_about_privacy_note",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing here identifies you or your files. Paste it into a support ticket."
           }
         }
       }
@@ -3309,6 +3375,17 @@
         }
       }
     },
+    "Player" : {
+      "comment" : "android: mobile_settings_about_player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Player"
+          }
+        }
+      }
+    },
     "Playing" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
       "localizations" : {
@@ -3518,6 +3595,39 @@
         }
       }
     },
+    "Source code" : {
+      "comment" : "android: mobile_settings_open_source_source",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source code"
+          }
+        }
+      }
+    },
+    "TestFlight" : {
+      "comment" : "ios-only: App info channel for TestFlight installs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TestFlight"
+          }
+        }
+      }
+    },
+    "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
+      "comment" : "android: mobile_settings_open_source_licenses_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
+          }
+        }
+      }
+    },
     "Unwatched" : {
       "comment" : "android: mobile_files_unwatched",
       "localizations" : {
@@ -3547,6 +3657,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating item %lld of %lld…"
+          }
+        }
+      }
+    },
+    "Version, build, and device details for support." : {
+      "comment" : "android: mobile_settings_about_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version, build, and device details for support."
           }
         }
       }
@@ -4607,17 +4728,6 @@
         }
       }
     },
-    "Terms of service" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Terms of service"
-          }
-        }
-      }
-    },
     "That didn’t work." : {
       "comment" : "android: mobile_welcome_caption_failed",
       "localizations" : {
@@ -5054,17 +5164,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Undo"
-          }
-        }
-      }
-    },
-    "Unknown" : {
-      "comment" : "android: playback_subtitle_unknown",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unknown"
           }
         }
       }

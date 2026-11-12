@@ -707,6 +707,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-60-resume-off-confirm", .iphone, "testAccountResumeOff"),
       BoardCapture("rd-ios-acc-08-privacy", .iphone, "testAccountPrivacy"),
       BoardCapture("rd-ios-acc-25-history-off", .iphone, "testAccountHistoryOff"),
+      BoardCapture("rd-ios-acc-09-app-info", .iphone, "testAccountAppInfo"),
+      BoardCapture(
+        "rd-ios-acc-34-app-info-copied", .iphone, "testAccountAppInfoCopied", screenBase: false),
+      BoardCapture("rd-ios-acc-10-licenses", .iphone, "testAccountLicenses"),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
@@ -948,6 +952,11 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "account-rows", "AccountJourneyTests/testEveryAccountRowOpensAndClosesFromTopToEnd",
       timeAllowance: 180),
+    JourneyPreflight(
+      "app-info",
+      "AccountJourneyTests/testAppInfoCopiesFiveAnonymousFieldsAndLicensesListEveryBundledPackage",
+      attachmentNames: ["runtime-app-info-copied", "runtime-open-source-licenses"],
+      timeAllowance: 120),
     JourneyPreflight(
       "account-settings-loading", "AccountJourneyTests/testSettingsLoadSlowly",
       attachmentNames: ["runtime-account-settings-loading"]),

@@ -77,6 +77,12 @@ Preconditions:
   `runtime-account-settings-failed`, `runtime-account-save-failed-unavailable`,
   `runtime-account-save-failed-offline`.
 - **Rating.** Run `--only account-rating`. Screenshot: `runtime-account-rating`.
+- **App info and licenses.** Run `--only app-info`. Copy for support must put
+  exactly five anonymous lines on the pasteboard; Open source licenses must list
+  the app plus every package in `Apps/iOS/Generated/OpenSourceLicenses.json`.
+  Screenshots: `runtime-app-info-copied`, `runtime-open-source-licenses`.
+  Boards: `rd-ios-acc-09-app-info`, `rd-ios-acc-34-app-info-copied`,
+  `rd-ios-acc-10-licenses`.
 - **Analytics prompt.** Run `--only analytics-prompt`. Screenshots:
   `runtime-analytics-prompt`, `runtime-analytics-prompt-saving`,
   `runtime-analytics-prompt-failed`. Boards: `rd-ios-ses-10-analytics`,

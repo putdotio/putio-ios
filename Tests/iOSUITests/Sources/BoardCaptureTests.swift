@@ -1214,6 +1214,46 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-08-privacy")
   }
 
+  func testAccountAppInfo() throws {
+    openAppInfo()
+    try captureBoard("rd-ios-acc-09-app-info")
+  }
+
+  func testAccountAppInfoCopied() throws {
+    openAppInfo()
+    app.buttons["app-info.copy"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Copied to clipboard"].appears(within: 5), "the copied toast never showed")
+    try captureBoard("rd-ios-acc-34-app-info-copied")
+  }
+
+  func testAccountLicenses() throws {
+    openAccountSettings()
+    let licenses = app.revealed("account.licenses")
+    XCTAssertTrue(licenses.appears(within: 5))
+    licenses.tap()
+    XCTAssertTrue(
+      element("licenses.notice").appears(within: 5), "Open source licenses never opened")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-10-licenses")
+  }
+
+  private func openAppInfo() {
+    openAccountSettings()
+    let about = app.revealed("account.about")
+    XCTAssertTrue(about.appears(within: 5))
+    about.tap()
+    XCTAssertTrue(app.buttons["app-info.copy"].appears(within: 5), "App info never opened")
+    showSettledTabBar()
+  }
+
+  private func showSettledTabBar() {
+    app.showTabBar()
+    let downloads = tabButton("Downloads")
+    XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertTrue(holdsFrame(downloads, within: 5), "the tab bar never settled")
+  }
+
   func testAccountHistoryOff() throws {
     openAccountSettings()
     scrollAccount(untilNearTop: "playback-settings.subtitles")

@@ -14,4 +14,5 @@ if [[ "${PUTIO_TUIST_DEPENDENCIES_CACHED:-}" != "1" ]]; then
   # Tuist 4.203.4 swifterpm fails to load the local GoogleCastSDK manifest.
   TUIST_USE_SWIFTERPM=0 tuist install
 fi
+node scripts/open-source-licenses.ts
 tuist generate --no-open
