@@ -700,7 +700,8 @@ final class BoardCaptureTests: XCTestCase {
     openAccountSettings()
     element("settings.default-sort").tap()
     XCTAssertTrue(
-      app.buttons["Size, smallest first"].firstMatch.appears(within: 5), "the sort menu never opened")
+      app.buttons["Size, smallest first"].firstMatch.appears(within: 5),
+      "the sort menu never opened")
     try captureBoard("rd-ios-acc-05-default-sort")
   }
 
