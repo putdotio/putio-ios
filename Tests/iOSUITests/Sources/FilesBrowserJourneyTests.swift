@@ -1300,6 +1300,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertTrue(
       movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
+    XCTAssertTrue(
+      app.buttons["Undo"].disappears(within: 10), "the Undo toast never timed out")
 
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
