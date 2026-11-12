@@ -24,9 +24,8 @@ Store work. Turn its telemetry off once:
 asc telemetry disable
 ```
 
-After changing a pin in `mise.toml`, run
-`mise lock --platform linux-x64,linux-arm64,macos-arm64,macos-x64` and commit
-`mise.lock`; CI installs only locked tools.
+After changing a tool pin in `mise.toml` or `mise-tasks.toml`, run `mise lock`
+and commit `mise.lock`; CI installs only locked tools.
 
 For a machine-readable prerequisite report:
 
