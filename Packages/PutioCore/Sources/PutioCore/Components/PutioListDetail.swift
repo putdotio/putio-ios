@@ -4,7 +4,6 @@
   public struct PutioListDetail<Item: Hashable, ListContent: View, DetailContent: View>: View {
     @Binding private var selection: Item?
     private let emptyState: (title: String, message: String)?
-    private let listWidth: CGFloat?
     private let list: (Binding<Item?>) -> ListContent
     private let detail: (Item) -> DetailContent
 
@@ -21,20 +20,17 @@
     ) {
       _selection = selection
       self.emptyState = (emptyTitle, emptyMessage)
-      self.listWidth = nil
       self.list = list
       self.detail = detail
     }
 
     public init(
       selection: Binding<Item?>,
-      listWidth: CGFloat? = nil,
       @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
       self.emptyState = nil
-      self.listWidth = listWidth
       self.list = list
       self.detail = detail
     }
@@ -45,7 +41,10 @@
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
           .environment(\.putioListDetailShowsOpenRow, horizontalSizeClass == .regular)
           .environment(\.putioListDetailOpen, openAction)
-          .modifier(PutioListDetailColumnWidth(width: listWidth))
+          .navigationSplitViewColumnWidth(
+            min: PutioListDetailLayout.listMinimumWidth,
+            ideal: PutioListDetailLayout.listIdealWidth
+          )
           .toolbar(removing: .sidebarToggle)
       } detail: {
         if let selection {
@@ -95,21 +94,6 @@
           if newValue == nil, horizontalSizeClass == .regular { return }
           selection = newValue
         })
-    }
-  }
-
-  private struct PutioListDetailColumnWidth: ViewModifier {
-    let width: CGFloat?
-
-    @ViewBuilder func body(content: Content) -> some View {
-      if let width {
-        content.navigationSplitViewColumnWidth(
-          min: PutioListDetailLayout.listMinimumWidth, ideal: width, max: width)
-      } else {
-        content.navigationSplitViewColumnWidth(
-          min: PutioListDetailLayout.listMinimumWidth,
-          ideal: PutioListDetailLayout.listIdealWidth)
-      }
     }
   }
 
