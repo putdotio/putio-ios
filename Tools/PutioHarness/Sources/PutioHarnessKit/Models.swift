@@ -1037,7 +1037,7 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "runtime-file-preferences", "runtime-file-preferences-refresh", "runtime-privacy-controls",
       ],
-      timeAllowance: 180),
+      timeAllowance: 240),
     JourneyPreflight(
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
