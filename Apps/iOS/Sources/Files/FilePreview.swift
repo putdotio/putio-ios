@@ -785,13 +785,10 @@ final class PutioVisibleTextElement: UIAccessibilityElement {
 
   override func accessibilityScroll(_ direction: UIAccessibilityScrollDirection) -> Bool {
     guard let textView else { return false }
-    let page = textView.bounds.height - textView.adjustedContentInset.top
-      - textView.adjustedContentInset.bottom
-    let minY = -textView.adjustedContentInset.top
-    let maxY = max(
-      minY,
-      textView.contentSize.height + textView.adjustedContentInset.bottom
-        - textView.bounds.height)
+    let inset = textView.adjustedContentInset
+    let page = textView.bounds.height - inset.top - inset.bottom
+    let minY = -inset.top
+    let maxY = max(minY, textView.contentSize.height + inset.bottom - textView.bounds.height)
     let y: CGFloat
     switch direction {
     case .down: y = min(maxY, textView.contentOffset.y + page)

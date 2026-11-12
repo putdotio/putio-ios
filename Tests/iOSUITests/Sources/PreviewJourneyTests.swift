@@ -270,7 +270,8 @@ final class PreviewJourneyTests: XCTestCase {
     let notice = element("preview.text.truncated")
     XCTAssertFalse(notice.isOnScreen, "the end line shows before the end")
     longText.scrollTextToEnd(revealing: notice)
-    XCTAssertTrue(notice.isOnScreen, "scrolling never reached the end line: \(notice.debugDescription)")
+    XCTAssertTrue(
+      notice.isOnScreen, "scrolling never reached the end line: \(notice.debugDescription)")
     XCTAssertEqual(notice.label, "Showing the first 250 kB.")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
     screenshot("runtime-preview-text-truncated")
