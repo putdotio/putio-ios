@@ -90,6 +90,7 @@ struct PublicLinksView: View {
             Image(putioIcon: .linkBreak)
           }
         }
+        .tint(PutioTheme.Colors.destructive)
         .accessibilityIdentifier("public-links.revoke")
       }
     } label: {
