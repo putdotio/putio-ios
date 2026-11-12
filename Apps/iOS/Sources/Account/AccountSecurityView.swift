@@ -459,7 +459,9 @@ struct LinkDeviceView: View {
           note
         }
         PutioBlockButton(
-          String(localized: "Link"), isBusy: model.isLinking, isEnabled: model.canLink, action: link)
+          String(localized: "Link"), isBusy: model.isLinking, isEnabled: model.canLink,
+          action: link
+        )
         .accessibilityIdentifier("security.link-submit")
       }
       .padding(PutioTheme.Spacing.space3)
