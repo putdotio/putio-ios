@@ -27,6 +27,7 @@ final class PreviewJourneyTests: XCTestCase {
     signIn()
 
     assertVLCFailureThenHandoff()
+    signOut()
   }
 
   func testVLCNotInstalledOffersTheAppStore() {
@@ -58,6 +59,7 @@ final class PreviewJourneyTests: XCTestCase {
           + "&x-success=putio:///files/0"),
       "the handoff after installing VLC did not open: \(requests.value ?? "")")
     XCTAssertFalse(app.alerts["VLC is not installed"].exists)
+    signOut()
   }
 
   func testVLCFailureToastNamesTheCause() {
@@ -95,6 +97,7 @@ final class PreviewJourneyTests: XCTestCase {
         "2|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/412/download"
           + "&x-success=putio:///files/0"),
       "the second tap did not hand off: \(requests.value ?? "")")
+    signOut()
   }
 
   private func assertVLCFailureThenHandoff() {
@@ -683,6 +686,20 @@ final class PreviewJourneyTests: XCTestCase {
     let action = app.buttons["Open in VLC"]
     XCTAssertTrue(action.appears(within: 5), "Open in VLC never appeared")
     action.tap()
+  }
+
+  private func signOut() {
+    let account = app.buttons["Account"]
+    app.scrollDown(toHit: account)
+    if !account.exists { app.tabBars.buttons["Files"].firstMatch.tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed minimized")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func signIn() {
