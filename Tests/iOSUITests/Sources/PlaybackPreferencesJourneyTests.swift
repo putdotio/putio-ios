@@ -185,7 +185,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.launchArguments = [
       "--putio-harness-scenario", "files-browser", "--putio-harness-proxy", "slow",
     ]
-    let proxy = openProxy(in: app)
+    let proxy = openProxy(in: app, signingIn: true)
     XCTAssertTrue(app.descendants(matching: .any)["proxy.loading"].appears(within: 5))
     let current = choice("cdn77", in: app)
     XCTAssertTrue(current.appears(within: 15), "the slow proxy list never loaded")
@@ -197,7 +197,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.launchArguments = [
       "--putio-harness-scenario", "files-browser", "--putio-harness-proxy", "refused",
     ]
-    _ = openProxy(in: app)
+    _ = openProxy(in: app, signingIn: false)
     XCTAssertTrue(current.appears(within: 10))
     let london = choice("London", in: app)
     london.tap()
@@ -214,14 +214,21 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(proxy.appears(within: 5))
     XCTAssertTrue(proxy.label.hasSuffix("cdn77"), "proxy row read \(proxy.label)")
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(app.descendants(matching: .any)["auth.sign-in"].appears(within: 10))
   }
 
-  private func openProxy(in app: XCUIApplication) -> XCUIElement {
+  private func openProxy(in app: XCUIApplication, signingIn: Bool) -> XCUIElement {
     app.launch()
-    let signIn = app.descendants(matching: .any)["auth.sign-in"]
-    XCTAssertTrue(signIn.appears(within: 10))
-    signIn.tap()
-    XCTAssertTrue(app.buttons["Account"].appears(within: 10))
+    if signingIn {
+      let signIn = app.descendants(matching: .any)["auth.sign-in"]
+      XCTAssertTrue(signIn.appears(within: 10))
+      signIn.tap()
+    }
+    XCTAssertTrue(app.buttons["Account"].appears(within: 15))
     app.buttons["Account"].tap()
     let proxy = app.revealed("playback-settings.route")
     XCTAssertTrue(proxy.appears(within: 10))
