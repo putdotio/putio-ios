@@ -45,6 +45,29 @@
         }
       }
     },
+    "%lld hours" : {
+      "comment" : "ios-only: hours left on an exclusive link row; Android shows a short 71h, the board spells out hours",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld hour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld hours"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld selected" : {
       "comment" : "android: mobile_selection_count",
       "localizations" : {
@@ -563,6 +586,17 @@
         }
       }
     },
+    "Couldn’t revoke the link. %@" : {
+      "comment" : "android: mobile_public_links_revoke_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t revoke the link. %@"
+          }
+        }
+      }
+    },
     "Couldn’t save this setting" : {
       "comment" : "android: mobile_settings_save_error",
       "localizations" : {
@@ -847,6 +881,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter your password to confirm."
+          }
+        }
+      }
+    },
+    "Expires in %@" : {
+      "comment" : "android: mobile_public_links_expires_in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires in %@"
+          }
+        }
+      }
+    },
+    "Expires within 72 hours" : {
+      "comment" : "android: mobile_public_links_expiry_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expires within 72 hours"
           }
         }
       }

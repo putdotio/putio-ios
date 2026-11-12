@@ -323,6 +323,28 @@
         }
       }
     },
+    "Anyone who has the link to “%@” loses access." : {
+      "comment" : "android: mobile_public_links_revoke_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anyone who has the link to “%@” loses access."
+          }
+        }
+      }
+    },
+    "Anyone with a link can open the file for 72 hours" : {
+      "comment" : "android: mobile_public_links_summary",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anyone with a link can open the file for 72 hours"
+          }
+        }
+      }
+    },
     "App info" : {
       "comment" : "android: mobile_settings_about",
       "localizations" : {
@@ -847,6 +869,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy for support"
+          }
+        }
+      }
+    },
+    "Copy link" : {
+      "comment" : "android: mobile_public_links_copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy link"
           }
         }
       }
@@ -1899,6 +1932,17 @@
         }
       }
     },
+    "Exclusive links" : {
+      "comment" : "android: mobile_settings_exclusive_links",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclusive links"
+          }
+        }
+      }
+    },
     "Existing history will be cleared and new account events will no longer be saved." : {
       "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
       "localizations" : {
@@ -2307,6 +2351,17 @@
         }
       }
     },
+    "Links you make with Exclusive access show up here." : {
+      "comment" : "android: mobile_public_links_empty",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Links you make with Exclusive access show up here."
+          }
+        }
+      }
+    },
     "Load recovery codes" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2369,6 +2424,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading history"
+          }
+        }
+      }
+    },
+    "Loading links…" : {
+      "comment" : "android: mobile_public_links_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading links…"
           }
         }
       }
@@ -2789,6 +2855,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No downloads"
+          }
+        }
+      }
+    },
+    "No exclusive links" : {
+      "comment" : "android: mobile_public_links_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No exclusive links"
           }
         }
       }
@@ -3581,6 +3658,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io is temporarily unavailable. Try again."
+          }
+        }
+      }
+    },
+    "Revoke this link?" : {
+      "comment" : "android: mobile_public_links_revoke_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revoke this link?"
           }
         }
       }

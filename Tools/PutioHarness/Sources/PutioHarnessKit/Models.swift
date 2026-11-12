@@ -724,6 +724,16 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
       BoardCapture("rd-ios-acc-32-proxy-failed", .iphone, "testAccountProxyFailed"),
       BoardCapture("rd-ios-acc-33-proxy-unavailable", .iphone, "testAccountProxyUnavailable"),
+      BoardCapture("rd-ios-acc-12-links", .iphone, "testAccountPublicLinks"),
+      BoardCapture("rd-ios-acc-11-links-empty", .iphone, "testAccountPublicLinksEmpty"),
+      BoardCapture("rd-ios-acc-38-links-loading", .iphone, "testAccountPublicLinksLoading"),
+      BoardCapture("rd-ios-acc-39-links-failed", .iphone, "testAccountPublicLinksFailed"),
+      BoardCapture(
+        "rd-ios-acc-35-links-menu", .iphone, "testAccountPublicLinkMenu", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-36-links-swipe", .iphone, "testAccountPublicLinkSwipe", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-37-links-revoke", .iphone, "testAccountPublicLinkRevoke", screenBase: false),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
@@ -965,6 +975,18 @@ enum BrowserJourneyContract {
       "AccountJourneyTests/testAppInfoCopiesFiveAnonymousFieldsAndLicensesListEveryBundledPackage",
       attachmentNames: ["runtime-app-info-copied", "runtime-open-source-licenses"],
       timeAllowance: 120),
+    JourneyPreflight(
+      "public-links", "PublicLinksJourneyTests/testRowsCopyShareAndRevokeByMenuAndSwipe",
+      attachmentNames: [
+        "runtime-public-links", "runtime-public-link-revoke-failed", "runtime-public-links-empty",
+      ],
+      timeAllowance: 240),
+    JourneyPreflight(
+      "public-links-slow", "PublicLinksJourneyTests/testLeavingMidLoadLeavesNothingBehind",
+      attachmentNames: ["runtime-public-links-loading"], timeAllowance: 90),
+    JourneyPreflight(
+      "public-links-failed", "PublicLinksJourneyTests/testFailedLoadRetries",
+      attachmentNames: ["runtime-public-links-failed"]),
     JourneyPreflight(
       "account-settings-loading", "AccountJourneyTests/testSettingsLoadSlowly",
       attachmentNames: ["runtime-account-settings-loading"]),

@@ -75,6 +75,10 @@ struct AccountView: View {
       Group {
         storageSection
         PutioSettingsSection(String(localized: "Library")) {
+          PutioNavigationRow(String(localized: "Exclusive links"), icon: .link) {
+            PublicLinksView(runtime: runtime)
+          }
+          .accessibilityIdentifier("account.public-links")
           if account.trashEnabled {
             PutioNavigationRow(
               String(localized: "Trash"), icon: .trash,
