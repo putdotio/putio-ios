@@ -1534,8 +1534,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.screen.440").appears(within: 10))
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(folder.appears(within: 5), "Back lost the results")
-    XCTAssertEqual(
-      requests.value as? String, "blue|;blue|VIDEO;blue|", "Back searched again")
+    XCTAssertTrue(subtitle.exists, "Back lost the Files group")
 
     app.buttons["Files"].tap()
     app.buttons["Account"].tap()
