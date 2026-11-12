@@ -35,6 +35,8 @@ images and documents, and opens put.io links into the same screens.
 - `preview-paging` swipes between a folder's images past a video, loads the
   folder's next page, pans instead of paging while zoomed, and shows one file
   from Search.
+- `preview-more` renames and moves the shown file from the viewer's More menu,
+  and shows a failed rename's toast.
 - `deep-links` opens links cold, warm, and signed out.
 - `large-text` keeps long names, selection, and the download picker usable at
   the largest text size.
@@ -99,6 +101,10 @@ Preconditions:
   `runtime-preview-share-text`.
 - **Preview paging.** Run `--only preview-paging`. Screenshot:
   `runtime-preview-position`.
+- **Preview More menu.** Run `--only preview-more`. Screenshots:
+  `runtime-preview-more-pdf`, `runtime-preview-more-image`,
+  `runtime-preview-rename`, `runtime-preview-rename-failed`,
+  `runtime-preview-moved`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in
