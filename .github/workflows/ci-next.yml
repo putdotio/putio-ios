@@ -124,7 +124,7 @@ jobs:
       - name: Install Node.js and pnpm
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          version: "2026.11.5"
+          version: "2026.11.6"
           install_args: node pnpm
 
       - name: Verify tooling
@@ -151,7 +151,7 @@ jobs:
       - name: Install Node.js, pnpm, and asc
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          version: "2026.11.5"
+          version: "2026.11.6"
           install_args: node pnpm github:rorkai/App-Store-Connect-CLI
 
       # The second status runs without the variable, so the check fails if
