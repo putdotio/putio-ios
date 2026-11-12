@@ -1053,7 +1053,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openDocumentOnSecondPage() {
-    app.launchArguments.append("--putio-harness-previews")
+    app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
     app.launch()
     reachFilesRoot()
     let row = app.revealed("files.item.413")

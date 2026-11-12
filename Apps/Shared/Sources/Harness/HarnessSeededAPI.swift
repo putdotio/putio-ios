@@ -660,6 +660,10 @@ import Foundation
     private static var usesPreviews: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
     }
+    private static var documentName: String {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-board-document-name")
+        ? "document-scan-march-2026.pdf" : "Document.pdf"
+    }
     nonisolated(unsafe) private static var longPreviewLookups = 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
@@ -1897,7 +1901,7 @@ import Foundation
         return (
           200,
           """
-          {"status":"OK","file":{"id":413,"parent_id":0,"name":"Document.pdf",
+          {"status":"OK","file":{"id":413,"parent_id":0,"name":\(jsonString(documentName)),
           "file_type":"PDF","size":1024,"created_at":"2026-09-01T12:00:00Z",
           "updated_at":"2026-09-01T12:00:00Z"}}
           """
@@ -3295,7 +3299,7 @@ import Foundation
           """
           {
             "id": 413,
-            "name": "Document.pdf",
+            "name": \(jsonString(documentName)),
             "file_type": "PDF",
             "parent_id": 0,
             "size": 1048576,
