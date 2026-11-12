@@ -251,6 +251,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
       ["Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move", "Trash"])
     addScreenshot(named: "runtime-item-menu-vlc")
     dismissMenu()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
   }
 
   private static let itemMenuLabels = [
