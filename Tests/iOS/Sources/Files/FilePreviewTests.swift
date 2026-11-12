@@ -346,6 +346,55 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertFalse(FileManager.default.fileExists(atPath: model.shareDirectory.path))
   }
 
+  func testRenamingDuringAShareDropsTheExportUnderTheOldName() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let gate = PreviewDownloadGate()
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 19), parentID: .root, title: "Old.srt", kind: .text)
+    var wholeFetches = 0
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      let body = Data(repeating: 0x61, count: limit + 4_000)
+      guard extent == .whole else { return body.prefix(limit + 1) }
+      wholeFetches += 1
+      if wholeFetches == 1 { await gate.wait() }
+      return body
+    }
+    await model.load()
+    let stale = Task { try await XCTUnwrap(model.share).export() }
+    while !gate.isWaiting { await Task.yield() }
+    model.retitle("New.srt")
+    gate.open()
+    do {
+      _ = try await stale.value
+      XCTFail("a renamed preview still shared the old name")
+    } catch {}
+    let share = try XCTUnwrap(model.share)
+    XCTAssertEqual(share.name, "New.srt")
+    let file = try await share.export()
+    XCTAssertEqual(file.lastPathComponent, "New.srt")
+    model.cancel()
+  }
+
+  func testAFileWhoseActionSettledOffersNoMenuUntilItsLookupReturns() throws {
+    let shown = BrowserTestFixtures.item(id: 21, parentID: 5, name: "Poster.png", kind: .image)
+    let file = PutioFileRoute(item: shown)
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    var listed = [shown]
+    let source = PutioPreviewSource(
+      items: { listed }, hasMore: { false }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+    XCTAssertEqual(pager.item(for: shown.id), shown)
+
+    listed = []
+    pager.settle(shown.id)
+    XCTAssertNil(pager.item(for: shown.id), "a moved file offered its old folder")
+
+    let moved = BrowserTestFixtures.item(id: 21, parentID: 9, name: "Poster.png", kind: .image)
+    pager.update(moved)
+    XCTAssertEqual(pager.item(for: shown.id), moved)
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)

@@ -233,6 +233,7 @@ final class PutioPreviewModel {
   private let download: PutioPreviewDownload
   let shareDirectory: URL
   private var generation: UInt64 = 0
+  private var shareGeneration: UInt64 = 0
   private var loadTask: Task<Void, Never>?
   private var loadedBytes: Data?
   private var sharedFile: URL?
@@ -298,15 +299,20 @@ final class PutioPreviewModel {
     loadTask = nil
     generation &+= 1
     loadedBytes = nil
-    sharedFile = nil
-    shareExport?.cancel()
-    shareExport = nil
+    discardShareFile()
     try? FileManager.default.removeItem(at: shareDirectory)
   }
 
   func retitle(_ name: String) {
     guard name != title else { return }
     title = name
+    discardShareFile()
+  }
+
+  private func discardShareFile() {
+    shareGeneration &+= 1
+    shareExport?.cancel()
+    shareExport = nil
     sharedFile = nil
   }
 
@@ -326,10 +332,10 @@ final class PutioPreviewModel {
   func exportShareFile() async throws -> URL {
     if let sharedFile { return sharedFile }
     if let shareExport { return try await shareExport.value }
-    let request = generation
+    let request = shareGeneration
     let export = Task { [weak self] in
       guard let self else { throw CancellationError() }
-      defer { if request == generation { shareExport = nil } }
+      defer { if request == shareGeneration { shareExport = nil } }
       return try await writeShareFile(request: request)
     }
     shareExport = export
@@ -347,7 +353,7 @@ final class PutioPreviewModel {
     try Task.checkCancellation()
     let file = shareDirectory.appending(path: Self.shareFileName(title))
     try await Self.write(bytes, to: file)
-    guard request == generation else {
+    guard request == shareGeneration else {
       try? FileManager.default.removeItem(at: file)
       let left = try? FileManager.default.contentsOfDirectory(atPath: shareDirectory.path)
       if left?.isEmpty == true { try? FileManager.default.removeItem(at: shareDirectory) }
@@ -441,6 +447,7 @@ final class PutioPreviewPager {
   private let source: PutioPreviewSource?
   private let opened: PutioFileItem?
   private var lookedUp: [PutioFileID: PutioFileItem] = [:]
+  private var unsettled: Set<PutioFileID> = []
   private let download: PutioPreviewDownload
   private(set) var current: PutioViewerRoute
   private(set) var reads = PutioPreviewPageReads()
@@ -484,20 +491,34 @@ final class PutioPreviewPager {
   func model(for route: PutioViewerRoute) -> PutioPreviewModel {
     if let model = models[route.id] { return model }
     let model = PutioPreviewModel(route: route, download: download)
-    if let name = lookedUp[route.id]?.name { model.retitle(name) }
+    if let name = name(for: route.id) { model.retitle(name) }
     models[route.id] = model
     return model
   }
 
   func item(for id: PutioFileID) -> PutioFileItem? {
-    if let item = lookedUp[id] { return item }
-    if let item = source?.items().first(where: { $0.id == id }) { return item }
-    return opened?.id == id ? opened : nil
+    if let item = lookedUp[id] ?? listed(id) { return item }
+    guard !unsettled.contains(id), opened?.id == id else { return nil }
+    return opened
+  }
+
+  func name(for id: PutioFileID) -> String? {
+    (lookedUp[id] ?? listed(id))?.name
+  }
+
+  func settle(_ id: PutioFileID) {
+    lookedUp[id] = nil
+    unsettled.insert(id)
   }
 
   func update(_ item: PutioFileItem) {
     lookedUp[item.id] = item
+    unsettled.remove(item.id)
     models[item.id]?.retitle(item.name)
+  }
+
+  private func listed(_ id: PutioFileID) -> PutioFileItem? {
+    source?.items().first { $0.id == id }
   }
 
   func show(_ id: PutioFileID) {
@@ -537,6 +558,11 @@ final class PutioPreviewPager {
     pageReader?.cancel()
     for model in models.values { model.cancel() }
   }
+}
+
+struct PutioPreviewLookup: Equatable {
+  let fileID: PutioFileID
+  let id = UUID()
 }
 
 struct PutioPreviewPresentation: Identifiable {
@@ -648,6 +674,7 @@ struct PutioPreviewView: View {
   @State private var itemActions: PutioFileItemActionModel
   @State private var itemAction: PutioFileItemActionRequest?
   @State private var actedOn: PutioFileID?
+  @State private var lookup: PutioPreviewLookup?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   private let fileActions: PutioPreviewFileActions
   private let onDismiss: @MainActor () -> Void
@@ -695,7 +722,15 @@ struct PutioPreviewView: View {
           )
         )
     }
-    .task(id: fileActions.refreshRequests.revision) { await lookUpActedOnFile() }
+    .onChange(of: pager.name(for: pager.current.id)) { _, name in
+      if let name { pager.currentModel.retitle(name) }
+    }
+    .onChange(of: itemActions.canStartAction) { _, idle in
+      guard idle, let id = actedOn else { return }
+      pager.settle(id)
+      lookup = PutioPreviewLookup(fileID: id)
+    }
+    .task(id: lookup) { await lookUpSettledFile() }
     .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
     .onDisappear { pager.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
@@ -891,17 +926,17 @@ struct PutioPreviewView: View {
     itemAction = action
   }
 
-  private func lookUpActedOnFile() async {
-    guard let id = actedOn else { return }
+  private func lookUpSettledFile() async {
+    guard let id = lookup?.fileID else { return }
     for delay in [Duration.zero, .seconds(1), .seconds(3)] {
       do {
         try await Task.sleep(for: delay)
         pager.update(try await fileActions.lookUp(id))
         return
-      } catch is CancellationError {
-        return
-      } catch {
+      } catch PutioRuntimeError.transient {
         continue
+      } catch {
+        return
       }
     }
   }
