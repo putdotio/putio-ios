@@ -1142,16 +1142,22 @@ final class BoardCaptureTests: XCTestCase {
     let root = element("files.screen.0")
     let signIn = element("auth.sign-in")
     let back = app.navigationBars.buttons["BackButton"].firstMatch
-    let deadline = Date.now.addingTimeInterval(15)
-    while !root.exists, !signIn.exists, !back.exists, Date.now < deadline {
+    var settledSince: Date?
+    let deadline = Date.now.addingTimeInterval(30)
+    while Date.now < deadline {
+      if signIn.exists {
+        signIn.tap()
+      } else if back.exists {
+        back.tap()
+      } else if root.exists {
+        if Date.now.timeIntervalSince(settledSince ?? .now) >= 2 { break }
+        settledSince = settledSince ?? .now
+      } else {
+        settledSince = nil
+      }
       _ = root.appears(within: 0.5)
     }
-    if signIn.exists { signIn.tap() }
-    XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
-    for _ in 0..<5 where back.exists {
-      back.tap()
-      _ = back.disappears(within: 2)
-    }
+    XCTAssertTrue(root.exists && !back.exists, "seeded session never reached Files")
   }
 
   private func labeled(_ label: String) -> XCUIElement {

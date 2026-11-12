@@ -1055,8 +1055,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
-    app.showTabBar()
-    app.buttons["Account"].tap()
+    let account = app.buttons["Account"]
+    if !account.exists { app.buttons["Files"].tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
