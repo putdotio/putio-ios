@@ -141,13 +141,15 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(remove.appears(within: 5), "the dialog offers no download removal")
     XCTAssertTrue(keep.exists, "the dialog offers no plain Sign out")
     XCTAssertTrue(app.staticTexts["Sign out of put.io?"].exists, "the dialog has no title")
-    XCTAssertTrue(
-      app.staticTexts[
-        "Downloads stay on this \(deviceNoun) and come back when you sign in again."
-      ].exists, "the dialog does not say downloads stay")
-    XCTAssertTrue(
-      remove.label.hasPrefix("Sign out and remove downloads ("), "unexpected label \(remove.label)")
-    XCTAssertFalse(remove.label.contains("(0 B)"), "the dialog does not show the downloads' size")
+    let message = app.staticTexts.matching(
+      NSPredicate(
+        format: "label BEGINSWITH %@ AND label ENDSWITH %@", "Downloads use ",
+        " and stay on this \(deviceNoun). They come back when you sign in again.")
+    ).firstMatch
+    XCTAssertTrue(message.exists, "the dialog does not say downloads stay")
+    XCTAssertFalse(
+      message.label.hasPrefix("Downloads use 0 B"), "the dialog does not show the downloads' size")
+    XCTAssertEqual(remove.label, "Sign out and remove downloads")
     attach(app, "runtime-sign-out-downloads")
     dismissSignOutDialog(in: app)
     XCTAssertTrue(remove.disappears(within: 5), "the dialog stayed open")
