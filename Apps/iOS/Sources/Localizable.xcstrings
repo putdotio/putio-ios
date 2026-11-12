@@ -1059,17 +1059,6 @@
         }
       }
     },
-    "Couldn’t load playback settings" : {
-      "comment" : "android: mobile_settings_playback_error_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t load playback settings"
-          }
-        }
-      }
-    },
     "Couldn’t rename." : {
       "comment" : "android: mobile_files_rename_error | differs: the toast carries Try again as its action",
       "localizations" : {

@@ -459,7 +459,7 @@ struct PutioPlaybackConfigRows: View {
         PutioSettingsLoadingRow(String(localized: "Loading playback settings"))
       } else if appConfig.failure != nil {
         PutioSettingsFailedRows(
-          String(localized: "Couldn’t load playback settings"),
+          String(localized: "Couldn’t load account settings"),
           identifier: "playback-settings.failed",
           retryIdentifier: "playback-settings.retry-autoplay"
         ) {
