@@ -86,7 +86,8 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     ]
     for reason in reasons {
       app.buttons["files.exclusive-link.create"].tap()
-      XCTAssertTrue(app.staticTexts[reason].appears(within: 10), "no refusal: \(reason)")
+      let shown = app.staticTexts.matching(NSPredicate(format: "label == %@", reason)).firstMatch
+      XCTAssertTrue(shown.appears(within: 10), "no refusal: \(reason)")
       XCTAssertEqual(app.buttons["files.exclusive-link.create"].label, "Create link")
       if reason == reasons[0] { attach("runtime-exclusive-link-refused") }
     }
