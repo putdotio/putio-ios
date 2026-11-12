@@ -694,6 +694,12 @@ import Foundation
     private static var holdsSearch: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-search")
     }
+    private static var searchesOffline: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-search-offline")
+    }
+    private static var failsSearchContinuation: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-search-more-fails")
+    }
     private static var failsSeasonContinuation: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-fails")
     }
@@ -1012,6 +1018,12 @@ import Foundation
         return
       case nil:
         break
+      }
+      if Self.searchesOffline, url.path == "/v2/files/search" {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
       }
       let fault = Self.accountSettingsFault(for: replayableRequest)
       if fault == .offline {
@@ -1466,6 +1478,9 @@ import Foundation
               message: "The first search fails for retry proof")
           )
         }
+        if type == "VIDEO" {
+          return (200, "{\"total\":1,\"files\":[\(nestedMovieObject())]}")
+        }
       }
       if query == "poster" {
         return (
@@ -1515,11 +1530,31 @@ import Foundation
         [("FOLDER", seasonFolderObject(sortBy: nil))] + episodes.map { ("VIDEO", $0) }
         + (subtitle.map { [("TEXT", $0)] } ?? [])
       let kept = rows.filter { types?.contains($0.type) ?? true }.map(\.json)
-      return "{\"total\":\(kept.count),\"files\":[\(kept.joined(separator: ","))]}"
+      let cursor = failsSearchContinuation ? #","cursor":"search-blue-page-2""# : ""
+      return "{\"total\":\(kept.count)\(cursor),\"files\":[\(kept.joined(separator: ","))]}"
+    }
+
+    private static func nestedMovieObject() -> String {
+      """
+      {
+        "id":411,"name":"Nested Movie.mkv","file_type":"VIDEO","parent_id":410,
+        "size":1073741824,"created_at":"2026-08-28T11:00:00Z",
+        "updated_at":"2026-08-29T11:00:00Z","start_from":\(playbackPosition(fileID: 411))
+      }
+      """
     }
 
     private static func continueSearch(request: URLRequest) -> (Int, String) {
-      guard requestPayload(request)?["cursor"] as? String == "search-harness-page-2" else {
+      let cursor = requestPayload(request)?["cursor"] as? String
+      if cursor == "search-blue-page-2" {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_SEARCH_MORE_FAILS",
+            message: "The blue search's next page fails for the failed-page state")
+        )
+      }
+      guard cursor == "search-harness-page-2" else {
         return (
           400,
           fixtureError(
@@ -1543,16 +1578,7 @@ import Foundation
             message: "The first search continuation fails for retry proof")
         )
       }
-      return (
-        200,
-        """
-        {"total":2,"files":[{
-          "id":411,"name":"Nested Movie.mkv","file_type":"VIDEO","parent_id":410,
-          "size":1073741824,"created_at":"2026-08-28T11:00:00Z",
-          "updated_at":"2026-08-29T11:00:00Z","start_from":\(playbackPosition(fileID: 411))
-        }]}
-        """
-      )
+      return (200, "{\"total\":2,\"files\":[\(nestedMovieObject())]}")
     }
 
     private static func setSortBy(request: URLRequest) -> (Int, String) {

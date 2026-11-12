@@ -189,7 +189,8 @@ struct FilesSearchView: View {
         title: String(localized: "Searching files"), titleVisibility: .hidden)
     case .failed(let failure):
       PutioErrorStateView(
-        title: String(localized: "Could not search files"), message: failure.message,
+        title: String(localized: "Couldn’t search"),
+        message: failure.message,
         retryTitle: String(localized: "Try again"),
         retryIdentifier: "files.search-retry"
       ) {
@@ -203,8 +204,8 @@ struct FilesSearchView: View {
         GeometryReader { geometry in
           ScrollView {
             PutioEmptyStateView(
-              icon: .file, title: String(localized: "No results"),
-              message: String(localized: "Try a different file name.")
+              kaomoji: .shrug, title: String(localized: "Nothing matches"),
+              attributedMessage: noResultsMessage(model.query)
             )
             .frame(minHeight: geometry.size.height)
           }
@@ -228,13 +229,21 @@ struct FilesSearchView: View {
           group(String(localized: "Files"), id: "files", items: groups.files)
           if let cursor = page.nextCursor, model.refreshFailure == nil {
             Group {
-              if let failure = model.loadMoreFailure {
-                VStack(spacing: PutioTheme.Spacing.space2) {
-                  Text(failure.message)
-                    .putioFont(PutioTheme.Typography.caption)
-                  Button("Try again") { Task { await model.loadMore() } }
-                    .accessibilityIdentifier("files.search-more-retry")
+              if model.loadMoreFailure != nil {
+                PutioNextPageFailedFooter(
+                  message: String(localized: "Couldn’t load more results."),
+                  retryIdentifier: "files.search-more-retry"
+                ) {
+                  Task { await model.loadMore() }
                 }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("files.search-more-error")
+                .listRowInsets(
+                  EdgeInsets(
+                    top: 0, leading: PutioTheme.Spacing.space1, bottom: 0,
+                    trailing: PutioTheme.Spacing.space1)
+                )
+                .listRowSeparator(.hidden)
               } else {
                 ProgressView("Loading more results")
                   .task(
@@ -254,6 +263,23 @@ struct FilesSearchView: View {
       }
     }
   }
+
+  private func noResultsMessage(_ query: String) -> AttributedString {
+    let mark = "\u{FFFC}"
+    let template = String(localized: "No files or folders named \(mark). Try fewer words.")
+    let parts = template.components(separatedBy: mark)
+    var term = AttributedString(PutioFileSearchModel.shownTerm(query))
+    term.font = Self.termFont
+    term.foregroundColor = PutioTheme.Colors.textPrimary
+    var message = AttributedString(parts.first ?? "")
+    message.append(term)
+    message.append(AttributedString(parts.dropFirst().joined(separator: mark)))
+    return message
+  }
+
+  private static let termFont = Font.custom(
+    PutioTheme.Typography.subheading.fontName, size: PutioTheme.Typography.body.size,
+    relativeTo: .body)
 
   private func refresh() async {
     await model.refresh(query: query, filter: filter, revision: refreshRequests.revision)

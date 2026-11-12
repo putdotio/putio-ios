@@ -81,7 +81,7 @@ public struct PutioEmptyStateView: View {
 
   private let glyph: Glyph
   private let title: String
-  private let message: String?
+  private let message: AttributedString?
   private let action: PutioScreenStateAction?
 
   public init(
@@ -93,7 +93,7 @@ public struct PutioEmptyStateView: View {
   ) {
     self.glyph = .icon(icon)
     self.title = title
-    self.message = message
+    self.message = message.map(AttributedString.init)
     self.action = PutioScreenStateAction.optional(title: actionTitle, icon: nil, perform: action)
   }
 
@@ -105,9 +105,22 @@ public struct PutioEmptyStateView: View {
     actionIcon: PutioIcon? = nil,
     action: (() -> Void)? = nil
   ) {
+    self.init(
+      kaomoji: kaomoji, title: title, attributedMessage: message.map(AttributedString.init),
+      actionTitle: actionTitle, actionIcon: actionIcon, action: action)
+  }
+
+  public init(
+    kaomoji: PutioKaomoji,
+    title: String,
+    attributedMessage: AttributedString?,
+    actionTitle: String? = nil,
+    actionIcon: PutioIcon? = nil,
+    action: (() -> Void)? = nil
+  ) {
     self.glyph = .kaomoji(kaomoji)
     self.title = title
-    self.message = message
+    self.message = attributedMessage
     self.action = PutioScreenStateAction.optional(
       title: actionTitle, icon: actionIcon, perform: action)
   }
@@ -126,7 +139,7 @@ public struct PutioEmptyStateView: View {
   private init(placeholderTitle title: String, message: String) {
     self.glyph = .hidden
     self.title = title
-    self.message = message
+    self.message = AttributedString(message)
     self.action = nil
   }
 
@@ -191,7 +204,9 @@ public struct PutioErrorStateView: View {
   }
 
   public var body: some View {
-    PutioScreenStateContent(title: title, message: message, action: retry) {
+    PutioScreenStateContent(
+      title: title, message: message.map(AttributedString.init), action: retry
+    ) {
       #if os(tvOS)
         PutioScreenStateIcon(icon: .warningCircle, tint: PutioTheme.Colors.destructive)
       #else
@@ -338,7 +353,7 @@ private struct PutioScreenStateAction {
 
 private struct PutioScreenStateContent<Glyph: View>: View {
   let title: String
-  let message: String?
+  let message: AttributedString?
   let action: PutioScreenStateAction?
   @ViewBuilder let glyph: Glyph
 

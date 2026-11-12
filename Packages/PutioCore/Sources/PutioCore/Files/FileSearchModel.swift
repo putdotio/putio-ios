@@ -17,7 +17,7 @@ public final class PutioFileSearchModel {
   }
 
   public private(set) var state: State = .idle
-  private(set) var query = ""
+  public private(set) var query = ""
   public private(set) var filter: PutioFileSearchFilter = .all
   private(set) var isLoadingMore = false
   public private(set) var isSearching = false
@@ -138,7 +138,7 @@ public final class PutioFileSearchModel {
     }
   }
 
-  private static func keyword(_ query: String) -> String {
+  static func keyword(_ query: String) -> String {
     query.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
@@ -174,5 +174,16 @@ public final class PutioFileSearchModel {
       else { return }
       loadMoreFailure = failure
     }
+  }
+}
+
+extension PutioFileSearchModel {
+  static let shownTermLength = 50
+
+  public static func shownTerm(_ query: String) -> String {
+    let term = keyword(query)
+    guard term.count > shownTermLength else { return term }
+    let cut = term.prefix(shownTermLength)
+    return String(cut).trimmingCharacters(in: .whitespaces) + "…"
   }
 }
