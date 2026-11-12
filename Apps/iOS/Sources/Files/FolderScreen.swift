@@ -109,6 +109,11 @@ struct PutioFolderScreen: View {
     self.onBulkDownload = onBulkDownload
   }
 
+  private var linkAction: (@MainActor @Sendable (PutioFileItem) -> Void)? {
+    guard exclusiveLink != nil else { return nil }
+    return { linkItem = $0 }
+  }
+
   private var folderTitle: String {
     guard route.id != .root else { return route.title }
     if case .loaded(let contents) = model.state,
@@ -384,7 +389,7 @@ struct PutioFolderScreen: View {
         isDisabled: navigationLocked || pinItemActions?.canStartAction == false,
         onOpen: onFileSelected,
         onMove: { pinMoveRequest = .move($0) },
-        onLink: exclusiveLink == nil ? nil : { linkItem = $0 })
+        onLink: linkAction)
     }
   }
 

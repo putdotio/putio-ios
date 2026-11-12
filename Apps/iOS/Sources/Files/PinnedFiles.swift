@@ -223,6 +223,11 @@ struct PutioPinnedListScreen: View {
       })
   }
 
+  private var linkAction: (@MainActor @Sendable (PutioFileItem) -> Void)? {
+    guard exclusiveLink != nil else { return nil }
+    return { linkItem = $0 }
+  }
+
   var body: some View {
     List {
       Text("\(model.items.count) items")
@@ -235,7 +240,7 @@ struct PutioPinnedListScreen: View {
         pins: model.items, model: model, canEdit: actions != nil,
         isDisabled: itemActions?.canStartAction == false,
         onOpen: onFileSelected, onMove: { moveRequest = .move($0) },
-        onLink: exclusiveLink == nil ? nil : { linkItem = $0 })
+        onLink: linkAction)
     }
     .listStyle(.plain)
     .refreshable { await model.load() }
