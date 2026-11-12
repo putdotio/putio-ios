@@ -891,7 +891,8 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 120),
     JourneyPreflight(
       "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
-      attachmentNames: ["runtime-file-actions"], timeAllowance: 300),
+      attachmentNames: ["runtime-rename-failed-toast", "runtime-file-actions"],
+      timeAllowance: 300),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
