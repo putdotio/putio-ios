@@ -1269,6 +1269,17 @@
         }
       }
     },
+    "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days." : {
+      "comment" : "android: mobile_settings_trash_confirm_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+          }
+        }
+      }
+    },
     "Deleted to make room for RSS · %@" : {
       "comment" : "android: mobile_history_kind_rss_file_deleted | differs: iOS board wording",
       "localizations" : {
@@ -1676,13 +1687,13 @@
         }
       }
     },
-    "Every folder will use your account's default sort." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+    "Every folder will use your account’s default sort." : {
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every folder will use your account's default sort."
+            "value" : "Every folder will use your account’s default sort."
           }
         }
       }
@@ -1694,17 +1705,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every item in Trash will be deleted and cannot be restored."
-          }
-        }
-      }
-    },
-    "Every item in Trash will be permanently deleted. Future deletions cannot be restored." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every item in Trash will be permanently deleted. Future deletions cannot be restored."
           }
         }
       }
@@ -3605,7 +3605,7 @@
       }
     },
     "Reset all folder sorts?" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3637,13 +3637,13 @@
         }
       }
     },
-    "Reset Folder Sorts" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+    "Reset folder sorts" : {
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reset Folder Sorts"
+            "value" : "Reset folder sorts"
           }
         }
       }
@@ -4638,24 +4638,24 @@
         }
       }
     },
-    "Turn Off Trash" : {
-      "comment" : "android: mobile_settings_trash_confirm_action | differs: iOS names the setting in the button",
+    "Turn off" : {
+      "comment" : "android: mobile_settings_trash_confirm_action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn Off Trash"
+            "value" : "Turn off"
           }
         }
       }
     },
-    "Turn off Trash?" : {
-      "comment" : "android: mobile_settings_trash_confirm_title | differs: iOS capitalizes Trash",
+    "Turn off trash?" : {
+      "comment" : "android: mobile_settings_trash_confirm_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn off Trash?"
+            "value" : "Turn off trash?"
           }
         }
       }
@@ -4777,17 +4777,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Up next, %@"
-          }
-        }
-      }
-    },
-    "Update settings?" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update settings?"
           }
         }
       }

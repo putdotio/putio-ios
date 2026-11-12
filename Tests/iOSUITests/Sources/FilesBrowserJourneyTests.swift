@@ -482,6 +482,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(folder.disappears(within: 5))
 
     app.buttons["Account"].tap()
+    XCTAssertTrue(element(identifier: "account.storage-used").appears(within: 5))
+    XCTAssertTrue(element(identifier: "settings.default-sort").appears(within: 15))
+    XCTAssertFalse(
+      element(identifier: "account.trash").exists, "the Trash row shows with trash off")
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()

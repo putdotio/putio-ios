@@ -696,6 +696,47 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-21-save-failed")
   }
 
+  func testAccountDefaultSort() throws {
+    openAccountSettings()
+    element("settings.default-sort").tap()
+    XCTAssertTrue(
+      app.buttons["Size, smallest first"].firstMatch.appears(within: 5),
+      "the sort menu never opened")
+    try captureBoard("rd-ios-acc-05-default-sort")
+  }
+
+  func testAccountResetSort() throws {
+    openAccountSettings()
+    let reset = element("settings.reset-sort")
+    app.bringIntoView(reset)
+    reset.tap()
+    XCTAssertTrue(
+      app.alerts["Reset all folder sorts?"].appears(within: 5), "the reset alert never showed")
+    try captureBoard("rd-ios-acc-23-reset-sort")
+  }
+
+  func testAccountTrashOff() throws {
+    openAccountSettings()
+    let trash = app.switches["settings.trash"]
+    app.bringIntoView(trash)
+    trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(app.alerts["Turn off trash?"].appears(within: 5), "the trash alert never showed")
+    try captureBoard("rd-ios-acc-24-trash-off")
+  }
+
+  func testAccountWithTrashOff() throws {
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    openAccountSettings()
+    XCTAssertFalse(element("account.trash").exists, "the Trash row shows with trash off")
+    try captureBoard("rd-ios-acc-59-trash-off-account")
+  }
+
+  private func openAccountSettings() {
+    openAccount()
+    XCTAssertTrue(
+      element("settings.default-sort").appears(within: 15), "account settings never loaded")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])

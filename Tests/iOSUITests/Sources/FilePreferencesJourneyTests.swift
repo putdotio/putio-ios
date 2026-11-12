@@ -46,8 +46,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     retry.tap()
     XCTAssertTrue(retry.disappears(within: 10))
     XCTAssertTrue(waitUntilHittable(app.revealed("settings.default-sort")))
-    let savedSort = sort.label
-    XCTAssertEqual(savedSort, "Default sort order, Name, Z to A")
+    XCTAssertEqual(sort.label, "Default sort order, Name, Z to A")
 
     app.showTabBar()
     app.buttons["Files"].tap()
@@ -56,15 +55,18 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let reset = app.revealed("settings.reset-sort")
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
-    let resetConfirm = app.buttons["settings.reset-sort-confirm"].firstMatch
+    let resetAlert = app.alerts["Reset all folder sorts?"]
+    let resetConfirm = resetAlert.buttons["Reset folder sorts"].firstMatch
     XCTAssertTrue(resetConfirm.appears(within: 5))
+    XCTAssertTrue(
+      resetAlert.staticTexts["Every folder will use your account’s default sort."].exists)
     cancelConfirmation(resetConfirm)
     app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
     reset.tap()
-    XCTAssertTrue(waitUntilHittable(resetConfirm))
+    XCTAssertTrue(resetConfirm.appears(within: 5))
     resetConfirm.tap()
     XCTAssertTrue(resetConfirm.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(reset))
@@ -72,16 +74,36 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     assertFirstFile("Document.pdf")
     openPreferences()
+    sort.tap()
+    let smallestFirst = app.buttons["Size, smallest first"].firstMatch
+    XCTAssertTrue(waitUntilHittable(smallestFirst))
+    smallestFirst.tap()
+    XCTAssertTrue(
+      waitFor(
+        NSPredicate(
+          format: "label == %@ AND enabled == true", "Default sort order, Size, smallest first"),
+        sort))
+    let savedSort = sort.label
+    app.showTabBar()
+    app.buttons["Files"].tap()
+    assertFirstFile("Harness Poster.png")
+    openPreferences()
 
     let trash = app.switches["settings.trash"]
     let history = app.switches["settings.history"]
-    let trashConfirm = app.buttons["settings.trash-disable"].firstMatch
+    let trashAlert = app.alerts["Turn off trash?"]
+    let trashConfirm = trashAlert.buttons["Turn off"].firstMatch
     let historyConfirm = app.buttons["settings.history-disable"].firstMatch
     XCTAssertTrue(waitUntilHittable(trash))
     tapToggle(trash)
     XCTAssertTrue(trashConfirm.appears(within: 5))
+    XCTAssertTrue(
+      trashAlert.staticTexts[
+        "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+      ].exists)
     cancelConfirmation(trashConfirm)
     assertToggle(trash, enabled: true)
+    assertTrashRow(shown: true)
     XCTAssertTrue(waitUntilHittable(app.revealed("settings.history")))
     tapToggle(history)
     XCTAssertTrue(historyConfirm.appears(within: 5))
@@ -93,6 +115,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(trash)
     trashConfirm.tap()
     assertToggle(trash, enabled: false)
+    assertTrashRow(shown: false)
     tapToggle(history)
     historyConfirm.tap()
     assertToggle(history, enabled: false)
@@ -107,11 +130,11 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.scrollDown(toHit: trash)
     tapToggle(trash)
     assertToggle(trash, enabled: true)
-    // Trash is managed from Account › Storage only.
-    XCTAssertFalse(element("settings.manage-trash").exists)
+    assertTrashRow(shown: true)
     tapToggle(trash)
     trashConfirm.tap()
     assertToggle(trash, enabled: false)
+    assertTrashRow(shown: false)
     addScreenshot(named: "runtime-file-preferences")
 
     // Privacy choices are account settings too: diagnostics start on,
@@ -135,11 +158,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 15))
-    assertFirstFile("Document.pdf")
+    assertFirstFile("Harness Poster.png")
     app.showTabBar()
     XCTAssertTrue(app.buttons["History"].exists)
     openPreferences()
     XCTAssertEqual(sort.label, savedSort)
+    assertTrashRow(shown: false)
     assertToggle(trash, enabled: false)
     _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
@@ -166,6 +190,16 @@ final class FilePreferencesJourneyTests: XCTestCase {
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).tap()
     }
     XCTAssertTrue(confirmation.disappears(within: 5))
+  }
+
+  private func assertTrashRow(shown: Bool, line: UInt = #line) {
+    let storage = element("account.storage-used")
+    app.scrollDown(toHit: storage)
+    XCTAssertTrue(waitUntilHittable(storage), line: line)
+    let row = element("account.trash")
+    XCTAssertTrue(
+      shown ? row.appears(within: 5) : row.disappears(within: 5),
+      "the Library Trash row is \(shown ? "missing" : "still shown")", line: line)
   }
 
   private func waitFor(_ predicate: NSPredicate, _ element: XCUIElement) -> Bool {

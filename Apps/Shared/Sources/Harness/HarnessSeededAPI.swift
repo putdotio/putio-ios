@@ -2637,9 +2637,7 @@ import Foundation
           : [])
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
-      // Only the two name orders are modelled; the journey proves the
-      // round trip, not the server's comparator.
-      if sortBy == "NAME_DESC" { rows.reverse() }
+      rows = ordered(rows, by: sortBy)
       return """
         {
           "cursor": \(jsonString(rootContinuationCursor)),
@@ -2681,6 +2679,24 @@ import Foundation
         "updated_at": "2026-09-01T20:00:00Z"
       }
       """
+    }
+
+    private static func ordered(_ rows: [String], by sortBy: String) -> [String] {
+      switch sortBy {
+      case "NAME_DESC":
+        return rows.reversed()
+      case "SIZE_ASC", "SIZE_DESC":
+        let sized = rows.map { (size: rowSize($0), row: $0) }.sorted { $0.size < $1.size }
+        let ascending = sized.map(\.row)
+        return sortBy == "SIZE_ASC" ? ascending : ascending.reversed()
+      default:
+        return rows
+      }
+    }
+
+    private static func rowSize(_ row: String) -> Int64 {
+      let object = try? JSONSerialization.jsonObject(with: Data(row.utf8)) as? [String: Any]
+      return (object?["size"] as? NSNumber)?.int64Value ?? 0
     }
 
     private static func jsonString(_ value: String) -> String {

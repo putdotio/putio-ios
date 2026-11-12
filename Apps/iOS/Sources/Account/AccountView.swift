@@ -18,9 +18,9 @@ struct AccountView: View {
   @Environment(\.locale) private var locale
   @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
-  @State private var signOutAlert: PutioConfirmAlert?
   @State private var signOutDownloadedBytes: Int64?
-  @State private var confirmation: AccountSettingConfirmation?
+  @State private var confirmsHistoryOff = false
+  @State private var confirmAlert: PutioConfirmAlert?
   @State private var saveFailures = PutioSettingSaveFailures()
   @State private var revealRequest: AccountSettingReveal?
 
@@ -143,31 +143,20 @@ struct AccountView: View {
     .putioContentBackground()
     .task { await preferences.loadSettingsIfNeeded() }
     .task { await appConfig.loadIfNeeded() }
-    .putioConfirmAlert($signOutAlert)
     .confirmationDialog(
-      confirmation?.title ?? String(localized: "Update settings?"),
-      isPresented: Binding(
-        get: { confirmation != nil },
-        set: { if !$0 { confirmation = nil } }),
+      String(localized: "Turn off History?"), isPresented: $confirmsHistoryOff,
       titleVisibility: .visible
     ) {
-      switch confirmation {
-      case .trash:
-        Button("Turn Off Trash", role: .destructive) { save(.trash, .trash(false)) }
-          .accessibilityIdentifier("settings.trash-disable")
-      case .history:
-        Button("Turn Off History", role: .destructive) { save(.history, .history(false)) }
-          .accessibilityIdentifier("settings.history-disable")
-      case .resetSort:
-        Button("Reset Folder Sorts", role: .destructive) { save(nil, .resetFolderSorts) }
-          .accessibilityIdentifier("settings.reset-sort-confirm")
-      case nil:
-        EmptyView()
-      }
-      Button("Cancel", role: .cancel) { confirmation = nil }
+      Button("Turn Off History", role: .destructive) { save(.history, .history(false)) }
+        .accessibilityIdentifier("settings.history-disable")
+      Button("Cancel", role: .cancel) {}
     } message: {
-      Text(confirmation?.message ?? "")
+      Text(
+        String(
+          localized:
+            "Existing history will be cleared and new account events will no longer be saved."))
     }
+    .putioConfirmAlert($confirmAlert)
     .navigationDestination(isPresented: $showsLinkDevice) {
       LinkDeviceView(actions: .init(runtime: runtime), code: linkDeviceCode)
     }
@@ -207,7 +196,7 @@ struct AccountView: View {
     }
     let runtime = runtime
     let accountID = account.id
-    signOutAlert = PutioConfirmAlert(
+    confirmAlert = PutioConfirmAlert(
       title: PutioSignOutPrompt.title,
       message: PutioSignOutPrompt.message,
       confirmTitle: String(localized: "Sign out")
@@ -302,7 +291,13 @@ struct AccountView: View {
       .id(AccountSettingRow.trash)
       .accessibilityIdentifier("settings.trash")
       PutioActionRow(String(localized: "Reset all sort settings"), icon: .arrowCounterClockwise) {
-        confirmation = .resetSort
+        confirmAlert = PutioConfirmAlert(
+          title: String(localized: "Reset all folder sorts?"),
+          message: String(localized: "Every folder will use your account’s default sort."),
+          confirmTitle: String(localized: "Reset folder sorts")
+        ) {
+          save(nil, .resetFolderSorts)
+        }
       }
       .disabled(settingsLocked)
       .accessibilityIdentifier("settings.reset-sort")
@@ -446,7 +441,7 @@ struct AccountView: View {
     Binding(
       get: { preferences.account?.trashEnabled ?? false },
       set: { enabled in
-        if enabled { save(.trash, .trash(true)) } else { confirmation = .trash }
+        if enabled { save(.trash, .trash(true)) } else { confirmTrashOff() }
       })
   }
 
@@ -454,12 +449,24 @@ struct AccountView: View {
     Binding(
       get: { preferences.account?.historyEnabled ?? false },
       set: { enabled in
-        if enabled { save(.history, .history(true)) } else { confirmation = .history }
+        if enabled { save(.history, .history(true)) } else { confirmsHistoryOff = true }
       })
   }
 
+  private func confirmTrashOff() {
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Turn off trash?"),
+      message: String(
+        localized:
+          "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+      ),
+      confirmTitle: String(localized: "Turn off")
+    ) {
+      save(.trash, .trash(false))
+    }
+  }
+
   private func save(_ row: AccountSettingRow?, _ mutation: PutioAccountPreferenceMutation) {
-    confirmation = nil
     Task { await commitReporting(row, mutation) }
   }
 
@@ -626,33 +633,6 @@ private enum PutioSignOutPrompt {
       : String(
         localized:
           "Downloads use \(size) and stay on this iPhone. They come back when you sign in again.")
-  }
-}
-
-private enum AccountSettingConfirmation {
-  case trash, history, resetSort
-
-  var title: String {
-    switch self {
-    case .trash: String(localized: "Turn off Trash?")
-    case .history: String(localized: "Turn off History?")
-    case .resetSort: String(localized: "Reset all folder sorts?")
-    }
-  }
-
-  var message: String {
-    switch self {
-    case .trash:
-      String(
-        localized:
-          "Every item in Trash will be permanently deleted. Future deletions cannot be restored.")
-    case .history:
-      String(
-        localized:
-          "Existing history will be cleared and new account events will no longer be saved.")
-    case .resetSort:
-      String(localized: "Every folder will use your account's default sort.")
-    }
   }
 }
 
