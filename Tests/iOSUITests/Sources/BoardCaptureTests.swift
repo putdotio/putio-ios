@@ -39,6 +39,65 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-08-empty")
   }
 
+  func testFolderLoadFailed() throws {
+    try captureFolderFailure(
+      fault: "500", reason: "Check your connection and try again.", board: "rd-ios-09-error")
+  }
+
+  func testFolderNoAccess() throws {
+    try captureFolderFailure(
+      fault: "403", reason: "You don’t have access to this folder.",
+      board: "rd-ios-44-no-access")
+  }
+
+  func testFolderRateLimited() throws {
+    try captureFolderFailure(
+      fault: "429", reason: "put.io is receiving too many requests. Try again shortly.",
+      board: "rd-ios-74-rate-limited")
+  }
+
+  func testFolderUnavailable() throws {
+    try captureFolderFailure(
+      fault: "503", reason: "put.io is temporarily unavailable. Try again.",
+      board: "rd-ios-75-unavailable")
+  }
+
+  func testFolderOffline() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    downloadHarnessTrack()
+    app.launchArguments += [
+      "--putio-harness-folder-fault", "offline,offline,offline,offline,offline,offline@0",
+    ]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    addTeardownBlock { @MainActor [self] in
+      if !signIn.exists {
+        openSignOut()
+        if remove.appears(within: 5) { remove.tap() }
+      }
+      _ = signIn.appears(within: 15)
+    }
+    if signIn.appears(within: 10) { signIn.tap() }
+    let files = tabButton("Files")
+    if files.appears(within: 5) { files.tap() }
+    XCTAssertTrue(
+      app.staticTexts["put.io is out of reach"].appears(within: 15), "Files never went offline")
+    let device =
+      ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+      ? "iPad" : "iPhone"
+    XCTAssertTrue(
+      app.staticTexts["Offline. Showing what’s on this \(device)."].exists,
+      "the offline banner is missing")
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists,
+      "the offline state does not say it retries")
+    XCTAssertTrue(element("files.offline-item.408").exists, "the finished download is missing")
+    try captureBoard("rd-ios-43-offline")
+  }
+
   func testFolderLoading() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")
@@ -1220,6 +1279,22 @@ final class BoardCaptureTests: XCTestCase {
       folder.tap()
     }
     XCTAssertTrue(folderScreen.appears(within: 10), "folder did not open")
+  }
+
+  private func captureFolderFailure(fault: String, reason: String, board: String) throws {
+    orientForBoardDevice()
+    app.launchArguments += ["--putio-harness-folder-fault", "\(fault),\(fault),\(fault)@440"]
+    app.launch()
+    openRoot()
+    openHarnessFolder()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10), "seeded season folder never appeared")
+    season.tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load this"].appears(within: 10), "the folder never failed")
+    XCTAssertTrue(app.staticTexts[reason].exists, "the failure names the wrong reason")
+    XCTAssertTrue(element("files.retry.440").exists, "the failure offers no Try again")
+    try captureBoard(board)
   }
 
   private func openSeasonFolder() {

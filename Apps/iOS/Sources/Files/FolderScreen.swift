@@ -45,6 +45,7 @@ struct PutioFolderScreen: View {
   private let castButton: AnyView?
   private let refreshRequests: PutioFolderRefreshRequests
   private let accountNotice: PutioInactiveAccountNotice?
+  private let offlineFiles: PutioOfflineFolderFiles?
 
   init(
     route: PutioFolderRoute,
@@ -62,9 +63,11 @@ struct PutioFolderScreen: View {
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
     castButton: AnyView? = nil,
-    accountNotice: PutioInactiveAccountNotice? = nil
+    accountNotice: PutioInactiveAccountNotice? = nil,
+    offlineFiles: PutioOfflineFolderFiles? = nil
   ) {
     self.accountNotice = accountNotice
+    self.offlineFiles = offlineFiles
     self.castButton = castButton
     self.route = route
     _model = State(
@@ -109,14 +112,10 @@ struct PutioFolderScreen: View {
         PutioLoadingStateView.files
       case .loaded(let contents):
         loadedContent(contents)
+      case .failed(let failure) where failure.isOffline:
+        offlineContent(failure)
       case .failed(let failure):
-        PutioErrorStateView(
-          title: failure.title,
-          message: failure.message,
-          retryTitle: String(localized: "Try again")
-        ) {
-          requestRetry(.load)
-        }
+        failureState(failure)
       }
     }
     .navigationTitle(folderTitle)
@@ -252,6 +251,9 @@ struct PutioFolderScreen: View {
     }
     .task(id: retryRequest) {
       await runRetryRequest()
+    }
+    .task(id: isOffline) {
+      await retryWhileOffline()
     }
     .task(id: actionRequest) {
       await runActionRequest()
@@ -579,7 +581,7 @@ struct PutioFolderScreen: View {
       Text("Could not refresh")
         .putioFont(PutioTheme.Typography.subheading)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
-      Text(failure.message)
+      Text(failure.isOffline ? PutioScreenErrorKind.failed.message : failure.message)
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
       Button("Try again") {
@@ -701,6 +703,81 @@ struct PutioFolderScreen: View {
   private func selectionAccessibilityValue(for item: PutioFileItem) -> String {
     selectedIDs.contains(item.id)
       ? String(localized: "Selected") : String(localized: "Not selected")
+  }
+
+  private func failureState(_ failure: PutioBrowserErrorPresentation) -> some View {
+    PutioErrorStateView(
+      title: failure.title,
+      message: failure.message,
+      retryTitle: String(localized: "Try again"),
+      retryIdentifier: "files.retry.\(route.id.rawValue)"
+    ) {
+      requestRetry(.load)
+    }
+  }
+
+  private func offlineContent(_ failure: PutioBrowserErrorPresentation) -> some View {
+    GeometryReader { geometry in
+      ScrollView {
+        VStack(spacing: PutioTheme.Spacing.space3) {
+          PutioOfflineBanner()
+            .accessibilityIdentifier("files.offline-banner")
+          if let offlineFiles {
+            ForEach(offlineFiles.items(route.id)) { item in
+              offlineRow(item, open: offlineFiles.open)
+            }
+          }
+          failureState(failure)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+        .padding(.horizontal, PutioTheme.Spacing.space4)
+        .frame(minHeight: geometry.size.height, alignment: .top)
+      }
+    }
+  }
+
+  private func offlineRow(_ item: PutioFileItem, open: @escaping (PutioFileID) -> Void)
+    -> some View
+  {
+    let presentation = PutioBrowserItemPresentation(
+      item: item, relativeTo: relativeDateReference ?? .now, locale: locale,
+      sort: defaultSort)
+    let row = presentation.row
+    return Button {
+      open(item.id)
+    } label: {
+      PutioFileRow(
+        PutioFileRowModel(
+          name: row.name, kind: row.kind, sizeText: row.sizeText, dateText: row.dateText,
+          isOnDevice: true, isWatched: row.isWatched, showsDisclosure: false)
+      )
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .accessibilityIdentifier("files.offline-item.\(item.id.rawValue)")
+  }
+
+  private var isOffline: Bool {
+    if case .failed(let failure) = model.state { return failure.isOffline }
+    return false
+  }
+
+  private static func offlineRetryDelay(attempt: Int) -> Duration {
+    .seconds(min(3 << min(attempt, 4), 30))
+  }
+
+  private func retryWhileOffline() async {
+    var attempt = 0
+    while isOffline, retryRequest == nil {
+      do {
+        try await Task.sleep(for: Self.offlineRetryDelay(attempt: attempt))
+      } catch {
+        return
+      }
+      guard isOffline, retryRequest == nil else { return }
+      if await model.retryKeepingFailure() { return }
+      attempt += 1
+    }
   }
 
   private func requestRetry(_ kind: RetryKind) {

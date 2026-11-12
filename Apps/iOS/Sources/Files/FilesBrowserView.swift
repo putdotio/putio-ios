@@ -27,6 +27,7 @@ struct FilesBrowserView: View {
   private let refreshRequests: PutioFolderRefreshRequests
   private let accountID: Int?
   private let accountNotice: PutioInactiveAccountNotice?
+  private let offlineFiles: PutioOfflineFolderFiles?
   private let navigationRestoration = PutioFilesNavigationRestoration()
   private let navigationRequest: PutioFilesNavigationRequest?
   @State private var appliedNavigationRequest: UUID?
@@ -46,9 +47,11 @@ struct FilesBrowserView: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil,
     castButton: (() -> AnyView)? = nil,
-    accountNotice: PutioInactiveAccountNotice? = nil
+    accountNotice: PutioInactiveAccountNotice? = nil,
+    offlineFiles: PutioOfflineFolderFiles? = nil
   ) {
     self.tracksWatched = tracksWatched
+    self.offlineFiles = offlineFiles
     self.accountNotice = accountNotice
     self.castButton = castButton?()
     load = { folderID in
@@ -84,7 +87,8 @@ struct FilesBrowserView: View {
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
         castButton: castButton,
-        accountNotice: accountNotice
+        accountNotice: accountNotice,
+        offlineFiles: offlineFiles
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(
@@ -98,7 +102,8 @@ struct FilesBrowserView: View {
           onFileSelected: onFileSelected,
           onExternalPlayback: onExternalPlayback,
           onDownload: onDownload,
-          castButton: castButton
+          castButton: castButton,
+          offlineFiles: offlineFiles
         )
       }
     }

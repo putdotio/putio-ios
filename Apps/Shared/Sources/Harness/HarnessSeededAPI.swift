@@ -602,6 +602,12 @@ import Foundation
     nonisolated(unsafe) private static var galleryEdits: [Int: (name: String, parentID: Int)] = [:]
     nonisolated(unsafe) private static var galleryRenameAttempts = 0
     nonisolated(unsafe) private static var logoutFails = false
+    private enum FolderFault: Equatable {
+      case status(Int)
+      case offline
+    }
+    nonisolated(unsafe) private static var folderFaults = parseFolderFaults(
+      ProcessInfo.processInfo.arguments)
     nonisolated(unsafe) private static var sessionExpiryPending = ProcessInfo.processInfo
       .arguments.contains("--putio-harness-session-expires")
     nonisolated(unsafe) private static var restoreOfflinePending = ProcessInfo.processInfo
@@ -703,6 +709,34 @@ import Foundation
       logoutLock.withLock {
         defer { sessionExpiryPending = false }
         return sessionExpiryPending
+      }
+    }
+
+    private static func parseFolderFaults(_ arguments: [String])
+      -> (folderID: Int, pending: [FolderFault])?
+    {
+      guard let flag = arguments.firstIndex(of: "--putio-harness-folder-fault"),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      let parts = arguments[flag + 1].split(separator: "@")
+      guard parts.count == 2, let folderID = Int(parts[1]) else { return nil }
+      let faults = parts[0].split(separator: ",").compactMap { token -> FolderFault? in
+        token == "offline" ? .offline : Int(token).map(FolderFault.status)
+      }
+      return (folderID, faults)
+    }
+
+    private static func consumeFolderFault(for request: URLRequest) -> FolderFault? {
+      guard request.httpMethod == "GET", let url = request.url, url.path == "/v2/files/list"
+      else { return nil }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      guard !query.contains(where: { $0.name == "file_type" }) else { return nil }
+      return logoutLock.withLock {
+        guard let faults = folderFaults, !faults.pending.isEmpty,
+          query.contains(where: { $0.name == "parent_id" && $0.value == "\(faults.folderID)" })
+        else { return nil }
+        folderFaults?.pending.removeFirst()
+        return faults.pending.first
       }
     }
 
@@ -829,6 +863,28 @@ import Foundation
         return
       }
       let replayableRequest = Self.replayableRequest(request)
+      switch Self.consumeFolderFault(for: replayableRequest) {
+      case .offline:
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
+      case .status(let statusCode):
+        let response = HTTPURLResponse(
+          url: url, statusCode: statusCode, httpVersion: nil,
+          headerFields: ["Content-Type": "application/json"])!
+        let body = Self.fixtureError(
+          statusCode: statusCode, type: "HARNESS_FOLDER_FAULT",
+          message: "The seeded folder listing fails for the folder error states")
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          self.client?.urlProtocol(self, didLoad: Data(body.utf8))
+          self.client?.urlProtocolDidFinishLoading(self)
+        }
+        return
+      case nil:
+        break
+      }
       let fault = Self.accountSettingsFault(for: replayableRequest)
       if fault == .offline {
         deliveryGate.deliver(generation: generation) {
