@@ -457,7 +457,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       } else if back.exists {
         back.tap()
       }
-      _ = root.appears(within: 0.5)
+      _ = root.waitForExistence(timeout: 0.5)
     }
     XCTAssertTrue(root.appears(within: 5), "the seeded session never reached the Files root")
   }
