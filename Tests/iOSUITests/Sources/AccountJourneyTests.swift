@@ -83,7 +83,7 @@ final class AccountJourneyTests: XCTestCase {
       ("account.chromecast", "Chromecast"),
       ("account.privacy", "Privacy controls"),
       ("security.apps", "Logged-in apps"),
-      ("security.link-device", "Link your account"),
+      ("security.link-device", "Link a device"),
       ("account.two-factor", "Two-factor authentication"),
       ("account.about", "App info"),
       ("account.privacy-policy", ""),

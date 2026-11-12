@@ -439,7 +439,7 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testLinkDeviceRejectionClearsTheCodeAndSuccessIsAcknowledged() async {
+  func testLinkDeviceRejectionKeepsTheCodeAndSuccessIsAcknowledged() async {
     var submitted: [String] = []
     let model = PutioLinkDeviceModel(
       actions: PutioAccountSecurityActions(linkDevice: { code in
@@ -450,8 +450,10 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertFalse(model.canLink)
     model.code = "ZZZZZZ"
     await model.link()
-    XCTAssertEqual(model.code, "")
-    XCTAssertNotNil(model.failure)
+    XCTAssertEqual(model.code, "ZZZZZZ", "a rejected code was cleared instead of kept for editing")
+    XCTAssertEqual(
+      model.failure,
+      "That device code was not found. Check the code on the device and try again.")
     model.code = " harn42\n"
     await model.link()
     XCTAssertEqual(model.linkedApp?.id, 77)
@@ -481,6 +483,43 @@ final class AccountSecurityTests: XCTestCase {
     await model.link()
     XCTAssertNil(model.failure)
     XCTAssertEqual(submitted, ["HARN42"])
+  }
+
+  func testLinkDeviceUppercasesAsTypedAndLocksWhileLinking() async {
+    let release = AsyncStream<Void>.makeStream()
+    let model = PutioLinkDeviceModel(
+      actions: PutioAccountSecurityActions(linkDevice: { _ in
+        for await _ in release.stream { break }
+        return PutioAuthorizedApp(id: 77, name: "TV", isCurrentClient: false)
+      }))
+    model.enter("x7k2qm")
+    XCTAssertEqual(model.code, "X7K2QM")
+    let linking = Task { await model.link() }
+    while !model.isLinking { await Task.yield() }
+    XCTAssertFalse(model.canLink)
+    model.enter("zzzzzz")
+    XCTAssertEqual(model.code, "X7K2QM", "the field accepted typing while linking")
+    release.continuation.yield()
+    await linking.value
+    XCTAssertEqual(model.linkedApp?.id, 77)
+  }
+
+  func testLeavingMidLinkCancelsWithoutAResult() async {
+    let model = PutioLinkDeviceModel(
+      actions: PutioAccountSecurityActions(linkDevice: { _ in
+        try await Task.sleep(for: .seconds(60))
+        return PutioAuthorizedApp(id: 77, name: "TV", isCurrentClient: false)
+      }))
+    model.code = "X7K2QM"
+    let linking = Task { await model.link() }
+    while !model.isLinking { await Task.yield() }
+    model.cancel()
+    XCTAssertFalse(model.isLinking)
+    await linking.value
+    XCTAssertNil(model.linkedApp)
+    XCTAssertNil(model.failure)
+    XCTAssertFalse(model.isLinking)
+    XCTAssertTrue(model.canLink)
   }
 
   func testLinkDevicePrefillIsNormalized() {

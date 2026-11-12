@@ -443,57 +443,101 @@ struct RecoveryCodesView: View {
 
 struct LinkDeviceView: View {
   @State private var model: PutioLinkDeviceModel
-  @Environment(\.dismiss) private var dismiss
+  @FocusState private var focused: Bool
+  @PutioScaledMetric private var fieldHeight: CGFloat
 
   init(actions: PutioAccountSecurityActions, code: String? = nil) {
     _model = State(initialValue: PutioLinkDeviceModel(actions: actions, code: code))
+    _fieldHeight = PutioScaledMetric(PutioLinkDeviceLayout.fieldHeight)
   }
 
   var body: some View {
-    Form {
-      Section {
-        TextField("Activation code", text: Bindable(model).code)
-          .textInputAutocapitalization(.characters)
-          .autocorrectionDisabled()
-          .font(.system(.body, design: .monospaced))
-          .disabled(model.isLinking)
-          .accessibilityIdentifier("security.link-code")
-        if let failure = model.failure {
-          Text(failure)
-            .foregroundStyle(PutioTheme.Colors.destructive)
-            .accessibilityIdentifier("security.link-failure")
+    ScrollView {
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
+        VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
+          codeField
+          note
         }
-        Button {
-          Task { await model.link() }
-        } label: {
-          if model.isLinking { ProgressView() } else { Text("Link") }
-        }
-        .disabled(!model.canLink)
+        PutioBlockButton(
+          String(localized: "Link"), isBusy: model.isLinking, isEnabled: model.canLink, action: link)
         .accessibilityIdentifier("security.link-submit")
-      } footer: {
-        Text("Enter the code shown on your device to link it to your put.io account.")
       }
-      .listRowBackground(PutioTheme.Colors.surface)
+      .padding(PutioTheme.Spacing.space3)
     }
-    .navigationTitle("Link your account")
-    .putioFont(PutioTheme.Typography.body)
+    .scrollDismissesKeyboard(.interactively)
+    .navigationTitle(String(localized: "Link a device"))
+    .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
-    .alert(
-      "Connected",
+    .onDisappear { model.cancel() }
+    .putioAlert(
+      String(localized: "Connected"),
       isPresented: Binding(
         get: { model.linkedApp != nil },
         set: { presented in if !presented { model.acknowledgeLink() } }),
-      presenting: model.linkedApp
-    ) { _ in
-      Button("OK") {
-        model.acknowledgeLink()
-        dismiss()
-      }
-      .accessibilityIdentifier("security.link-done")
-    } message: { app in
-      Text("\(app.name) is now signed in with your account.")
-    }
+      message: model.linkedApp.map { app in
+        String(localized: "\(app.name) is now signed in with your account.")
+      },
+      actions: [PutioAlertAction(String(localized: "OK"), tier: .neutral, id: "security.link-done")]
+    )
   }
+
+  private var codeField: some View {
+    TextField(
+      "",
+      text: Binding(get: { model.code }, set: { model.enter($0) })
+    )
+    .textInputAutocapitalization(.characters)
+    .autocorrectionDisabled()
+    .keyboardType(.asciiCapable)
+    .submitLabel(.go)
+    .onSubmit(link)
+    .putioFont(PutioLinkDeviceLayout.codeFont)
+    .kerning(PutioLinkDeviceLayout.codeTracking)
+    .foregroundStyle(PutioTheme.Components.Field.text)
+    .tint(PutioTheme.Colors.accent)
+    .focused($focused)
+    .disabled(model.isLinking)
+    .padding(.horizontal, PutioTheme.Spacing.space3)
+    .frame(minHeight: fieldHeight)
+    .background(PutioTheme.Colors.surface, in: .capsule)
+    .contentShape(.capsule)
+    .onTapGesture { focused = true }
+    .accessibilityLabel(String(localized: "Link a device"))
+    .accessibilityIdentifier("security.link-code")
+  }
+
+  private func link() {
+    guard model.canLink else { return }
+    focused = false
+    Task { await model.link() }
+  }
+
+  @ViewBuilder private var note: some View {
+    Group {
+      if let failure = model.failure {
+        Text(failure)
+          .foregroundStyle(PutioTheme.Colors.destructive)
+          .accessibilityIdentifier("security.link-failure")
+      } else {
+        Text("Enter the code shown on your device to link it to your put.io account.")
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
+    }
+    .putioFont(PutioTheme.Typography.caption)
+    .fixedSize(horizontal: false, vertical: true)
+    .padding(.horizontal, PutioTheme.Spacing.space3)
+  }
+}
+
+private enum PutioLinkDeviceLayout {
+  static let fieldHeight = PutioMetricRole(value: 52, relativeTo: .body)
+  static let codeTracking: CGFloat = 2
+  static let codeFont = PutioTabularFontRole(
+    base: PutioFontRole(
+      fontName: PutioTheme.Typography.mono.fontName,
+      size: PutioTheme.Typography.sizeBase,
+      lineHeight: PutioTheme.Typography.mono.lineHeight,
+      textStyle: .body))
 }
 
 struct ClearDataView: View {

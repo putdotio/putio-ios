@@ -279,17 +279,6 @@
         }
       }
     },
-    "Activation code" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Activation code"
-          }
-        }
-      }
-    },
     "Add this secret to your authenticator app, then enter the code it shows." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2468,17 +2457,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Link created. Copy or share it below."
-          }
-        }
-      }
-    },
-    "Link your account" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Link your account"
           }
         }
       }
