@@ -724,6 +724,9 @@ final class PreviewJourneyTests: XCTestCase {
     limit.buttons["Cancel"].firstMatch.tap()
     XCTAssertTrue(limit.disappears(within: 5))
     XCTAssertEqual(title.label, "Gallery 2.png", "Cancel removed the file")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["2 of 4", "2 of 3 or more"], timeout: 10),
+      "the refused file left the set: \(position.label)")
 
     removeShownFile(row: "Move to trash")
     XCTAssertTrue(limit.appears(within: 10))
@@ -732,7 +735,8 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
     XCTAssertTrue(waitForLabel(title, in: ["Gallery 3.png"]), "the viewer did not move on")
     XCTAssertTrue(
-      waitForLabel(position, in: ["2 of 3"], timeout: 10), "position: \(position.label)")
+      waitForLabel(position, in: ["2 of 3", "2 of 2 or more", "2 of 3 or more"], timeout: 10),
+      "the set still counts the deleted file: \(position.label)")
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.474").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").disappears(within: 10), "the folder kept the file")
