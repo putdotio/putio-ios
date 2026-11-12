@@ -842,7 +842,7 @@ struct PutioPreviewView: View {
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("preview.title")
     }
-    ToolbarItem(placement: .topBarTrailing) {
+    ToolbarItemGroup(placement: .topBarTrailing) {
       Group {
         if let share = model.share {
           ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
@@ -856,8 +856,6 @@ struct PutioPreviewView: View {
       }
       .tint(PutioTheme.Colors.textPrimary)
       .accessibilityIdentifier("preview.share")
-    }
-    ToolbarItem(placement: .topBarTrailing) {
       PutioPreviewMoreMenu(
         menu: moreMenu(for: pager.item(for: model.route.id)),
         isDisabled: !itemActions.canStartAction || itemAction != nil
