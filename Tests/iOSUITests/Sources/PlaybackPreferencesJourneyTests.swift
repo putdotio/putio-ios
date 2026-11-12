@@ -158,6 +158,11 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     tapToggle(resume)
     assertToggle(resume, value: "1")
     XCTAssertFalse(alert.exists, "turning resume on asked for confirmation")
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   /// With the persisted default (autoplay off) the suggestion still appears
@@ -223,8 +228,22 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     return proxy
   }
 
+  private func lowerBelowNavigationBar(_ element: XCUIElement, in app: XCUIApplication) {
+    let ceiling = app.navigationBars.firstMatch.frame.maxY
+    var drags = 0
+    while element.frame.minY < ceiling, drags < 6 {
+      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.4))
+      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+      start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+      drags += 1
+    }
+    XCTAssertGreaterThanOrEqual(element.frame.minY, ceiling, "the row stayed under the bar")
+  }
+
   private func tapToggle(_ toggle: XCUIElement) {
-    XCUIApplication().bringIntoView(toggle)
+    let app = XCUIApplication()
+    app.bringIntoView(toggle)
+    lowerBelowNavigationBar(toggle, in: app)
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: toggle)
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
