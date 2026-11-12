@@ -287,6 +287,17 @@ import Testing
     board: "rd-ios-duo-01-folded-folder")
 }
 
+@Test func duoOpenBoardMapsToTheFolderTestOnTheOpenPosture() throws {
+  let board = try #require(BoardCaptureContract.resolve(["rd-ios-duo-02-open-folder"]).first)
+  #expect(board.device == .duoOpen)
+  #expect(board.testIdentifier == "PutioUITests/BoardCaptureTests/testFolder")
+  #expect(board.testEnvironment["PUTIO_BOARD_DEVICE"] == "duo-open")
+  #expect(board.device.requiredDeviceTypeIdentifier == foldableDeviceTypeIdentifier)
+  try requireBoardScreenshot(
+    pixelWidth: 2007, pixelHeight: 2853, matches: BoardLayout(width: 669, height: 951, scale: 3),
+    board: "rd-ios-duo-02-open-folder")
+}
+
 @Test func xcodeVersionMatchesOnlyThePinnedRelease() {
   #expect(xcodeVersionMatches("Xcode 27.2", required: "27.2"))
   #expect(xcodeVersionMatches("Xcode 27.2.1", required: "27.2"))

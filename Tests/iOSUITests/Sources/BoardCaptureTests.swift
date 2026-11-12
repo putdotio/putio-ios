@@ -1072,12 +1072,22 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func requireBoardDevicePosture() throws {
-    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-folded" else { return }
+    let device = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"]
+    guard device == "duo-folded" || device == "duo-open" else { return }
     let window = app.windows.firstMatch
     XCTAssertTrue(window.appears(within: 10), "app window never appeared")
-    XCTAssertLessThan(
-      window.frame.width, Self.regularWidthThreshold,
-      "folded iPhone Duo window is \(window.frame.width) pt wide")
+    if device == "duo-folded" {
+      XCTAssertLessThan(
+        window.frame.width, Self.regularWidthThreshold,
+        "folded iPhone Duo window is \(window.frame.width) pt wide")
+      return
+    }
+    XCTAssertEqual(
+      window.horizontalSizeClass, .regular,
+      "open iPhone Duo window is \(window.frame.size) pt with compact width")
+    XCTAssertEqual(
+      window.verticalSizeClass, .regular,
+      "open iPhone Duo window is \(window.frame.size) pt with compact height")
   }
 
   private static let regularWidthThreshold: CGFloat = 600

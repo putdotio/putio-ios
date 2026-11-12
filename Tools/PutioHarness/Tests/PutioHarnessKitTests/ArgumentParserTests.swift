@@ -392,14 +392,12 @@ import Testing
   }
 }
 
-@Test func refusesTheOpenDuoPostureBeforeAnySimulator() {
-  #expect(throws: HarnessFailure.self) {
+@Test func parsesTheOpenDuoPosture() throws {
+  #expect(
     try HarnessArgumentParser.parse([
       "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--device", "duo-open",
-    ])
-  }
-  let failure = #expect(throws: HarnessFailure.self) {
-    try BoardCaptureContract.resolve(["rd-ios-duo-01-folded-folder"], device: .duoOpen)
-  }
-  #expect(failure?.message.contains("Device Hub (Xcode 27.1+") == true)
+    ]) == .boards(ids: ["rd-ios-02-folder"], device: .duoOpen, runID: nil, output: .text))
+  #expect(
+    try BoardCaptureContract.resolve(["rd-ios-duo-01-folded-folder"], device: .duoOpen).first?
+      .device == .duoOpen)
 }
