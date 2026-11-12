@@ -1211,6 +1211,13 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 240),
     JourneyPreflight(
+      "sign-out-other-apps",
+      "AccountSecurityJourneyTests/testSignOutOfAllOtherAppsAsksFirstAndKeepsFailedApps",
+      attachmentNames: [
+        "runtime-security-sign-out-others-partial", "runtime-security-sign-out-others-done",
+      ],
+      timeAllowance: 120),
+    JourneyPreflight(
       "inactive-account",
       "InactiveAccountJourneyTests/testNoticeShowsWhileInactiveAndClearsAfterRenewalOnReturn",
       attachmentNames: [
