@@ -1,5 +1,6 @@
 import PDFKit
 import UIKit
+import UniformTypeIdentifiers
 import XCTest
 
 @testable import Putio
@@ -284,6 +285,19 @@ final class FilePreviewTests: XCTestCase {
 
     let archive = PutioViewerRoute.cannotShow(id: PutioFileID(rawValue: 16), title: "a.zip")
     XCTAssertNil(PutioPreviewModel(route: archive) { _, _ in Data() }.share)
+  }
+
+  func testSharedImagesNameTheirConcreteType() {
+    let cases: [(String, UTType?)] = [
+      ("Poster.png", .png), ("Photo.JPG", .jpeg), ("Photo.jpeg", .jpeg), ("Live.heic", .heic),
+      ("Loop.gif", .gif), ("Still.webp", .webP), ("Scan.bmp", nil), ("Untitled", nil),
+    ]
+    for (name, expected) in cases {
+      let share = PutioPreviewShareFile(name: name, kind: .image) { URL.temporaryDirectory }
+      XCTAssertEqual(share.imageType, expected, name)
+    }
+    let text = PutioPreviewShareFile(name: "Notes.png", kind: .text) { URL.temporaryDirectory }
+    XCTAssertNil(text.imageType)
   }
 
   func testOverlappingSharesFetchTheWholeTextOnce() async throws {

@@ -414,8 +414,23 @@ struct PutioPreviewShareFile: Transferable {
   let export: @Sendable () async throws -> URL
 
   static var transferRepresentation: some TransferRepresentation {
+    FileRepresentation(exportedContentType: .png) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .png }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .jpeg) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .jpeg }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .heic) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .heic }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .gif) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .gif }
+      .suggestedFileName { $0.name }
+    FileRepresentation(exportedContentType: .webP) { try await $0.sent() }
+      .exportingCondition { $0.imageType == .webP }
+      .suggestedFileName { $0.name }
     FileRepresentation(exportedContentType: .image) { try await $0.sent() }
-      .exportingCondition { $0.kind == .image }
+      .exportingCondition { $0.kind == .image && $0.imageType == nil }
       .suggestedFileName { $0.name }
     FileRepresentation(exportedContentType: .pdf) { try await $0.sent() }
       .exportingCondition { $0.kind == .pdf }
@@ -423,6 +438,14 @@ struct PutioPreviewShareFile: Transferable {
     FileRepresentation(exportedContentType: .plainText) { try await $0.sent() }
       .exportingCondition { $0.kind == .text }
       .suggestedFileName { $0.name }
+  }
+
+  static let concreteImageTypes: [UTType] = [.png, .jpeg, .heic, .gif, .webP]
+
+  var imageType: UTType? {
+    guard kind == .image else { return nil }
+    let named = UTType(filenameExtension: (name as NSString).pathExtension)
+    return Self.concreteImageTypes.first { named?.conforms(to: $0) == true }
   }
 
   private func sent() async throws -> SentTransferredFile {
