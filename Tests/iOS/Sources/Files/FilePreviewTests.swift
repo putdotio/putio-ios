@@ -395,6 +395,32 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(pager.item(for: shown.id), moved)
   }
 
+  func testRemovingTheShownFileShowsTheNextUntilNoneRemain() throws {
+    let images = (1...3).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    let file = PutioFileRoute(item: images[1])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(items: { images }, hasMore: { false }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+
+    XCTAssertTrue(pager.remove(images[1].id))
+    XCTAssertEqual(pager.current.id, images[2].id)
+    XCTAssertEqual(pager.position?.text, "2 / 2")
+
+    XCTAssertTrue(pager.remove(images[2].id))
+    XCTAssertEqual(pager.current.id, images[0].id, "the last file did not fall back")
+    XCTAssertNil(pager.position)
+
+    pager.reinstate(images[1].id)
+    XCTAssertEqual(pager.current.id, images[1].id, "Undo did not return to the file")
+    XCTAssertEqual(pager.position?.text, "2 / 2")
+
+    XCTAssertTrue(pager.remove(images[0].id))
+    XCTAssertFalse(pager.remove(images[1].id), "the only file left the viewer open")
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)

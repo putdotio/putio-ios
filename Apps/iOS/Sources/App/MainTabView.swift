@@ -60,6 +60,7 @@ struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreview: PutioPreviewPresentation?
+  @State private var previewToast: PutioToast?
   #if DEBUG
     @State private var harnessPreviewRequests = HarnessPreviewRequests()
   #endif
@@ -76,6 +77,7 @@ struct MainTabView: View {
     TabView(selection: $selectedTab) {
       Tab(value: SelectedTab.files) {
         filesBrowser
+          .putioToast($previewToast)
       } label: {
         Label {
           Text("Files")
@@ -102,6 +104,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
+          .putioToast($previewToast)
           .id(historyRevision)
         } label: {
           Label {
@@ -154,6 +157,7 @@ struct MainTabView: View {
           refreshRequests: folderRefreshRequests,
           onFileSelected: { route in selectFile(route) }
         )
+        .putioToast($previewToast)
       }
     }
     .tabViewStyle(.sidebarAdaptable)
@@ -181,7 +185,8 @@ struct MainTabView: View {
             runtime: runtime, trashEnabled: account.trashEnabled,
             refreshRequests: folderRefreshRequests),
           download: { preview, extent in try await downloadPreview(preview, extent) },
-          onDismiss: { presentedPreview = nil }
+          onDismiss: { presentedPreview = nil },
+          presentToast: { previewToast = $0 }
         )
         .id(preview.id)
         .accessibilityAddTraits(.isModal)
