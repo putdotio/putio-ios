@@ -1,7 +1,10 @@
 import Foundation
 import Observation
 
-public typealias PutioFileSearch = @MainActor @Sendable (String) async throws -> PutioFileSearchPage
+public typealias PutioFileSearch =
+  @MainActor @Sendable (String, PutioFileSearchFilter) async throws -> PutioFileSearchPage
+public typealias PutioFileSearchContinue =
+  @MainActor @Sendable (String) async throws -> PutioFileSearchPage
 
 @MainActor
 @Observable
@@ -15,6 +18,7 @@ public final class PutioFileSearchModel {
 
   public private(set) var state: State = .idle
   private(set) var query = ""
+  public private(set) var filter: PutioFileSearchFilter = .all
   private(set) var isLoadingMore = false
   public private(set) var isSearching = false
   public private(set) var refreshFailure: PutioBrowserErrorPresentation?
@@ -25,20 +29,22 @@ public final class PutioFileSearchModel {
   /// only these until paging reaches the rest again.
   public private(set) var firstPageIDs: Set<PutioFileID> = []
   @ObservationIgnored private let search: PutioFileSearch
-  @ObservationIgnored private let continueSearch: PutioFileSearch
+  @ObservationIgnored private let continueSearch: PutioFileSearchContinue
   @ObservationIgnored private let debounce: Duration
   @ObservationIgnored private var consumedCursors: Set<String> = []
   @ObservationIgnored private var appliedRequest: Request?
 
-  /// A query and the browser refresh revision its results reflect.
+  /// A query, its type filter, and the browser refresh revision its results
+  /// reflect.
   struct Request: Equatable {
     let query: String
+    let filter: PutioFileSearchFilter
     let revision: UInt64
   }
 
   public init(
     search: @escaping PutioFileSearch,
-    continueSearch: @escaping PutioFileSearch,
+    continueSearch: @escaping PutioFileSearchContinue,
     debounce: Duration = .milliseconds(300)
   ) {
     self.search = search
@@ -49,27 +55,36 @@ public final class PutioFileSearchModel {
   /// Searches for the view's current request unless the shown results
   /// already reflect it. Reappearing after a tab switch or a pop keeps them;
   /// a new query or a browser mutation since the last search runs again.
-  public func apply(query: String, revision: UInt64) async {
-    let request = Request(query: Self.keyword(query), revision: revision)
-    if request == appliedRequest, request.query == self.query, case .loaded = state,
-      refreshFailure == nil
+  public func apply(
+    query: String, filter: PutioFileSearchFilter = .all, revision: UInt64
+  ) async {
+    let request = Request(query: Self.keyword(query), filter: filter, revision: revision)
+    if request == appliedRequest, request.query == self.query, request.filter == self.filter,
+      case .loaded = state, refreshFailure == nil
     {
       return
     }
-    if await update(query: request.query) { appliedRequest = request }
+    if await update(query: request.query, filter: filter) { appliedRequest = request }
   }
 
-  public func refresh(query: String, revision: UInt64) async {
-    let request = Request(query: Self.keyword(query), revision: revision)
-    if await update(query: request.query, debounced: false) { appliedRequest = request }
+  public func refresh(
+    query: String, filter: PutioFileSearchFilter = .all, revision: UInt64
+  ) async {
+    let request = Request(query: Self.keyword(query), filter: filter, revision: revision)
+    if await update(query: request.query, filter: filter, debounced: false) {
+      appliedRequest = request
+    }
   }
 
   /// Returns true when this call's results are the ones shown.
   @discardableResult
-  func update(query: String, debounced: Bool = true) async -> Bool {
+  func update(
+    query: String, filter: PutioFileSearchFilter = .all, debounced: Bool = true
+  ) async -> Bool {
     let keyword = Self.keyword(query)
+    let waits = debounced && (keyword != self.query || filter == self.filter)
     let retainedPage: PutioFileSearchPage?
-    if keyword == self.query, case .loaded(let page) = state {
+    if keyword == self.query, filter == self.filter, case .loaded(let page) = state {
       retainedPage = page
     } else {
       retainedPage = nil
@@ -80,6 +95,7 @@ public final class PutioFileSearchModel {
     generation &+= 1
     let requestGeneration = generation
     self.query = keyword
+    self.filter = filter
     isSearching = true
     refreshFailure = nil
     defer { if requestGeneration == generation { isSearching = false } }
@@ -92,9 +108,9 @@ public final class PutioFileSearchModel {
     }
     if retainedPage == nil { state = .loading }
     do {
-      if debounced { try await Task.sleep(for: debounce) }
+      if waits { try await Task.sleep(for: debounce) }
       try Task.checkCancellation()
-      let page = try await search(keyword)
+      let page = try await search(keyword, filter)
       guard requestGeneration == generation else { return false }
       if Task.isCancelled {
         refreshFailure = previousRefreshFailure

@@ -257,6 +257,23 @@ extension PutioRuntimeTests {
       request.value(forHTTPHeaderField: "Authorization")?.lowercased(), "token stored-token")
   }
 
+  func testSearchFiltersSendTheirPutioTypes() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"total":0,"files":[]}"#, for: Self.searchRoute)
+    let expected: [(PutioFileSearchFilter, String?)] = [
+      (.all, nil), (.folders, "FOLDER"), (.videos, "VIDEO"), (.audio, "AUDIO"),
+      (.images, "IMAGE"), (.documents, "PDF,TEXT"), (.subtitles, nil),
+    ]
+    for (filter, type) in expected {
+      _ = try await runtime.searchFiles(query: "blue", filter: filter)
+      let request = try XCTUnwrap(fixtures.capturedRequests().last)
+      let items = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?
+        .queryItems
+      XCTAssertEqual(items?.first { $0.name == "type" }?.value, type, "\(filter)")
+      XCTAssertEqual(items?.first { $0.name == "query" }?.value, "blue")
+    }
+  }
+
   func testSearchRejectsNegativeTotalsAndNonadvancingContinuation() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"total":-1,"files":[]}"#, for: Self.searchRoute)

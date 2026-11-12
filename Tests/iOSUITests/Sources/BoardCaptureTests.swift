@@ -591,6 +591,64 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-12-ipad-split")
   }
 
+  func testSearch() throws {
+    orientForBoardDevice()
+    app.launch()
+    searchBlue()
+    try captureBoard("rd-ios-07-search")
+  }
+
+  func testSearchLoading() throws {
+    orientForBoardDevice()
+    app.launchArguments.append("--putio-harness-hold-search")
+    app.launch()
+    reachFilesRoot()
+    typeSearch("blue")
+    XCTAssertTrue(labeled("Searching files").appears(within: 10), "the search shows no spinner")
+    XCTAssertTrue(element("files.search-filter.all").exists, "the filters left while loading")
+    try captureBoard("rd-ios-42-search-loading")
+  }
+
+  func testSearchFilter() throws {
+    orientForBoardDevice()
+    app.launch()
+    searchBlue()
+    element("files.search-filter.videos").tap()
+    XCTAssertTrue(
+      element("files.search-item.440").disappears(within: 10), "Videos kept the folder result")
+    XCTAssertTrue(element("files.search-item.441").appears(within: 10), "Videos lost the episode")
+    XCTAssertFalse(element("files.search-group.folders").exists, "Videos kept the Folders group")
+    try captureBoard("rd-ios-48-search-filter")
+  }
+
+  func testSearchLongPress() throws {
+    orientForBoardDevice()
+    app.launch()
+    searchBlue()
+    let result = element("files.search-item.441")
+    result.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Move"].appears(within: 5), "the result menu never opened")
+    XCTAssertFalse(app.buttons["Rename"].exists, "the result menu offers Rename")
+    try captureBoard("rd-ios-49-search-long-press")
+  }
+
+  private func typeSearch(_ query: String) {
+    tabButton("Search").tap()
+    let field = app.searchFields.firstMatch
+    XCTAssertTrue(field.appears(within: 10), "the search field never appeared")
+    field.tap()
+    field.typeText(query)
+  }
+
+  private func searchBlue() {
+    reachFilesRoot()
+    typeSearch("blue")
+    XCTAssertTrue(element("files.search-item.440").appears(within: 10), "no folder result")
+    XCTAssertTrue(element("files.search-item.445").appears(within: 10), "no subtitle result")
+    let location = app.staticTexts["in Blue Lights"].firstMatch
+    XCTAssertTrue(location.appears(within: 10), "results never named their folder")
+  }
+
   func testFilesRoot() throws {
     orient(.portrait)
     app.launch()

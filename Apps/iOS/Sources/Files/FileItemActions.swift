@@ -6,60 +6,15 @@ enum PutioFileItemActionRequest: Equatable, Identifiable {
   case rename(PutioFileItem)
   case move(PutioFileItem)
   case delete(PutioFileItem)
+  case setWatched(PutioFileItem, Bool)
 
   var id: String {
     switch self {
     case .rename(let item): "rename.\(item.id.rawValue)"
     case .move(let item): "move.\(item.id.rawValue)"
     case .delete(let item): "delete.\(item.id.rawValue)"
+    case .setWatched(let item, let watched): "watched.\(item.id.rawValue).\(watched)"
     }
-  }
-}
-
-/// The Move, Rename, and Trash or Delete buttons a folder row offers.
-struct PutioFileItemActionButtons: View {
-  let item: PutioFileItem
-  let trashEnabled: Bool
-  let isDisabled: Bool
-  let canDelete: Bool
-  let onRequest: @MainActor (PutioFileItemActionRequest) -> Void
-
-  var body: some View {
-    ControlGroup {
-      moveButton
-    }
-    Section {
-      Button {
-        onRequest(.rename(item))
-      } label: {
-        Label("Rename", systemImage: "pencil")
-      }
-      .disabled(isDisabled)
-      .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
-    }
-    Section {
-      deleteButton
-    }
-  }
-
-  var moveButton: some View {
-    Button {
-      onRequest(.move(item))
-    } label: {
-      Label("Move", systemImage: "folder")
-    }
-    .disabled(isDisabled)
-    .accessibilityIdentifier("files.move.\(item.id.rawValue)")
-  }
-
-  var deleteButton: some View {
-    Button(role: .destructive) {
-      onRequest(.delete(item))
-    } label: {
-      Label(PutioFileDeletionCopy(trashEnabled: trashEnabled).actionTitle, systemImage: "trash")
-    }
-    .disabled(isDisabled || !canDelete)
-    .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
   }
 }
 
@@ -115,6 +70,9 @@ struct PutioFileItemActionsHost: ViewModifier {
               perform { await model.delete(item, permanently: true) }
             }
           }
+        case .setWatched(let item, let watched):
+          self.request = nil
+          perform { await model.setWatched(item, watched) }
         case .move, nil:
           break
         }
@@ -159,6 +117,10 @@ struct PutioFileItemActionsHost: ViewModifier {
         permanently ? PutioFileDeletionCopy.deleted : PutioFileDeletionCopy.trashed)
     case .succeeded(.move):
       toast = PutioToast(PutioMoveCopy.moved(1))
+    case .succeeded(.setWatched(_, _, _, let watched)):
+      toast = PutioToast(
+        watched
+          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
     case .succeeded:
       break
     case .failed(let action, let failure):

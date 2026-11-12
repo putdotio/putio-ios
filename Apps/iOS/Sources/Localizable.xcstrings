@@ -301,6 +301,17 @@
         }
       }
     },
+    "All" : {
+      "comment" : "android: mobile_search_filter_all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        }
+      }
+    },
     "Allow" : {
       "comment" : "android: mobile_product_analytics_prompt_allow",
       "localizations" : {
@@ -1602,6 +1613,17 @@
         }
       }
     },
+    "Documents" : {
+      "comment" : "android: mobile_search_filter_documents",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Documents"
+          }
+        }
+      }
+    },
     "Done" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -2031,6 +2053,17 @@
         }
       }
     },
+    "Folders" : {
+      "comment" : "android: mobile_search_filter_folders",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folders"
+          }
+        }
+      }
+    },
     "Forward %lld seconds" : {
       "comment" : "android: mobile_playback_seek_forward",
       "localizations" : {
@@ -2171,6 +2204,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Image"
+          }
+        }
+      }
+    },
+    "Images" : {
+      "comment" : "android: mobile_search_filter_images",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images"
           }
         }
       }

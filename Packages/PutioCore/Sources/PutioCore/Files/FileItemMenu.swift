@@ -1,6 +1,6 @@
 import Foundation
 
-public enum PutioFileMenuRow: String, Equatable, Sendable {
+public enum PutioFileMenuRow: String, Hashable, Sendable {
   case play
   case download
   case openInVLC
@@ -76,6 +76,16 @@ public struct PutioFileMenu: Equatable, Sendable {
   /// The long-press menu of a row in the Pinned section.
   public static func pinnedRow(item: PutioFileItem, canEdit: Bool) -> PutioFileMenu {
     PutioFileMenu(sections: canEdit && !item.isShared ? [[.unpin], [.move]] : [[.unpin]])
+  }
+
+  /// A search result's menu: the item menu without Select, Rename and Trash.
+  public static func searchResult(
+    item: PutioFileItem, capabilities: Capabilities, isDownloaded: Bool = false
+  ) -> PutioFileMenu {
+    let excluded: Set<PutioFileMenuRow> = [.select, .rename, .trash]
+    let full = PutioFileMenu(item: item, capabilities: capabilities, isDownloaded: isDownloaded)
+    return PutioFileMenu(
+      sections: full.sections.map { $0.filter { !excluded.contains($0) } }.filter { !$0.isEmpty })
   }
 
   public var trailingSwipe: [PutioFileMenuRow] {

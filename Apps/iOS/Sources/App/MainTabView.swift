@@ -167,9 +167,15 @@ struct MainTabView: View {
         FilesSearchView(
           runtime: runtime,
           trashEnabled: account.trashEnabled,
+          tracksWatched: account.rememberVideoTime,
           refreshRequests: folderRefreshRequests,
-          onFileSelected: { route in selectFile(route) }
+          pins: pins,
+          onFileSelected: { route in selectFile(route) },
+          onExternalPlayback: vlcAction,
+          onDownload: { route in Task { await requestDownload(route) } }
         )
+        .putioToast($externalPlayback.toast)
+        .environment(\.putioFileShare, fileShare)
         .putioToast(shellToast)
       }
       if !pins.sectionItems.isEmpty {
@@ -663,11 +669,13 @@ struct MainTabView: View {
       \.putioPreviewOpen,
       PutioPreviewOpenAction { route, source in selectFile(route, in: source) }
     )
-    .environment(
-      \.putioFileShare,
-      PutioFileShareAction(
-        localFile: { offlineQueue.localSource(for: $0)?.url },
-        fetch: { route, extent in try await downloadPreview(route, extent) }))
+    .environment(\.putioFileShare, fileShare)
+  }
+
+  private var fileShare: PutioFileShareAction {
+    PutioFileShareAction(
+      localFile: { offlineQueue.localSource(for: $0)?.url },
+      fetch: { route, extent in try await downloadPreview(route, extent) })
   }
 
   private func videoPlayer(for route: PutioVideoRoute) -> some View {
@@ -752,6 +760,7 @@ struct MainTabView: View {
         HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
         HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
         HarnessPasteboardProbe()
+        HarnessSearchRequestsProbe()
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }

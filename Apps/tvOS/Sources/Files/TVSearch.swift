@@ -26,7 +26,7 @@ struct TVSearchView: View {
   ) {
     self.init(
       model: PutioFileSearchModel(
-        search: { try await runtime.searchFiles(query: $0) },
+        search: { try await runtime.searchFiles(query: $0, filter: $1) },
         continueSearch: { try await runtime.continueFileSearch(cursor: $0) }),
       actions: PutioFileActions(runtime: runtime), account: account,
       refreshRequests: refreshRequests, open: open)
