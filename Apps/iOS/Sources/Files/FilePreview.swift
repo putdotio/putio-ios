@@ -1685,7 +1685,8 @@ struct PutioPDFBarFade: View {
       )
       .frame(
         width: proxy.size.width + insets.leading + insets.trailing,
-        height: Self.height(style, barBottom: insets.top))
+        height: Self.height(style, barBottom: insets.top)
+      )
       .offset(x: -insets.leading, y: -insets.top)
     }
     .allowsHitTesting(false)
