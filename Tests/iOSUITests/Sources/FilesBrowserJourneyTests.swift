@@ -1536,13 +1536,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(folder.appears(within: 5), "Back lost the results")
     XCTAssertTrue(subtitle.exists, "Back lost the Files group")
 
-    app.buttons["Files"].tap()
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10))
+    if app.keyboards.firstMatch.exists { searchField.typeText("\n") }
+    signOutFromAccount()
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
