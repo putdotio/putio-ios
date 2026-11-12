@@ -520,6 +520,22 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
+    /// `--putio-harness-trash-limit` makes put.io refuse a Trash move of
+    /// Harness Folder as over the item limit; a permanent delete still works.
+    private static var refusesHarnessFolderTrash: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
+    }
+    /// `--putio-harness-hold-settings-save` never answers an account settings
+    /// save, so the Trash setting stays unconfirmed while the app waits.
+    private static var holdsSettingsSave: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-settings-save")
+    }
+    // Season files removed from Blue Lights; the restorable ones sit in Trash.
+    nonisolated(unsafe) private static var removedSeasonFileIDs: Set<Int> = []
+    nonisolated(unsafe) private static var trashedSeasonFileIDs: Set<Int> = []
+    nonisolated(unsafe) private static var seasonDeleteFailureDelivered = false
+    /// The first delete of this episode fails, so a journey sees the rollback.
+    static let seasonDeleteFailureFileID = 444
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
     nonisolated(unsafe) private static var folderSorts: [Int: String] = [:]
@@ -644,6 +660,9 @@ import Foundation
       partialMoveFailureDelivered = false
       movedSubtitleParents = [:]
       trashDeleteFailureDelivered = false
+      removedSeasonFileIDs = []
+      trashedSeasonFileIDs = []
+      seasonDeleteFailureDelivered = false
       trashListRequests = 0
       folderSorts = [:]
       trashEmptyRefreshFailed = false
@@ -830,6 +849,13 @@ import Foundation
         let fileIDs = requestFileIDs(request)
       else { return false }
       return !bulkDeleteProgressFolderIDs.isDisjoint(with: fileIDs)
+    }
+
+    /// Whether a delete asks to skip Trash, which the SDK sends in the query.
+    private static func requestSkipsTrash(_ request: URLRequest) -> Bool {
+      guard let url = request.url else { return false }
+      return URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+        .contains { $0.name == "skip_trash" && ($0.value == "true" || $0.value == "1") } == true
     }
 
     /// The comma-separated `file_ids` of a batched request, in order.
@@ -1635,14 +1661,20 @@ import Foundation
       private static let seasonFolderSeeded = false
     #endif
 
+    private static let seasonEpisodes: [(id: Int, name: String, size: Int64, day: Int)] = [
+      (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13),
+      (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13),
+      (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
+      (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
+    ]
+
+    private static func seasonFileSize(_ fileID: Int) -> Int64? {
+      seasonEpisodes.first { $0.id == fileID }?.size ?? seasonSubtitles[fileID]?.size
+    }
+
     private static var seasonFiles: String {
-      let episodes: [(id: Int, name: String, size: Int64, day: Int)] = [
-        (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13),
-        (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13),
-        (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
-        (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
-      ]
-      let videoRows = episodes.map { episode in
+      let removed = fileActionsLock.withLock { removedSeasonFileIDs }
+      let videoRows = seasonEpisodes.filter { !removed.contains($0.id) }.map { episode in
         """
         {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
         "parent_id":\(seasonFolderID),"size":\(episode.size),
@@ -1654,8 +1686,9 @@ import Foundation
       let (movedAway, folderRows) = fileActionsLock.withLock {
         (Set(movedSubtitleParents.keys), childFolderRowsLocked(of: seasonFolderID))
       }
-      let subtitleRows = seasonSubtitles.keys.sorted().filter { !movedAway.contains($0) }.compactMap
-      {
+      let subtitleRows = seasonSubtitles.keys.sorted().filter {
+        !movedAway.contains($0) && !removed.contains($0)
+      }.compactMap {
         id in
         seasonSubtitles[id].map {
           subtitleRow(id: id, name: $0.name, size: $0.size, parentID: seasonFolderID)
@@ -1713,11 +1746,13 @@ import Foundation
     }
 
     private static var seasonFolderObject: String {
-      """
-      {"id":\(seasonFolderID),"name":"Blue Lights","file_type":"FOLDER","parent_id":410,
-      "size":\(seasonFolderSize),"created_at":"2026-10-20T10:00:00Z",
-      "updated_at":"2026-10-20T10:00:00Z"}
-      """
+      let removed = fileActionsLock.withLock { removedSeasonFileIDs }
+      let size = seasonFolderSize - removed.compactMap(seasonFileSize).reduce(0, +)
+      return """
+        {"id":\(seasonFolderID),"name":"Blue Lights","file_type":"FOLDER","parent_id":410,
+        "size":\(size),"created_at":"2026-10-20T10:00:00Z",
+        "updated_at":"2026-10-20T10:00:00Z"}
+        """
     }
 
     static let rootContinuationCursor = "files-root-page-2"
@@ -2151,6 +2186,30 @@ import Foundation
           )
         )
       }
+      if fileID == 410, refusesHarnessFolderTrash, !requestSkipsTrash(request) {
+        fileActionsLock.unlock()
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "FileDeleteChildrenLimitError",
+            message: "Harness Folder holds too many files for Trash")
+        )
+      }
+      if seasonFileSize(fileID) != nil {
+        defer { fileActionsLock.unlock() }
+        if fileID == seasonDeleteFailureFileID, !seasonDeleteFailureDelivered {
+          seasonDeleteFailureDelivered = true
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_TRANSIENT_SEASON_DELETE_FAILURE",
+              message: "The first delete of S04E04 fails for rollback proof")
+          )
+        }
+        removedSeasonFileIDs.insert(fileID)
+        if trashEnabled, !requestSkipsTrash(request) { trashedSeasonFileIDs.insert(fileID) }
+        return (200, #"{"status":"OK"}"#)
+      }
       if fileID == 410 {
         if trashDisabledAtLaunch, harnessFolderDeleted {
           fileActionsLock.unlock()
@@ -2161,7 +2220,9 @@ import Foundation
           )
         }
         harnessFolderDeleted = true
-        if trashEnabled { trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0) }
+        if trashEnabled, !requestSkipsTrash(request) {
+          trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0)
+        }
         fileActionsLock.unlock()
         return (200, #"{"status":"OK"}"#)
       }
@@ -2321,9 +2382,14 @@ import Foundation
       } else {
         return trashMutationInputError()
       }
-      guard fileIDs.allSatisfy({ trashFolders[$0] != nil }) else { return trashNotFoundError() }
+      guard fileIDs.allSatisfy({ trashFolders[$0] != nil || trashedSeasonFileIDs.contains($0) })
+      else { return trashNotFoundError() }
       for fileID in fileIDs {
-        actionFolders[fileID] = trashFolders.removeValue(forKey: fileID)
+        if trashedSeasonFileIDs.remove(fileID) != nil {
+          removedSeasonFileIDs.remove(fileID)
+        } else {
+          actionFolders[fileID] = trashFolders.removeValue(forKey: fileID)
+        }
       }
       return (200, #"{"status":"OK"}"#)
     }

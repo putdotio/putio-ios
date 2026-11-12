@@ -15,6 +15,8 @@ public struct PutioItemAction: Identifiable, Sendable {
   public let icon: PutioIcon
   public let role: Role
   public let isDisabled: Bool
+  /// A second line under the title, such as why the row is disabled.
+  public let subtitle: String?
   let perform: @MainActor @Sendable () -> Void
 
   public init(
@@ -23,6 +25,7 @@ public struct PutioItemAction: Identifiable, Sendable {
     icon: PutioIcon,
     role: Role = .standard,
     isDisabled: Bool = false,
+    subtitle: String? = nil,
     perform: @escaping @MainActor @Sendable () -> Void
   ) {
     self.id = id
@@ -30,6 +33,7 @@ public struct PutioItemAction: Identifiable, Sendable {
     self.icon = icon
     self.role = role
     self.isDisabled = isDisabled
+    self.subtitle = subtitle
     self.perform = perform
   }
 }
@@ -134,6 +138,9 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     var body: some View {
       Label {
         Text(action.title)
+        if let subtitle = action.subtitle {
+          Text(subtitle)
+        }
       } icon: {
         Image(putioIcon: action.icon)
       }

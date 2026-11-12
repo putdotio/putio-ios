@@ -47,6 +47,8 @@ public final class PutioFolderModel {
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
   // Kept apart from `actionOutcome`, which screens clear once they show it.
   @ObservationIgnored private var lastCommittedAction: PutioFileAction?
+  // Where the latest trashed row sat, so Undo puts it back in place.
+  @ObservationIgnored private var trashedPositions: [PutioFileID: Int] = [:]
 
   public init(
     folderID: PutioFileID,
@@ -72,7 +74,11 @@ public final class PutioFolderModel {
     return true
   }
 
-  public var canDelete: Bool { canStartAction && actions?.canDelete() == true }
+  public var canDelete: Bool { canStartAction && trashSettingKnown }
+
+  /// Whether the account's Trash setting is confirmed; until it is, no delete
+  /// can tell whether it moves to Trash or removes for good.
+  public var trashSettingKnown: Bool { actions?.canDelete() == true }
 
   private var mutationIsActive: Bool {
     activeAction != nil || activeBulkAction != nil
@@ -235,17 +241,43 @@ public final class PutioFolderModel {
     }
   }
 
-  /// Returns true when the server confirmed the delete.
+  /// Moves the item to Trash, or deletes it for good when `permanently` is
+  /// set. Returns true when the server confirmed the delete.
   @discardableResult
-  public func delete(_ item: PutioFileItem) async -> Bool {
+  public func delete(_ item: PutioFileItem, permanently: Bool = false) async -> Bool {
     guard let actions, canDelete, case .loaded(let contents) = state else { return false }
-    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return false }
-    let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
+    guard let index = contents.items.firstIndex(where: { $0.id == item.id }) else { return false }
+    let currentItem = contents.items[index]
+    let action = PutioFileAction.delete(
+      fileID: currentItem.id, name: currentItem.name, permanently: permanently)
     begin(action)
+    trashedPositions = [currentItem.id: index]
     state = .loaded(contents.removing(currentItem.id))
 
     return await run(action, rollback: contents) {
-      try await actions.deleteFile(currentItem.id)
+      if permanently {
+        try await actions.deleteFilePermanently(currentItem.id)
+      } else {
+        try await actions.deleteFile(currentItem.id)
+      }
+      return nil
+    }
+  }
+
+  /// Puts a trashed item back in its row at once and restores it from Trash;
+  /// the row leaves again if the server refuses.
+  @discardableResult
+  public func restore(_ item: PutioFileItem) async -> Bool {
+    guard let actions, canStartAction, case .loaded(let contents) = state,
+      !contents.items.contains(where: { $0.id == item.id })
+    else { return false }
+    let action = PutioFileAction.restore(fileID: item.id, name: item.name)
+    begin(action)
+    let index = min(trashedPositions.removeValue(forKey: item.id) ?? 0, contents.items.count)
+    state = .loaded(contents.inserting(item, at: index))
+
+    return await run(action, rollback: contents) {
+      try await actions.restoreFiles([item.id])
       return nil
     }
   }
@@ -678,6 +710,12 @@ extension PutioFolderContents {
       sort: sort,
       totalCount: page.totalCount ?? totalCount
     )
+  }
+
+  fileprivate func inserting(_ item: PutioFileItem, at index: Int) -> PutioFolderContents {
+    var newItems = items
+    newItems.insert(item, at: index)
+    return withItems(newItems)
   }
 
   fileprivate func replacing(_ item: PutioFileItem) -> PutioFolderContents {

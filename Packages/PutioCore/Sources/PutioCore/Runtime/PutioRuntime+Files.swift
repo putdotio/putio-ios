@@ -166,27 +166,32 @@ extension PutioRuntime {
     return failures
   }
 
-  /// Deletes every file in one request; the server applies it to all or none.
-  public func deleteFiles(fileIDs: [PutioFileID]) async throws {
+  /// Moves every file to Trash in one request, or deletes them for good when
+  /// `permanently` is set; the server applies it to all or none. A Trash move
+  /// put.io refuses for a folder over its item limit throws
+  /// `PutioTrashChildrenLimit`.
+  public func deleteFiles(fileIDs: [PutioFileID], permanently: Bool = false) async throws {
     guard !fileIDs.isEmpty else { return }
     guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {
       throw PutioRuntimeError.transient
     }
+    let options = PutioFileDeleteOptions(skipTrash: permanently ? true : nil)
     // The SDK throws only for HTTP errors; a 2xx body can still report failure.
-    let response = try await performAuthenticatedOperation {
-      try await sdk.deleteFiles(fileIDs: fileIDs.map(\.rawValue))
+    let response = try await performAuthenticatedOperation { () async throws -> PutioOKResponse? in
+      do {
+        return try await sdk.deleteFiles(fileIDs: fileIDs.map(\.rawValue), options: options)
+      } catch let error as PutioSDKError
+        where error.matches(statusCode: 400, errorType: "FileDeleteChildrenLimitError")
+      {
+        return nil
+      }
     }
+    guard let response else { throw PutioTrashChildrenLimit() }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
-  public func deleteFile(fileID: PutioFileID) async throws {
-    guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {
-      throw PutioRuntimeError.transient
-    }
-    let response = try await performAuthenticatedOperation {
-      try await sdk.deleteFiles(fileIDs: [fileID.rawValue])
-    }
-    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  public func deleteFile(fileID: PutioFileID, permanently: Bool = false) async throws {
+    try await deleteFiles(fileIDs: [fileID], permanently: permanently)
   }
 
   public func getFile(fileID: PutioFileID) async throws -> PutioFileItem {

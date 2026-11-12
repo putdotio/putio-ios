@@ -116,8 +116,8 @@ public final class PutioFileItemActionModel {
 
   private func requestRefreshes(after action: PutioFileAction) {
     switch action {
-    case .delete:
-      // A deleted folder can contain any mounted folder.
+    case .delete, .restore:
+      // A deleted or restored folder can contain any mounted folder.
       refreshRequests.requestAllLoadedFolders()
     case .rename(let fileID, _, _):
       refreshRequests.requestAllLoadedFolders()
