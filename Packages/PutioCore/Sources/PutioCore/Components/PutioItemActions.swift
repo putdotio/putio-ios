@@ -15,7 +15,6 @@ public struct PutioItemAction: Identifiable, Sendable {
   public let icon: PutioIcon
   public let role: Role
   public let isDisabled: Bool
-  /// A second line under the title, such as why the row is disabled.
   public let subtitle: String?
   let perform: @MainActor @Sendable () -> Void
 

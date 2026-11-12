@@ -20,8 +20,6 @@ public enum PutioFileAction: Equatable, Sendable {
 /// the moved item's name.
 public struct PutioMoveNameTaken: Error, Equatable, Sendable {}
 
-/// put.io refused a Trash move because a folder holds more items than Trash
-/// accepts; nothing changed, and only a permanent delete can remove it.
 public struct PutioTrashChildrenLimit: Error, Equatable, Sendable {}
 
 public struct PutioFileActionFailure: Equatable, Sendable {

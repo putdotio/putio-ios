@@ -520,21 +520,15 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
-    /// `--putio-harness-trash-limit` makes put.io refuse a Trash move of
-    /// Harness Folder as over the item limit; a permanent delete still works.
     private static var refusesHarnessFolderTrash: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
     }
-    /// `--putio-harness-hold-settings-save` never answers an account settings
-    /// save, so the Trash setting stays unconfirmed while the app waits.
     private static var holdsSettingsSave: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-settings-save")
     }
-    // Season files removed from Blue Lights; the restorable ones sit in Trash.
     nonisolated(unsafe) private static var removedSeasonFileIDs: Set<Int> = []
     nonisolated(unsafe) private static var trashedSeasonFileIDs: Set<Int> = []
     nonisolated(unsafe) private static var seasonDeleteFailureDelivered = false
-    /// The first delete of this episode fails, so a journey sees the rollback.
     static let seasonDeleteFailureFileID = 444
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
@@ -851,7 +845,6 @@ import Foundation
       return !bulkDeleteProgressFolderIDs.isDisjoint(with: fileIDs)
     }
 
-    /// Whether a delete asks to skip Trash, which the SDK sends in the query.
     private static func requestSkipsTrash(_ request: URLRequest) -> Bool {
       guard let url = request.url else { return false }
       return URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
@@ -2195,7 +2188,7 @@ import Foundation
             message: "Harness Folder holds too many files for Trash")
         )
       }
-      if seasonFileSize(fileID) != nil {
+      if seasonFileSize(fileID) != nil, movedSubtitleParents[fileID] == nil {
         defer { fileActionsLock.unlock() }
         if fileID == seasonDeleteFailureFileID, !seasonDeleteFailureDelivered {
           seasonDeleteFailureDelivered = true

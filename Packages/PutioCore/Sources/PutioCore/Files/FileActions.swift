@@ -33,9 +33,7 @@ public struct PutioFileActions: Sendable {
   let createFolder: PutioFolderCreate
   let renameFile: PutioFileRename
   let deleteFile: PutioFileDelete
-  /// Deletes for good, skipping Trash even when the account has it on.
   let deleteFilePermanently: PutioFileDelete
-  /// Puts trashed files back where they were.
   let restoreFiles: PutioFileRestore
   let moveFile: PutioFileMove
   let deleteFiles: PutioFileBatchDelete

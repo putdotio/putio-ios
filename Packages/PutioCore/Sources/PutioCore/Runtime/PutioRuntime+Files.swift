@@ -166,10 +166,7 @@ extension PutioRuntime {
     return failures
   }
 
-  /// Moves every file to Trash in one request, or deletes them for good when
-  /// `permanently` is set; the server applies it to all or none. A Trash move
-  /// put.io refuses for a folder over its item limit throws
-  /// `PutioTrashChildrenLimit`.
+  /// Deletes every file in one request; the server applies it to all or none.
   public func deleteFiles(fileIDs: [PutioFileID], permanently: Bool = false) async throws {
     guard !fileIDs.isEmpty else { return }
     guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {

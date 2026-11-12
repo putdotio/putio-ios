@@ -47,7 +47,6 @@ public final class PutioFolderModel {
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
   // Kept apart from `actionOutcome`, which screens clear once they show it.
   @ObservationIgnored private var lastCommittedAction: PutioFileAction?
-  // Where the latest trashed row sat, so Undo puts it back in place.
   @ObservationIgnored private var trashedPositions: [PutioFileID: Int] = [:]
 
   public init(
@@ -76,8 +75,6 @@ public final class PutioFolderModel {
 
   public var canDelete: Bool { canStartAction && trashSettingKnown }
 
-  /// Whether the account's Trash setting is confirmed; until it is, no delete
-  /// can tell whether it moves to Trash or removes for good.
   public var trashSettingKnown: Bool { actions?.canDelete() == true }
 
   private var mutationIsActive: Bool {
@@ -241,8 +238,6 @@ public final class PutioFolderModel {
     }
   }
 
-  /// Moves the item to Trash, or deletes it for good when `permanently` is
-  /// set. Returns true when the server confirmed the delete.
   @discardableResult
   public func delete(_ item: PutioFileItem, permanently: Bool = false) async -> Bool {
     guard let actions, canDelete, case .loaded(let contents) = state else { return false }
@@ -264,8 +259,6 @@ public final class PutioFolderModel {
     }
   }
 
-  /// Puts a trashed item back in its row at once and restores it from Trash;
-  /// the row leaves again if the server refuses.
   @discardableResult
   public func restore(_ item: PutioFileItem) async -> Bool {
     guard let actions, canStartAction, case .loaded(let contents) = state,

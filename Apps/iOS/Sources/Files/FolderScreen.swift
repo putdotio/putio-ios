@@ -501,7 +501,7 @@ struct PutioFolderScreen: View {
       actionRequest = .delete(item, permanently: false)
     } else {
       confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
-        actionRequest = .delete(item, permanently: true)
+        startDeletion(.delete(item, permanently: true))
       }
     }
   }
@@ -542,7 +542,7 @@ struct PutioFolderScreen: View {
         actionRequest = .bulkDelete(items)
       } else {
         confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: items.count) {
-          actionRequest = .bulkDelete(items)
+          startDeletion(.bulkDelete(items))
         }
       }
     } label: {
@@ -859,7 +859,7 @@ struct PutioFolderScreen: View {
     case .failed(.delete(_, _, let permanently), let failure):
       if failure.isTrashLimit, let item {
         confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
-          actionRequest = .delete(item, permanently: true)
+          startDeletion(.delete(item, permanently: true))
         }
       } else {
         toast = PutioToast(
@@ -870,6 +870,14 @@ struct PutioFolderScreen: View {
       toast = PutioToast(failure.title)
     }
     model.clearActionOutcome()
+  }
+
+  private func startDeletion(_ request: FileActionRequest) {
+    guard model.canDelete, actionRequest == nil else {
+      toast = PutioToast(PutioFileDeletionPresentation(trashEnabled: false).singleFailureTitle)
+      return
+    }
+    actionRequest = request
   }
 
   private func undoTrash(of item: PutioFileItem) {

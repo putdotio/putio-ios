@@ -112,7 +112,7 @@ struct PutioFileItemActionsHost: ViewModifier {
             perform { await model.delete(item) }
           } else {
             confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
-              perform { await model.delete(item) }
+              perform { await model.delete(item, permanently: true) }
             }
           }
         case .move, nil:
@@ -154,9 +154,9 @@ struct PutioFileItemActionsHost: ViewModifier {
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .succeeded(.delete):
+    case .succeeded(.delete(_, _, let permanently)):
       toast = PutioToast(
-        trashEnabled ? PutioFileDeletionCopy.trashed : PutioFileDeletionCopy.deleted)
+        permanently ? PutioFileDeletionCopy.deleted : PutioFileDeletionCopy.trashed)
     case .succeeded(.move):
       toast = PutioToast(PutioMoveCopy.moved(1))
     case .succeeded:

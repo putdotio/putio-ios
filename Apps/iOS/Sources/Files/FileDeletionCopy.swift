@@ -1,8 +1,6 @@
 import Foundation
 import PutioCore
 
-/// Files wording for removing items, which names what happens: a move to
-/// Trash or a delete that cannot be undone.
 struct PutioFileDeletionCopy {
   let trashEnabled: Bool
 
