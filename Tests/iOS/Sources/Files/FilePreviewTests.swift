@@ -418,6 +418,29 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(decoded.size.height * decoded.scale, 10)
   }
 
+  func testUnfoldingTheDuoRefitsAZoomedDocument() throws {
+    let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
+    let data = renderer.pdfData { context in
+      context.beginPage()
+      context.beginPage()
+    }
+    let document = try XCTUnwrap(PDFDocument(data: data))
+    let view = PutioInsetPDFView(frame: CGRect(origin: .zero, size: Self.duoFolded))
+    view.autoScales = true
+    view.displayMode = .singlePageContinuous
+    view.document = document
+    view.layoutIfNeeded()
+    view.scaleFactor = view.scaleFactorForSizeToFit * 3
+
+    view.frame = CGRect(origin: .zero, size: Self.duoOpen)
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
+    XCTAssertTrue(view.document === document)
+  }
+
+  private static let duoFolded = CGSize(width: 466, height: 678)
+  private static let duoOpen = CGSize(width: 951, height: 669)
+
   func testDownloaderEnforcesTheByteCapAndMapsStatuses() async throws {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [PreviewStubURLProtocol.self]
