@@ -467,6 +467,29 @@ extension PutioRuntimeTests {
     await assertRuntimeError(.invalidResponse) { try await runtime.setCastPlaybackType(.hls) }
   }
 
+  func testPlaybackMethodRoundTripsThroughTheStreamingMethodConfigKey() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"config":{}}"#, for: "GET /v2/config")
+    let fresh = try await runtime.appConfig()
+    XCTAssertEqual(fresh.playbackMethod, .standard)
+
+    let route = "PUT /v2/config/streaming_method"
+    fixtures.setFixture(#"{"status":"OK"}"#, for: route)
+    try await runtime.setPlaybackMethod(.directPlay)
+    let request = try XCTUnwrap(
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/config/streaming_method" })
+    XCTAssertEqual(
+      String(data: try XCTUnwrap(requestBodyData(for: request)), encoding: .utf8),
+      #"{"value":"file"}"#)
+
+    fixtures.setFixture(#"{"config":{"streaming_method":"file"}}"#, for: "GET /v2/config")
+    let stored = try await runtime.appConfig()
+    XCTAssertEqual(stored.playbackMethod, .directPlay)
+
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: route)
+    await assertRuntimeError(.invalidResponse) { try await runtime.setPlaybackMethod(.standard) }
+  }
+
   func testProductAnalyticsPromptAnswerWritesItsFlatConfigKey() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "PUT /v2/config/dismissed.product_analytics_prompt"

@@ -175,6 +175,42 @@ final class AppConfigModelTests: XCTestCase {
     XCTAssertFalse(stored.autoRotateVideo)
   }
 
+  func testPlaybackMethodDefaultsToStandardAndAppliesOnlyAfterTheServerSaves() async throws {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { try JSONDecoder().decode(PutioAppConfig.self, from: Data(#"{}"#.utf8)) },
+        save: { write in
+          writes.append(write)
+          if writes.count == 1 { throw PutioRuntimeError.transient }
+        }))
+    XCTAssertEqual(model.playbackMethod, .standard)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.playbackMethod, .standard, "a document without the key reads as Standard")
+
+    let failed = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(failed, .failed)
+    XCTAssertEqual(model.playbackMethod, .standard)
+
+    let saved = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(saved, .saved)
+    XCTAssertEqual(model.playbackMethod, .directPlay)
+    let unchanged = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(unchanged, .skipped)
+    XCTAssertEqual(writes, [.playbackMethod(.directPlay), .playbackMethod(.directPlay)])
+  }
+
+  func testPlaybackMethodReadsTheAndroidStreamingMethodValues() throws {
+    let decode = { (json: String) in
+      try JSONDecoder().decode(PutioAppConfig.self, from: Data(json.utf8)).playbackMethod
+    }
+    XCTAssertEqual(try decode(#"{"streaming_method":"file"}"#), .directPlay)
+    XCTAssertEqual(try decode(#"{"streaming_method":"hls"}"#), .standard)
+    XCTAssertEqual(try decode(#"{"streaming_method":"mp4"}"#), .standard)
+    XCTAssertEqual(try decode(#"{"streaming_method":true}"#), .standard)
+  }
+
   private func model(
     load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
     save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }

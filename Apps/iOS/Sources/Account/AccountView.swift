@@ -321,8 +321,16 @@ struct AccountView: View {
           switch write {
           case .autoplayNextVideo: reveal(.autoplay)
           case .autoRotateVideo: reveal(.autoRotate)
+          case .playbackMethod: break
           }
         })
+      PutioNavigationRow(
+        String(localized: "Playback method"), icon: .filmStrip,
+        value: appConfig.playbackMethod.title
+      ) {
+        PlaybackMethodView(appConfig: appConfig)
+      }
+      .accessibilityIdentifier("playback-settings.method")
       PutioNavigationRow(
         String(localized: "Proxy"), icon: .globe, value: preferences.account?.routeName
       ) {

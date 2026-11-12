@@ -553,6 +553,17 @@
         }
       }
     },
+    "Choose how this app plays videos." : {
+      "comment" : "android: mobile_settings_playback_method_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose how this app plays videos."
+          }
+        }
+      }
+    },
     "Chromecast" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
       "localizations" : {
@@ -1375,6 +1386,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Details"
+          }
+        }
+      }
+    },
+    "Direct play" : {
+      "comment" : "android: mobile_settings_playback_direct",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct play"
           }
         }
       }
@@ -3109,6 +3131,17 @@
         }
       }
     },
+    "Playback method" : {
+      "comment" : "android: mobile_settings_playback_method",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback method"
+          }
+        }
+      }
+    },
     "Playback position" : {
       "comment" : "android: mobile_playback_position",
       "localizations" : {
@@ -3182,6 +3215,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playing on %@"
+          }
+        }
+      }
+    },
+    "Plays the original file, up to 4K and surround, when this iPad can. Converted otherwise." : {
+      "comment" : "android: mobile_settings_playback_direct_description | differs: iOS names this iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays the original file, up to 4K and surround, when this iPad can. Converted otherwise."
+          }
+        }
+      }
+    },
+    "Plays the original file, up to 4K and surround, when this iPhone can. Converted otherwise." : {
+      "comment" : "android: mobile_settings_playback_direct_description | differs: iOS names this iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays the original file, up to 4K and surround, when this iPhone can. Converted otherwise."
           }
         }
       }
@@ -4209,6 +4264,17 @@
         }
       }
     },
+    "Standard" : {
+      "comment" : "android: mobile_settings_playback_standard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standard"
+          }
+        }
+      }
+    },
     "Starting conversion" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -5162,6 +5228,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where you are logged in"
+          }
+        }
+      }
+    },
+    "Works on every device. Converted videos play at up to 1080p, stereo." : {
+      "comment" : "android: mobile_settings_playback_standard_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Works on every device. Converted videos play at up to 1080p, stereo."
           }
         }
       }

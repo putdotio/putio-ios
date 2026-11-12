@@ -28,6 +28,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case fileText = "file-text-regular"
   case fileVideo = "file-video-regular"
   case fileVideoFill = "file-video-fill"
+  case filmStrip = "film-strip-regular"
   case folderFill = "folder-fill"
   case folderSimpleDashed = "folder-simple-dashed-regular"
   case folderSimplePlus = "folder-simple-plus-regular"

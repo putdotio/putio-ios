@@ -54,6 +54,7 @@ import Foundation
       var dontAutoSelectSubtitles = false
       var autoplayNextVideo = false
       var rememberVideoTime: Bool?
+      var streamingMethod: String?
       var diagnosticsEnabled = true
       var productAnalyticsEnabled = false
     }
@@ -70,6 +71,8 @@ import Foundation
     nonisolated(unsafe) private static var autoplaySaveFailed = false
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool?
+    nonisolated(unsafe) private static var streamingMethod: String?
+    nonisolated(unsafe) private static var streamingMethodSaveFailed = false
     /// Journeys never meet the analytics prompt: the document answers it
     /// unless a run asks for the prompt, which leaves the key unset.
     nonisolated(unsafe) private static var analyticsPromptAnswered = !ProcessInfo.processInfo
@@ -258,6 +261,45 @@ import Foundation
         )
       }
       filePreferences?.autoplayNextVideo = value
+      persistFilePreferencesLocked()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static var streamingMethodConfigValue: String? {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      prepareFilePreferencesLocked()
+      return usesFilePreferences ? filePreferences?.streamingMethod : streamingMethod
+    }
+
+    private static func updateStreamingMethodConfig(request: URLRequest) -> (Int, String) {
+      guard let value = requestPayload(request)?["value"] as? String,
+        ["hls", "file"].contains(value)
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_INVALID_STREAMING_METHOD",
+            message: "value must be hls or file")
+        )
+      }
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      prepareFilePreferencesLocked()
+      guard usesFilePreferences else {
+        streamingMethod = value
+        return (200, #"{"status":"OK"}"#)
+      }
+      if !streamingMethodSaveFailed {
+        streamingMethodSaveFailed = true
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_STREAMING_METHOD_SAVE_RETRY",
+            message: "Retry saving the playback method")
+        )
+      }
+      filePreferences?.streamingMethod = value
       persistFilePreferencesLocked()
       return (200, #"{"status":"OK"}"#)
     }
@@ -1285,9 +1327,10 @@ import Foundation
         }
         let prompt = answered ? #","dismissed.product_analytics_prompt":true"# : ""
         let rotation = rotates.map { #","auto_rotate_video":\#($0)"# } ?? ""
+        let method = streamingMethodConfigValue.map { #","streaming_method":"\#($0)""# } ?? ""
         return (
           200,
-          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(prompt)\#(rotation)}}"#
+          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(method)\#(prompt)\#(rotation)}}"#
         )
       case "PUT /v2/config/dismissed.product_analytics_prompt":
         guard requestPayload(request)?["value"] as? Bool == true else {
@@ -1301,6 +1344,8 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/autoplay_next_video":
         return updateAutoplayConfig(request: request)
+      case "PUT /v2/config/streaming_method":
+        return updateStreamingMethodConfig(request: request)
       case "PUT /v2/config/auto_rotate_video":
         guard let value = requestPayload(request)?["value"] as? Bool else {
           return (

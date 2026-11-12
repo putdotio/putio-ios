@@ -17,6 +17,8 @@ offline playback.
   failed save, and keeps them across relaunch.
 - `resume-setting` asks before turning resume off, reverts a failed save, and
   plays a saved video from zero in portrait with Rotate off.
+- `playback-method` reverts a failed Direct play save, applies it on the next
+  tap, and keeps it across relaunch.
 - `cast` connects, controls the session, switches subtitles, and syncs the
   position back.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
@@ -50,6 +52,8 @@ Preconditions:
   `runtime-playback-preferences`.
 - **Resume setting.** Run `--only resume-setting`. Screenshot:
   `runtime-resume-off-confirm`.
+- **Playback method.** Run `--only playback-method`. Screenshot:
+  `runtime-playback-method`.
 - **Cast.** Run `--only cast`. Screenshots: `runtime-cast-settings`,
   `runtime-cast-error`, `runtime-cast-controls`, `runtime-cast-signed-out`.
 - **Downloads.** Run `--only downloads,unsaved-downloads`. Screenshots:

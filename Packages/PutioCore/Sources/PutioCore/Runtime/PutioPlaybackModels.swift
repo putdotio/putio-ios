@@ -77,6 +77,11 @@ public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Send
   case mp4
 }
 
+public enum PutioPlaybackMethod: String, CaseIterable, Hashable, Codable, Sendable {
+  case standard = "hls"
+  case directPlay = "file"
+}
+
 /// The keys this app stores in the account's `/config` document. put.io keeps
 /// whatever a client writes, per OAuth app, so the shape is the app's to
 /// declare; the web app keeps its own keys, and the Chromecast key below is
@@ -85,6 +90,7 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case chromecastPlaybackType = "chromecast_playback_type"
   case autoplayNextVideo = "autoplay_next_video"
   case autoRotateVideo = "auto_rotate_video"
+  case streamingMethod = "streaming_method"
   /// One flat key, dot included, as the App Store app writes it.
   case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
 }
@@ -97,15 +103,18 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
   public var autoplayNextVideo: Bool
   /// On unless turned off: video playback holds the phone in landscape.
   public var autoRotateVideo: Bool
+  public var playbackMethod: PutioPlaybackMethod
   public var productAnalyticsPromptAnswered: Bool
 
   public init(
     chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false,
-    autoRotateVideo: Bool = true, productAnalyticsPromptAnswered: Bool = false
+    autoRotateVideo: Bool = true, playbackMethod: PutioPlaybackMethod = .standard,
+    productAnalyticsPromptAnswered: Bool = false
   ) {
     self.chromecastPlaybackType = chromecastPlaybackType
     self.autoplayNextVideo = autoplayNextVideo
     self.autoRotateVideo = autoRotateVideo
+    self.playbackMethod = playbackMethod
     self.productAnalyticsPromptAnswered = productAnalyticsPromptAnswered
   }
 
@@ -113,6 +122,7 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
     case chromecastPlaybackType = "chromecast_playback_type"
     case autoplayNextVideo = "autoplay_next_video"
     case autoRotateVideo = "auto_rotate_video"
+    case playbackMethod = "streaming_method"
     case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
   }
 
@@ -125,6 +135,8 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
       (try? container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo)) ?? false
     autoRotateVideo =
       (try? container.decodeIfPresent(Bool.self, forKey: .autoRotateVideo)) ?? true
+    let rawPlaybackMethod = try? container.decodeIfPresent(String.self, forKey: .playbackMethod)
+    playbackMethod = rawPlaybackMethod.flatMap(PutioPlaybackMethod.init(rawValue:)) ?? .standard
     // Only a readable "not answered" asks; a value this app can't read counts
     // as an answer rather than asking again on every launch.
     do {
