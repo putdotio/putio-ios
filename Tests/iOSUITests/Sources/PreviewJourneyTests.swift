@@ -277,7 +277,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(notice.label, "Showing the first 250 kB.")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
     let row = app.buttons["preview.text.share"]
-    XCTAssertTrue(row.isHittable, "the Share row is not under the end line")
+    XCTAssertTrue(row.isHittable, "the Share row is not reachable: \(row.debugDescription)")
     XCTAssertGreaterThan(row.frame.minY, notice.frame.maxY)
     screenshot("runtime-preview-text-truncated")
     let requests = element("preview.requests")
