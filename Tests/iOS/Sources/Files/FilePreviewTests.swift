@@ -618,6 +618,22 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
   }
 
+  func testTheWidestPageSetsTheReadableWidthCap() throws {
+    let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
+    let data = renderer.pdfData { context in
+      context.beginPage()
+      context.beginPage(withBounds: CGRect(x: 0, y: 0, width: 792, height: 612), pageInfo: [:])
+    }
+    let document = try XCTUnwrap(PDFDocument(data: data))
+    let view = PutioInsetPDFView(frame: CGRect(origin: .zero, size: Self.duoOpen))
+    view.autoScales = true
+    view.displayMode = .singlePageContinuous
+    view.document = document
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 792, accuracy: 0.01)
+    XCTAssertEqual(view.zoomBaseline, view.scaleFactor, accuracy: 0.001)
+  }
+
   private static let duoFolded = CGSize(width: 466, height: 678)
   private static let duoOpen = CGSize(width: 951, height: 669)
 

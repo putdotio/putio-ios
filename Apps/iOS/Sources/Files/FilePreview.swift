@@ -1764,7 +1764,7 @@ struct PutioPDFView: UIViewRepresentable {
     }
 
     private func reportZoom(_ view: PDFView) {
-      let fitted = (view as? PutioInsetPDFView)?.fittedScale ?? view.scaleFactorForSizeToFit
+      let fitted = (view as? PutioInsetPDFView)?.zoomBaseline ?? view.scaleFactorForSizeToFit
       let zoomed = view.scaleFactor > fitted * 1.01
       guard zoomed != reportedZoomed else { return }
       reportedZoomed = zoomed
@@ -1788,7 +1788,8 @@ final class PutioInsetPDFView: PDFView {
   var insets: UIEdgeInsets = .zero {
     didSet { if insets != oldValue { setNeedsLayout() } }
   }
-  private(set) var fittedScale: CGFloat = 0
+  private var fittedScale: CGFloat = 0
+  var zoomBaseline: CGFloat { fittedScale > 0 ? fittedScale : scaleFactorForSizeToFit }
   private var placed = false
   private var fittedSize: CGSize = .zero
 
@@ -1805,16 +1806,21 @@ final class PutioInsetPDFView: PDFView {
   }
 
   private func fit(resized: Bool) {
-    guard let page = document?.page(at: 0) else { return }
+    guard let document, document.pageCount > 0 else { return }
     let sizeToFit = scaleFactorForSizeToFit
-    let box = page.bounds(for: displayBox)
-    let pageWidth = page.rotation.isMultiple(of: 180) ? box.width : box.height
+    let pageWidth = (0..<document.pageCount).lazy
+      .compactMap { document.page(at: $0) }
+      .map { page in
+        let box = page.bounds(for: self.displayBox)
+        return page.rotation.isMultiple(of: 180) ? box.width : box.height
+      }
+      .max() ?? 0
     let capped = pageWidth > 0 ? Self.maximumPageWidth / pageWidth : sizeToFit
     if capped < sizeToFit {
+      fittedScale = capped
       autoScales = false
       minScaleFactor = capped
       scaleFactor = capped
-      fittedScale = capped
     } else {
       fittedScale = sizeToFit
       guard resized || !autoScales else { return }
