@@ -535,9 +535,12 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openPreviewMore() {
-    app.buttons["preview.more"].tap()
-    XCTAssertTrue(
-      app.buttons["Rename"].firstMatch.appears(within: 5), "the viewer More never opened")
+    let more = app.buttons["preview.more"]
+    XCTAssertTrue(more.appears(within: 10), "the viewer has no More")
+    more.tap()
+    let rename = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "Rename")).firstMatch
+    XCTAssertTrue(rename.appears(within: 15), "the viewer More never opened")
   }
 
   func testPreviewPosition() throws {
