@@ -9,6 +9,7 @@ enum PutioPreviewState: Equatable {
   case loading
   case image(UIImage)
   case document(PDFDocument)
+  case text(PutioTextPreview)
   case failed(PutioPreviewFailure)
 
   static func == (lhs: Self, rhs: Self) -> Bool {
@@ -16,6 +17,7 @@ enum PutioPreviewState: Equatable {
     case (.loading, .loading): true
     case (.image(let left), .image(let right)): left === right
     case (.document(let left), .document(let right)): left === right
+    case (.text(let left), .text(let right)): left == right
     case (.failed(let left), .failed(let right)): left == right
     default: false
     }
@@ -67,9 +69,11 @@ enum PutioViewerRoute: Identifiable, Equatable {
   }
 }
 
-typealias PutioPreviewDownload = @MainActor @Sendable (PutioFileID) async throws -> Data
+typealias PutioPreviewDownload = @MainActor @Sendable (PutioPreviewRoute) async throws -> Data
 
 struct PutioPreviewTooLargeError: Error {}
+
+private struct PutioPreviewRangeNotSatisfiable: Error {}
 
 /// Downloads a preview body with a hard byte cap so a large original cannot
 /// exhaust memory. The response is inspected before any body arrives and the
@@ -83,12 +87,38 @@ enum PutioPreviewDownloader {
     limit: Int = maximumBytes,
     configuration: URLSessionConfiguration = .ephemeral
   ) async throws -> Data {
-    let collector = PutioBoundedBodyCollector(limit: limit)
+    try await fetch(
+      URLRequest(url: url), limit: limit, keepsPrefix: false, configuration: configuration)
+  }
+
+  static func downloadPrefix(
+    _ url: URL,
+    byteCount: Int,
+    configuration: URLSessionConfiguration = .ephemeral
+  ) async throws -> Data {
+    var request = URLRequest(url: url)
+    request.setValue("bytes=0-\(byteCount - 1)", forHTTPHeaderField: "range")
+    do {
+      return try await fetch(
+        request, limit: byteCount, keepsPrefix: true, configuration: configuration)
+    } catch is PutioPreviewRangeNotSatisfiable {
+      return Data()
+    }
+  }
+
+  private static func fetch(
+    _ request: URLRequest,
+    limit: Int,
+    keepsPrefix: Bool,
+    configuration: URLSessionConfiguration
+  ) async throws -> Data {
+    let collector = PutioBoundedBodyCollector(limit: limit, keepsPrefix: keepsPrefix)
     let session = URLSession(configuration: configuration, delegate: collector, delegateQueue: nil)
     defer { session.finishTasksAndInvalidate() }
-    let (data, http) = try await collector.run(session.dataTask(with: url))
+    let (data, http) = try await collector.run(session.dataTask(with: request))
     switch http.statusCode {
     case 200...299: return data
+    case 416 where keepsPrefix: throw PutioPreviewRangeNotSatisfiable()
     case 401, 403: throw PutioRuntimeError.sessionExpired
     case 404: throw PutioRuntimeError.notFound
     case 429: throw PutioRuntimeError.rateLimited
@@ -102,14 +132,17 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
   @unchecked Sendable
 {
   private let limit: Int
+  private let keepsPrefix: Bool
   private let lock = NSLock()
   private var body = Data()
   private var response: HTTPURLResponse?
   private var tooLarge = false
+  private var prefixFilled = false
   private var continuation: CheckedContinuation<(Data, HTTPURLResponse), Error>?
 
-  init(limit: Int) {
+  init(limit: Int, keepsPrefix: Bool) {
     self.limit = limit
+    self.keepsPrefix = keepsPrefix
   }
 
   func run(_ task: URLSessionDataTask) async throws -> (Data, HTTPURLResponse) {
@@ -131,7 +164,7 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
       completionHandler(.cancel)
       return
     }
-    let oversized = http.expectedContentLength > Int64(limit)
+    let oversized = !keepsPrefix && http.expectedContentLength > Int64(limit)
     lock.withLock {
       self.response = http
       if oversized { tooLarge = true }
@@ -142,7 +175,12 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
     let exceeded = lock.withLock {
       // Nothing past the cap is ever buffered, including the chunk that trips it.
-      guard !tooLarge else { return true }
+      guard !tooLarge, !prefixFilled else { return true }
+      if body.count + data.count >= limit, keepsPrefix {
+        body.append(data.prefix(limit - body.count))
+        prefixFilled = true
+        return true
+      }
       if body.count + data.count > limit {
         tooLarge = true
         return true
@@ -160,6 +198,7 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
           let continuation = self.continuation
           self.continuation = nil
           if tooLarge { return (continuation, .failure(PutioPreviewTooLargeError())) }
+          if prefixFilled, let response { return (continuation, .success((body, response))) }
           if let error { return (continuation, .failure(error)) }
           guard let response else {
             return (continuation, .failure(PutioRuntimeError.invalidResponse))
@@ -202,7 +241,7 @@ final class PutioPreviewModel {
     let task = Task { [weak self] in
       guard let self else { return }
       do {
-        let data = try await download(route.id)
+        let data = try await download(route)
         try Task.checkCancellation()
         let decoded = try await Self.decode(data, kind: route.kind)
         guard request == generation, !Task.isCancelled else { return }
@@ -252,6 +291,10 @@ final class PutioPreviewModel {
         return .failed(.cannotShow)
       }
       return .document(document)
+    case .text:
+      let text = try await PutioTextPreview.decode(data, limit: PutioPreviewRoute.textLimitBytes)
+      guard let text else { return .failed(.cannotShow) }
+      return .text(text)
     }
   }
 
@@ -274,6 +317,46 @@ final class PutioPreviewModel {
     }
     try Task.checkCancellation()
     return UIImage(cgImage: cgImage)
+  }
+}
+
+struct PutioTextPreview: Equatable, Sendable {
+  let text: String
+  let isTruncated: Bool
+
+  static let byteOrderMark: [UInt8] = [0xEF, 0xBB, 0xBF]
+
+  @concurrent
+  nonisolated static func decode(_ data: Data, limit: Int) async throws -> Self? {
+    try Task.checkCancellation()
+    let isTruncated = data.count > limit
+    var bytes = Array(data.prefix(limit))
+    if bytes.starts(with: byteOrderMark) { bytes.removeFirst(byteOrderMark.count) }
+    guard !bytes.contains(0) else { return nil }
+    let whole = bytes.dropLast(isTruncated ? incompleteScalarLength(at: bytes) : 0)
+    if let text = String(validating: whole, as: UTF8.self) {
+      return Self(text: text, isTruncated: isTruncated)
+    }
+    guard let text = String(data: Data(bytes), encoding: .windowsCP1252) else { return nil }
+    return Self(text: text, isTruncated: isTruncated)
+  }
+
+  nonisolated static func incompleteScalarLength(at bytes: [UInt8]) -> Int {
+    var continuations = 0
+    for byte in bytes.reversed().prefix(4) {
+      guard byte & 0xC0 == 0x80 else {
+        let length =
+          switch byte {
+          case 0xF0...: 4
+          case 0xE0...: 3
+          case 0xC0...: 2
+          default: 1
+          }
+        return length > continuations + 1 ? continuations + 1 : 0
+      }
+      continuations += 1
+    }
+    return 0
   }
 }
 
@@ -319,6 +402,10 @@ struct PutioPreviewView: View {
     if case .document = model.state { true } else { false }
   }
 
+  private var showsText: Bool {
+    if case .text = model.state { true } else { false }
+  }
+
   private var showsBars: Bool {
     !(barsHidden && showsImage && !voiceOverEnabled)
   }
@@ -329,7 +416,7 @@ struct PutioPreviewView: View {
 
   @ViewBuilder
   private var topFade: some View {
-    if showsDocument {
+    if showsDocument || showsText {
       PutioPDFBarFade()
     } else if showsImage, showsBars {
       LinearGradient(
@@ -350,6 +437,9 @@ struct PutioPreviewView: View {
       PutioPDFPagePill(position: documentPage)
     }
   }
+
+  static let textLimitLabel = PutioFileRowModel.sizeText(
+    bytes: Int64(PutioPreviewRoute.textLimitBytes))
 
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
@@ -412,6 +502,14 @@ struct PutioPreviewView: View {
         .ignoresSafeArea(edges: .vertical)
         .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
         .accessibilityIdentifier("preview.document")
+    case .text(let preview):
+      PutioTextPreviewView(
+        preview: preview,
+        truncationNotice: PutioTextPreviewNotice(
+          text: String(localized: "Showing the first \(Self.textLimitLabel)."),
+          figure: Self.textLimitLabel)
+      )
+      .ignoresSafeArea(edges: .vertical)
     case .failed(.loadFailed):
       PutioErrorStateView(kind: .failed, retryIdentifier: "preview.retry") {
         Task { await model.retry() }
@@ -557,6 +655,222 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     let vertical = max(0, (bounds.height - imageView.frame.height) / 2)
     contentInset = UIEdgeInsets(
       top: vertical, left: horizontal, bottom: vertical, right: horizontal)
+  }
+}
+
+struct PutioTextPreviewView: UIViewRepresentable {
+  let preview: PutioTextPreview
+  let truncationNotice: PutioTextPreviewNotice
+
+  func makeUIView(context: Context) -> PutioTextPreviewContainer {
+    PutioTextPreviewContainer()
+  }
+
+  func updateUIView(_ view: PutioTextPreviewContainer, context: Context) {
+    view.show(preview, truncationNotice: truncationNotice)
+  }
+}
+
+struct PutioTextPreviewNotice: Equatable {
+  let text: String
+  let figure: String
+
+  func attributed(font: UIFont, figureFont: UIFont, color: UIColor) -> NSAttributedString {
+    let attributed = NSMutableAttributedString(
+      string: text, attributes: [.font: font, .foregroundColor: color])
+    if let range = text.range(of: figure) {
+      attributed.addAttribute(.font, value: figureFont, range: NSRange(range, in: text))
+    }
+    return attributed
+  }
+}
+
+final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
+  private let textView = UITextView(usingTextLayoutManager: true)
+  private let notice = UILabel()
+  private lazy var textElement = PutioVisibleTextElement(container: self, textView: textView)
+  private var shown: PutioTextPreview?
+  private var shownNotice: PutioTextPreviewNotice?
+
+  private static let inset = PutioTheme.Spacing.space3
+  private static let noticeSpacing = PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2
+  private static let noticeInset = PutioTheme.Spacing.space4
+
+  init() {
+    super.init(frame: .zero)
+    clipsToBounds = true
+    textView.delegate = self
+    textView.isEditable = false
+    textView.isSelectable = true
+    textView.backgroundColor = .clear
+    textView.alwaysBounceVertical = true
+    textView.contentInsetAdjustmentBehavior = .always
+    textView.topEdgeEffect.isHidden = true
+    textView.textContainer.lineFragmentPadding = 0
+    addSubview(textView)
+    notice.numberOfLines = 0
+    notice.accessibilityIdentifier = "preview.text.truncated"
+    notice.isHidden = true
+    addSubview(notice)
+    registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
+      (view: PutioTextPreviewContainer, _) in
+      view.restyle()
+    }
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { nil }
+
+  func show(_ preview: PutioTextPreview, truncationNotice: PutioTextPreviewNotice) {
+    notice.isHidden = !preview.isTruncated
+    accessibilityElements = preview.isTruncated ? [textElement, notice] : [textElement]
+    guard preview != shown || truncationNotice != shownNotice else { return }
+    shown = preview
+    shownNotice = truncationNotice
+    restyle()
+  }
+
+  private func restyle() {
+    guard let shown else { return }
+    let mono = PutioTheme.Typography.mono.scaledUIFont(
+      compatibleWith: traitCollection, fallback: UIFont.monospacedSystemFont(ofSize:weight:))
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.minimumLineHeight = mono.lineHeight
+    paragraph.maximumLineHeight = mono.lineHeight
+    textView.attributedText = NSAttributedString(
+      string: shown.text,
+      attributes: [
+        .font: mono.font, .paragraphStyle: paragraph,
+        .foregroundColor: UIColor(PutioTheme.Colors.textPrimary),
+      ])
+    if let shownNotice {
+      notice.attributedText = shownNotice.attributed(
+        font: PutioTheme.Typography.caption.scaledUIFont(
+          compatibleWith: traitCollection, fallback: UIFont.systemFont(ofSize:weight:)
+        ).font,
+        figureFont: mono.font,
+        color: UIColor(PutioTheme.Colors.textSecondary))
+    }
+    setNeedsLayout()
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    textView.frame = bounds
+    let width = max(0, bounds.width - 2 * Self.noticeInset)
+    let noticeHeight =
+      notice.isHidden
+      ? 0 : notice.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+    let bottom =
+      notice.isHidden ? Self.noticeInset : Self.noticeSpacing + noticeHeight + Self.noticeInset
+    let insets = UIEdgeInsets(
+      top: Self.inset, left: Self.inset, bottom: bottom, right: Self.inset)
+    if textView.textContainerInset != insets { textView.textContainerInset = insets }
+    notice.frame.size = CGSize(width: width, height: noticeHeight)
+    placeNotice()
+  }
+
+  func scrollViewDidScroll(_ scrollView: UIScrollView) {
+    placeNotice()
+  }
+
+  private func placeNotice() {
+    guard !notice.isHidden else { return }
+    let textEnd = textView.contentSize.height - textView.textContainerInset.bottom
+    notice.frame.origin = CGPoint(
+      x: Self.noticeInset,
+      y: textEnd + Self.noticeSpacing - textView.contentOffset.y)
+  }
+}
+
+final class PutioVisibleTextElement: UIAccessibilityElement {
+  private weak var textView: UITextView?
+
+  init(container: UIView, textView: UITextView) {
+    self.textView = textView
+    super.init(accessibilityContainer: container)
+    accessibilityIdentifier = "preview.text"
+    accessibilityTraits = .staticText
+    accessibilityCustomActions = [
+      UIAccessibilityCustomAction(name: String(localized: "Copy all")) { [weak textView] _ in
+        guard let text = textView?.text else { return false }
+        UIPasteboard.general.string = text
+        return true
+      }
+    ]
+  }
+
+  override var accessibilityFrameInContainerSpace: CGRect {
+    get { textView?.frame ?? .zero }
+    set {}
+  }
+
+  override var accessibilityValue: String? {
+    get { textView.flatMap(Self.visibleText(in:)) }
+    set {}
+  }
+
+  override func accessibilityScroll(_ direction: UIAccessibilityScrollDirection) -> Bool {
+    guard let textView else { return false }
+    let inset = textView.adjustedContentInset
+    let page = textView.bounds.height - inset.top - inset.bottom
+    let minY = -inset.top
+    let maxY = max(minY, textView.contentSize.height + inset.bottom - textView.bounds.height)
+    let y: CGFloat
+    switch direction {
+    case .down: y = min(maxY, textView.contentOffset.y + page)
+    case .up: y = max(minY, textView.contentOffset.y - page)
+    default: return false
+    }
+    guard y != textView.contentOffset.y else { return false }
+    textView.setContentOffset(CGPoint(x: textView.contentOffset.x, y: y), animated: false)
+    UIAccessibility.post(notification: .pageScrolled, argument: accessibilityValue)
+    return true
+  }
+
+  private static func visibleText(in textView: UITextView) -> String? {
+    let visible = textView.bounds.inset(by: textView.adjustedContentInset)
+    guard let start = textView.closestPosition(to: CGPoint(x: visible.minX, y: visible.minY)),
+      let end = textView.closestPosition(to: CGPoint(x: visible.maxX, y: visible.maxY)),
+      let range = textView.textRange(from: start, to: end)
+    else { return nil }
+    return textView.text(in: range)
+  }
+}
+
+extension PutioFontRole {
+  struct ScaledUIFont {
+    let font: UIFont
+    let lineHeight: CGFloat
+  }
+
+  func scaledUIFont(
+    compatibleWith traits: UITraitCollection,
+    fallback: (CGFloat, UIFont.Weight) -> UIFont
+  ) -> ScaledUIFont {
+    let metrics = UIFontMetrics(forTextStyle: textStyle.uiTextStyle)
+    let base = UIFont(name: fontName, size: size) ?? fallback(size, .regular)
+    return ScaledUIFont(
+      font: metrics.scaledFont(for: base, compatibleWith: traits),
+      lineHeight: metrics.scaledValue(for: size * lineHeight, compatibleWith: traits))
+  }
+}
+
+extension Font.TextStyle {
+  fileprivate var uiTextStyle: UIFont.TextStyle {
+    switch self {
+    case .largeTitle: .largeTitle
+    case .title: .title1
+    case .title2: .title2
+    case .title3: .title3
+    case .headline: .headline
+    case .subheadline: .subheadline
+    case .callout: .callout
+    case .footnote: .footnote
+    case .caption: .caption1
+    case .caption2: .caption2
+    default: .body
+    }
   }
 }
 

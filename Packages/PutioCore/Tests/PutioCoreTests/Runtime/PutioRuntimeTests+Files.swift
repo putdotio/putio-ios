@@ -42,7 +42,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(contents.sort, .dateAddedDescending)
     XCTAssertEqual(
       contents.items.map(\.kind),
-      [.video, .audio, .image, .pdf, .folder, .other("ARCHIVE")]
+      [.video, .audio, .image, .pdf, .folder, .other("ARCHIVE"), .text]
     )
 
     let video = try XCTUnwrap(contents.items.first)
@@ -333,8 +333,8 @@ extension PutioRuntimeTests {
 
     let contents = try await runtime.listFiles()
 
-    XCTAssertEqual(contents.totalCount, 6)
-    XCTAssertEqual(contents.itemCount, 6)
+    XCTAssertEqual(contents.totalCount, 7)
+    XCTAssertEqual(contents.itemCount, 7)
   }
 
   func testFileActionsUseSDKOwnedRoutesAndMapCreatedFolder() async throws {

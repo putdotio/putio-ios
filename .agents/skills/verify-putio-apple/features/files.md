@@ -71,7 +71,8 @@ Preconditions:
   `runtime-preview-error`, `runtime-preview-image`,
   `runtime-preview-image-landscape`, `runtime-preview-document`,
   `runtime-preview-document-middle`, `runtime-preview-document-landscape`,
-  `runtime-preview-cannot-show`.
+  `runtime-preview-cannot-show`, `runtime-preview-text`,
+  `runtime-preview-text-truncated`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in

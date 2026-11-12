@@ -32,6 +32,7 @@ import SwiftUI
       case .audio: "audio"
       case .image: "image"
       case .pdf: "pdf"
+      case .text: "text"
       case .other: "other"
       }
     }
@@ -80,6 +81,23 @@ import SwiftUI
         .accessibilityValue(requests.entries.joined(separator: ","))
         .accessibilityIdentifier("preview.requests")
         .allowsHitTesting(false)
+    }
+  }
+
+  struct HarnessPasteboardProbe: View {
+    @State private var text = ""
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Pasteboard")
+        .accessibilityValue(text)
+        .accessibilityIdentifier("harness.pasteboard")
+        .allowsHitTesting(false)
+        .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) {
+          _ in text = UIPasteboard.general.string ?? ""
+        }
     }
   }
 

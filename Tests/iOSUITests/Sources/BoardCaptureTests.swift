@@ -231,6 +231,35 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-03-pdf")
   }
 
+  func testPreviewText() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    openSeasonFolder()
+    let row = app.revealed("files.item.445")
+    XCTAssertTrue(row.exists, "the subtitle row never appeared")
+    row.tap()
+    XCTAssertTrue(element("preview.text").appears(within: 10), "the subtitle never loaded")
+    try captureBoard("rd-ios-pv-04-text")
+  }
+
+  func testPreviewTextTruncated() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.432", maximumSwipes: 6)
+    XCTAssertTrue(row.exists, "the long text row never appeared")
+    row.tap()
+    let text = element("preview.text")
+    XCTAssertTrue(text.appears(within: 10), "the long text never loaded")
+    let notice = element("preview.text.truncated")
+    text.scrollTextToEnd(revealing: notice)
+    XCTAssertTrue(notice.isOnScreen, "scrolling never reached the end line")
+    XCTAssertTrue(notice.appears(within: 5))
+    try captureBoard("rd-ios-pv-10-text-truncated")
+  }
+
   private func openPosterPreview() {
     app.launchArguments.append("--putio-harness-previews")
     app.launch()

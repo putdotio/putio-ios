@@ -113,6 +113,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(requests.value as? String, loadedRequests)
     assertCannotShow(rowID: 431, title: "Harness Scan.pdf", rowValue: "Document")
     XCTAssertEqual(requests.value as? String, (loadedRequests ?? "") + ",431:loaded")
+    assertTextPreviews()
     var swipes = 0
     while !element("files.item.412").isHittable, swipes < 3 {
       app.swipeDown()
@@ -239,6 +240,66 @@ final class PreviewJourneyTests: XCTestCase {
       "the viewer did not rotate back")
     XCTAssertTrue(waitForFit(image), "rotating back did not fit the image: \(image.frame)")
     XCTAssertTrue(back.isHittable)
+  }
+
+  private func assertTextPreviews() {
+    assertCannotShow(rowID: 433, title: "Harness Notes.txt", rowValue: "Document")
+
+    let short = app.revealed("files.item.434")
+    XCTAssertTrue(short.exists, "the short text row never appeared")
+    short.tap()
+    let text = element("preview.text")
+    XCTAssertTrue(text.appears(within: 10), "the short text never loaded")
+    XCTAssertEqual(element("preview.title").label, "Harness Subtitles.en.srt")
+    XCTAssertTrue((text.value as? String ?? "").hasPrefix("1\n00:00:02,000 --> 00:00:05,000"))
+    XCTAssertFalse(element("preview.text.truncated").exists, "a short file shows the end line")
+    screenshot("runtime-preview-text")
+    copyLine(2, in: text)
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.434").disappears(within: 5))
+    let pasteboard = element("harness.pasteboard")
+    XCTAssertTrue(
+      waitForValue(pasteboard, matching: #"Previously on Blue Lights\.\n?"#),
+      "the copied line is not on the pasteboard: \(pasteboard.value ?? "")")
+
+    let long = app.revealed("files.item.432")
+    XCTAssertTrue(long.exists, "the long text row never appeared")
+    long.tap()
+    let longText = element("preview.text")
+    XCTAssertTrue(longText.appears(within: 10), "the long text never loaded")
+    let notice = element("preview.text.truncated")
+    XCTAssertFalse(notice.isOnScreen, "the end line shows before the end")
+    longText.scrollTextToEnd(revealing: notice)
+    XCTAssertTrue(
+      notice.isOnScreen, "scrolling never reached the end line: \(notice.debugDescription)")
+    XCTAssertEqual(notice.label, "Showing the first 250 kB.")
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    screenshot("runtime-preview-text-truncated")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
+  }
+
+  private func copyLine(_ line: Int, in text: XCUIElement) {
+    let bar = app.navigationBars.firstMatch.frame
+    let lineHeight: CGFloat = 14 * 1.45
+    let lineMidY = bar.maxY + 16 + lineHeight * (CGFloat(line) + 0.5)
+    let origin = text.coordinate(withNormalizedOffset: .zero)
+    origin.withOffset(CGVector(dx: 20, dy: lineMidY - text.frame.minY))
+      .press(
+        forDuration: 0.8,
+        thenDragTo: origin.withOffset(
+          CGVector(dx: text.frame.width - 20, dy: lineMidY - text.frame.minY)))
+    let menuCopy = app.menuItems["Copy"]
+    let buttonCopy = app.buttons["Copy"]
+    let deadline = Date.now.addingTimeInterval(5)
+    while !menuCopy.exists, !buttonCopy.exists, Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    let copy = menuCopy.exists ? menuCopy : buttonCopy
+    XCTAssertTrue(copy.exists, "selecting a line showed no Copy action")
+    copy.tap()
+    XCTAssertTrue(copy.disappears(within: 5), "the Copy action stayed on screen")
+    text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
   }
 
   private func assertDocumentScrollsAndZooms(_ pill: XCUIElement) {
@@ -380,6 +441,14 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(button.appears(within: 10))
     button.tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
+  private func waitForValue(
+    _ element: XCUIElement, matching pattern: String, timeout: TimeInterval = 5
+  ) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value MATCHES %@", pattern), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 5)

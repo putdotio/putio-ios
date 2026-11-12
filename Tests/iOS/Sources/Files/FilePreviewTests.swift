@@ -10,6 +10,7 @@ final class FilePreviewTests: XCTestCase {
   func testRoutingTableAssignsExactlyOneActionPerKind() {
     let cases: [(PutioFileKind, String)] = [
       (.video, "video"), (.audio, "audio"), (.image, "preview"), (.pdf, "preview"),
+      (.text, "preview"),
       (.other("ARCHIVE"), "unsupported"), (.other(""), "unsupported"),
     ]
     for (kind, expected) in cases {
@@ -22,7 +23,13 @@ final class FilePreviewTests: XCTestCase {
       case .audio: actual = "audio"
       case .preview(let preview):
         actual = "preview"
-        XCTAssertEqual(preview.kind, kind == .image ? .image : .pdf)
+        let expectedKind: PutioPreviewRoute.Kind =
+          switch kind {
+          case .image: .image
+          case .text: .text
+          default: .pdf
+          }
+        XCTAssertEqual(preview.kind, expectedKind)
         XCTAssertEqual(preview.parentID, PutioFileID(rawValue: 9))
       case .unsupported(let unsupported):
         actual = "unsupported"
@@ -114,6 +121,91 @@ final class FilePreviewTests: XCTestCase {
     await loaded.load()
     guard case .document(let document) = loaded.state else { return XCTFail("\(loaded.state)") }
     XCTAssertEqual(document.pageCount, 1)
+  }
+
+  func testTextOpensWithoutTheSizeCapBecauseOnlyItsStartIsFetched() {
+    let huge = PutioFileRoute(
+      item: BrowserTestFixtures.item(
+        id: 10, kind: .text, sizeBytes: PutioPreviewRoute.maximumBytes * 4))
+    guard case .preview(let route) = PutioViewerRoute(opening: huge.openAction) else {
+      return XCTFail("a large text file did not open the viewer")
+    }
+    XCTAssertEqual(route.kind, .text)
+  }
+
+  func testTextPreviewShowsTheStartAndFlagsTruncation() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    XCTAssertEqual(limit, 250_000)
+    let short = try await PutioTextPreview.decode(Data("1\r\nHi\n".utf8), limit: limit)
+    XCTAssertEqual(short, PutioTextPreview(text: "1\r\nHi\n", isTruncated: false))
+
+    let bom = try await PutioTextPreview.decode(
+      Data([0xEF, 0xBB, 0xBF] + Array("a".utf8)), limit: 8)
+    XCTAssertEqual(bom, PutioTextPreview(text: "a", isTruncated: false))
+
+    let exact = try await PutioTextPreview.decode(Data(repeating: 0x61, count: 8), limit: 8)
+    XCTAssertEqual(exact?.isTruncated, false)
+
+    let cutScalar = Data(Array("abcdef".utf8) + [0xE2, 0x80, 0x99, 0x61])
+    let truncated = try await PutioTextPreview.decode(cutScalar, limit: 8)
+    XCTAssertEqual(truncated, PutioTextPreview(text: "abcdef", isTruncated: true))
+
+    let wholeScalar = Data(Array("abcde".utf8) + [0xE2, 0x80, 0x99, 0x61])
+    let kept = try await PutioTextPreview.decode(wholeScalar, limit: 8)
+    XCTAssertEqual(kept, PutioTextPreview(text: "abcde\u{2019}", isTruncated: true))
+
+    let latin1 = try await PutioTextPreview.decode(Data([0x43, 0x61, 0x66, 0xE9]), limit: limit)
+    XCTAssertEqual(latin1, PutioTextPreview(text: "Caf\u{E9}", isTruncated: false))
+  }
+
+  func testVoiceOverCanCopyTheWholeTextPreview() throws {
+    let text = "1\n00:00:02,000 --> 00:00:05,000\nPreviously on Blue Lights.\n"
+    let container = PutioTextPreviewContainer()
+    container.show(
+      PutioTextPreview(text: text, isTruncated: false),
+      truncationNotice: PutioTextPreviewNotice(text: "", figure: ""))
+    let element = try XCTUnwrap(container.accessibilityElements?.first as? UIAccessibilityElement)
+    let copy = try XCTUnwrap(element.accessibilityCustomActions?.first)
+    UIPasteboard.general.string = ""
+
+    XCTAssertEqual(copy.actionHandler?(copy), true)
+    XCTAssertEqual(UIPasteboard.general.string, text)
+  }
+
+  func testUndecodableTextLandsOnCannotShow() async {
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 11), parentID: .root, title: "Notes.txt", kind: .text)
+    for body in [Self.pngData(), Data([0x61, 0x00, 0x62]), Data([0xFF, 0xFE, 0x61, 0x00])] {
+      let model = PutioPreviewModel(route: .preview(route)) { _ in body }
+      await model.load()
+      XCTAssertEqual(model.state, .failed(.cannotShow), "\(Array(body.prefix(4)))")
+    }
+    let loaded = PutioPreviewModel(route: .preview(route)) { _ in Data("Aye. Grand.".utf8) }
+    await loaded.load()
+    XCTAssertEqual(loaded.state, .text(PutioTextPreview(text: "Aye. Grand.", isTruncated: false)))
+  }
+
+  func testTextDownloadAsksForTheFirstBytesOnly() async throws {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [PreviewStubURLProtocol.self]
+    PreviewStubURLProtocol.ranges.removeAll()
+
+    var url = PreviewStubURLProtocol.url(status: 206, byteCount: 6)
+    let ranged = try await PutioPreviewDownloader.downloadPrefix(
+      url, byteCount: 6, configuration: configuration)
+    XCTAssertEqual(ranged.count, 6)
+
+    url = PreviewStubURLProtocol.url(status: 200, byteCount: 40, declaredLength: 40)
+    let ignored = try await PutioPreviewDownloader.downloadPrefix(
+      url, byteCount: 6, configuration: configuration)
+    XCTAssertEqual(ignored.count, 6)
+
+    url = PreviewStubURLProtocol.url(status: 416, byteCount: 0)
+    let empty = try await PutioPreviewDownloader.downloadPrefix(
+      url, byteCount: 6, configuration: configuration)
+    XCTAssertEqual(empty, Data())
+
+    XCTAssertEqual(PreviewStubURLProtocol.ranges, ["bytes=0-5", "bytes=0-5", "bytes=0-5"])
   }
 
   func testThePagePillShowsOnlyForMultiPageDocuments() {
@@ -265,7 +357,10 @@ private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
   }
   override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
+  nonisolated(unsafe) static var ranges: [String] = []
+
   override func startLoading() {
+    if let range = request.value(forHTTPHeaderField: "Range") { Self.ranges.append(range) }
     guard let url = request.url,
       let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
       let status = components.queryItems?.first(where: { $0.name == "status" })?.value.flatMap(
