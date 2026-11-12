@@ -63,7 +63,8 @@ struct AccountView: View {
       if let notice = PutioInactiveAccountNotice(account: account) {
         PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
           .listRowInsets(
-            EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0))
+            EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0)
+          )
           .listRowSeparator(.hidden)
           .listRowBackground(Color.clear)
       }
