@@ -77,9 +77,10 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(requests.value as? String, "0|")
 
     app.terminate()
-    app.launchArguments = app.launchArguments.filter {
-      $0 != "--putio-harness-download-token-missing"
-    } + ["--putio-harness-vlc-refuses-once"]
+    app.launchArguments =
+      app.launchArguments.filter {
+        $0 != "--putio-harness-download-token-missing"
+      } + ["--putio-harness-vlc-refuses-once"]
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     openInVLC(fileID: 412)
