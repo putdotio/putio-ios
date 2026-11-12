@@ -8,7 +8,7 @@ images and documents, and opens put.io links into the same screens.
 
 - `folder-header` shows each folder's item count and size, and Back keeps the
   parent's place.
-- `browse-sort` changes the folder sort from the browse menu and appends the
+- `browse-sort` changes the folder sort from the sort button and appends the
   next page on scroll.
 - `search` pages results, retries a failed page, and restores the open folder
   after a relaunch.
@@ -43,9 +43,9 @@ images and documents, and opens put.io links into the same screens.
 
 ## How to get to it (user POV)
 
-- Files tab: rows open folders and files; the `More` menu (`files.menu`) holds
-  Select, New folder, and sort. iOS 27 drops menu item identifiers; find them
-  by label.
+- Files tab: rows open folders and files; the sort button (`files.sort`) holds
+  Sort by, Order, and Videos; the `More` menu (`files.menu`) holds Select and
+  New folder. iOS 27 drops menu item identifiers; find them by label.
 - Long-press a row for its menu. Swipe right for Move; left for More,
   Download, and Trash.
 - Search tab: type a query and submit.
