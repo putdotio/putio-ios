@@ -254,13 +254,13 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue((text.value as? String ?? "").hasPrefix("1\n00:00:02,000 --> 00:00:05,000"))
     XCTAssertFalse(element("preview.text.truncated").exists, "a short file shows the end line")
     screenshot("runtime-preview-text")
-    copyFirstWord(ofLine: 2, in: text)
+    copyLine(2, in: text)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.434").disappears(within: 5))
     let pasteboard = element("harness.pasteboard")
     XCTAssertTrue(
-      waitForValue(pasteboard, "Previously"),
-      "the copied word is not on the pasteboard: \(pasteboard.value ?? "")")
+      waitForValue(pasteboard, matching: #"Previously on Blue Lights\.\n?"#),
+      "the copied line is not on the pasteboard: \(pasteboard.value ?? "")")
 
     let long = app.revealed("files.item.432")
     XCTAssertTrue(long.exists, "the long text row never appeared")
@@ -279,13 +279,16 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
   }
 
-  private func copyFirstWord(ofLine line: Int, in text: XCUIElement) {
+  private func copyLine(_ line: Int, in text: XCUIElement) {
     let bar = app.navigationBars.firstMatch.frame
     let lineHeight: CGFloat = 14 * 1.45
     let lineMidY = bar.maxY + 16 + lineHeight * (CGFloat(line) + 0.5)
-    text.coordinate(withNormalizedOffset: .zero)
-      .withOffset(CGVector(dx: 40, dy: lineMidY - text.frame.minY))
-      .doubleTap()
+    let origin = text.coordinate(withNormalizedOffset: .zero)
+    origin.withOffset(CGVector(dx: 20, dy: lineMidY - text.frame.minY))
+      .press(
+        forDuration: 0.8,
+        thenDragTo: origin.withOffset(
+          CGVector(dx: text.frame.width - 20, dy: lineMidY - text.frame.minY)))
     let menuCopy = app.menuItems["Copy"]
     let buttonCopy = app.buttons["Copy"]
     let deadline = Date.now.addingTimeInterval(5)
@@ -293,7 +296,7 @@ final class PreviewJourneyTests: XCTestCase {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
     let copy = menuCopy.exists ? menuCopy : buttonCopy
-    XCTAssertTrue(copy.exists, "selecting a word showed no Copy action")
+    XCTAssertTrue(copy.exists, "selecting a line showed no Copy action")
     copy.tap()
     XCTAssertTrue(copy.disappears(within: 5), "the Copy action stayed on screen")
     text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
@@ -438,6 +441,14 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(button.appears(within: 10))
     button.tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
+  private func waitForValue(
+    _ element: XCUIElement, matching pattern: String, timeout: TimeInterval = 5
+  ) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value MATCHES %@", pattern), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 5)

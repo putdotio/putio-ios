@@ -505,7 +505,9 @@ struct PutioPreviewView: View {
     case .text(let preview):
       PutioTextPreviewView(
         preview: preview,
-        truncationNotice: String(localized: "Showing the first \(Self.textLimitLabel).")
+        truncationNotice: PutioTextPreviewNotice(
+          text: String(localized: "Showing the first \(Self.textLimitLabel)."),
+          figure: Self.textLimitLabel)
       )
       .ignoresSafeArea(edges: .vertical)
     case .failed(.loadFailed):
@@ -658,7 +660,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
 struct PutioTextPreviewView: UIViewRepresentable {
   let preview: PutioTextPreview
-  let truncationNotice: String
+  let truncationNotice: PutioTextPreviewNotice
 
   func makeUIView(context: Context) -> PutioTextPreviewContainer {
     PutioTextPreviewContainer()
@@ -669,11 +671,26 @@ struct PutioTextPreviewView: UIViewRepresentable {
   }
 }
 
+struct PutioTextPreviewNotice: Equatable {
+  let text: String
+  let figure: String
+
+  func attributed(font: UIFont, figureFont: UIFont, color: UIColor) -> NSAttributedString {
+    let attributed = NSMutableAttributedString(
+      string: text, attributes: [.font: font, .foregroundColor: color])
+    if let range = text.range(of: figure) {
+      attributed.addAttribute(.font, value: figureFont, range: NSRange(range, in: text))
+    }
+    return attributed
+  }
+}
+
 final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   private let textView = UITextView(usingTextLayoutManager: true)
   private let notice = UILabel()
   private lazy var textElement = PutioVisibleTextElement(container: self, textView: textView)
   private var shown: PutioTextPreview?
+  private var shownNotice: PutioTextPreviewNotice?
 
   private static let inset = PutioTheme.Spacing.space3
   private static let noticeSpacing = PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2
@@ -692,7 +709,6 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     textView.textContainer.lineFragmentPadding = 0
     addSubview(textView)
     notice.numberOfLines = 0
-    notice.textColor = UIColor(PutioTheme.Colors.textSecondary)
     notice.accessibilityIdentifier = "preview.text.truncated"
     notice.isHidden = true
     addSubview(notice)
@@ -705,12 +721,12 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   @available(*, unavailable)
   required init?(coder: NSCoder) { nil }
 
-  func show(_ preview: PutioTextPreview, truncationNotice: String) {
-    notice.text = truncationNotice
+  func show(_ preview: PutioTextPreview, truncationNotice: PutioTextPreviewNotice) {
     notice.isHidden = !preview.isTruncated
     accessibilityElements = preview.isTruncated ? [textElement, notice] : [textElement]
-    guard preview != shown else { return }
+    guard preview != shown || truncationNotice != shownNotice else { return }
     shown = preview
+    shownNotice = truncationNotice
     restyle()
   }
 
@@ -727,10 +743,14 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
         .font: mono.font, .paragraphStyle: paragraph,
         .foregroundColor: UIColor(PutioTheme.Colors.textPrimary),
       ])
-    notice.font =
-      PutioTheme.Typography.caption.scaledUIFont(
-        compatibleWith: traitCollection, fallback: UIFont.systemFont(ofSize:weight:)
-      ).font
+    if let shownNotice {
+      notice.attributedText = shownNotice.attributed(
+        font: PutioTheme.Typography.caption.scaledUIFont(
+          compatibleWith: traitCollection, fallback: UIFont.systemFont(ofSize:weight:)
+        ).font,
+        figureFont: mono.font,
+        color: UIColor(PutioTheme.Colors.textSecondary))
+    }
     setNeedsLayout()
   }
 
