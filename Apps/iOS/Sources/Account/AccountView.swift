@@ -13,6 +13,7 @@ struct AccountView: View {
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.openURL) private var openURL
+  @Environment(\.locale) private var locale
   @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
   @State private var confirmsSignOut = false
@@ -61,7 +62,7 @@ struct AccountView: View {
     List {
       if let notice = PutioInactiveAccountNotice(account: account) {
         Section {
-          PutioInactiveAccountNoticeView(notice: notice)
+          PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         }
@@ -189,9 +190,9 @@ struct AccountView: View {
           }
         }
         ProgressView(value: account.storage.usedFraction)
-          .tint(account.storage.isFull ? PutioTheme.Colors.destructive : PutioTheme.Colors.accent)
+          .tint(showsStorageFull ? PutioTheme.Colors.destructive : PutioTheme.Colors.accent)
           .accessibilityHidden(true)
-        if account.storage.isFull {
+        if showsStorageFull {
           Text(PutioAccountSnapshot.Storage.fullMessage)
             .putioFont(PutioTheme.Typography.caption)
             .foregroundStyle(PutioTheme.Colors.destructive)
@@ -221,7 +222,7 @@ struct AccountView: View {
   }
 
   private var storageUsage: some View {
-    Text(account.storage.statusSummary())
+    Text(account.storage.statusSummary(locale: locale))
       .putioFont(PutioTheme.Typography.numeric)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityIdentifier("account.storage-used")
@@ -379,6 +380,10 @@ struct AccountView: View {
       }
       .accessibilityIdentifier("account.contact-support")
     }
+  }
+
+  private var showsStorageFull: Bool {
+    account.storage.isFull && !runtime.session.isAccountStorageStale
   }
 
   private var settingsLocked: Bool { preferences.isBusy || preferences.isStale }

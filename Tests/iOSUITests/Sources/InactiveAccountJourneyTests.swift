@@ -43,11 +43,13 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(notice.appears(within: 10), "the notice did not return with the root")
 
     openAccount()
-    XCTAssertTrue(notice.appears(within: 10), "Account has no inactive notice")
+    let accountNotice = element("account.status-notice")
+    XCTAssertTrue(accountNotice.appears(within: 10), "Account has no inactive notice")
     XCTAssertTrue(
-      notice.label.contains("scheduled to be deleted in 12 days."),
-      "Account notice message: \(notice.label)")
-    XCTAssertFalse(notice.buttons.firstMatch.exists, "the Account notice offers an action")
+      accountNotice.label.contains("scheduled to be deleted in 12 days."),
+      "Account notice message: \(accountNotice.label)")
+    XCTAssertFalse(
+      accountNotice.buttons.firstMatch.exists, "the Account notice offers an action")
     XCTAssertTrue(element("account.storage-used").exists, "the notice blocked Account")
     addScreenshot(named: "runtime-inactive-account-tab")
 
@@ -58,7 +60,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.wait(for: .runningForeground, timeout: 10), "the app never returned")
     XCTAssertTrue(
-      notice.disappears(within: 10), "renewing did not clear the Account notice on return")
+      accountNotice.disappears(within: 10), "renewing did not clear the Account notice on return")
     XCTAssertTrue(element("account.storage-used").exists)
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.item.410").appears(within: 10))
@@ -79,11 +81,13 @@ final class InactiveAccountJourneyTests: XCTestCase {
       "notice: \(notice.label)")
     XCTAssertFalse(notice.label.contains("deleted"), "the family notice names a deletion date")
     openAccount()
-    XCTAssertTrue(notice.appears(within: 10), "Account has no family plan notice")
+    let accountNotice = element("account.status-notice")
+    XCTAssertTrue(accountNotice.appears(within: 10), "Account has no family plan notice")
     XCTAssertTrue(
-      notice.label.contains("Your family plan is no longer active."),
-      "Account notice: \(notice.label)")
-    XCTAssertFalse(notice.label.contains("deleted"), "the Account family notice names a date")
+      accountNotice.label.contains("Your family plan is no longer active."),
+      "Account notice: \(accountNotice.label)")
+    XCTAssertFalse(
+      accountNotice.label.contains("deleted"), "the Account family notice names a date")
     signOut()
   }
 
@@ -91,9 +95,12 @@ final class InactiveAccountJourneyTests: XCTestCase {
     app.launchArguments += ["--putio-harness-account-inactive", "owner-no-date"]
     app.launch()
     signIn()
+    let filesNotice = element("account.inactive-notice")
+    XCTAssertTrue(filesNotice.appears(within: 10), "the inactive owner has no Files notice")
+    XCTAssertFalse(filesNotice.label.contains("deleted"), "the Files notice names a date")
     openAccount()
 
-    let notice = element("account.inactive-notice")
+    let notice = element("account.status-notice")
     XCTAssertTrue(notice.appears(within: 10), "the inactive owner has no Account notice")
     XCTAssertTrue(
       notice.label.contains("Your account has been deactivated"), "notice: \(notice.label)")
@@ -113,7 +120,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertFalse(
       element("account.storage-used").label.hasSuffix("used"), "full storage still reads used")
     XCTAssertFalse(
-      element("account.inactive-notice").exists, "an active full account sees a notice")
+      element("account.status-notice").exists, "an active full account sees a notice")
     addScreenshot(named: "runtime-storage-full")
     signOut()
   }
@@ -124,7 +131,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.410").appears(within: 10))
     XCTAssertFalse(element("account.inactive-notice").exists, "an active account sees a notice")
     openAccount()
-    XCTAssertFalse(element("account.inactive-notice").exists, "Account shows an active notice")
+    XCTAssertFalse(element("account.status-notice").exists, "Account shows an active notice")
     XCTAssertFalse(element("account.storage-full").exists, "Account calls free storage full")
     signOut()
   }

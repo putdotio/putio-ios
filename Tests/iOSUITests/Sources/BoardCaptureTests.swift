@@ -569,7 +569,7 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments += ["--putio-harness-account-inactive", account]
     openAccount()
     XCTAssertTrue(
-      element("account.inactive-notice").appears(within: 10), "Account has no \(account) notice")
+      element("account.status-notice").appears(within: 10), "Account has no \(account) notice")
     try captureBoard("rd-ios-acc-29-inactive")
   }
 

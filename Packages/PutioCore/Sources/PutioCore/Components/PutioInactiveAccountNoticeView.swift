@@ -4,11 +4,16 @@
   public struct PutioInactiveAccountNoticeView: View {
     private let notice: PutioInactiveAccountNotice
     private let now: Date
+    private let identifier: String
     @PutioScaledMetric private var iconSize: CGFloat
 
-    public init(notice: PutioInactiveAccountNotice, now: Date = .now) {
+    public init(
+      notice: PutioInactiveAccountNotice, now: Date = .now,
+      identifier: String = "account.inactive-notice"
+    ) {
       self.notice = notice
       self.now = now
+      self.identifier = identifier
       _iconSize = PutioScaledMetric(PutioInactiveAccountNoticeLayout.iconSize)
     }
 
@@ -42,7 +47,7 @@
           cornerRadius: PutioScreenStateLayout.bannerCornerRadius, style: .continuous)
       )
       .accessibilityElement(children: .combine)
-      .accessibilityIdentifier("account.inactive-notice")
+      .accessibilityIdentifier(identifier)
     }
 
     static func message(days: Int) -> AttributedString {
