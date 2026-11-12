@@ -445,6 +445,30 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-01-image")
   }
 
+  func testPreviewPosition() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let first = element("files.item.471")
+    XCTAssertTrue(first.appears(within: 10), "the gallery never loaded")
+    first.tap()
+    let position = element("preview.position")
+    XCTAssertTrue(position.appears(within: 10), "the gallery image shows no position")
+    for _ in 0..<2 { app.swipeLeft() }
+    let deadline = Date.now.addingTimeInterval(10)
+    while position.label != "3 of 4", Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    XCTAssertEqual(position.label, "3 of 4", "the preview did not page to the third image")
+    XCTAssertTrue(
+      app.images["Gallery 3.png"].appears(within: 10), "the third image did not settle")
+    try captureBoard("rd-ios-pv-09-position")
+  }
+
   func testPreviewLandscapeImage() throws {
     XCUIDevice.shared.orientation = .portrait
     openPosterPreview()
@@ -802,7 +826,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func reachFilesRoot() {
     let root = element("files.screen.0")
-    let folderScreens = ["files.screen.410", "files.screen.440"].map(element)
+    let folderScreens = ["files.screen.410", "files.screen.440", "files.screen.470"].map(element)
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
     while !root.exists, !signIn.exists, !folderScreens.contains(where: \.exists),

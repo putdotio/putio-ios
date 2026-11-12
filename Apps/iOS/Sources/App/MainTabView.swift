@@ -59,7 +59,8 @@ struct MainTabView: View {
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
-  @State private var presentedPreviewRoute: PutioViewerRoute?
+  @State private var presentedPreview: PutioPreviewPresentation?
+  @State private var previewOpener = PutioPreviewOpener()
   #if DEBUG
     @State private var harnessPreviewRequests = HarnessPreviewRequests()
   #endif
@@ -172,13 +173,15 @@ struct MainTabView: View {
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
-      if let route = presentedPreviewRoute {
+      if let preview = presentedPreview {
         PutioPreviewView(
-          route: route,
+          route: preview.route,
+          file: preview.file,
+          source: preview.source,
           download: { preview, extent in try await downloadPreview(preview, extent) },
-          onDismiss: { presentedPreviewRoute = nil }
+          onDismiss: { presentedPreview = nil }
         )
-        .id(route.id)
+        .id(preview.id)
         .accessibilityAddTraits(.isModal)
       }
     }
@@ -277,7 +280,7 @@ struct MainTabView: View {
       deepLinks.consumeDestination()
       dismissPresentedVideo()
       audioPlayback.isPresented = false
-      presentedPreviewRoute = nil
+      presentedPreview = nil
       trackPicker = nil
       switch destination {
       case .files(let path, let file):
@@ -343,7 +346,7 @@ struct MainTabView: View {
     analyticsPrompt = PutioProductAnalyticsPromptModel(actions: .init(runtime: runtime))
   }
 
-  private func selectFile(_ route: PutioFileRoute) {
+  private func selectFile(_ route: PutioFileRoute, in source: PutioPreviewSource? = nil) {
     selectedFileRoute = route
     switch route.openAction {
     case .video(let videoRoute):
@@ -356,7 +359,9 @@ struct MainTabView: View {
     case .audio(let audioRoute):
       presentAudio(audioRoute)
     case .preview, .unsupported:
-      presentedPreviewRoute = PutioViewerRoute(opening: route.openAction)
+      presentedPreview = PutioViewerRoute(opening: route.openAction).map {
+        PutioPreviewPresentation(route: $0, file: route, source: source)
+      }
     }
   }
 
@@ -565,6 +570,8 @@ struct MainTabView: View {
       castButton: { AnyView(PutioCastButton(model: cast)) },
       accountNotice: PutioInactiveAccountNotice(account: account)
     )
+    .environment(\.putioPreviewOpener, previewOpener)
+    .onAppear { previewOpener.open = { route, source in selectFile(route, in: source) } }
   }
 
   private func videoPlayer(for route: PutioVideoRoute) -> some View {

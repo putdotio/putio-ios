@@ -842,10 +842,11 @@ import Foundation
     // The root's second page holds one archive so the browser proves cursor
     // continuation without changing the first-page rows the journeys pin.
     private static func continueFiles(request: URLRequest) -> (Int, String) {
-      guard
-        let payload = requestPayload(request),
-        payload["cursor"] as? String == rootContinuationCursor
-      else {
+      let cursor = requestPayload(request)?["cursor"] as? String
+      if usesPreviews, cursor == galleryContinuationCursor {
+        return (200, "{\"files\":[\(galleryRows(gallerySecondPage))]}")
+      }
+      guard cursor == rootContinuationCursor else {
         return (
           400,
           fixtureError(
@@ -1083,6 +1084,9 @@ import Foundation
           """
         )
       }
+      if query == "gallery", usesPreviews {
+        return (200, "{\"total\":4,\"files\":[\(galleryRows(galleryFirstPage))]}")
+      }
       guard query == "harness" || query == "retry" else {
         return (200, #"{"total":0,"files":[]}"#)
       }
@@ -1168,7 +1172,7 @@ import Foundation
         )
       }
       if request.httpMethod == "GET", let fileID = dynamicFileID(from: url.path),
-        let response = actionFolderResponse(fileID: fileID)
+        let response = actionFolderResponse(fileID: fileID) ?? galleryFile(id: fileID)
       {
         return response
       }
@@ -1728,13 +1732,15 @@ import Foundation
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
 
-    private static func previewObject(id: Int, name: String, type: String, size: Int) -> String {
+    private static func previewObject(
+      id: Int, name: String, type: String, size: Int, parentID: Int = 0
+    ) -> String {
       """
       {
         "id": \(id),
         "name": \(jsonString(name)),
         "file_type": \(jsonString(type)),
-        "parent_id": 0,
+        "parent_id": \(parentID),
         "size": \(size),
         "created_at": "2026-08-28T10:00:00Z",
         "updated_at": "2026-08-29T10:00:00Z"
@@ -1744,6 +1750,48 @@ import Foundation
 
     private static func previewFile(id: Int, name: String, type: String, size: Int) -> String {
       #"{"status":"OK","file":"# + previewObject(id: id, name: name, type: type, size: size) + "}"
+    }
+
+    static let galleryFolderID = 470
+    static let galleryContinuationCursor = "gallery-page-2"
+    private static let galleryFirstPage: [(id: Int, name: String, type: String)] = [
+      (471, "Gallery 1.png", "IMAGE"),
+      (472, "Gallery Clip.mkv", "VIDEO"),
+      (473, "Gallery 2.png", "IMAGE"),
+      (474, "Gallery 3.png", "IMAGE"),
+    ]
+    private static let gallerySecondPage: [(id: Int, name: String, type: String)] = [
+      (475, "Gallery 4.png", "IMAGE")
+    ]
+
+    private static func galleryRows(_ page: [(id: Int, name: String, type: String)]) -> String {
+      page.map {
+        previewObject(
+          id: $0.id, name: $0.name, type: $0.type, size: 1856, parentID: galleryFolderID)
+      }
+      .joined(separator: ",")
+    }
+
+    private static var galleryFiles: String {
+      """
+      {"cursor":\(jsonString(galleryContinuationCursor)),
+      "parent":\(folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0)),
+      "files":[\(galleryRows(galleryFirstPage))],
+      "total":\(galleryFirstPage.count + gallerySecondPage.count)}
+      """
+    }
+
+    private static func galleryFile(id: Int) -> (Int, String)? {
+      guard usesPreviews,
+        let file = (galleryFirstPage + gallerySecondPage).first(where: { $0.id == id })
+      else { return nil }
+      return (
+        200,
+        #"{"status":"OK","file":"#
+          + previewObject(
+            id: file.id, name: file.name, type: file.type, size: 1856, parentID: galleryFolderID)
+          + "}"
+      )
     }
 
     private static func audioObject(id: Int, name: String) -> String {
@@ -1819,6 +1867,8 @@ import Foundation
         return (200, nestedFiles)
       case seasonFolderID where seasonFolderSeeded:
         return (200, seasonFiles)
+      case galleryFolderID where usesPreviews:
+        return (200, galleryFiles)
       case tvEmptyFolderID where usesTVBrowse:
         return (
           200,
@@ -2572,6 +2622,7 @@ import Foundation
             previewObject(id: longTextFileID, name: longTextName, type: "TEXT", size: 312_022),
             previewObject(id: binaryTextFileID, name: binaryTextName, type: "TEXT", size: 1856),
             previewObject(id: shortTextFileID, name: shortTextName, type: "TEXT", size: 152),
+            folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0),
           ]
           : [])
       if folderDeleted { rows.removeFirst() }

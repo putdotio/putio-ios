@@ -168,6 +168,17 @@
         }
       }
     },
+    "%lld of %lld or more" : {
+      "comment" : "android: mobile_viewer_position_more",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld of %lld or more"
+          }
+        }
+      }
+    },
     "A file or folder named “%@” already exists there. Choose another folder." : {
       "comment" : "android: mobile_files_move_collision",
       "localizations" : {
