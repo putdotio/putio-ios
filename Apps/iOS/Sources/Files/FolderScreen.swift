@@ -489,7 +489,8 @@ struct PutioFolderScreen: View {
       return PutioItemAction(
         id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,
         isDisabled: !model.canDelete || actionRequest != nil,
-        subtitle: model.trashSettingKnown ? nil : PutioFileDeletionCopy.settingUnknown
+        subtitle: model.trashSettingKnown ? nil : PutioFileDeletionCopy.settingUnknown,
+        asksFirst: !trashEnabled
       ) { requestDeletion(of: item) }
     }
   }

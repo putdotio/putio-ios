@@ -1353,8 +1353,10 @@ import Foundation
         }
       case "POST /v2/account/settings" where requestPayload(request)?["two_factor_enabled"] != nil:
         return setTwoFactor(request: request)
-      case "POST /v2/account/settings":
+      case "POST /v2/account/settings" where settingsStayUnconfirmed:
         fileActionsLock.withLock { settingsSaved = true }
+        return (200, #"{"status":"OK"}"#)
+      case "POST /v2/account/settings":
         return updateFilePreferences(request: request)
       case "POST /v2/two_factor/generate/totp":
         return securityFixture {
