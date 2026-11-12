@@ -351,7 +351,7 @@ final class PutioPreviewModel {
       bytes = try await download(route, .whole)
     }
     try Task.checkCancellation()
-    let file = shareDirectory.appending(path: Self.shareFileName(title))
+    let file = shareDirectory.appending(path: PutioSharedFile.fileName(title))
     try await Self.write(bytes, to: file)
     guard request == shareGeneration else {
       try? FileManager.default.removeItem(at: file)
@@ -361,11 +361,6 @@ final class PutioPreviewModel {
     }
     sharedFile = file
     return file
-  }
-
-  static func shareFileName(_ title: String) -> String {
-    let name = title.replacing("/", with: ":")
-    return name.isEmpty || name == "." || name == ".." ? "file" : name
   }
 
   @concurrent

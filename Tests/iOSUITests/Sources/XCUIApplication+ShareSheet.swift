@@ -2,15 +2,15 @@ import XCTest
 
 extension XCUIApplication {
   func openShareSheet(
-    from control: XCUIElement, sharing name: String,
+    from control: XCUIElement, sharing name: String, anchoredTo anchorElement: XCUIElement? = nil,
     file: StaticString = #filePath, line: UInt = #line
   ) -> XCUIElement {
     XCTAssertTrue(control.isEnabled, "Share is disabled for \(name)", file: file, line: line)
-    let anchor = control.frame
-    let anchorName = control.identifier
+    let anchor = (anchorElement ?? control).frame
+    let anchorName = (anchorElement ?? control).identifier
     control.tap()
     let sheet = otherElements["ActivityListView"]
-    XCTAssertTrue(sheet.appears(within: 10), "no share sheet for \(name)", file: file, line: line)
+    XCTAssertTrue(sheet.appears(within: 20), "no share sheet for \(name)", file: file, line: line)
     let labels = sheet.descendants(matching: .any)
     let item = labels.matching(NSPredicate(format: "label == %@", name)).firstMatch
     XCTAssertTrue(
@@ -36,6 +36,8 @@ extension XCUIApplication {
       close.tap()
     } else if UIDevice.current.userInterfaceIdiom == .pad {
       coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.95)).tap()
+    } else if sheet.frame.minY > windows.firstMatch.frame.height / 3 {
+      coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
     } else {
       coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
     }

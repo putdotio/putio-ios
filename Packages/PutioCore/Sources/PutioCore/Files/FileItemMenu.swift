@@ -4,6 +4,7 @@ public enum PutioFileMenuRow: String, Equatable, Sendable {
   case play
   case download
   case openInVLC
+  case share
   case select
   case markWatched
   case markUnwatched
@@ -18,18 +19,23 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var canDownload: Bool
     public var vlcInstalled: Bool
     public var tracksWatched: Bool
+    public var canShare: Bool
 
-    public init(canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool) {
+    public init(
+      canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
+      canShare: Bool = false
+    ) {
       self.canEdit = canEdit
       self.canDownload = canDownload
       self.vlcInstalled = vlcInstalled
       self.tracksWatched = tracksWatched
+      self.canShare = canShare
     }
   }
 
   public let sections: [[PutioFileMenuRow]]
 
-  public init(item: PutioFileItem, capabilities: Capabilities) {
+  public init(item: PutioFileItem, capabilities: Capabilities, isDownloaded: Bool = false) {
     let route = item.kind == .folder ? nil : PutioFileRoute(item: item)
     var playback: [PutioFileMenuRow] = []
     if let route, route.isPlayable {
@@ -38,6 +44,9 @@ public struct PutioFileMenu: Equatable, Sendable {
       if capabilities.vlcInstalled, route.supportsExternalPlayback {
         playback.append(.openInVLC)
       }
+    }
+    if capabilities.canShare, PutioFileShareSource(item: item, isDownloaded: isDownloaded) != nil {
+      playback.append(.share)
     }
     var organize: [PutioFileMenuRow] = []
     var edit: [PutioFileMenuRow] = []

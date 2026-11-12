@@ -94,11 +94,39 @@ final class FileMenuTests: XCTestCase {
     PutioFileSelectionMenu(selected: items, canDownload: true, tracksWatched: true).actions
   }
 
-  private func item(_ kind: PutioFileKind, resume: Int = 0, shared: Bool = false)
-    -> PutioFileItem
-  {
+  func testShareFollowsDownloadForFilesUnderThePreviewCap() {
+    let sharing = PutioFileMenu.Capabilities(
+      canEdit: true, canDownload: true, vlcInstalled: false, tracksWatched: false,
+      canShare: true)
+    let cap = PutioPreviewRoute.maximumBytes
+    func rows(_ kind: PutioFileKind, size: Int64 = 1, downloaded: Bool = false)
+      -> [PutioFileMenuRow]
+    {
+      PutioFileMenu(
+        item: item(kind, size: size), capabilities: sharing, isDownloaded: downloaded
+      ).sections.first ?? []
+    }
+    XCTAssertEqual(rows(.image), [.share])
+    XCTAssertEqual(rows(.pdf, size: cap), [.share])
+    XCTAssertEqual(rows(.text), [.share])
+    XCTAssertEqual(rows(.video, downloaded: true), [.play, .download, .share])
+    XCTAssertEqual(rows(.audio, downloaded: true), [.play, .download, .share])
+    XCTAssertEqual(rows(.video), [.play, .download])
+    XCTAssertEqual(rows(.audio), [.play, .download])
+    XCTAssertEqual(rows(.image, size: cap + 1), [.select])
+    XCTAssertEqual(rows(.video, size: cap + 1, downloaded: true), [.play, .download])
+    XCTAssertEqual(rows(.other("iso")), [.select])
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.folder), capabilities: sharing, isDownloaded: true)
+        .contains(.share))
+    XCTAssertFalse(PutioFileMenu(item: item(.image), capabilities: everything).contains(.share))
+  }
+
+  private func item(
+    _ kind: PutioFileKind, resume: Int = 0, shared: Bool = false, size: Int64 = 1
+  ) -> PutioFileItem {
     PutioFileItem(
-      id: PutioFileID(rawValue: 7), parentID: .root, name: "Item", kind: kind, sizeBytes: 1,
+      id: PutioFileID(rawValue: 7), parentID: .root, name: "Item", kind: kind, sizeBytes: size,
       createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: resume,
       isShared: shared)
   }
