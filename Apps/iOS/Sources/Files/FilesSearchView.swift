@@ -113,7 +113,6 @@ struct FilesSearchView: View {
         .onDisappear { share.leave() }
         .putioToast($toast)
     }
-    .environment(\.putioPinnedFiles, PutioPinnedFilesContext(model: pins) {})
   }
 
   private var filterBar: some View {
