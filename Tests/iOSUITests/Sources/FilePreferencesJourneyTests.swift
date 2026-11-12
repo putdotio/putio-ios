@@ -56,7 +56,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
     let resetAlert = app.alerts["Reset all folder sorts?"]
-    let resetConfirm = resetAlert.buttons["Reset folder sorts"]
+    let resetConfirm = resetAlert.buttons["Reset folder sorts"].firstMatch
     XCTAssertTrue(resetConfirm.appears(within: 5))
     XCTAssertTrue(
       resetAlert.staticTexts["Every folder will use your account’s default sort."].exists)
@@ -92,7 +92,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let trash = app.switches["settings.trash"]
     let history = app.switches["settings.history"]
     let trashAlert = app.alerts["Turn off trash?"]
-    let trashConfirm = trashAlert.buttons["Turn off"]
+    let trashConfirm = trashAlert.buttons["Turn off"].firstMatch
     let historyConfirm = app.buttons["settings.history-disable"].firstMatch
     XCTAssertTrue(waitUntilHittable(trash))
     tapToggle(trash)
