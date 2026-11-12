@@ -46,8 +46,6 @@ public struct PutioFileMenu: Equatable, Sendable {
 
   public let sections: [[PutioFileMenuRow]]
 
-  /// A shared folder offers nothing: put.io cannot copy the shared root or a
-  /// friend's folder, and a guest cannot change anything inside one.
   public init(item: PutioFileItem, capabilities: Capabilities, isDownloaded: Bool = false) {
     guard !(item.isShared && item.kind == .folder) else {
       sections = []

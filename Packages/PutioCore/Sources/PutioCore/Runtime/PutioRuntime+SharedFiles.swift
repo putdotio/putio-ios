@@ -1,11 +1,9 @@
 import Foundation
 import PutioSDK
 
-/// Why put.io refused to start a copy of a shared file.
 public enum PutioSharedFileCopyRefusal: Error, Equatable, Sendable {
   case concurrentLimit
   case tooManyFiles
-  /// put.io answered and declined, so the copy did not start.
   case rejected
 }
 
@@ -16,8 +14,6 @@ public enum PutioSharedFileCopyProgress: Equatable, Sendable {
 }
 
 extension PutioRuntime {
-  /// Starts copying a file shared with this account into `parentID` and
-  /// returns the copy's id for `sharedFileCopyProgress(copyID:)`.
   public func copySharedFile(fileID: PutioFileID, to parentID: PutioFileID) async throws -> Int {
     enum Start {
       case started(Int)

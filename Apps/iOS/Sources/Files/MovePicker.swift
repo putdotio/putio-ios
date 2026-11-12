@@ -46,7 +46,6 @@ enum PutioSharedFileCopyMessage {
   }
 }
 
-/// What the folder picker does with the items it was opened for.
 enum PutioFolderPickerPurpose: Equatable {
   case move
   case copy

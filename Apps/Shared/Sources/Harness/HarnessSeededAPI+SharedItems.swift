@@ -1,11 +1,6 @@
 import Foundation
 
 #if DEBUG
-  /// `--putio-harness-shared-items` adds "Items shared with you" to the root,
-  /// with two friends' folders and three items inside the first. Each copy
-  /// request takes the next answer from `--putio-harness-copy-results`, a
-  /// comma list of `done`, `unconfirmed`, `concurrent`, and `too-many`; once
-  /// the list runs out, copies finish.
   extension HarnessSeededAPI {
     static let sharedRootID = 520
     static let sharedFriendID = 521
@@ -72,10 +67,12 @@ import Foundation
               id: sharedImageID, name: "poster.jpg", type: "IMAGE", size: 2_400_000),
           ])
       case sharedSecondFriendID, sharedHolidayFolderID:
-        let name = parentID == sharedSecondFriendID ? "selin" : "Holiday 2026"
+        let isFriend = parentID == sharedSecondFriendID
         return listing(
           parent: sharedFolderObject(
-            id: parentID, name: name, parentID: sharedFriendID, type: "REGULAR", size: 0),
+            id: parentID, name: isFriend ? "selin" : "Holiday 2026",
+            parentID: isFriend ? sharedRootID : sharedFriendID,
+            type: isFriend ? "SHARED_FRIEND" : "REGULAR", size: 0),
           rows: [])
       default:
         return nil
@@ -135,8 +132,6 @@ import Foundation
       }
     }
 
-    /// A confirming copy reports PROCESSING twice, long enough to see that a
-    /// second copy cannot start, then DONE.
     private static func copyStatus(_ copyID: Int) -> (Int, String) {
       sharedLock.withLock {
         guard var copy = copies[copyID] else {

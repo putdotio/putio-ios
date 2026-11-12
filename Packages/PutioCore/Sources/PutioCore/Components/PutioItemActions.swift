@@ -153,7 +153,6 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
   }
 
   extension View {
-    /// `preview` replaces the lifted row while the long-press menu is open.
     public func putioItemActions(
       _ menu: PutioItemMenu,
       leading: [PutioItemAction] = [],

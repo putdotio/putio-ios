@@ -4,7 +4,6 @@ import Observation
 public enum PutioSharedFileCopyOutcome: Equatable, Sendable {
   case copied
   case failed
-  /// The copy may have started, but no answer said it finished.
   case unconfirmed
   case concurrentLimit
   case tooManyFiles
@@ -15,21 +14,15 @@ public struct PutioSharedFileCopyResult: Equatable, Sendable {
   public let destination: PutioFolderRoute
   public let outcome: PutioSharedFileCopyOutcome
 
-  /// The copy may have landed, so the destination's listing is stale.
   public var mayHaveLanded: Bool {
     outcome == .copied || outcome == .unconfirmed
   }
 }
 
-/// Copies one shared file into the user's own folder, then checks put.io
-/// until the copy settles, as the Android app does. One copy runs at a time.
-/// Cancelling the caller stops the checks; a started copy keeps running on
-/// put.io.
 @MainActor
 @Observable
 public final class PutioSharedFileCopyModel {
   public static let checkInterval = Duration.milliseconds(1_500)
-  /// About five minutes of checks, as on Android.
   public static let maxChecks = 200
 
   public private(set) var isRunning = false
@@ -46,8 +39,6 @@ public final class PutioSharedFileCopyModel {
     self.sleep = sleep
   }
 
-  /// Returns `nil` when a copy is already running or the caller went away
-  /// before the copy settled.
   public func copy(
     _ item: PutioFileItem, to destination: PutioFolderRoute
   ) async -> PutioSharedFileCopyResult? {
@@ -64,8 +55,6 @@ public final class PutioSharedFileCopyModel {
     _ item: PutioFileItem, in destination: PutioFolderRoute
   ) async -> PutioSharedFileCopyOutcome? {
     let start = actions.copySharedFile
-    // Unstructured, so leaving the screen never abandons a request put.io
-    // may already be applying.
     let started = await Task { @MainActor in
       try await start(item.id, destination.id)
     }.result

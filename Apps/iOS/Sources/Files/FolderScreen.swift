@@ -558,7 +558,6 @@ struct PutioFolderScreen: View {
     }
   }
 
-  /// A shared file names the friend who shared it while its menu is open.
   private func sharedPreview(_ presentation: PutioBrowserItemPresentation) -> AnyView? {
     guard presentation.item.isShared, let sharedBy = route.sharedBy else { return nil }
     let row = presentation.row
@@ -566,7 +565,9 @@ struct PutioFolderScreen: View {
       PutioFileRow(
         PutioFileRowModel(
           name: row.name, kind: row.kind, sizeText: row.sizeText,
-          dateText: String(localized: "Shared by \(sharedBy)"), isWatched: row.isWatched)
+          dateText: String(localized: "Shared by \(sharedBy)"), secondaryText: row.secondaryText,
+          isOnDevice: row.isOnDevice, isWatched: row.isWatched,
+          showsDisclosure: row.showsDisclosure, downloadState: row.downloadState)
       )
       .padding(.horizontal, PutioTheme.Spacing.space3)
       .padding(.vertical, PutioTheme.Spacing.space2)
@@ -678,9 +679,12 @@ struct PutioFolderScreen: View {
   }
 
   private func startCopy(_ item: PutioFileItem, to destination: PutioFolderRoute) {
-    guard let copyModel, !copyModel.isRunning else { return }
+    guard let copyModel else { return }
     copyTask = Task {
-      guard let result = await copyModel.copy(item, to: destination) else { return }
+      guard let result = await copyModel.copy(item, to: destination) else {
+        if Task.isCancelled { refreshRequests.request(folderID: destination.id) }
+        return
+      }
       if result.mayHaveLanded { refreshRequests.request(folderID: destination.id) }
       toast = PutioToast(PutioSharedFileCopyMessage.text(for: result))
     }

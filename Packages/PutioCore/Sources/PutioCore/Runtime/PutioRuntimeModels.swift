@@ -189,7 +189,6 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
   /// put.io's `is_shared`, or the "items shared with you" root: the file
   /// reaches this account through another account's share.
   public let isShared: Bool
-  /// The "items shared with you" folder, which holds one folder per friend.
   public let isSharedRoot: Bool
 
   public var isWatched: Bool {
