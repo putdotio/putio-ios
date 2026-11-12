@@ -295,6 +295,8 @@ final class PreviewJourneyTests: XCTestCase {
     let copy = menuCopy.exists ? menuCopy : buttonCopy
     XCTAssertTrue(copy.exists, "selecting a word showed no Copy action")
     copy.tap()
+    XCTAssertTrue(copy.disappears(within: 5), "the Copy action stayed on screen")
+    text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).tap()
   }
 
   private func assertDocumentScrollsAndZooms(_ pill: XCUIElement) {
