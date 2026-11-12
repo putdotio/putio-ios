@@ -122,8 +122,7 @@ struct MainTabView: View {
             appConfig: appConfig,
             showsLinkDevice: $showsLinkDevice,
             linkDeviceCode: linkDeviceCode,
-            downloadedBytes: offlineQueue.items.isEmpty ? nil : offlineQueue.storedBytes,
-            removeDownloads: { offlineQueue.purgeAccountStorage() },
+            downloads: offlineQueue,
             onDataCleared: { categories, committed in
               if !categories.isDisjoint(with: [.files, .trash]) {
                 folderRefreshRequests.requestAllLoadedFolders()

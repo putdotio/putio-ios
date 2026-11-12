@@ -49,27 +49,47 @@ public enum PutioSettingValueStyle: Sendable {
 
 public struct PutioSettingsSection<Content: View>: View {
   private let title: String?
+  private let footer: String?
   private let content: Content
 
-  public init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
+  public init(
+    _ title: String? = nil, footer: String? = nil, @ViewBuilder content: () -> Content
+  ) {
     self.title = title
+    self.footer = footer
     self.content = content()
   }
 
   public var body: some View {
     Group(subviews: content) { rows in
       if !rows.isEmpty {
-        Section {
-          content
-        } header: {
-          if let title {
-            Text(title)
+        if let footer {
+          Section {
+            content
+          } header: {
+            header
+          } footer: {
+            Text(footer)
               .putioFont(PutioFormLayout.labelFont)
               .foregroundStyle(PutioTheme.Colors.textSecondary)
-              .textCase(nil)
+          }
+        } else {
+          Section {
+            content
+          } header: {
+            header
           }
         }
       }
+    }
+  }
+
+  @ViewBuilder private var header: some View {
+    if let title {
+      Text(title)
+        .putioFont(PutioFormLayout.labelFont)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .textCase(nil)
     }
   }
 }
@@ -105,6 +125,32 @@ public struct PutioNavigationRow<Destination: View>: View {
       PutioSettingsValueLayout(
         title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
     }
+  }
+}
+
+public struct PutioValueRow: View {
+  private let title: String
+  private let icon: PutioIcon?
+  private let value: String
+  private let valueStyle: PutioSettingValueStyle
+
+  public init(
+    _ title: String,
+    icon: PutioIcon? = nil,
+    value: String,
+    valueStyle: PutioSettingValueStyle = .text
+  ) {
+    self.title = title
+    self.icon = icon
+    self.value = value
+    self.valueStyle = valueStyle
+  }
+
+  public var body: some View {
+    PutioSettingsValueLayout(
+      title: title, subtitle: nil, icon: icon, value: value, valueStyle: valueStyle
+    )
+    .accessibilityElement(children: .combine)
   }
 }
 

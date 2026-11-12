@@ -21,6 +21,9 @@ final class OfflineDownloadsTests: XCTestCase {
     var inventory = PutioOfflineInventory(videoBytes: 1_000, audioOptions: [], subtitleTracks: [])
     var inventoryError: Error?
     var replayCompletionOnRestore: PutioFileID?
+    var restoreGate: AsyncGate?
+    var attached: Set<PutioFileID> = []
+    var suspendedTasks: [PutioFileID] = []
 
     func inventory(url: URL) async throws -> PutioOfflineInventory {
       if let inventoryError { throw inventoryError }
@@ -29,14 +32,20 @@ final class OfflineDownloadsTests: XCTestCase {
     func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
     {
       started.append((fileID, audioLanguages))
+      attached.insert(fileID)
     }
-    func pause(fileID: PutioFileID) { paused.append(fileID) }
+    func pause(fileID: PutioFileID) {
+      paused.append(fileID)
+      if attached.contains(fileID) { suspendedTasks.append(fileID) }
+    }
     func resume(fileID: PutioFileID) { resumed.append(fileID) }
     func cancel(fileID: PutioFileID) {
       cancelled.append(fileID)
       onCancelled?(fileID)
     }
     func restoreTasks() async -> [PutioFileID] {
+      if let restoreGate { await restoreGate.wait() }
+      attached.formUnion(alive)
       if let id = replayCompletionOnRestore { onFinished?(id, nil) }
       return alive
     }
@@ -95,6 +104,7 @@ final class OfflineDownloadsTests: XCTestCase {
     var started: [PutioFileID] = []
     var resumed: [PutioFileID] = []
     var cancelled: [PutioFileID] = []
+    var reportsCancellation = true
     private let gate: AsyncGate
 
     init(gate: AsyncGate) { self.gate = gate }
@@ -111,7 +121,7 @@ final class OfflineDownloadsTests: XCTestCase {
     func resume(fileID: PutioFileID) { resumed.append(fileID) }
     func cancel(fileID: PutioFileID) {
       cancelled.append(fileID)
-      onCancelled?(fileID)
+      if reportsCancellation { onCancelled?(fileID) }
     }
     func restoreTasks() async -> [PutioFileID] { [] }
     func stop() {}
@@ -285,6 +295,375 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .completed)
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.resumePositionSeconds, 7)
     XCTAssertGreaterThan(queue.storedBytes, 0)
+  }
+
+  func testANewLimitAppliesToTheRunningQueueAtOnce() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(4)
+    let ids = (1...5).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids.prefix(4) { engine.onProgress?(id, 0.3) }
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), Array(ids.prefix(4)))
+
+    queue.setConcurrencyLimit(1)
+    await settle()
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), [ids[0]], "one download runs")
+    XCTAssertEqual(engine.paused, Array(ids[1...3]))
+    for id in ids[1...3] {
+      XCTAssertEqual(queue.item(for: id)?.stage, .paused(progress: 0.3))
+      XCTAssertTrue(queue.isWaitingForSlot(id), "\(id.rawValue) does not wait for a slot")
+    }
+    XCTAssertEqual(queue.item(for: ids[4])?.stage, .queued)
+
+    queue.setConcurrencyLimit(4)
+    await settle()
+    XCTAssertEqual(engine.resumed, Array(ids[1...3]), "waiting downloads resume in place")
+    XCTAssertEqual(queue.items.filter(\.isActive).map(\.id), Array(ids.prefix(4)))
+    XCTAssertEqual(queue.item(for: ids[4])?.stage, .queued)
+
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), ids, "the freed slot starts the next in line")
+  }
+
+  func testDownloadsWaitingForASlotStillStartAfterARelaunch() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(3)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(1)
+    await settle()
+
+    let relaunched = FakeEngine()
+    relaunched.alive = [ids[0], ids[1]]
+    engine = relaunched
+    let restored = makeQueue()
+    await restored.restore()
+    await settle()
+    XCTAssertEqual(restored.concurrencyLimit, 1)
+    XCTAssertTrue(restored.isWaitingForSlot(ids[1]), "the kept task no longer waits")
+    XCTAssertEqual(restored.item(for: ids[2])?.stage, .queued, "the lost task is not re-queued")
+
+    try relaunched.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(relaunched.resumed, [ids[1]], "the kept task never resumed")
+    try relaunched.finish(ids[1], at: directory)
+    await settle()
+    XCTAssertEqual(relaunched.started.map(\.0), [ids[2]], "the lost task never restarted")
+  }
+
+  func testWaitingDownloadsResumeInTheOrderTheyWereAdded() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(4)
+    let ids = (1...4).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(3)
+    queue.setConcurrencyLimit(1)
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.resumed, [ids[1]], "a later download jumped the line")
+  }
+
+  func testAFinishReplayedOnRelaunchStillResumesTheWaiters() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(1)
+    await settle()
+
+    let relaunched = FakeEngine()
+    relaunched.alive = [ids[1]]
+    relaunched.replayCompletionOnRestore = ids[0]
+    engine = relaunched
+    let restored = makeQueue()
+    await restored.restore()
+    await settle()
+    XCTAssertEqual(relaunched.resumed, [ids[1]], "the waiter was dropped during restore")
+  }
+
+  func testARequeuedDownloadStartsBeforeALaterWaitingOne() async throws {
+    let gate = makeGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      readTracks: { _ in ([], []) },
+      resolve: { fileID, _ in
+        if fileID.rawValue == 2 { await gate.wait() }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(3)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: ids[1])?.stage, .queued)
+    XCTAssertTrue(queue.isWaitingForSlot(ids[2]))
+
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[2], ids[1]])
+    XCTAssertTrue(engine.resumed.isEmpty, "the later download jumped the line")
+  }
+
+  func testAWaiterWhoseTaskEndedFinishedKeepsItsPackageOnRelaunch() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    let location = directory.appending(path: "2.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 512).write(to: location.appending(path: "segment.bin"))
+    engine.onLocation?(ids[1], location)
+    engine.onProgress?(ids[1], 0.9)
+    queue.setConcurrencyLimit(1)
+    await settle()
+    XCTAssertTrue(queue.isWaitingForSlot(ids[1]))
+
+    let relaunched = FakeEngine()
+    relaunched.alive = [ids[0]]
+    let restored = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: relaunched,
+      conversionPollInterval: .zero, sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      readTracks: { _ in ([], []) }, isPlayable: { _ in true },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    await restored.restore()
+    await settle()
+    XCTAssertEqual(restored.item(for: ids[1])?.stage, .completed)
+    XCTAssertTrue(relaunched.started.isEmpty, "the finished package was downloaded again")
+    XCTAssertTrue(FileManager.default.fileExists(atPath: location.path))
+  }
+
+  func testAWaiterWhoseTaskFailsGoesBackInLine() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    queue.setConcurrencyLimit(1)
+    engine.onFinished?(ids[1], URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: ids[1])?.stage, .queued)
+
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[1], ids[1]], "the waiter never restarted")
+  }
+
+  func testADownloadStillStartingWhenItYieldsGoesBackInLine() async {
+    let gate = makeGate()
+    let slow = SlowStartEngine(gate: gate)
+    slow.reportsCancellation = false
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: slow, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(slow.cancelled, [PutioFileID(rawValue: 2)])
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .queued)
+    XCTAssertFalse(queue.isWaitingForSlot(PutioFileID(rawValue: 2)))
+  }
+
+  func testAWaiterThatFinishesAnywayKeepsItsPackage() async throws {
+    let gate = makeGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      readTracks: { _ in
+        await gate.wait()
+        return ([], [])
+      },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids.prefix(2) {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    queue.setConcurrencyLimit(1)
+    try engine.finish(ids[1], at: directory)
+    queue.enqueue(fileID: ids[2], parentID: .root, name: "3", kind: .video)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: ids[1])?.stage, .completed)
+    XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[1]], "the finished download restarted")
+  }
+
+  func testLoweringTheLimitKeepsAPauseTheUserChose() async {
+    let gate = makeGate()
+    let slow = SlowStartEngine(gate: gate)
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: slow, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.pause(fileID: PutioFileID(rawValue: 2))
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .paused(progress: 0))
+    XCTAssertFalse(queue.isWaitingForSlot(PutioFileID(rawValue: 2)))
+  }
+
+  func testLoweringTheLimitRequeuesADownloadStillResolving() async {
+    let gate = makeGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if fileID.rawValue == 2 { await gate.wait() }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1], "the resolving download never started")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .queued)
+  }
+
+  func testALimitLoweredDuringRestoreSuspendsTheTasksItReclaims() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+
+    let gate = makeGate()
+    let relaunched = FakeEngine()
+    relaunched.alive = ids
+    relaunched.restoreGate = gate
+    engine = relaunched
+    let restored = makeQueue()
+    let restoring = Task { await restored.restore() }
+    try await gate.waitUntilEntered()
+    restored.setConcurrencyLimit(1)
+    await gate.open()
+    await restoring.value
+    await settle()
+    XCTAssertEqual(relaunched.suspendedTasks, [ids[1]], "the transfer kept running past the limit")
+    XCTAssertEqual(restored.item(for: ids[0])?.stage, .downloading(progress: 0.3))
+    XCTAssertEqual(restored.item(for: ids[1])?.stage, .paused(progress: 0.3))
+    XCTAssertTrue(restored.isWaitingForSlot(ids[1]))
+  }
+
+  func testAWaiterWithAPartialPackageKeepsItsPlaceAcrossRelaunch() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    let location = directory.appending(path: "2.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    engine.onLocation?(ids[1], location)
+    engine.onProgress?(ids[1], 0.4)
+    queue.setConcurrencyLimit(1)
+    await settle()
+    XCTAssertTrue(queue.isWaitingForSlot(ids[1]))
+    XCTAssertEqual(queue.item(for: ids[2])?.stage, .queued)
+
+    let gate = makeGate()
+    let relaunched = FakeEngine()
+    relaunched.alive = []
+    let restored = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: relaunched,
+      conversionPollInterval: .zero, sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      readTracks: { _ in ([], []) },
+      isPlayable: { _ in
+        await gate.wait()
+        return false
+      },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    let restoring = Task { await restored.restore() }
+    try await gate.waitUntilEntered()
+    XCTAssertEqual(
+      PutioOfflineStore(directory: directory).load().waitingForSlot, [ids[1]],
+      "a kill during the probe loses the waiter")
+    XCTAssertTrue(relaunched.started.isEmpty, "a later download took the slot during the probe")
+
+    await gate.open()
+    await restoring.value
+    await settle()
+    XCTAssertEqual(relaunched.started.map(\.0), [ids[1]], "a later download jumped the line")
+    XCTAssertEqual(restored.item(for: ids[2])?.stage, .queued)
+  }
+
+  func testFreshQueueAllowsThreeAndAStoredLimitSurvivesTheUpgrade() throws {
+    XCTAssertEqual(makeQueue().concurrencyLimit, 3)
+    XCTAssertEqual(PutioOfflineQueue.concurrencyLimits, [1, 2, 3, 4])
+    try PutioOfflineStore(directory: directory).save(items: [], concurrencyLimit: 2)
+    XCTAssertEqual(makeQueue().concurrencyLimit, 2)
   }
 
   func testSizeIsShownOnlyOnceTheDownloadCompletes() {

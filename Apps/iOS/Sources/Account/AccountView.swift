@@ -10,8 +10,7 @@ struct AccountView: View {
   let appConfig: PutioAppConfigModel
   @Binding var showsLinkDevice: Bool
   let linkDeviceCode: String?
-  let downloadedBytes: Int64?
-  let removeDownloads: @MainActor () -> Void
+  let downloads: PutioOfflineQueue
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.openURL) private var openURL
@@ -33,8 +32,7 @@ struct AccountView: View {
     appConfig: PutioAppConfigModel,
     showsLinkDevice: Binding<Bool>,
     linkDeviceCode: String?,
-    downloadedBytes: Int64?,
-    removeDownloads: @escaping @MainActor () -> Void,
+    downloads: PutioOfflineQueue,
     onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void,
     onAccountDestroyed: @escaping @MainActor () -> Void
   ) {
@@ -46,8 +44,7 @@ struct AccountView: View {
     self.appConfig = appConfig
     _showsLinkDevice = showsLinkDevice
     self.linkDeviceCode = linkDeviceCode
-    self.downloadedBytes = downloadedBytes
-    self.removeDownloads = removeDownloads
+    self.downloads = downloads
     self.onDataCleared = onDataCleared
     self.onAccountDestroyed = onAccountDestroyed
     _preferences = State(
@@ -100,6 +97,7 @@ struct AccountView: View {
             PutioSettingsLoadingRow(String(localized: "Loading account settings"))
               .accessibilityIdentifier("account.settings-loading")
           }
+          downloadsSection
         case .failed:
           Section {
             PutioSettingsFailedRows(
@@ -110,10 +108,12 @@ struct AccountView: View {
               retrySettingsLoad()
             }
           }
+          downloadsSection
         case .ready:
           filesSection
           playbackSection
           subtitlesSection
+          downloadsSection
           privacySection
           securitySection
           aboutSection
@@ -190,8 +190,8 @@ struct AccountView: View {
   }
 
   private func askToSignOut() {
-    if let downloadedBytes {
-      signOutDownloadedBytes = downloadedBytes
+    if !downloads.items.isEmpty {
+      signOutDownloadedBytes = downloads.storedBytes
       return
     }
     let runtime = runtime
@@ -208,7 +208,7 @@ struct AccountView: View {
 
   private func signOut(removingDownloads: Bool) {
     signOutDownloadedBytes = nil
-    if removingDownloads { removeDownloads() }
+    if removingDownloads { downloads.purgeAccountStorage() }
     PutioFilesNavigationRestoration().clear(accountID: account.id)
     Task { await runtime.session.signOut() }
   }
@@ -367,6 +367,19 @@ struct AccountView: View {
         .id(AccountSettingRow.pickMatchingSubtitles)
         .accessibilityIdentifier("playback-settings.subtitle-selection")
       }
+    }
+  }
+
+  private var downloadsSection: some View {
+    PutioSettingsSection(String(localized: "Downloads")) {
+      PutioNavigationRow(
+        String(localized: "Downloads"), icon: .arrowCircleDown,
+        value: PutioFileRowModel.sizeText(bytes: downloads.storedBytes),
+        valueStyle: .measurement
+      ) {
+        DownloadSettingsView(queue: downloads)
+      }
+      .accessibilityIdentifier("account.downloads")
     }
   }
 

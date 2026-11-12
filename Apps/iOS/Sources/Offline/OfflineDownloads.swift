@@ -14,8 +14,8 @@ typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async 
 @MainActor
 @Observable
 final class PutioOfflineQueue {
-  static let defaultConcurrencyLimit = 2
-  static let concurrencyLimits = [1, 2, 3]
+  static let defaultConcurrencyLimit = 3
+  static let concurrencyLimits = [1, 2, 3, 4]
   /// A single download may not exceed this many bytes of selected tracks.
   static let maximumSelectedBytes: Int64 = 8 * 1024 * 1024 * 1024
 
@@ -78,6 +78,7 @@ final class PutioOfflineQueue {
     resumeWhenFree.contains(fileID)
   }
   @ObservationIgnored private var restored = false
+  @ObservationIgnored private var awaitsRestore = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
   @ObservationIgnored private var syncGeneration: UInt64 = 0
 
@@ -125,6 +126,8 @@ final class PutioOfflineQueue {
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
+    resumeWhenFree = loaded.waitingForSlot
+    awaitsRestore = !resumeWhenFree.isEmpty
     // Queues written before the sidecar existed are its only record.
     recordPackages(at: items.compactMap(\.localPath))
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
@@ -162,6 +165,7 @@ final class PutioOfflineQueue {
   func restore() async {
     guard isLive(), !restored else { return }
     restored = true
+    awaitsRestore = true
     if !pendingOriginals.isEmpty {
       let owed = pendingOriginals
       // A kill between the debt and the removal leaves the row; finish that first.
@@ -171,6 +175,7 @@ final class PutioOfflineQueue {
     }
     let alive = Set(await engine.restoreTasks())
     guard isLive() else { return }
+    var lostWaiters: [(PutioFileID, String)] = []
     for index in items.indices {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
@@ -181,6 +186,13 @@ final class PutioOfflineQueue {
         if let localPath = items[index].localPath {
           finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         }
+      case .paused where !alive.contains(items[index].id) && isWaitingForSlot(items[index].id):
+        if let localPath = items[index].localPath {
+          lostWaiters.append((items[index].id, localPath))
+        } else {
+          resumeWhenFree.removeAll { $0 == items[index].id }
+          items[index].stage = .queued
+        }
       case .paused where !alive.contains(items[index].id):
         // A previous launch may have died between pausing and the probe;
         // a playable package still on disk finishes now.
@@ -189,6 +201,8 @@ final class PutioOfflineQueue {
         }
       case .paused where alive.contains(items[index].id):
         // The system kept the task; it resumes in place instead of restarting.
+        // A pause recorded before the task was attached never reached it.
+        engine.pause(fileID: items[index].id)
         suspended.insert(items[index].id)
       case .converting:
         items[index].stage = .queued
@@ -196,6 +210,19 @@ final class PutioOfflineQueue {
         break
       }
     }
+    for (fileID, localPath) in lostWaiters {
+      let playable = await isPlayable(Self.localURL(for: localPath))
+      guard isLive() else { return }
+      guard isWaitingForSlot(fileID), case .paused = item(for: fileID)?.stage else { continue }
+      resumeWhenFree.removeAll { $0 == fileID }
+      if playable {
+        complete(fileID: fileID, localPath: localPath)
+      } else {
+        update(fileID, persisting: false) { $0.stage = .queued }
+      }
+    }
+    for item in inFlightItems.dropFirst(concurrencyLimit) { yieldSlot(item.id) }
+    awaitsRestore = false
     persist()
     schedule()
   }
@@ -568,8 +595,26 @@ final class PutioOfflineQueue {
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
+    if !awaitsRestore {
+      for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
+    }
     persist()
     schedule()
+  }
+
+  private func yieldSlot(_ fileID: PutioFileID) {
+    guard let index = items.firstIndex(where: { $0.id == fileID }), !isPaused(items[index].stage)
+    else { return }
+    if case .downloading(let progress) = items[index].stage {
+      engine.pause(fileID: fileID)
+      suspended.insert(fileID)
+      items[index].stage = .paused(progress: progress)
+      if !resumeWhenFree.contains(fileID) { resumeWhenFree.append(fileID) }
+    } else {
+      workers[fileID]?.task.cancel()
+      workers[fileID] = nil
+      items[index].stage = .queued
+    }
   }
 
   // MARK: Playback
@@ -663,26 +708,36 @@ final class PutioOfflineQueue {
 
   /// A worker resolving or converting occupies a slot before its item is
   /// marked downloading, so in-flight is workers plus engine-owned downloads.
-  private var inFlightCount: Int {
-    items.filter { $0.isActive || workers[$0.id] != nil }.count
+  private var inFlightItems: [PutioOfflineItem] {
+    items.filter { $0.isActive || workers[$0.id] != nil }
   }
 
+  private var inFlightCount: Int { inFlightItems.count }
+
   private func schedule() {
-    guard isLive() else { return }
+    guard isLive(), !awaitsRestore else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
-    // Suspended tasks waiting for a slot resume in place before new work starts.
-    while slots > 0, let fileID = resumeWhenFree.first {
-      resumeWhenFree.removeFirst()
-      guard suspended.contains(fileID), let index = items.firstIndex(where: { $0.id == fileID }),
-        case .paused(let progress) = items[index].stage
-      else { continue }
-      suspended.remove(fileID)
-      items[index].stage = .downloading(progress: progress)
-      engine.resume(fileID: fileID)
-      persist()
-      slots -= 1
+    var requeued = false
+    resumeWhenFree.removeAll { fileID in
+      guard let index = items.firstIndex(where: { $0.id == fileID }), isPaused(items[index].stage)
+      else { return true }
+      guard !suspended.contains(fileID), workers[fileID] == nil, !completing.contains(fileID)
+      else { return false }
+      items[index].stage = .queued
+      requeued = true
+      return true
     }
-    for item in items where slots > 0 && item.stage == .queued && workers[item.id] == nil {
+    if requeued { persist() }
+    for item in items where slots > 0 {
+      if resumeWhenFree.contains(item.id), case .paused(let progress) = item.stage {
+        resumeWhenFree.removeAll { $0 == item.id }
+        suspended.remove(item.id)
+        update(item.id) { $0.stage = .downloading(progress: progress) }
+        engine.resume(fileID: item.id)
+        slots -= 1
+        continue
+      }
+      guard item.stage == .queued, workers[item.id] == nil else { continue }
       slots -= 1
       let token = UUID()
       let task = Task { @MainActor [weak self] in
@@ -864,6 +919,13 @@ final class PutioOfflineQueue {
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     suspended.remove(fileID)
+    if error != nil, isWaitingForSlot(fileID) {
+      resumeWhenFree.removeAll { $0 == fileID }
+      deleteLocalAsset(for: fileID)
+      update(fileID) { $0.stage = .queued }
+      schedule()
+      return
+    }
     if let error {
       if case .paused = items[index].stage { return }
       if (error as? URLError)?.code == .cancelled { return }
@@ -938,8 +1000,8 @@ final class PutioOfflineQueue {
   }
 
   private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
-    items
-      .filter { $0.id != fileID && ($0.isActive || workers[$0.id] != nil) }
+    inFlightItems
+      .filter { $0.id != fileID }
       .map { max(0, $0.estimatedBytes - $0.storedBytes) }
       .reduce(0, +)
   }
@@ -968,7 +1030,8 @@ final class PutioOfflineQueue {
     guard isLive() else { return false }
     return writing {
       try store.save(
-        items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
+        items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals,
+        waitingForSlot: resumeWhenFree)
     }
   }
 
