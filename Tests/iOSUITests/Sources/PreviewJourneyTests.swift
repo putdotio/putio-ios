@@ -309,7 +309,7 @@ final class PreviewJourneyTests: XCTestCase {
     if close.exists {
       close.tap()
     } else {
-      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
     }
     XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
   }
