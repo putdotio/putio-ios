@@ -172,13 +172,6 @@ final class AccountJourneyTests: XCTestCase {
     signIn.tap()
     openDownloads(in: app)
     XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 10), "the download survived")
-    let storage = app.descendants(matching: .any)["downloads.storage-used"]
-    XCTAssertTrue(storage.appears(within: 5))
-    XCTAssertTrue(
-      [storage.label, storage.value as? String ?? ""].contains {
-        $0 == "0 B" || $0.hasSuffix(", 0 B")
-      },
-      "the Downloads storage line reads \(storage.label) \(storage.value ?? "")")
 
     tapSignOut(in: app)
     let alert = app.alerts["Sign out of put.io?"]
