@@ -1798,7 +1798,7 @@
       }
     },
     "Existing history will be cleared and new account events will no longer be saved." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
+      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
       "localizations" : {
         "en" : {
           "stringUnit" : {

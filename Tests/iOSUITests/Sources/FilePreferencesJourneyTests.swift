@@ -229,7 +229,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
   private func assertPrivacySummary(_ summary: String) {
     let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
-    XCTAssertTrue(entry.label.contains(summary), "Account row read \(entry.label)")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "label CONTAINS %@", summary), entry),
+      "Account row read \(entry.label)")
   }
 
   private func assertFirstFile(_ name: String) {
