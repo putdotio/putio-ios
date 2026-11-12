@@ -36,7 +36,7 @@ Preconditions:
 
 ## Gotchas
 
-- `proof --platform tvos` and `proof --platform all` reach put.io for a real
-  activation code. Use this journey for offline coverage.
+- Simulator `proof` shows a seeded activation code. A paired Apple TV
+  `proof` requests a real one from put.io, which limits code requests per IP.
 - Remote input is simulated. Use a [paired Apple TV](../references/apple-tv-device.md)
   for hardware evidence.

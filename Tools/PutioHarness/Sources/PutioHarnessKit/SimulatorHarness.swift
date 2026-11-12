@@ -2716,20 +2716,20 @@ public struct SimulatorHarness {
     }.joined(separator: "\n")
   }
 
-  // The tvOS signed-out launch is the production device-code flow against
-  // put.io, not a placeholder; its provenance must say so.
+  // The tvOS signed-out launch shows a seeded device code; the
+  // live-device-sign-in journey is the one that reaches put.io.
   private func fixtureSet(
     command: SurfaceCommand, scenario: CaptureScenario, platform: HarnessPlatform
   ) -> String {
-    let live = platform == .tvos
+    let seededCode = platform == .tvos
     if command == .proof {
-      return live
-        ? "live-device-code-to-exercised-v1" : "signed-out-to-exercised-placeholder-v1"
+      return seededCode
+        ? "seeded-device-code-to-exercised-v1" : "signed-out-to-exercised-placeholder-v1"
     }
     switch scenario {
     case .gallery: return "component-gallery-v1"
     case .signedIn: return "seeded-session-v1"
-    case .signedOut: return live ? "live-device-code-v1" : "signed-out-placeholder-v1"
+    case .signedOut: return seededCode ? "seeded-device-code-v1" : "signed-out-placeholder-v1"
     }
   }
 

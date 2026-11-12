@@ -24,6 +24,22 @@ enum PutioRuntimeFactory {
           supportIdentityPlatform: supportIdentityPlatform
         )
       }
+      if scenario == .signedOut, harnessHoldsSignedOutLaunch {
+        // tvOS shows a device code when signed out; put.io allows few code
+        // requests per IP, so harness launches show a seeded code instead.
+        HarnessSeededAPI.holdsDeviceCodes = true
+        HarnessSeededAPI.isEnabled = true
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [HarnessSeededAPI.self]
+        return PutioRuntime(
+          clientID: clientID,
+          clientName: clientName,
+          tokenStore: PutioInMemoryTokenStore(),
+          signOutIntentStore: PutioInMemorySignOutIntentStore(),
+          urlSession: URLSession(configuration: configuration),
+          supportIdentityPlatform: supportIdentityPlatform
+        )
+      }
       if scenario == .signedIn || scenario == .filesBrowser || scenario == .deviceSignIn {
         HarnessSeededAPI.trashEnabled = !ProcessInfo.processInfo.arguments.contains(
           "--putio-harness-trash-disabled"
@@ -102,6 +118,16 @@ enum PutioRuntimeFactory {
   }
 
   #if DEBUG
+    /// A signed-out launch the harness asked for by name; a launch with no
+    /// scenario, as from Xcode or on a paired device, stays on put.io.
+    static var harnessHoldsSignedOutLaunch: Bool {
+      #if os(tvOS)
+        ProcessInfo.processInfo.arguments.contains(HarnessScenario.launchArgument)
+      #else
+        false
+      #endif
+    }
+
     static let signedOutAtLaunchArgument = "--putio-harness-signed-out-at-launch"
     static let savedCredentialAtLaunchArgument = "--putio-harness-saved-credential-at-launch"
     static let credentialReadFailsOnceArgument = "--putio-harness-credential-read-fails-once"

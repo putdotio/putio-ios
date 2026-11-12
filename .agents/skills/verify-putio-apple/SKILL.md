@@ -57,8 +57,8 @@ semantic exercise signal, and process liveness. It then records the transition
 and captures the exercised screen. `gallery` is for iOS and tvOS, and
 `signed-in` is for iOS only.
 
-**The default tvOS launch reaches put.io for an activation code**, including in
-`proof --platform all`. Use the tvOS journey for offline sign-in coverage.
+tvOS signed-out launches on a harness simulator show a seeded activation code
+and never reach put.io. A paired Apple TV launch requests a real one.
 
 ## Evidence
 
