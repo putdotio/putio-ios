@@ -32,6 +32,9 @@ from a sign-out that did not finish.
   Account, clear it after renewal on return to the foreground, and show
   nothing to an active account.
 - `storage-full` shows the full storage bar and line on Account.
+- `public-links`, `public-links-slow`, and `public-links-failed` list
+  exclusive links, copy, share, and revoke them by menu and swipe, survive a
+  failed revoke, and leave nothing behind when the list is left mid-load.
 
 ## How to get to it (user POV)
 
@@ -97,6 +100,18 @@ Preconditions:
   `runtime-inactive-account-tab`, `runtime-inactive-renewed`,
   `runtime-storage-full`. Boards: `rd-ios-acc-28-storage-full`,
   `rd-ios-acc-29-inactive`, `rd-ios-acc-30-inactive-family`.
+
+- **Exclusive links.** Run `--only public-links,public-links-slow,public-links-failed`.
+  `--putio-harness-public-links <ready|journey|slow|failing|empty>` seeds the
+  list; without it the list is empty. `journey` adds a link without an expiry,
+  adds one more after the first load for pull to refresh, and fails the first
+  revoke of Sintel. Screenshots: `runtime-public-links`,
+  `runtime-public-link-revoke-failed`, `runtime-public-links-empty`,
+  `runtime-public-links-loading`, `runtime-public-links-failed`. Boards:
+  `rd-ios-acc-11-links-empty`, `rd-ios-acc-12-links`,
+  `rd-ios-acc-35-links-menu`, `rd-ios-acc-36-links-swipe`,
+  `rd-ios-acc-37-links-revoke`, `rd-ios-acc-38-links-loading`,
+  `rd-ios-acc-39-links-failed`.
 
 ## Gotchas
 

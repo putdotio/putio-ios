@@ -77,6 +77,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(requests.appears(within: 5))
 
     let rows: [(identifier: String, title: String)] = [
+      ("account.public-links", "Exclusive links"),
       ("account.trash", "Trash"),
       ("playback-settings.route", "Choose your proxy"),
       ("account.chromecast", "Chromecast"),

@@ -4,6 +4,7 @@ public enum PutioKaomoji: String, CaseIterable, Sendable {
   case shrug = "¯\\_(ツ)_/¯"
   case knockedOut = "(×_×)"
   case uneasy = "(・_・;)"
+  case nothingYet = "( ˘▽˘)っ"
 }
 
 public enum PutioScreenErrorKind: CaseIterable, Sendable {

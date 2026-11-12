@@ -1377,6 +1377,83 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-33-proxy-unavailable")
   }
 
+  func testAccountPublicLinks() throws {
+    openPublicLinks("ready")
+    XCTAssertTrue(element("public-links.item.903").appears(within: 10), "links never loaded")
+    XCTAssertFalse(element("public-links.item.904").exists, "an expired link is listed")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-12-links")
+  }
+
+  func testAccountPublicLinksEmpty() throws {
+    openPublicLinks("empty")
+    XCTAssertTrue(element("public-links.empty").appears(within: 10), "links never read empty")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-11-links-empty")
+  }
+
+  func testAccountPublicLinksLoading() throws {
+    openPublicLinks("slow")
+    XCTAssertTrue(element("public-links.loading").appears(within: 5), "links never loaded")
+    try captureBoard("rd-ios-acc-38-links-loading")
+  }
+
+  func testAccountPublicLinksFailed() throws {
+    openPublicLinks("failing")
+    XCTAssertTrue(app.buttons["public-links.retry"].appears(within: 10), "links never failed")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-39-links-failed")
+  }
+
+  func testAccountPublicLinkMenu() throws {
+    openPublicLinks("ready")
+    let sintel = element("public-links.item.902")
+    XCTAssertTrue(sintel.appears(within: 10), "links never loaded")
+    showSettledTabBar()
+    sintel.press(forDuration: 1.2)
+    XCTAssertTrue(publicLinkAction("Copy link").appears(within: 5), "long press opened no menu")
+    try captureBoard("rd-ios-acc-35-links-menu")
+  }
+
+  func testAccountPublicLinkSwipe() throws {
+    openPublicLinks("ready")
+    let sintel = element("public-links.item.902")
+    XCTAssertTrue(sintel.appears(within: 10), "links never loaded")
+    showSettledTabBar()
+    sintel.swipeLeft()
+    XCTAssertTrue(
+      app.buttons["public-links.swipe-revoke"].appears(within: 5), "swipe showed no Revoke")
+    try captureBoard("rd-ios-acc-36-links-swipe")
+  }
+
+  func testAccountPublicLinkRevoke() throws {
+    openPublicLinks("ready")
+    let sintel = element("public-links.item.902")
+    XCTAssertTrue(sintel.appears(within: 10), "links never loaded")
+    showSettledTabBar()
+    sintel.tap()
+    let revoke = publicLinkAction("Revoke")
+    XCTAssertTrue(revoke.appears(within: 5), "a tap opened no menu")
+    revoke.tap()
+    XCTAssertTrue(
+      app.putioAlert("Revoke this link?").appears(within: 5), "the revoke alert never showed")
+    try captureBoard("rd-ios-acc-37-links-revoke")
+  }
+
+  private func openPublicLinks(_ mode: String) {
+    app.launchArguments += ["--putio-harness-public-links", mode]
+    openAccount()
+    let row = element("account.public-links")
+    XCTAssertTrue(row.appears(within: 5), "Account has no Exclusive links row")
+    row.tap()
+    XCTAssertTrue(
+      app.navigationBars["Exclusive links"].appears(within: 5), "Exclusive links never opened")
+  }
+
+  private func publicLinkAction(_ title: String) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
   private func openProxy() {
     openAccountSettings()
     let proxy = app.revealed("playback-settings.route")

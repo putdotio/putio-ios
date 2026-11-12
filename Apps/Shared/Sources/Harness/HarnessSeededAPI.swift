@@ -992,6 +992,9 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if HarnessPublicLinks.delaysList, url.path == HarnessPublicLinks.listPath {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + HarnessPublicLinks.slowDelay, execute: deliverResponse)
       } else if Self.proxyMode == .slow, url.path == "/v2/tunnel/routes" {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.proxyRoutesDelay, execute: deliverResponse)
@@ -1504,6 +1507,9 @@ import Foundation
           401,
           fixtureError(statusCode: 401, type: "invalid_token", message: "Session expired")
         )
+      }
+      if HarnessPublicLinks.handles(method: request.httpMethod ?? "GET", path: url.path) {
+        return HarnessPublicLinks.response(method: request.httpMethod ?? "GET", path: url.path)
       }
       if request.httpMethod == "GET", let fileID = dynamicFileID(from: url.path),
         let response = actionFolderResponse(fileID: fileID) ?? galleryFile(id: fileID)
