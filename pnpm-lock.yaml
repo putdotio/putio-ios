@@ -179,8 +179,8 @@ importers:
         specifier: 0.78.0
         version: 0.78.0
       picomatch:
-        specifier: 2.3.1
-        version: 2.3.1
+        specifier: 2.3.2
+        version: 2.3.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -457,8 +457,8 @@ packages:
       vite-plus:
         optional: true
 
-  picomatch@2.3.1:
-    resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
+  picomatch@2.3.2:
+    resolution: {integrity: sha512-V7+vQEJ06Z+c5tSye8S+nHUfI51xoXIXjHQ99cQtKUkQqqO1kO/KCJUfZXuB47h/YBlDhah2H3hdUGXn8ie0oA==}
     engines: {node: '>=8.6'}
 
   tinypool@2.2.0:
@@ -629,7 +629,7 @@ snapshots:
       '@oxfmt/binding-win32-ia32-msvc': 0.78.0
       '@oxfmt/binding-win32-x64-msvc': 0.78.0
 
-  picomatch@2.3.1: {}
+  picomatch@2.3.2: {}
 
   tinypool@2.2.0: {}
 
