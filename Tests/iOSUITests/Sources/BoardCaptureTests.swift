@@ -1705,6 +1705,7 @@ final class BoardCaptureTests: XCTestCase {
       steps += 1
     }
     XCTAssertTrue(target.isHittable, "\(identifier) never scrolled into the list column")
+    XCTAssertTrue(holdsFrame(target, within: 5), "the Account list never stopped scrolling")
     return target
   }
 
