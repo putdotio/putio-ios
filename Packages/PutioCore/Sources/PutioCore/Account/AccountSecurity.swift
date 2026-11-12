@@ -498,7 +498,9 @@ public final class PutioLinkDeviceModel {
 
   public func enter(_ text: String) {
     guard !isLinking else { return }
-    code = text.uppercased()
+    let typed = text.uppercased()
+    if typed != code { failure = nil }
+    code = typed
   }
 
   public func link() async {

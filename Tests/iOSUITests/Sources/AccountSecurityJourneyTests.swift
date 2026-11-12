@@ -97,8 +97,6 @@ final class AccountSecurityJourneyTests: XCTestCase {
     screenshot("runtime-security-apps")
     back()
 
-    // Link stays off until a code is typed, the code uppercases as typed, an
-    // unknown code keeps the code for editing, and OK clears the field.
     tap("security.link-device")
     XCTAssertTrue(app.navigationBars["Link a device"].appears(within: 5))
     let linkCode = app.textFields["security.link-code"]

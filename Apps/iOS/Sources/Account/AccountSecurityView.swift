@@ -444,6 +444,7 @@ struct RecoveryCodesView: View {
 struct LinkDeviceView: View {
   @State private var model: PutioLinkDeviceModel
   @FocusState private var focused: Bool
+  @Environment(\.isPresented) private var isPresented
   @PutioScaledMetric private var fieldHeight: CGFloat
 
   init(actions: PutioAccountSecurityActions, code: String? = nil) {
@@ -470,7 +471,7 @@ struct LinkDeviceView: View {
     .navigationTitle(String(localized: "Link a device"))
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
-    .onDisappear { model.cancel() }
+    .onDisappear { if !isPresented { model.cancel() } }
     .putioAlert(
       String(localized: "Connected"),
       isPresented: Binding(
@@ -501,11 +502,18 @@ struct LinkDeviceView: View {
     .disabled(model.isLinking)
     .padding(.horizontal, PutioTheme.Spacing.space3)
     .frame(minHeight: fieldHeight)
-    .background(PutioTheme.Colors.surface, in: .capsule)
-    .contentShape(.capsule)
-    .onTapGesture { focused = true }
+    .background {
+      Capsule()
+        .fill(PutioTheme.Colors.surface)
+        .onTapGesture { focused = true }
+    }
     .accessibilityLabel(String(localized: "Link a device"))
+    .accessibilityHint(LinkDeviceView.noteText)
     .accessibilityIdentifier("security.link-code")
+  }
+
+  private static var noteText: String {
+    String(localized: "Enter the code shown on your device to link it to your put.io account.")
   }
 
   private func link() {
@@ -521,7 +529,7 @@ struct LinkDeviceView: View {
           .foregroundStyle(PutioTheme.Colors.destructive)
           .accessibilityIdentifier("security.link-failure")
       } else {
-        Text("Enter the code shown on your device to link it to your put.io account.")
+        Text(Self.noteText)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     }

@@ -1886,7 +1886,9 @@ import Foundation
         return securityFixture {
           let code = requestPayload(request)?["code"] as? String
           if code == boardDeviceCode, linkDeviceMode == .accept {
-            securityGrants.append((78, "put.io for Apple TV", nil, true))
+            if !securityGrants.contains(where: { $0.id == 78 }) {
+              securityGrants.append((78, "put.io for Apple TV", nil, true))
+            }
             return (
               200, #"{"app":{"id":78,"name":"put.io for Apple TV","description":"Apple TV"}}"#
             )
@@ -1898,7 +1900,9 @@ import Foundation
                 statusCode: 400, type: "code_not_found", message: "Unknown device code")
             )
           }
-          securityGrants.append((77, "Bedroom TV", nil, false))
+          if !securityGrants.contains(where: { $0.id == 77 }) {
+            securityGrants.append((77, "Bedroom TV", nil, false))
+          }
           return (
             200, #"{"app":{"id":77,"name":"Bedroom TV","description":"Apple TV, linked just now"}}"#
           )

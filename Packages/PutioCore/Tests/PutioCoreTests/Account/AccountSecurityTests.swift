@@ -454,6 +454,8 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(
       model.failure,
       "That device code was not found. Check the code on the device and try again.")
+    model.enter("ZZZZZ")
+    XCTAssertNil(model.failure, "the failure stayed after the code was edited")
     model.code = " harn42\n"
     await model.link()
     XCTAssertEqual(model.linkedApp?.id, 77)
