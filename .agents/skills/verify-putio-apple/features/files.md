@@ -26,6 +26,8 @@ images and documents, and opens put.io links into the same screens.
   the selection, and selects only the loaded page of a 450-file folder.
 - `selection-trash-off` deletes after a confirm, and reports the one video that
   refuses a bulk Watched.
+- `bulk-results` trashes three episodes and restores them with Undo, then marks
+  three watched; both leave selection.
 - `trash-disabled` deletes permanently, with copy that says so, when the account
   has Trash off.
 - `trash-undo` moves to Trash with Undo, by menu and swipe, and rolls back a
@@ -105,9 +107,11 @@ Preconditions:
 - **Move sheet.** Run `--only move-sheet`. Moving `Blue.Lights.S04E01.en.srt`
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
-- **Selection.** Run `--only selection-bar` and `--only selection-trash-off`.
-  Screenshots: `runtime-selection-mixed`, `runtime-selection-all-loaded`,
-  `runtime-selection-trash-off`.
+- **Selection.** Run `--only selection-bar`, `--only selection-trash-off`, and
+  `--only bulk-results`. `--putio-harness-bulk-trash-refusal` fails every
+  multi-episode Trash. Screenshots: `runtime-selection-mixed`,
+  `runtime-selection-all-loaded`, `runtime-selection-trash-off`,
+  `runtime-bulk-trashed`.
 - **Trash off.** Run `--only trash-disabled`. The swipe and menu say Delete
   permanently, and the alert says Trash is off.
 - **Trash and Undo.** Run `--only trash-undo`. The first Trash move of

@@ -1824,11 +1824,44 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertFalse(refused)
     XCTAssertEqual(model.state, .loaded(afterTrash))
-    guard case .failed(.restore(let fileID, _), let failure) = model.actionOutcome else {
+    guard case .failed(.restore(let fileIDs), let failure) = model.actionOutcome else {
       return XCTFail("expected failed restore, got \(String(describing: model.actionOutcome))")
     }
-    XCTAssertEqual(fileID, trashed.id)
+    XCTAssertEqual(fileIDs, [trashed.id])
     XCTAssertEqual(failure.title, "Could not restore item")
+  }
+
+  func testUndoAfterBulkTrashRestoresEveryRowInPlaceInOneRequest() async throws {
+    let items = (1...5).map { BrowserTestFixtures.item(id: $0, name: "\($0).mkv") }
+    let trashed = [items[3], items[0], items[2]]
+    let original = BrowserTestFixtures.contents(items: items)
+    let afterTrash = BrowserTestFixtures.contents(items: [items[1], items[4]])
+    let recorder = TrashRecorder()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in recorder.restores.isEmpty ? afterTrash : original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in },
+        restoreFiles: { ids in recorder.restores.append(ids) }
+      ),
+      initialContents: original
+    )
+
+    await model.delete(trashed)
+    XCTAssertEqual(model.bulkOutcome?.succeeded, trashed)
+    try await waitForState(model, .loaded(afterTrash))
+    model.clearBulkOutcome()
+
+    let restored = await model.restore(trashed)
+
+    XCTAssertTrue(restored)
+    XCTAssertEqual(recorder.restores, [[items[3].id, items[0].id, items[2].id]])
+    guard case .loaded(let contents) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    XCTAssertEqual(contents.items.map(\.id), items.map(\.id))
   }
 
   func testRefusedTrashMoveRollsBackAsTrashLimitAndPermanentDeleteSkipsTrash() async {

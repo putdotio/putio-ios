@@ -589,6 +589,9 @@ import Foundation
     private static var refusesWatchedEpisode: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-watched-refusal")
     }
+    private static var refusesBulkSeasonTrash: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-bulk-trash-refusal")
+    }
     private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
     nonisolated(unsafe) private static var playbackPositions = initialPlaybackPositions
     nonisolated(unsafe) private static var watchedUpdateFailurePending = true
@@ -1975,6 +1978,8 @@ import Foundation
             statusCode: 503, type: "HARNESS_WATCHED_REFUSED",
             message: "The first episode refuses watch status")
         )
+      case "POST /v2/files/441/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 441)
       case "GET /v2/files/442/start-from/delete":
         let fails = playbackPositionLock.withLock {
           defer { watchedUpdateFailurePending = false }
@@ -2770,6 +2775,21 @@ import Foundation
     private static func deleteActionFolders(_ fileIDs: [Int]) -> (Int, String) {
       fileActionsLock.lock()
       defer { fileActionsLock.unlock() }
+      if fileIDs.allSatisfy({ seasonFileSize($0) != nil && movedSubtitleParents[$0] == nil }) {
+        guard !refusesBulkSeasonTrash else {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_BULK_TRASH_REFUSED",
+              message: "Multi-file season deletes fail under their launch flag")
+          )
+        }
+        for fileID in fileIDs {
+          removedSeasonFileIDs.insert(fileID)
+          if trashEnabled { trashedSeasonFileIDs.insert(fileID) }
+        }
+        return (200, #"{"status":"OK"}"#)
+      }
       guard fileIDs.allSatisfy({ actionFolders[$0] != nil }) else {
         return (
           404,
