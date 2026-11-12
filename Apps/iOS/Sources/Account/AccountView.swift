@@ -102,15 +102,13 @@ struct AccountView: View {
           securitySection
           aboutSection
         }
-        if preferences.settingsState != .loading {
+        if preferences.settingsState == .ready {
           Section {
             PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
               confirmsSignOut = true
             }
             .accessibilityIdentifier("auth.sign-out")
           }
-        }
-        if preferences.settingsState == .ready {
           PutioSettingsSection(String(localized: "Danger zone")) {
             PutioNavigationRow(String(localized: "Clear your data"), icon: .eraser) {
               ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)

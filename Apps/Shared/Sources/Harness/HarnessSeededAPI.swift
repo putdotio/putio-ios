@@ -65,7 +65,7 @@ import Foundation
     /// The recorded journey proves autoplay, so the default config document
     /// enables it. The playback-preferences fixture persists the production
     /// default (off) and fails the first save once for retry proof.
-    nonisolated(unsafe) private static var autoplayNextVideo = true
+    nonisolated(unsafe) private static var autoplayNextVideo = accountSettingsMode == nil
     nonisolated(unsafe) private static var autoplaySaveFailed = false
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool?

@@ -614,7 +614,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Couldn’t save this setting"].appears(within: 10), "no save failure toast")
     let reverted = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@ AND enabled == true", "1"), object: autoplay)
+      predicate: NSPredicate(format: "value == %@ AND enabled == true", "0"), object: autoplay)
     XCTAssertEqual(XCTWaiter.wait(for: [reverted], timeout: 5), .completed)
     try captureBoard("rd-ios-acc-21-save-failed")
   }
