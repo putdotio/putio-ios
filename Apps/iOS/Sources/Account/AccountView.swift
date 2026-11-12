@@ -94,7 +94,7 @@ struct AccountView: View {
             .accessibilityIdentifier("account.trash")
           }
         }
-        switch preferences.settingsState {
+        switch settingsState {
         case .loading:
           Section {
             PutioSettingsLoadingRow(String(localized: "Loading account settings"))
@@ -107,7 +107,7 @@ struct AccountView: View {
               identifier: "account.settings-failed",
               retryIdentifier: "account.settings-retry"
             ) {
-              Task { await preferences.loadSettings() }
+              retrySettingsLoad()
             }
           }
         case .ready:
@@ -118,12 +118,12 @@ struct AccountView: View {
           securitySection
           aboutSection
         }
-        if preferences.settingsState != .loading {
+        if settingsState != .loading {
           Section {
             signOutRow
           }
         }
-        if preferences.settingsState == .ready {
+        if settingsState == .ready {
           PutioSettingsSection(String(localized: "Danger zone")) {
             PutioNavigationRow(String(localized: "Clear your data"), icon: .eraser) {
               ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
@@ -306,6 +306,13 @@ struct AccountView: View {
 
   private var playbackSection: some View {
     PutioSettingsSection(String(localized: "Playback")) {
+      PutioToggleRow(
+        title: String(localized: "Resume where you left off"), icon: .playCircle,
+        isOn: resumeEnabled
+      )
+      .disabled(settingsLocked)
+      .id(AccountSettingRow.resume)
+      .accessibilityIdentifier("playback-settings.resume")
       PutioPlaybackConfigRows(
         suggestsNextVideo: account.suggestNextVideo,
         showsRotation: UIDevice.current.userInterfaceIdiom == .phone,
@@ -430,6 +437,19 @@ struct AccountView: View {
     account.storage.isFull && !runtime.session.isAccountStorageStale
   }
 
+  private var settingsState: PutioAccountSettingsState {
+    let accountSettings = preferences.settingsState
+    guard accountSettings == .ready, appConfig.config == nil else { return accountSettings }
+    return appConfig.failure != nil && !appConfig.isLoading ? .failed : .loading
+  }
+
+  private func retrySettingsLoad() {
+    Task {
+      if preferences.settingsState == .failed { await preferences.loadSettings() }
+      if appConfig.config == nil { await appConfig.retry() }
+    }
+  }
+
   private var settingsLocked: Bool { preferences.isBusy || preferences.isStale }
 
   private var sortOptions: [PutioFolderSort?] {
@@ -451,6 +471,25 @@ struct AccountView: View {
       set: { enabled in
         if enabled { save(.history, .history(true)) } else { confirmsHistoryOff = true }
       })
+  }
+
+  private var resumeEnabled: Binding<Bool> {
+    Binding(
+      get: { preferences.account?.rememberVideoTime ?? false },
+      set: { enabled in
+        if enabled { save(.resume, .resumePlayback(true)) } else { confirmResumeOff() }
+      })
+  }
+
+  private func confirmResumeOff() {
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Turn off resume?"),
+      message: String(
+        localized: "This erases every saved playback position on your account, on all devices."),
+      confirmTitle: String(localized: "Turn off")
+    ) {
+      save(.resume, .resumePlayback(false))
+    }
   }
 
   private func confirmTrashOff() {
@@ -529,19 +568,6 @@ struct PutioPlaybackConfigRows: View {
         .id(AccountSettingRow.autoRotate)
         .accessibilityIdentifier("playback-settings.auto-rotate")
       }
-    } else if suggestsNextVideo || showsRotation {
-      if appConfig.isLoading {
-        PutioSettingsLoadingRow(String(localized: "Loading playback settings"))
-      } else if appConfig.failure != nil {
-        PutioSettingsFailedRows(
-          String(localized: "Couldn’t load account settings"),
-          identifier: "playback-settings.failed",
-          retryIdentifier: "playback-settings.retry-autoplay"
-        ) {
-          Task { await appConfig.retry() }
-        }
-        .disabled(appConfig.isBusy)
-      }
     }
   }
 
@@ -555,7 +581,8 @@ struct PutioPlaybackConfigRows: View {
 }
 
 enum AccountSettingRow: Hashable {
-  case defaultSort, trash, autoplay, autoRotate, proxy, showSubtitles, pickMatchingSubtitles
+  case defaultSort, trash, resume, autoplay, autoRotate, proxy, showSubtitles
+  case pickMatchingSubtitles
   case history
 }
 

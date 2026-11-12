@@ -53,6 +53,7 @@ import Foundation
       var hideSubtitles = false
       var dontAutoSelectSubtitles = false
       var autoplayNextVideo = false
+      var rememberVideoTime = true
       var diagnosticsEnabled = true
       var productAnalyticsEnabled = false
     }
@@ -270,6 +271,7 @@ import Foundation
         Set(payload.keys).isSubset(of: [
           "sort_by", "trash_enabled", "history_enabled", "tunnel_route_name", "hide_subtitles",
           "dont_autoselect_subtitles", "diagnostics_enabled", "product_analytics_enabled",
+          "start_from",
         ])
       else {
         return (
@@ -312,6 +314,14 @@ import Foundation
         preferencesRouteCommitted = true
       }
       if let hidden = payload["hide_subtitles"] as? Bool { filePreferences?.hideSubtitles = hidden }
+      if let remembers = payload["start_from"] as? Bool {
+        filePreferences?.rememberVideoTime = remembers
+        if !remembers {
+          playbackPositionLock.withLock {
+            playbackPositions = playbackPositions.mapValues { _ in 0 }
+          }
+        }
+      }
       if let diagnostics = payload["diagnostics_enabled"] as? Bool {
         filePreferences?.diagnosticsEnabled = diagnostics
       }
@@ -2612,7 +2622,7 @@ import Foundation
             "settings": {
               "tunnel_route_name": \(jsonString(filePreferences?.routeName ?? "default")),
               "next_episode": true,
-              "start_from": true,
+              "start_from": \(filePreferences?.rememberVideoTime ?? true),
               "history_enabled": \(historyEnabled),
               "trash_enabled": \(trashEnabled),
               "sort_by": \(jsonString(defaultSort)),

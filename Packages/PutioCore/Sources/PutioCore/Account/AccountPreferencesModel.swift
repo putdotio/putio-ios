@@ -7,6 +7,7 @@ public enum PutioAccountPreferenceMutation: Equatable, Sendable {
   case trash(Bool)
   case history(Bool)
   case route(String)
+  case resumePlayback(Bool)
   case showSubtitles(Bool)
   case dontAutoSelectSubtitles(Bool)
   case diagnostics(Bool)
@@ -30,6 +31,7 @@ public struct PutioAccountPreferenceActions: Sendable {
       case .trash(let enabled): try await runtime.setTrashEnabled(enabled)
       case .history(let enabled): try await runtime.setHistoryEnabled(enabled)
       case .route(let name): try await runtime.setPlaybackRoute(name: name)
+      case .resumePlayback(let enabled): try await runtime.setResumePlaybackEnabled(enabled)
       case .showSubtitles(let show): try await runtime.setSubtitlesVisible(show)
       case .dontAutoSelectSubtitles(let disabled):
         try await runtime.setSubtitleAutoSelectionDisabled(disabled)

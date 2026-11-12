@@ -38,6 +38,12 @@ extension PutioRuntime {
     return try await savePreferences(.init(tunnelRouteName: name))
   }
 
+  public func setResumePlaybackEnabled(_ enabled: Bool) async throws
+    -> PutioAccountPreferencesMutationResult
+  {
+    try await savePreferences(.init(rememberVideoTime: enabled))
+  }
+
   public func setSubtitlesVisible(_ visible: Bool) async throws
     -> PutioAccountPreferencesMutationResult
   {
@@ -114,6 +120,7 @@ extension PutioRuntime {
         patch.trashEnabled.map({ account.trashEnabled == $0 }) ?? true,
         patch.historyEnabled.map({ account.historyEnabled == $0 }) ?? true,
         patch.tunnelRouteName.map({ account.routeName == $0 }) ?? true,
+        patch.rememberVideoTime.map({ account.rememberVideoTime == $0 }) ?? true,
         patch.hideSubtitles.map({ account.hideSubtitles == $0 }) ?? true,
         patch.dontAutoSelectSubtitles.map({ account.dontAutoSelectSubtitles == $0 }) ?? true,
         patch.diagnosticsEnabled.map({ account.diagnosticsEnabled == $0 }) ?? true,
@@ -129,6 +136,7 @@ extension PutioRuntime {
     session.applyAcknowledgedPreferences(
       defaultSort: defaultSort, trashEnabled: patch.trashEnabled,
       historyEnabled: patch.historyEnabled, routeName: patch.tunnelRouteName,
+      rememberVideoTime: patch.rememberVideoTime,
       hideSubtitles: patch.hideSubtitles, dontAutoSelectSubtitles: patch.dontAutoSelectSubtitles,
       diagnosticsEnabled: patch.diagnosticsEnabled,
       productAnalyticsEnabled: patch.productAnalyticsEnabled)
