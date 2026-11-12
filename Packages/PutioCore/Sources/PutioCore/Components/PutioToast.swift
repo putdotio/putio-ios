@@ -11,12 +11,18 @@ public struct PutioToast: Identifiable, Equatable, Sendable {
     }
   }
 
+  public enum Icon: Sendable {
+    case warning
+  }
+
   public let id = UUID()
   public let text: String
+  public let icon: Icon?
   public let action: Action?
 
-  public init(_ text: String, action: Action? = nil) {
+  public init(_ text: String, icon: Icon? = nil, action: Action? = nil) {
     self.text = text
+    self.icon = icon
     self.action = action
   }
 
@@ -36,6 +42,7 @@ public struct PutioToastView: View {
   private let onVoiceOverFocusChange: (Bool) -> Void
 
   @AccessibilityFocusState private var focus: Focus?
+  @PutioScaledMetric private var iconSize: CGFloat
 
   public init(_ toast: PutioToast) {
     self.init(toast, onAction: { toast.action?.perform() }, onVoiceOverFocusChange: { _ in })
@@ -49,15 +56,19 @@ public struct PutioToastView: View {
     self.toast = toast
     self.onAction = onAction
     self.onVoiceOverFocusChange = onVoiceOverFocusChange
+    _iconSize = PutioScaledMetric(PutioToastLayout.iconSize)
   }
 
   public var body: some View {
     HStack(spacing: PutioToastLayout.contentGap) {
+      if let icon = toast.icon {
+        PutioToastIcon(icon: icon, size: iconSize)
+      }
       Text(toast.text)
         .putioFont(PutioToastLayout.textFont)
         .foregroundStyle(PutioToastLayout.textColor)
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: PutioToastLayout.fillsWidth(toast) ? .infinity : nil, alignment: .leading)
         .padding(.vertical, PutioToastLayout.textVerticalPadding)
         .accessibilityFocused($focus, equals: .text)
       if let action = toast.action {
@@ -82,6 +93,23 @@ public struct PutioToastView: View {
     .accessibilityElement(children: .contain)
     .onChange(of: focus != nil) { _, focused in
       onVoiceOverFocusChange(focused)
+    }
+  }
+}
+
+private struct PutioToastIcon: View {
+  let icon: PutioToast.Icon
+  let size: CGFloat
+
+  var body: some View {
+    switch icon {
+    case .warning:
+      Image(putioIcon: .warningCircleFill)
+        .resizable()
+        .scaledToFit()
+        .frame(width: size, height: size)
+        .foregroundStyle(PutioTheme.Colors.destructive)
+        .accessibilityHidden(true)
     }
   }
 }
@@ -219,6 +247,9 @@ enum PutioToastLayout {
     static let presentationPadding = PutioTheme.TV.Spacing.large
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
+    static let iconSize = PutioMetricRole(value: PutioTheme.TV.Spacing.medium, relativeTo: .body)
+
+    static func fillsWidth(_ toast: PutioToast) -> Bool { true }
   #else
     static let textFont = PutioTheme.Typography.body
     static let actionFont = PutioButtonSize.regular.brandLabel
@@ -232,5 +263,8 @@ enum PutioToastLayout {
     static let duration = Duration.seconds(5)
     static let swipeDistance = PutioTheme.Spacing.space4
     static let cornerRadius: CGFloat = 26
+    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
+
+    static func fillsWidth(_ toast: PutioToast) -> Bool { toast.action != nil }
   #endif
 }
