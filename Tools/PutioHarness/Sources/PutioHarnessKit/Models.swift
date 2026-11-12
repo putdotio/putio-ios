@@ -856,8 +856,9 @@ enum BrowserJourneyContract {
       "FilesBrowserJourneyTests/testFolderHeadersCountItemsAndBackKeepsTheParentPlace",
       attachmentNames: ["runtime-folder-header"]),
     JourneyPreflight(
-      "sign-out-recovery", "FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry",
-      attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 90),
+      "sign-out-recovery",
+      "FilesBrowserJourneyTests/testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch",
+      attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 120),
     JourneyPreflight(
       "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
       attachmentNames: ["runtime-file-actions"], timeAllowance: 300),

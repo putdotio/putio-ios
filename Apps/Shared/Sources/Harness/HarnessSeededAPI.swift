@@ -408,7 +408,7 @@ import Foundation
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
-    nonisolated(unsafe) private static var logoutFailuresRemaining = 0
+    nonisolated(unsafe) private static var logoutFails = false
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     /// The seeded root video's original: its first delete fails so the
     /// downloads journey proves the remote failure report and retry.
@@ -459,7 +459,7 @@ import Foundation
     }
 
     static func configureSignOutFailure(_ enabled: Bool) {
-      logoutLock.withLock { logoutFailuresRemaining = enabled ? 1 : 0 }
+      logoutLock.withLock { logoutFails = enabled }
     }
 
     static func resetPlaybackPositions() {
@@ -1163,8 +1163,7 @@ import Foundation
         return resetFileSorts()
       case "POST /v2/oauth/grants/logout":
         return logoutLock.withLock {
-          if logoutFailuresRemaining > 0 {
-            logoutFailuresRemaining -= 1
+          if logoutFails {
             return (
               503,
               fixtureError(

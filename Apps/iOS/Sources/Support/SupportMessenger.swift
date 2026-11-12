@@ -81,7 +81,7 @@ final class PutioSupportMessenger {
       guard identity.userID != login.userID else { return }
       if login != .idle { endSession() }
       request(identity, retrying: false)
-    case .signedOut, .authenticating, .signingOut, .signOutFailed:
+    case .signedOut, .authenticating, .signingOut:
       endSession()
     }
   }

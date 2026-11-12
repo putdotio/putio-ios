@@ -448,6 +448,9 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     let tokenStore = PutioKeychainTokenStore(service: PutioRuntimeFactory.harnessKeychainService)
     try tokenStore.clear()
     defer { try? tokenStore.clear() }
+    let signOutIntent = PutioRuntimeFactory.harnessSignOutIntentStore
+    signOutIntent.setPending(false)
+    defer { signOutIntent.setPending(false) }
     // A real login on the same install survives harness sign-in and sign-out.
     let loginStore = PutioKeychainTokenStore()
     let savedLogin = try loginStore.read()
@@ -475,6 +478,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
 
     await restoredRuntime.session.signOut()
     XCTAssertEqual(restoredRuntime.session.state, .signedOut(.userSignedOut))
+    XCTAssertFalse(restoredRuntime.session.isSignOutCleanupPending)
 
     let signedOutRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
     await signedOutRuntime.session.restore()

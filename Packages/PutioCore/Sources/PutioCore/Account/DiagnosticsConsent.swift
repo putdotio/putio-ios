@@ -24,7 +24,7 @@ public final class PutioDiagnosticsConsent {
   public func update(for state: PutioSessionState) -> Bool {
     let enabled: Bool
     switch state {
-    case .unknown, .signedOut(.restoreFailed), .signingOut, .signOutFailed:
+    case .unknown, .signedOut(.restoreFailed), .signingOut:
       return false
     case .signedOut, .authenticating:
       enabled = true

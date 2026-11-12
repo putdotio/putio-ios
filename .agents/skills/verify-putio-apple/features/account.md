@@ -6,8 +6,8 @@ from a sign-out that did not finish.
 
 ## Sub-features
 
-- `sign-out-recovery` keeps the user out of a new sign-in until a failed
-  sign-out is retried.
+- `sign-out-recovery` lands a failed sign-out on the welcome and never
+  restores the account on relaunch; the cleanup finishes once the fault clears.
 - `security` shows recovery codes, links a device by code, lists apps, clears
   data, and destroys the account.
 - `file-preferences` recovers a failed save, resets, keeps settings across
@@ -26,11 +26,12 @@ from a sign-out that did not finish.
 
 Preconditions:
 
-- Seeded `files-browser` fixtures. `sign-out-recovery` starts signed in with a
-  forced sign-out failure.
+- Seeded `files-browser` fixtures. `sign-out-recovery` signs in with
+  `--putio-harness-sign-out-failure`, which fails revocation and credential
+  removal until a launch without it.
 
-- **Sign-out recovery.** Run `--only sign-out-recovery`. "Sign-out did not
-  finish" shows with a retry and no sign-in. Screenshot:
+- **Sign-out recovery.** Run `--only sign-out-recovery`. The failed sign-out
+  and each relaunch show the welcome, never Files. Screenshot:
   `runtime-sign-out-failure`.
 - **Security.** Run `--only account-security`. Screenshots:
   `runtime-security-recovery-codes`, `runtime-security-apps`,

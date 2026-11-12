@@ -144,7 +144,7 @@ extension WelcomeScreen.Mode {
     case nil, .userSignedOut: self = .fresh
     case .sessionExpired: self = .sessionExpired
     case .authenticationFailed(let message): self = .signInFailed(message)
-    case .restoreFailed(let message): self = .restoreFailed(message)
+    case .restoreFailed(_, let message): self = .restoreFailed(message)
     }
   }
 }

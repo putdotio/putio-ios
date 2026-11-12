@@ -13,7 +13,7 @@ enum TVSignInPhase: Equatable {
     switch state {
     case .signedOut(.authenticationFailed(let message)):
       self = .failed(message: message, canRetryRestore: false)
-    case .signedOut(.restoreFailed(let message)):
+    case .signedOut(.restoreFailed(_, let message)):
       self = .failed(message: message, canRetryRestore: true)
     case .authenticating:
       switch deviceCodeSignIn {

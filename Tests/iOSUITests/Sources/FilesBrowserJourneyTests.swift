@@ -175,35 +175,41 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
-  func testSignOutFailureRecoversWithExplicitRetry() {
-    app.launchArguments = [
-      "--putio-harness-scenario", "signed-in", "--putio-harness-sign-out-failure",
-    ]
+  func testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch() {
+    let failure = "--putio-harness-sign-out-failure"
+    app.launchArguments.append(failure)
     app.launch()
-    let account = app.buttons["Account"]
-    XCTAssertTrue(account.appears(within: 10), "seeded session did not restore")
-    account.tap()
+    let signIn = element(identifier: "auth.sign-in")
+    let root = element(identifier: "files.screen.0")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
+    app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
     signOut.tap()
     app.confirmSignOut()
-    let retry = element(identifier: "auth.retry-sign-out")
-    XCTAssertTrue(retry.appears(within: 15), "failed sign-out did not offer retry")
-    XCTAssertTrue(app.staticTexts["Sign-out did not finish"].exists)
-    XCTAssertTrue(
-      app.staticTexts.matching(
-        NSPredicate(
-          format: "label == %@",
-          "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
-        )
-      ).firstMatch.exists)
-    let signIn = element(identifier: "auth.sign-in")
-    XCTAssertFalse(signIn.exists, "failed sign-out must not offer a new sign-in")
+    XCTAssertTrue(signIn.appears(within: 15), "failed sign-out did not land on the welcome")
+    XCTAssertEqual(element(identifier: "auth.welcome-title").label, "Welcome!")
     addScreenshot(named: "runtime-sign-out-failure")
-    XCTAssertTrue(retry.isHittable, "sign-out retry is not tappable")
-    retry.tap()
-    XCTAssertTrue(signIn.appears(within: 10), "retry did not complete sign-out")
-    XCTAssertFalse(retry.exists)
+
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(signIn.appears(within: 15), "pending sign-out did not relaunch to the welcome")
+    XCTAssertFalse(root.exists, "pending sign-out restored the session")
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == failure }
+    app.launch()
+    XCTAssertTrue(signIn.appears(within: 15), "sign-out cleanup did not relaunch to the welcome")
+    XCTAssertFalse(root.exists, "sign-out cleanup restored the session")
+
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(signIn.appears(within: 15), "a saved credential survived the sign-out cleanup")
+    XCTAssertFalse(root.exists, "a saved credential survived the sign-out cleanup")
   }
 
   func testTrashDisabledUsesPermanentDeleteCopyInContextMenu() {

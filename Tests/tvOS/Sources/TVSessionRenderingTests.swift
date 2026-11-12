@@ -208,7 +208,8 @@ final class TVSessionRenderingTests: XCTestCase {
       TVSignInPhase(state: .signedOut(.authenticationFailed("nope")), deviceCodeSignIn: nil),
       .failed(message: "nope", canRetryRestore: false))
     XCTAssertEqual(
-      TVSignInPhase(state: .signedOut(.restoreFailed("offline")), deviceCodeSignIn: nil),
+      TVSignInPhase(
+        state: .signedOut(.restoreFailed(.sessionCheck, message: "offline")), deviceCodeSignIn: nil),
       .failed(message: "offline", canRetryRestore: true))
   }
 
