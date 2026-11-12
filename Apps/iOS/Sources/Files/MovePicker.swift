@@ -60,6 +60,7 @@ struct PutioMovePicker: View {
         }
     }
     .onChange(of: path) { takenName = nil }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-picker")
   }
 
