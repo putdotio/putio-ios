@@ -78,6 +78,7 @@ final class PutioOfflineQueue {
     resumeWhenFree.contains(fileID)
   }
   @ObservationIgnored private var restored = false
+  @ObservationIgnored private var awaitsRestore = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
   @ObservationIgnored private var syncGeneration: UInt64 = 0
 
@@ -126,6 +127,7 @@ final class PutioOfflineQueue {
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
     resumeWhenFree = loaded.waitingForSlot
+    awaitsRestore = !resumeWhenFree.isEmpty
     // Queues written before the sidecar existed are its only record.
     recordPackages(at: items.compactMap(\.localPath))
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
@@ -163,6 +165,7 @@ final class PutioOfflineQueue {
   func restore() async {
     guard isLive(), !restored else { return }
     restored = true
+    awaitsRestore = true
     if !pendingOriginals.isEmpty {
       let owed = pendingOriginals
       // A kill between the debt and the removal leaves the row; finish that first.
@@ -200,6 +203,7 @@ final class PutioOfflineQueue {
         break
       }
     }
+    awaitsRestore = false
     persist()
     schedule()
   }
@@ -573,6 +577,10 @@ final class PutioOfflineQueue {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
     for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
+    let order = items.map(\.id)
+    resumeWhenFree.sort {
+      (order.firstIndex(of: $0) ?? .max) < (order.firstIndex(of: $1) ?? .max)
+    }
     persist()
     schedule()
   }
@@ -689,7 +697,7 @@ final class PutioOfflineQueue {
   private var inFlightCount: Int { inFlightItems.count }
 
   private func schedule() {
-    guard isLive() else { return }
+    guard isLive(), !awaitsRestore else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
     // Suspended tasks waiting for a slot resume in place before new work starts.
     while slots > 0, let fileID = resumeWhenFree.first {

@@ -349,6 +349,44 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(relaunched.started.map(\.0), [ids[2]], "the lost task never restarted")
   }
 
+  func testWaitingDownloadsResumeInTheOrderTheyWereAdded() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(4)
+    let ids = (1...4).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(3)
+    queue.setConcurrencyLimit(1)
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.resumed, [ids[1]], "a later download jumped the line")
+  }
+
+  func testAFinishReplayedOnRelaunchStillResumesTheWaiters() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(1)
+    await settle()
+
+    let relaunched = FakeEngine()
+    relaunched.alive = [ids[1]]
+    relaunched.replayCompletionOnRestore = ids[0]
+    engine = relaunched
+    let restored = makeQueue()
+    await restored.restore()
+    await settle()
+    XCTAssertEqual(relaunched.resumed, [ids[1]], "the waiter was dropped during restore")
+  }
+
   func testLoweringTheLimitRequeuesADownloadStillResolving() async {
     let gate = makeGate()
     let queue = PutioOfflineQueue(
