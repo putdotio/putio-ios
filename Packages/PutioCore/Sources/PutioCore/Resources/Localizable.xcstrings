@@ -1601,13 +1601,13 @@
         }
       }
     },
-    "What we'd send" : {
-      "comment" : "android: mobile_product_analytics_prompt_send_title | differs: iOS uses a straight apostrophe",
+    "What we’d send" : {
+      "comment" : "android: mobile_product_analytics_prompt_send_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What we'd send"
+            "value" : "What we’d send"
           }
         }
       }

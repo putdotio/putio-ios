@@ -14,7 +14,7 @@ struct ProductAnalyticsPromptView: View {
       content
         .padding(.horizontal, 20)
         .padding(.top, 28)
-        .padding(.bottom, PutioTheme.Spacing.space4)
+        .padding(.bottom, PutioTheme.Spacing.space3)
         .onGeometryChange(for: CGFloat.self) {
           $0.size.height
         } action: {
@@ -22,10 +22,12 @@ struct ProductAnalyticsPromptView: View {
         }
     }
     .scrollBounceBehavior(.basedOnSize)
-    .background(PutioTheme.Colors.surface)
+    .frame(idealHeight: contentHeight > 0 ? contentHeight : nil)
+    .background(PutioTheme.Components.Sheet.background)
     .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.large])
     .presentationDragIndicator(.visible)
-    .presentationBackground(PutioTheme.Colors.surface)
+    .presentationSizing(.form.fitted(horizontal: false, vertical: true))
+    .presentationBackground(PutioTheme.Components.Sheet.background)
     .interactiveDismissDisabled(model.isSaving)
     .onChange(of: model.isAnswered) { _, answered in
       if answered { dismiss() }
@@ -34,32 +36,42 @@ struct ProductAnalyticsPromptView: View {
   }
 
   private var content: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 0) {
       Text(PutioProductAnalyticsPrompt.title)
         .putioFont(PromptTypography.title)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .accessibilityAddTraits(.isHeader)
+        .padding(.bottom, 10)
       Text(PutioProductAnalyticsPrompt.intro)
         .putioFont(PromptTypography.text)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
-        .padding(.bottom, 8)
+        .padding(.bottom, 24)
       ViewThatFits(in: .horizontal) {
-        HStack(alignment: .top, spacing: 12) { lists }
+        HStack(alignment: .top, spacing: 20) { lists }
           .frame(minWidth: 460)
-        VStack(spacing: 12) { lists }
+        VStack(alignment: .leading, spacing: 24) { lists }
       }
-      .padding(.bottom, 8)
+      .padding(.bottom, 24)
       if let failure = model.failure {
-        Text(failure)
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.destructive)
-          .accessibilityIdentifier("analytics-prompt.failure")
+        VStack(alignment: .leading, spacing: 2) {
+          Text(PutioProductAnalyticsPrompt.saveFailureTitle)
+            .putioFont(PromptTypography.text)
+            .foregroundStyle(PutioTheme.Colors.destructive)
+          Text(failure)
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("analytics-prompt.failure")
+        .padding(.bottom, 20)
       }
-      HStack(spacing: 8) {
+      HStack(spacing: PutioTheme.Spacing.space2) {
         answerButton(
-          String(localized: "Don't allow"), choice: false, identifier: "analytics-prompt.deny")
+          String(localized: "Don’t allow"), choice: false, identifier: "analytics-prompt.deny")
         answerButton(String(localized: "Allow"), choice: true, identifier: "analytics-prompt.allow")
       }
+      .padding(.bottom, PutioTheme.Spacing.space1)
       Link(destination: PutioPrivacyControls.privacyPolicyURL) {
         Text("Privacy policy")
           .putioFont(PutioTheme.Typography.caption)
@@ -75,34 +87,38 @@ struct ProductAnalyticsPromptView: View {
     PromptList(
       title: PutioProductAnalyticsPrompt.neverSentTitle,
       items: PutioProductAnalyticsPrompt.neverSent,
-      icon: .xCircle,
+      icon: .xCircleFill,
       iconColor: PutioTheme.Colors.destructive,
       itemColor: PutioTheme.Colors.textSecondary
     )
     PromptList(
       title: PutioProductAnalyticsPrompt.sentTitle,
       items: PutioProductAnalyticsPrompt.sent,
-      icon: .checkCircle,
+      icon: .checkCircleFill,
       iconColor: PutioTheme.Colors.success,
       itemColor: PutioTheme.Colors.textPrimary
     )
   }
 
   private func answerButton(_ title: String, choice: Bool, identifier: String) -> some View {
-    Button {
+    let isSaving = model.savingChoice == choice
+    return Button {
       Task { await model.answer(choice) }
     } label: {
       ZStack {
-        Text(title).opacity(model.savingChoice == choice ? 0 : 1)
-        if model.savingChoice == choice { ProgressView() }
+        Text(title).opacity(isSaving ? 0 : 1)
+        if isSaving { ProgressView().tint(PutioTheme.Colors.textSecondary) }
       }
       .putioFont(PromptTypography.button)
-      .frame(maxWidth: .infinity, minHeight: 44)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .frame(maxWidth: .infinity, minHeight: 32)
     }
-    .buttonStyle(.bordered)
-    .buttonBorderShape(.roundedRectangle(radius: PutioTheme.Radius.medium))
-    .tint(PutioTheme.Colors.textPrimary)
+    .buttonStyle(.borderedProminent)
+    .buttonBorderShape(.capsule)
+    .controlSize(.large)
+    .tint(PutioTheme.Colors.surfaceActive)
     .disabled(model.isSaving)
+    .accessibilityLabel(title)
     .accessibilityIdentifier(identifier)
   }
 }
@@ -114,8 +130,8 @@ private struct PromptList: View {
   let iconColor: Color
   let itemColor: Color
   @ScaledMetric(relativeTo: .subheadline) private var textSize = PromptTypography.text.size
-  @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 18
-  @ScaledMetric(relativeTo: .subheadline) private var iconGap: CGFloat = 10
+  @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 16
+  @ScaledMetric(relativeTo: .subheadline) private var iconGap: CGFloat = 12
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -132,8 +148,6 @@ private struct PromptList: View {
             .resizable()
             .scaledToFit()
             .frame(width: iconSize, height: iconSize)
-            // Centred on the first line's capitals, so a wrapped item keeps
-            // its icon beside where the text starts.
             .alignmentGuide(.firstTextBaseline) {
               $0[VerticalAlignment.center] + capHeight / 2
             }
@@ -146,11 +160,6 @@ private struct PromptList: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(16)
-    .overlay(
-      RoundedRectangle(cornerRadius: PutioTheme.Radius.medium)
-        .strokeBorder(PutioTheme.Colors.separator)
-    )
   }
 
   private var capHeight: CGFloat {
@@ -159,8 +168,8 @@ private struct PromptList: View {
   }
 }
 
-/// The App Store app's sizes in the token faces: Title 2, Subheadline, and a
-/// Caption 1 label.
+/// The App Store app's sizes in the token faces: Title 2, Subheadline, a
+/// Caption 1 label and a Body button.
 private enum PromptTypography {
   static let title = PutioFontRole(
     fontName: PutioTheme.Typography.title.fontName,
@@ -182,8 +191,8 @@ private enum PromptTypography {
   )
   static let button = PutioFontRole(
     fontName: PutioTheme.Typography.subheading.fontName,
-    size: 15,
+    size: PutioTheme.Typography.sizeBase,
     lineHeight: 1.2,
-    textStyle: .subheadline
+    textStyle: .body
   )
 }

@@ -236,6 +236,38 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-04-account-end")
   }
 
+  func testAnalyticsPrompt() throws {
+    XCUIDevice.shared.orientation = .portrait
+    launchAnalyticsPrompt()
+    try captureBoard("rd-ios-ses-10-analytics")
+  }
+
+  func testAnalyticsPromptSaving() throws {
+    XCUIDevice.shared.orientation = .portrait
+    launchAnalyticsPrompt()
+    let allow = app.buttons["analytics-prompt.allow"]
+    allow.tap()
+    let saving = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "isEnabled == false"), object: allow)
+    XCTAssertEqual(XCTWaiter.wait(for: [saving], timeout: 2), .completed, "Allow never started")
+    try captureBoard("rd-ios-ses-17-analytics-saving")
+  }
+
+  func testAnalyticsPromptFailed() throws {
+    XCUIDevice.shared.orientation = .portrait
+    launchAnalyticsPrompt()
+    app.buttons["analytics-prompt.allow"].tap()
+    XCTAssertTrue(
+      element("analytics-prompt.failure").appears(within: 10), "the first save never failed")
+    try captureBoard("rd-ios-ses-18-analytics-failed")
+  }
+
+  func testIPadAnalyticsPrompt() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    launchAnalyticsPrompt()
+    try captureBoard("rd-ios-ses-25-ipad-analytics")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
@@ -247,6 +279,24 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     XCTAssertTrue(app.staticTexts.firstMatch.appears(within: 15), "gallery page never rendered")
     try captureBoard(board)
+  }
+
+  private func launchAnalyticsPrompt() {
+    app.launchArguments += [
+      "--putio-harness-analytics-prompt", "--putio-harness-file-preferences",
+      "--putio-harness-reset-file-preferences",
+    ]
+    app.launch()
+    let prompt = element("analytics-prompt")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !prompt.exists, !signIn.exists, Date.now < deadline {
+      _ = prompt.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    XCTAssertTrue(prompt.appears(within: 15), "the analytics prompt never appeared")
+    XCTAssertTrue(
+      app.buttons["analytics-prompt.allow"].appears(within: 5), "the prompt has no Allow")
   }
 
   private static let listDetailFileName = "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv"

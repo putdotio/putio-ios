@@ -607,6 +607,12 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-22-account-security", .iphone, "testAccountSecurity", screenBase: false),
       BoardCapture("rd-ios-acc-04-account-end", .iphone, "testAccountEnd", screenBase: false),
+      BoardCapture("rd-ios-ses-10-analytics", .iphone, "testAnalyticsPrompt"),
+      BoardCapture(
+        "rd-ios-ses-17-analytics-saving", .iphone, "testAnalyticsPromptSaving", screenBase: false),
+      BoardCapture(
+        "rd-ios-ses-18-analytics-failed", .iphone, "testAnalyticsPromptFailed", screenBase: false),
+      BoardCapture("rd-ios-ses-25-ipad-analytics", .ipad, "testIPadAnalyticsPrompt"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -814,7 +820,13 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "analytics-prompt",
       "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",
-      attachmentNames: ["runtime-analytics-prompt"]),
+      attachmentNames: [
+        "runtime-analytics-prompt", "runtime-analytics-prompt-saving",
+        "runtime-analytics-prompt-failed",
+      ], timeAllowance: 180),
+    JourneyPreflight(
+      "analytics-prompt-swipe",
+      "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayStoresNoAnswer"),
     JourneyPreflight(
       "audio", "AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack",
       attachmentNames: ["runtime-audio-player"], timeAllowance: 120),
