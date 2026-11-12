@@ -56,6 +56,7 @@ public struct PutioSelectionAction: Identifiable {
   public let title: String
   public let icon: PutioIcon
   public let isDestructive: Bool
+  public let isDisabled: Bool
   let perform: @MainActor () -> Void
 
   public init(
@@ -63,12 +64,14 @@ public struct PutioSelectionAction: Identifiable {
     title: String,
     icon: PutioIcon,
     isDestructive: Bool = false,
+    isDisabled: Bool = false,
     perform: @escaping @MainActor () -> Void
   ) {
     self.id = id
     self.title = title
     self.icon = icon
     self.isDestructive = isDestructive
+    self.isDisabled = isDisabled
     self.perform = perform
   }
 }
@@ -170,9 +173,11 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     public func putioSelectionMode<ID: Hashable & Sendable>(
       _ selection: Binding<PutioSelection<ID>>,
       among ids: [ID],
-      actions: [PutioSelectionAction]
+      actions: [PutioSelectionAction],
+      isBusy: Bool = false
     ) -> some View {
-      modifier(PutioSelectionMode(selection: selection, ids: ids, actions: actions))
+      modifier(
+        PutioSelectionMode(selection: selection, ids: ids, actions: actions, isBusy: isBusy))
     }
   }
 
@@ -180,6 +185,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     @Binding var selection: PutioSelection<ID>
     let ids: [ID]
     let actions: [PutioSelectionAction]
+    let isBusy: Bool
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     func body(content: Content) -> some View {
@@ -188,17 +194,18 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         .navigationBarBackButtonHidden(selection.isActive)
         .toolbar {
           if selection.isActive {
-            PutioSelectionHeader(selection: $selection, ids: ids)
+            PutioSelectionHeader(selection: $selection, ids: ids, isBusy: isBusy)
           }
         }
         .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
           if selection.isActive {
             PutioSelectionBar(actions: actions)
-              .disabled(selection.count == 0)
+              .disabled(selection.count == 0 || isBusy)
           }
         }
         .onChange(of: ids) { _, current in
+          guard !isBusy else { return }
           selection.retain(current)
         }
         .onDisappear {
@@ -214,6 +221,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
   private struct PutioSelectionHeader<ID: Hashable & Sendable>: ToolbarContent {
     @Binding var selection: PutioSelection<ID>
     let ids: [ID]
+    let isBusy: Bool
 
     var body: some ToolbarContent {
       ToolbarItem(placement: .topBarLeading) {
@@ -222,6 +230,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         } label: {
           Image(putioIcon: .x)
         }
+        .disabled(isBusy)
         .accessibilityLabel(Text("Done selecting", bundle: .module))
         .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.close")
@@ -238,7 +247,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         } label: {
           Text("Select all", bundle: .module)
         }
-        .disabled(ids.isEmpty)
+        .disabled(ids.isEmpty || isBusy)
         .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.toggle-all")
       }
@@ -257,6 +266,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
               title: action.title, icon: action.icon, isDestructive: action.isDestructive)
           }
           .buttonStyle(.plain)
+          .disabled(action.isDisabled)
           .accessibilityIdentifier("selection.action.\(action.id)")
         }
         if !layout.overflow.isEmpty {
@@ -269,6 +279,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
                   Image(putioIcon: action.icon)
                 }
               }
+              .disabled(action.isDisabled)
             }
           } label: {
             PutioSelectionBarItem(

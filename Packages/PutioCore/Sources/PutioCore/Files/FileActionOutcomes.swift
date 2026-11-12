@@ -68,6 +68,7 @@ public enum PutioFileActionOutcome: Equatable, Sendable {
 public enum PutioBulkFileAction: Equatable, Sendable {
   case delete
   case move(destination: PutioFolderRoute)
+  case setWatched(Bool)
 }
 
 public struct PutioBulkFileProgress: Equatable, Sendable {

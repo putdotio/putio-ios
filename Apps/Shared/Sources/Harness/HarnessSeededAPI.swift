@@ -530,6 +530,9 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-disabled")
     }
     nonisolated(unsafe) static var trashEnabled = !trashDisabledAtLaunch
+    private static var refusesWatchedEpisode: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-watched-refusal")
+    }
     private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
     nonisolated(unsafe) private static var playbackPositions = initialPlaybackPositions
     nonisolated(unsafe) private static var watchedUpdateFailurePending = true
@@ -1885,6 +1888,13 @@ import Foundation
         return clearPlaybackPosition(fileID: 412)
       case "POST /v2/files/443/start-from/set":
         return setPlaybackPosition(request: request, fileID: 443)
+      case "POST /v2/files/441/start-from/set" where refusesWatchedEpisode:
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_WATCHED_REFUSED",
+            message: "The first episode refuses watch status")
+        )
       case "GET /v2/files/442/start-from/delete":
         let fails = playbackPositionLock.withLock {
           defer { watchedUpdateFailurePending = false }

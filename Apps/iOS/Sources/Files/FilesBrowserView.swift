@@ -9,6 +9,7 @@ extension EnvironmentValues {
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
+typealias PutioBulkFileSelection = @MainActor @Sendable ([PutioFileRoute]) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
 @MainActor
@@ -20,6 +21,7 @@ struct FilesBrowserView: View {
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
+  private let onBulkDownload: PutioBulkFileSelection?
   private let tracksWatched: Bool
   private let castButton: AnyView?
   private let onRootLoaded: PutioRootLoaded
@@ -42,6 +44,7 @@ struct FilesBrowserView: View {
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
+    onBulkDownload: PutioBulkFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
@@ -66,6 +69,7 @@ struct FilesBrowserView: View {
     self.onFileSelected = onFileSelected
     self.onExternalPlayback = onExternalPlayback
     self.onDownload = onDownload
+    self.onBulkDownload = onBulkDownload
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
@@ -86,6 +90,7 @@ struct FilesBrowserView: View {
         onFileSelected: onFileSelected,
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
+        onBulkDownload: onBulkDownload,
         castButton: castButton,
         accountNotice: accountNotice,
         offlineFiles: offlineFiles
@@ -102,6 +107,7 @@ struct FilesBrowserView: View {
           onFileSelected: onFileSelected,
           onExternalPlayback: onExternalPlayback,
           onDownload: onDownload,
+          onBulkDownload: onBulkDownload,
           castButton: castButton,
           offlineFiles: offlineFiles
         )

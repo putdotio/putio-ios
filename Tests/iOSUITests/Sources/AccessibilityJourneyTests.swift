@@ -70,10 +70,10 @@ final class AccessibilityJourneyTests: XCTestCase {
     reachable(folder).tap()
     XCTAssertTrue(waitForValue(folder, "Selected"))
     XCTAssertTrue(folder.label == name || folder.label.hasPrefix(name + ", "), folder.label)
-    XCTAssertTrue(reachable(app.buttons["files.bulk.remove"]).isEnabled)
+    XCTAssertTrue(reachable(app.buttons["selection.action.trash"]).isEnabled)
     centerRow(folder)
     screenshot("runtime-accessibility-selection")
-    app.buttons["files.selection.toggle"].tap()
+    app.buttons["selection.close"].tap()
 
     selectTab("Downloads")
     XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))

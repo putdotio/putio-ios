@@ -20,8 +20,12 @@ images and documents, and opens put.io links into the same screens.
 - `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
   name, disables the current folder and a folder inside the moved one, and
   moves into a folder made in the sheet.
-- `bulk` selects all, deselects, ends selection, moves with partial-failure
-  retry, and trashes with batch retry.
+- `bulk` selects all, ends selection, moves with partial-failure retry, and
+  trashes with batch retry.
+- `selection-bar` changes the bar's actions as videos, audio, and a folder join
+  the selection, and selects only the loaded page of a 450-file folder.
+- `selection-trash-off` deletes after a confirm, and reports the one video that
+  refuses a bulk Watched.
 - `trash-disabled` deletes permanently, with copy that says so, when the account
   has Trash off.
 - `trash-undo` moves to Trash with Undo, by menu and swipe, and rolls back a
@@ -92,6 +96,9 @@ Preconditions:
 - **Move sheet.** Run `--only move-sheet`. Moving `Blue.Lights.S04E01.en.srt`
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
+- **Selection.** Run `--only selection-bar` and `--only selection-trash-off`.
+  Screenshots: `runtime-selection-mixed`, `runtime-selection-all-loaded`,
+  `runtime-selection-trash-off`.
 - **Trash off.** Run `--only trash-disabled`. The swipe and menu say Delete
   permanently, and the alert says Trash is off.
 - **Trash and Undo.** Run `--only trash-undo`. The first Trash move of
@@ -133,7 +140,8 @@ Preconditions:
   still.
 - Menu items such as Select live in the toolbar menu; wait for the menu item to
   appear before you tap it.
-- `files.selection.toggle` is Done in the toolbar while editing.
+- `selection.close` leaves selection; bar actions are
+  `selection.action.<move|download|watched|unwatched|trash>`.
 - Rename and New folder are system alerts: find them with `app.alerts[title]`
   and type once the keyboard shows; Rename selects the stem first.
 - Some fixture responses are delayed on purpose, such as a failed rename (5 s)

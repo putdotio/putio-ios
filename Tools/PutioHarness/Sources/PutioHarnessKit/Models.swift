@@ -608,6 +608,14 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-39-moved", .iphone, "testMoved", screenBase: false),
       BoardCapture(
         "rd-ios-69-move-into-itself", .iphone, "testMoveIntoItself", screenBase: false),
+      BoardCapture("rd-ios-06-selection", .iphone, "testSelection"),
+      BoardCapture(
+        "rd-ios-58-selection-mixed", .iphone, "testSelectionMixed", screenBase: false),
+      BoardCapture("rd-ios-59-selection-none", .iphone, "testSelectionNone", screenBase: false),
+      BoardCapture(
+        "rd-ios-68-selection-trash-off", .iphone, "testSelectionTrashOff", screenBase: false),
+      BoardCapture("rd-ios-70-selection-all", .iphone, "testSelectionAll", screenBase: false),
+      BoardCapture("rd-ios-24-ipad-selection", .ipad, "testIPadSelection"),
       BoardCapture("Main", .iphone, "testFilesRoot"),
       BoardCapture(
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
@@ -1027,6 +1035,15 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "move-sheet", "FilesBrowserJourneyTests/testMoveSheetLevelsNameTakenNewFolderAndIntoItself",
       attachmentNames: ["runtime-move-name-taken"], timeAllowance: 120),
+    JourneyPreflight(
+      "selection-bar",
+      "FilesBrowserJourneyTests/testSelectionBarFollowsTheSelectionAndSelectAllTakesLoadedRows",
+      attachmentNames: ["runtime-selection-mixed", "runtime-selection-all-loaded"],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "selection-trash-off",
+      "FilesBrowserJourneyTests/testSelectionBarWithTrashOffDeletesAndReportsPartialWatchedFailures",
+      attachmentNames: ["runtime-selection-trash-off"], timeAllowance: 120),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),

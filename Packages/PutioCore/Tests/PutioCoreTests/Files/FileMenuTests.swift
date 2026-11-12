@@ -68,6 +68,32 @@ final class FileMenuTests: XCTestCase {
       PutioFileMenu(item: item(.folder, shared: true), capabilities: everything).sections, [])
   }
 
+  func testSelectionBarFollowsTheIssueTable() {
+    let videos = [item(.video, resume: 0), item(.video, resume: 90)]
+    XCTAssertEqual(selectionBar(videos), [.move, .download, .markWatched, .trash])
+    XCTAssertEqual(selectionBar(videos + [item(.folder)]), [.move, .trash])
+    XCTAssertEqual(selectionBar([item(.video), item(.other("pdf"))]), [.move, .trash])
+    XCTAssertEqual(selectionBar([]), [.move, .trash])
+  }
+
+  func testSelectionOffersUnwatchedOnlyWhenEveryVideoIsWatched() {
+    XCTAssertEqual(
+      selectionBar([item(.video, resume: 1), item(.video, resume: 90)]),
+      [.move, .download, .markUnwatched, .trash])
+  }
+
+  func testSelectionWatchStatusIsForVideosOnlyWithResumeTrackingOn() {
+    XCTAssertEqual(selectionBar([item(.video), item(.audio)]), [.move, .download, .trash])
+    XCTAssertEqual(
+      PutioFileSelectionMenu(selected: [item(.video)], canDownload: false, tracksWatched: false)
+        .actions,
+      [.move, .trash])
+  }
+
+  private func selectionBar(_ items: [PutioFileItem]) -> [PutioFileSelectionAction] {
+    PutioFileSelectionMenu(selected: items, canDownload: true, tracksWatched: true).actions
+  }
+
   private func item(_ kind: PutioFileKind, resume: Int = 0, shared: Bool = false)
     -> PutioFileItem
   {

@@ -231,7 +231,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Select"].tap()
     XCTAssertTrue(
       waitForValuePrefix(folder, "Selected"), "Select did not start selection on the row")
-    app.buttons["files.selection.toggle"].tap()
+    app.buttons["selection.close"].tap()
     XCTAssertTrue(waitUntilHittable(folder, timeout: 5))
     folder.swipeRight()
     let move = app.buttons["Move"]
@@ -412,6 +412,148 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value BEGINSWITH %@", prefix), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+  }
+
+  func testSelectionBarFollowsTheSelectionAndSelectAllTakesLoadedRows() {
+    app.launchArguments.append("--putio-harness-folder-states")
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    beginSelection()
+    XCTAssertEqual(selectionBar(), ["move", "trash"])
+    XCTAssertFalse(app.buttons["selection.action.move"].isEnabled, "nothing selected can move")
+    XCTAssertFalse(app.buttons["selection.action.trash"].isEnabled, "nothing selected can trash")
+    toggle("files.item.412")
+    XCTAssertEqual(selectionBar(), ["move", "download", "unwatched", "trash"])
+    toggle("files.item.408")
+    XCTAssertEqual(selectionBar(), ["move", "download", "trash"], "audio offered Watched")
+    toggle("files.item.410")
+    XCTAssertEqual(selectionBar(), ["move", "trash"], "a folder kept the playable actions")
+    XCTAssertTrue(app.staticTexts["3 selected"].exists)
+    addScreenshot(named: "runtime-selection-mixed")
+    endSelection()
+
+    let paging = element(identifier: "files.item.460")
+    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    paging.tap()
+    XCTAssertTrue(app.staticTexts["Paging File 001.txt"].appears(within: 10))
+    beginSelection()
+    app.buttons["selection.toggle-all"].tap()
+    XCTAssertTrue(app.staticTexts["50 selected"].appears(within: 5), "Select all took other rows")
+    let summary = element(identifier: "files.selection.summary")
+    XCTAssertTrue(summary.label.hasPrefix("450 items"), summary.label)
+    XCTAssertTrue(summary.label.contains("selected"), summary.label)
+    addScreenshot(named: "runtime-selection-all-loaded")
+
+    let failed = app.staticTexts["Couldn’t load more files."]
+    XCTAssertTrue(scrollUntilShown(failed, swipes: 15), "page 2 never failed")
+    let retry = element(identifier: "files.more-retry.460")
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 5), "the failed page has no Try again")
+    retry.tap()
+    let paged = element(identifier: "files.item.5051")
+    XCTAssertTrue(paged.appears(within: 10), "Try again never appended page 2")
+    XCTAssertEqual(paged.value as? String, "Not selected", "a paged row arrived selected")
+    XCTAssertTrue(app.staticTexts["50 selected"].exists, "paging changed the selection")
+
+    let last = element(identifier: "files.item.5050")
+    XCTAssertTrue(scrollUntilShown(last, swipes: 5) || last.exists)
+    toggle("files.item.5050", to: "Not selected")
+    XCTAssertTrue(app.staticTexts["49 selected"].exists, "unticking kept the row selected")
+    endSelection()
+    beginSelection()
+    XCTAssertTrue(app.staticTexts["0 selected"].exists, "closing kept the selection")
+    endSelection()
+
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
+    signOutFromAccount()
+  }
+
+  func testSelectionBarWithTrashOffDeletesAndReportsPartialWatchedFailures() {
+    app.launchArguments += [
+      "--putio-harness-trash-disabled", "--putio-harness-watched-refusal",
+    ]
+    app.launch()
+    openSeasonFolder()
+
+    beginSelection()
+    toggle("files.item.441")
+    toggle("files.item.442")
+    toggle("files.item.443")
+    XCTAssertEqual(selectionBar(), ["move", "download", "watched", "trash"])
+    let delete = app.buttons["selection.action.trash"]
+    XCTAssertEqual(delete.label, "Delete")
+    XCTAssertTrue(
+      element(identifier: "files.selection.summary").label.contains("9.6 GB selected"),
+      element(identifier: "files.selection.summary").label)
+    addScreenshot(named: "runtime-selection-trash-off")
+    delete.tap()
+    let alert = app.alerts["Delete 3 items permanently?"]
+    XCTAssertTrue(alert.appears(within: 5), "Delete did not ask first")
+    alert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertTrue(app.staticTexts["3 selected"].exists, "Cancel ended the selection")
+
+    app.buttons["selection.action.watched"].tap()
+    let failure = app.alerts["Could not update items"]
+    XCTAssertTrue(failure.appears(within: 10), "the refused video was not reported")
+    XCTAssertTrue(failure.staticTexts["Couldn’t mark 1 item as watched."].exists)
+    XCTAssertTrue(waitForValuePrefix(element(identifier: "files.item.443"), "Not selected"))
+    app.buttons["files.bulk.dismiss"].firstMatch.tap()
+    XCTAssertTrue(failure.disappears(within: 5))
+    XCTAssertEqual(
+      element(identifier: "files.item.441").value as? String, "Selected",
+      "the refused video left the selection")
+    XCTAssertTrue(app.staticTexts["1 selected"].exists)
+    endSelection()
+    XCTAssertTrue(
+      waitForValuePrefix(element(identifier: "files.item.443"), "Watched"),
+      "the accepted video did not turn watched")
+    XCTAssertTrue(
+      waitForValuePrefix(element(identifier: "files.item.441"), "Not watched"),
+      "the refused video did not roll back")
+  }
+
+  private func beginSelection() {
+    openBrowseMenu()
+    let select = app.buttons["Select"].firstMatch
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5), "More has no Select")
+    select.tap()
+    XCTAssertTrue(element(identifier: "selection.bar").appears(within: 5), "no selection bar")
+  }
+
+  private func endSelection() {
+    let close = app.buttons["selection.close"]
+    XCTAssertTrue(waitUntilHittable(close, timeout: 5), "selection has no close button")
+    close.tap()
+    XCTAssertTrue(element(identifier: "selection.bar").disappears(within: 5), "the bar stayed")
+  }
+
+  private func toggle(_ identifier: String, to value: String = "Selected") {
+    let row = element(identifier: identifier)
+    XCTAssertTrue(waitUntilHittable(row, timeout: 5), "\(identifier) is not tappable")
+    row.tap()
+    XCTAssertTrue(waitForValuePrefix(row, value), "\(identifier) did not become \(value)")
+  }
+
+  private func selectionBar() -> [String] {
+    app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "selection.action."))
+      .allElementsBoundByIndex.map { String($0.identifier.dropFirst("selection.action.".count)) }
+  }
+
+  private func signOutFromAccount() {
+    let account = app.buttons["Account"]
+    if !account.exists { app.buttons["Files"].tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element(identifier: "auth.sign-in").appears(within: 10))
   }
 
   func testFailedSignOutLandsOnWelcomeAndNeverRestoresOnRelaunch() {
@@ -1520,15 +1662,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let select = app.buttons["Select"]
     XCTAssertTrue(waitUntilHittable(select, timeout: 5), "file selection control is unavailable")
     select.tap()
-    let edit = app.buttons["files.selection.toggle"]
+    let edit = app.buttons["selection.close"]
     XCTAssertTrue(
-      app.buttons["files.bulk.move"].appears(within: 5),
-      "bulk toolbar did not appear in edit mode"
+      app.buttons["selection.action.move"].appears(within: 5),
+      "the selection bar did not appear"
     )
     XCTAssertEqual(element(identifier: "files.item.413").value as? String, "Not selected")
-    let bulkMove = app.buttons["files.bulk.move"]
+    let bulkMove = app.buttons["selection.action.move"]
     XCTAssertFalse(bulkMove.isEnabled)
-    let selectAll = app.buttons["files.selection.select-all"]
+    let selectAll = app.buttons["selection.toggle-all"]
     XCTAssertTrue(
       waitUntilHittable(selectAll, timeout: 5),
       "select-all action is not hittable: \(selectAll.debugDescription)"
@@ -1537,9 +1679,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
     XCTAssertEqual(bulkSuccessFolder.value as? String, "Selected")
     XCTAssertTrue(bulkMove.isEnabled)
-    let deselectAll = app.buttons["files.selection.deselect-all"]
-    XCTAssertTrue(waitUntilHittable(deselectAll, timeout: 5))
-    deselectAll.tap()
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertTrue(bulkMove.disappears(within: 5))
+    openBrowseMenu()
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5))
+    select.tap()
+    XCTAssertTrue(bulkMove.appears(within: 5))
     XCTAssertEqual(bulkRetryFolder.value as? String, "Not selected")
     XCTAssertEqual(bulkSuccessFolder.value as? String, "Not selected")
     XCTAssertFalse(bulkMove.isEnabled)
@@ -1609,19 +1755,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
     nestedEdit.tap()
     XCTAssertTrue(
-      app.buttons["files.bulk.remove"].appears(within: 5),
-      "nested bulk toolbar did not appear in edit mode"
+      app.buttons["selection.action.trash"].appears(within: 5),
+      "the nested selection bar did not appear"
     )
     movedBulkRetryFolder.tap()
     movedBulkSuccessFolder.tap()
     XCTAssertEqual(movedBulkRetryFolder.value as? String, "Selected")
     XCTAssertEqual(movedBulkSuccessFolder.value as? String, "Selected")
-    let bulkRemove = app.buttons["files.bulk.remove"]
+    let bulkRemove = app.buttons["selection.action.trash"]
     XCTAssertTrue(
       waitUntilHittable(bulkRemove, timeout: 5),
       "bulk Trash is not hittable: \(bulkRemove.debugDescription)"
     )
-    XCTAssertEqual(bulkRemove.label, "Move to trash")
+    XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
     XCTAssertFalse(
       app.buttons["confirm-alert.confirm"].exists, "a recoverable bulk Trash asked to confirm")
@@ -1634,7 +1780,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(survivingRow.value as? String, "Not selected")
     survivingRow.tap()
     XCTAssertEqual(survivingRow.value as? String, "Not selected")
-    XCTAssertFalse(app.buttons["files.selection.select-all"].isEnabled)
+    XCTAssertFalse(app.buttons["selection.toggle-all"].isEnabled)
     app.swipeRight()
     XCTAssertTrue(
       element(identifier: "files.screen.410").exists,
@@ -1674,7 +1820,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     ambiguousEdit.tap()
     ambiguousMoveFolder.tap()
     XCTAssertEqual(ambiguousMoveFolder.value as? String, "Selected")
-    let ambiguousBulkMove = app.buttons["files.bulk.move"]
+    let ambiguousBulkMove = app.buttons["selection.action.move"]
     XCTAssertTrue(waitUntilHittable(ambiguousBulkMove, timeout: 5))
     ambiguousBulkMove.tap()
     let moveAmbiguousToRoot = app.buttons["Move to Files"]
@@ -1692,7 +1838,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
     XCTAssertTrue(waitUntilHittable(dismissAmbiguousMove, timeout: 5))
     dismissAmbiguousMove.tap()
-    let ambiguousDone = app.buttons["files.selection.toggle"]
+    let ambiguousDone = app.buttons["selection.close"]
     XCTAssertTrue(waitUntilHittable(ambiguousDone, timeout: 5))
     ambiguousDone.tap()
 
