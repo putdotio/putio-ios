@@ -563,8 +563,7 @@ private struct WelcomeButton: View {
         label.foregroundStyle(PutioTheme.Components.Button.secondaryForeground)
       }
       .buttonStyle(.borderedProminent)
-      .modifier(WelcomeButtonShape())
-      .tint(PutioTheme.Components.Button.secondaryBackground)
+      .modifier(WelcomeButtonShape(tint: PutioTheme.Components.Button.secondaryBackground))
     }
   }
 
@@ -576,11 +575,13 @@ private struct WelcomeButton: View {
 }
 
 private struct WelcomeButtonShape: ViewModifier {
+  var tint = PutioTheme.Colors.accent
+
   func body(content: Content) -> some View {
     content
       .controlSize(.large)
       .buttonBorderShape(.capsule)
-      .tint(PutioTheme.Colors.accent)
+      .tint(tint)
   }
 }
 
