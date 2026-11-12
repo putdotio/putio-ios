@@ -240,11 +240,12 @@ public struct PutioAlertAction: Identifiable, Sendable {
       let width = proposal.width ?? idealRowWidth(subviews)
       if fitsRow(width: width, subviews: subviews) {
         let column = columnWidth(width, count: subviews.count)
-        let height = subviews.map { $0.sizeThatFits(ProposedViewSize(width: column, height: nil)).height }
-          .max() ?? 0
+        let proposal = ProposedViewSize(width: column, height: nil)
+        let height = subviews.map { $0.sizeThatFits(proposal).height }.max() ?? 0
         return CGSize(width: width, height: height)
       }
-      let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+      let proposal = ProposedViewSize(width: width, height: nil)
+      let heights = subviews.map { $0.sizeThatFits(proposal).height }
       return CGSize(
         width: width,
         height: heights.reduce(0, +) + spacing * CGFloat(max(subviews.count - 1, 0)))

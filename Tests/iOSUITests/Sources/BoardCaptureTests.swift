@@ -1090,7 +1090,8 @@ final class BoardCaptureTests: XCTestCase {
     let trash = app.switches["settings.trash"]
     app.bringIntoView(trash)
     trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-    XCTAssertTrue(app.putioAlert("Turn off trash?").appears(within: 5), "the trash alert never showed")
+    XCTAssertTrue(
+      app.putioAlert("Turn off trash?").appears(within: 5), "the trash alert never showed")
     try captureBoard("rd-ios-acc-24-trash-off")
   }
 
