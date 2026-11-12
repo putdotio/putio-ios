@@ -71,7 +71,7 @@ jobs:
               - '!**/*.md'
               - '!{docs,.agents,.claude,.github/ISSUE_TEMPLATE,Tests/Formal}/**'
               - '!{LICENSE,skills-lock.json,renovate.json,.worktreeinclude,.periphery.yml,.oxfmtrc.json,tsconfig.json,mise-tasks.toml}'
-              - '!scripts/{dead-code,xcode-skills,install-asc}.sh'
+              - '!scripts/{dead-code,xcode-skills}.sh'
               - '!scripts/{app-store,string-catalog,generate-design-tokens,formal-session}*.ts'
               - '!scripts/*.test.ts'
               - '!Config/AndroidStrings.json'
@@ -99,7 +99,7 @@ jobs:
             # One pattern: predicate-quantifier every would require a file to
             # match every entry in a list.
             store:
-              - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
+              - '{scripts/app-store*.ts,mise.toml,mise.lock,.github/workflows/ci-next.yml}'
 
       - name: Check Markdown links
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
@@ -130,7 +130,7 @@ jobs:
       - name: Verify tooling
         run: ./scripts/verify.sh tooling
 
-  # asc runs only here, on a fresh Linux runner: the pinned, checksummed binary
+  # asc runs only here, on a fresh Linux runner: the locked, checksummed binary
   # with telemetry off, then the store tool's tests against it, offline.
   app-store:
     name: App Store tooling
@@ -148,16 +148,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Node.js and pnpm
+      - name: Install Node.js, pnpm, and asc
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
           version: "2026.11.5"
-          install_args: node pnpm
-
-      - name: Install the pinned asc
-        run: |
-          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
-          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+          install_args: node pnpm github:rorkai/App-Store-Connect-CLI
 
       # The second status runs without the variable, so the check fails if
       # telemetry was off for any other reason.

@@ -150,6 +150,7 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
     "Packages/PutioCore/Sources/Session.swift",
     "Tools/PutioHarness/Sources/PutioHarness/main.swift",
     "mise.toml",
+    "mise.lock",
     "package.json",
     "scripts/sync-brand-fonts.ts",
     ".github/workflows/ci-next.yml",

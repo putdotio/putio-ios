@@ -70,9 +70,9 @@ ships.
 
 ### asc pin and telemetry
 
-[install-asc.sh](../scripts/install-asc.sh) pins asc 5.15.0 and checks each
-platform's SHA-256 before installing. CI installs asc only through it, never
-from Homebrew. Bump the version and every checksum together.
+[mise.toml](../mise.toml) pins asc 5.15.0 and [mise.lock](../mise.lock) holds
+each platform's SHA-256, which mise checks before installing. CI installs asc
+only through mise, never from Homebrew.
 
 asc sends command telemetry to rork.com by default. 5.15.0 turns it off when
 `ASC_TELEMETRY_DISABLED` or `DO_NOT_TRACK` is set. Every workflow that runs asc
