@@ -21,6 +21,20 @@ final class FileMenuTests: XCTestCase {
       [[.select], [.rename, .move], [.trash]])
   }
 
+  func testSearchResultsDropSelectRenameAndTrash() {
+    let video = PutioFileMenu.searchResult(
+      item: item(.video, resume: 1_260),
+      capabilities: .init(
+        canEdit: true, canDownload: true, vlcInstalled: false, tracksWatched: true, pinned: false))
+    XCTAssertEqual(video.sections, [[.play, .download], [.pin, .markUnwatched], [.move]])
+    XCTAssertEqual(video.trailingSwipe, [.download])
+    let folder = PutioFileMenu.searchResult(
+      item: item(.folder),
+      capabilities: .init(
+        canEdit: true, canDownload: true, vlcInstalled: true, tracksWatched: true, pinned: true))
+    XCTAssertEqual(folder.sections, [[.unpin], [.move]])
+  }
+
   func testWatchedVideoOffersUnwatched() {
     let menu = PutioFileMenu(item: item(.video, resume: 1_260), capabilities: everything)
     XCTAssertTrue(menu.contains(.markUnwatched))

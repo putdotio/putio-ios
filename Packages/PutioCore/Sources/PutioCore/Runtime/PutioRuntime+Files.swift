@@ -76,9 +76,12 @@ extension PutioRuntime {
     return folderContents(from: result)
   }
 
-  public func searchFiles(query: String) async throws -> PutioFileSearchPage {
+  public func searchFiles(
+    query: String, filter: PutioFileSearchFilter = .all
+  ) async throws -> PutioFileSearchPage {
+    let types = Self.searchTypes(filter)
     let result = try await performAuthenticatedOperation {
-      try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query))
+      try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query, types: types))
     }
     return try searchPage(from: result)
   }
@@ -91,6 +94,17 @@ extension PutioRuntime {
       throw PutioRuntimeError.invalidResponse
     }
     return try searchPage(from: result)
+  }
+
+  private static func searchTypes(_ filter: PutioFileSearchFilter) -> [PutioFileType] {
+    switch filter {
+    case .all, .subtitles: []
+    case .folders: [.folder]
+    case .videos: [.video]
+    case .audio: [.audio]
+    case .images: [.image]
+    case .documents: [.pdf, PutioFileType(rawValue: "TEXT")]
+    }
   }
 
   private func searchPage(from result: PutioFileSearchResponse) throws -> PutioFileSearchPage {

@@ -12,6 +12,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
 
   public let name: String
   public let kind: Kind
+  public let locationText: String?
   public let sizeText: String?
   public let dateText: String?
   public let secondaryText: String?
@@ -23,6 +24,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
   public init(
     name: String,
     kind: Kind,
+    locationText: String? = nil,
     sizeText: String? = nil,
     dateText: String? = nil,
     secondaryText: String? = nil,
@@ -33,6 +35,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
   ) {
     self.name = name
     self.kind = kind
+    self.locationText = locationText
     self.sizeText = sizeText
     self.dateText = dateText
     self.secondaryText = secondaryText
@@ -197,10 +200,17 @@ public struct PutioFileRow: View {
             }
           }
         }
-      } else if model.sizeText != nil || model.dateText != nil || model.isOnDevice
-        || model.isWatched
+      } else if model.locationText != nil || model.sizeText != nil || model.dateText != nil
+        || model.isOnDevice || model.isWatched
       {
         HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
+          if let locationText = model.locationText {
+            segmentText(locationText, isNumeric: false, color: PutioTheme.Colors.textSecondary)
+              .layoutPriority(-1)
+          }
+          if model.locationText != nil, model.sizeText != nil || model.dateText != nil {
+            separator(PutioTheme.Colors.textSecondary)
+          }
           if let sizeText = model.sizeText {
             segmentText(sizeText, isNumeric: true, color: PutioTheme.Colors.textSecondary)
           }

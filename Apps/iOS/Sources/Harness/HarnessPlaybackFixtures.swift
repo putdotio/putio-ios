@@ -85,6 +85,20 @@ import SwiftUI
     }
   }
 
+  struct HarnessSearchRequestsProbe: View {
+    var body: some View {
+      TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+        Color.clear
+          .frame(width: 1, height: 1)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Search requests")
+          .accessibilityValue(HarnessSeededAPI.searchRequestSummary())
+          .accessibilityIdentifier("search.requests")
+          .allowsHitTesting(false)
+      }
+    }
+  }
+
   struct HarnessPasteboardProbe: View {
     @State private var text = ""
 

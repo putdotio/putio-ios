@@ -687,6 +687,9 @@ import Foundation
     private static var holdsSeasonContinuation: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-held")
     }
+    private static var holdsSearch: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-search")
+    }
     private static var failsSeasonContinuation: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-fails")
     }
@@ -699,6 +702,7 @@ import Foundation
     static let tvSecondPageFileID = 426
     static let tvArrivedFileID = 427
     nonisolated(unsafe) private static var emptySearchLoads = 0
+    nonisolated(unsafe) private static var searchRequests: [String] = []
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var galleryEdits: [Int: (name: String, parentID: Int)] = [:]
@@ -907,6 +911,7 @@ import Foundation
       tvSeasonPackTrashed = false
       tvHarnessFolderOpened = false
       emptySearchLoads = 0
+      searchRequests = []
       searchContinuationFailed = false
       renameAttempts = 0
       galleryLock.withLock {
@@ -1056,6 +1061,7 @@ import Foundation
         DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url)
         || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
+        || (Self.holdsSearch && url.path == "/v2/files/search")
       {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -1405,12 +1411,24 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    static func searchRequestSummary() -> String {
+      fileActionsLock.withLock { searchRequests.joined(separator: ";") }
+    }
+
     private static func searchFiles(url: URL) -> (Int, String) {
+      let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      let type = items.first { $0.name == "type" }?.value
+      fileActionsLock.withLock {
+        searchRequests.append(
+          "\(items.first { $0.name == "query" }?.value ?? "")|\(type ?? "")")
+      }
       guard !fileActionsLock.withLock({ harnessFolderDeleted }) else {
         return (200, #"{"total":0,"files":[]}"#)
       }
-      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-        .queryItems?.first { $0.name == "query" }?.value?.lowercased()
+      let query = items.first { $0.name == "query" }?.value?.lowercased()
+      if query == "blue", seasonFolderSeeded {
+        return (200, blueSearch(types: type.map { Set($0.split(separator: ",").map(String.init)) }))
+      }
       if query == "no-matching-file" {
         let shouldFail = fileActionsLock.withLock {
           emptySearchLoads += 1
@@ -1468,6 +1486,27 @@ import Foundation
         ]}
         """
       )
+    }
+
+    private static func blueSearch(types: Set<String>?) -> String {
+      let episodes = seasonEpisodes.prefix(2).map { episode in
+        """
+        {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
+        "parent_id":\(seasonFolderID),"size":\(episode.size),
+        "created_at":"2026-10-\(episode.day)T10:00:00Z",
+        "updated_at":"2026-10-\(episode.day)T10:00:00Z",
+        "start_from":\(playbackPosition(fileID: episode.id))}
+        """
+      }
+      let subtitle = seasonSubtitles[seasonSubtitleFileID].map {
+        subtitleRow(
+          id: seasonSubtitleFileID, name: $0.name, size: $0.size, parentID: seasonFolderID)
+      }
+      let rows: [(type: String, json: String)] =
+        [("FOLDER", seasonFolderObject(sortBy: nil))] + episodes.map { ("VIDEO", $0) }
+        + (subtitle.map { [("TEXT", $0)] } ?? [])
+      let kept = rows.filter { types?.contains($0.type) ?? true }.map(\.json)
+      return "{\"total\":\(kept.count),\"files\":[\(kept.joined(separator: ","))]}"
     }
 
     private static func continueSearch(request: URLRequest) -> (Int, String) {

@@ -7,7 +7,7 @@ final class FilesSearchTests: XCTestCase {
   func testWhitespaceDoesNotSearchAndCancellationStopsDebounce() async throws {
     var keywords: [String] = []
     let model = PutioFileSearchModel(
-      search: { keyword in
+      search: { keyword, _ in
         keywords.append(keyword)
         return Self.page([])
       },
@@ -30,7 +30,8 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { try await requests.load($0) }, continueSearch: { _ in Self.page([]) })
+      search: { keyword, _ in try await requests.load(keyword) },
+      continueSearch: { _ in Self.page([]) })
     let first = Task { await model.update(query: "old", debounced: false) }
     try await requests.waitForCount(1)
     let second = Task { await model.update(query: " new ", debounced: false) }
@@ -48,7 +49,8 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { try await requests.load($0) }, continueSearch: { _ in Self.page([]) })
+      search: { keyword, _ in try await requests.load(keyword) },
+      continueSearch: { _ in Self.page([]) })
     let request = Task { await model.update(query: "old", debounced: false) }
     try await requests.waitForCount(1)
     await model.update(query: "")
@@ -60,7 +62,7 @@ final class FilesSearchTests: XCTestCase {
   func testFailureCanRetryTheSameQueryAndEmptyResultsRemainLoaded() async {
     var attempts = 0
     let model = PutioFileSearchModel(
-      search: { _ in
+      search: { _, _ in
         attempts += 1
         if attempts == 1 { throw PutioRuntimeError.transient }
         return Self.page([])
@@ -75,7 +77,7 @@ final class FilesSearchTests: XCTestCase {
   func testPaginationRetainsRowsOnFailureAndDeduplicatesRetry() async {
     var cursors: [String] = []
     let model = PutioFileSearchModel(
-      search: { _ in Self.page([1], cursor: "second") },
+      search: { _, _ in Self.page([1], cursor: "second") },
       continueSearch: { cursor in
         cursors.append(cursor)
         if cursors.count == 1 { throw PutioRuntimeError.transient }
@@ -93,7 +95,7 @@ final class FilesSearchTests: XCTestCase {
 
   func testFirstPageIDsFollowSearchesAndIgnoreAppendedPages() async {
     let model = PutioFileSearchModel(
-      search: { _ in Self.page([1], cursor: "second") },
+      search: { _, _ in Self.page([1], cursor: "second") },
       continueSearch: { _ in Self.page([2]) })
     await model.update(query: "movie", debounced: false)
     await model.loadMore()
@@ -104,7 +106,7 @@ final class FilesSearchTests: XCTestCase {
     var attempts = 0
     var continuationCalls = 0
     let model = PutioFileSearchModel(
-      search: { _ in
+      search: { _, _ in
         attempts += 1
         if attempts == 2 { throw PutioRuntimeError.transient }
         return Self.page([attempts], cursor: "next")
@@ -128,7 +130,7 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { query in Self.page(query == "old" ? [1] : [3], cursor: query) },
+      search: { query, _ in Self.page(query == "old" ? [1] : [3], cursor: query) },
       continueSearch: { try await requests.load($0) })
     await model.update(query: "old", debounced: false)
     let oldPage = Task { await model.loadMore() }
@@ -148,7 +150,7 @@ final class FilesSearchTests: XCTestCase {
   func testCursorCycleStopsWithoutDroppingResults() async {
     var requestCount = 0
     let model = PutioFileSearchModel(
-      search: { _ in Self.page([1], cursor: "a") },
+      search: { _, _ in Self.page([1], cursor: "a") },
       continueSearch: { _ in
         requestCount += 1
         return Self.page([requestCount + 1], cursor: requestCount == 1 ? "b" : "a")
@@ -164,7 +166,7 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { _ in Self.page([1], cursor: "second") },
+      search: { _, _ in Self.page([1], cursor: "second") },
       continueSearch: { try await requests.load($0) })
     await model.update(query: "movie", debounced: false)
     let originalEpoch = model.paginationEpoch
@@ -188,7 +190,7 @@ final class FilesSearchTests: XCTestCase {
   func testReappearanceKeepsResultsUntilTheQueryOrARefreshChanges() async {
     var keywords: [String] = []
     let model = PutioFileSearchModel(
-      search: { keyword in
+      search: { keyword, _ in
         keywords.append(keyword)
         return Self.page([keywords.count])
       },
@@ -216,7 +218,7 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { try await requests.load($0) },
+      search: { keyword, _ in try await requests.load(keyword) },
       continueSearch: { _ in Self.page([]) },
       debounce: .zero
     )
@@ -258,7 +260,7 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { try await requests.load($0) },
+      search: { keyword, _ in try await requests.load(keyword) },
       continueSearch: { _ in Self.page([]) },
       debounce: .zero
     )
@@ -294,7 +296,7 @@ final class FilesSearchTests: XCTestCase {
     let requests = ControlledSearch()
     defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
-      search: { try await requests.load($0) },
+      search: { keyword, _ in try await requests.load(keyword) },
       continueSearch: { _ in Self.page([]) },
       debounce: .zero
     )
@@ -325,7 +327,7 @@ final class FilesSearchTests: XCTestCase {
   func testSuccessfulInitialRetryKeepsResultsOnReappearance() async {
     var attempts = 0
     let model = PutioFileSearchModel(
-      search: { _ in
+      search: { _, _ in
         attempts += 1
         if attempts == 1 { throw PutioRuntimeError.transient }
         return Self.page([attempts])
@@ -343,7 +345,7 @@ final class FilesSearchTests: XCTestCase {
   func testSuccessfulRefreshRetryRecordsTheNewRevision() async {
     var attempts = 0
     let model = PutioFileSearchModel(
-      search: { _ in
+      search: { _, _ in
         attempts += 1
         if attempts == 2 { throw PutioRuntimeError.transient }
         return Self.page([attempts])
@@ -364,6 +366,40 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(attempts, 4)
     await model.apply(query: "movie", revision: 2)
     XCTAssertEqual(attempts, 5)
+  }
+
+  func testFilterChangeSearchesAtOnceWithoutTheOldResults() async throws {
+    let requests = ControlledSearch()
+    defer { requests.cancelPending() }
+    var filters: [PutioFileSearchFilter] = []
+    let model = PutioFileSearchModel(
+      search: { keyword, filter in
+        filters.append(filter)
+        return try await requests.load(keyword)
+      },
+      continueSearch: { _ in Self.page([]) }, debounce: .seconds(30))
+    let first = Task { await model.refresh(query: "blue", revision: 0) }
+    try await requests.waitForCount(1)
+    requests.finish(0, with: .success(Self.page([1])))
+    await first.value
+    let filtered = Task { await model.apply(query: "blue", filter: .videos, revision: 0) }
+    try await requests.waitForCount(2)
+    XCTAssertEqual(model.state, .loading)
+    XCTAssertEqual(filters, [.all, .videos])
+    requests.finish(1, with: .success(Self.page([2])))
+    await filtered.value
+    XCTAssertEqual(model.state, .loaded(Self.page([2])))
+    XCTAssertEqual(model.filter, .videos)
+  }
+
+  func testSubtitlesKeepOnlySubtitleFiles() {
+    let names = ["Blue.srt", "Blue.VTT", "Blue.mkv", "Blue.srt.txt"]
+    let kept = names.enumerated().map { index, name in
+      PutioFileItem(
+        id: PutioFileID(rawValue: index), parentID: .root, name: name, kind: .text, sizeBytes: 1,
+        createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: 0)
+    }.filter(PutioFileSearchFilter.subtitles.accepts).map(\.name)
+    XCTAssertEqual(kept, ["Blue.srt", "Blue.VTT"])
   }
 
   private static func page(_ ids: [Int], cursor: String? = nil) -> PutioFileSearchPage {

@@ -1208,10 +1208,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     moreRetry.tap()
     XCTAssertTrue(videoResult.appears(within: 10), "search continuation never appended")
     addScreenshot(named: "runtime-search-results")
-    // Search results offer the same file actions as folder rows.
     let searchMove = openContextMenu(for: videoResult, actionLabel: "Move")
-    XCTAssertTrue(app.buttons["Rename"].exists, "search result menu lacks Rename")
-    XCTAssertTrue(app.buttons["Move to trash"].exists, "search result menu lacks Trash")
+    XCTAssertFalse(app.buttons["Rename"].exists, "search result menu offers Rename")
+    XCTAssertFalse(app.buttons["Move to trash"].exists, "search result menu offers Trash")
+    XCTAssertFalse(app.buttons["Select"].exists, "search result menu offers Select")
     dismissMenu()
     XCTAssertTrue(searchMove.disappears(within: 5))
     videoResult.tap()
@@ -1484,6 +1484,60 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10))
+  }
+
+  func testSearchFiltersGroupsAndResultMenu() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    app.buttons["Search"].tap()
+    let searchField = app.searchFields.firstMatch
+    XCTAssertTrue(waitUntilHittable(searchField, timeout: 5))
+    searchField.tap()
+    searchField.typeText("blue")
+    let folder = element(identifier: "files.search-item.440")
+    let episode = element(identifier: "files.search-item.441")
+    let subtitle = element(identifier: "files.search-item.445")
+    XCTAssertTrue(folder.appears(within: 10), "the folder result never appeared")
+    XCTAssertTrue(subtitle.exists, "the subtitle result is missing")
+    let requests = element(identifier: "search.requests")
+    XCTAssertEqual(requests.value as? String, "blue|", "typing sent more than one search")
+    XCTAssertEqual(
+      element(identifier: "files.search-group.folders").label, "Folders, 1",
+      "the Folders group lacks its count")
+    XCTAssertEqual(
+      element(identifier: "files.search-group.files").label, "Files, 3",
+      "the Files group lacks its count")
+    XCTAssertTrue(app.staticTexts["in Blue Lights"].firstMatch.appears(within: 10))
+    addScreenshot(named: "runtime-search-grouped")
+
+    element(identifier: "files.search-filter.videos").tap()
+    XCTAssertTrue(folder.disappears(within: 10), "Videos kept the folder")
+    XCTAssertTrue(episode.appears(within: 10), "Videos lost the episode")
+    XCTAssertFalse(subtitle.exists, "Videos kept the subtitle")
+    XCTAssertEqual(requests.value as? String, "blue|;blue|VIDEO", "Videos sent the wrong type")
+    element(identifier: "files.search-filter.all").tap()
+    XCTAssertTrue(folder.appears(within: 10), "All never brought the folder back")
+    XCTAssertEqual(requests.value as? String, "blue|;blue|VIDEO;blue|")
+
+    _ = openContextMenu(for: episode, actionLabel: "Move")
+    XCTAssertTrue(app.buttons["Play"].exists, "the result menu lacks Play")
+    XCTAssertFalse(app.buttons["Select"].exists, "the result menu offers Select")
+    XCTAssertFalse(app.buttons["Rename"].exists, "the result menu offers Rename")
+    XCTAssertFalse(app.buttons["Move to trash"].exists, "the result menu offers Trash")
+    dismissMenu()
+
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.440").appears(within: 10))
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(folder.appears(within: 5), "Back lost the results")
+    XCTAssertTrue(subtitle.exists, "Back lost the Files group")
+
+    if app.keyboards.firstMatch.exists { searchField.typeText("\n") }
+    signOutFromAccount()
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {

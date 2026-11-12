@@ -97,6 +97,10 @@ Preconditions:
 - **Search.** Run `--only search-restoration`. A failed second page offers
   retry, results append, and a relaunch reopens Harness Folder until sign-out.
   Screenshot: `runtime-search-results`.
+- **Search filters.** Run `--only search-filters`. Typing `blue` sends one
+  search; Videos sends `type=VIDEO`; the `search.requests` probe lists each
+  search as `query|type`. `--putio-harness-hold-search` holds every search.
+  Screenshot: `runtime-search-grouped`.
 - **Item menus.** Run `--only row-menus`. The first Mark as unwatched on
   `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
   `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.

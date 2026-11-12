@@ -625,6 +625,11 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-61-selection-failed", .iphone, "testSelectionFailed", screenBase: false),
       BoardCapture("Main", .iphone, "testFilesRoot"),
+      BoardCapture("rd-ios-07-search", .iphone, "testSearch"),
+      BoardCapture("rd-ios-42-search-loading", .iphone, "testSearchLoading"),
+      BoardCapture("rd-ios-48-search-filter", .iphone, "testSearchFilter"),
+      BoardCapture("rd-ios-49-search-long-press", .iphone, "testSearchLongPress"),
+      BoardCapture("rd-ios-50-ipad-search", .ipad, "testSearch"),
       BoardCapture(
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
       BoardCapture("rd-ios-13-ipad-sidebar", .ipad, "testIPadSidebar"),
@@ -1158,6 +1163,9 @@ enum BrowserJourneyContract {
       "search-restoration",
       "FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration",
       attachmentNames: ["runtime-search-results"], timeAllowance: 180),
+    JourneyPreflight(
+      "search-filters", "FilesBrowserJourneyTests/testSearchFiltersGroupsAndResultMenu",
+      attachmentNames: ["runtime-search-grouped"], timeAllowance: 120),
     JourneyPreflight(
       "folder-states", "FilesBrowserJourneyTests/testFolderEmptyPagingFailedPageAndPullToRefresh",
       attachmentNames: ["runtime-folder-empty", "runtime-folder-load-more-failed"],
