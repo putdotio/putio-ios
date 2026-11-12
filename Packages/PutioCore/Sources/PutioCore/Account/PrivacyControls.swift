@@ -57,6 +57,6 @@ public enum PutioPrivacyControls {
       account.productAnalyticsEnabled
       ? String(localized: "Analytics on", bundle: .module)
       : String(localized: "Analytics off", bundle: .module)
-    return String(localized: "\(diagnostics) · \(analytics)", bundle: .module)
+    return [diagnostics, analytics].joined(separator: " · ")
   }
 }

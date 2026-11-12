@@ -23,17 +23,6 @@
         }
       }
     },
-    "%@ · %@" : {
-      "comment" : "android: mobile_settings_privacy_controls_state",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · %@"
-          }
-        }
-      }
-    },
     "%lld couldn’t be deleted." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
