@@ -56,7 +56,9 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
         id: item.id, parentID: item.parentID, title: item.name, kind: .pdf,
         exceedsSizeCap: exceedsSizeCap)
     case .text:
-      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .text)
+      PutioPreviewRoute(
+        id: item.id, parentID: item.parentID, title: item.name, kind: .text,
+        exceedsSizeCap: exceedsSizeCap)
     case .folder, .video, .audio, .other:
       nil
     }

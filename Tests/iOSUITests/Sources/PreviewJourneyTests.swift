@@ -87,6 +87,7 @@ final class PreviewJourneyTests: XCTestCase {
     let poster = app.images["Harness Poster.png"]
     XCTAssertTrue(poster.exists)
     assertImageGestures(poster)
+    assertShares("Harness Poster.png", from: app.buttons["preview.share"], capture: "image")
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
@@ -100,6 +101,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(pill.appears(within: 5), "a twelve-page document has no page pill")
     XCTAssertEqual(pill.label, "Page 1 of 12")
     screenshot("runtime-preview-document")
+    assertShares("Document.pdf", from: app.buttons["preview.share"], capture: "document")
     assertDocumentScrollsAndZooms(pill)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
@@ -274,9 +276,37 @@ final class PreviewJourneyTests: XCTestCase {
       notice.isOnScreen, "scrolling never reached the end line: \(notice.debugDescription)")
     XCTAssertEqual(notice.label, "Showing the first 250 kB.")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    let row = app.buttons["preview.text.share"]
+    XCTAssertTrue(row.isHittable, "the Share row is not under the end line")
+    XCTAssertGreaterThan(row.frame.minY, notice.frame.maxY)
     screenshot("runtime-preview-text-truncated")
+    let requests = element("preview.requests")
+    XCTAssertFalse((requests.value as? String ?? "").contains("432:shared"))
+    assertShares("Blue.Lights.S04.en.srt", from: row, capture: "text")
+    XCTAssertTrue(
+      (requests.value as? String ?? "").hasSuffix("432:loaded,432:shared"),
+      "the Share row did not fetch the whole file: \(requests.value ?? "")")
+    assertShares("Blue.Lights.S04.en.srt", from: app.buttons["preview.share"])
+    XCTAssertTrue((requests.value as? String ?? "").hasSuffix("432:loaded,432:shared"))
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
+  }
+
+  private func assertShares(_ name: String, from control: XCUIElement, capture: String? = nil) {
+    XCTAssertTrue(control.isEnabled, "Share is disabled for \(name)")
+    control.tap()
+    let sheet = app.otherElements["ActivityListView"]
+    XCTAssertTrue(sheet.appears(within: 10), "no share sheet for \(name)")
+    let item = sheet.staticTexts[name]
+    XCTAssertTrue(item.appears(within: 10), "the share sheet does not name \(name)")
+    XCTAssertFalse(
+      sheet.staticTexts.containing(NSPredicate(format: "label CONTAINS 'put.io'")).firstMatch
+        .exists,
+      "the share sheet shows a put.io link")
+    if let capture { screenshot("runtime-preview-share-\(capture)") }
+    let close = sheet.buttons["Close"]
+    if close.exists { close.tap() } else { sheet.swipeDown(velocity: .fast) }
+    XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
   }
 
   private func copyLine(_ line: Int, in text: XCUIElement) {

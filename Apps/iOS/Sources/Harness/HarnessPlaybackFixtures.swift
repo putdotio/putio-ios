@@ -59,6 +59,7 @@ import SwiftUI
   final class HarnessPreviewRequests {
     enum Outcome: String {
       case loaded
+      case shared
       case failed
       case cancelled
     }

@@ -173,7 +173,7 @@ struct MainTabView: View {
       if let route = presentedPreviewRoute {
         PutioPreviewView(
           route: route,
-          download: { preview in try await downloadPreview(preview) },
+          download: { preview, extent in try await downloadPreview(preview, extent) },
           onDismiss: { presentedPreviewRoute = nil }
         )
         .id(route.id)
@@ -423,30 +423,34 @@ struct MainTabView: View {
   /// start; the tokened URL never leaves this call.
   /// A rejected token on the raw GET is re-checked through the runtime, which
   /// signs the account out when the session really expired.
-  private func downloadPreview(_ route: PutioPreviewRoute) async throws -> Data {
+  private func downloadPreview(_ route: PutioPreviewRoute, _ extent: PutioPreviewExtent)
+    async throws -> Data
+  {
     #if DEBUG
-      guard scenario == .filesBrowser else { return try await fetchPreview(route) }
+      guard scenario == .filesBrowser else { return try await fetchPreview(route, extent) }
       do {
-        let data = try await fetchPreview(route)
-        harnessPreviewRequests.record(route.id, .loaded)
+        let data = try await fetchPreview(route, extent)
+        harnessPreviewRequests.record(route.id, extent == .whole ? .shared : .loaded)
         return data
       } catch {
         harnessPreviewRequests.record(route.id, Task.isCancelled ? .cancelled : .failed)
         throw error
       }
     #else
-      return try await fetchPreview(route)
+      return try await fetchPreview(route, extent)
     #endif
   }
 
-  private func fetchPreview(_ route: PutioPreviewRoute) async throws -> Data {
+  private func fetchPreview(_ route: PutioPreviewRoute, _ extent: PutioPreviewExtent)
+    async throws -> Data
+  {
     let source = try await runtime.resolveFileDownloadSource(fileID: route.id)
     let url = try harnessPreviewURL(for: source) ?? source.url
     do {
-      switch route.kind {
-      case .image, .pdf:
+      switch (route.kind, extent) {
+      case (.image, _), (.pdf, _), (.text, .whole):
         return try await PutioPreviewDownloader.download(url)
-      case .text:
+      case (.text, .preview):
         return try await PutioPreviewDownloader.downloadPrefix(
           url, byteCount: PutioPreviewRoute.textLimitBytes + 1)
       }
