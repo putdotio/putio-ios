@@ -473,14 +473,14 @@ test("the archive signs and exports with the profile install-signing.sh checked"
   assert.match(await readFile(join(dir, "ExportOptions.plist"), "utf8"), new RegExp(`<key>com\\.example\\.app</key>\\s*<string>${uuid}</string>`));
 });
 
-test("screenshots upload the listing after a failed Plan, but don't validate again", async () => {
+test("screenshots upload the listing after a failed Plan and leave submission readiness to Submit", async () => {
   const workflow = await loadYaml(".github/workflows/screenshots.yml");
   const job = recordAt(recordAt(workflow, "jobs", "screenshots.yml"), "screenshots", "screenshots.yml.jobs");
   const steps = arrayAt(job, "steps", "screenshots").map((step) => asRecord(step, "step"));
   const named = (name: string) => steps.find((step) => step.name === name) ?? {};
   assert.equal(named("Plan").id, "plan");
   assert.match(String(named("Upload the current App Store Connect listing").if), /!cancelled\(\)/);
-  assert.match(String(named("Validate submission readiness").if), /steps\.plan\.outcome == 'success'/);
+  assert.ok(!steps.some((step) => /app-store\.ts validate/.test(String(step.run ?? ""))), "the listing lane runs before a build is attached");
 });
 
 const validSentryDsn = "https://synthetickey@o0.ingest.example.invalid/5282170";
