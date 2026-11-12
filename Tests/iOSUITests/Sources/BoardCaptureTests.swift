@@ -544,7 +544,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testSelectionTrashed() throws {
-    orient(.portrait)
+    orientForBoardDevice()
     app.launch()
     openSeasonFolder()
     select(["files.item.441", "files.item.442", "files.item.443"])
@@ -557,7 +557,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testSelectionFailed() throws {
-    orient(.portrait)
+    orientForBoardDevice()
     app.launchArguments.append("--putio-harness-bulk-trash-refusal")
     app.launch()
     openSeasonFolder()
