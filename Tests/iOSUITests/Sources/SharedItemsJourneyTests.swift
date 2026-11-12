@@ -85,16 +85,20 @@ final class SharedItemsJourneyTests: XCTestCase {
     row.swipeLeft()
     XCTAssertFalse(
       element("item-swipe.more").shows(within: 2), "\(identifier) offered swipe actions")
+    returnIfOpened(identifier)
     row.press(forDuration: 1)
     let actions = app.buttons.matching(
       NSPredicate(format: "identifier BEGINSWITH %@", "item-action.")
     ).firstMatch
     XCTAssertFalse(actions.shows(within: 2), "\(identifier) opened a menu")
+    returnIfOpened(identifier)
+  }
+
+  private func returnIfOpened(_ identifier: String) {
     let opened = element(identifier.replacingOccurrences(of: "files.item.", with: "files.screen."))
-    if opened.exists {
-      app.navigationBars.buttons.firstMatch.tap()
-      XCTAssertTrue(row.appears(within: 10), "\(identifier) never came back")
-    }
+    guard opened.shows(within: 1) else { return }
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element(identifier).appears(within: 10), "\(identifier) never came back")
   }
 
   private func openMenu() {
