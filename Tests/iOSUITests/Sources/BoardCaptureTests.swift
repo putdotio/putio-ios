@@ -776,16 +776,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testPreviewTrashed() throws {
     XCUIDevice.shared.orientation = .portrait
-    app.launchArguments.append("--putio-harness-previews")
-    app.launch()
-    reachFilesRoot()
-    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
-    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
-    gallery.tap()
-    let third = element("files.item.474")
-    XCTAssertTrue(third.appears(within: 10), "the gallery never loaded")
-    third.tap()
-    XCTAssertTrue(app.images["Gallery 3.png"].appears(within: 10), "the third image never loaded")
+    openGalleryThird()
     let position = element("preview.position")
     let deadline = Date.now.addingTimeInterval(10)
     while position.label != "3 of 4", Date.now < deadline {
@@ -805,7 +796,7 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewMoreTrashOff() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-trash-disabled")
-    openPosterPreview()
+    openGalleryThird()
     openPreviewMore()
     XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
     try captureBoard("rd-ios-pv-18-more-trash-off")
@@ -814,7 +805,7 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewDeleteConfirm() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-trash-disabled")
-    openPosterPreview()
+    openGalleryThird()
     openPreviewMore()
     app.buttons["Delete permanently"].firstMatch.tap()
     XCTAssertTrue(
@@ -930,6 +921,19 @@ final class BoardCaptureTests: XCTestCase {
       add(anchored)
       app.dismissShareSheet(sheet)
     }
+  }
+
+  private func openGalleryThird() {
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let third = element("files.item.474")
+    XCTAssertTrue(third.appears(within: 10), "the gallery never loaded")
+    third.tap()
+    XCTAssertTrue(app.images["Gallery 3.png"].appears(within: 10), "the third image never loaded")
   }
 
   private func openPosterPreview() {
