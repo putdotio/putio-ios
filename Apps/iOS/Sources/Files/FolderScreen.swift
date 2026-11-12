@@ -449,6 +449,7 @@ struct PutioFolderScreen: View {
     }
   }
 
+  @ViewBuilder
   private func fileActions<Content: View>(
     for item: PutioFileItem,
     content: Content
@@ -460,13 +461,17 @@ struct PutioFolderScreen: View {
         canDownload: onDownload != nil,
         vlcInstalled: onExternalPlayback != nil,
         tracksWatched: tracksWatched))
-    return
-      content
-      .frame(maxWidth: .infinity, alignment: .leading)
-      .putioItemActions(
-        PutioItemMenu(menu.sections.map { $0.map { itemAction($0, for: item) } }),
-        leading: menu.leadingSwipe.map { itemAction($0, for: item) },
-        trailing: menu.trailingSwipe.map { itemAction($0, for: item) })
+    let row = content.frame(maxWidth: .infinity, alignment: .leading)
+    if menu.sections.isEmpty {
+      row
+    } else {
+      let actions = Dictionary(
+        uniqueKeysWithValues: menu.sections.joined().map { ($0, itemAction($0, for: item)) })
+      row.putioItemActions(
+        PutioItemMenu(menu.sections.map { $0.compactMap { actions[$0] } }),
+        leading: menu.leadingSwipe.compactMap { actions[$0] },
+        trailing: menu.trailingSwipe.compactMap { actions[$0] })
+    }
   }
 
   private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction {

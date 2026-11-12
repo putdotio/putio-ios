@@ -42,7 +42,7 @@ public struct PutioFileMenu: Equatable, Sendable {
     var organize: [PutioFileMenuRow] = []
     var edit: [PutioFileMenuRow] = []
     var destructive: [PutioFileMenuRow] = []
-    if capabilities.canEdit {
+    if capabilities.canEdit, !item.isShared {
       organize.append(.select)
       if capabilities.tracksWatched, item.kind == .video {
         organize.append(item.isWatched ? .markUnwatched : .markWatched)

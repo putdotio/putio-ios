@@ -873,7 +873,7 @@ enum BrowserJourneyContract {
       "FilesBrowserJourneyTests/testFolderHeadersCountItemsAndBackKeepsTheParentPlace",
       attachmentNames: ["runtime-folder-header"]),
     JourneyPreflight(
-      "item-menus", "FilesBrowserJourneyTests/testItemMenusSwipesAndWatchStatus",
+      "row-menus", "FilesBrowserJourneyTests/testItemMenusSwipesAndWatchStatus",
       attachmentNames: [
         "runtime-item-swipe-left", "runtime-item-menu-folder", "runtime-item-swipe-right",
         "runtime-item-menu-vlc",

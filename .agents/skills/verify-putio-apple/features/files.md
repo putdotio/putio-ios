@@ -12,7 +12,7 @@ images and documents, and opens put.io links into the same screens.
   next page on scroll.
 - `search` pages results, retries a failed page, and restores the open folder
   after a relaunch.
-- `item-menus` lists each item kind's long-press rows in order, marks watched
+- `row-menus` lists each item kind's long-press rows in order, marks watched
   and unwatched with a seeded failure, swipes both ways, and shows Open in VLC
   only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it,
@@ -55,7 +55,7 @@ Preconditions:
 - **Search.** Run `--only search-restoration`. A failed second page offers
   retry, results append, and a relaunch reopens Harness Folder until sign-out.
   Screenshot: `runtime-search-results`.
-- **Item menus.** Run `--only item-menus`. The first Mark as unwatched on
+- **Item menus.** Run `--only row-menus`. The first Mark as unwatched on
   `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
   `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.
 - **File actions and bulk.** Run `--only file-actions`. The first rename fails

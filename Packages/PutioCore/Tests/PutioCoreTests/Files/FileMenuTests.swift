@@ -59,9 +59,21 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(menu.leadingSwipe, [])
   }
 
-  private func item(_ kind: PutioFileKind, resume: Int = 0) -> PutioFileItem {
+  func testSharedItemsOfferNoActions() {
+    let shared = item(.video, resume: 0, shared: true)
+    XCTAssertEqual(
+      PutioFileMenu(item: shared, capabilities: everything).sections,
+      [[.play, .download, .openInVLC]])
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.folder, shared: true), capabilities: everything).sections, [])
+  }
+
+  private func item(_ kind: PutioFileKind, resume: Int = 0, shared: Bool = false)
+    -> PutioFileItem
+  {
     PutioFileItem(
       id: PutioFileID(rawValue: 7), parentID: .root, name: "Item", kind: kind, sizeBytes: 1,
-      createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: resume)
+      createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: resume,
+      isShared: shared)
   }
 }

@@ -152,7 +152,6 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
 
-    // Without VLC no row offers the handoff, media included.
     let vlcRequests = element("vlc.requests")
     XCTAssertTrue(vlcRequests.appears(within: 5))
     XCTAssertEqual(vlcRequests.value as? String, "0|")
@@ -346,7 +345,6 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["preview.more"].isEnabled)
   }
 
-  /// Rows VLC cannot play, and every row while VLC is missing, have no handoff.
   private func assertNoVLCAction(fileID: Int) {
     let row = element("files.item.\(fileID)")
     XCTAssertTrue(row.appears(within: 5))

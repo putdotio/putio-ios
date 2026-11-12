@@ -108,8 +108,6 @@ final class ChromecastJourneyTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.height > self.app.frame.width })
 
-    // The row menu has no Cast row; a tap casts while connected, then
-    // disconnect drops everything.
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Play"].appears(within: 5))
     XCTAssertFalse(app.buttons["Cast"].exists, "the row menu still offers Cast")
