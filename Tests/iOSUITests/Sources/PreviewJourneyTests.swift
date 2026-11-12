@@ -685,13 +685,13 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(
       alert.staticTexts["Trash is off for this account, so this can’t be undone."].exists)
     screenshot("runtime-preview-delete-confirm")
-    alert.buttons["Cancel"].tap()
+    alert.buttons["Cancel"].firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5))
     XCTAssertEqual(title.label, "Gallery 3.png", "Cancel removed the file")
 
     removeShownFile(row: "Delete permanently")
     XCTAssertTrue(alert.appears(within: 5))
-    alert.buttons["Delete"].tap()
+    alert.buttons["Delete"].firstMatch.tap()
     XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 10), "no delete message")
     XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
     XCTAssertTrue(waitForLabel(title, in: ["Gallery 4.png"]), "the viewer did not move on")
