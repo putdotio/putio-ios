@@ -116,6 +116,9 @@ Preconditions:
   `rd-ios-acc-35-links-menu`, `rd-ios-acc-36-links-swipe`,
   `rd-ios-acc-37-links-revoke`, `rd-ios-acc-38-links-loading`,
   `rd-ios-acc-39-links-failed`.
+- **iPad list and detail.** Boards: `rd-ios-acc-57-ipad-account`,
+  `rd-ios-acc-18-ipad-privacy`, `rd-ios-acc-20-ipad-proxy`,
+  `rd-ios-acc-58-ipad-danger`.
 
 ## Gotchas
 

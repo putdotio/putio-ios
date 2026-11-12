@@ -128,6 +128,72 @@ public struct PutioNavigationRow<Destination: View>: View {
   }
 }
 
+public struct PutioNavigationValueRow<Value: Hashable>: View {
+  private let title: String
+  private let subtitle: String?
+  private let icon: PutioIcon?
+  private let value: String?
+  private let valueStyle: PutioSettingValueStyle
+  private let destination: Value
+  @Environment(\.putioListDetailOpen) private var open
+
+  public init(
+    _ title: String,
+    subtitle: String? = nil,
+    icon: PutioIcon? = nil,
+    value: String? = nil,
+    valueStyle: PutioSettingValueStyle = .text,
+    destination: Value
+  ) {
+    self.title = title
+    self.subtitle = subtitle
+    self.icon = icon
+    self.value = value
+    self.valueStyle = valueStyle
+    self.destination = destination
+  }
+
+  public var body: some View {
+    if let open {
+      Button {
+        open(AnyHashable(destination))
+      } label: {
+        HStack(spacing: PutioTheme.Spacing.space2) {
+          PutioSettingsValueLayout(
+            title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
+          PutioIconView(.caretRight, size: PutioSettingsLayout.accessorySize)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+      }
+    } else {
+      NavigationLink(value: destination) {
+        PutioSettingsValueLayout(
+          title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+      }
+    }
+  }
+}
+
+public struct PutioListDetailOpenAction: Sendable {
+  private let action: @MainActor @Sendable (AnyHashable) -> Void
+
+  public init(_ action: @escaping @MainActor @Sendable (AnyHashable) -> Void) {
+    self.action = action
+  }
+
+  @MainActor public func callAsFunction(_ item: AnyHashable) {
+    action(item)
+  }
+}
+
+extension EnvironmentValues {
+  @Entry public var putioListDetailOpen: PutioListDetailOpenAction? = nil
+}
+
 public struct PutioValueRow: View {
   private let title: String
   private let subtitle: String?

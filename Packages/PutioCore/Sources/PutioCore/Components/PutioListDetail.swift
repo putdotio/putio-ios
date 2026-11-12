@@ -3,8 +3,7 @@
 
   public struct PutioListDetail<Item: Hashable, ListContent: View, DetailContent: View>: View {
     @Binding private var selection: Item?
-    private let emptyTitle: String
-    private let emptyMessage: String
+    private let emptyState: (title: String, message: String)?
     private let list: (Binding<Item?>) -> ListContent
     private let detail: (Item) -> DetailContent
 
@@ -20,8 +19,18 @@
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
-      self.emptyTitle = emptyTitle
-      self.emptyMessage = emptyMessage
+      self.emptyState = (emptyTitle, emptyMessage)
+      self.list = list
+      self.detail = detail
+    }
+
+    public init(
+      selection: Binding<Item?>,
+      @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
+      @ViewBuilder detail: @escaping (Item) -> DetailContent
+    ) {
+      _selection = selection
+      self.emptyState = nil
       self.list = list
       self.detail = detail
     }
@@ -30,6 +39,8 @@
       NavigationSplitView(columnVisibility: $columnVisibility) {
         list(listSelection)
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
+          .environment(\.putioListDetailShowsOpenRow, horizontalSizeClass == .regular)
+          .environment(\.putioListDetailOpen, openAction)
           .navigationSplitViewColumnWidth(
             min: PutioListDetailLayout.listMinimumWidth,
             ideal: PutioListDetailLayout.listIdealWidth
@@ -41,9 +52,15 @@
             detail(selection)
           }
           .id(selection)
+        } else if let emptyState {
+          PutioEmptyStateView.detailPlaceholder(
+            title: emptyState.title, message: emptyState.message
+          )
+          .putioContentBackground()
+          .accessibilityIdentifier("putio.list-detail.empty")
         } else {
-          PutioEmptyStateView.detailPlaceholder(title: emptyTitle, message: emptyMessage)
-            .putioContentBackground()
+          PutioTheme.Colors.background
+            .ignoresSafeArea()
             .accessibilityIdentifier("putio.list-detail.empty")
         }
       }
@@ -62,6 +79,14 @@
       }
     }
 
+    private var openAction: PutioListDetailOpenAction {
+      let selection = listSelection
+      return PutioListDetailOpenAction { item in
+        guard let item = item.base as? Item else { return }
+        selection.wrappedValue = item
+      }
+    }
+
     private var listSelection: Binding<Item?> {
       Binding(
         get: { selection },
@@ -72,29 +97,47 @@
     }
   }
 
+  public enum PutioListDetailRowStyle: Sendable {
+    case plain
+    case grouped
+  }
+
   extension View {
-    public func putioListDetailRow<Item: Hashable>(_ item: Item) -> some View {
-      modifier(PutioListDetailRow(item: AnyHashable(item)))
+    public func putioListDetailRow<Item: Hashable>(
+      _ item: Item, style: PutioListDetailRowStyle = .plain
+    ) -> some View {
+      modifier(PutioListDetailRow(item: AnyHashable(item), style: style))
         .tag(item)
     }
   }
 
   private struct PutioListDetailRow: ViewModifier {
     let item: AnyHashable
+    let style: PutioListDetailRowStyle
 
     @Environment(\.putioListDetailSelection) private var selection
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.putioListDetailShowsOpenRow) private var showsOpenRow
 
     private var isOpen: Bool { selection == item }
+    private var highlightsOpen: Bool { isOpen && showsOpenRow }
 
     func body(content: Content) -> some View {
       content
         .listRowBackground(background)
+        .focusEffectDisabled(style == .grouped)
         .accessibilityAddTraits(isOpen ? .isSelected : [])
     }
 
     @ViewBuilder private var background: some View {
-      if isOpen, horizontalSizeClass == .regular {
+      switch style {
+      case .plain: plainBackground
+      case .grouped:
+        highlightsOpen ? PutioTheme.Colors.surfaceActive : PutioTheme.Colors.surface
+      }
+    }
+
+    @ViewBuilder private var plainBackground: some View {
+      if highlightsOpen {
         RoundedRectangle(cornerRadius: PutioListDetailLayout.selectedRowRadius)
           .fill(PutioListDetailLayout.selectedRowTint)
           .padding(.horizontal, PutioListDetailLayout.selectedRowInset)
@@ -106,6 +149,7 @@
 
   extension EnvironmentValues {
     @Entry var putioListDetailSelection: AnyHashable? = nil
+    @Entry var putioListDetailShowsOpenRow = false
   }
 
   enum PutioListDetailLayout {
