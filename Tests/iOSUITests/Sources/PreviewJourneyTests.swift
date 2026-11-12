@@ -194,6 +194,72 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testSwipesBetweenFilesOfTheSameKind() {
+    app.launch()
+    signIn()
+
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let first = element("files.item.471")
+    XCTAssertTrue(first.appears(within: 10))
+    first.tap()
+    XCTAssertTrue(element("preview.image").appears(within: 10))
+    let title = element("preview.title")
+    let position = element("preview.position")
+    XCTAssertEqual(title.label, "Gallery 1.png")
+    XCTAssertTrue(position.appears(within: 5), "a folder of images shows no position")
+    XCTAssertEqual(position.label, "1 of 3 or more", "the set does not say more files remain")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["1 of 4"], timeout: 10),
+      "the preview did not load the next folder page: \(position.label)")
+
+    app.swipeLeft()
+    XCTAssertTrue(waitForLabel(title, in: ["Gallery 2.png"]), "the swipe skipped past the video")
+    XCTAssertEqual(position.label, "2 of 4")
+    XCTAssertTrue(app.images["Gallery 2.png"].appears(within: 10))
+    app.swipeLeft()
+    XCTAssertTrue(waitForLabel(title, in: ["Gallery 3.png"]), "the second swipe did not page")
+    XCTAssertEqual(position.label, "3 of 4")
+    let image = app.images["Gallery 3.png"]
+    XCTAssertTrue(image.appears(within: 10))
+    XCTAssertTrue(waitForFit(image), "the third image is not fitted: \(image.frame)")
+    screenshot("runtime-preview-position")
+
+    let window = app.windows.firstMatch.frame
+    image.pinch(withScale: 3, velocity: 2)
+    XCTAssertTrue(
+      waitForFrame(image) { $0.width > window.width * 1.5 }, "pinch did not zoom: \(image.frame)")
+    let zoomed = image.frame
+    let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    center.press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)))
+    XCTAssertTrue(
+      waitForFrame(image) { $0.minX < zoomed.minX - 40 }, "a zoomed swipe did not pan")
+    XCTAssertEqual(title.label, "Gallery 3.png", "a zoomed swipe paged")
+    XCTAssertEqual(position.label, "3 of 4")
+    center.doubleTap()
+    XCTAssertTrue(waitForFit(image), "double tap did not reset zoom: \(image.frame)")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.474").disappears(within: 5))
+
+    app.buttons["Search"].tap()
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(search.appears(within: 5))
+    search.tap()
+    search.typeText("gallery\n")
+    let found = element("files.search-item.471")
+    XCTAssertTrue(found.appears(within: 10))
+    found.tap()
+    XCTAssertTrue(app.images["Gallery 1.png"].appears(within: 10))
+    XCTAssertFalse(position.exists, "a preview from Search shows a position")
+    app.swipeLeft()
+    XCTAssertEqual(title.label, "Gallery 1.png", "a preview from Search paged")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
+  }
+
   private func assertImageGestures(_ image: XCUIElement) {
     let center = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
     XCTAssertTrue(waitForFit(image), "the image is not fitted to the window: \(image.frame)")

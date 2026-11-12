@@ -644,6 +644,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
+      BoardCapture("rd-ios-pv-09-position", .iphone, "testPreviewPosition"),
       BoardCapture("rd-ios-pv-10-text-truncated", .iphone, "testPreviewTextTruncated"),
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
@@ -965,6 +966,10 @@ enum BrowserJourneyContract {
         "runtime-preview-share-text",
       ],
       timeAllowance: 300),
+    JourneyPreflight(
+      "preview-paging", "PreviewJourneyTests/testSwipesBetweenFilesOfTheSameKind",
+      attachmentNames: ["runtime-preview-position"],
+      timeAllowance: 180),
     JourneyPreflight(
       "deep-links", "DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens",
       attachmentNames: [

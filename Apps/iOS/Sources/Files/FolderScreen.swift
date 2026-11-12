@@ -30,6 +30,7 @@ struct PutioFolderScreen: View {
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var lastKnownFolderName: String?
   @Environment(\.putioDefaultFolderSort) private var defaultSort
+  @Environment(\.putioPreviewOpen) private var previewOpen
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -432,7 +433,11 @@ struct PutioFolderScreen: View {
       fileActions(
         for: presentation.item,
         content: Button {
-          onFileSelected(fileRoute)
+          if let previewOpen, fileRoute.previewKind != nil {
+            previewOpen(fileRoute, in: model.previewSource)
+          } else {
+            onFileSelected(fileRoute)
+          }
         } label: {
           PutioFileRow(presentation.row)
             .contentShape(Rectangle())

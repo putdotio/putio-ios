@@ -28,6 +28,9 @@ images and documents, and opens put.io links into the same screens.
 - `reconcile` updates other tabs after an open folder is renamed or deleted.
 - `previews` shows images and PDFs, reports unsupported files, and hands video
   to VLC when it is installed.
+- `preview-paging` swipes between a folder's images past a video, loads the
+  folder's next page, pans instead of paging while zoomed, and shows one file
+  from Search.
 - `deep-links` opens links cold, warm, and signed out.
 - `large-text` keeps long names, selection, and the download picker usable at
   the largest text size.
@@ -84,6 +87,8 @@ Preconditions:
   `runtime-preview-text`, `runtime-preview-text-truncated`,
   `runtime-preview-share-image`, `runtime-preview-share-document`,
   `runtime-preview-share-text`.
+- **Preview paging.** Run `--only preview-paging`. Screenshot:
+  `runtime-preview-position`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in

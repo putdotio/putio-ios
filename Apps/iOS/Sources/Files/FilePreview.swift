@@ -282,6 +282,11 @@ final class PutioPreviewModel {
     await task.value
   }
 
+  func loadIfNeeded() async {
+    guard case .preview = route, loadTask == nil else { return }
+    await load()
+  }
+
   func retry() async {
     await load()
   }
@@ -408,6 +413,123 @@ final class PutioPreviewModel {
   }
 }
 
+struct PutioPreviewOpenAction {
+  let open: @MainActor (PutioFileRoute, PutioPreviewSource) -> Void
+
+  @MainActor
+  func callAsFunction(_ route: PutioFileRoute, in source: PutioPreviewSource) {
+    open(route, source)
+  }
+}
+
+extension EnvironmentValues {
+  @Entry var putioPreviewOpen: PutioPreviewOpenAction? = nil
+}
+
+@MainActor
+@Observable
+final class PutioPreviewPager {
+  private let kind: PutioPreviewRoute.Kind?
+  private let source: PutioPreviewSource?
+  private let download: PutioPreviewDownload
+  private(set) var current: PutioViewerRoute
+  private(set) var reads = PutioPreviewPageReads()
+  @ObservationIgnored private var models: [PutioFileID: PutioPreviewModel] = [:]
+  @ObservationIgnored private var pageReader: Task<Void, Never>?
+
+  init(
+    opened route: PutioViewerRoute,
+    file: PutioFileRoute?,
+    source: PutioPreviewSource?,
+    download: @escaping PutioPreviewDownload
+  ) {
+    current = route
+    kind = file?.previewKind
+    self.source = file?.previewKind == nil ? nil : source
+    self.download = download
+  }
+
+  var folderSet: PutioPreviewSet? {
+    guard let source, let kind else { return nil }
+    return PutioPreviewSet(items: source.items(), shownID: current.id, kind: kind)
+  }
+
+  var routes: [PutioViewerRoute] {
+    guard let set = folderSet, set.pages else { return [current] }
+    return set.items.compactMap { PutioViewerRoute(opening: PutioFileRoute(item: $0).openAction) }
+  }
+
+  var position: PutioPreviewPosition? {
+    folderSet?.position(hasMore: (source?.hasMore() ?? false) && !reads.stopped)
+  }
+
+  var pagingKey: PutioPreviewPagingKey {
+    PutioPreviewPagingKey(
+      shown: current.id, loaded: source?.items().count ?? 0, hasMore: source?.hasMore() ?? false)
+  }
+
+  var currentModel: PutioPreviewModel { model(for: current) }
+
+  func model(for route: PutioViewerRoute) -> PutioPreviewModel {
+    if let model = models[route.id] { return model }
+    let model = PutioPreviewModel(route: route, download: download)
+    models[route.id] = model
+    return model
+  }
+
+  func show(_ id: PutioFileID) {
+    let routes = routes
+    guard id != current.id, let index = routes.firstIndex(where: { $0.id == id }) else { return }
+    current = routes[index]
+    let kept = Set(routes[max(0, index - 1)...min(routes.count - 1, index + 1)].map(\.id))
+    for (id, model) in models where !kept.contains(id) {
+      model.cancel()
+      models[id] = nil
+    }
+  }
+
+  func readPagesIfNeeded() {
+    guard let source, pageReader == nil else { return }
+    pageReader = Task { [weak self] in
+      await self?.readPages(from: source)
+      self?.pageReader = nil
+    }
+  }
+
+  private func readPages(from source: PutioPreviewSource) async {
+    while !Task.isCancelled, let set = folderSet,
+      reads.shouldRead(index: set.index, count: set.items.count, hasMore: source.hasMore())
+    {
+      let before = set.items.count
+      guard await source.loadMore() else {
+        guard let delay = reads.didFail() else { return }
+        do { try await Task.sleep(for: delay) } catch { return }
+        continue
+      }
+      reads.didRead(countBefore: before, countAfter: folderSet?.items.count ?? before)
+    }
+  }
+
+  func cancel() {
+    pageReader?.cancel()
+    for model in models.values { model.cancel() }
+  }
+}
+
+struct PutioPreviewPresentation: Identifiable {
+  let route: PutioViewerRoute
+  let file: PutioFileRoute
+  let source: PutioPreviewSource?
+
+  var id: PutioFileID { route.id }
+}
+
+struct PutioPreviewPagingKey: Hashable {
+  let shown: PutioFileID
+  let loaded: Int
+  let hasMore: Bool
+}
+
 struct PutioPreviewShareFile: Transferable {
   let name: String
   let kind: PutioPreviewRoute.Kind
@@ -494,53 +616,129 @@ struct PutioTextPreview: Equatable, Sendable {
 }
 
 struct PutioPreviewView: View {
-  @State private var model: PutioPreviewModel
+  @State private var pager: PutioPreviewPager
+  @State private var position = ScrollPosition()
+  @State private var alignedWidth: CGFloat = 0
   @State private var barsHidden = false
-  @State private var documentPage = PutioPDFPagePosition(index: 0, count: 0)
+  @State private var documentPages: [PutioFileID: PutioPDFPagePosition] = [:]
+  @State private var zoomedID: PutioFileID?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   private let onDismiss: @MainActor () -> Void
 
   init(
     route: PutioViewerRoute,
+    file: PutioFileRoute? = nil,
+    source: PutioPreviewSource? = nil,
     download: @escaping PutioPreviewDownload,
     onDismiss: @escaping @MainActor () -> Void
   ) {
-    _model = State(initialValue: PutioPreviewModel(route: route, download: download))
+    _pager = State(
+      initialValue: PutioPreviewPager(
+        opened: route, file: file, source: source, download: download))
     self.onDismiss = onDismiss
   }
 
   var body: some View {
+    let model = pager.currentModel
     NavigationStack {
-      content
+      pages
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
-        .overlay(alignment: .top) { topFade }
-        .overlay(alignment: .bottom) { pagePill }
+        .overlay(alignment: .top) { topFade(model.state) }
+        .overlay(alignment: .bottom) { bottomLabels(model.state) }
         .navigationTitle(model.route.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { toolbar }
-        .toolbar(showsBars ? .visible : .hidden, for: .navigationBar)
-        .statusBarHidden(!showsBars)
+        .toolbar { toolbar(model) }
+        .toolbar(showsBars(model.state) ? .visible : .hidden, for: .navigationBar)
+        .statusBarHidden(!showsBars(model.state))
     }
-    .task { await model.load() }
-    .onDisappear { model.cancel() }
+    .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
+    .onDisappear { pager.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
   }
 
-  private var showsImage: Bool {
-    if case .image = model.state { true } else { false }
+  private var pages: some View {
+    let routes = pager.routes
+    let current = pager.current.id
+    return GeometryReader { proxy in
+      pageScroller(routes: routes, current: current, insets: proxy.safeAreaInsets)
+        .ignoresSafeArea()
+    }
   }
 
-  private var showsDocument: Bool {
-    if case .document = model.state { true } else { false }
+  private func pageScroller(
+    routes: [PutioViewerRoute], current: PutioFileID, insets: EdgeInsets
+  ) -> some View {
+    ScrollView(.horizontal) {
+      LazyHStack(spacing: 0) {
+        ForEach(routes) { route in
+          PutioPreviewPage(
+            model: pager.model(for: route),
+            isCurrent: route.id == current,
+            insets: insets,
+            onSingleTap: toggleBars,
+            onZoomChange: { zoomed in
+              if zoomed {
+                zoomedID = route.id
+              } else if zoomedID == route.id {
+                zoomedID = nil
+              }
+            },
+            onDocumentPage: { documentPages[route.id] = $0 }
+          )
+          .containerRelativeFrame([.horizontal, .vertical])
+        }
+      }
+      .scrollTargetLayout()
+    }
+    .scrollTargetBehavior(.paging)
+    .scrollPosition($position)
+    .scrollIndicators(.hidden)
+    .scrollEdgeEffectHidden(true, for: .all)
+    .scrollDisabled(routes.count < 2 || zoomedID == current)
+    .onScrollGeometryChange(for: CGFloat.self, of: \.containerSize.width) { _, width in
+      align(width: width)
+    }
+    .onScrollPhaseChange { _, phase, context in
+      guard phase == .idle, alignedWidth > 0, let index = Self.pageIndex(context.geometry),
+        routes.indices.contains(index)
+      else { return }
+      pager.show(routes[index].id)
+    }
+    .onChange(of: routes.map(\.id)) { old, new in
+      guard !new.starts(with: old) else { return }
+      align(width: alignedWidth)
+    }
   }
 
-  private var showsText: Bool {
-    if case .text = model.state { true } else { false }
+  private static func pageIndex(_ geometry: ScrollGeometry) -> Int? {
+    let width = geometry.containerSize.width
+    guard width > 0 else { return nil }
+    return Int((geometry.contentOffset.x / width).rounded())
   }
 
-  private var showsBars: Bool {
-    !(barsHidden && showsImage && !voiceOverEnabled)
+  private func align(width: CGFloat) {
+    guard width > 0,
+      let index = pager.routes.firstIndex(where: { $0.id == pager.current.id })
+    else { return }
+    position.scrollTo(x: CGFloat(index) * width)
+    alignedWidth = width
+  }
+
+  private func showsImage(_ state: PutioPreviewState) -> Bool {
+    if case .image = state { true } else { false }
+  }
+
+  private func showsDocument(_ state: PutioPreviewState) -> Bool {
+    if case .document = state { true } else { false }
+  }
+
+  private func showsText(_ state: PutioPreviewState) -> Bool {
+    if case .text = state { true } else { false }
+  }
+
+  private func showsBars(_ state: PutioPreviewState) -> Bool {
+    !(barsHidden && showsImage(state) && !voiceOverEnabled)
   }
 
   private func toggleBars() {
@@ -548,10 +746,10 @@ struct PutioPreviewView: View {
   }
 
   @ViewBuilder
-  private var topFade: some View {
-    if showsDocument || showsText {
+  private func topFade(_ state: PutioPreviewState) -> some View {
+    if showsDocument(state) || showsText(state) {
       PutioPDFBarFade()
-    } else if showsImage, showsBars {
+    } else if showsImage(state), showsBars(state) {
       LinearGradient(
         colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
         startPoint: .top, endPoint: .bottom
@@ -564,10 +762,15 @@ struct PutioPreviewView: View {
     }
   }
 
-  @ViewBuilder
-  private var pagePill: some View {
-    if showsDocument, documentPage.showsPill {
-      PutioPDFPagePill(position: documentPage)
+  private func bottomLabels(_ state: PutioPreviewState) -> some View {
+    VStack(spacing: PutioTheme.Spacing.space2) {
+      if showsDocument(state), let page = documentPages[pager.current.id], page.showsPill {
+        PutioPDFPagePill(position: page)
+      }
+      if let position = pager.position, showsBars(state) {
+        PutioPreviewPositionLabel(position: position)
+          .transition(.opacity)
+      }
     }
   }
 
@@ -575,7 +778,7 @@ struct PutioPreviewView: View {
     bytes: Int64(PutioPreviewRoute.textLimitBytes))
 
   @ToolbarContentBuilder
-  private var toolbar: some ToolbarContent {
+  private func toolbar(_ model: PutioPreviewModel) -> some ToolbarContent {
     ToolbarItem(placement: .topBarLeading) {
       Button {
         onDismiss()
@@ -629,32 +832,62 @@ struct PutioPreviewView: View {
       Image(putioIcon: .export)
     }
   }
+}
+
+struct PutioPreviewPage: View {
+  let model: PutioPreviewModel
+  let isCurrent: Bool
+  let insets: EdgeInsets
+  let onSingleTap: @MainActor () -> Void
+  let onZoomChange: @MainActor (Bool) -> Void
+  let onDocumentPage: @MainActor (PutioPDFPagePosition) -> Void
+
+  var body: some View {
+    content
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityHidden(!isCurrent)
+      .task(id: isCurrent) {
+        guard isCurrent else { return }
+        await model.loadIfNeeded()
+      }
+  }
 
   @ViewBuilder
   private var content: some View {
     switch model.state {
+    case .loading where !isCurrent:
+      Color.black
     case .loading:
       PutioLoadingStateView(title: String(localized: "Loading"), titleVisibility: .hidden)
         .ignoresSafeArea()
         .accessibilityIdentifier("preview.loading")
     case .image(let image):
-      PutioZoomableImageView(image: image, title: model.route.title, onSingleTap: toggleBars)
-        .ignoresSafeArea()
-        .accessibilityIdentifier("preview.image")
+      PutioZoomableImageView(
+        image: image, title: model.route.title, onSingleTap: onSingleTap,
+        onZoomChange: onZoomChange
+      )
+      .ignoresSafeArea()
+      .accessibilityIdentifier("preview.image")
     case .document(let document):
-      PutioPDFView(document: document) { documentPage = $0 }
-        .ignoresSafeArea(edges: .vertical)
-        .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
-        .accessibilityIdentifier("preview.document")
+      PutioPDFView(
+        document: document, insets: verticalInsets, onPageChange: onDocumentPage,
+        onZoomChange: onZoomChange
+      )
+      .padding(.leading, insets.leading)
+      .padding(.trailing, insets.trailing)
+      .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
+      .accessibilityIdentifier("preview.document")
     case .text(let preview):
       PutioTextPreviewView(
         preview: preview,
         truncationNotice: PutioTextPreviewNotice(
-          text: String(localized: "Showing the first \(Self.textLimitLabel)."),
-          figure: Self.textLimitLabel),
-        share: model.share
+          text: String(localized: "Showing the first \(PutioPreviewView.textLimitLabel)."),
+          figure: PutioPreviewView.textLimitLabel),
+        share: model.share,
+        insets: verticalInsets
       )
-      .ignoresSafeArea(edges: .vertical)
+      .padding(.leading, insets.leading)
+      .padding(.trailing, insets.trailing)
     case .failed(.loadFailed):
       PutioErrorStateView(kind: .failed, retryIdentifier: "preview.retry") {
         Task { await model.retry() }
@@ -672,17 +905,46 @@ struct PutioPreviewView: View {
   }
 }
 
+extension PutioPreviewPage {
+  fileprivate var verticalInsets: UIEdgeInsets {
+    UIEdgeInsets(top: insets.top, left: 0, bottom: insets.bottom, right: 0)
+  }
+}
+
+struct PutioPreviewPositionLabel: View {
+  let position: PutioPreviewPosition
+
+  var body: some View {
+    Text(verbatim: position.text)
+      .putioFont(PutioTheme.Typography.numeric)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .padding(.vertical, PutioTheme.Spacing.space1)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(accessibilityText)
+      .accessibilityIdentifier("preview.position")
+      .allowsHitTesting(false)
+  }
+
+  private var accessibilityText: Text {
+    position.hasMore
+      ? Text("\(position.number) of \(position.count) or more")
+      : Text("\(position.number) of \(position.count)")
+  }
+}
+
 /// UIScrollView zoom keeps the system's pinch, double-tap, and pan feel; SwiftUI
 /// gestures cannot match its deceleration and bounds clamping.
 struct PutioZoomableImageView: UIViewRepresentable {
   let image: UIImage
   let title: String
   let onSingleTap: @MainActor () -> Void
+  var onZoomChange: @MainActor (Bool) -> Void = { _ in }
 
   func makeUIView(context: Context) -> PutioZoomingScrollView {
     let scrollView = PutioZoomingScrollView(image: image, title: title)
     scrollView.accessibilityLabel = title
     scrollView.onSingleTap = onSingleTap
+    scrollView.onZoomChange = onZoomChange
     return scrollView
   }
 
@@ -690,6 +952,7 @@ struct PutioZoomableImageView: UIViewRepresentable {
     // SwiftUI re-runs this on unrelated invalidations; only a new image resets zoom.
     scrollView.update(image: image, title: title)
     scrollView.onSingleTap = onSingleTap
+    scrollView.onZoomChange = onZoomChange
   }
 }
 
@@ -697,6 +960,8 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   private let imageView = UIImageView()
   private var fittedSize: CGSize = .zero
   var onSingleTap: (@MainActor () -> Void)?
+  var onZoomChange: (@MainActor (Bool) -> Void)?
+  private var reportedZoomed = false
 
   init(image: UIImage, title: String) {
     super.init(frame: .zero)
@@ -742,6 +1007,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     }
     fittedSize = bounds.size
     zoomScale = 1
+    reportZoom()
     let imageSize = imageView.image?.size ?? .zero
     let scale =
       imageSize.width > 0 && imageSize.height > 0
@@ -755,7 +1021,17 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
   func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
 
-  func scrollViewDidZoom(_ scrollView: UIScrollView) { center() }
+  func scrollViewDidZoom(_ scrollView: UIScrollView) {
+    center()
+    reportZoom()
+  }
+
+  private func reportZoom() {
+    let zoomed = zoomScale > minimumZoomScale
+    guard zoomed != reportedZoomed else { return }
+    reportedZoomed = zoomed
+    onZoomChange?(zoomed)
+  }
 
   func scrollViewDidEndZooming(
     _ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat
@@ -807,6 +1083,7 @@ struct PutioTextPreviewView: UIViewRepresentable {
   let preview: PutioTextPreview
   let truncationNotice: PutioTextPreviewNotice
   let share: PutioPreviewShareFile?
+  var insets: UIEdgeInsets = .zero
 
   func makeUIView(context: Context) -> PutioTextPreviewContainer {
     PutioTextPreviewContainer()
@@ -815,6 +1092,7 @@ struct PutioTextPreviewView: UIViewRepresentable {
   func updateUIView(_ view: PutioTextPreviewContainer, context: Context) {
     view.show(preview, truncationNotice: truncationNotice)
     view.share = share
+    view.safeInsets = insets
   }
 }
 
@@ -849,6 +1127,11 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     didSet { shareButton.isEnabled = share != nil }
   }
 
+  var safeInsets: UIEdgeInsets = .zero {
+    didSet { if safeInsets != oldValue { setNeedsLayout() } }
+  }
+  private var placed = false
+
   init() {
     super.init(frame: .zero)
     clipsToBounds = true
@@ -857,7 +1140,7 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     textView.isSelectable = true
     textView.backgroundColor = .clear
     textView.alwaysBounceVertical = true
-    textView.contentInsetAdjustmentBehavior = .always
+    textView.contentInsetAdjustmentBehavior = .never
     textView.topEdgeEffect.isHidden = true
     textView.textContainer.lineFragmentPadding = 0
     addSubview(textView)
@@ -946,6 +1229,7 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     let insets = UIEdgeInsets(
       top: Self.inset, left: Self.inset, bottom: footer + Self.noticeInset, right: Self.inset)
     if textView.textContainerInset != insets { textView.textContainerInset = insets }
+    textView.insetToTop(safeInsets, placed: &placed)
     notice.frame.size = CGSize(width: width, height: noticeHeight)
     shareButton.frame.size = CGSize(width: shareWidth, height: shareHeight)
     placeNotice()
@@ -1137,12 +1421,15 @@ struct PutioPDFPagePill: View {
 
 struct PutioPDFView: UIViewRepresentable {
   let document: PDFDocument
+  var insets: UIEdgeInsets = .zero
   let onPageChange: @MainActor (PutioPDFPagePosition) -> Void
+  var onZoomChange: @MainActor (Bool) -> Void = { _ in }
 
   func makeCoordinator() -> Coordinator { Coordinator() }
 
   func makeUIView(context: Context) -> PDFView {
-    let view = PDFView()
+    let view = PutioInsetPDFView()
+    view.insets = insets
     view.autoScales = true
     view.displayMode = .singlePageContinuous
     view.displayDirection = .vertical
@@ -1153,13 +1440,14 @@ struct PutioPDFView: UIViewRepresentable {
     view.backgroundColor = .black
     view.document = document
     view.firstScrollView?.topEdgeEffect.isHidden = true
-    context.coordinator.observe(view, onPageChange: onPageChange)
+    context.coordinator.observe(view, onPageChange: onPageChange, onZoomChange: onZoomChange)
     return view
   }
 
   func updateUIView(_ view: PDFView, context: Context) {
     if view.document !== document { view.document = document }
-    context.coordinator.observe(view, onPageChange: onPageChange)
+    (view as? PutioInsetPDFView)?.insets = insets
+    context.coordinator.observe(view, onPageChange: onPageChange, onZoomChange: onZoomChange)
   }
 
   static func dismantleUIView(_ view: PDFView, coordinator: Coordinator) {
@@ -1169,13 +1457,18 @@ struct PutioPDFView: UIViewRepresentable {
   @MainActor
   final class Coordinator {
     private var observer: NSObjectProtocol?
+    private var scaleObserver: NSObjectProtocol?
     private var onPageChange: (@MainActor (PutioPDFPagePosition) -> Void)?
+    private var onZoomChange: (@MainActor (Bool) -> Void)?
     private var reported: PutioPDFPagePosition?
+    private var reportedZoomed = false
 
     func observe(
-      _ view: PDFView, onPageChange: @escaping @MainActor (PutioPDFPagePosition) -> Void
+      _ view: PDFView, onPageChange: @escaping @MainActor (PutioPDFPagePosition) -> Void,
+      onZoomChange: @escaping @MainActor (Bool) -> Void
     ) {
       self.onPageChange = onPageChange
+      self.onZoomChange = onZoomChange
       if observer == nil {
         observer = NotificationCenter.default.addObserver(
           forName: .PDFViewPageChanged, object: view, queue: .main
@@ -1183,6 +1476,16 @@ struct PutioPDFView: UIViewRepresentable {
           MainActor.assumeIsolated {
             guard let self, let view else { return }
             self.report(view)
+          }
+        }
+      }
+      if scaleObserver == nil {
+        scaleObserver = NotificationCenter.default.addObserver(
+          forName: .PDFViewScaleChanged, object: view, queue: .main
+        ) { [weak self, weak view] _ in
+          MainActor.assumeIsolated {
+            guard let self, let view else { return }
+            self.reportZoom(view)
           }
         }
       }
@@ -1194,7 +1497,16 @@ struct PutioPDFView: UIViewRepresentable {
 
     func stop() {
       if let observer { NotificationCenter.default.removeObserver(observer) }
+      if let scaleObserver { NotificationCenter.default.removeObserver(scaleObserver) }
       observer = nil
+      scaleObserver = nil
+    }
+
+    private func reportZoom(_ view: PDFView) {
+      let zoomed = view.scaleFactor > view.scaleFactorForSizeToFit * 1.01
+      guard zoomed != reportedZoomed else { return }
+      reportedZoomed = zoomed
+      onZoomChange?(zoomed)
     }
 
     private func report(_ view: PDFView) {
@@ -1205,6 +1517,35 @@ struct PutioPDFView: UIViewRepresentable {
       reported = position
       onPageChange?(position)
     }
+  }
+}
+
+final class PutioInsetPDFView: PDFView {
+  var insets: UIEdgeInsets = .zero {
+    didSet { if insets != oldValue { setNeedsLayout() } }
+  }
+  private var placed = false
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    guard let scrollView = firstScrollView else { return }
+    scrollView.topEdgeEffect.isHidden = true
+    scrollView.contentInsetAdjustmentBehavior = .never
+    scrollView.insetToTop(insets, placed: &placed)
+  }
+}
+
+extension UIScrollView {
+  fileprivate func insetToTop(_ insets: UIEdgeInsets, placed: inout Bool) {
+    let atTop = contentOffset.y <= -contentInset.top + 1
+    if contentInset != insets {
+      contentInset = insets
+      verticalScrollIndicatorInsets = insets
+      if atTop { contentOffset.y = -insets.top }
+    }
+    guard !placed, contentSize.height > 0 else { return }
+    placed = true
+    contentOffset.y = -insets.top
   }
 }
 
