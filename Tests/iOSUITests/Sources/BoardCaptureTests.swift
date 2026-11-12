@@ -800,6 +800,9 @@ final class BoardCaptureTests: XCTestCase {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
     XCTAssertEqual(position.label, "3 of 3", "the set still counts the trashed file")
+    XCTAssertTrue(
+      element("preview.title").label == "Gallery 4.png", "the title never settled on the next file")
+    XCTAssertTrue(app.buttons["Undo"].exists, "the toast timed out before the capture")
     try captureBoard("rd-ios-pv-11-trashed")
   }
 
@@ -1553,13 +1556,6 @@ final class BoardCaptureTests: XCTestCase {
   private func captureBoard(_ defaultBoard: String) throws {
     let board = ProcessInfo.processInfo.environment["PUTIO_BOARD_ID"] ?? defaultBoard
     try requireBoardDevicePosture()
-    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
-      try app.performAccessibilityAudit(for: .textClipped) { issue in
-        guard let element = issue.element else { return false }
-        return Self.isMiddleTruncatedFileName(element.label)
-          && element.frame.height >= Self.minimumXXLargeLineHeight
-      }
-    }
     let window = app.windows.firstMatch.frame
     let screen = Self.screenshot(showing: window.size)
     let capture = Self.oriented(screen, toMatch: window.size)
@@ -1579,6 +1575,13 @@ final class BoardCaptureTests: XCTestCase {
     data.name = "\(board)-layout"
     data.lifetime = .keepAlways
     add(data)
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      try app.performAccessibilityAudit(for: .textClipped) { issue in
+        guard let element = issue.element else { return false }
+        return Self.isMiddleTruncatedFileName(element.label)
+          && element.frame.height >= Self.minimumXXLargeLineHeight
+      }
+    }
   }
 
   private func requireBoardDevicePosture() throws {
