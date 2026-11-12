@@ -230,7 +230,8 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertFalse(file.absoluteString.contains("put.io"))
     XCTAssertEqual(file.lastPathComponent, "Poster.png")
     XCTAssertEqual(try Data(contentsOf: file), bytes)
-    XCTAssertEqual(try await share.export(), file)
+    let again = try await share.export()
+    XCTAssertEqual(again, file)
     XCTAssertEqual(extents, [.preview])
 
     model.cancel()
