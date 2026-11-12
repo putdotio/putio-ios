@@ -574,6 +574,7 @@ import Foundation
     private static var usesFolderStates: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-folder-states")
     }
+    private static var emptyFolderName: String { usesTVBrowse ? "Empty Folder" : "Empty" }
     static let pagingFolderID = 460
     static let pagingFileCount = 450
     private static let pagingCursorPrefix = "paging-folder-offset-"
@@ -2206,7 +2207,7 @@ import Foundation
         return (
           200,
           """
-          {"parent":\(folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)),
+          {"parent":\(folderObject(id: tvEmptyFolderID, name: emptyFolderName, parentID: 0)),
           "files":[\(rows.joined(separator: ","))],"total":\(rows.count)}
           """
         )
@@ -2986,7 +2987,7 @@ import Foundation
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
         + (usesFolderStates
           ? (usesTVBrowse
-            ? [] : [folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)])
+            ? [] : [folderObject(id: tvEmptyFolderID, name: emptyFolderName, parentID: 0)])
             + [folderObject(id: pagingFolderID, name: "Paging Folder", parentID: 0)]
           : [])
         + (usesPreviews

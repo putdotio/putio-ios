@@ -70,7 +70,7 @@ Preconditions:
   then a relaunch keeps the folder's order while Harness Folder keeps the
   account default.
 - **Folder states.** Run `--only folder-states`.
-  `--putio-harness-folder-states` adds `Empty Folder` (423) and the 450-file
+  `--putio-harness-folder-states` adds `Empty` (423) and the 450-file
   `Paging Folder` (460), whose page 2 fails once. Screenshots:
   `runtime-folder-empty`, `runtime-folder-load-more-failed`.
 - **Search.** Run `--only search-restoration`. A failed second page offers

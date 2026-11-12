@@ -1019,7 +1019,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(createFolder, timeout: 5), "Create folder is unavailable")
     createFolder.tap()
     let alert = nameAlert("New folder")
-    XCTAssertTrue(alert.staticTexts["In Empty Folder"].exists, "New folder names another folder")
+    XCTAssertTrue(alert.staticTexts["In Empty"].exists, "New folder names another folder")
     submitName("From Empty", in: alert, as: "Create")
     let created = element(identifier: "files.item.415")
     XCTAssertTrue(created.appears(within: 10), "the created folder never replaced the empty state")

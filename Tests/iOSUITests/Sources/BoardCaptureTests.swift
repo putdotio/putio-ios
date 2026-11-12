@@ -44,8 +44,17 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-hold-season-listing")
     app.launch()
     let spinner = labeled("Loading files")
-    let restoredIntoSeason = spinner.appears(within: 8) && app.navigationBars["Blue Lights"].exists
-    if !restoredIntoSeason {
+    let season = app.navigationBars["Blue Lights"]
+    let root = element("files.screen.0")
+    let harnessFolder = element("files.screen.410")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(20)
+    while !(season.exists && spinner.exists), !root.exists, !harnessFolder.exists, !signIn.exists,
+      Date.now < deadline
+    {
+      _ = season.appears(within: 0.5)
+    }
+    if !(season.exists && spinner.exists) {
       openHarnessFolder()
       let folder = element("files.item.440")
       XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
