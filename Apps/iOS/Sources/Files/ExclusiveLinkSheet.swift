@@ -185,6 +185,7 @@ struct PutioExclusiveLinkSheet: View {
       HStack(spacing: PutioTheme.Spacing.space2) {
         ProgressView()
           .tint(PutioTheme.Colors.textSecondary)
+          .controlSize(.regular)
         Text("Creating link…")
       }
       .putioFont(ExclusiveLinkLayout.buttonFont)

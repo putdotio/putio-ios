@@ -129,17 +129,26 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
   private func launch(create mode: String) {
     app.launchArguments += ["--putio-harness-public-link-create", mode]
     app.launch()
-    let signIn = element("auth.sign-in")
-    if signIn.appears(within: 10) { signIn.tap() }
   }
 
   private func openSeasonFolder() {
+    let signIn = element("auth.sign-in")
     let harness = element("files.item.410")
-    XCTAssertTrue(harness.appears(within: 10), "the seeded folder never appeared")
-    harness.tap()
-    let season = element("files.item.440")
-    XCTAssertTrue(season.appears(within: 10), "the season folder never appeared")
-    season.tap()
+    let seasonRow = element("files.item.440")
+    let season = element("files.screen.440")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !signIn.exists, !harness.exists, !seasonRow.exists, !season.exists, Date.now < deadline {
+      _ = season.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !season.exists {
+      if !seasonRow.exists {
+        XCTAssertTrue(harness.becomesHittable(within: 10), "the seeded folder never appeared")
+        harness.tap()
+      }
+      XCTAssertTrue(seasonRow.becomesHittable(within: 10), "the season folder never appeared")
+      seasonRow.tap()
+    }
     XCTAssertTrue(element("files.item.442").appears(within: 10), "the episodes never appeared")
   }
 

@@ -2134,7 +2134,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func dismissMenu() {
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.7)).tap()
   }
 
   private func assertMovePickerCreatesAFolder(for row: XCUIElement) {
