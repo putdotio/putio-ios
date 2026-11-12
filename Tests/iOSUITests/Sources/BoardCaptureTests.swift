@@ -25,6 +25,69 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-02-folder")
   }
 
+  func testEmptyFolder() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-folder-states")
+    app.launch()
+    openRoot()
+    let folder = element("files.item.423")
+    XCTAssertTrue(folder.appears(within: 10), "the empty folder never appeared")
+    folder.tap()
+    XCTAssertTrue(
+      app.staticTexts["No files whatsoever!"].appears(within: 10), "the folder never said empty")
+    XCTAssertTrue(app.buttons["Create folder"].exists, "the empty folder offers no Create folder")
+    try captureBoard("rd-ios-08-empty")
+  }
+
+  func testFolderLoading() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-hold-season-listing")
+    app.launch()
+    openRoot()
+    let harnessFolder = element("files.item.410")
+    XCTAssertTrue(harnessFolder.appears(within: 10), "seeded folder row never appeared")
+    harnessFolder.tap()
+    let spinner = labeled("Loading files")
+    let season = app.navigationBars["Blue Lights"]
+    let harnessScreen = element("files.screen.410")
+    let deadline = Date.now.addingTimeInterval(10)
+    while !(season.exists && spinner.exists), !harnessScreen.exists, Date.now < deadline {
+      _ = season.appears(within: 0.5)
+    }
+    if !season.exists {
+      XCTAssertTrue(harnessScreen.appears(within: 5), "folder did not open")
+      let folder = app.revealed("files.item.440")
+      XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
+      folder.tap()
+    }
+    XCTAssertTrue(spinner.appears(within: 5), "the folder shows no loading spinner")
+    XCTAssertTrue(season.exists, "the loading folder has no title")
+    try captureBoard("rd-ios-40-loading")
+  }
+
+  func testFolderLoadingMore() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-season-more-held")
+    app.launch()
+    openSeasonFolder()
+    XCTAssertTrue(
+      labeled("Loading more files").appears(within: 5), "the next page shows no spinner")
+    try captureBoard("rd-ios-41-loading-more")
+  }
+
+  func testFolderLoadMoreFailed() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-season-more-fails")
+    app.launch()
+    openSeasonFolder()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load more files."].appears(within: 5),
+      "the failed next page never said so")
+    XCTAssertTrue(element("files.more-retry.440").exists, "the failed next page has no Try again")
+    XCTAssertTrue(element("files.item.441").exists, "loaded rows left with the failed page")
+    try captureBoard("rd-ios-32-load-more-failed")
+  }
+
   func testRowActions() throws {
     orient(.portrait)
     app.launch()
@@ -1081,6 +1144,32 @@ final class BoardCaptureTests: XCTestCase {
 
   private func sidebarToggle() -> XCUIElement {
     app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar")).firstMatch
+  }
+
+  private func openRoot() {
+    let root = element("files.screen.0")
+    let signIn = element("auth.sign-in")
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    var settledSince: Date?
+    let deadline = Date.now.addingTimeInterval(30)
+    while Date.now < deadline {
+      if signIn.exists {
+        signIn.tap()
+      } else if back.exists {
+        back.tap()
+      } else if root.exists {
+        if Date.now.timeIntervalSince(settledSince ?? .now) >= 2 { break }
+        settledSince = settledSince ?? .now
+      } else {
+        settledSince = nil
+      }
+      _ = root.appears(within: 0.5)
+    }
+    XCTAssertTrue(root.exists && !back.exists, "seeded session never reached Files")
+  }
+
+  private func labeled(_ label: String) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
   }
 
   private func openHarnessFolder() {

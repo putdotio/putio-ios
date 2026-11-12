@@ -571,6 +571,24 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
     }
     static let tvEmptyFolderID = 423
+    private static var usesFolderStates: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-folder-states")
+    }
+    private static var emptyFolderName: String { usesTVBrowse ? "Empty Folder" : "Empty" }
+    static let pagingFolderID = 460
+    static let pagingFileCount = 450
+    private static let pagingCursorPrefix = "paging-folder-offset-"
+    nonisolated(unsafe) private static var pagingSecondPageFailed = false
+    private static var holdsSeasonListing: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-season-listing")
+    }
+    private static var holdsSeasonContinuation: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-held")
+    }
+    private static var failsSeasonContinuation: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-fails")
+    }
+    static let seasonContinuationCursor = "season-page-2"
     static let tvFlakyFolderID = 424
     nonisolated(unsafe) private static var tvRootContinuationFailed = false
     nonisolated(unsafe) private static var tvFlakyFolderFailed = false
@@ -858,7 +876,9 @@ import Foundation
           deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
       } else if Self.delaysGalleryContinuation(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
-      } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url) {
+      } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url)
+        || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
+      {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
@@ -915,6 +935,18 @@ import Foundation
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
       return query.contains { $0.name == "parent_id" && $0.value == "410" }
         && query.contains { $0.name == "file_type" && $0.value == "FOLDER" }
+    }
+
+    private static func holdsSeasonFolderListing(_ url: URL) -> Bool {
+      guard holdsSeasonListing, url.path == "/v2/files/list" else { return false }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      return query.contains { $0.name == "parent_id" && $0.value == "\(seasonFolderID)" }
+        && !query.contains { $0.name == "file_type" }
+    }
+
+    private static func holdsSeasonPage(_ request: URLRequest) -> Bool {
+      holdsSeasonContinuation
+        && requestPayload(request)?["cursor"] as? String == seasonContinuationCursor
     }
 
     override func stopLoading() {
@@ -991,6 +1023,17 @@ import Foundation
       let cursor = requestPayload(request)?["cursor"] as? String
       if usesPreviews, cursor == galleryContinuationCursor {
         return (200, "{\"files\":[\(galleryRows(gallerySecondPage))]}")
+      }
+      if cursor == seasonContinuationCursor, holdsSeasonContinuation || failsSeasonContinuation {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_SEASON_CONTINUATION",
+            message: "The Blue Lights next page fails for the failed-page state")
+        )
+      }
+      if usesFolderStates, let cursor, let page = pagingContinuation(cursor) {
+        return page
       }
       guard cursor == rootContinuationCursor else {
         return (
@@ -1863,9 +1906,12 @@ import Foundation
         }
       }
       let rows = folderRows + SeasonRow.ordered(videoRows + subtitleRows, by: sortBy).map(\.json)
+      let cursor =
+        holdsSeasonContinuation || failsSeasonContinuation
+        ? jsonString(seasonContinuationCursor) : "null"
       return """
         {"parent":\(seasonFolderObject(sortBy: sortBy)),"files":[\(rows.joined(separator: ","))],
-        "total":\(rows.count)}
+        "cursor":\(cursor),"total":\(rows.count)}
         """
     }
 
@@ -2156,11 +2202,20 @@ import Foundation
         return (200, seasonFiles)
       case galleryFolderID where usesPreviews:
         return (200, galleryFiles)
-      case tvEmptyFolderID where usesTVBrowse:
+      case tvEmptyFolderID where usesTVBrowse || usesFolderStates:
+        let rows = fileActionsLock.withLock { childFolderRowsLocked(of: tvEmptyFolderID) }
         return (
           200,
-          "{\"parent\":\(folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)),\"files\":[],\"total\":0}"
+          """
+          {"parent":\(folderObject(id: tvEmptyFolderID, name: emptyFolderName, parentID: 0)),
+          "files":[\(rows.joined(separator: ","))],"total":\(rows.count)}
+          """
         )
+      case pagingFolderID where usesFolderStates:
+        let perPage =
+          URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .first { $0.name == "per_page" }?.value.flatMap(Int.init) ?? 1000
+        return pagingPage(offset: 0, perPage: perPage)
       case tvFlakyFolderID where usesTVBrowse:
         let fail = fileActionsLock.withLock {
           defer { tvFlakyFolderFailed = true }
@@ -2252,6 +2307,7 @@ import Foundation
 
     private static func isDestination(_ parentID: Int) -> Bool {
       [0, 410].contains(parentID) || (seasonFolderSeeded && parentID == seasonFolderID)
+        || (usesFolderStates && parentID == tvEmptyFolderID)
         || fileActionsLock.withLock { actionFolders[parentID] != nil }
     }
 
@@ -2929,6 +2985,11 @@ import Foundation
             folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0),
           ] : [])
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
+        + (usesFolderStates
+          ? (usesTVBrowse
+            ? [] : [folderObject(id: tvEmptyFolderID, name: emptyFolderName, parentID: 0)])
+            + [folderObject(id: pagingFolderID, name: "Paging Folder", parentID: 0)]
+          : [])
         + (usesPreviews
           ? [
             previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856),
@@ -2989,6 +3050,45 @@ import Foundation
         "updated_at": "2026-09-01T20:00:00Z"
       }
       """
+    }
+
+    private static func pagingPage(offset: Int, perPage: Int) -> (Int, String) {
+      let end = min(offset + perPage, pagingFileCount)
+      let rows = (offset..<end).map { index in
+        previewObject(
+          id: 5_001 + index, name: String(format: "Paging File %03d.txt", index + 1),
+          type: "TEXT", size: 1024, parentID: pagingFolderID)
+      }
+      let cursor =
+        end < pagingFileCount ? jsonString("\(pagingCursorPrefix)\(end)-\(perPage)") : "null"
+      return (
+        200,
+        """
+        {"parent":\(folderObject(id: pagingFolderID, name: "Paging Folder", parentID: 0)),
+        "files":[\(rows.joined(separator: ","))],"cursor":\(cursor),"total":\(pagingFileCount)}
+        """
+      )
+    }
+
+    private static func pagingContinuation(_ cursor: String) -> (Int, String)? {
+      guard cursor.hasPrefix(pagingCursorPrefix) else { return nil }
+      let parts = cursor.dropFirst(pagingCursorPrefix.count).split(separator: "-")
+      guard parts.count == 2, let offset = Int(parts[0]), let perPage = Int(parts[1]),
+        offset > 0, perPage > 0
+      else { return nil }
+      let fails = fileActionsLock.withLock {
+        defer { if offset == perPage { pagingSecondPageFailed = true } }
+        return offset == perPage && !pagingSecondPageFailed
+      }
+      if fails {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_PAGING_RETRY",
+            message: "The Paging Folder's second page fails once for retry proof")
+        )
+      }
+      return pagingPage(offset: offset, perPage: perPage)
     }
 
     private static func ordered(_ rows: [String], by sortBy: String) -> [String] {

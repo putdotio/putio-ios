@@ -312,7 +312,8 @@ extension PutioRuntimeTests {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
 
-    _ = try await runtime.listFiles(parentID: PutioFileID(rawValue: 42))
+    _ = try await runtime.listFiles(
+      parentID: PutioFileID(rawValue: 42), perPage: PutioRuntime.folderPageSize)
 
     let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let components = try XCTUnwrap(
@@ -325,6 +326,7 @@ extension PutioRuntimeTests {
       "42"
     )
     XCTAssertEqual(components.queryItems?.first(where: { $0.name == "total" })?.value, "1")
+    XCTAssertEqual(components.queryItems?.first(where: { $0.name == "per_page" })?.value, "50")
   }
 
   func testListReportsTheServerTotalWhilePagesRemain() async throws {

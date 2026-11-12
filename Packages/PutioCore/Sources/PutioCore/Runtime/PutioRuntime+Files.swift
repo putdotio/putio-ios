@@ -2,9 +2,14 @@ import Foundation
 import PutioSDK
 
 extension PutioRuntime {
-  public func listFiles(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
+  public static let folderPageSize = 50
+
+  public func listFiles(
+    parentID: PutioFileID = .root, perPage: Int? = nil
+  ) async throws -> PutioFolderContents {
     let result = try await performAuthenticatedOperation {
-      try await sdk.getFiles(parentID: parentID.rawValue, query: PutioFilesListQuery(total: true))
+      try await sdk.getFiles(
+        parentID: parentID.rawValue, query: PutioFilesListQuery(perPage: perPage, total: true))
     }
     return folderContents(from: result)
   }

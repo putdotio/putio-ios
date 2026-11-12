@@ -872,17 +872,6 @@
         }
       }
     },
-    "Could not load more files" : {
-      "comment" : "android: mobile_files_paging_error | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not load more files"
-          }
-        }
-      }
-    },
     "Could not load more folders" : {
       "comment" : "ios-only: no Android string for the iOS move picker",
       "localizations" : {
@@ -1830,17 +1819,6 @@
         }
       }
     },
-    "Files added here appear in this list." : {
-      "comment" : "android: mobile_files_empty_message | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Files added here appear in this list."
-          }
-        }
-      }
-    },
     "Files you download for offline playback appear here." : {
       "comment" : "android: mobile_downloads_empty_message | differs: iOS board wording",
       "localizations" : {
@@ -2212,17 +2190,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading apps"
-          }
-        }
-      }
-    },
-    "Loading files" : {
-      "comment" : "android: mobile_files_loading",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading files"
           }
         }
       }
@@ -4634,17 +4601,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This folder contains too many files. Delete it permanently?"
-          }
-        }
-      }
-    },
-    "This folder is empty" : {
-      "comment" : "android: mobile_files_empty_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This folder is empty"
           }
         }
       }

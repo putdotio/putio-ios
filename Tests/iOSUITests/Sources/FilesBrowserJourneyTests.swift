@@ -1000,6 +1000,72 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
+  func testFolderEmptyPagingFailedPageAndPullToRefresh() {
+    app.launchArguments.append("--putio-harness-folder-states")
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    element(identifier: "files.item.423").tap()
+    let empty = app.staticTexts["No files whatsoever!"]
+    XCTAssertTrue(empty.appears(within: 10), "the empty folder never said so")
+    XCTAssertTrue(app.staticTexts["Maybe you’d like to create a new folder?"].exists)
+    pullToRefresh()
+    XCTAssertTrue(empty.appears(within: 5), "pull to refresh lost the empty state")
+    addScreenshot(named: "runtime-folder-empty")
+    let createFolder = app.buttons["Create folder"]
+    XCTAssertTrue(waitUntilHittable(createFolder, timeout: 5), "Create folder is unavailable")
+    createFolder.tap()
+    let alert = nameAlert("New folder")
+    XCTAssertTrue(alert.staticTexts["In Empty"].exists, "New folder names another folder")
+    submitName("From Empty", in: alert, as: "Create")
+    let created = element(identifier: "files.item.415")
+    XCTAssertTrue(created.appears(within: 10), "the created folder never replaced the empty state")
+    XCTAssertFalse(empty.exists, "the empty state outlived the new folder")
+    app.navigationBars.buttons["BackButton"].tap()
+
+    let paging = element(identifier: "files.item.460")
+    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    paging.tap()
+    let firstRow = app.staticTexts["Paging File 001.txt"]
+    XCTAssertTrue(firstRow.appears(within: 10), "the paging folder never listed its first page")
+    XCTAssertTrue(element(identifier: "files.header.460").label.hasPrefix("450 items"))
+    pullToRefresh()
+    XCTAssertTrue(firstRow.exists, "pull to refresh cleared rows before new ones arrived")
+    XCTAssertTrue(firstRow.appears(within: 5), "pull to refresh lost the first page")
+
+    let failed = app.staticTexts["Couldn’t load more files."]
+    XCTAssertTrue(scrollUntilShown(failed, swipes: 15), "page 2 never failed")
+    XCTAssertTrue(app.staticTexts["Paging File 050.txt"].exists, "loaded rows left on failure")
+    XCTAssertFalse(app.staticTexts["Paging File 051.txt"].exists, "the failed page appended rows")
+    addScreenshot(named: "runtime-folder-load-more-failed")
+    let retry = element(identifier: "files.more-retry.460")
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 5), "the failed page has no Try again")
+    retry.tap()
+    XCTAssertTrue(
+      app.staticTexts["Paging File 051.txt"].appears(within: 10), "Try again never appended page 2")
+    XCTAssertFalse(failed.exists, "the failure stayed after Try again")
+
+    let lastRow = app.staticTexts["Paging File 450.txt"]
+    XCTAssertTrue(scrollUntilShown(lastRow, swipes: 120), "paging never reached the 450th file")
+    XCTAssertFalse(element(identifier: "files.more.460").exists, "the last page kept a footer")
+    XCTAssertFalse(failed.exists, "a later page failed")
+
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
+    let account = app.buttons["Account"]
+    if !account.exists { app.buttons["Files"].tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
   func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
@@ -1037,7 +1103,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(child, timeout: 5))
     child.tap()
     XCTAssertTrue(element(identifier: "files.screen.415").appears(within: 10))
-    XCTAssertTrue(app.staticTexts["This folder is empty"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["No files whatsoever!"].appears(within: 5))
     XCTAssertFalse(app.staticTexts["Folder not found"].exists)
 
     app.buttons["Files"].tap()
@@ -1052,7 +1118,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.staticTexts["Folder not found"].appears(within: 10),
       "the open descendant kept its listing after its ancestor was deleted"
     )
-    XCTAssertFalse(app.staticTexts["This folder is empty"].exists)
+    XCTAssertFalse(app.staticTexts["No files whatsoever!"].exists)
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(app.navigationBars["Renamed Harness"].appears(within: 5))
     XCTAssertTrue(
@@ -1777,6 +1843,23 @@ final class FilesBrowserJourneyTests: XCTestCase {
       folder.appears(within: 5), "created folder \(expectedID) did not appear")
     XCTAssertEqual(folder.label.components(separatedBy: ", ").first, name)
     return folder
+  }
+
+  private func pullToRefresh() {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25)).press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
+      withVelocity: .slow,
+      thenHoldForDuration: 1
+    )
+  }
+
+  private func scrollUntilShown(_ target: XCUIElement, swipes: Int) -> Bool {
+    for _ in 0..<swipes {
+      if target.exists { return true }
+      app.swipeUp(velocity: .fast)
+    }
+    return target.appears(within: 5)
   }
 
   private func nameAlert(_ title: String) -> XCUIElement {

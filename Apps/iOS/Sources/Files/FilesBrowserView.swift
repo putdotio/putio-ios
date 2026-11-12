@@ -52,7 +52,7 @@ struct FilesBrowserView: View {
     self.accountNotice = accountNotice
     self.castButton = castButton?()
     load = { folderID in
-      try await runtime.listFiles(parentID: folderID)
+      try await runtime.listFiles(parentID: folderID, perPage: PutioRuntime.folderPageSize)
     }
     continueLoad = { cursor in
       try await runtime.continueFiles(cursor: cursor)

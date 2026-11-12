@@ -47,7 +47,9 @@ struct FilesSearchView: View {
         .navigationDestination(for: PutioFolderRoute.self) { route in
           PutioFolderScreen(
             route: route,
-            load: { try await runtime.listFiles(parentID: $0) },
+            load: {
+              try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize)
+            },
             continueLoad: { try await runtime.continueFiles(cursor: $0) },
             actions: PutioFileActions(runtime: runtime),
             trashEnabled: trashEnabled,
@@ -60,7 +62,9 @@ struct FilesSearchView: View {
             request: $itemAction,
             model: itemActions,
             actions: PutioFileActions(runtime: runtime),
-            load: { try await runtime.listFiles(parentID: $0) },
+            load: {
+              try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize)
+            },
             continueLoad: { try await runtime.continueFiles(cursor: $0) },
             trashEnabled: trashEnabled,
             refreshRequests: refreshRequests
