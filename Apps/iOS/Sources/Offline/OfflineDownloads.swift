@@ -709,7 +709,8 @@ final class PutioOfflineQueue {
     resumeWhenFree.removeAll { fileID in
       guard let index = items.firstIndex(where: { $0.id == fileID }), isPaused(items[index].stage)
       else { return true }
-      guard !suspended.contains(fileID), workers[fileID] == nil else { return false }
+      guard !suspended.contains(fileID), workers[fileID] == nil, !completing.contains(fileID)
+      else { return false }
       items[index].stage = .queued
       requeued = true
       return true
