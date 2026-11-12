@@ -166,6 +166,78 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
+  func testPlaybackMethodAppliesOnTapRevertsAFailedSaveAndPersistsAcrossRelaunch() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-playback-preferences",
+      "--putio-harness-reset-file-preferences",
+    ]
+    app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
+    app.launch()
+    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(app.buttons["Account"].appears(within: 10))
+    app.buttons["Account"].tap()
+    let method = app.revealed("playback-settings.method")
+    XCTAssertTrue(method.appears(within: 10))
+    XCTAssertTrue(method.label.hasSuffix("Standard"), "method row read \(method.label)")
+    method.tap()
+    let standard = choice("Standard", in: app)
+    let directPlay = choice("Direct play", in: app)
+    XCTAssertTrue(directPlay.appears(within: 5))
+    assertSelected(standard)
+    XCTAssertFalse(directPlay.isSelected)
+
+    directPlay.tap()
+    let toast = app.staticTexts["Couldn’t save this setting"]
+    XCTAssertTrue(toast.appears(within: 10))
+    assertSelected(standard)
+    XCTAssertFalse(directPlay.isSelected, "a failed save kept Direct play")
+    XCTAssertTrue(toast.disappears(within: 10))
+
+    directPlay.tap()
+    assertSelected(directPlay)
+    XCTAssertFalse(standard.isSelected)
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    attachment.name = "runtime-playback-method"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(method.appears(within: 5))
+    XCTAssertTrue(method.label.hasSuffix("Direct play"), "method row read \(method.label)")
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
+    app.launch()
+    XCTAssertTrue(app.buttons["Account"].appears(within: 15))
+    app.buttons["Account"].tap()
+    XCTAssertTrue(app.revealed("playback-settings.method").appears(within: 10))
+    XCTAssertTrue(method.label.hasSuffix("Direct play"), "method row read \(method.label)")
+    method.tap()
+    XCTAssertTrue(directPlay.appears(within: 5))
+    assertSelected(directPlay)
+    XCTAssertFalse(standard.isSelected)
+    app.navigationBars.buttons["BackButton"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10))
+  }
+
+  private func choice(_ title: String, in app: XCUIApplication) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
+  }
+
+  private func assertSelected(_ element: XCUIElement) {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "selected == true AND enabled == true"), object: element)
+    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
+  }
+
   /// With the persisted default (autoplay off) the suggestion still appears
   /// after the completed video's position reset and waits past the autoplay
   /// countdown for the manual action, which opens the successor at its saved

@@ -812,6 +812,17 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-60-resume-off-confirm")
   }
 
+  func testAccountPlaybackMethod() throws {
+    openAccountSettings()
+    let method = app.revealed("playback-settings.method")
+    XCTAssertTrue(method.appears(within: 5))
+    method.tap()
+    XCTAssertTrue(
+      app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Direct play")).firstMatch
+        .appears(within: 5), "the playback method screen never opened")
+    try captureBoard("rd-ios-acc-06-playback-method")
+  }
+
   private func openAccountSettings() {
     openAccount()
     XCTAssertTrue(

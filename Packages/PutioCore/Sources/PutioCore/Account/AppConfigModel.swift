@@ -11,6 +11,7 @@ public struct PutioAppConfigActions: Sendable {
       switch write {
       case .autoplayNextVideo(let enabled): try await runtime.setAutoplayNextVideo(enabled)
       case .autoRotateVideo(let enabled): try await runtime.setAutoRotateVideo(enabled)
+      case .playbackMethod(let method): try await runtime.setPlaybackMethod(method)
       }
     }
   }
@@ -28,6 +29,7 @@ public struct PutioAppConfigActions: Sendable {
 public enum PutioAppConfigWrite: Equatable, Sendable {
   case autoplayNextVideo(Bool)
   case autoRotateVideo(Bool)
+  case playbackMethod(PutioPlaybackMethod)
 }
 
 /// The per-user config document behind app-owned playback settings. The
@@ -55,6 +57,7 @@ public final class PutioAppConfigModel {
   public var autoplayNextVideo: Bool { config?.autoplayNextVideo ?? false }
   /// `true` until the document loads, matching the server default.
   public var autoRotateVideo: Bool { config?.autoRotateVideo ?? true }
+  public var playbackMethod: PutioPlaybackMethod { config?.playbackMethod ?? .standard }
   public var isBusy: Bool { isLoading || isSaving }
   public var canSave: Bool { config != nil && !isBusy }
 
@@ -116,6 +119,12 @@ public final class PutioAppConfigModel {
     return await save(.autoRotateVideo(enabled))
   }
 
+  @discardableResult
+  public func setPlaybackMethod(_ method: PutioPlaybackMethod) async -> PutioSettingSaveOutcome {
+    guard method != playbackMethod else { return .skipped }
+    return await save(.playbackMethod(method))
+  }
+
   /// Repeats the failed write when one is pending; otherwise reloads the
   /// document, which is the only recovery after a failed read.
   public func retry() async {
@@ -140,6 +149,7 @@ public final class PutioAppConfigModel {
         switch write {
         case .autoplayNextVideo(let enabled): config?.autoplayNextVideo = enabled
         case .autoRotateVideo(let enabled): config?.autoRotateVideo = enabled
+        case .playbackMethod(let method): config?.playbackMethod = method
         }
         return .saved
       } catch {
