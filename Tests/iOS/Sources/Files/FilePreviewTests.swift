@@ -593,7 +593,7 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(decoded.size.height * decoded.scale, 10)
   }
 
-  func testUnfoldingTheDuoRefitsAZoomedDocument() throws {
+  func testUnfoldingTheDuoRefitsAZoomedDocumentToTheReadableWidth() throws {
     let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
     let data = renderer.pdfData { context in
       context.beginPage()
@@ -608,9 +608,50 @@ final class FilePreviewTests: XCTestCase {
     view.scaleFactor = view.scaleFactorForSizeToFit * 3
 
     view.frame = CGRect(origin: .zero, size: Self.duoOpen)
+    view.traitOverrides.horizontalSizeClass = .regular
+    view.updateTraitsIfNeeded()
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 612, accuracy: 0.01)
+    XCTAssertLessThan(view.scaleFactor, view.scaleFactorForSizeToFit)
+    XCTAssertTrue(view.document === document)
+
+    view.frame = CGRect(origin: .zero, size: Self.duoFolded)
+    view.traitOverrides.horizontalSizeClass = .compact
+    view.updateTraitsIfNeeded()
     view.layoutIfNeeded()
     XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
-    XCTAssertTrue(view.document === document)
+  }
+
+  func testCompactWidthFitsPDFPagesEdgeToEdge() throws {
+    let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
+    let document = try XCTUnwrap(PDFDocument(data: renderer.pdfData { $0.beginPage() }))
+    let view = PutioInsetPDFView(frame: CGRect(x: 0, y: 0, width: 874, height: 402))
+    view.traitOverrides.horizontalSizeClass = .compact
+    view.updateTraitsIfNeeded()
+    view.autoScales = true
+    view.displayMode = .singlePageContinuous
+    view.document = document
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, view.scaleFactorForSizeToFit, accuracy: 0.01)
+    XCTAssertGreaterThan(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 612)
+  }
+
+  func testTheWidestPageSetsTheReadableWidthCap() throws {
+    let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
+    let data = renderer.pdfData { context in
+      context.beginPage()
+      context.beginPage(withBounds: CGRect(x: 0, y: 0, width: 792, height: 612), pageInfo: [:])
+    }
+    let document = try XCTUnwrap(PDFDocument(data: data))
+    let view = PutioInsetPDFView(frame: CGRect(origin: .zero, size: Self.duoOpen))
+    view.traitOverrides.horizontalSizeClass = .regular
+    view.updateTraitsIfNeeded()
+    view.autoScales = true
+    view.displayMode = .singlePageContinuous
+    view.document = document
+    view.layoutIfNeeded()
+    XCTAssertEqual(view.scaleFactor, PutioInsetPDFView.maximumPageWidth / 792, accuracy: 0.01)
+    XCTAssertEqual(view.zoomBaseline, view.scaleFactor, accuracy: 0.001)
   }
 
   private static let duoFolded = CGSize(width: 466, height: 678)

@@ -734,6 +734,7 @@ struct PutioPreviewView: View {
   @State private var labelsHeight: CGFloat = 0
   @State private var restoring: Set<PutioFileID> = []
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   private let fileActions: PutioPreviewFileActions
   private let onDismiss: @MainActor () -> Void
 
@@ -900,8 +901,10 @@ struct PutioPreviewView: View {
 
   @ViewBuilder
   private func topFade(_ state: PutioPreviewState) -> some View {
-    if showsDocument(state) || showsText(state) {
-      PutioPDFBarFade()
+    if showsDocument(state) {
+      PutioPDFBarFade(style: .page)
+    } else if showsText(state) {
+      PutioPDFBarFade(style: .bar)
     } else if showsImage(state), showsBars(state) {
       LinearGradient(
         colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
@@ -936,12 +939,14 @@ struct PutioPreviewView: View {
       Button {
         onDismiss()
       } label: {
-        Label(String(localized: "Back"), systemImage: "chevron.left")
-          .labelStyle(.iconOnly)
+        PutioPreviewBackLabel()
       }
-      .tint(PutioTheme.Colors.textPrimary)
+      .buttonStyle(.plain)
+      .padding(.leading, toolbarInset)
+      .accessibilityLabel(String(localized: "Back"))
       .accessibilityIdentifier("preview.back")
     }
+    .sharedBackgroundVisibility(.hidden)
     ToolbarItem(placement: .principal) {
       Text(model.title)
         .putioFont(PutioTheme.Typography.subheading)
@@ -951,25 +956,37 @@ struct PutioPreviewView: View {
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("preview.title")
     }
-    ToolbarItemGroup(placement: .topBarTrailing) {
-      Group {
-        if let share = model.share {
-          ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
-        } else {
-          Button {
-          } label: {
-            shareLabel
+    ToolbarItem(placement: .topBarTrailing) {
+      HStack(spacing: 0) {
+        Group {
+          if let share = model.share {
+            ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
+          } else {
+            Button {
+            } label: {
+              shareLabel
+            }
+            .disabled(true)
           }
-          .disabled(true)
         }
+        .buttonStyle(.plain)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .accessibilityLabel(Text("Share"))
+        .accessibilityIdentifier("preview.share")
+        PutioPreviewMoreMenu(
+          menu: moreMenu(for: pager.item(for: model.route.id)),
+          isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
+        )
       }
-      .tint(PutioTheme.Colors.textPrimary)
-      .accessibilityIdentifier("preview.share")
-      PutioPreviewMoreMenu(
-        menu: moreMenu(for: pager.item(for: model.route.id)),
-        isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
-      )
+      .padding(.horizontal, PutioTheme.Spacing.space1 / 2)
+      .modifier(PutioPreviewToolbarGlass())
+      .padding(.trailing, toolbarInset)
     }
+    .sharedBackgroundVisibility(.hidden)
+  }
+
+  private var toolbarInset: CGFloat {
+    horizontalSizeClass == .regular ? PutioPreviewToolbarIcon.regularWidthInset : 0
   }
 
   private func moreMenu(for item: PutioFileItem?) -> PutioItemMenu {
@@ -1087,11 +1104,7 @@ struct PutioPreviewView: View {
   }
 
   private var shareLabel: some View {
-    Label {
-      Text("Share")
-    } icon: {
-      Image(putioIcon: .export)
-    }
+    PutioPreviewToolbarIcon(icon: .export)
   }
 }
 
@@ -1640,11 +1653,36 @@ struct PutioPDFPagePosition: Equatable {
 }
 
 struct PutioPDFBarFade: View {
-  static func stops(barBottom: CGFloat) -> [Gradient.Stop] {
-    guard barBottom > 0 else { return [] }
-    let solid = max(0, barBottom - PutioTheme.Spacing.space3) / barBottom
+  enum Style {
+    case bar
+    case page
+  }
+
+  let style: Style
+
+  static func height(_ style: Style, barBottom: CGFloat) -> CGFloat {
+    switch style {
+    case .bar:
+      barBottom
+    case .page:
+      max(
+        PutioTheme.Spacing.space6 + PutioTheme.Spacing.space3,
+        barBottom + PutioTheme.Spacing.space4)
+    }
+  }
+
+  static func stops(_ style: Style, barBottom: CGFloat) -> [Gradient.Stop] {
+    let height = height(style, barBottom: barBottom)
+    guard height > 0 else { return [] }
+    let (shade, ramp): (Double, CGFloat) =
+      switch style {
+      case .bar: (1, PutioTheme.Spacing.space3)
+      case .page: (0.95, PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3)
+      }
+    let solid = max(0, height - ramp) / height
     return [
-      .init(color: .black, location: 0), .init(color: .black, location: solid),
+      .init(color: .black.opacity(shade), location: 0),
+      .init(color: .black.opacity(shade), location: solid),
       .init(color: .black.opacity(0), location: 1),
     ]
   }
@@ -1653,9 +1691,12 @@ struct PutioPDFBarFade: View {
     GeometryReader { proxy in
       let insets = proxy.safeAreaInsets
       LinearGradient(
-        stops: Self.stops(barBottom: insets.top), startPoint: .top, endPoint: .bottom
+        stops: Self.stops(style, barBottom: insets.top), startPoint: .top, endPoint: .bottom
       )
-      .frame(width: proxy.size.width + insets.leading + insets.trailing, height: insets.top)
+      .frame(
+        width: proxy.size.width + insets.leading + insets.trailing,
+        height: Self.height(style, barBottom: insets.top)
+      )
       .offset(x: -insets.leading, y: -insets.top)
     }
     .allowsHitTesting(false)
@@ -1668,15 +1709,60 @@ struct PutioPDFPagePill: View {
 
   var body: some View {
     Text("\(position.number) of \(position.count)")
-      .putioFont(PutioTheme.Typography.numeric)
+      .putioFont(PutioTheme.Typography.caption)
       .foregroundStyle(PutioTheme.Colors.textPrimary)
       .padding(.horizontal, PutioTheme.Spacing.space3)
-      .padding(.vertical, PutioTheme.Spacing.space1)
-      .background(PutioTheme.Colors.surfaceActive, in: Capsule())
+      .frame(minHeight: PutioTheme.Spacing.space4)
+      .background(PutioTheme.Components.Sheet.border, in: Capsule())
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(Text("Page \(position.number) of \(position.count)"))
       .accessibilityIdentifier("preview.page")
       .allowsHitTesting(false)
+  }
+}
+
+struct PutioPreviewBackLabel: View {
+  static let diameter: CGFloat = 44
+  static let glyph: CGFloat = 14
+
+  var body: some View {
+    Image(putioIcon: .caretLeft)
+      .resizable()
+      .scaledToFit()
+      .frame(width: Self.glyph, height: Self.glyph)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .frame(width: Self.diameter, height: Self.diameter)
+      .background(Color.black.opacity(0.75), in: Circle())
+      .overlay {
+        Circle().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
+      }
+      .contentShape(Circle())
+  }
+}
+
+private struct PutioPreviewToolbarGlass: ViewModifier {
+  @ViewBuilder func body(content: Content) -> some View {
+    if HarnessRendering.usesRasterFallback {
+      content.background(.regularMaterial, in: Capsule())
+    } else {
+      content.glassEffect(.regular, in: Capsule())
+    }
+  }
+}
+
+struct PutioPreviewToolbarIcon: View {
+  static let size: CGFloat = 22
+  static let target: CGFloat = 44
+  static let regularWidthInset: CGFloat = 6
+  let icon: PutioIcon
+
+  var body: some View {
+    Image(putioIcon: icon)
+      .resizable()
+      .scaledToFit()
+      .frame(width: Self.size, height: Self.size)
+      .frame(width: Self.target, height: Self.target)
+      .contentShape(Rectangle())
   }
 }
 
@@ -1764,7 +1850,8 @@ struct PutioPDFView: UIViewRepresentable {
     }
 
     private func reportZoom(_ view: PDFView) {
-      let zoomed = view.scaleFactor > view.scaleFactorForSizeToFit * 1.01
+      let fitted = (view as? PutioInsetPDFView)?.zoomBaseline ?? view.scaleFactorForSizeToFit
+      let zoomed = view.scaleFactor > fitted * 1.01
       guard zoomed != reportedZoomed else { return }
       reportedZoomed = zoomed
       onZoomChange?(zoomed)
@@ -1782,25 +1869,67 @@ struct PutioPDFView: UIViewRepresentable {
 }
 
 final class PutioInsetPDFView: PDFView {
+  static let maximumPageWidth = PutioTheme.Spacing.space8 + PutioTheme.Spacing.space7
+
   var insets: UIEdgeInsets = .zero {
     didSet { if insets != oldValue { setNeedsLayout() } }
   }
+  private var fittedScale: CGFloat = 0
+  var zoomBaseline: CGFloat { fittedScale > 0 ? fittedScale : scaleFactorForSizeToFit }
   private var placed = false
   private var fittedSize: CGSize = .zero
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    registerForTraitChanges([UITraitHorizontalSizeClass.self]) {
+      (view: PutioInsetPDFView, _: UITraitCollection) in
+      view.fittedSize = .zero
+      view.setNeedsLayout()
+    }
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
 
   override func layoutSubviews() {
     super.layoutSubviews()
     if bounds.size != fittedSize, bounds.width > 0, bounds.height > 0 {
-      if fittedSize != .zero, document != nil {
-        scaleFactor = scaleFactorForSizeToFit
-        autoScales = true
-      }
+      fit(resized: fittedSize != .zero)
       fittedSize = bounds.size
     }
     guard let scrollView = firstScrollView else { return }
     scrollView.topEdgeEffect.isHidden = true
     scrollView.contentInsetAdjustmentBehavior = .never
     scrollView.insetToTop(insets, placed: &placed)
+  }
+
+  private func fit(resized: Bool) {
+    guard let document, document.pageCount > 0 else { return }
+    let sizeToFit = scaleFactorForSizeToFit
+    let pageWidth =
+      (0..<document.pageCount).lazy
+      .compactMap { document.page(at: $0) }
+      .map { page in
+        let box = page.bounds(for: self.displayBox)
+        return page.rotation.isMultiple(of: 180) ? box.width : box.height
+      }
+      .max() ?? 0
+    let capped =
+      pageWidth > 0 && traitCollection.horizontalSizeClass == .regular
+      ? Self.maximumPageWidth / pageWidth : sizeToFit
+    if capped < sizeToFit {
+      fittedScale = capped
+      autoScales = false
+      minScaleFactor = capped
+      scaleFactor = capped
+    } else {
+      fittedScale = sizeToFit
+      guard resized || !autoScales else { return }
+      minScaleFactor = sizeToFit
+      scaleFactor = sizeToFit
+      autoScales = true
+    }
   }
 }
 

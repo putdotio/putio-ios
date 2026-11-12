@@ -1026,7 +1026,34 @@ final class BoardCaptureTests: XCTestCase {
 
   func testPreviewDocument() throws {
     orient(.portrait)
-    app.launchArguments.append("--putio-harness-previews")
+    openDocumentOnSecondPage()
+    try captureBoard("rd-ios-pv-03-pdf")
+  }
+
+  func testIPadPreviewImage() throws {
+    orient(.landscapeLeft)
+    openPosterPreview()
+    assertPreviewFillsWindow(fileID: 406)
+    try captureBoard("rd-ios-pv-14-ipad-image")
+    assertPreviewKeepsFileAcrossRotation(fileID: 406, board: "rd-ios-pv-14-ipad-image") {
+      app.images["Harness Poster.png"]
+    }
+    assertBackReturnsToRow("files.item.406", fileID: 406)
+  }
+
+  func testIPadPreviewDocument() throws {
+    orient(.landscapeLeft)
+    openDocumentOnSecondPage()
+    assertPreviewFillsWindow(fileID: 413)
+    try captureBoard("rd-ios-pv-15-ipad-pdf")
+    assertPreviewKeepsFileAcrossRotation(fileID: 413, board: "rd-ios-pv-15-ipad-pdf") {
+      element("preview.page")
+    }
+    assertBackReturnsToRow("files.item.413", fileID: 413)
+  }
+
+  private func openDocumentOnSecondPage() {
+    app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
     app.launch()
     reachFilesRoot()
     let row = app.revealed("files.item.413")
@@ -1044,7 +1071,47 @@ final class BoardCaptureTests: XCTestCase {
       drags += 1
     }
     XCTAssertEqual(pill.label, "Page 2 of 12", "the document did not reach page 2")
-    try captureBoard("rd-ios-pv-03-pdf")
+  }
+
+  private func assertPreviewFillsWindow(fileID: Int) {
+    let screen = element("preview.screen.\(fileID)")
+    XCTAssertTrue(screen.appears(within: 10), "the viewer never opened")
+    XCTAssertEqual(
+      screen.frame, app.windows.firstMatch.frame, "the viewer does not fill the window")
+    XCTAssertFalse(tabButton("Downloads").isHittable, "the tab bar shows over the viewer")
+    XCTAssertFalse(element("files.screen.0").isHittable, "the list shows beside the viewer")
+  }
+
+  private func assertPreviewKeepsFileAcrossRotation(
+    fileID: Int, board: String, content: () -> XCUIElement
+  ) {
+    let window = app.windows.firstMatch
+    for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+      rotate(orientation)
+      let portrait = orientation == .portrait
+      let deadline = Date.now.addingTimeInterval(10)
+      while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
+        RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+      }
+      XCTAssertEqual(
+        window.frame.width < window.frame.height, portrait, "the viewer did not rotate")
+      XCTAssertTrue(content().appears(within: 10), "rotating lost the open file")
+      assertPreviewFillsWindow(fileID: fileID)
+      if portrait {
+        let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        capture.name = "\(board)-portrait"
+        capture.lifetime = .keepAlways
+        add(capture)
+      }
+    }
+  }
+
+  private func assertBackReturnsToRow(_ identifier: String, fileID: Int) {
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(
+      element("preview.screen.\(fileID)").disappears(within: 5), "Back did not close the viewer")
+    XCTAssertTrue(
+      element(identifier).becomesHittable(within: 5), "Back did not return to the same row")
   }
 
   func testPreviewText() throws {

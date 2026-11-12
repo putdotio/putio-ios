@@ -32,14 +32,13 @@ struct PutioPreviewMoreMenu: View {
     Menu {
       PutioItemMenuContent(menu)
     } label: {
-      Label {
-        Text("More")
-      } icon: {
-        Image(putioIcon: .dotsThree)
-      }
+      PutioPreviewToolbarIcon(icon: .dotsThree)
     }
+    .accessibilityLabel(Text("More"))
     .menuOrder(.fixed)
-    .tint(PutioTheme.Colors.textPrimary)
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .foregroundStyle(PutioTheme.Colors.textPrimary)
     .disabled(isDisabled || menu.sections.isEmpty)
     .accessibilityIdentifier("preview.more")
   }
