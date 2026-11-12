@@ -61,11 +61,11 @@ struct AccountView: View {
   private var settingsList: some View {
     List {
       if let notice = PutioInactiveAccountNotice(account: account) {
-        Section {
-          PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-        }
+        PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
+          .listRowInsets(
+            EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0))
+          .listRowSeparator(.hidden)
+          .listRowBackground(Color.clear)
       }
       AccountProfileHeader(account: account)
       Group {
