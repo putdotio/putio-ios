@@ -88,12 +88,18 @@ extension PutioRuntime {
     session.beginAccountPreferencesUpdate()
     defer { session.endAccountPreferencesUpdate(generation: generation) }
     let response: PutioOKResponse
+    var neverSent = false
     do {
       response = try await performAuthenticatedOperation(commits: true) {
-        try await sdk.saveAccountSettings(.patch(patch))
+        do {
+          return try await sdk.saveAccountSettings(.patch(patch))
+        } catch let error as PutioSDKError {
+          neverSent = Self.neverLeftDevice(error)
+          throw error
+        }
       }
     } catch {
-      guard isUnsettledWrite(error), generation == session.authenticationGeneration,
+      guard !neverSent, isUnsettledWrite(error), generation == session.authenticationGeneration,
         case .signedIn = session.state
       else { throw error }
       // A lost response does not establish whether the server committed the
@@ -137,6 +143,17 @@ extension PutioRuntime {
     switch error as? PutioRuntimeError {
     case .transient, .invalidResponse: return true
     default: return false
+    }
+  }
+
+  static func neverLeftDevice(_ error: PutioSDKError) -> Bool {
+    guard let urlError = error.underlyingError as? URLError else { return false }
+    switch urlError.code {
+    case .notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+      .dataNotAllowed, .internationalRoamingOff, .callIsActive:
+      return true
+    default:
+      return false
     }
   }
 

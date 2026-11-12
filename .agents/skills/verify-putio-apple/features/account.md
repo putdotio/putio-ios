@@ -18,6 +18,8 @@ from a sign-out that did not finish.
   relaunch, and hides History when it is off.
 - `history` pages, opens items, deletes, and follows the History setting.
 - `rows` opens and closes every Account row from top to end.
+- `settings-states` shows settings loading and failed, retries, and reverts a
+  failed save with a toast, online and offline.
 - `rating` opens rating and contact links only after an explicit tap.
 - `analytics-prompt` shows saving and failed states, retries, and saves the
   choice once.
@@ -60,6 +62,12 @@ Preconditions:
   `runtime-history-error`, `runtime-history-empty`.
 - **Rows.** Run `--only account-rows`. Every navigation row opens its screen
   and goes back; Privacy policy records its URL.
+- **Settings states.** Run `--only account-settings-loading,account-settings-states`.
+  `--putio-harness-account-settings slow-load` holds the settings load;
+  `fail-load` fails it once. Under either, autoplay's first save fails and its
+  second is offline. Screenshots: `runtime-account-settings-loading`,
+  `runtime-account-settings-failed`, `runtime-account-save-failed-unavailable`,
+  `runtime-account-save-failed-offline`.
 - **Rating.** Run `--only account-rating`. Screenshot: `runtime-account-rating`.
 - **Analytics prompt.** Run `--only analytics-prompt`. Screenshots:
   `runtime-analytics-prompt`, `runtime-analytics-prompt-saving`,

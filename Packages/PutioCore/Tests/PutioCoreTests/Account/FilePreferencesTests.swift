@@ -287,6 +287,59 @@ final class FilePreferencesTests: XCTestCase {
     XCTAssertFalse(model.isRefreshing)
   }
 
+  func testSettingsLoadShowsLoadingThenFailedThenReadyAfterRetry() async {
+    let session = PreferencesSessionFixture()
+    var reads = 0
+    let model = model(
+      session: session,
+      refresh: {
+        reads += 1
+        return reads > 1
+      })
+    XCTAssertEqual(model.settingsState, .loading)
+    await model.loadSettingsIfNeeded()
+    XCTAssertEqual(model.settingsState, .failed)
+    await model.loadSettingsIfNeeded()
+    XCTAssertEqual(reads, 1, "returning to Account reloaded settings on its own")
+    await model.loadSettings()
+    XCTAssertEqual(model.settingsState, .ready)
+    session.isStale = true
+    XCTAssertEqual(model.settingsState, .failed)
+    session.isUpdating = true
+    XCTAssertEqual(model.settingsState, .ready, "a save in flight hid the settings")
+  }
+
+  func testSaveOutcomesSeparateFailuresFromUnconfirmedAndSkippedSaves() async {
+    let session = PreferencesSessionFixture()
+    var results: [Result<Bool, PutioRuntimeError>] = [
+      .failure(.transient), .success(false), .failure(.sessionExpired), .success(true),
+    ]
+    let model = model(
+      session: session,
+      save: { _ in
+        let accountRefreshed = try results.removeFirst().get()
+        if !accountRefreshed { session.isStale = true }
+        return PutioAccountPreferencesMutationResult(accountRefreshed: accountRefreshed)
+      })
+    let failed = await model.save(.history(false))
+    XCTAssertEqual(failed, .failed)
+    let unconfirmed = await model.save(.history(false))
+    XCTAssertEqual(unconfirmed, .savedUnconfirmed)
+    let blocked = await model.save(.history(false))
+    XCTAssertEqual(blocked, .skipped, "a stale account accepted another write")
+    session.isStale = false
+    let expired = await model.save(.history(false))
+    XCTAssertEqual(expired, .skipped)
+    let saved = await model.save(.history(false))
+    XCTAssertEqual(saved, .saved)
+    XCTAssertThrowsError(try PutioSettingSaveOutcome.failed.requireSaved()) {
+      XCTAssertTrue($0 is PutioSettingNotSaved)
+    }
+    XCTAssertThrowsError(try PutioSettingSaveOutcome.skipped.requireSaved()) {
+      XCTAssertTrue($0 is CancellationError)
+    }
+  }
+
   private func model(
     session: PreferencesSessionFixture,
     save:

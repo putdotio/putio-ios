@@ -662,6 +662,9 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-ses-26-ipad-inactive", .ipad, "testIPadInactiveNotice",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
+      BoardCapture("rd-ios-acc-26-settings-loading", .iphone, "testAccountSettingsLoading"),
+      BoardCapture("rd-ios-acc-27-settings-failed", .iphone, "testAccountSettingsFailed"),
+      BoardCapture("rd-ios-acc-21-save-failed", .iphone, "testAccountSaveFailed"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -889,6 +892,17 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "account-rows", "AccountJourneyTests/testEveryAccountRowOpensAndClosesFromTopToEnd",
       timeAllowance: 180),
+    JourneyPreflight(
+      "account-settings-loading", "AccountJourneyTests/testSettingsLoadSlowly",
+      attachmentNames: ["runtime-account-settings-loading"]),
+    JourneyPreflight(
+      "account-settings-states",
+      "AccountJourneyTests/testSettingsLoadFailureRetriesAndFailedSavesRevertOnlineAndOffline",
+      attachmentNames: [
+        "runtime-account-settings-failed", "runtime-account-save-failed-unavailable",
+        "runtime-account-save-failed-offline",
+      ],
+      timeAllowance: 120),
     JourneyPreflight(
       "analytics-prompt",
       "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",

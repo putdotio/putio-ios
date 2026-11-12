@@ -430,6 +430,25 @@ extension PutioRuntimeTests {
     XCTAssertNil(account.defaultSort)
   }
 
+  func testOfflinePreferenceWriteFailsWithoutReconcilingTheAccount() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setNetworkFailure(true, for: "POST /v2/account/settings")
+    fixtures.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"history_enabled\": true", with: "\"history_enabled\": false"),
+      for: "GET /v2/account/info")
+    let reads = fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/info" }.count
+    await assertRuntimeError(.transient) { _ = try await runtime.setHistoryEnabled(false) }
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+    XCTAssertEqual(
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/info" }.count, reads)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertTrue(account.historyEnabled)
+  }
+
   private static func privacyAccountInfo(diagnostics: Bool, analytics: Bool) -> String {
     accountInfo.replacingOccurrences(
       of: #""dont_autoselect_subtitles": false"#,

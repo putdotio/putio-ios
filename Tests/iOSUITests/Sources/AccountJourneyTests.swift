@@ -111,4 +111,109 @@ final class AccountJourneyTests: XCTestCase {
     }
     XCTAssertTrue(app.revealed("auth.sign-out").appears(within: 5))
   }
+
+  func testSettingsLoadSlowly() {
+    continueAfterFailure = false
+    let app = launchSignedIn(settings: "slow-load")
+    XCTAssertTrue(element(app, "account.settings-loading").appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Loading account settings"].exists)
+    XCTAssertTrue(element(app, "account.storage-used").exists)
+    XCTAssertTrue(element(app, "account.trash").exists)
+    XCTAssertFalse(element(app, "settings.default-sort").exists)
+    attach(app, "runtime-account-settings-loading")
+    XCTAssertTrue(element(app, "settings.default-sort").appears(within: 15))
+    XCTAssertFalse(element(app, "account.settings-loading").exists)
+    signOut(app)
+  }
+
+  func testSettingsLoadFailureRetriesAndFailedSavesRevertOnlineAndOffline() {
+    continueAfterFailure = false
+    let app = launchSignedIn(settings: "fail-load")
+    let failed = element(app, "account.settings-failed")
+    XCTAssertTrue(failed.appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Couldn’t load account settings"].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    XCTAssertFalse(element(app, "settings.default-sort").exists)
+    attach(app, "runtime-account-settings-failed")
+    app.buttons["account.settings-retry"].tap()
+    XCTAssertTrue(element(app, "settings.default-sort").appears(within: 10))
+    XCTAssertFalse(failed.exists)
+
+    let autoplay = app.switches["playback-settings.autoplay"]
+    XCTAssertTrue(app.revealed("playback-settings.autoplay").appears(within: 5))
+    app.bringIntoView(autoplay)
+    let original = autoplay.value as? String ?? ""
+    for attempt in ["unavailable", "offline"] {
+      tapSwitch(app, autoplay)
+      let toast = app.staticTexts["Couldn’t save this setting"]
+      XCTAssertTrue(toast.appears(within: 10), "no toast after the \(attempt) save")
+      attach(app, "runtime-account-save-failed-\(attempt)")
+      let toastFrame = toast.frame
+      XCTAssertTrue(
+        settles(autoplay, NSPredicate(format: "value == %@ AND enabled == true", original)),
+        "autoplay did not revert after the \(attempt) save")
+      XCTAssertTrue(autoplay.isHittable, "the toast covers autoplay after the \(attempt) save")
+      XCTAssertFalse(
+        toastFrame.intersects(autoplay.frame),
+        "the toast covers autoplay after the \(attempt) save")
+      XCTAssertTrue(toast.disappears(within: 10))
+    }
+    tapSwitch(app, autoplay)
+    XCTAssertTrue(
+      settles(autoplay, NSPredicate(format: "value != %@ AND enabled == true", original)),
+      "autoplay did not save once put.io was reachable")
+    XCTAssertFalse(app.staticTexts["Couldn’t save this setting"].exists)
+    signOut(app)
+  }
+
+  private func launchSignedIn(settings mode: String) -> XCUIApplication {
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-account-settings", mode,
+    ]
+    app.launch()
+    let signIn = element(app, "auth.sign-in")
+    let account = app.buttons["Account"]
+    let deadline = Date.now.addingTimeInterval(15)
+    while !signIn.exists, !account.exists, Date.now < deadline {
+      _ = account.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    XCTAssertTrue(account.appears(within: 10))
+    account.tap()
+    XCTAssertTrue(element(app, "account.profile").appears(within: 10))
+    return app
+  }
+
+  private func signOut(_ app: XCUIApplication) {
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    app.bringIntoView(signOut)
+    XCTAssertTrue(signOut.becomesHittable(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element(app, "auth.sign-in").appears(within: 10))
+  }
+
+  private func tapSwitch(_ app: XCUIApplication, _ toggle: XCUIElement) {
+    app.bringIntoView(toggle)
+    XCTAssertTrue(settles(toggle, NSPredicate(format: "hittable == true AND enabled == true")))
+    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+  }
+
+  private func settles(_ element: XCUIElement, _ predicate: NSPredicate) -> Bool {
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+  }
+
+  private func element(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
+    app.descendants(matching: .any)[identifier]
+  }
+
+  private func attach(_ app: XCUIApplication, _ name: String) {
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    attachment.name = name
+    attachment.lifetime = .keepAlways
+    add(attachment)
+  }
 }
