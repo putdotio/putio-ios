@@ -273,7 +273,8 @@ import Foundation
     }
 
     private static func updateStreamingMethodConfig(request: URLRequest) -> (Int, String) {
-      guard let value = requestPayload(request)?["value"] as? String, ["hls", "file"].contains(value)
+      guard let value = requestPayload(request)?["value"] as? String,
+        ["hls", "file"].contains(value)
       else {
         return (
           400,
