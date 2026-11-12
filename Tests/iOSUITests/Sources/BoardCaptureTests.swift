@@ -424,6 +424,68 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-72-sorting")
   }
 
+  func testSelection() throws {
+    orient(.portrait)
+    app.launch()
+    openSeasonFolder()
+    select(["files.item.441", "files.item.442", "files.item.443"])
+    assertSelectionBar(["move", "download", "watched", "trash"])
+    try captureBoard("rd-ios-06-selection")
+  }
+
+  func testSelectionMixed() throws {
+    orient(.portrait)
+    app.launch()
+    openRoot()
+    select(["files.item.410", "files.item.412", "files.item.413"])
+    assertSelectionBar(["move", "trash"])
+    try captureBoard("rd-ios-58-selection-mixed")
+  }
+
+  func testSelectionNone() throws {
+    orient(.portrait)
+    app.launch()
+    openRoot()
+    select([])
+    assertSelectionBar(["move", "trash"])
+    XCTAssertFalse(element("selection.action.move").isEnabled, "an empty selection can move")
+    XCTAssertFalse(element("selection.action.trash").isEnabled, "an empty selection can trash")
+    try captureBoard("rd-ios-59-selection-none")
+  }
+
+  func testSelectionTrashOff() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+    openSeasonFolder()
+    select(["files.item.441", "files.item.442", "files.item.443"])
+    assertSelectionBar(["move", "download", "watched", "trash"])
+    XCTAssertEqual(element("selection.action.trash").label, "Delete")
+    try captureBoard("rd-ios-68-selection-trash-off")
+  }
+
+  func testSelectionAll() throws {
+    orient(.portrait)
+    app.launch()
+    openRoot()
+    select([])
+    app.buttons["selection.toggle-all"].tap()
+    XCTAssertEqual(element("files.item.410").value as? String, "Selected")
+    XCTAssertEqual(element("files.item.413").value as? String, "Selected")
+    assertSelectionBar(["move", "trash"])
+    try captureBoard("rd-ios-70-selection-all")
+  }
+
+  func testIPadSelection() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    select(["files.item.441", "files.item.442"])
+    assertSelectionBar(["move", "download", "watched", "trash"])
+    XCTAssertTrue(app.staticTexts["No file selected"].exists, "selection changed the detail")
+    try captureBoard("rd-ios-24-ipad-selection")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()
@@ -1373,6 +1435,31 @@ final class BoardCaptureTests: XCTestCase {
     menu.tap()
     XCTAssertTrue(
       app.buttons["New folder"].appears(within: 5), "More never listed New folder")
+  }
+
+  private func select(_ identifiers: [String]) {
+    let menu = app.buttons["files.menu"]
+    XCTAssertTrue(menu.appears(within: 10), "the folder has no More menu")
+    menu.tap()
+    let start = app.buttons["Select"].firstMatch
+    XCTAssertTrue(start.appears(within: 5), "More has no Select")
+    start.tap()
+    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
+    for identifier in identifiers {
+      let row = element(identifier)
+      XCTAssertTrue(row.appears(within: 5), "\(identifier) never appeared")
+      row.tap()
+      XCTAssertEqual(row.value as? String, "Selected", "\(identifier) did not select")
+    }
+    XCTAssertTrue(
+      app.staticTexts["\(identifiers.count) selected"].exists, "the header miscounts the selection")
+  }
+
+  private func assertSelectionBar(_ actions: [String]) {
+    let shown = app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "selection.action.")
+    ).allElementsBoundByIndex.map(\.identifier)
+    XCTAssertEqual(shown, actions.map { "selection.action.\($0)" })
   }
 
   private func openRename() -> XCUIElement {

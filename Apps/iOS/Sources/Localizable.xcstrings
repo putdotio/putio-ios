@@ -34,6 +34,17 @@
         }
       }
     },
+    "%@ selected" : {
+      "comment" : "ios-only: the selection header names the selected size, as the board draws it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ selected"
+          }
+        }
+      }
+    },
     "%@ was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -1088,6 +1099,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load proxies"
+          }
+        }
+      }
+    },
+    "Couldn’t mark %lld items as unwatched." : {
+      "comment" : "android: mobile_files_mark_unwatched_failed_many | differs: the iOS alert names no reason",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t mark %lld item as unwatched."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t mark %lld items as unwatched."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Couldn’t mark %lld items as watched." : {
+      "comment" : "android: mobile_files_mark_watched_failed_many | differs: the iOS alert names no reason",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t mark %lld item as watched."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t mark %lld items as watched."
+                }
+              }
+            }
           }
         }
       }
@@ -3428,6 +3485,17 @@
         }
       }
     },
+    "Unwatched" : {
+      "comment" : "android: mobile_files_unwatched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unwatched"
+          }
+        }
+      }
+    },
     "Updating file order" : {
       "comment" : "android: mobile_files_sorting",
       "localizations" : {
@@ -3435,6 +3503,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating file order"
+          }
+        }
+      }
+    },
+    "Updating item %lld of %lld…" : {
+      "comment" : "ios-only: no Android string for the iOS file browser",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating item %lld of %lld…"
           }
         }
       }
@@ -5206,6 +5285,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting to convert"
+          }
+        }
+      }
+    },
+    "Watched" : {
+      "comment" : "android: mobile_files_watched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watched"
           }
         }
       }

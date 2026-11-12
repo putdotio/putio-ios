@@ -65,3 +65,31 @@ public struct PutioFileMenu: Equatable, Sendable {
     sections.contains { $0.contains(row) }
   }
 }
+
+public enum PutioFileSelectionAction: String, Equatable, Sendable {
+  case move
+  case download
+  case markWatched
+  case markUnwatched
+  case trash
+}
+
+public struct PutioFileSelectionMenu: Equatable, Sendable {
+  public let actions: [PutioFileSelectionAction]
+
+  public init(selected items: [PutioFileItem], capabilities: PutioFileMenu.Capabilities) {
+    let routes = items.map { $0.kind == .folder ? nil : PutioFileRoute(item: $0) }
+    let onlyPlayable = !routes.isEmpty && routes.allSatisfy { $0?.isPlayable == true }
+    var actions: [PutioFileSelectionAction] = [.move]
+    if onlyPlayable {
+      if capabilities.canDownload, routes.allSatisfy({ $0?.supportsOfflineDownload == true }) {
+        actions.append(.download)
+      }
+      if capabilities.tracksWatched, items.allSatisfy({ $0.kind == .video }) {
+        actions.append(items.allSatisfy(\.isWatched) ? .markUnwatched : .markWatched)
+      }
+    }
+    actions.append(.trash)
+    self.actions = actions
+  }
+}

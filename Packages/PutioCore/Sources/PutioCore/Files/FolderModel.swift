@@ -369,6 +369,37 @@ public final class PutioFolderModel {
     }
   }
 
+  public func setWatched(_ selectedItems: [PutioFileItem], _ watched: Bool) async {
+    guard
+      let actions,
+      canStartAction,
+      case .loaded(let contents) = state,
+      let latest = latestItems(for: selectedItems, in: contents),
+      latest.allSatisfy({ $0.kind == .video })
+    else { return }
+    let items = latest.filter { $0.isWatched != watched }
+    guard !items.isEmpty else { return }
+
+    let action = PutioBulkFileAction.setWatched(watched)
+    let resumePosition = watched ? 1 : 0
+    let apply: BulkApply = { contents, ids in
+      contents.settingResumePosition(resumePosition, of: ids)
+    }
+    beginBulk(action, items: items)
+    state = .loaded(apply(contents, Set(items.map(\.id))))
+
+    await runBulk(
+      action, items: items, batchSize: actions.batchSize, originalContents: contents,
+      apply: apply
+    ) { batch in
+      var failures: [PutioFileID: Error] = [:]
+      for item in batch {
+        do { try await actions.setWatched(item.id, watched) } catch { failures[item.id] = error }
+      }
+      return failures
+    }
+  }
+
   /// Suspends until the active mutation, if any, has settled. Callers whose
   /// own task was cancelled mid-mutation use this to rejoin the outcome.
   public func waitForActiveAction() async {
@@ -486,13 +517,14 @@ public final class PutioFolderModel {
     items: [PutioFileItem],
     batchSize: Int,
     originalContents: PutioFolderContents,
+    apply: @escaping BulkApply = { contents, ids in contents.removing(ids) },
     operation:
       @escaping @MainActor @Sendable ([PutioFileItem]) async throws -> [PutioFileID:
       Error]
   ) async {
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
-      var removedIDs = Set(items.map(\.id))
+      var appliedIDs = Set(items.map(\.id))
       var succeeded: [PutioFileItem] = []
       var failures: [PutioBulkFileItemFailure] = []
       let batches = stride(from: 0, to: items.count, by: batchSize).map {
@@ -514,21 +546,21 @@ public final class PutioFolderModel {
             continue
           }
           let failure = itemFailure(for: action, item: item, error: error)
-          removedIDs.remove(item.id)
+          appliedIDs.remove(item.id)
           failures.append(failure)
           if failure.error == .rateLimited { rateLimited = true }
         }
         completedCount += batch.count
         if rateLimited {
           for deferredItem in batches.dropFirst(index + 1).joined() {
-            removedIDs.remove(deferredItem.id)
+            appliedIDs.remove(deferredItem.id)
             failures.append(
               itemFailure(for: action, item: deferredItem, error: PutioRuntimeError.rateLimited)
             )
           }
         }
         if !batchFailures.isEmpty || rateLimited {
-          state = .loaded(originalContents.removing(removedIDs))
+          state = .loaded(apply(originalContents, appliedIDs))
         }
         if rateLimited { break }
 
@@ -543,7 +575,7 @@ public final class PutioFolderModel {
       }
 
       guard activeBulkAction == action else { return }
-      state = .loaded(originalContents.removing(removedIDs).droppingCursor())
+      state = .loaded(apply(originalContents, appliedIDs).droppingCursor())
       activeBulkAction = nil
       bulkProgress = nil
       bulkOutcome = PutioBulkFileOutcome(
@@ -599,6 +631,9 @@ public final class PutioFolderModel {
         destinationID: destination.id,
         destinationName: destination.title
       )
+    case .setWatched(let watched):
+      return .setWatched(
+        fileID: item.id, parentID: item.parentID, name: item.name, watched: watched)
     }
   }
 
@@ -738,6 +773,12 @@ extension PutioFolderContents {
     withItems(items.filter { !ids.contains($0.id) })
   }
 
+  fileprivate func settingResumePosition(_ seconds: Int, of ids: Set<PutioFileID>)
+    -> PutioFolderContents
+  {
+    withItems(items.map { ids.contains($0.id) ? $0.withResumePosition(seconds) : $0 })
+  }
+
   fileprivate func sorted(by sort: PutioFolderSort) -> PutioFolderContents {
     PutioFolderContents(
       folder: folder, items: items, nextCursor: nextCursor, sort: sort, totalCount: totalCount)
@@ -784,6 +825,9 @@ extension PutioFileItem {
     )
   }
 }
+
+private typealias BulkApply =
+  @MainActor @Sendable (PutioFolderContents, Set<PutioFileID>) -> PutioFolderContents
 
 private enum LoadMode {
   case replace

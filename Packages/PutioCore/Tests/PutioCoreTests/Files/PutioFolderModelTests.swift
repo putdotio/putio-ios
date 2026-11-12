@@ -1321,6 +1321,65 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
+  func testBulkWatchedSkipsWatchedVideosAndRollsBackOnlyRefusedOnes() async throws {
+    let watched = BrowserTestFixtures.item(id: 7, resumePositionSeconds: 90)
+    let accepted = BrowserTestFixtures.item(id: 8)
+    let refused = BrowserTestFixtures.item(id: 9)
+    let original = BrowserTestFixtures.contents(items: [watched, accepted, refused])
+    var calls: [String] = []
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in throw PutioRuntimeError.transient },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { fileID, isWatched in
+          calls.append("\(fileID.rawValue) \(isWatched)")
+          if fileID == refused.id { throw PutioRuntimeError.transient }
+        }
+      ),
+      initialContents: original
+    )
+
+    await model.setWatched([watched, accepted, refused], true)
+
+    XCTAssertEqual(calls, ["8 true", "9 true"], "a watched video keeps its resume position")
+    try await waitForState(
+      model,
+      .loaded(
+        BrowserTestFixtures.contents(items: [
+          watched, BrowserTestFixtures.item(id: 8, resumePositionSeconds: 1), refused,
+        ])))
+    XCTAssertEqual(model.bulkOutcome?.action, .setWatched(true))
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [accepted])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [refused])
+  }
+
+  func testBulkWatchedIgnoresSelectionsWithAnythingButVideos() async {
+    let video = BrowserTestFixtures.item(id: 7)
+    let audio = BrowserTestFixtures.item(id: 8, kind: .audio)
+    let original = BrowserTestFixtures.contents(items: [video, audio])
+    var calls = 0
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { _, _ in calls += 1 }
+      ),
+      initialContents: original
+    )
+
+    await model.setWatched([video, audio], true)
+
+    XCTAssertEqual(calls, 0)
+    XCTAssertNil(model.bulkOutcome)
+    XCTAssertEqual(model.state, .loaded(original))
+  }
+
   func testWatchStatusChangesOnlyVideosWhoseStateDiffers() async {
     let watched = BrowserTestFixtures.item(id: 7, resumePositionSeconds: 90)
     let unwatched = BrowserTestFixtures.item(id: 8)

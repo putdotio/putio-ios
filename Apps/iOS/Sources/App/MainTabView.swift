@@ -367,7 +367,13 @@ struct MainTabView: View {
   }
 
   /// Multi-audio videos go through the picker; everything else queues directly.
-  private func requestDownload(_ route: PutioFileRoute) async {
+  private func requestDownloads(_ routes: [PutioFileRoute]) async {
+    for route in routes {
+      await requestDownload(route, picksLanguages: false)
+    }
+  }
+
+  private func requestDownload(_ route: PutioFileRoute, picksLanguages: Bool = true) async {
     let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
     offlineQueue.refreshStorage()
     var estimate: Int64 = route.item.sizeBytes
@@ -375,7 +381,7 @@ struct MainTabView: View {
     do {
       switch try await offlineQueue.inventory(fileID: route.id, kind: kind) {
       case .ready(let inventory):
-        if inventory.audioOptions.count > 1 {
+        if picksLanguages, inventory.audioOptions.count > 1 {
           trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
           return
         }
@@ -566,6 +572,7 @@ struct MainTabView: View {
       onFileSelected: { route in selectFile(route) },
       onExternalPlayback: vlcAction,
       onDownload: { route in Task { await requestDownload(route) } },
+      onBulkDownload: { routes in Task { await requestDownloads(routes) } },
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
       castButton: { AnyView(PutioCastButton(model: cast)) },
