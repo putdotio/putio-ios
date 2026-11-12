@@ -454,6 +454,7 @@ final class PutioPreviewPager {
   private let download: PutioPreviewDownload
   private(set) var current: PutioViewerRoute
   private(set) var reads = PutioPreviewPageReads()
+  private(set) var isClosed = false
   @ObservationIgnored private var models: [PutioFileID: PutioPreviewModel] = [:]
   @ObservationIgnored private var pageReader: Task<Void, Never>?
 
@@ -612,6 +613,7 @@ final class PutioPreviewPager {
   }
 
   func cancel() {
+    isClosed = true
     pageReader?.cancel()
     for model in models.values { model.cancel() }
   }
@@ -1030,7 +1032,7 @@ struct PutioPreviewView: View {
         if zoomedID == item.id { zoomedID = nil }
         if !pager.remove(item.id) { onDismiss() }
         toast = removalToast(for: item, permanently: permanently, in: pager)
-      case .failed(.delete, let failure) where failure.isTrashLimit:
+      case .failed(.delete, let failure) where failure.isTrashLimit && !pager.isClosed:
         confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
           remove(item, permanently: true)
         }
