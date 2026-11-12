@@ -1399,7 +1399,9 @@ final class BoardCaptureTests: XCTestCase {
 
   private func reachFilesRoot() {
     let root = element("files.screen.0")
-    let folderScreens = ["files.screen.410", "files.screen.440", "files.screen.470"].map(element)
+    let folderScreens = [
+      "files.screen.410", "files.screen.440", "files.screen.470", "files.screen.496",
+    ].map(element)
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
     while !root.exists, !signIn.exists, !folderScreens.contains(where: \.exists),
