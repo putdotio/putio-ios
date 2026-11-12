@@ -91,7 +91,7 @@ struct PutioFileItemActionsHost: ViewModifier {
           refreshRequests: refreshRequests,
           onMove: { destination in
             await model.move(item, to: destination)
-            if case .failed(.move, let failure) = model.outcome, failure.isNameTaken {
+            if model.outcome?.isNameTaken(movingFileID: item.id) == true {
               model.clearOutcome()
               return .nameTaken(item.name)
             }

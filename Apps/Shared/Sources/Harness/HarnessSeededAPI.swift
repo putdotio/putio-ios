@@ -489,10 +489,7 @@ import Foundation
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
-    /// Season subtitles moved out of the season folder, by new parent id.
     nonisolated(unsafe) private static var movedSubtitleParents: [Int: Int] = [:]
-    /// `--putio-harness-hold-move-folders` never answers the move sheet's
-    /// folder listing of Harness Folder, so its loading state stays on screen.
     private static var holdsMoveFolders: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
@@ -1600,17 +1597,20 @@ import Foundation
         .map { folderObject(id: $0.key, name: $0.value.name, parentID: parentID) }
     }
 
-    /// A harness-created folder lists the folders and season subtitles moved into it.
+    private static func addedRowsLocked(in parentID: Int) -> [String] {
+      let subtitleRows = movedSubtitleParents.filter { $0.value == parentID }.keys.sorted()
+        .compactMap { id in
+          seasonSubtitles[id].map {
+            subtitleRow(id: id, name: $0.name, size: $0.size, parentID: parentID)
+          }
+        }
+      return childFolderRowsLocked(of: parentID) + subtitleRows
+    }
+
     private static func actionFolderListing(_ folderID: Int) -> (Int, String)? {
       fileActionsLock.withLock {
         guard let folder = actionFolders[folderID] else { return nil }
-        let subtitleRows = movedSubtitleParents.filter { $0.value == folderID }.keys.sorted()
-          .compactMap { id in
-            seasonSubtitles[id].map {
-              subtitleRow(id: id, name: $0.name, size: $0.size, parentID: folderID)
-            }
-          }
-        let rows = childFolderRowsLocked(of: folderID) + subtitleRows
+        let rows = addedRowsLocked(in: folderID)
         return (
           200,
           """
@@ -1835,9 +1835,8 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
-    /// Files, Harness Folder, the season folder, and folders the run created.
     private static func isDestination(_ parentID: Int) -> Bool {
-      [0, 410, seasonFolderID].contains(parentID)
+      [0, 410].contains(parentID) || (seasonFolderSeeded && parentID == seasonFolderID)
         || fileActionsLock.withLock { actionFolders[parentID] != nil }
     }
 
@@ -1940,7 +1939,6 @@ import Foundation
       // Like the server, an item it cannot move is reported, not the batch.
       var errors: [String] = []
       for fileID in fileIDs {
-        // Harness Folder already holds a file named like the first subtitle.
         if fileID == seasonSubtitleFileID, parentID == 410 {
           errors.append(
             #"{"error_type":"NAME_ALREADY_EXIST","id":\#(fileID),"name":"Blue.Lights.S04E01.en.srt","status_code":400}"#
@@ -2420,10 +2418,7 @@ import Foundation
 
     private static var rootFiles: String {
       fileActionsLock.lock()
-      let mutableFolders =
-        actionFolders
-        .filter { $0.value.parentID == 0 }
-        .sorted { $0.key < $1.key }
+      let mutableFolderRows = addedRowsLocked(in: 0)
       prepareFilePreferencesLocked()
       let inheritsDefault =
         usesFilePreferences && filePreferences?.overridesReset == true
@@ -2438,9 +2433,6 @@ import Foundation
       let arrived = usesTVBrowse && tvHarnessFolderOpened
       let rootContinuationCount = (tvSeasonPackTrashed ? 0 : 1) + (usesTVBrowse ? 1 : 0)
       fileActionsLock.unlock()
-      let mutableFolderRows = mutableFolders.map { id, folder in
-        folderObject(id: id, name: folder.name, parentID: folder.parentID)
-      }
       var rows =
         [
           """
@@ -2562,14 +2554,8 @@ import Foundation
     private static var nestedFiles: String {
       fileActionsLock.lock()
       let folderName = harnessFolderName
-      let mutableFolders =
-        actionFolders
-        .filter { $0.value.parentID == 410 }
-        .sorted { $0.key < $1.key }
+      let mutableFolderRows = addedRowsLocked(in: 410)
       fileActionsLock.unlock()
-      let mutableFolderRows = mutableFolders.map { id, folder in
-        folderObject(id: id, name: folder.name, parentID: folder.parentID)
-      }
       let folderRows = (seasonFolderSeeded ? [seasonFolderObject] : []) + mutableFolderRows
       let extraRows =
         folderRows.isEmpty ? "" : ",\n" + folderRows.joined(separator: ",\n")

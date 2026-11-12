@@ -834,10 +834,11 @@ struct PutioFolderScreen: View {
     _ item: PutioFileItem, to destination: PutioFolderRoute
   ) async -> PutioMoveSheetResult {
     await model.move(item, to: destination)
+    selectedIDs.formIntersection(currentItems.map(\.id))
     guard let outcome = model.actionOutcome,
       case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
     else { return .closed }
-    if case .failed(_, let failure) = outcome, failure.isNameTaken {
+    if outcome.isNameTaken(movingFileID: item.id) {
       model.clearActionOutcome()
       return .nameTaken(item.name)
     }

@@ -2,11 +2,22 @@ import Foundation
 import PutioCore
 import SwiftUI
 
-/// How a move the sheet started settled: the sheet closes, or stays open
-/// because the destination already holds an item with the moved name.
 enum PutioMoveSheetResult: Equatable {
   case closed
   case nameTaken(String)
+}
+
+enum PutioMoveLevelStatus: Equatable {
+  case loading
+  case ready
+  case busy
+}
+
+extension PutioFileActionOutcome {
+  func isNameTaken(movingFileID id: PutioFileID) -> Bool {
+    guard case .failed(.move(let fileID, _, _, _, _), let failure) = self else { return false }
+    return fileID == id && failure.isNameTaken
+  }
 }
 
 enum PutioMoveCopy {
@@ -26,8 +37,8 @@ struct PutioMovePicker: View {
 
   @Environment(\.dismiss) private var dismiss
   @State private var path: [PutioFolderRoute] = []
-  @State private var readyLevels: Set<PutioFileID> = []
-  @State private var collision: MoveCollision?
+  @State private var levelStatus: [PutioFileID: PutioMoveLevelStatus] = [:]
+  @State private var takenName: String?
   @State private var isMoving = false
 
   var body: some View {
@@ -35,7 +46,7 @@ struct PutioMovePicker: View {
       title: String(localized: "Move \(items.count) items"),
       primaryButton: PutioSheetPrimaryButton(
         String(localized: "Move to \(destination.title)"),
-        isBusy: isMoving,
+        isBusy: isMoving || levelStatus.values.contains(.busy),
         isEnabled: canMove,
         action: move
       ),
@@ -47,7 +58,7 @@ struct PutioMovePicker: View {
             .navigationTitle(route.title)
         }
     }
-    .onChange(of: path) { collision = nil }
+    .onChange(of: path) { takenName = nil }
     .accessibilityIdentifier("files.move-picker")
   }
 
@@ -61,10 +72,11 @@ struct PutioMovePicker: View {
       refreshRequests: refreshRequests,
       isMoving: isMoving,
       footer: route.id == destination.id ? footer : nil,
-      onOpen: { path.append($0) },
-      onReadyChange: { ready in
-        if ready { readyLevels.insert(route.id) } else { readyLevels.remove(route.id) }
-      }
+      onOpen: { next in
+        levelStatus[next.id] = nil
+        path.append(next)
+      },
+      onStatusChange: { levelStatus[route.id] = $0 }
     )
   }
 
@@ -73,6 +85,7 @@ struct PutioMovePicker: View {
       get: { NavigationPath(path) },
       set: { newPath in
         guard newPath.count < path.count else { return }
+        for popped in path[newPath.count...] { levelStatus[popped.id] = nil }
         path.removeLast(path.count - newPath.count)
       }
     )
@@ -90,7 +103,7 @@ struct PutioMovePicker: View {
   private var destinationState: PutioMoveDestinationState { policy.state(along: path) }
 
   private var canMove: Bool {
-    destinationState == .available && readyLevels.contains(destination.id)
+    destinationState == .available && levelStatus[destination.id] == .ready
   }
 
   private var footer: String? {
@@ -100,17 +113,17 @@ struct PutioMovePicker: View {
     case .currentFolder:
       return nil
     case .available:
-      guard let collision, collision.destinationID == destination.id else { return nil }
+      guard let takenName else { return nil }
       return String(
         localized:
-          "A file or folder named “\(collision.name)” already exists there. Choose another folder."
+          "A file or folder named “\(takenName)” already exists there. Choose another folder."
       )
     }
   }
 
   private func move() {
     let destination = destination
-    collision = nil
+    takenName = nil
     isMoving = true
     Task {
       let result = await onMove(destination)
@@ -119,14 +132,9 @@ struct PutioMovePicker: View {
       case .closed:
         dismiss()
       case .nameTaken(let name):
-        collision = MoveCollision(destinationID: destination.id, name: name)
+        takenName = name
       }
     }
-  }
-
-  private struct MoveCollision: Equatable {
-    let destinationID: PutioFileID
-    let name: String
   }
 }
 
@@ -137,7 +145,7 @@ private struct PutioMoveLevel: View {
   let isMoving: Bool
   let footer: String?
   let onOpen: @MainActor (PutioFolderRoute) -> Void
-  let onReadyChange: @MainActor (Bool) -> Void
+  let onStatusChange: @MainActor (PutioMoveLevelStatus) -> Void
 
   @State private var model: PutioFolderModel
   @State private var newFolderAlert: PutioTextAlert?
@@ -153,7 +161,7 @@ private struct PutioMoveLevel: View {
     isMoving: Bool,
     footer: String?,
     onOpen: @escaping @MainActor (PutioFolderRoute) -> Void,
-    onReadyChange: @escaping @MainActor (Bool) -> Void
+    onStatusChange: @escaping @MainActor (PutioMoveLevelStatus) -> Void
   ) {
     self.route = route
     self.trail = trail
@@ -161,7 +169,7 @@ private struct PutioMoveLevel: View {
     self.isMoving = isMoving
     self.footer = footer
     self.onOpen = onOpen
-    self.onReadyChange = onReadyChange
+    self.onStatusChange = onStatusChange
     _model = State(
       initialValue: PutioFolderModel(
         folderID: route.id, load: load, continueLoad: continueLoad, actions: actions))
@@ -211,13 +219,14 @@ private struct PutioMoveLevel: View {
     .task(id: route.id) {
       await model.loadIfNeeded()
     }
-    .onChange(of: isReady, initial: true) { _, ready in
-      onReadyChange(ready)
+    .onChange(of: status, initial: true) { _, status in
+      onStatusChange(status)
     }
   }
 
-  private var isReady: Bool {
-    model.isLoaded && model.activeAction == nil
+  private var status: PutioMoveLevelStatus {
+    if model.activeAction != nil { return .busy }
+    return model.isLoaded ? .ready : .loading
   }
 
   @ViewBuilder
@@ -312,8 +321,6 @@ private struct PutioMoveLevel: View {
     .accessibilityIdentifier("files.move-error")
   }
 
-  // The picker lists only folders, so a page can add no rows; the row then
-  // stays visible and its task chains into the next page.
   @ViewBuilder
   private var loadMoreRow: some View {
     if let failure = model.loadMoreFailure {
