@@ -48,6 +48,7 @@ struct PutioMovePicker: View {
         String(localized: "Move to \(destination.title)"),
         isBusy: isMoving || levelStatus.values.contains(.busy),
         isEnabled: canMove,
+        failure: failure,
         action: move
       ),
       path: navigationPath
@@ -71,7 +72,6 @@ struct PutioMovePicker: View {
       actions: actions,
       refreshRequests: refreshRequests,
       isMoving: isMoving,
-      footer: route.id == destination.id ? footer : nil,
       onOpen: { next in
         levelStatus[next.id] = nil
         path.append(next)
@@ -106,7 +106,7 @@ struct PutioMovePicker: View {
     destinationState == .available && levelStatus[destination.id] == .ready
   }
 
-  private var footer: String? {
+  private var failure: String? {
     switch destinationState {
     case .intoItself:
       return String(localized: "A folder can’t be moved into itself or a folder inside it.")
@@ -143,7 +143,6 @@ private struct PutioMoveLevel: View {
   let route: PutioFolderRoute
   let trail: [PutioFolderRoute]
   let isMoving: Bool
-  let footer: String?
   let onOpen: @MainActor (PutioFolderRoute) -> Void
   let onStatusChange: @MainActor (PutioMoveLevelStatus) -> Void
 
@@ -159,7 +158,6 @@ private struct PutioMoveLevel: View {
     actions: PutioFileActions?,
     refreshRequests: PutioFolderRefreshRequests,
     isMoving: Bool,
-    footer: String?,
     onOpen: @escaping @MainActor (PutioFolderRoute) -> Void,
     onStatusChange: @escaping @MainActor (PutioMoveLevelStatus) -> Void
   ) {
@@ -167,7 +165,6 @@ private struct PutioMoveLevel: View {
     self.trail = trail
     self.refreshRequests = refreshRequests
     self.isMoving = isMoving
-    self.footer = footer
     self.onOpen = onOpen
     self.onStatusChange = onStatusChange
     _model = State(
@@ -182,14 +179,11 @@ private struct PutioMoveLevel: View {
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .lineLimit(1)
         .truncationMode(.head)
-        .padding(.horizontal, PutioTheme.Spacing.space4)
+        .padding(.horizontal, PutioTheme.Spacing.space3)
         .padding(.vertical, PutioTheme.Spacing.space2)
         .accessibilityIdentifier("files.move-path")
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-      if let footer {
-        footerRow(footer)
-      }
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
@@ -290,6 +284,7 @@ private struct PutioMoveLevel: View {
           .buttonStyle(.plain)
           .disabled(model.activeAction != nil || isMoving)
           .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
+          .listSectionSeparator(.hidden, edges: .top)
           .listRowBackground(Color.clear)
         }
         if contents.hasMore {
@@ -299,25 +294,6 @@ private struct PutioMoveLevel: View {
       }
       .listStyle(.plain)
     }
-  }
-
-  private func footerRow(_ message: String) -> some View {
-    HStack(alignment: .top, spacing: PutioTheme.Spacing.space2) {
-      Image(putioIcon: .warningCircle)
-        .resizable()
-        .scaledToFit()
-        .frame(width: PutioTheme.Spacing.space4, height: PutioTheme.Spacing.space4)
-        .accessibilityHidden(true)
-      Text(message)
-        .putioFont(PutioTheme.Typography.caption)
-        .fixedSize(horizontal: false, vertical: true)
-    }
-    .foregroundStyle(PutioTheme.Colors.destructive)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(.horizontal, PutioTheme.Spacing.space4)
-    .padding(.vertical, PutioTheme.Spacing.space2)
-    .accessibilityElement(children: .combine)
-    .accessibilityIdentifier("files.move-error")
   }
 
   @ViewBuilder

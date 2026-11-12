@@ -120,7 +120,7 @@ final class BoardCaptureTests: XCTestCase {
     openMoveLevel(410)
     XCTAssertTrue(element("files.move-folder.440").appears(within: 10), "Blue Lights is not listed")
     app.buttons["Move to Harness Folder"].tap()
-    XCTAssertTrue(element("files.move-error").appears(within: 10), "a taken name showed no error")
+    XCTAssertTrue(element("sheet.failure").appears(within: 10), "a taken name showed no error")
     try captureBoard("rd-ios-38-move-failed")
   }
 
@@ -146,7 +146,7 @@ final class BoardCaptureTests: XCTestCase {
     openMoveSheet(for: "files.item.440")
     openMoveLevel(410)
     openMoveLevel(440)
-    XCTAssertTrue(element("files.move-error").appears(within: 10), "into itself showed no error")
+    XCTAssertTrue(element("sheet.failure").appears(within: 10), "into itself showed no error")
     try captureBoard("rd-ios-69-move-into-itself")
   }
 

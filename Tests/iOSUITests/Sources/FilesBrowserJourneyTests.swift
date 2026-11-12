@@ -311,7 +311,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntilHittable(moveToHarness, timeout: 5), "Move to Harness Folder is disabled")
     moveToHarness.tap()
-    let moveError = element(identifier: "files.move-error")
+    let moveError = element(identifier: "sheet.failure")
     XCTAssertTrue(moveError.appears(within: 10), "a taken name showed no error")
     XCTAssertEqual(
       moveError.label,
