@@ -77,7 +77,7 @@ struct MainTabView: View {
     TabView(selection: $selectedTab) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .putioToast($previewToast)
+          .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
       } label: {
         Label {
           Text("Files")
@@ -104,7 +104,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .putioToast($previewToast)
+          .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
           .id(historyRevision)
         } label: {
           Label {
@@ -157,7 +157,7 @@ struct MainTabView: View {
           refreshRequests: folderRefreshRequests,
           onFileSelected: { route in selectFile(route) }
         )
-        .putioToast($previewToast)
+        .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
       }
     }
     .tabViewStyle(.sidebarAdaptable)
@@ -185,11 +185,11 @@ struct MainTabView: View {
             runtime: runtime, trashEnabled: account.trashEnabled,
             refreshRequests: folderRefreshRequests),
           download: { preview, extent in try await downloadPreview(preview, extent) },
+          toast: $previewToast,
           onDismiss: {
             guard presentedPreview?.id == preview.id else { return }
             presentedPreview = nil
-          },
-          presentToast: { previewToast = $0 }
+          }
         )
         .id(preview.id)
         .accessibilityAddTraits(.isModal)
