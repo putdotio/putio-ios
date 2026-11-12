@@ -257,7 +257,10 @@ final class PreviewJourneyTests: XCTestCase {
     copyFirstWord(ofLine: 2, in: text)
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.434").disappears(within: 5))
-    assertPasteboardHolds("Previously")
+    let pasteboard = element("harness.pasteboard")
+    XCTAssertTrue(
+      waitForValue(pasteboard, "Previously"),
+      "the copied word is not on the pasteboard: \(pasteboard.value ?? "")")
 
     let long = app.revealed("files.item.432")
     XCTAssertTrue(long.exists, "the long text row never appeared")
@@ -266,11 +269,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(longText.appears(within: 10), "the long text never loaded")
     let notice = element("preview.text.truncated")
     XCTAssertFalse(notice.isHittable, "the end line shows before the end")
-    var swipes = 0
-    while !notice.isHittable, swipes < 120 {
-      longText.swipeUp(velocity: XCUIGestureVelocity(12_000))
-      swipes += 1
-    }
+    longText.scrollTextToEnd(revealing: notice)
     XCTAssertTrue(notice.isHittable, "scrolling never reached the end line")
     XCTAssertEqual(notice.label, "Showing the first 250 kB.")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
@@ -286,32 +285,15 @@ final class PreviewJourneyTests: XCTestCase {
     text.coordinate(withNormalizedOffset: .zero)
       .withOffset(CGVector(dx: 40, dy: lineMidY - text.frame.minY))
       .doubleTap()
-    let copy = editAction("Copy")
-    XCTAssertTrue(copy.appears(within: 5), "selecting a word showed no Copy action")
+    let menuCopy = app.menuItems["Copy"]
+    let buttonCopy = app.buttons["Copy"]
+    let deadline = Date.now.addingTimeInterval(5)
+    while !menuCopy.exists, !buttonCopy.exists, Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    let copy = menuCopy.exists ? menuCopy : buttonCopy
+    XCTAssertTrue(copy.exists, "selecting a word showed no Copy action")
     copy.tap()
-  }
-
-  private func assertPasteboardHolds(_ expected: String) {
-    app.buttons["Search"].tap()
-    let search = app.searchFields.firstMatch
-    XCTAssertTrue(search.appears(within: 5))
-    search.tap()
-    search.tap()
-    let paste = editAction("Paste")
-    XCTAssertTrue(paste.appears(within: 5), "the search field offered no Paste")
-    paste.tap()
-    XCTAssertTrue(
-      waitForValue(search, expected), "the copied text was not \(expected): \(search.value ?? "")")
-    app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.0").appears(within: 5))
-  }
-
-  private func editAction(_ label: String) -> XCUIElement {
-    app.descendants(matching: .any).matching(
-      NSPredicate(
-        format: "label == %@ AND (elementType == %d OR elementType == %d)", label,
-        XCUIElement.ElementType.menuItem.rawValue, XCUIElement.ElementType.button.rawValue)
-    ).firstMatch
   }
 
   private func assertDocumentScrollsAndZooms(_ pill: XCUIElement) {
