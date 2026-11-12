@@ -12,7 +12,6 @@ public struct PutioFileRowModel: Equatable, Sendable {
 
   public let name: String
   public let kind: Kind
-  /// Where the item sits, such as "in Blue Lights"; leads the detail line.
   public let locationText: String?
   public let sizeText: String?
   public let dateText: String?

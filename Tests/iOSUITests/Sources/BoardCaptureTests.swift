@@ -637,7 +637,7 @@ final class BoardCaptureTests: XCTestCase {
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.appears(within: 10), "the search field never appeared")
     field.tap()
-    field.typeText(query)
+    field.typeText(query + "\n")
   }
 
   private func searchBlue() {

@@ -1411,7 +1411,6 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
-    /// Every file search this launch, as `query|type`, oldest first.
     static func searchRequestSummary() -> String {
       fileActionsLock.withLock { searchRequests.joined(separator: ";") }
     }

@@ -268,7 +268,7 @@ struct FilesSearchView: View {
           .putioFont(PutioTheme.Typography.caption)
           .accessibilityAddTraits(.isHeader)
         Spacer(minLength: PutioTheme.Spacing.space2)
-        Text("\(items.count)")
+        Text(items.count, format: .number)
           .putioFont(PutioTheme.Typography.numeric)
       }
       .foregroundStyle(PutioTheme.Colors.textSecondary)
@@ -373,11 +373,17 @@ struct FilesSearchView: View {
     case .pin:
       let location = folderNames.names[item.parentID]
       return PutioItemAction(id: "pin", title: String(localized: "Pin"), icon: .pushPin) {
-        Task { await pins.pin(item, in: location) }
+        Task {
+          await pins.pin(item, in: location)
+          showPinFailure()
+        }
       }
     case .unpin:
       return PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
-        Task { await pins.unpin(item) }
+        Task {
+          await pins.unpin(item)
+          showPinFailure()
+        }
       }
     case .markWatched, .markUnwatched:
       let watched = row == .markWatched
@@ -396,6 +402,12 @@ struct FilesSearchView: View {
     case .select, .rename, .trash:
       return nil
     }
+  }
+
+  private func showPinFailure() {
+    guard pins.editFailure != nil else { return }
+    pins.clearEditFailure()
+    toast = PutioToast(PutioScreenErrorKind.failed.message)
   }
 
   private func startShare(_ item: PutioFileItem) {
