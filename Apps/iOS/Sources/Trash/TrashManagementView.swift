@@ -392,7 +392,7 @@ struct TrashManagementView: View {
     case .video: .video
     case .audio: .audio
     case .image: .image
-    case .pdf, .other: .file
+    case .pdf, .text, .other: .file
     }
   }
 

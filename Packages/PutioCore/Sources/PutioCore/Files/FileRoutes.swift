@@ -55,6 +55,8 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
       PutioPreviewRoute(
         id: item.id, parentID: item.parentID, title: item.name, kind: .pdf,
         exceedsSizeCap: exceedsSizeCap)
+    case .text:
+      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .text)
     case .folder, .video, .audio, .other:
       nil
     }
@@ -95,9 +97,11 @@ public struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
   public enum Kind: Equatable, Sendable {
     case image
     case pdf
+    case text
   }
 
   public static let maximumBytes: Int64 = 64 * 1024 * 1024
+  public static let textLimitBytes = 250_000
 
   public let id: PutioFileID
   public let parentID: PutioFileID

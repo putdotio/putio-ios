@@ -3811,6 +3811,17 @@
         }
       }
     },
+    "Showing the first %@." : {
+      "comment" : "android: mobile_viewer_text_truncated",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing the first %@."
+          }
+        }
+      }
+    },
     "Sign in" : {
       "comment" : "android: mobile_auth_sign_in",
       "localizations" : {

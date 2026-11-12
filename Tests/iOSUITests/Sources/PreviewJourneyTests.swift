@@ -113,6 +113,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(requests.value as? String, loadedRequests)
     assertCannotShow(rowID: 431, title: "Harness Scan.pdf", rowValue: "Document")
     XCTAssertEqual(requests.value as? String, (loadedRequests ?? "") + ",431:loaded")
+    assertTextPreviews()
     var swipes = 0
     while !element("files.item.412").isHittable, swipes < 3 {
       app.swipeDown()
@@ -239,6 +240,78 @@ final class PreviewJourneyTests: XCTestCase {
       "the viewer did not rotate back")
     XCTAssertTrue(waitForFit(image), "rotating back did not fit the image: \(image.frame)")
     XCTAssertTrue(back.isHittable)
+  }
+
+  private func assertTextPreviews() {
+    assertCannotShow(rowID: 433, title: "Harness Notes.txt", rowValue: "Document")
+
+    let short = app.revealed("files.item.434")
+    XCTAssertTrue(short.exists, "the short text row never appeared")
+    short.tap()
+    let text = element("preview.text")
+    XCTAssertTrue(text.appears(within: 10), "the short text never loaded")
+    XCTAssertEqual(element("preview.title").label, "Harness Subtitles.en.srt")
+    XCTAssertTrue((text.value as? String ?? "").hasPrefix("1\n00:00:02,000 --> 00:00:05,000"))
+    XCTAssertFalse(element("preview.text.truncated").exists, "a short file shows the end line")
+    screenshot("runtime-preview-text")
+    copyFirstWord(ofLine: 2, in: text)
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.434").disappears(within: 5))
+    assertPasteboardHolds("Previously")
+
+    let long = app.revealed("files.item.432")
+    XCTAssertTrue(long.exists, "the long text row never appeared")
+    long.tap()
+    let longText = element("preview.text")
+    XCTAssertTrue(longText.appears(within: 10), "the long text never loaded")
+    let notice = element("preview.text.truncated")
+    XCTAssertFalse(notice.isHittable, "the end line shows before the end")
+    var swipes = 0
+    while !notice.isHittable, swipes < 120 {
+      longText.swipeUp(velocity: XCUIGestureVelocity(12_000))
+      swipes += 1
+    }
+    XCTAssertTrue(notice.isHittable, "scrolling never reached the end line")
+    XCTAssertEqual(notice.label, "Showing the first 250 kB.")
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    screenshot("runtime-preview-text-truncated")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
+  }
+
+  private func copyFirstWord(ofLine line: Int, in text: XCUIElement) {
+    let bar = app.navigationBars.firstMatch.frame
+    let lineHeight: CGFloat = 14 * 1.45
+    let lineMidY = bar.maxY + 16 + lineHeight * (CGFloat(line) + 0.5)
+    text.coordinate(withNormalizedOffset: .zero)
+      .withOffset(CGVector(dx: 40, dy: lineMidY - text.frame.minY))
+      .doubleTap()
+    let copy = editAction("Copy")
+    XCTAssertTrue(copy.appears(within: 5), "selecting a word showed no Copy action")
+    copy.tap()
+  }
+
+  private func assertPasteboardHolds(_ expected: String) {
+    app.buttons["Search"].tap()
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(search.appears(within: 5))
+    search.tap()
+    search.tap()
+    let paste = editAction("Paste")
+    XCTAssertTrue(paste.appears(within: 5), "the search field offered no Paste")
+    paste.tap()
+    XCTAssertTrue(
+      waitForValue(search, expected), "the copied text was not \(expected): \(search.value ?? "")")
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
+  }
+
+  private func editAction(_ label: String) -> XCUIElement {
+    app.descendants(matching: .any).matching(
+      NSPredicate(
+        format: "label == %@ AND (elementType == %d OR elementType == %d)", label,
+        XCUIElement.ElementType.menuItem.rawValue, XCUIElement.ElementType.button.rawValue)
+    ).firstMatch
   }
 
   private func assertDocumentScrollsAndZooms(_ pill: XCUIElement) {
