@@ -102,11 +102,13 @@ struct AccountView: View {
           securitySection
           aboutSection
         }
-        Section {
-          PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
-            confirmsSignOut = true
+        if preferences.settingsState != .loading {
+          Section {
+            PutioDestructiveRow(String(localized: "Sign out"), alignment: .center) {
+              confirmsSignOut = true
+            }
+            .accessibilityIdentifier("auth.sign-out")
           }
-          .accessibilityIdentifier("auth.sign-out")
         }
         if preferences.settingsState == .ready {
           PutioSettingsSection(String(localized: "Danger zone")) {
