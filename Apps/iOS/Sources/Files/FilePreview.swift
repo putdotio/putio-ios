@@ -670,7 +670,7 @@ struct PutioTextPreviewView: UIViewRepresentable {
 }
 
 final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
-  private let textView = UITextView(usingTextLayoutManager: true)
+  private let textView = PutioPlainTextView(usingTextLayoutManager: true)
   private let notice = UILabel()
   private var shown: PutioTextPreview?
 
@@ -759,6 +759,13 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     notice.frame.origin = CGPoint(
       x: Self.noticeInset,
       y: textEnd + Self.noticeSpacing - textView.contentOffset.y)
+  }
+}
+
+final class PutioPlainTextView: UITextView {
+  override var accessibilityValue: String? {
+    get { text }
+    set {}
   }
 }
 
