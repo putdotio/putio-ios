@@ -82,8 +82,8 @@ struct AccountScreen: View {
   }
 
   private var columns: some View {
-    PutioListDetail(selection: $destination, listWidth: .settings) { selection in
-      list(selection: selection)
+    PutioListDetail(selection: $destination) { _ in
+      list(open: destination)
         .navigationBarTitleDisplayMode(.inline)
     } detail: { destination in
       destinationView(destination)
@@ -93,7 +93,7 @@ struct AccountScreen: View {
 
   private var stack: some View {
     NavigationStack(path: stackPath) {
-      list(selection: nil)
+      list(open: nil)
         .navigationDestination(for: AccountDestination.self) { destination in
           destinationView(destination)
         }
@@ -106,14 +106,14 @@ struct AccountScreen: View {
       set: { path in destination = path.last })
   }
 
-  private func list(selection: Binding<AccountDestination?>?) -> some View {
+  private func list(open: AccountDestination?) -> some View {
     AccountView(
       runtime: runtime,
       account: account,
       preferences: preferences,
       appConfig: appConfig,
       downloads: downloads,
-      selection: selection
+      openDestination: open
     )
   }
 

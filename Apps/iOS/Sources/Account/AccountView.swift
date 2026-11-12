@@ -7,7 +7,7 @@ struct AccountView: View {
   let preferences: PutioAccountPreferencesModel
   let appConfig: PutioAppConfigModel
   let downloads: PutioOfflineQueue
-  let selection: Binding<AccountDestination?>?
+  let openDestination: AccountDestination?
   @Environment(\.openURL) private var openURL
   @Environment(\.locale) private var locale
   @State private var isRefreshingStorage = false
@@ -24,10 +24,10 @@ struct AccountView: View {
           withAnimation { proxy.scrollTo(request.row, anchor: .center) }
         }
         .onAppear {
-          guard let open = selection?.wrappedValue else { return }
+          guard let open = openDestination else { return }
           Task { proxy.scrollTo(open, anchor: .center) }
         }
-        .onChange(of: selection?.wrappedValue) { _, open in
+        .onChange(of: openDestination) { _, open in
           guard let open else { return }
           withAnimation { proxy.scrollTo(open) }
         }
@@ -35,16 +35,10 @@ struct AccountView: View {
     .putioSettingSaveFailures(saveFailures)
   }
 
-  @ViewBuilder private var settingsList: some View {
-    if let selection {
-      List(selection: selection) { settingsRows }
-        .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
-        .putioConfirmAlert($confirmAlert)
-    } else {
-      List { settingsRows }
-        .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
-        .putioConfirmAlert($confirmAlert)
-    }
+  private var settingsList: some View {
+    List { settingsRows }
+      .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
+      .putioConfirmAlert($confirmAlert)
   }
 
   @ViewBuilder private var settingsRows: some View {

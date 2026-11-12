@@ -4,7 +4,6 @@
   public struct PutioListDetail<Item: Hashable, ListContent: View, DetailContent: View>: View {
     @Binding private var selection: Item?
     private let emptyState: (title: String, message: String)?
-    private let listWidth: PutioListDetailListWidth
     private let list: (Binding<Item?>) -> ListContent
     private let detail: (Item) -> DetailContent
 
@@ -21,20 +20,17 @@
     ) {
       _selection = selection
       self.emptyState = (emptyTitle, emptyMessage)
-      self.listWidth = .standard
       self.list = list
       self.detail = detail
     }
 
     public init(
       selection: Binding<Item?>,
-      listWidth: PutioListDetailListWidth,
       @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
       self.emptyState = nil
-      self.listWidth = listWidth
       self.list = list
       self.detail = detail
     }
@@ -43,7 +39,11 @@
       NavigationSplitView(columnVisibility: $columnVisibility) {
         list(listSelection)
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
-          .navigationSplitViewColumnWidth(min: listWidth.minimum, ideal: listWidth.ideal)
+          .environment(\.putioListDetailOpen, openAction)
+          .navigationSplitViewColumnWidth(
+            min: PutioListDetailLayout.listMinimumWidth,
+            ideal: PutioListDetailLayout.listIdealWidth
+          )
           .toolbar(removing: .sidebarToggle)
       } detail: {
         if let selection {
@@ -78,6 +78,14 @@
       }
     }
 
+    private var openAction: PutioListDetailOpenAction {
+      let selection = listSelection
+      return PutioListDetailOpenAction { item in
+        guard let item = item.base as? Item else { return }
+        selection.wrappedValue = item
+      }
+    }
+
     private var listSelection: Binding<Item?> {
       Binding(
         get: { selection },
@@ -85,25 +93,6 @@
           if newValue == nil, horizontalSizeClass == .regular { return }
           selection = newValue
         })
-    }
-  }
-
-  public enum PutioListDetailListWidth: Sendable {
-    case standard
-    case settings
-
-    var minimum: CGFloat {
-      switch self {
-      case .standard: PutioListDetailLayout.listMinimumWidth
-      case .settings: PutioListDetailLayout.listIdealWidth
-      }
-    }
-
-    var ideal: CGFloat {
-      switch self {
-      case .standard: PutioListDetailLayout.listIdealWidth
-      case .settings: PutioListDetailLayout.settingsListIdealWidth
-      }
     }
   }
 
@@ -164,8 +153,6 @@
   enum PutioListDetailLayout {
     static let listMinimumWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space5
     static let listIdealWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
-    static let settingsListIdealWidth =
-      listIdealWidth + PutioTheme.Spacing.space4 + PutioTheme.Spacing.space1
     static let selectedRowTint = PutioTheme.Colors.accent.opacity(0.14)
     static let selectedRowRadius = PutioTheme.Radius.large
     static let selectedRowInset = PutioTheme.Spacing.space2

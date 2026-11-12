@@ -135,6 +135,7 @@ public struct PutioNavigationValueRow<Value: Hashable>: View {
   private let value: String?
   private let valueStyle: PutioSettingValueStyle
   private let destination: Value
+  @Environment(\.putioListDetailOpen) private var open
 
   public init(
     _ title: String,
@@ -153,11 +154,42 @@ public struct PutioNavigationValueRow<Value: Hashable>: View {
   }
 
   public var body: some View {
-    NavigationLink(value: destination) {
-      PutioSettingsValueLayout(
-        title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+    if let open {
+      Button {
+        open(AnyHashable(destination))
+      } label: {
+        HStack(spacing: PutioTheme.Spacing.space2) {
+          PutioSettingsValueLayout(
+            title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+          PutioIconView(.caretRight, size: PutioSettingsLayout.accessorySize)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+      }
+    } else {
+      NavigationLink(value: destination) {
+        PutioSettingsValueLayout(
+          title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+      }
     }
   }
+}
+
+public struct PutioListDetailOpenAction: Sendable {
+  private let action: @MainActor @Sendable (AnyHashable) -> Void
+
+  public init(_ action: @escaping @MainActor @Sendable (AnyHashable) -> Void) {
+    self.action = action
+  }
+
+  @MainActor public func callAsFunction(_ item: AnyHashable) {
+    action(item)
+  }
+}
+
+extension EnvironmentValues {
+  @Entry public var putioListDetailOpen: PutioListDetailOpenAction? = nil
 }
 
 public struct PutioValueRow: View {
