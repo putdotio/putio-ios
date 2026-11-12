@@ -87,7 +87,8 @@ enum PutioPreviewDownloader {
     limit: Int = maximumBytes,
     configuration: URLSessionConfiguration = .ephemeral
   ) async throws -> Data {
-    try await fetch(URLRequest(url: url), limit: limit, keepsPrefix: false, configuration: configuration)
+    try await fetch(
+      URLRequest(url: url), limit: limit, keepsPrefix: false, configuration: configuration)
   }
 
   static func downloadPrefix(
@@ -331,10 +332,12 @@ struct PutioTextPreview: Equatable, Sendable {
     let isTruncated = data.count > limit
     var bytes = Array(data.prefix(limit))
     if bytes.starts(with: byteOrderMark) { bytes.removeFirst(byteOrderMark.count) }
-    if isTruncated { bytes.removeLast(incompleteScalarLength(at: bytes)) }
-    guard let text = String(validating: bytes, as: UTF8.self), !text.contains("\u{0}") else {
-      return nil
+    guard !bytes.contains(0) else { return nil }
+    let whole = bytes.dropLast(isTruncated ? incompleteScalarLength(at: bytes) : 0)
+    if let text = String(validating: whole, as: UTF8.self) {
+      return Self(text: text, isTruncated: isTruncated)
     }
+    guard let text = String(data: Data(bytes), encoding: .windowsCP1252) else { return nil }
     return Self(text: text, isTruncated: isTruncated)
   }
 

@@ -139,7 +139,8 @@ final class FilePreviewTests: XCTestCase {
     let short = try await PutioTextPreview.decode(Data("1\r\nHi\n".utf8), limit: limit)
     XCTAssertEqual(short, PutioTextPreview(text: "1\r\nHi\n", isTruncated: false))
 
-    let bom = try await PutioTextPreview.decode(Data([0xEF, 0xBB, 0xBF] + Array("a".utf8)), limit: 8)
+    let bom = try await PutioTextPreview.decode(
+      Data([0xEF, 0xBB, 0xBF] + Array("a".utf8)), limit: 8)
     XCTAssertEqual(bom, PutioTextPreview(text: "a", isTruncated: false))
 
     let exact = try await PutioTextPreview.decode(Data(repeating: 0x61, count: 8), limit: 8)
@@ -152,12 +153,15 @@ final class FilePreviewTests: XCTestCase {
     let wholeScalar = Data(Array("abcde".utf8) + [0xE2, 0x80, 0x99, 0x61])
     let kept = try await PutioTextPreview.decode(wholeScalar, limit: 8)
     XCTAssertEqual(kept, PutioTextPreview(text: "abcde\u{2019}", isTruncated: true))
+
+    let latin1 = try await PutioTextPreview.decode(Data([0x43, 0x61, 0x66, 0xE9]), limit: limit)
+    XCTAssertEqual(latin1, PutioTextPreview(text: "Caf\u{E9}", isTruncated: false))
   }
 
   func testUndecodableTextLandsOnCannotShow() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 11), parentID: .root, title: "Notes.txt", kind: .text)
-    for body in [Self.pngData(), Data([0x61, 0x00, 0x62]), Data([0xC3, 0x28])] {
+    for body in [Self.pngData(), Data([0x61, 0x00, 0x62]), Data([0xFF, 0xFE, 0x61, 0x00])] {
       let model = PutioPreviewModel(route: .preview(route)) { _ in body }
       await model.load()
       XCTAssertEqual(model.state, .failed(.cannotShow), "\(Array(body.prefix(4)))")
