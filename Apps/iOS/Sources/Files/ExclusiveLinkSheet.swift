@@ -153,13 +153,12 @@ struct PutioExclusiveLinkSheet: View {
   }
 
   private func failure(_ message: String) -> some View {
-    HStack(alignment: .firstTextBaseline, spacing: PutioTheme.Spacing.space2) {
+    HStack(alignment: .top, spacing: PutioTheme.Spacing.space2) {
       PutioIconView(.warningCircleFill, size: ExclusiveLinkLayout.failureIconSize)
-        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+        .padding(.top, ExclusiveLinkLayout.failureIconInset)
         .accessibilityHidden(true)
       Text(message)
         .putioFont(PutioTheme.Typography.caption)
-        .fixedSize(horizontal: false, vertical: true)
     }
     .foregroundStyle(PutioTheme.Colors.destructive)
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -191,7 +190,7 @@ struct PutioExclusiveLinkSheet: View {
       }
       .putioFont(ExclusiveLinkLayout.buttonFont)
       .foregroundStyle(PutioTheme.Colors.textPrimary)
-      .frame(maxWidth: .infinity, minHeight: ExclusiveLinkLayout.buttonLabelHeight)
+      .frame(maxWidth: .infinity)
     }
     .buttonStyle(.borderedProminent)
     .buttonBorderShape(.capsule)
@@ -208,14 +207,14 @@ struct PutioExclusiveLinkSheet: View {
       Text(title)
     }
     .putioFont(ExclusiveLinkLayout.buttonFont)
-    .frame(maxWidth: .infinity, minHeight: ExclusiveLinkLayout.buttonLabelHeight)
+    .frame(maxWidth: .infinity)
   }
 }
 
 private enum ExclusiveLinkLayout {
   static let cornerRadius: CGFloat = 16
   static let addressVerticalPadding: CGFloat = 12
-  static let buttonLabelHeight: CGFloat = 32
+  static let failureIconInset: CGFloat = 3
   static let buttonIconSize = PutioMetricRole(
     value: PutioTheme.Typography.sizeMd, relativeTo: .body)
   static let failureIconSize = PutioMetricRole(
