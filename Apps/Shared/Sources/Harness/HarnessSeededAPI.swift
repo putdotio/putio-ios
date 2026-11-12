@@ -71,7 +71,7 @@ import Foundation
     nonisolated(unsafe) private static var autoplaySaveFailed = false
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool?
-    nonisolated(unsafe) private static var streamingMethod = "hls"
+    nonisolated(unsafe) private static var streamingMethod: String?
     nonisolated(unsafe) private static var streamingMethodSaveFailed = false
     /// Journeys never meet the analytics prompt: the document answers it
     /// unless a run asks for the prompt, which leaves the key unset.
@@ -265,11 +265,11 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
-    private static var streamingMethodConfigValue: String {
+    private static var streamingMethodConfigValue: String? {
       fileActionsLock.lock()
       defer { fileActionsLock.unlock() }
       prepareFilePreferencesLocked()
-      return usesFilePreferences ? filePreferences?.streamingMethod ?? "hls" : streamingMethod
+      return usesFilePreferences ? filePreferences?.streamingMethod : streamingMethod
     }
 
     private static func updateStreamingMethodConfig(request: URLRequest) -> (Int, String) {
@@ -1327,9 +1327,10 @@ import Foundation
         }
         let prompt = answered ? #","dismissed.product_analytics_prompt":true"# : ""
         let rotation = rotates.map { #","auto_rotate_video":\#($0)"# } ?? ""
+        let method = streamingMethodConfigValue.map { #","streaming_method":"\#($0)""# } ?? ""
         return (
           200,
-          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue),"streaming_method":"\#(streamingMethodConfigValue)"\#(prompt)\#(rotation)}}"#
+          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(method)\#(prompt)\#(rotation)}}"#
         )
       case "PUT /v2/config/dismissed.product_analytics_prompt":
         guard requestPayload(request)?["value"] as? Bool == true else {
