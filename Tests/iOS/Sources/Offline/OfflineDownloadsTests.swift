@@ -454,6 +454,23 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(FileManager.default.fileExists(atPath: location.path))
   }
 
+  func testAWaiterWhoseTaskFailsGoesBackInLine() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(2)
+    let ids = (1...2).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    queue.setConcurrencyLimit(1)
+    engine.onFinished?(ids[1], URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: ids[1])?.stage, .queued)
+
+    try engine.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[1], ids[1]], "the waiter never restarted")
+  }
+
   func testLoweringTheLimitRequeuesADownloadStillResolving() async {
     let gate = makeGate()
     let queue = PutioOfflineQueue(

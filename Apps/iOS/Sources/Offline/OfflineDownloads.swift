@@ -900,6 +900,13 @@ final class PutioOfflineQueue {
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     suspended.remove(fileID)
+    if error != nil, isWaitingForSlot(fileID) {
+      resumeWhenFree.removeAll { $0 == fileID }
+      deleteLocalAsset(for: fileID)
+      update(fileID) { $0.stage = .queued }
+      schedule()
+      return
+    }
     if let error {
       if case .paused = items[index].stage { return }
       if (error as? URLError)?.code == .cancelled { return }
