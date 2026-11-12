@@ -24,6 +24,24 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
       let total = PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
       return String(localized: "\(used) of \(total) used", bundle: .module)
     }
+
+    public var isFull: Bool {
+      totalBytes > 0 && (availableBytes <= 0 || usedBytes >= totalBytes)
+    }
+
+    public func capacitySummary(locale: Locale = .current) -> String {
+      let used = PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale)
+      let total = PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
+      return String(localized: "\(used) of \(total)", bundle: .module)
+    }
+
+    public func statusSummary(locale: Locale = .current) -> String {
+      isFull ? capacitySummary(locale: locale) : usageSummary(locale: locale)
+    }
+
+    public static var fullMessage: String {
+      String(localized: "Full. Empty trash or delete files to make room.", bundle: .module)
+    }
   }
 
   public enum Status: Equatable, Sendable {

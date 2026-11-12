@@ -58,6 +58,23 @@ final class ComponentKitTests: XCTestCase {
     XCTAssertEqual(noQuota.usedFraction, 0)
   }
 
+  func testStorageIsFullWhenNothingIsLeftAndReadsWithoutUsed() {
+    let english = Locale(identifier: "en_US")
+    let free = PutioAccountSnapshot.Storage(
+      availableBytes: 750_000_000_000, totalBytes: 1_000_000_000_000, usedBytes: 250_000_000_000)
+    XCTAssertFalse(free.isFull)
+    XCTAssertEqual(free.statusSummary(locale: english), "250 GB of 1 TB used")
+    let noneAvailable = PutioAccountSnapshot.Storage(
+      availableBytes: 0, totalBytes: 1_000_000_000_000, usedBytes: 990_000_000_000)
+    XCTAssertTrue(noneAvailable.isFull)
+    let usedUp = PutioAccountSnapshot.Storage(
+      availableBytes: 10, totalBytes: 1_000_000_000_000, usedBytes: 1_000_000_000_000)
+    XCTAssertTrue(usedUp.isFull)
+    XCTAssertEqual(usedUp.statusSummary(locale: english), "1 TB of 1 TB")
+    let noQuota = PutioAccountSnapshot.Storage(availableBytes: 0, totalBytes: 0, usedBytes: 0)
+    XCTAssertFalse(noQuota.isFull)
+  }
+
   #if !os(tvOS)
     func testButtonSizesMapToNativeControlSizes() {
       XCTAssertEqual(PutioButtonSize.regular.controlSize, .large)

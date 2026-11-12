@@ -59,6 +59,13 @@ struct AccountView: View {
 
   private var settingsList: some View {
     List {
+      if let notice = PutioInactiveAccountNotice(account: account) {
+        Section {
+          PutioInactiveAccountNoticeView(notice: notice)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+        }
+      }
       AccountProfileHeader(account: account)
       Group {
         storageSection
@@ -182,8 +189,15 @@ struct AccountView: View {
           }
         }
         ProgressView(value: account.storage.usedFraction)
-          .tint(PutioTheme.Colors.accent)
+          .tint(account.storage.isFull ? PutioTheme.Colors.destructive : PutioTheme.Colors.accent)
           .accessibilityHidden(true)
+        if account.storage.isFull {
+          Text(PutioAccountSnapshot.Storage.fullMessage)
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.destructive)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("account.storage-full")
+        }
       }
       .padding(.vertical, PutioTheme.Spacing.space1)
       if runtime.session.isAccountStorageStale {
@@ -207,7 +221,7 @@ struct AccountView: View {
   }
 
   private var storageUsage: some View {
-    Text(account.storage.usageSummary())
+    Text(account.storage.statusSummary())
       .putioFont(PutioTheme.Typography.numeric)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityIdentifier("account.storage-used")

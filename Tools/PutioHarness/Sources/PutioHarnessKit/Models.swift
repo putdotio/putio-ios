@@ -669,6 +669,13 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-26-settings-loading", .iphone, "testAccountSettingsLoading"),
       BoardCapture("rd-ios-acc-27-settings-failed", .iphone, "testAccountSettingsFailed"),
       BoardCapture("rd-ios-acc-21-save-failed", .iphone, "testAccountSaveFailed"),
+      BoardCapture("rd-ios-acc-28-storage-full", .iphone, "testAccountStorageFull"),
+      BoardCapture(
+        "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
+      BoardCapture(
+        "rd-ios-acc-30-inactive-family", .iphone, "testAccountInactive", screenBase: false,
+        environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -1029,10 +1036,18 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "inactive-account",
       "InactiveAccountJourneyTests/testNoticeShowsWhileInactiveAndClearsAfterRenewalOnReturn",
-      attachmentNames: ["runtime-inactive-notice", "runtime-inactive-renewed"], timeAllowance: 90),
+      attachmentNames: [
+        "runtime-inactive-notice", "runtime-inactive-account-tab", "runtime-inactive-renewed",
+      ], timeAllowance: 90),
     JourneyPreflight(
       "inactive-family",
       "InactiveAccountJourneyTests/testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate"),
+    JourneyPreflight(
+      "inactive-no-date",
+      "InactiveAccountJourneyTests/testOwnerWithoutADeletionDateSeesNoDaysLeft"),
+    JourneyPreflight(
+      "storage-full", "InactiveAccountJourneyTests/testFullStorageSaysSoOnAccount",
+      attachmentNames: ["runtime-storage-full"]),
     JourneyPreflight(
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(

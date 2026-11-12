@@ -796,6 +796,17 @@
         }
       }
     },
+    "Full. Empty trash or delete files to make room." : {
+      "comment" : "android: mobile_account_storage_full | differs: iOS has no Transfers, so it drops the transfers sentence",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full. Empty trash or delete files to make room."
+          }
+        }
+      }
+    },
     "History" : {
       "comment" : "android: mobile_destination_history",
       "localizations" : {
