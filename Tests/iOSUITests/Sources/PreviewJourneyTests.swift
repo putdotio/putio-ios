@@ -498,10 +498,10 @@ final class PreviewJourneyTests: XCTestCase {
   ) -> Bool {
     let deadline = Date.now.addingTimeInterval(timeout)
     while Date.now < deadline {
-      if labels.contains(element.label) { return true }
+      if element.exists, labels.contains(element.label) { return true }
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
-    return labels.contains(element.label)
+    return element.exists && labels.contains(element.label)
   }
 
   private func waitForFit(_ image: XCUIElement) -> Bool {
@@ -593,20 +593,162 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
-    app.navigationBars.buttons["BackButton"].firstMatch.tap()
-    XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
+    signOutFromFiles()
+  }
 
-    let account = app.buttons["Account"]
-    app.scrollDown(toHit: account)
-    if !account.exists { app.tabBars.buttons["Files"].firstMatch.tap() }
-    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed minimized")
-    account.tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    if !signOut.isHittable { app.swipeUp() }
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  private func signOutFromFiles() {
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    for _ in 0..<4 where !element("files.screen.0").appears(within: 2) && back.exists {
+      back.tap()
+    }
+    XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
+    signOut()
+  }
+
+  func testTrashShowsTheNextFileAndUndoBringsItBack() {
+    app.launch()
+    signIn()
+
+    let title = element("preview.title")
+    let position = element("preview.position")
+    openGalleryImage(474, title: "Gallery 3.png")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["3 of 4"], timeout: 10), "position: \(position.label)")
+    removeShownFile(row: "Move to trash")
+    XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 10), "no trash toast")
+    XCTAssertTrue(waitForLabel(title, in: ["Gallery 4.png"]), "the viewer did not move on")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["3 of 3", "3 of 3 or more"]),
+      "the set still counts the trashed file: \(position.label)")
+    XCTAssertTrue(app.images["Gallery 4.png"].appears(within: 5))
+    screenshot("runtime-preview-trashed")
+
+    app.buttons["Undo"].firstMatch.tap()
+    XCTAssertTrue(
+      waitForLabel(title, in: ["Gallery 3.png"], timeout: 15),
+      "Undo did not bring the file back: \(title.label)")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["3 of 4"], timeout: 10), "position: \(position.label)")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.474").disappears(within: 5))
+    XCTAssertTrue(element("files.item.474").appears(within: 10), "the folder lost the file")
+
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 5), "the album folder never appeared")
+    app.bringIntoView(album)
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10))
+    XCTAssertFalse(position.exists, "a single image shows a position")
+    removeShownFile(row: "Move to trash")
+    XCTAssertTrue(element("preview.screen.497").disappears(within: 10), "the viewer stayed open")
+    XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 5), "no toast over the folder")
+    XCTAssertTrue(element("files.screen.496").exists, "the viewer did not land in the folder")
+    XCTAssertTrue(cover.disappears(within: 10), "the folder still lists the trashed file")
+    screenshot("runtime-preview-trashed-last")
+    app.buttons["Undo"].firstMatch.tap()
+    XCTAssertTrue(cover.appears(within: 15), "Undo did not restore the file to its folder")
+    signOutFromFiles()
+  }
+
+  func testTrashOffDeletesTheShownFileAfterAsking() {
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+    signIn()
+
+    let title = element("preview.title")
+    let position = element("preview.position")
+    openGalleryImage(474, title: "Gallery 3.png")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["3 of 4"], timeout: 10), "position: \(position.label)")
+    app.buttons["preview.more"].tap()
+    let delete = app.buttons["Delete permanently"].firstMatch
+    XCTAssertTrue(delete.appears(within: 5), "More has no Delete permanently")
+    XCTAssertFalse(app.buttons["Move to trash"].exists, "trash off still offers Move to trash")
+    screenshot("runtime-preview-more-trash-off")
+    delete.tap()
+    let alert = app.alerts["Delete 1 item permanently?"]
+    XCTAssertTrue(alert.appears(within: 5), "the delete did not ask first")
+    XCTAssertTrue(
+      alert.staticTexts["Trash is off for this account, so this can’t be undone."].exists)
+    screenshot("runtime-preview-delete-confirm")
+    alert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertEqual(title.label, "Gallery 3.png", "Cancel removed the file")
+
+    removeShownFile(row: "Delete permanently")
+    XCTAssertTrue(alert.appears(within: 5))
+    alert.buttons["Delete"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 10), "no delete message")
+    XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
+    XCTAssertTrue(waitForLabel(title, in: ["Gallery 4.png"]), "the viewer did not move on")
+    XCTAssertTrue(
+      waitForLabel(position, in: ["3 of 3"], timeout: 10), "position: \(position.label)")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.475").disappears(within: 5))
+    XCTAssertTrue(element("files.item.473").appears(within: 10))
+    XCTAssertTrue(element("files.item.474").disappears(within: 10), "the folder kept the file")
+    signOutFromFiles()
+  }
+
+  func testTrashLimitAsksBeforeDeletingTheShownFile() {
+    app.launchArguments.append("--putio-harness-trash-limit")
+    app.launch()
+    signIn()
+
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 10), "the album folder never appeared")
+    app.bringIntoView(album)
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10))
+
+    removeShownFile(row: "Move to trash")
+    let limit = app.alerts["We couldn’t send these files to trash"]
+    XCTAssertTrue(limit.appears(within: 10), "the refused Trash move did not ask")
+    XCTAssertTrue(
+      limit.staticTexts["This folder contains too many files. Delete it permanently?"].exists)
+    XCTAssertFalse(app.buttons["Undo"].exists, "the refused Trash move offered Undo")
+    screenshot("runtime-preview-trash-limit")
+    limit.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(limit.disappears(within: 5))
+    XCTAssertTrue(element("preview.screen.497").exists, "Cancel closed the viewer")
+
+    removeShownFile(row: "Move to trash")
+    XCTAssertTrue(limit.appears(within: 10))
+    limit.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(element("preview.screen.497").disappears(within: 10), "the viewer stayed open")
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5), "no delete message")
+    XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
+    XCTAssertTrue(cover.disappears(within: 10), "the folder kept the file")
+    signOutFromFiles()
+  }
+
+  private func openGalleryImage(_ id: Int, title: String) {
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let row = element("files.item.\(id)")
+    XCTAssertTrue(row.appears(within: 10), "row \(id) never appeared")
+    row.tap()
+    XCTAssertTrue(app.images[title].appears(within: 10), "\(title) never loaded")
+  }
+
+  private func removeShownFile(row: String) {
+    let more = app.buttons["preview.more"]
+    XCTAssertTrue(more.isEnabled, "More is disabled")
+    more.tap()
+    let button = app.buttons[row].firstMatch
+    XCTAssertTrue(button.appears(within: 5), "More has no \(row)")
+    XCTAssertTrue(button.isEnabled, "\(row) is disabled")
+    button.tap()
   }
 
   private func assertMoreMenu() {

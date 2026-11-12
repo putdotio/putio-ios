@@ -608,6 +608,7 @@ import Foundation
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var galleryEdits: [Int: (name: String, parentID: Int)] = [:]
     nonisolated(unsafe) private static var galleryRenameAttempts = 0
+    nonisolated(unsafe) private static var galleryRemoved: [Int: Bool] = [:]
     nonisolated(unsafe) private static var logoutFails = false
     private enum FolderFault: Equatable {
       case status(Int)
@@ -631,7 +632,7 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
-    private static var refusesHarnessFolderTrash: Bool {
+    private static var trashHitsChildrenLimit: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
     }
     private static var settingsStayUnconfirmed: Bool {
@@ -816,6 +817,7 @@ import Foundation
       galleryLock.withLock {
         galleryEdits = [:]
         galleryRenameAttempts = 0
+        galleryRemoved = [:]
       }
       bulkDeleteFailureDelivered = false
       offlineOriginalDeleteFailed = false
@@ -1339,7 +1341,7 @@ import Foundation
       if query == "gallery", usesPreviews {
         return (
           200,
-          "{\"total\":\(galleryFirstPage.count),\"files\":[\(galleryRows(galleryFirstPage, inFolder: false))]}"
+          "{\"total\":\(galleryFirstPage.count),\"files\":[\(galleryRows(galleryFirstPage, inFolder: nil))]}"
         )
       }
       guard query == "harness" || query == "retry" else {
@@ -2133,40 +2135,78 @@ import Foundation
     private static let gallerySecondPage: [(id: Int, name: String, type: String)] = [
       (475, "Gallery 4.png", "IMAGE")
     ]
+    static let albumFolderID = 496
+    private static let albumFiles: [(id: Int, name: String, type: String)] = [
+      (497, "Album Cover.png", "IMAGE")
+    ]
+    private static var allGalleryFiles: [(id: Int, name: String, type: String)] {
+      galleryFirstPage + gallerySecondPage + albumFiles
+    }
 
     private static func galleryEntries(
-      _ page: [(id: Int, name: String, type: String)], inFolder: Bool = true
+      _ page: [(id: Int, name: String, type: String)], inFolder folderID: Int? = galleryFolderID
     ) -> [(id: Int, name: String, type: String, parentID: Int)] {
-      let edits = galleryLock.withLock { galleryEdits }
-      return page.map { file in
+      let (edits, removed) = galleryLock.withLock { (galleryEdits, galleryRemoved) }
+      return page.filter { removed[$0.id] == nil }.map { file in
         let edit = edits[file.id]
-        return (file.id, edit?.name ?? file.name, file.type, edit?.parentID ?? galleryFolderID)
+        let home = albumFiles.contains { $0.id == file.id } ? albumFolderID : galleryFolderID
+        return (file.id, edit?.name ?? file.name, file.type, edit?.parentID ?? home)
       }
-      .filter { !inFolder || $0.parentID == galleryFolderID }
+      .filter { folderID == nil || $0.parentID == folderID }
     }
 
     private static func galleryRows(
-      _ page: [(id: Int, name: String, type: String)], inFolder: Bool = true
+      _ page: [(id: Int, name: String, type: String)], inFolder folderID: Int? = galleryFolderID
     ) -> String {
-      galleryEntries(page, inFolder: inFolder).map {
+      galleryEntries(page, inFolder: folderID).map {
         previewObject(id: $0.id, name: $0.name, type: $0.type, size: 1856, parentID: $0.parentID)
       }
       .joined(separator: ",")
     }
 
     private static var galleryFiles: String {
-      let total = galleryEntries(galleryFirstPage + gallerySecondPage).count
+      let total = galleryEntries(galleryFirstPage + gallerySecondPage).count + 1
+      let album = folderObject(id: albumFolderID, name: "Harness Album", parentID: galleryFolderID)
+      let rows = [album, galleryRows(galleryFirstPage)].filter { !$0.isEmpty }
       return """
         {"cursor":\(jsonString(galleryContinuationCursor)),
         "parent":\(folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0)),
-        "files":[\(galleryRows(galleryFirstPage))],
+        "files":[\(rows.joined(separator: ","))],
         "total":\(total)}
         """
     }
 
+    private static var albumListing: String {
+      let rows = galleryEntries(allGalleryFiles, inFolder: albumFolderID)
+      return """
+        {"parent":\(folderObject(id: albumFolderID, name: "Harness Album", parentID: galleryFolderID)),
+        "files":[\(galleryRows(allGalleryFiles, inFolder: albumFolderID))],
+        "total":\(rows.count)}
+        """
+    }
+
+    private static func removeGalleryFile(_ fileID: Int, skipsTrash: Bool) -> Bool {
+      guard usesPreviews,
+        galleryEntries(allGalleryFiles, inFolder: nil).contains(where: { $0.id == fileID })
+      else { return false }
+      let trashes = fileActionsLock.withLock { trashEnabled } && !skipsTrash
+      galleryLock.withLock { galleryRemoved[fileID] = trashes }
+      return true
+    }
+
+    private static func restoreGalleryFiles(_ fileIDs: [Int]) -> Bool {
+      galleryLock.withLock {
+        guard !fileIDs.isEmpty, fileIDs.allSatisfy({ galleryRemoved[$0] == true }) else {
+          return false
+        }
+        for fileID in fileIDs { galleryRemoved[fileID] = nil }
+        return true
+      }
+    }
+
     private static func galleryFile(id: Int) -> (Int, String)? {
       guard usesPreviews,
-        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+        let file = galleryEntries(allGalleryFiles, inFolder: nil)
           .first(where: { $0.id == id })
       else { return nil }
       return (
@@ -2180,7 +2220,7 @@ import Foundation
 
     private static func renameGalleryFile(_ fileID: Int, to name: String) -> (Int, String)? {
       guard usesPreviews,
-        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+        let file = galleryEntries(allGalleryFiles, inFolder: nil)
           .first(where: { $0.id == fileID })
       else { return nil }
       let attempt = galleryLock.withLock {
@@ -2203,7 +2243,7 @@ import Foundation
 
     private static func moveGalleryFile(_ fileID: Int, to parentID: Int) -> Bool {
       guard usesPreviews,
-        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+        let file = galleryEntries(allGalleryFiles, inFolder: nil)
           .first(where: { $0.id == fileID })
       else { return false }
       galleryLock.withLock { galleryEdits[fileID] = (file.name, parentID) }
@@ -2285,6 +2325,8 @@ import Foundation
         return (200, seasonFiles)
       case galleryFolderID where usesPreviews:
         return (200, galleryFiles)
+      case albumFolderID where usesPreviews:
+        return (200, albumListing)
       case tvEmptyFolderID where usesTVBrowse || usesFolderStates:
         let rows = fileActionsLock.withLock { childFolderRowsLocked(of: tvEmptyFolderID) }
         return (
@@ -2552,6 +2594,17 @@ import Foundation
         fileActionsLock.withLock { tvSeasonPackTrashed = true }
         return (200, #"{"status":"OK"}"#)
       }
+      if fileID == 497, trashHitsChildrenLimit, !requestSkipsTrash(request) {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "FileDeleteChildrenLimitError",
+            message: "Album Cover is refused by Trash")
+        )
+      }
+      if removeGalleryFile(fileID, skipsTrash: requestSkipsTrash(request)) {
+        return (200, #"{"status":"OK"}"#)
+      }
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
@@ -2569,7 +2622,7 @@ import Foundation
           )
         )
       }
-      if fileID == 410, refusesHarnessFolderTrash, !requestSkipsTrash(request) {
+      if fileID == 410, trashHitsChildrenLimit, !requestSkipsTrash(request) {
         fileActionsLock.unlock()
         return (
           400,
@@ -2753,6 +2806,7 @@ import Foundation
     }
 
     private static func restoreTrash(request: URLRequest) -> (Int, String) {
+      if restoreGalleryFiles(requestFileIDs(request) ?? []) { return (200, #"{"status":"OK"}"#) }
       fileActionsLock.lock()
       defer { fileActionsLock.unlock() }
       let fileIDs: [Int]

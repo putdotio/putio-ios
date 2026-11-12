@@ -60,6 +60,7 @@ struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreview: PutioPreviewPresentation?
+  @State private var previewToast: PutioToast?
   #if DEBUG
     @State private var harnessPreviewRequests = HarnessPreviewRequests()
   #endif
@@ -72,10 +73,15 @@ struct MainTabView: View {
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
 
+  private var shellToast: Binding<PutioToast?> {
+    presentedPreview == nil ? $previewToast : .constant(nil)
+  }
+
   var body: some View {
     TabView(selection: $selectedTab) {
       Tab(value: SelectedTab.files) {
         filesBrowser
+          .putioToast(shellToast)
       } label: {
         Label {
           Text("Files")
@@ -85,6 +91,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
+          .putioToast(shellToast)
       } label: {
         Label {
           Text("Downloads")
@@ -102,6 +109,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
+          .putioToast(shellToast)
           .id(historyRevision)
         } label: {
           Label {
@@ -139,6 +147,7 @@ struct MainTabView: View {
             }
           )
         }
+        .putioToast(shellToast)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -154,6 +163,7 @@ struct MainTabView: View {
           refreshRequests: folderRefreshRequests,
           onFileSelected: { route in selectFile(route) }
         )
+        .putioToast(shellToast)
       }
     }
     .tabViewStyle(.sidebarAdaptable)
@@ -181,7 +191,11 @@ struct MainTabView: View {
             runtime: runtime, trashEnabled: account.trashEnabled,
             refreshRequests: folderRefreshRequests),
           download: { preview, extent in try await downloadPreview(preview, extent) },
-          onDismiss: { presentedPreview = nil }
+          toast: $previewToast,
+          onDismiss: {
+            guard presentedPreview?.id == preview.id else { return }
+            presentedPreview = nil
+          }
         )
         .id(preview.id)
         .accessibilityAddTraits(.isModal)

@@ -395,6 +395,132 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(pager.item(for: shown.id), moved)
   }
 
+  func testRemovingTheShownFileShowsTheNextUntilNoneRemain() throws {
+    let images = (1...3).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    let file = PutioFileRoute(item: images[1])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(items: { images }, hasMore: { false }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+
+    XCTAssertTrue(pager.remove(images[1].id))
+    XCTAssertEqual(pager.current.id, images[2].id)
+    XCTAssertEqual(pager.position?.text, "2 / 2")
+
+    XCTAssertTrue(pager.remove(images[2].id))
+    XCTAssertEqual(pager.current.id, images[0].id, "the last file did not fall back")
+    XCTAssertNil(pager.position)
+
+    pager.reinstate(images[1].id)
+    XCTAssertEqual(pager.current.id, images[1].id, "Undo did not return to the file")
+    XCTAssertEqual(pager.position?.text, "2 / 2")
+
+    XCTAssertTrue(pager.remove(images[0].id))
+    XCTAssertFalse(pager.remove(images[1].id), "the only file left the viewer open")
+  }
+
+  func testRemovingAFileARefreshDroppedStillShowsTheNext() throws {
+    let images = (1...3).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    var listed = images
+    let file = PutioFileRoute(item: images[0])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(items: { listed }, hasMore: { true }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+
+    XCTAssertTrue(pager.remove(images[0].id))
+    XCTAssertEqual(pager.current.id, images[1].id)
+
+    listed = []
+    XCTAssertEqual(pager.item(for: images[1].id), images[1], "the next file lost its More rows")
+    XCTAssertEqual(pager.position?.text, "1 / 2+", "the next file lost its position")
+    XCTAssertTrue(pager.remove(images[1].id), "an unlisted file closed the viewer")
+    XCTAssertEqual(pager.current.id, images[2].id)
+
+    pager.settle(images[2].id)
+    XCTAssertNil(pager.item(for: images[2].id), "a settling file offered its old snapshot")
+  }
+
+  func testAShownFileMissingFromTheRefreshedListingPagesUntilItReturns() async throws {
+    let images = (1...10).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    var listed = images
+    var pages = 0
+    let file = PutioFileRoute(item: images[1])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(
+      items: { listed }, hasMore: { true },
+      loadMore: {
+        pages += 1
+        return false
+      })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+    XCTAssertTrue(pager.remove(images[1].id))
+    listed = [images[0]]
+
+    pager.readPagesIfNeeded()
+    for _ in 0..<20 { await Task.yield() }
+    pager.cancel()
+    XCTAssertGreaterThan(pages, 0, "the viewer waited on its snapshot instead of paging")
+  }
+
+  func testRemovingTheLastFileAfterPagingStoppedStillRecoversTheRefreshedListing() async throws {
+    let images = (1...5).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    var listed = images
+    var pages = 0
+    let file = PutioFileRoute(item: images[4])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(
+      items: { listed }, hasMore: { true },
+      loadMore: {
+        pages += 1
+        return true
+      })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+    pager.readPagesIfNeeded()
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertTrue(pager.reads.stopped, "pages without images did not stop reading")
+    let stoppedAt = pages
+
+    XCTAssertTrue(pager.remove(images[4].id))
+    XCTAssertEqual(pager.current.id, images[3].id)
+    listed = [images[0]]
+    pager.readPagesIfNeeded()
+    for _ in 0..<20 { await Task.yield() }
+    pager.cancel()
+    XCTAssertGreaterThan(pages, stoppedAt, "the refreshed listing never paged back to the file")
+  }
+
+  func testAFileMovedOutOfItsFolderStopsPagingThatFolder() async throws {
+    let shown = BrowserTestFixtures.item(id: 21, parentID: 5, name: "Poster.png", kind: .image)
+    let file = PutioFileRoute(item: shown)
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    var pages = 0
+    let source = PutioPreviewSource(
+      items: { [] }, hasMore: { true },
+      loadMore: {
+        pages += 1
+        return true
+      })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+    pager.update(BrowserTestFixtures.item(id: 21, parentID: 9, name: "Poster.png", kind: .image))
+
+    pager.readPagesIfNeeded()
+    for _ in 0..<20 { await Task.yield() }
+    pager.cancel()
+    XCTAssertEqual(pages, 0, "the viewer paged a folder its file left")
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)

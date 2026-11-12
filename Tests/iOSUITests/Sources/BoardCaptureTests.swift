@@ -774,6 +774,49 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-20-rename")
   }
 
+  func testPreviewTrashed() throws {
+    XCUIDevice.shared.orientation = .portrait
+    openGalleryThird()
+    let position = element("preview.position")
+    let deadline = Date.now.addingTimeInterval(10)
+    while !(position.exists && position.label == "3 of 4"), Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    openPreviewMore()
+    app.buttons["Move to trash"].firstMatch.tap()
+    let settled = Date.now.addingTimeInterval(4)
+    while !(position.exists && position.label == "3 of 3"), Date.now < settled {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    try captureBoard("rd-ios-pv-11-trashed")
+    XCTAssertTrue(position.exists, "the viewer lost its position")
+    XCTAssertEqual(position.label, "3 of 3", "the set still counts the trashed file")
+    XCTAssertEqual(element("preview.title").label, "Gallery 4.png", "the viewer did not move on")
+  }
+
+  func testPreviewMoreTrashOff() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    openAlbumCover()
+    openPreviewMore()
+    XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
+    try captureBoard("rd-ios-pv-18-more-trash-off")
+    leaveAlbum()
+  }
+
+  func testPreviewDeleteConfirm() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    openAlbumCover()
+    openPreviewMore()
+    app.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(
+      app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never confirmed")
+    try captureBoard("rd-ios-pv-19-delete-confirm")
+    app.alerts.buttons["Cancel"].firstMatch.tap()
+    leaveAlbum()
+  }
+
   private func openPreviewMore() {
     let more = app.buttons["preview.more"]
     XCTAssertTrue(more.appears(within: 10), "the viewer has no More")
@@ -882,6 +925,50 @@ final class BoardCaptureTests: XCTestCase {
       add(anchored)
       app.dismissShareSheet(sheet)
     }
+  }
+
+  private func openGalleryThird() {
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let third = element("files.item.474")
+    XCTAssertTrue(third.appears(within: 10), "the gallery never loaded")
+    third.tap()
+    XCTAssertTrue(app.images["Gallery 3.png"].appears(within: 10), "the third image never loaded")
+  }
+
+  private func openAlbumCover() {
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 10), "the album never appeared")
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10), "the cover never loaded")
+  }
+
+  private func leaveAlbum() {
+    let viewer = element("preview.screen.497")
+    for _ in 0..<3 where viewer.exists {
+      app.buttons["preview.back"].tap()
+      _ = viewer.disappears(within: 2)
+    }
+    let album = element("files.screen.496")
+    let gallery = element("files.screen.470")
+    for _ in 0..<3 where album.exists || gallery.exists {
+      app.navigationBars.buttons.firstMatch.tap()
+      _ = album.disappears(within: 2)
+    }
+    XCTAssertFalse(album.exists || gallery.exists, "the album stayed open for the next launch")
   }
 
   private func openPosterPreview() {
@@ -1330,7 +1417,9 @@ final class BoardCaptureTests: XCTestCase {
 
   private func reachFilesRoot() {
     let root = element("files.screen.0")
-    let folderScreens = ["files.screen.410", "files.screen.440", "files.screen.470"].map(element)
+    let folderScreens = [
+      "files.screen.410", "files.screen.440", "files.screen.470", "files.screen.496",
+    ].map(element)
     let signIn = element("auth.sign-in")
     let deadline = Date.now.addingTimeInterval(15)
     while !root.exists, !signIn.exists, !folderScreens.contains(where: \.exists),
@@ -1504,13 +1593,6 @@ final class BoardCaptureTests: XCTestCase {
   private func captureBoard(_ defaultBoard: String) throws {
     let board = ProcessInfo.processInfo.environment["PUTIO_BOARD_ID"] ?? defaultBoard
     try requireBoardDevicePosture()
-    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
-      try app.performAccessibilityAudit(for: .textClipped) { issue in
-        guard let element = issue.element else { return false }
-        return Self.isMiddleTruncatedFileName(element.label)
-          && element.frame.height >= Self.minimumXXLargeLineHeight
-      }
-    }
     let window = app.windows.firstMatch.frame
     let screen = Self.screenshot(showing: window.size)
     let capture = Self.oriented(screen, toMatch: window.size)
@@ -1530,6 +1612,13 @@ final class BoardCaptureTests: XCTestCase {
     data.name = "\(board)-layout"
     data.lifetime = .keepAlways
     add(data)
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      try app.performAccessibilityAudit(for: .textClipped) { issue in
+        guard let element = issue.element else { return false }
+        return Self.isMiddleTruncatedFileName(element.label)
+          && element.frame.height >= Self.minimumXXLargeLineHeight
+      }
+    }
   }
 
   private func requireBoardDevicePosture() throws {

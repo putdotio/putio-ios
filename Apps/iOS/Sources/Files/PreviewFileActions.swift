@@ -6,6 +6,7 @@ struct PutioPreviewFileActions {
   let load: PutioFolderLoad
   let continueLoad: PutioFolderContinue
   let lookUp: @MainActor (PutioFileID) async throws -> PutioFileItem
+  let restore: @MainActor (PutioFileID) async throws -> Void
   let trashEnabled: Bool
   let refreshRequests: PutioFolderRefreshRequests
 
@@ -14,6 +15,10 @@ struct PutioPreviewFileActions {
     load = { try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize) }
     continueLoad = { try await runtime.continueFiles(cursor: $0) }
     lookUp = { try await runtime.getFile(fileID: $0) }
+    restore = { fileID in
+      defer { refreshRequests.requestAllLoadedFolders() }
+      try await runtime.restoreTrashItems(fileIDs: [fileID])
+    }
     self.trashEnabled = trashEnabled
     self.refreshRequests = refreshRequests
   }
