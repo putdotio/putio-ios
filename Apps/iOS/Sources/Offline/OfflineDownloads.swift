@@ -125,6 +125,7 @@ final class PutioOfflineQueue {
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
+    resumeWhenFree = loaded.waitingForSlot
     // Queues written before the sidecar existed are its only record.
     recordPackages(at: items.compactMap(\.localPath))
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
@@ -181,6 +182,10 @@ final class PutioOfflineQueue {
         if let localPath = items[index].localPath {
           finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         }
+      case .paused where !alive.contains(items[index].id)
+        && resumeWhenFree.contains(items[index].id):
+        resumeWhenFree.removeAll { $0 == items[index].id }
+        items[index].stage = .queued
       case .paused where !alive.contains(items[index].id):
         // A previous launch may have died between pausing and the probe;
         // a playable package still on disk finishes now.
@@ -568,17 +573,14 @@ final class PutioOfflineQueue {
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
-    let inFlight = items.filter { $0.isActive || workers[$0.id] != nil }
-    for item in inFlight.dropFirst(limit) { yieldSlot(item.id) }
-    let order = Dictionary(uniqueKeysWithValues: items.enumerated().map { ($1.id, $0) })
-    resumeWhenFree.sort { order[$0, default: .max] < order[$1, default: .max] }
+    for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
     persist()
     schedule()
   }
 
   private func yieldSlot(_ fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
-    if workers[fileID] == nil, case .downloading(let progress) = items[index].stage {
+    if case .downloading(let progress) = items[index].stage {
       engine.pause(fileID: fileID)
       suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
@@ -681,9 +683,11 @@ final class PutioOfflineQueue {
 
   /// A worker resolving or converting occupies a slot before its item is
   /// marked downloading, so in-flight is workers plus engine-owned downloads.
-  private var inFlightCount: Int {
-    items.filter { $0.isActive || workers[$0.id] != nil }.count
+  private var inFlightItems: [PutioOfflineItem] {
+    items.filter { $0.isActive || workers[$0.id] != nil }
   }
+
+  private var inFlightCount: Int { inFlightItems.count }
 
   private func schedule() {
     guard isLive() else { return }
@@ -956,8 +960,8 @@ final class PutioOfflineQueue {
   }
 
   private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
-    items
-      .filter { $0.id != fileID && ($0.isActive || workers[$0.id] != nil) }
+    inFlightItems
+      .filter { $0.id != fileID }
       .map { max(0, $0.estimatedBytes - $0.storedBytes) }
       .reduce(0, +)
   }
@@ -986,7 +990,8 @@ final class PutioOfflineQueue {
     guard isLive() else { return false }
     return writing {
       try store.save(
-        items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
+        items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals,
+        waitingForSlot: resumeWhenFree)
     }
   }
 

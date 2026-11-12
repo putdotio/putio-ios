@@ -319,6 +319,36 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(engine.started.map(\.0), ids, "the freed slot starts the next in line")
   }
 
+  func testDownloadsWaitingForASlotStillStartAfterARelaunch() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(3)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    for id in ids { engine.onProgress?(id, 0.3) }
+    queue.setConcurrencyLimit(1)
+    await settle()
+
+    let relaunched = FakeEngine()
+    relaunched.alive = [ids[0], ids[1]]
+    engine = relaunched
+    let restored = makeQueue()
+    await restored.restore()
+    await settle()
+    XCTAssertEqual(restored.concurrencyLimit, 1)
+    XCTAssertTrue(restored.isWaitingForSlot(ids[1]), "the kept task no longer waits")
+    XCTAssertEqual(restored.item(for: ids[2])?.stage, .queued, "the lost task is not re-queued")
+
+    try relaunched.finish(ids[0], at: directory)
+    await settle()
+    XCTAssertEqual(relaunched.resumed, [ids[1]], "the kept task never resumed")
+    try relaunched.finish(ids[1], at: directory)
+    await settle()
+    XCTAssertEqual(relaunched.started.map(\.0), [ids[2]], "the lost task never restarted")
+  }
+
   func testLoweringTheLimitRequeuesADownloadStillResolving() async {
     let gate = makeGate()
     let queue = PutioOfflineQueue(

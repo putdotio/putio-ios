@@ -10,12 +10,14 @@ struct PutioOfflineStore: Sendable {
     var concurrencyLimit: Int
     /// Originals the user asked put.io to take whose answer is still owed.
     var pendingOriginals: [PutioOfflineRemovalTarget]?
+    var waitingForSlot: [PutioFileID]?
   }
 
   struct Loaded {
     var items: [PutioOfflineItem]
     var concurrencyLimit: Int
     var pendingOriginals: [PutioOfflineRemovalTarget]
+    var waitingForSlot: [PutioFileID] = []
   }
 
   let directory: URL
@@ -57,18 +59,21 @@ struct PutioOfflineStore: Sendable {
       ? document.concurrencyLimit : PutioOfflineQueue.defaultConcurrencyLimit
     return Loaded(
       items: document.items, concurrencyLimit: limit,
-      pendingOriginals: document.pendingOriginals ?? [])
+      pendingOriginals: document.pendingOriginals ?? [],
+      waitingForSlot: document.waitingForSlot ?? [])
   }
 
   private var corruptURL: URL { directory.appending(path: "queue.corrupt.json") }
 
   func save(
     items: [PutioOfflineItem], concurrencyLimit: Int,
-    pendingOriginals: [PutioOfflineRemovalTarget] = []
+    pendingOriginals: [PutioOfflineRemovalTarget] = [],
+    waitingForSlot: [PutioFileID] = []
   ) throws {
     let document = Document(
       version: Self.version, items: items, concurrencyLimit: concurrencyLimit,
-      pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals)
+      pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals,
+      waitingForSlot: waitingForSlot.isEmpty ? nil : waitingForSlot)
     let data = try JSONEncoder().encode(document)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try data.write(to: fileURL, options: .atomic)
