@@ -92,6 +92,7 @@ final class SharedFileCopyTests: XCTestCase {
     let model = model(
       start: { _, _ in
         for await _ in gate.stream { break }
+        try Task.checkCancellation()
         calls.started.append([])
         return 91
       },
