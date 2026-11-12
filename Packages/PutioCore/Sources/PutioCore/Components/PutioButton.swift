@@ -192,7 +192,7 @@ extension PutioButtonSize {
   #endif
 }
 
-#if os(iOS)
+#if !os(tvOS)
   public struct PutioBlockButton: View {
     private let title: String
     private let isBusy: Bool
