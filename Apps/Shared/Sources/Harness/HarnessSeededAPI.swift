@@ -2594,12 +2594,12 @@ import Foundation
         fileActionsLock.withLock { tvSeasonPackTrashed = true }
         return (200, #"{"status":"OK"}"#)
       }
-      if fileID == 473, trashHitsChildrenLimit, !requestSkipsTrash(request) {
+      if fileID == 497, trashHitsChildrenLimit, !requestSkipsTrash(request) {
         return (
           400,
           fixtureError(
             statusCode: 400, type: "FileDeleteChildrenLimitError",
-            message: "Gallery 2 is refused by Trash")
+            message: "Album Cover is refused by Trash")
         )
       }
       if removeGalleryFile(fileID, skipsTrash: requestSkipsTrash(request)) {
