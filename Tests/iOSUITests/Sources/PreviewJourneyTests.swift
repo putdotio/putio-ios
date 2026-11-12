@@ -453,6 +453,107 @@ final class PreviewJourneyTests: XCTestCase {
     return element.exists && condition(element.frame)
   }
 
+  func testMoreMenuRenamesAndMovesTheShownFile() {
+    app.launch()
+    signIn()
+
+    let document = app.revealed("files.item.413")
+    XCTAssertTrue(document.exists, "the document row never appeared")
+    document.tap()
+    XCTAssertTrue(app.staticTexts["put.io harness page 1"].appears(within: 10))
+    assertMoreMenu()
+    screenshot("runtime-preview-more-pdf")
+    dismissMenu()
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
+
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let first = element("files.item.471")
+    XCTAssertTrue(first.appears(within: 10))
+    first.tap()
+    XCTAssertTrue(app.images["Gallery 1.png"].appears(within: 10))
+    let title = element("preview.title")
+    assertMoreMenu()
+    screenshot("runtime-preview-more-image")
+
+    app.buttons["Rename"].firstMatch.tap()
+    let alert = app.alerts["Rename"]
+    XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    XCTAssertEqual(alert.textFields.firstMatch.value as? String, "Gallery 1.png")
+    screenshot("runtime-preview-rename")
+    app.typeText("Gallery One")
+    XCTAssertEqual(
+      alert.textFields.firstMatch.value as? String, "Gallery One.png",
+      "typing did not replace only the stem")
+    alert.buttons["Rename"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after Rename")
+    XCTAssertTrue(app.staticTexts["Couldn’t rename."].appears(within: 15), "no failure toast")
+    XCTAssertEqual(title.label, "Gallery 1.png", "the failed rename changed the title")
+    screenshot("runtime-preview-rename-failed")
+    app.buttons["Try again"].tap()
+    XCTAssertTrue(
+      waitForLabel(title, in: ["Gallery One.png"], timeout: 10),
+      "the title did not take the new name: \(title.label)")
+    XCTAssertTrue(element("preview.screen.471").exists)
+
+    app.buttons["preview.more"].tap()
+    app.buttons["Move"].firstMatch.tap()
+    XCTAssertTrue(element("files.move-screen.0").appears(within: 5), "Move never opened")
+    let harness = element("files.move-folder.410")
+    XCTAssertTrue(harness.appears(within: 10), "the move sheet lists no Harness Folder")
+    harness.tap()
+    XCTAssertTrue(element("files.move-screen.410").appears(within: 5))
+    let moveHere = app.buttons["Move to Harness Folder"]
+    XCTAssertTrue(moveHere.appears(within: 5))
+    moveHere.tap()
+    XCTAssertTrue(element("files.move-picker").disappears(within: 10))
+    let moved = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "1 item is in the selected folder.")).firstMatch
+    XCTAssertTrue(moved.appears(within: 10), "the move showed no toast")
+    XCTAssertTrue(element("preview.screen.471").exists, "the viewer left the moved file")
+    XCTAssertEqual(title.label, "Gallery One.png")
+    screenshot("runtime-preview-moved")
+
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
+    XCTAssertTrue(element("files.item.473").appears(within: 10))
+    XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5), "Back did not reach Files")
+
+    let account = app.buttons["Account"]
+    app.scrollDown(toHit: account)
+    if !account.exists { app.tabBars.buttons["Files"].firstMatch.tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed minimized")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func assertMoreMenu() {
+    let more = app.buttons["preview.more"]
+    XCTAssertTrue(more.isEnabled, "More is disabled")
+    more.tap()
+    let rename = app.buttons["Rename"].firstMatch
+    XCTAssertTrue(rename.appears(within: 5), "More never opened")
+    XCTAssertTrue(app.buttons["Move"].firstMatch.exists)
+    for absent in ["Play", "Select", "Pin", "Make a copy", "Mark as watched", "Download"] {
+      XCTAssertFalse(app.buttons[absent].exists, "More lists \(absent)")
+    }
+  }
+
+  private func dismissMenu() {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)).tap()
+    XCTAssertTrue(app.buttons["Rename"].firstMatch.disappears(within: 5))
+  }
+
   private func assertCannotShow(
     rowID: Int, title: String, rowValue: String, screenshot name: String? = nil
   ) {
@@ -482,7 +583,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(title.exists)
     XCTAssertEqual(title.label, "document-scan-from-the-harness-weekend-2026.png")
     XCTAssertFalse(app.buttons["preview.share"].isEnabled)
-    XCTAssertFalse(app.buttons["preview.more"].isEnabled)
+    XCTAssertTrue(app.buttons["preview.more"].isEnabled)
   }
 
   private func assertNoVLCAction(fileID: Int) {

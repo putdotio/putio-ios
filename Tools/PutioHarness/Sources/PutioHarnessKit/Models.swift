@@ -635,6 +635,7 @@ enum BoardCaptureContract {
         "rd-ios-ses-28-duo-closed-waiting", .duoFolded, "testCheckingSession", screenBase: false),
       BoardCapture("rd-ios-ses-29-duo-open-welcome", .duoOpen, "testWelcome"),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
+      BoardCapture("rd-ios-pv-02-more", .iphone, "testPreviewMoreMenu"),
       BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
       BoardCapture("rd-ios-pv-04-text", .iphone, "testPreviewText"),
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
@@ -643,6 +644,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-09-position", .iphone, "testPreviewPosition"),
       BoardCapture("rd-ios-pv-10-text-truncated", .iphone, "testPreviewTextTruncated"),
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
+      BoardCapture("rd-ios-pv-20-rename", .iphone, "testPreviewRename"),
       BoardCapture("rd-ios-pv-17-duo-folded-image", .duoFolded, "testPreviewImage"),
       BoardCapture("rd-ios-pv-16-duo-image", .duoOpen, "testPreviewImage"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
@@ -968,6 +970,13 @@ enum BrowserJourneyContract {
         "runtime-preview-share-text",
       ],
       timeAllowance: 300),
+    JourneyPreflight(
+      "preview-more", "PreviewJourneyTests/testMoreMenuRenamesAndMovesTheShownFile",
+      attachmentNames: [
+        "runtime-preview-more-pdf", "runtime-preview-more-image", "runtime-preview-rename",
+        "runtime-preview-rename-failed", "runtime-preview-moved",
+      ],
+      timeAllowance: 180),
     JourneyPreflight(
       "preview-paging", "PreviewJourneyTests/testSwipesBetweenFilesOfTheSameKind",
       attachmentNames: ["runtime-preview-position"],

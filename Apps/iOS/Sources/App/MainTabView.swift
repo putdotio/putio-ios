@@ -177,6 +177,9 @@ struct MainTabView: View {
           route: preview.route,
           file: preview.file,
           source: preview.source,
+          fileActions: PutioPreviewFileActions(
+            runtime: runtime, trashEnabled: account.trashEnabled,
+            refreshRequests: folderRefreshRequests),
           download: { preview, extent in try await downloadPreview(preview, extent) },
           onDismiss: { presentedPreview = nil }
         )
