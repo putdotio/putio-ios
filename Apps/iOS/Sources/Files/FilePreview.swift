@@ -1764,7 +1764,8 @@ struct PutioPDFView: UIViewRepresentable {
     }
 
     private func reportZoom(_ view: PDFView) {
-      let zoomed = view.scaleFactor > view.scaleFactorForSizeToFit * 1.01
+      let fitted = (view as? PutioInsetPDFView)?.fittedScale ?? view.scaleFactorForSizeToFit
+      let zoomed = view.scaleFactor > fitted * 1.01
       guard zoomed != reportedZoomed else { return }
       reportedZoomed = zoomed
       onZoomChange?(zoomed)
@@ -1782,25 +1783,45 @@ struct PutioPDFView: UIViewRepresentable {
 }
 
 final class PutioInsetPDFView: PDFView {
+  static let maximumPageWidth = PutioTheme.Spacing.space8 + PutioTheme.Spacing.space7
+
   var insets: UIEdgeInsets = .zero {
     didSet { if insets != oldValue { setNeedsLayout() } }
   }
+  private(set) var fittedScale: CGFloat = 0
   private var placed = false
   private var fittedSize: CGSize = .zero
 
   override func layoutSubviews() {
     super.layoutSubviews()
     if bounds.size != fittedSize, bounds.width > 0, bounds.height > 0 {
-      if fittedSize != .zero, document != nil {
-        scaleFactor = scaleFactorForSizeToFit
-        autoScales = true
-      }
+      fit(resized: fittedSize != .zero)
       fittedSize = bounds.size
     }
     guard let scrollView = firstScrollView else { return }
     scrollView.topEdgeEffect.isHidden = true
     scrollView.contentInsetAdjustmentBehavior = .never
     scrollView.insetToTop(insets, placed: &placed)
+  }
+
+  private func fit(resized: Bool) {
+    guard let page = document?.page(at: 0) else { return }
+    let sizeToFit = scaleFactorForSizeToFit
+    let box = page.bounds(for: displayBox)
+    let pageWidth = page.rotation.isMultiple(of: 180) ? box.width : box.height
+    let capped = pageWidth > 0 ? Self.maximumPageWidth / pageWidth : sizeToFit
+    if capped < sizeToFit {
+      autoScales = false
+      minScaleFactor = capped
+      scaleFactor = capped
+      fittedScale = capped
+    } else {
+      fittedScale = sizeToFit
+      guard resized || !autoScales else { return }
+      minScaleFactor = sizeToFit
+      scaleFactor = sizeToFit
+      autoScales = true
+    }
   }
 }
 

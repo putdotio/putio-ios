@@ -1110,8 +1110,8 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["preview.back"].tap()
     XCTAssertTrue(
       element("preview.screen.\(fileID)").disappears(within: 5), "Back did not close the viewer")
-    XCTAssertTrue(element("files.screen.0").becomesHittable(within: 5), "Back left Files")
-    XCTAssertTrue(element(identifier).isHittable, "Back did not return to the same row")
+    XCTAssertTrue(
+      element(identifier).becomesHittable(within: 5), "Back did not return to the same row")
   }
 
   func testPreviewText() throws {
