@@ -54,7 +54,7 @@ flow instead of the web login; Release builds leave that path out.
 ## Captures
 
 The CLI cannot list authorized apps. The iOS journey captures Account >
-Security > "Where you're signed in" while signed in. put.io lists grants per
+Security > "Logged-in apps" while signed in. put.io lists grants per
 app, not per session, so that screen cannot show whether one run's token is
 gone; the cleanup result is the per-run evidence. The capture shows every app on
 the shared account, so review it before you share it.

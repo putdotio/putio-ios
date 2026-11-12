@@ -1,6 +1,7 @@
 import SwiftUI
 
 public enum PutioIcon: String, CaseIterable, Sendable {
+  case appWindow = "app-window-regular"
   case arrowCircleDown = "arrow-circle-down-regular"
   case arrowCircleDownFill = "arrow-circle-down-fill"
   case arrowCounterClockwise = "arrow-counter-clockwise-regular"

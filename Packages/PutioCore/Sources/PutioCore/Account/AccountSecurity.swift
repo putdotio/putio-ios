@@ -6,6 +6,7 @@ import Observation
 public struct PutioAccountSecurityActions: Sendable {
   let listApps: @MainActor @Sendable () async throws -> [PutioAuthorizedApp]
   let revokeApp: @MainActor @Sendable (Int) async throws -> Void
+  let appIcon: @MainActor @Sendable (Int) async throws -> Data
   let linkDevice: @MainActor @Sendable (String) async throws -> PutioAuthorizedApp
   let generateSecret: @MainActor @Sendable () async throws -> String
   let setTwoFactor:
@@ -21,6 +22,7 @@ public struct PutioAccountSecurityActions: Sendable {
   public init(runtime: PutioRuntime) {
     listApps = { try await runtime.listAuthorizedApps() }
     revokeApp = { try await runtime.revokeAuthorizedApp(id: $0) }
+    appIcon = { try await runtime.authorizedAppIcon(id: $0) }
     linkDevice = { try await runtime.linkDevice(code: $0) }
     generateSecret = { try await runtime.generateTwoFactorSecret() }
     setTwoFactor = { try await runtime.setTwoFactorEnabled($0, code: $1) }
@@ -39,6 +41,9 @@ public struct PutioAccountSecurityActions: Sendable {
   init(
     listApps: @escaping @MainActor @Sendable () async throws -> [PutioAuthorizedApp] = { [] },
     revokeApp: @escaping @MainActor @Sendable (Int) async throws -> Void = { _ in },
+    appIcon: @escaping @MainActor @Sendable (Int) async throws -> Data = { _ in
+      throw PutioRuntimeError.notFound
+    },
     linkDevice: @escaping @MainActor @Sendable (String) async throws -> PutioAuthorizedApp = {
       _ in throw PutioAccountSecurityError.invalidDeviceCode
     },
@@ -59,6 +64,7 @@ public struct PutioAccountSecurityActions: Sendable {
   ) {
     self.listApps = listApps
     self.revokeApp = revokeApp
+    self.appIcon = appIcon
     self.linkDevice = linkDevice
     self.generateSecret = generateSecret
     self.setTwoFactor = setTwoFactor
@@ -373,10 +379,12 @@ public final class PutioAuthorizedAppsModel {
   /// longer known to be current.
   public private(set) var refreshFailure: String?
   public private(set) var revokingID: Int?
-  private(set) var failedRevokeID: Int?
-  public private(set) var revokeFailure: String?
+  public private(set) var revokeFailures: [Int: String] = [:]
+  public private(set) var isSigningOutOthers = false
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var generation = 0
+  @ObservationIgnored private var icons: [Int: Data?] = [:]
+  @ObservationIgnored private var iconRequests: [Int: Task<Data?, Never>] = [:]
 
   public init(actions: PutioAccountSecurityActions) {
     self.actions = actions
@@ -387,6 +395,10 @@ public final class PutioAuthorizedAppsModel {
     return []
   }
 
+  public var isBusy: Bool { revokingID != nil || isSigningOutOthers }
+
+  public var canSignOutOthers: Bool { apps.contains { !$0.isCurrentClient } }
+
   public func load() async {
     generation += 1
     let generation = generation
@@ -396,11 +408,8 @@ public final class PutioAuthorizedAppsModel {
       let loaded = try await actions.listApps()
       guard generation == self.generation else { return }
       state = .loaded(loaded)
-      // A grant that is gone from the authoritative list has nothing to retry.
-      if let failedRevokeID, !loaded.contains(where: { $0.id == failedRevokeID }) {
-        self.failedRevokeID = nil
-        revokeFailure = nil
-      }
+      let listed = Set(loaded.map(\.id))
+      revokeFailures = revokeFailures.filter { listed.contains($0.key) }
     } catch {
       guard generation == self.generation, !Task.isCancelled,
         let message = PutioAccountSecurityPresentation.message(for: error)
@@ -410,31 +419,53 @@ public final class PutioAuthorizedAppsModel {
   }
 
   public func revoke(id: Int) async {
+    guard !isBusy else { return }
+    await runRevoke(id: id)
+  }
+
+  public func signOutOthers() async {
+    guard !isBusy, canSignOutOthers else { return }
+    isSigningOutOthers = true
+    defer { isSigningOutOthers = false }
+    for app in apps where !app.isCurrentClient {
+      guard await runRevoke(id: app.id) else { return }
+    }
+  }
+
+  public func icon(for app: PutioAuthorizedApp) async -> Data? {
+    guard app.hasIcon else { return nil }
+    if let icon = icons[app.id] { return icon }
+    if let pending = iconRequests[app.id] { return await pending.value }
+    let actions = actions
+    let request = Task { @MainActor in try? await actions.appIcon(app.id) }
+    iconRequests[app.id] = request
+    let icon = await request.value
+    icons[app.id] = icon
+    return icon
+  }
+
+  @discardableResult
+  private func runRevoke(id: Int) async -> Bool {
     guard revokingID == nil, let app = apps.first(where: { $0.id == id }), !app.isCurrentClient
-    else { return }
+    else { return true }
     revokingID = id
-    revokeFailure = nil
-    failedRevokeID = nil
+    revokeFailures[id] = nil
     let task = Task { @MainActor in
       defer { revokingID = nil }
       do {
         try await actions.revokeApp(id)
-        // A list request that started before the revoke must not bring the
-        // grant back when it lands.
         generation += 1
         state = .loaded(apps.filter { $0.id != id })
+        return true
       } catch {
-        guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
-        revokeFailure = message
-        failedRevokeID = id
+        guard let message = PutioAccountSecurityPresentation.message(for: error) else {
+          return false
+        }
+        revokeFailures[id] = message
+        return true
       }
     }
-    await task.value
-  }
-
-  public func retryRevoke() async {
-    guard let failedRevokeID else { return }
-    await revoke(id: failedRevokeID)
+    return await task.value
   }
 }
 

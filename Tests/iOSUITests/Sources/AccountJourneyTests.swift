@@ -82,7 +82,7 @@ final class AccountJourneyTests: XCTestCase {
       ("playback-settings.route", "Choose your proxy"),
       ("account.chromecast", "Chromecast"),
       ("account.privacy", "Privacy controls"),
-      ("security.apps", "Where you are logged in"),
+      ("security.apps", "Logged-in apps"),
       ("security.link-device", "Link your account"),
       ("account.two-factor", "Two-factor authentication"),
       ("account.about", "App info"),

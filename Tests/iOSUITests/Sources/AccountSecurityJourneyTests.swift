@@ -75,17 +75,23 @@ final class AccountSecurityJourneyTests: XCTestCase {
     back()
     back()
 
-    // Signed-in apps: this app has no revoke action; the TV revoke retries.
     tap("security.apps")
+    XCTAssertTrue(app.navigationBars["Logged-in apps"].appears(within: 5))
     let tv = element("security.app.42")
     XCTAssertTrue(tv.appears(within: 10))
     let thisApp = element("security.app.3001")
-    XCTAssertEqual(thisApp.value as? String, "This app")
+    XCTAssertEqual(thisApp.value as? String, "This iPhone")
+    XCTAssertTrue(app.staticTexts["Used on Nov 9, 2026"].exists, "the TV shows no last use")
     thisApp.swipeLeft()
     XCTAssertFalse(app.buttons["security.app.revoke.3001"].exists, "this app offered revocation")
     tv.swipeLeft()
     tap("security.app.revoke.42")
-    tap("security.apps.retry")
+    XCTAssertTrue(
+      app.staticTexts["Check your connection and try again."].appears(within: 10),
+      "the failed revoke showed no reason")
+    XCTAssertTrue(tv.exists, "the failed revoke dropped the row")
+    tv.swipeLeft()
+    tap("security.app.revoke.42")
     XCTAssertTrue(tv.disappears(within: 10))
     XCTAssertTrue(thisApp.exists)
     screenshot("runtime-security-apps")
@@ -169,11 +175,65 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testSignOutOfAllOtherAppsAsksFirstAndKeepsFailedApps() throws {
+    app.launch()
+    signIn()
+    app.buttons["Account"].tap()
+    tap("security.apps")
+    let signOutOthers = element("security.apps.sign-out-others")
+    XCTAssertTrue(signOutOthers.appears(within: 10))
+    let thisApp = element("security.app.3001")
+    let tv = element("security.app.42")
+    let android = element("security.app.43")
+    let infuse = element("security.app.44")
+
+    tap("security.apps.sign-out-others")
+    let alert = app.alerts["Sign out of all other apps?"]
+    XCTAssertTrue(alert.appears(within: 5))
+    XCTAssertTrue(
+      alert.staticTexts[
+        "This iPhone stays signed in. Every other app and device has to sign in again."
+      ].exists)
+    alert.buttons["Cancel"].tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertTrue(tv.exists && android.exists && infuse.exists, "Cancel revoked an app")
+
+    tap("security.apps.sign-out-others")
+    XCTAssertTrue(alert.appears(within: 5))
+    alert.buttons["Sign out"].tap()
+    XCTAssertTrue(android.disappears(within: 10))
+    XCTAssertTrue(infuse.disappears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Check your connection and try again."].appears(within: 10),
+      "the failed app showed no reason")
+    XCTAssertTrue(tv.exists, "the failed app left the list")
+    XCTAssertTrue(signOutOthers.exists, "a partial failure hid the row")
+    screenshot("runtime-security-sign-out-others-partial")
+
+    tap("security.apps.sign-out-others")
+    XCTAssertTrue(alert.appears(within: 5))
+    alert.buttons["Sign out"].tap()
+    XCTAssertTrue(tv.disappears(within: 10))
+    XCTAssertTrue(signOutOthers.disappears(within: 5), "the row stayed with only this app")
+    XCTAssertTrue(thisApp.exists)
+    screenshot("runtime-security-sign-out-others-done")
+
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(
+      element("files.screen.0").appears(within: 15), "this app was signed out after relaunch")
+    XCTAssertFalse(element("auth.sign-in").exists)
+  }
+
   private func signIn() {
     let button = element("auth.sign-in")
-    XCTAssertTrue(button.appears(within: 10))
-    button.tap()
-    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    let root = element("files.screen.0")
+    let deadline = Date.now.addingTimeInterval(10)
+    while !button.exists, !root.exists, Date.now < deadline {
+      _ = button.appears(within: 0.5)
+    }
+    if button.exists { button.tap() }
+    XCTAssertTrue(root.appears(within: 10))
   }
 
   private func back() {

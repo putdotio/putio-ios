@@ -8,15 +8,38 @@ extension PutioRuntime {
     let (grants, clientID) = try await performAuthenticatedOperation {
       (try await sdk.getGrants(), sdk.config.clientID)
     }
+    let clients =
+      (try? await performAuthenticatedOperation { try await sdk.getClients() }) ?? []
+    let sessions = Dictionary(grouping: clients, by: \.appID)
     var ids = Set<Int>()
-    return try grants.map { grant in
+    let apps = try grants.map { grant in
       guard grant.id > 0, ids.insert(grant.id).inserted else {
         throw PutioRuntimeError.invalidResponse
       }
+      let appSessions = sessions[grant.id] ?? []
+      let name =
+        grant.name.isEmpty
+        ? appSessions.lazy.compactMap(\.appName).first { !$0.isEmpty } ?? "" : grant.name
       return PutioAuthorizedApp(
-        id: grant.id, name: grant.name, description: grant.description,
+        id: grant.id, name: name,
+        lastUsedAt: appSessions.compactMap {
+          $0.lastUsedAt.flatMap(PutioAccountSnapshot.timestamp)
+        }.max(),
+        hasIcon: grant.hasIcon == true,
         isCurrentClient: String(grant.id) == clientID)
     }
+    return apps.sorted { lhs, rhs in
+      if lhs.isCurrentClient != rhs.isCurrentClient { return lhs.isCurrentClient }
+      if lhs.lastUsedAt != rhs.lastUsedAt {
+        return (lhs.lastUsedAt ?? .distantPast) > (rhs.lastUsedAt ?? .distantPast)
+      }
+      return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+    }
+  }
+
+  public func authorizedAppIcon(id: Int) async throws -> Data {
+    guard id > 0 else { throw PutioRuntimeError.invalidResponse }
+    return try await performAuthenticatedOperation { try await sdk.getAppIcon(appID: id) }
   }
 
   public func revokeAuthorizedApp(id: Int) async throws {
@@ -39,7 +62,7 @@ extension PutioRuntime {
       }
     }
     return PutioAuthorizedApp(
-      id: grant.id, name: grant.name, description: grant.description, isCurrentClient: false)
+      id: grant.id, name: grant.name, hasIcon: grant.hasIcon == true, isCurrentClient: false)
   }
 
   /// Starts two-factor enrollment. The returned secret goes into an

@@ -939,17 +939,6 @@
         }
       }
     },
-    "Could not load apps" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not load apps"
-          }
-        }
-      }
-    },
     "Could not load history" : {
       "comment" : "android: mobile_history_error_title | differs: iOS spells out “Could not”",
       "localizations" : {
@@ -1133,6 +1122,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load account settings"
+          }
+        }
+      }
+    },
+    "Couldn’t load logged-in apps" : {
+      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load logged-in apps"
           }
         }
       }
@@ -2395,17 +2395,6 @@
         }
       }
     },
-    "Loading apps" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading apps"
-          }
-        }
-      }
-    },
     "Loading folders…" : {
       "comment" : "android: mobile_files_move_loading",
       "localizations" : {
@@ -2424,6 +2413,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading history"
+          }
+        }
+      }
+    },
+    "Loading logged-in apps…" : {
+      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading logged-in apps…"
           }
         }
       }
@@ -3684,6 +3684,28 @@
         }
       }
     },
+    "Sign out of all other apps" : {
+      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out of all other apps"
+          }
+        }
+      }
+    },
+    "Sign out of all other apps?" : {
+      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out of all other apps?"
+          }
+        }
+      }
+    },
     "Sort by" : {
       "comment" : "android: mobile_files_sort_by",
       "localizations" : {
@@ -3750,6 +3772,50 @@
         }
       }
     },
+    "This iPad" : {
+      "comment" : "ios-only: Android says This device; iOS names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPad"
+          }
+        }
+      }
+    },
+    "This iPad stays signed in. Every other app and device has to sign in again." : {
+      "comment" : "ios-only: Android says This device; iOS names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPad stays signed in. Every other app and device has to sign in again."
+          }
+        }
+      }
+    },
+    "This iPhone" : {
+      "comment" : "ios-only: Android says This device; the iOS board names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPhone"
+          }
+        }
+      }
+    },
+    "This iPhone stays signed in. Every other app and device has to sign in again." : {
+      "comment" : "ios-only: Android says This device; the iOS board names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPhone stays signed in. Every other app and device has to sign in again."
+          }
+        }
+      }
+    },
     "Unpin" : {
       "comment" : "ios-only: Android's mobile_files_unpin is newer than the Android snapshot",
       "localizations" : {
@@ -3790,6 +3856,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating item %lld of %lld…"
+          }
+        }
+      }
+    },
+    "Used on %@" : {
+      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Used on %@"
           }
         }
       }
@@ -4949,17 +5026,6 @@
         }
       }
     },
-    "This app" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This app"
-          }
-        }
-      }
-    },
     "This device is out of space, so changes to your downloads were not saved. Free up storage and try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -5605,17 +5671,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "When you send files to trash, we keep them here for 14 days."
-          }
-        }
-      }
-    },
-    "Where you are logged in" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where you are logged in"
           }
         }
       }

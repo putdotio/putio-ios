@@ -66,6 +66,10 @@ Preconditions:
 - **Security.** Run `--only account-security`. Screenshots:
   `runtime-security-recovery-codes`, `runtime-security-apps`,
   `runtime-danger-clear-data`.
+- **Logged-in apps.** Run `--only sign-out-other-apps`. The seeded Apple TV
+  revoke fails once. Screenshots: `runtime-security-sign-out-others-partial`,
+  `runtime-security-sign-out-others-done`. Never run it on the live account: it
+  signs out the shared web, Android and TV sessions.
 - **File preferences.** Run `--only file-preferences`. Screenshots:
   `runtime-file-preferences`, `runtime-file-preferences-refresh`,
   `runtime-privacy-controls`.
