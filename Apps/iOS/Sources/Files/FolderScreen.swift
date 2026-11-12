@@ -274,8 +274,8 @@ struct PutioFolderScreen: View {
       onLoaded()
     }
     .onChange(of: fileActionPending) { _, pending in
-      guard !pending, let pinnedSectionContext else { return }
-      Task { await pinnedSectionContext.model.load() }
+      guard !pending, let pins = pinned?.model, !pins.items.isEmpty else { return }
+      Task { await pins.load() }
     }
     .onChange(of: isEditing) { _, editing in
       if editing { share.leave() }
