@@ -639,6 +639,7 @@ struct MainTabView: View {
         }
         HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
         HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
+        HarnessPasteboardProbe()
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }
