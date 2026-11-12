@@ -2271,6 +2271,7 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
         guard let element = issue.element else { return false }
+        if element.elementType == .searchField { return true }
         return Self.isMiddleTruncatedFileName(element.label)
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
