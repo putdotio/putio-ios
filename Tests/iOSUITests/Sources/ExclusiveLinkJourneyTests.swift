@@ -69,6 +69,8 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("public-links.item.951").appears(within: 10), "the file link is missing")
     XCTAssertTrue(element("public-links.item.952").exists, "the folder link is missing")
     attach("runtime-exclusive-link-account")
+    app.navigationBars["Exclusive links"].buttons.element(boundBy: 0).tap()
+    signOut()
   }
 
   func testEveryRefusalNamesItsReasonAndCreateLinkTriesAgain() {
@@ -93,6 +95,8 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     }
     app.buttons["files.exclusive-link.create"].tap()
     XCTAssertTrue(created.appears(within: 10), "Create link after the refusals created nothing")
+    closeSheet()
+    signOut()
   }
 
   func testAFailureOffersTryAgain() {
@@ -108,6 +112,8 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     attach("runtime-exclusive-link-failed")
     retry.tap()
     XCTAssertTrue(created.appears(within: 10), "Try again created nothing")
+    closeSheet()
+    signOut()
   }
 
   func testClosingWhileCreatingCancels() {
@@ -123,6 +129,8 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
       app.buttons["files.exclusive-link.create"].label, "Create link",
       "reopening kept the cancelled request")
     XCTAssertFalse(app.staticTexts["Creating link…"].exists)
+    closeSheet()
+    signOut()
   }
 
   private var created: XCUIElement { element("files.exclusive-link.created") }
@@ -162,6 +170,17 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     action.tap()
     XCTAssertTrue(
       app.buttons["files.exclusive-link.create"].appears(within: 5), "Exclusive link never opened")
+  }
+
+  private func signOut() {
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
+    XCTAssertTrue(signOut.becomesHittable(within: 5), "sign-out action is not tappable")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10), "sign-out never finished")
   }
 
   private func closeSheet() {
