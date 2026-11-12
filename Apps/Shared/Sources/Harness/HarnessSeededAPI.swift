@@ -999,6 +999,7 @@ import Foundation
       accountInfoRequests = 0
       accountSettingsAutoplaySaves = 0
       fileActionsLock.unlock()
+      resetSharedItems()
     }
 
     override class func canInit(with request: URLRequest) -> Bool {
@@ -1267,7 +1268,7 @@ import Foundation
     }
 
     /// The comma-separated `file_ids` of a batched request, in order.
-    private static func requestFileIDs(_ request: URLRequest) -> [Int]? {
+    static func requestFileIDs(_ request: URLRequest) -> [Int]? {
       guard
         let payload = requestPayload(request),
         let rawFileIDs = payload["file_ids"] as? String
@@ -1707,6 +1708,7 @@ import Foundation
       if request.httpMethod == "POST", let grantID = revokedGrantID(from: url.path) {
         return revokeGrant(grantID)
       }
+      if let response = sharedItemsFixture(request, path: url.path) { return response }
       if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
         return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
       }
@@ -2635,6 +2637,7 @@ import Foundation
           )
         )
       case .some(let parentID):
+        if let listing = sharedFolderListing(parentID) { return listing }
         if let listing = actionFolderListing(parentID) { return listing }
         return (
           404,
@@ -2647,7 +2650,7 @@ import Foundation
       }
     }
 
-    private static func fixtureError(statusCode: Int, type: String, message: String) -> String {
+    static func fixtureError(statusCode: Int, type: String, message: String) -> String {
       return """
         {
           "status": "ERROR",
@@ -3261,7 +3264,7 @@ import Foundation
       )
     }
 
-    private static func requestBodyData(_ request: URLRequest) -> Data? {
+    static func requestBodyData(_ request: URLRequest) -> Data? {
       if let body = request.httpBody {
         return body
       }
@@ -3293,7 +3296,7 @@ import Foundation
       return replayableRequest
     }
 
-    private static func requestPayload(_ request: URLRequest) -> [String: Any]? {
+    static func requestPayload(_ request: URLRequest) -> [String: Any]? {
       guard let body = requestBodyData(request) else { return nil }
       return try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     }
@@ -3432,6 +3435,7 @@ import Foundation
             folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0),
           ]
           : [])
+      if usesSharedItems { rows.append(sharedRootRow) }
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       rows = ordered(rows, by: sortBy)

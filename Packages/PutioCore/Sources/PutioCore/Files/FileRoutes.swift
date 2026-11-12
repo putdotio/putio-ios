@@ -3,13 +3,24 @@ import Foundation
 public struct PutioFolderRoute: Identifiable, Sendable {
   public let id: PutioFileID
   public let title: String
+  /// The friend whose folder under "items shared with you" holds this one.
+  public let sharedBy: String?
 
   public static let root = PutioFolderRoute(
     id: .root, title: String(localized: "Files", bundle: .module))
 
-  public init(id: PutioFileID, title: String) {
+  public init(id: PutioFileID, title: String, sharedBy: String? = nil) {
     self.id = id
     self.title = title
+    self.sharedBy = sharedBy
+  }
+
+  /// The route to `folder`, a child of the folder this route opens, which is
+  /// `parent` once loaded.
+  public func child(_ folder: PutioFileItem, in parent: PutioFileItem?) -> PutioFolderRoute {
+    PutioFolderRoute(
+      id: folder.id, title: folder.name,
+      sharedBy: parent?.isSharedRoot == true ? folder.name : sharedBy)
   }
 }
 

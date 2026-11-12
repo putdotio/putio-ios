@@ -236,4 +236,20 @@ final class PutioFileRouteTests: XCTestCase {
     XCTAssertEqual(row.sizeText, "4.68 GB")
     XCTAssertEqual(row.dateText, "yesterday")
   }
+
+  func testFoldersUnderAFriendNameTheFriendWhoSharedThem() {
+    func folder(_ id: Int, _ name: String, sharedRoot: Bool = false) -> PutioFileItem {
+      PutioFileItem(
+        id: PutioFileID(rawValue: id), parentID: .root, name: name, kind: .folder, sizeBytes: 0,
+        createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: 0,
+        isShared: true, isSharedRoot: sharedRoot)
+    }
+    let shared = folder(1, "Items shared with you", sharedRoot: true)
+    let sharedRoute = PutioFolderRoute.root.child(shared, in: nil)
+    XCTAssertNil(sharedRoute.sharedBy)
+    let friend = sharedRoute.child(folder(2, "deniz"), in: shared)
+    XCTAssertEqual(friend.sharedBy, "deniz")
+    XCTAssertEqual(
+      friend.child(folder(3, "Holiday 2026"), in: folder(2, "deniz")).sharedBy, "deniz")
+  }
 }

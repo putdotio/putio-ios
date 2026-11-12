@@ -153,12 +153,16 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
   }
 
   extension View {
+    /// `preview` replaces the lifted row while the long-press menu is open.
     public func putioItemActions(
       _ menu: PutioItemMenu,
       leading: [PutioItemAction] = [],
-      trailing: [PutioItemAction] = []
+      trailing: [PutioItemAction] = [],
+      preview: AnyView? = nil
     ) -> some View {
-      modifier(PutioItemActionsModifier(menu: menu, leading: leading, trailing: trailing))
+      modifier(
+        PutioItemActionsModifier(
+          menu: menu, leading: leading, trailing: trailing, preview: preview))
     }
 
     public func putioTextAlert(_ alert: Binding<PutioTextAlert?>) -> some View {
@@ -174,10 +178,24 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     let menu: PutioItemMenu
     let leading: [PutioItemAction]
     let trailing: [PutioItemAction]
+    let preview: AnyView?
 
+    @ViewBuilder
     func body(content: Content) -> some View {
+      if let preview {
+        swipes(
+          content.contextMenu {
+            PutioItemMenuContent(menu)
+          } preview: {
+            preview
+          })
+      } else {
+        swipes(content.contextMenu { PutioItemMenuContent(menu) })
+      }
+    }
+
+    private func swipes(_ content: some View) -> some View {
       content
-        .contextMenu { PutioItemMenuContent(menu) }
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
           ForEach(leading) { action in
             swipeButton(action)

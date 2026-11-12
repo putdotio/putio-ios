@@ -14,6 +14,7 @@ public enum PutioFileMenuRow: String, Hashable, Sendable {
   case move
   case exclusiveLink
   case trash
+  case makeCopy
 }
 
 public struct PutioFileMenu: Equatable, Sendable {
@@ -24,12 +25,13 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var tracksWatched: Bool
     public var canShare: Bool
     public var canLink: Bool
+    public var canCopy: Bool
     /// Whether the item is pinned; `nil` leaves Pin and Unpin out.
     public var pinned: Bool?
 
     public init(
       canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
-      canShare: Bool = false, canLink: Bool = false, pinned: Bool? = nil
+      canShare: Bool = false, canLink: Bool = false, canCopy: Bool = false, pinned: Bool? = nil
     ) {
       self.canEdit = canEdit
       self.canDownload = canDownload
@@ -38,12 +40,19 @@ public struct PutioFileMenu: Equatable, Sendable {
       self.canShare = canShare
       self.canLink = canLink
       self.pinned = pinned
+      self.canCopy = canCopy
     }
   }
 
   public let sections: [[PutioFileMenuRow]]
 
+  /// A shared folder offers nothing: put.io cannot copy the shared root or a
+  /// friend's folder, and a guest cannot change anything inside one.
   public init(item: PutioFileItem, capabilities: Capabilities, isDownloaded: Bool = false) {
+    guard !(item.isShared && item.kind == .folder) else {
+      sections = []
+      return
+    }
     let route = item.kind == .folder ? nil : PutioFileRoute(item: item)
     var playback: [PutioFileMenuRow] = []
     if let route, route.isPlayable {
@@ -61,7 +70,7 @@ public struct PutioFileMenu: Equatable, Sendable {
     var destructive: [PutioFileMenuRow] = []
     let editable = capabilities.canEdit && !item.isShared
     if editable { organize.append(.select) }
-    if let pinned = capabilities.pinned { organize.append(pinned ? .unpin : .pin) }
+    if !item.isShared, let pinned = capabilities.pinned { organize.append(pinned ? .unpin : .pin) }
     if editable {
       if capabilities.tracksWatched, item.kind == .video {
         organize.append(item.isWatched ? .markUnwatched : .markWatched)
@@ -69,7 +78,8 @@ public struct PutioFileMenu: Equatable, Sendable {
       edit = capabilities.canLink ? [.rename, .move, .exclusiveLink] : [.rename, .move]
       destructive = [.trash]
     }
-    sections = [playback, organize, edit, destructive].filter { !$0.isEmpty }
+    let copy: [PutioFileMenuRow] = capabilities.canCopy && item.isShared ? [.makeCopy] : []
+    sections = [playback, copy, organize, edit, destructive].filter { !$0.isEmpty }
   }
 
   private init(sections: [[PutioFileMenuRow]]) {

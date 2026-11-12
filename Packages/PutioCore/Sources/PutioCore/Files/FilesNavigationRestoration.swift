@@ -53,6 +53,7 @@ public final class PutioFilesNavigationRestoration {
     }
 
     var restored: [PutioFolderRoute] = []
+    var parent: PutioFileItem?
     for route in savedPath {
       do {
         try Task.checkCancellation()
@@ -66,7 +67,8 @@ public final class PutioFilesNavigationRestoration {
           save(path: restored, for: accountID)
           return restored
         }
-        restored.append(PutioFolderRoute(id: folder.id, title: folder.name))
+        restored.append((restored.last ?? .root).child(folder, in: parent))
+        parent = folder
       } catch {
         guard defaults.data(forKey: key(accountID)) == data else { return [] }
         if error as? PutioRuntimeError == .notFound {

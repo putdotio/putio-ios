@@ -25,6 +25,10 @@ typealias PutioFileBatchDelete =
 /// Moves a batch into a folder in one request, with the same failure shape.
 typealias PutioFileBatchMove =
   @MainActor @Sendable ([PutioFileID], PutioFileID) async throws -> [PutioFileID: Error]
+typealias PutioSharedFileCopyStart =
+  @MainActor @Sendable (PutioFileID, PutioFileID) async throws -> Int
+typealias PutioSharedFileCopyCheck =
+  @MainActor @Sendable (Int) async throws -> PutioSharedFileCopyProgress
 
 public struct PutioFileActions: Sendable {
   /// Items per bulk request, well under the server's per-request file limit.
@@ -45,6 +49,8 @@ public struct PutioFileActions: Sendable {
   public let continueFolders: PutioFolderContinue?
   let setSort: PutioFolderSortUpdate
   let setWatched: PutioFileWatchedUpdate
+  let copySharedFile: PutioSharedFileCopyStart
+  let sharedFileCopyProgress: PutioSharedFileCopyCheck
   let canDelete: @MainActor @Sendable () -> Bool
 
   public init(runtime: PutioRuntime) {
@@ -56,6 +62,12 @@ public struct PutioFileActions: Sendable {
     }
     setWatched = { fileID, watched in
       try await runtime.setFileWatched(fileID: fileID, watched: watched)
+    }
+    copySharedFile = { fileID, parentID in
+      try await runtime.copySharedFile(fileID: fileID, to: parentID)
+    }
+    sharedFileCopyProgress = { copyID in
+      try await runtime.sharedFileCopyProgress(copyID: copyID)
     }
     createFolder = { name, parentID in
       try await runtime.createFolder(name: name, parentID: parentID)
@@ -107,6 +119,12 @@ public struct PutioFileActions: Sendable {
     continueFolders: PutioFolderContinue? = nil,
     setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown },
     setWatched: @escaping PutioFileWatchedUpdate = { _, _ in throw PutioRuntimeError.unknown },
+    copySharedFile: @escaping PutioSharedFileCopyStart = { _, _ in
+      throw PutioRuntimeError.unknown
+    },
+    sharedFileCopyProgress: @escaping PutioSharedFileCopyCheck = { _ in
+      throw PutioRuntimeError.unknown
+    },
     canDelete: @escaping @MainActor @Sendable () -> Bool = { true }
   ) {
     self.createFolder = createFolder
@@ -136,6 +154,8 @@ public struct PutioFileActions: Sendable {
     self.continueFolders = continueFolders
     self.setSort = setSort
     self.setWatched = setWatched
+    self.copySharedFile = copySharedFile
+    self.sharedFileCopyProgress = sharedFileCopyProgress
     self.canDelete = canDelete
   }
 }

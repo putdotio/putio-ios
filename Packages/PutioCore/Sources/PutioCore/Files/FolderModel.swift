@@ -826,7 +826,8 @@ extension PutioFileItem {
       createdAt: createdAt,
       updatedAt: updatedAt,
       resumePositionSeconds: resumePositionSeconds,
-      isShared: isShared
+      isShared: isShared,
+      isSharedRoot: isSharedRoot
     )
   }
 
@@ -840,7 +841,8 @@ extension PutioFileItem {
       createdAt: createdAt,
       updatedAt: updatedAt,
       resumePositionSeconds: seconds,
-      isShared: isShared
+      isShared: isShared,
+      isSharedRoot: isSharedRoot
     )
   }
 }

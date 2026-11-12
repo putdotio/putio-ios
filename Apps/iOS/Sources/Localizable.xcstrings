@@ -5509,6 +5509,106 @@
           }
         }
       }
+    },
+    "Copy %lld items" : {
+      "comment" : "android: mobile_files_copy_title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copy %lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Copy %lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Copy to %@" : {
+      "comment" : "android: mobile_files_copy_to",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy to %@"
+          }
+        }
+      }
+    },
+    "Make a copy" : {
+      "comment" : "android: mobile_files_make_copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make a copy"
+          }
+        }
+      }
+    },
+    "Copied “%@” to %@." : {
+      "comment" : "android: mobile_files_copied",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied “%@” to %@."
+          }
+        }
+      }
+    },
+    "Couldn’t copy “%@” to %@." : {
+      "comment" : "android: mobile_files_copy_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t copy “%@” to %@."
+          }
+        }
+      }
+    },
+    "Couldn’t confirm the copy of “%@”. It may still show up in %@." : {
+      "comment" : "android: mobile_files_copy_unconfirmed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t confirm the copy of “%@”. It may still show up in %@."
+          }
+        }
+      }
+    },
+    "You’re already copying as much as put.io allows at once. Try again when that copy finishes." : {
+      "comment" : "android: mobile_files_copy_concurrent_limit",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’re already copying as much as put.io allows at once. Try again when that copy finishes."
+          }
+        }
+      }
+    },
+    "That’s too many files to copy at once." : {
+      "comment" : "android: mobile_files_copy_too_many_files",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That’s too many files to copy at once."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
