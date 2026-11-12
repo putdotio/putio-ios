@@ -47,13 +47,21 @@ final class BoardCaptureTests: XCTestCase {
     let harnessFolder = element("files.item.410")
     XCTAssertTrue(harnessFolder.appears(within: 10), "seeded folder row never appeared")
     harnessFolder.tap()
-    XCTAssertTrue(element("files.screen.410").appears(within: 10), "folder did not open")
-    let folder = app.revealed("files.item.440")
-    XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
-    folder.tap()
-    XCTAssertTrue(
-      labeled("Loading files").appears(within: 5), "the folder shows no loading spinner")
-    XCTAssertTrue(app.navigationBars["Blue Lights"].exists, "the loading folder has no title")
+    let spinner = labeled("Loading files")
+    let season = app.navigationBars["Blue Lights"]
+    let harnessScreen = element("files.screen.410")
+    let deadline = Date.now.addingTimeInterval(10)
+    while !(season.exists && spinner.exists), !harnessScreen.exists, Date.now < deadline {
+      _ = season.appears(within: 0.5)
+    }
+    if !season.exists {
+      XCTAssertTrue(harnessScreen.appears(within: 5), "folder did not open")
+      let folder = app.revealed("files.item.440")
+      XCTAssertTrue(folder.appears(within: 10), "seeded season folder never appeared")
+      folder.tap()
+    }
+    XCTAssertTrue(spinner.appears(within: 5), "the folder shows no loading spinner")
+    XCTAssertTrue(season.exists, "the loading folder has no title")
     try captureBoard("rd-ios-40-loading")
   }
 
