@@ -601,6 +601,12 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
+      BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
+      BoardCapture(
+        "rd-ios-acc-03-account-middle", .iphone, "testAccountPlayback", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-22-account-security", .iphone, "testAccountSecurity", screenBase: false),
+      BoardCapture("rd-ios-acc-04-account-end", .iphone, "testAccountEnd", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
   static let galleryDevices: [BoardDevice] = [.iphone, .ipad]
@@ -801,7 +807,10 @@ enum BrowserJourneyContract {
       attachmentNames: ["shell-history-off"]),
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
-      attachmentNames: ["runtime-account-rating"]),
+      attachmentNames: ["runtime-account-rating"], timeAllowance: 120),
+    JourneyPreflight(
+      "account-rows", "AccountJourneyTests/testEveryAccountRowOpensAndClosesFromTopToEnd",
+      timeAllowance: 180),
     JourneyPreflight(
       "analytics-prompt",
       "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",
@@ -894,13 +903,13 @@ enum BrowserJourneyContract {
       "subtitles",
       "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
-      timeAllowance: 180),
+      timeAllowance: 240),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy",
       attachmentNames: [
         "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
       ],
-      timeAllowance: 180),
+      timeAllowance: 240),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
   ]

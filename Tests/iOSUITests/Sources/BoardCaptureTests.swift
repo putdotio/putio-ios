@@ -206,6 +206,36 @@ final class BoardCaptureTests: XCTestCase {
       element("preview.screen.428").appears(within: 10), "the preview did not open")
   }
 
+  func testAccountTop() throws {
+    openAccount()
+    try captureBoard("rd-ios-acc-02-account")
+  }
+
+  func testAccountPlayback() throws {
+    openAccount()
+    scrollAccount(untilNearTop: "playback-settings.autoplay")
+    try captureBoard("rd-ios-acc-03-account-middle")
+  }
+
+  func testAccountSecurity() throws {
+    openAccount()
+    scrollAccount(untilNearTop: "playback-settings.subtitles")
+    try captureBoard("rd-ios-acc-22-account-security")
+  }
+
+  func testAccountEnd() throws {
+    openAccount()
+    let destroy = element("account.destroy-account")
+    var swipes = 0
+    while !(destroy.exists && destroy.isHittable), swipes < 8 {
+      app.swipeUp()
+      swipes += 1
+    }
+    XCTAssertTrue(destroy.appears(within: 5))
+    XCTAssertTrue(destroy.isHittable, "the end of Account never scrolled into view")
+    try captureBoard("rd-ios-acc-04-account-end")
+  }
+
   func testGalleryPage() throws {
     let environment = ProcessInfo.processInfo.environment
     let board = try XCTUnwrap(environment["PUTIO_BOARD_ID"])
@@ -240,6 +270,31 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 5), "the list column is hidden after \(step)")
     XCTAssertTrue(row.isSelected, "the open row lost its selection after \(step)")
     XCTAssertFalse(app.staticTexts["No file selected"].exists, "the detail emptied after \(step)")
+  }
+
+  private func openAccount() {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    reachFilesRoot()
+    tabButton("Account").tap()
+    XCTAssertTrue(element("account.profile").appears(within: 10), "Account never opened")
+    XCTAssertTrue(element("account.storage-used").exists, "Account has no storage row")
+  }
+
+  private func scrollAccount(untilNearTop identifier: String) {
+    let target = element(identifier)
+    let window = app.windows.firstMatch.frame
+    let ceiling = window.minY + window.height * 0.24
+    var steps = 0
+    while !(target.exists && target.frame.minY < ceiling), steps < 60 {
+      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.52))
+      start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+      steps += 1
+    }
+    XCTAssertTrue(target.exists, "\(identifier) never scrolled into view")
+    XCTAssertLessThan(target.frame.minY, ceiling, "\(identifier) did not reach the top")
+    XCTAssertTrue(target.appears(within: 5))
   }
 
   private func reachFilesRoot() {

@@ -76,6 +76,7 @@ public struct PutioSettingsSection<Content: View>: View {
 
 public struct PutioNavigationRow<Destination: View>: View {
   private let title: String
+  private let subtitle: String?
   private let icon: PutioIcon?
   private let value: String?
   private let valueStyle: PutioSettingValueStyle
@@ -83,12 +84,14 @@ public struct PutioNavigationRow<Destination: View>: View {
 
   public init(
     _ title: String,
+    subtitle: String? = nil,
     icon: PutioIcon? = nil,
     value: String? = nil,
     valueStyle: PutioSettingValueStyle = .text,
     @ViewBuilder destination: () -> Destination
   ) {
     self.title = title
+    self.subtitle = subtitle
     self.icon = icon
     self.value = value
     self.valueStyle = valueStyle
@@ -99,8 +102,35 @@ public struct PutioNavigationRow<Destination: View>: View {
     NavigationLink {
       destination
     } label: {
-      PutioSettingsValueLayout(title: title, icon: icon, value: value, valueStyle: valueStyle)
+      PutioSettingsValueLayout(
+        title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
     }
+  }
+}
+
+public struct PutioLinkRow: View {
+  private let title: String
+  private let icon: PutioIcon?
+  private let action: () -> Void
+
+  public init(_ title: String, icon: PutioIcon? = nil, action: @escaping () -> Void) {
+    self.title = title
+    self.icon = icon
+    self.action = action
+  }
+
+  public var body: some View {
+    Button(action: action) {
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+        Spacer(minLength: PutioTheme.Spacing.space2)
+        PutioIconView(.arrowSquareOut, size: PutioSettingsLayout.accessorySize)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .accessibilityHidden(true)
+      }
+      .contentShape(Rectangle())
+    }
+    .accessibilityAddTraits(.isLink)
   }
 }
 
@@ -339,10 +369,12 @@ public struct PutioActionRow: View {
 
 public struct PutioDestructiveRow: View {
   private let title: String
+  private let alignment: Alignment
   private let action: () -> Void
 
-  public init(_ title: String, action: @escaping () -> Void) {
+  public init(_ title: String, alignment: Alignment = .leading, action: @escaping () -> Void) {
     self.title = title
+    self.alignment = alignment
     self.action = action
   }
 
@@ -351,7 +383,7 @@ public struct PutioDestructiveRow: View {
       Text(title)
         .putioFont(PutioFormLayout.titleFont)
         .foregroundStyle(PutioTheme.Colors.destructive)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: alignment)
         .contentShape(Rectangle())
     }
   }
@@ -503,6 +535,7 @@ private struct PutioSettingsLabel: View {
 
 private struct PutioSettingsValueLayout: View {
   let title: String
+  let subtitle: String?
   let icon: PutioIcon?
   let value: String?
   let valueStyle: PutioSettingValueStyle
@@ -511,20 +544,20 @@ private struct PutioSettingsValueLayout: View {
     if let value {
       ViewThatFits(in: .horizontal) {
         HStack(spacing: PutioTheme.Spacing.space2) {
-          PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+          PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
             .fixedSize()
           Spacer(minLength: PutioTheme.Spacing.space2)
           valueText(value)
             .fixedSize()
         }
         VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
-          PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+          PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
           valueText(value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
       }
     } else {
-      PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+      PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
     }
   }
 
@@ -569,10 +602,15 @@ enum PutioSettingsLayout {
       value: PutioTheme.TV.Typography.label.size,
       relativeTo: .body
     )
+    static let accessorySize = iconSize
     static let measurementFont = PutioTheme.TV.Typography.numeric
   #else
     static let iconSize = PutioMetricRole(
       value: PutioTheme.Typography.sizeMd,
+      relativeTo: .body
+    )
+    static let accessorySize = PutioMetricRole(
+      value: PutioTheme.Typography.sizeSm,
       relativeTo: .body
     )
     #if os(iOS) || os(watchOS)

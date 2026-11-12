@@ -3,13 +3,12 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
-/// Two-factor, signed-in apps, and device linking. The 2FA row reads the
-/// account snapshot; flipping it opens the change sheet and the snapshot
-/// only moves once put.io acknowledges the code. Every screen below owns its
-/// model in `@State`: an account refresh re-renders the parent, and a model
-/// built in the parent's body would reset mid-flow.
+/// The 2FA row reads the account snapshot; flipping it opens the change sheet
+/// and the snapshot only moves once put.io acknowledges the code. Every screen
+/// below owns its model in `@State`: an account refresh re-renders the parent,
+/// and a model built in the parent's body would reset mid-flow.
 @MainActor
-struct AccountSecurityView: View {
+struct TwoFactorSettingsView: View {
   let actions: PutioAccountSecurityActions
   @State private var pendingChange: PutioTwoFactorChangeModel?
   @State private var isRefreshing = false
@@ -63,19 +62,8 @@ struct AccountSecurityView: View {
             : "Protect your account with a code from an authenticator app at sign-in.")
       }
       .listRowBackground(PutioTheme.Colors.surface)
-      Section("Devices") {
-        NavigationLink("Where you are logged in") {
-          AuthorizedAppsView(actions: actions)
-        }
-        .accessibilityIdentifier("security.apps")
-        NavigationLink("Link your account") {
-          LinkDeviceView(actions: actions)
-        }
-        .accessibilityIdentifier("security.link-device")
-      }
-      .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("Security")
+    .navigationTitle("Two-factor authentication")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .sheet(item: $pendingChange) { change in
@@ -731,8 +719,11 @@ struct DestroyAccountView: View {
 }
 
 struct AboutView: View {
+  static let shortVersion =
+    Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+
   private static let version: String = {
-    let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    let short = shortVersion
     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
     switch (short, build) {
     case (let short?, let build?): return "\(short) (\(build))"
@@ -750,14 +741,24 @@ struct AboutView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
       Section("put.io") {
-        link(String(localized: "About put.io"), "https://put.io/about/")
-        link(String(localized: "Terms of service"), "https://put.io/terms-of-service/")
-        link(String(localized: "Privacy policy"), "https://put.io/privacy-policy/")
+        externalLink(String(localized: "About put.io"), "https://put.io/about/")
+        externalLink(String(localized: "Terms of service"), "https://put.io/terms-of-service/")
+        externalLink(String(localized: "Privacy policy"), "https://put.io/privacy-policy/")
       }
       .listRowBackground(PutioTheme.Colors.surface)
+    }
+    .navigationTitle("About")
+    .putioFont(PutioTheme.Typography.body)
+    .putioContentBackground()
+  }
+}
+
+struct OpenSourceLicensesView: View {
+  var body: some View {
+    Form {
       Section {
-        link("putio-sdk-swift", "https://github.com/putdotio/putio-sdk-swift")
-        link(
+        externalLink("putio-sdk-swift", "https://github.com/putdotio/putio-sdk-swift")
+        externalLink(
           String(localized: "Google Cast SDK"), "https://developers.google.com/cast/docs/ios_sender"
         )
       } header: {
@@ -767,15 +768,15 @@ struct AboutView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("About")
+    .navigationTitle("Open source licenses")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
   }
+}
 
-  @ViewBuilder
-  private func link(_ title: String, _ url: String) -> some View {
-    if let destination = URL(string: url) {
-      Link(title, destination: destination)
-    }
+@ViewBuilder
+private func externalLink(_ title: String, _ url: String) -> some View {
+  if let destination = URL(string: url) {
+    Link(title, destination: destination)
   }
 }

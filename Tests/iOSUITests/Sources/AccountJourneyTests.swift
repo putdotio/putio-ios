@@ -41,7 +41,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [contacted], timeout: 5), .completed)
     // Scrolling minimizes the tab bar; scroll back so the tabs are buttons again.
     let files = app.buttons["Files"]
-    if !files.exists { app.swipeDown() }
+    app.scrollDown(toHit: files)
     XCTAssertTrue(files.appears(within: 5))
     files.tap()
     account.tap()
@@ -57,5 +57,58 @@ final class AccountJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10))
+  }
+
+  func testEveryAccountRowOpensAndClosesFromTopToEnd() {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-rating-link",
+    ]
+    app.launch()
+    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    let account = app.buttons["Account"]
+    XCTAssertTrue(account.appears(within: 10))
+    account.tap()
+    XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
+    let requests = app.descendants(matching: .any)["account.rating-link-requests"]
+    XCTAssertTrue(requests.appears(within: 5))
+
+    let rows: [(identifier: String, title: String)] = [
+      ("account.trash", "Trash"),
+      ("playback-settings.route", "Proxy"),
+      ("account.chromecast", "Chromecast"),
+      ("account.privacy", "Privacy controls"),
+      ("security.apps", "Where you are logged in"),
+      ("security.link-device", "Link your account"),
+      ("account.two-factor", "Two-factor authentication"),
+      ("account.about", "About"),
+      ("account.privacy-policy", ""),
+      ("account.licenses", "Open source licenses"),
+      ("account.clear-data", "Clear your data"),
+      ("account.destroy-account", "Destroy your account"),
+    ]
+    for row in rows {
+      let element = app.revealed(row.identifier)
+      app.bringIntoView(element)
+      XCTAssertTrue(
+        element.becomesHittable(within: 10), "\(row.identifier) never became tappable")
+      element.tap()
+      if row.title.isEmpty {
+        let opened = XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "value == %@", "1|https://put.io/privacy-policy/"),
+          object: requests)
+        XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
+        continue
+      }
+      let destination = app.navigationBars[row.title]
+      XCTAssertTrue(destination.appears(within: 10), "\(row.identifier) did not open \(row.title)")
+      destination.buttons.element(boundBy: 0).tap()
+      XCTAssertTrue(
+        app.navigationBars["Account"].appears(within: 5), "\(row.title) did not close")
+    }
+    XCTAssertTrue(app.revealed("auth.sign-out").appears(within: 5))
   }
 }

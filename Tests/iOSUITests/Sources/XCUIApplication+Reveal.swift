@@ -4,7 +4,7 @@ extension XCUIApplication {
   /// Lazy List rows below the fold, such as the Account list's Sign out, are
   /// absent from the accessibility tree until scrolled into view. Bounded so
   /// a missing row still fails instead of scrolling forever.
-  func revealed(_ identifier: String, maximumSwipes: Int = 3) -> XCUIElement {
+  func revealed(_ identifier: String, maximumSwipes: Int = 6) -> XCUIElement {
     let target = descendants(matching: .any)[identifier]
     var swipes = 0
     while !target.appears(within: 3), swipes < maximumSwipes {
@@ -12,6 +12,26 @@ extension XCUIApplication {
       swipes += 1
     }
     return target
+  }
+
+  func scrollDown(toHit element: XCUIElement, maximumSwipes: Int = 6) {
+    var swipes = 0
+    while !element.isHittable, swipes < maximumSwipes {
+      swipeDown()
+      swipes += 1
+    }
+  }
+
+  func bringIntoView(_ element: XCUIElement, maximumSwipes: Int = 6) {
+    var swipes = 0
+    while !(element.exists && element.isHittable), swipes < maximumSwipes {
+      if element.exists, element.frame.minY < frame.midY { swipeDown() } else { swipeUp() }
+      swipes += 1
+    }
+  }
+
+  func showTabBar() {
+    scrollDown(toHit: buttons["Files"])
   }
 
   /// Account's Log out asks "Are you sure?" before ending the session.

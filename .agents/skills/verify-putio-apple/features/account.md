@@ -13,6 +13,7 @@ from a sign-out that did not finish.
 - `file-preferences` recovers a failed save, resets, keeps settings across
   relaunch, and hides History when it is off.
 - `history` pages, opens items, deletes, and follows the History setting.
+- `rows` opens and closes every Account row from top to end.
 - `rating` opens rating and contact links only after an explicit tap.
 - `analytics-prompt` retries a failed save and saves the choice once.
 
@@ -39,6 +40,8 @@ Preconditions:
   `runtime-privacy-controls`.
 - **History.** Run `--only history`. Screenshots: `runtime-history-loaded`,
   `runtime-history-error`, `runtime-history-empty`.
+- **Rows.** Run `--only account-rows`. Every navigation row opens its screen
+  and goes back; Privacy policy records its URL.
 - **Rating.** Run `--only account-rating`. Screenshot: `runtime-account-rating`.
 - **Analytics prompt.** Run `--only analytics-prompt`. Screenshot:
   `runtime-analytics-prompt`.

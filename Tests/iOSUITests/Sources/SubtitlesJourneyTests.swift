@@ -82,8 +82,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
     element("video.done").tap()
 
-    // "Do not select subtitles by default": the tracks stay offered, none is on.
-    setPlaybackToggle("playback-settings.subtitle-selection", to: "1", retryingSeededFailure: true)
+    // "Pick matching subtitles" off: the tracks stay offered, none is on.
+    setPlaybackToggle("playback-settings.subtitle-selection", to: "0", retryingSeededFailure: true)
     openVideo(retryingSeededFailure: false)
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
@@ -97,7 +97,6 @@ final class SubtitlesJourneyTests: XCTestCase {
     element("video.done").tap()
 
     app.buttons["Account"].tap()
-    app.navigationBars.buttons["BackButton"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
@@ -108,6 +107,7 @@ final class SubtitlesJourneyTests: XCTestCase {
 
   /// The seeded scenario fails the first playback attempt for retry proof.
   private func openVideo(retryingSeededFailure: Bool) {
+    app.showTabBar()
     app.buttons["Files"].tap()
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
@@ -158,17 +158,18 @@ final class SubtitlesJourneyTests: XCTestCase {
     _ identifier: String, to value: String, retryingSeededFailure: Bool
   ) {
     app.buttons["Account"].tap()
-    let entry = element("account.playback-preferences")
-    if entry.appears(within: 5) { entry.tap() }
     let toggle = app.switches[identifier]
+    app.bringIntoView(toggle)
     XCTAssertTrue(
       waitFor(NSPredicate(format: "hittable == true AND enabled == true"), toggle, timeout: 10))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     if retryingSeededFailure {
-      let retry = app.buttons["playback-settings.retry-save"]
+      app.showTabBar()
+      let retry = app.buttons["settings.retry-save"]
       XCTAssertTrue(retry.appears(within: 10))
       retry.tap()
+      app.bringIntoView(toggle)
     }
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value == %@ AND enabled == true", value), toggle, timeout: 10),

@@ -16,7 +16,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     app.launch()
     signIn()
     app.buttons["Account"].tap()
-    tap("account.security")
+    tap("account.two-factor")
 
     // Enrollment: secret, a rejected code that clears the field, then the
     // accepted code and the recovery codes.
@@ -73,6 +73,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertFalse(
       element("security.recovery-download-failure").exists, "the saved export reported a failure")
     back()
+    back()
 
     // Signed-in apps: this app has no revoke action; the TV revoke retries.
     tap("security.apps")
@@ -110,12 +111,13 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(connected.appears(within: 10))
     XCTAssertTrue(connected.staticTexts["Bedroom TV is now signed in with your account."].exists)
     connected.buttons["security.link-done"].firstMatch.tap()
-    XCTAssertTrue(linkCode.disappears(within: 5), "linking did not return to Security")
+    XCTAssertTrue(linkCode.disappears(within: 5), "linking did not return to Account")
     tap("security.apps")
     XCTAssertTrue(element("security.app.77").appears(within: 10))
     back()
 
     // Disabling asks for the current code only.
+    tap("account.two-factor")
     tapToggle(twoFactor)
     XCTAssertTrue(code.appears(within: 5))
     XCTAssertFalse(secret.exists)
@@ -187,8 +189,8 @@ final class AccountSecurityJourneyTests: XCTestCase {
   }
 
   private func tap(_ identifier: String, file: StaticString = #filePath, line: UInt = #line) {
-    let target = element(identifier)
     // Lazy List rows below the fold are absent until scrolled into view.
+    let target = app.revealed(identifier)
     if !waitUntilHittable(target, timeout: 3) { app.swipeUp() }
     XCTAssertTrue(
       waitUntilHittable(target), "\(identifier) never became hittable", file: file, line: line)
@@ -204,6 +206,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    app.bringIntoView(toggle)
     XCTAssertTrue(waitUntilHittable(toggle))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()

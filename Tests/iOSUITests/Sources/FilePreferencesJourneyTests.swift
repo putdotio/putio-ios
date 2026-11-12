@@ -26,9 +26,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
     openPreferences()
     let sort = element("settings.default-sort")
     let initialSort = sort.label
-    XCTAssertEqual(initialSort, "Default sort, Name, ascending")
+    XCTAssertEqual(initialSort, "Default sort order, Name, A to Z")
     sort.tap()
-    let descending = element("settings.sort.NAME_DESC")
+    let descending = app.buttons["Name, Z to A"].firstMatch
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
     let retrySave = app.buttons["settings.retry-save"]
@@ -44,17 +44,19 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(refresh.disappears(within: 10))
     XCTAssertTrue(waitUntilHittable(sort))
     let savedSort = sort.label
-    XCTAssertEqual(savedSort, "Default sort, Name, descending")
+    XCTAssertEqual(savedSort, "Default sort order, Name, Z to A")
 
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
-    let reset = app.buttons["settings.reset-sort"]
+    let reset = app.revealed("settings.reset-sort")
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
     let resetConfirm = app.buttons["settings.reset-sort-confirm"].firstMatch
     XCTAssertTrue(resetConfirm.appears(within: 5))
     cancelConfirmation(resetConfirm)
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
     openPreferences()
@@ -63,6 +65,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     resetConfirm.tap()
     XCTAssertTrue(resetConfirm.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(reset))
+    app.showTabBar()
     app.buttons["Files"].tap()
     assertFirstFile("Document.pdf")
     openPreferences()
@@ -76,11 +79,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(trashConfirm.appears(within: 5))
     cancelConfirmation(trashConfirm)
     assertToggle(trash, enabled: true)
-    XCTAssertTrue(waitUntilHittable(history))
+    XCTAssertTrue(waitUntilHittable(app.revealed("settings.history")))
     tapToggle(history)
     XCTAssertTrue(historyConfirm.appears(within: 5))
     cancelConfirmation(historyConfirm)
     assertToggle(history, enabled: true)
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].exists)
 
     tapToggle(trash)
@@ -89,11 +93,15 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(history)
     historyConfirm.tap()
     assertToggle(history, enabled: false)
+    app.showTabBar()
+    XCTAssertTrue(app.buttons["Files"].exists)
     XCTAssertTrue(app.buttons["History"].disappears(within: 5))
     tapToggle(history)
     assertToggle(history, enabled: true)
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].appears(within: 5))
 
+    app.scrollDown(toHit: trash)
     tapToggle(trash)
     assertToggle(trash, enabled: true)
     // Trash is managed from Account › Storage only.
@@ -107,7 +115,6 @@ final class FilePreferencesJourneyTests: XCTestCase {
     // product analytics starts off, and both survive the relaunch below.
     let diagnostics = app.switches["privacy.diagnostics"]
     let analytics = app.switches["privacy.product-analytics"]
-    app.navigationBars.buttons["BackButton"].tap()
     assertPrivacySummary("Diagnostics on · Product analytics off")
     openPrivacy()
     XCTAssertTrue(element("privacy.strictly-necessary").exists)
@@ -126,12 +133,13 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 15))
     assertFirstFile("Document.pdf")
+    app.showTabBar()
     XCTAssertTrue(app.buttons["History"].exists)
     openPreferences()
     XCTAssertEqual(sort.label, savedSort)
     assertToggle(trash, enabled: false)
+    _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
-    app.navigationBars.buttons["BackButton"].tap()
     assertPrivacySummary("Diagnostics off · Product analytics on")
     openPrivacy()
     assertToggle(diagnostics, enabled: false)
@@ -159,23 +167,18 @@ final class FilePreferencesJourneyTests: XCTestCase {
 
   private func openPreferences() {
     app.buttons["Account"].tap()
-    let sort = element("settings.default-sort")
-    if sort.exists && sort.isHittable { return }
-    let entry = element("account.file-preferences")
-    XCTAssertTrue(waitUntilHittable(entry))
-    entry.tap()
-    XCTAssertTrue(waitUntilHittable(sort))
+    XCTAssertTrue(waitUntilHittable(app.revealed("settings.default-sort")))
   }
 
   private func openPrivacy() {
-    let entry = element("account.privacy")
+    let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
     entry.tap()
     XCTAssertTrue(waitUntilHittable(app.switches["privacy.diagnostics"]))
   }
 
   private func assertPrivacySummary(_ summary: String) {
-    let entry = element("account.privacy")
+    let entry = app.revealed("account.privacy")
     XCTAssertTrue(waitUntilHittable(entry))
     XCTAssertTrue(entry.label.contains(summary), "Account row read \(entry.label)")
   }
@@ -189,6 +192,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    app.bringIntoView(toggle)
     XCTAssertTrue(waitUntilHittable(toggle))
     // Form exposes the full row as the switch accessibility frame.
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()

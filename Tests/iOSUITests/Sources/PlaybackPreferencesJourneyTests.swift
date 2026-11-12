@@ -16,45 +16,37 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     signIn.tap()
     XCTAssertTrue(app.buttons["Account"].appears(within: 10))
     playNextManuallyWithAutoplayOff(app)
-    openPreferences(app)
-    let routeRetry = app.buttons["playback-settings.retry-routes"]
-    XCTAssertTrue(routeRetry.appears(within: 10))
-    routeRetry.tap()
-    let proxy = app.descendants(matching: .any)["playback-settings.route"]
-    XCTAssertTrue(proxy.appears(within: 10))
-    proxy.tap()
+    app.buttons["Account"].tap()
+    let proxy = openProxy(app)
     let alternate = app.descendants(matching: .any)["playback-settings.route.edge"]
     XCTAssertTrue(alternate.appears(within: 5))
     alternate.tap()
-    if !app.navigationBars["Playback preferences"].exists {
-      app.navigationBars.buttons["BackButton"].tap()
-    }
-    let saveRetry = app.buttons["playback-settings.retry-save"]
+    let saveRetry = app.revealed("settings.retry-save")
     XCTAssertTrue(saveRetry.appears(within: 10))
-    XCTAssertEqual(proxy.value as? String, "Default proxy")
+    XCTAssertTrue(proxy.label.hasSuffix("default"), "proxy row read \(proxy.label)")
     saveRetry.tap()
-    let refresh = app.buttons["playback-settings.refresh"]
+    let refresh = app.buttons["settings.refresh"]
     XCTAssertTrue(refresh.appears(within: 10))
     XCTAssertFalse(saveRetry.exists)
-    XCTAssertFalse(proxy.isEnabled)
-    XCTAssertEqual(proxy.value as? String, "Alternate proxy")
+    XCTAssertTrue(proxy.label.hasSuffix("edge"), "proxy row read \(proxy.label)")
     refresh.tap()
     XCTAssertTrue(refresh.disappears(within: 10))
     let subtitles = app.switches["playback-settings.subtitles"]
     let autoSelection = app.switches["playback-settings.subtitle-selection"]
-    XCTAssertTrue(autoSelection.appears(within: 5))
+    XCTAssertTrue(app.revealed("playback-settings.subtitle-selection").appears(within: 5))
     tapToggle(autoSelection)
-    assertToggle(autoSelection, value: "1")
+    assertToggle(autoSelection, value: "0")
     tapToggle(subtitles)
     assertToggle(subtitles, value: "0")
     XCTAssertTrue(autoSelection.disappears(within: 5))
     tapToggle(subtitles)
     assertToggle(subtitles, value: "1")
     XCTAssertTrue(autoSelection.appears(within: 5))
-    assertToggle(autoSelection, value: "1")
+    assertToggle(autoSelection, value: "0")
     // Autoplay lives in the config document, not the account settings: the
     // first write fails and the switch keeps the authoritative value.
     let autoplay = app.switches["playback-settings.autoplay"]
+    app.scrollDown(toHit: autoplay)
     XCTAssertTrue(autoplay.appears(within: 5))
     assertToggle(autoplay, value: "0")
     tapToggle(autoplay)
@@ -72,15 +64,13 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
     XCTAssertTrue(app.buttons["Account"].appears(within: 15))
-    openPreferences(app)
-    XCTAssertTrue(routeRetry.appears(within: 10))
-    routeRetry.tap()
-    XCTAssertTrue(proxy.appears(within: 10))
-    XCTAssertEqual(proxy.value as? String, "Alternate proxy")
-    assertToggle(subtitles, value: "1")
-    assertToggle(autoSelection, value: "1")
+    app.buttons["Account"].tap()
+    XCTAssertTrue(app.revealed("playback-settings.autoplay").appears(within: 10))
     assertToggle(autoplay, value: "1")
-    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(proxy.label.hasSuffix("edge"), "proxy row read \(proxy.label)")
+    _ = app.revealed("playback-settings.subtitle-selection")
+    assertToggle(subtitles, value: "1")
+    assertToggle(autoSelection, value: "0")
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
@@ -139,14 +129,18 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
   }
 
-  private func openPreferences(_ app: XCUIApplication) {
-    app.buttons["Account"].tap()
-    let entry = app.descendants(matching: .any)["account.playback-preferences"]
-    XCTAssertTrue(entry.appears(within: 5))
-    entry.tap()
+  private func openProxy(_ app: XCUIApplication) -> XCUIElement {
+    let proxy = app.revealed("playback-settings.route")
+    XCTAssertTrue(proxy.appears(within: 10))
+    proxy.tap()
+    let routeRetry = app.buttons["playback-settings.retry-routes"]
+    XCTAssertTrue(routeRetry.appears(within: 10))
+    routeRetry.tap()
+    return proxy
   }
 
   private func tapToggle(_ toggle: XCUIElement) {
+    XCUIApplication().bringIntoView(toggle)
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: toggle)
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
