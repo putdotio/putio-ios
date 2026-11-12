@@ -830,7 +830,8 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     shareButton.accessibilityIdentifier = "preview.text.share"
     shareButton.isHidden = true
     shareButton.isEnabled = false
-    shareButton.addAction(UIAction { [weak self] _ in self?.presentShare() }, for: .primaryActionTriggered)
+    shareButton.addAction(
+      UIAction { [weak self] _ in self?.presentShare() }, for: .primaryActionTriggered)
     addSubview(shareButton)
     registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
       (view: PutioTextPreviewContainer, _) in
@@ -894,7 +895,8 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
       ? 0
       : shareButton.sizeThatFits(CGSize(width: shareWidth, height: .greatestFiniteMagnitude))
         .height
-    let footer = notice.isHidden ? 0 : Self.noticeSpacing + noticeHeight + Self.footerHeight(shareHeight)
+    let footer =
+      notice.isHidden ? 0 : Self.noticeSpacing + noticeHeight + Self.footerHeight(shareHeight)
     let insets = UIEdgeInsets(
       top: Self.inset, left: Self.inset, bottom: footer + Self.noticeInset, right: Self.inset)
     if textView.textContainerInset != insets { textView.textContainerInset = insets }
