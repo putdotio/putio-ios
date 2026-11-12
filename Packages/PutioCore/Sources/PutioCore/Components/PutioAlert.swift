@@ -11,7 +11,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
   public let id: String
   public let title: String
   public let tier: Tier
-  let accessibilityIdentifier: String?
+  let accessibilityIdentifier: String
   let perform: @MainActor @Sendable () -> Void
 
   public init(
@@ -21,7 +21,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
     perform: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.id = id ?? "\(tier).\(title)"
-    accessibilityIdentifier = id
+    accessibilityIdentifier = id ?? "putio-alert.\(tier)"
     self.title = title
     self.tier = tier
     self.perform = perform
@@ -136,7 +136,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
           ForEach(ordered) { action in
             Button(action.title) { dismiss(choosing: action) }
               .buttonStyle(PutioAlertButtonStyle(tier: action.tier))
-              .accessibilityIdentifier(action.accessibilityIdentifier ?? String())
+              .accessibilityIdentifier(action.accessibilityIdentifier)
           }
         }
       }
@@ -154,6 +154,13 @@ public struct PutioAlertAction: Identifiable, Sendable {
       .accessibilityLabel(title)
       .accessibilityIdentifier("putio-alert")
       .accessibilityAddTraits(.isModal)
+      .accessibilityAction(.escape) {
+        if let escape { dismiss(choosing: escape) }
+      }
+    }
+
+    private var escape: PutioAlertAction? {
+      actions.first { $0.tier == .cancel } ?? (actions.count == 1 ? actions.first : nil)
     }
 
     private var ordered: [PutioAlertAction] {
