@@ -1353,7 +1353,8 @@ import Foundation
         }
       case "POST /v2/account/settings" where requestPayload(request)?["two_factor_enabled"] != nil:
         return setTwoFactor(request: request)
-      case "POST /v2/account/settings" where settingsStayUnconfirmed:
+      case "POST /v2/account/settings"
+      where settingsStayUnconfirmed && requestPayload(request)?["hide_subtitles"] != nil:
         fileActionsLock.withLock { settingsSaved = true }
         return (200, #"{"status":"OK"}"#)
       case "POST /v2/account/settings":
