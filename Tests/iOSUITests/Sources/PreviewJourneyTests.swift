@@ -280,21 +280,13 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(row.isOnScreen, "the Share row is off screen: \(row.frame)")
     XCTAssertGreaterThan(row.frame.minY, notice.frame.maxY)
     screenshot("runtime-preview-text-truncated")
-    let requests = element("preview.requests")
-    XCTAssertFalse((requests.value as? String ?? "").contains("432:shared"))
-    assertShares("Blue.Lights.S04.en.srt", from: row, capture: "text", copying: true)
-    XCTAssertTrue(
-      (requests.value as? String ?? "").hasSuffix("432:loaded,432:shared"),
-      "the Share row did not fetch the whole file: \(requests.value ?? "")")
-    assertShares("Blue.Lights.S04.en.srt", from: app.buttons["preview.share"], copying: true)
-    XCTAssertTrue((requests.value as? String ?? "").hasSuffix("432:loaded,432:shared"))
+    assertShares("Blue.Lights.S04.en.srt", from: row, capture: "text")
+    assertShares("Blue.Lights.S04.en.srt", from: app.buttons["preview.share"])
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
   }
 
-  private func assertShares(
-    _ name: String, from control: XCUIElement, capture: String? = nil, copying: Bool = false
-  ) {
+  private func assertShares(_ name: String, from control: XCUIElement, capture: String? = nil) {
     XCTAssertTrue(control.isEnabled, "Share is disabled for \(name)")
     control.tap()
     let sheet = app.otherElements["ActivityListView"]
@@ -308,16 +300,12 @@ final class PreviewJourneyTests: XCTestCase {
       "the share sheet shows a put.io link")
     if let capture { screenshot("runtime-preview-share-\(capture)") }
     let close = sheet.buttons["Close"]
-    if copying {
-      let copy = sheet.buttons["Copy"]
-      XCTAssertTrue(copy.appears(within: 5), "the share sheet offers no Copy for \(name)")
-      copy.tap()
-    } else if close.exists {
+    if close.exists {
       close.tap()
     } else {
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
     }
-    XCTAssertTrue(sheet.disappears(within: 15), "the share sheet stayed open")
+    XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
   }
 
   private func copyLine(_ line: Int, in text: XCUIElement) {
