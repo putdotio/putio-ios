@@ -18,6 +18,24 @@ extension PutioRuntime {
     }
   }
 
+  public func createPublicLink(fileID: PutioFileID) async throws -> URL {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let share = try await performAuthenticatedOperation {
+      do {
+        return try await sdk.createPublicShare(fileID: fileID.rawValue)
+      } catch let error as PutioSDKError where error.publicShareRefusal != nil {
+        if let refusal = PutioPublicLinkRefusal(apiErrorType: error.apiErrorType) {
+          throw refusal
+        }
+        throw PutioRuntimeError.unknown
+      }
+    }
+    guard share.id > 0, share.userFile.id == fileID.rawValue,
+      let url = PutioPublicLink.url(token: share.token.value)
+    else { throw PutioRuntimeError.invalidResponse }
+    return url
+  }
+
   public func revokePublicLink(id: Int) async throws {
     guard id > 0 else { throw PutioRuntimeError.invalidResponse }
     let response = try await performAuthenticatedOperation(commits: true) {

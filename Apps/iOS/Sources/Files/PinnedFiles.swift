@@ -28,6 +28,7 @@ struct PutioPinnedSection: View {
   let isDisabled: Bool
   let onOpen: PutioFileSelection
   let onMove: @MainActor @Sendable (PutioFileItem) -> Void
+  var onLink: (@MainActor @Sendable (PutioFileItem) -> Void)? = nil
 
   var body: some View {
     let pins = context.model.sectionItems
@@ -35,7 +36,7 @@ struct PutioPinnedSection: View {
       header
       PutioPinnedRows(
         pins: pins, model: context.model, canEdit: canEdit, isDisabled: isDisabled,
-        onOpen: onOpen, onMove: onMove)
+        onOpen: onOpen, onMove: onMove, onLink: onLink)
     }
   }
 
@@ -91,6 +92,7 @@ struct PutioPinnedRows: View {
   let isDisabled: Bool
   let onOpen: PutioFileSelection
   let onMove: @MainActor @Sendable (PutioFileItem) -> Void
+  var onLink: (@MainActor @Sendable (PutioFileItem) -> Void)? = nil
 
   var body: some View {
     ForEach(pins) { pin in
@@ -128,7 +130,7 @@ struct PutioPinnedRows: View {
   }
 
   private func menu(for item: PutioFileItem) -> PutioItemMenu {
-    let rows = PutioFileMenu.pinnedRow(item: item, canEdit: canEdit)
+    let rows = PutioFileMenu.pinnedRow(item: item, canEdit: canEdit, canLink: onLink != nil)
     return PutioItemMenu(
       rows.sections.map { section in
         section.compactMap { row -> PutioItemAction? in
@@ -143,6 +145,11 @@ struct PutioPinnedRows: View {
               id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
               isDisabled: isDisabled
             ) { onMove(item) }
+          case .exclusiveLink:
+            PutioItemAction(
+              id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
+              isDisabled: isDisabled
+            ) { onLink?(item) }
           default:
             nil
           }
@@ -191,6 +198,8 @@ struct PutioPinnedListScreen: View {
 
   @State private var moveRequest: PutioFileItemActionRequest?
   @State private var itemActions: PutioFileItemActionModel?
+  @State private var linkItem: PutioFileItem?
+  @Environment(\.putioExclusiveLink) private var exclusiveLink
 
   init(
     model: PutioPinnedFilesModel,
@@ -225,7 +234,8 @@ struct PutioPinnedListScreen: View {
       PutioPinnedRows(
         pins: model.items, model: model, canEdit: actions != nil,
         isDisabled: itemActions?.canStartAction == false,
-        onOpen: onFileSelected, onMove: { moveRequest = .move($0) })
+        onOpen: onFileSelected, onMove: { moveRequest = .move($0) },
+        onLink: exclusiveLink == nil ? nil : { linkItem = $0 })
     }
     .listStyle(.plain)
     .refreshable { await model.load() }
@@ -233,6 +243,7 @@ struct PutioPinnedListScreen: View {
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
     .accessibilityIdentifier("files.pinned-list")
+    .putioExclusiveLinkSheet($linkItem)
     .modifier(
       PutioPinnedMoveHost(
         request: $moveRequest, itemActions: itemActions, actions: actions, load: load,

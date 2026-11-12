@@ -157,6 +157,17 @@
         }
       }
     },
+    "Anyone with a link can open %@. A link stops working after %@ hours, or sooner when it hits its IP or data limit." : {
+      "comment" : "android: mobile_public_links_sheet_body",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anyone with a link can open %@. A link stops working after %@ hours, or sooner when it hits its IP or data limit."
+          }
+        }
+      }
+    },
     "App and device type" : {
       "comment" : "android: mobile_product_analytics_prompt_send_device",
       "localizations" : {
@@ -560,6 +571,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t change sorting."
+          }
+        }
+      }
+    },
+    "Couldn’t create a link. %@" : {
+      "comment" : "android: mobile_public_links_create_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t create a link. %@"
           }
         }
       }
@@ -1723,6 +1745,39 @@
         }
       }
     },
+    "This file type can’t be shared." : {
+      "comment" : "android: mobile_public_links_refused_file_type",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file type can’t be shared."
+          }
+        }
+      }
+    },
+    "This folder contains too many files to share." : {
+      "comment" : "android: mobile_public_links_refused_folder_children",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder contains too many files to share."
+          }
+        }
+      }
+    },
+    "This folder is too big to share." : {
+      "comment" : "android: mobile_public_links_refused_folder_size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder is too big to share."
+          }
+        }
+      }
+    },
     "This item cannot be restored." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -1998,6 +2053,17 @@
         }
       }
     },
+    "You can’t create public links with your current plan." : {
+      "comment" : "android: mobile_public_links_refused_plan",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can’t create public links with your current plan."
+          }
+        }
+      }
+    },
     "You don’t have access to this folder." : {
       "comment" : "android: mobile_state_error_forbidden",
       "localizations" : {
@@ -2005,6 +2071,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "You don’t have access to this folder."
+          }
+        }
+      }
+    },
+    "You have reached the daily public link creation limit." : {
+      "comment" : "android: mobile_public_links_refused_daily",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have reached the daily public link creation limit."
+          }
+        }
+      }
+    },
+    "You have reached the limit of your public links. You’ll have to revoke some under Account, Exclusive access, if you want to make more." : {
+      "comment" : "android: mobile_public_links_refused_limit",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have reached the limit of your public links. You’ll have to revoke some under Account, Exclusive access, if you want to make more."
+          }
+        }
+      }
+    },
+    "You have reached the weekly public link creation limit." : {
+      "comment" : "android: mobile_public_links_refused_weekly",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have reached the weekly public link creation limit."
           }
         }
       }

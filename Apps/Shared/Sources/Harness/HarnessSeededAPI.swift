@@ -1055,6 +1055,11 @@ import Foundation
       } else if HarnessPublicLinks.delaysList, url.path == HarnessPublicLinks.listPath {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + HarnessPublicLinks.slowDelay, execute: deliverResponse)
+      } else if HarnessPublicLinks.delaysCreate(
+        method: request.httpMethod ?? "GET", path: url.path)
+      {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + HarnessPublicLinks.createDelay, execute: deliverResponse)
       } else if Self.proxyMode == .slow, url.path == "/v2/tunnel/routes" {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.proxyRoutesDelay, execute: deliverResponse)
@@ -2121,6 +2126,15 @@ import Foundation
       (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
       (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
     ]
+
+    static func publicLinkFile(id: Int) -> (name: String, fileType: String) {
+      if id == seasonFolderID { return ("Blue Lights", "FOLDER") }
+      if let episode = seasonEpisodes.first(where: { $0.id == id }) {
+        return (episode.name, "VIDEO")
+      }
+      if let subtitle = seasonSubtitles[id] { return (subtitle.name, "TEXT") }
+      return ("File \(id)", "FILE")
+    }
 
     private static func seasonFileSize(_ fileID: Int) -> Int64? {
       seasonEpisodes.first { $0.id == fileID }?.size ?? seasonSubtitles[fileID]?.size

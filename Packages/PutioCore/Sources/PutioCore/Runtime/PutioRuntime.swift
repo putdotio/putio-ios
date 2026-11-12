@@ -89,6 +89,7 @@ public final class PutioRuntime {
 
       if let rejection = error as? PutioAccountSecurityError { throw rejection }
       if let refusal = error as? PutioPlaybackRouteUnavailable { throw refusal }
+      if let refusal = error as? PutioPublicLinkRefusal { throw refusal }
       if let failure = error as? PutioFolderLoadError { throw failure }
       guard let sdkError else {
         throw PutioRuntimeError.unknown

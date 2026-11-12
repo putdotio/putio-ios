@@ -37,6 +37,7 @@ struct FilesBrowserView: View {
   @State private var didRestoreNavigation = false
   private let pins: PutioPinnedFilesModel
   @State private var pinToast: PutioToast?
+  private let createLink: PutioPublicLinkCreate
 
   init(
     runtime: PutioRuntime,
@@ -68,6 +69,7 @@ struct FilesBrowserView: View {
     }
     actions = PutioFileActions(runtime: runtime)
     self.pins = pins
+    createLink = { try await runtime.createPublicLink(fileID: $0) }
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -115,6 +117,7 @@ struct FilesBrowserView: View {
         }
       }
     }
+    .environment(\.putioExclusiveLink, createLink)
     .environment(
       \.putioPinnedFiles,
       PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
