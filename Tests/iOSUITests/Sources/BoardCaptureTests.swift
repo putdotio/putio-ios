@@ -779,7 +779,7 @@ final class BoardCaptureTests: XCTestCase {
     openGalleryThird()
     let position = element("preview.position")
     let deadline = Date.now.addingTimeInterval(10)
-    while position.label != "3 of 4", Date.now < deadline {
+    while !(position.exists && position.label == "3 of 4"), Date.now < deadline {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
     openPreviewMore()
@@ -789,6 +789,7 @@ final class BoardCaptureTests: XCTestCase {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
     }
     try captureBoard("rd-ios-pv-11-trashed")
+    XCTAssertTrue(position.exists, "the viewer lost its position")
     XCTAssertEqual(position.label, "3 of 3", "the set still counts the trashed file")
     XCTAssertEqual(element("preview.title").label, "Gallery 4.png", "the viewer did not move on")
   }
@@ -796,7 +797,7 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewMoreTrashOff() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-trash-disabled")
-    openGalleryThird()
+    openAlbumCover()
     openPreviewMore()
     XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
     try captureBoard("rd-ios-pv-18-more-trash-off")
@@ -805,7 +806,7 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewDeleteConfirm() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-trash-disabled")
-    openGalleryThird()
+    openAlbumCover()
     openPreviewMore()
     app.buttons["Delete permanently"].firstMatch.tap()
     XCTAssertTrue(
@@ -934,6 +935,22 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(third.appears(within: 10), "the gallery never loaded")
     third.tap()
     XCTAssertTrue(app.images["Gallery 3.png"].appears(within: 10), "the third image never loaded")
+  }
+
+  private func openAlbumCover() {
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 10), "the album never appeared")
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10), "the cover never loaded")
   }
 
   private func openPosterPreview() {

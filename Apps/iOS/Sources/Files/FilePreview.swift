@@ -450,10 +450,11 @@ final class PutioPreviewPager {
   private var unsettled: Set<PutioFileID> = []
   private var removed: Set<PutioFileID> = []
   private var returning: PutioFileID?
-  private var shown: [PutioFileID: PutioFileItem] = [:]
+  private var known: [PutioFileItem] = []
   private let download: PutioPreviewDownload
   private(set) var current: PutioViewerRoute
   private(set) var reads = PutioPreviewPageReads()
+  private(set) var isClosed = false
   @ObservationIgnored private var models: [PutioFileID: PutioPreviewModel] = [:]
   @ObservationIgnored private var pageReader: Task<Void, Never>?
 
@@ -501,9 +502,9 @@ final class PutioPreviewPager {
   }
 
   func item(for id: PutioFileID) -> PutioFileItem? {
-    if let item = lookedUp[id] ?? listed(id) ?? shown[id] { return item }
-    guard !unsettled.contains(id), opened?.id == id else { return nil }
-    return opened
+    if let item = lookedUp[id] ?? listed(id) { return item }
+    guard !unsettled.contains(id) else { return nil }
+    return known.first { $0.id == id } ?? (opened?.id == id ? opened : nil)
   }
 
   func name(for id: PutioFileID) -> String? {
@@ -525,17 +526,22 @@ final class PutioPreviewPager {
     source?.items().first { $0.id == id }
   }
 
+  func remember() {
+    guard let items = folderSet?.items else { return }
+    known = items
+  }
+
   func remove(_ id: PutioFileID) -> Bool {
-    for item in folderSet?.items ?? [] where item.id != id { shown[item.id] = item }
-    let routes = routes
-    let rest = routes.filter { $0.id != id }
+    remember()
+    let items = known.filter { !removed.contains($0.id) }
     removed.insert(id)
     if returning == id { returning = nil }
     guard id == current.id else { return true }
-    guard !rest.isEmpty, let index = routes.firstIndex(where: { $0.id == id }) else {
-      return false
-    }
-    current = rest[min(index, rest.count - 1)]
+    let rest = items.filter { $0.id != id }
+    guard !rest.isEmpty, let index = items.firstIndex(where: { $0.id == id }) else { return false }
+    let following = PutioFileRoute(item: rest[min(index, rest.count - 1)])
+    guard let next = PutioViewerRoute(opening: following.openAction) else { return false }
+    current = next
     models.removeValue(forKey: id)?.cancel()
     return true
   }
@@ -603,6 +609,7 @@ final class PutioPreviewPager {
   }
 
   func cancel() {
+    isClosed = true
     pageReader?.cancel()
     for model in models.values { model.cancel() }
   }
@@ -726,6 +733,7 @@ struct PutioPreviewView: View {
   @State private var toast: PutioToast?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var labelsHeight: CGFloat = 0
+  @State private var restoring: Set<PutioFileID> = []
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   private let fileActions: PutioPreviewFileActions
   private let onDismiss: @MainActor () -> Void
@@ -794,7 +802,10 @@ struct PutioPreviewView: View {
       lookup = PutioPreviewLookup(fileID: id)
     }
     .task(id: lookup) { await lookUpSettledFile() }
-    .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
+    .onChange(of: pager.pagingKey, initial: true) {
+      pager.remember()
+      pager.readPagesIfNeeded()
+    }
     .onChange(of: pager.canReturn) { pager.showReturning() }
     .onDisappear { pager.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
@@ -958,7 +969,7 @@ struct PutioPreviewView: View {
       .accessibilityIdentifier("preview.share")
       PutioPreviewMoreMenu(
         menu: moreMenu(for: pager.item(for: model.route.id)),
-        isDisabled: !itemActions.canStartAction || itemAction != nil
+        isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
       )
     }
   }
@@ -1007,6 +1018,8 @@ struct PutioPreviewView: View {
 
   private func remove(_ item: PutioFileItem, permanently: Bool) {
     actedOn = nil
+    let pager = pager
+    let itemActions = itemActions
     Task {
       await itemActions.delete(item, permanently: permanently)
       let outcome = itemActions.outcome
@@ -1014,45 +1027,54 @@ struct PutioPreviewView: View {
       switch outcome {
       case .succeeded(.delete):
         if zoomedID == item.id { zoomedID = nil }
+        let toast = removalToast(for: item, permanently: permanently, in: pager)
         if pager.remove(item.id) {
-          toast = removalToast(for: item, permanently: permanently, inViewer: true)
+          report(toast, in: pager)
         } else {
           onDismiss()
-          presentToast(removalToast(for: item, permanently: permanently, inViewer: false))
+          presentToast(toast)
         }
       case .failed(.delete, _):
-        toast = PutioToast(
-          PutioFileDeletionPresentation(trashEnabled: fileActions.trashEnabled && !permanently)
-            .singleFailureTitle)
+        report(
+          PutioToast(
+            PutioFileDeletionPresentation(trashEnabled: fileActions.trashEnabled && !permanently)
+              .singleFailureTitle),
+          in: pager)
       default:
         break
       }
     }
   }
 
+  private func report(_ toast: PutioToast, in pager: PutioPreviewPager) {
+    if pager.isClosed {
+      presentToast(toast)
+    } else {
+      self.toast = toast
+    }
+  }
+
   private func removalToast(
-    for item: PutioFileItem, permanently: Bool, inViewer: Bool
+    for item: PutioFileItem, permanently: Bool, in pager: PutioPreviewPager
   ) -> PutioToast {
     guard !permanently else { return PutioToast(PutioFileDeletionCopy.deleted) }
     return PutioToast(
       PutioFileDeletionCopy.trashed,
       action: PutioToast.Action(PutioFileDeletionCopy.undo) {
-        undoTrash(of: item, inViewer: inViewer)
+        undoTrash(of: item, in: pager)
       })
   }
 
-  private func undoTrash(of item: PutioFileItem, inViewer: Bool) {
+  private func undoTrash(of item: PutioFileItem, in pager: PutioPreviewPager) {
+    restoring.insert(item.id)
     Task {
+      defer { restoring.remove(item.id) }
       do {
         try await fileActions.restore(item.id)
-        if inViewer { pager.reinstate(item.id) }
+        pager.reinstate(item.id)
       } catch {
         guard let failure = PutioFileActionFailure(restoring: item, error: error) else { return }
-        if inViewer {
-          toast = PutioToast(failure.title)
-        } else {
-          presentToast(PutioToast(failure.title))
-        }
+        report(PutioToast(failure.title), in: pager)
       }
     }
   }

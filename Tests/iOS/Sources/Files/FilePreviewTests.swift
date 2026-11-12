@@ -421,6 +421,29 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertFalse(pager.remove(images[1].id), "the only file left the viewer open")
   }
 
+  func testRemovingAFileARefreshDroppedStillShowsTheNext() throws {
+    let images = (1...3).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
+    }
+    var listed = images
+    let file = PutioFileRoute(item: images[0])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(items: { listed }, hasMore: { true }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+
+    XCTAssertTrue(pager.remove(images[0].id))
+    XCTAssertEqual(pager.current.id, images[1].id)
+
+    listed = []
+    XCTAssertEqual(pager.item(for: images[1].id), images[1], "the next file lost its More rows")
+    XCTAssertTrue(pager.remove(images[1].id), "an unlisted file closed the viewer")
+    XCTAssertEqual(pager.current.id, images[2].id)
+
+    pager.settle(images[2].id)
+    XCTAssertNil(pager.item(for: images[2].id), "a settling file offered its old snapshot")
+  }
+
   func testAFileMovedOutOfItsFolderStopsPagingThatFolder() async throws {
     let shown = BrowserTestFixtures.item(id: 21, parentID: 5, name: "Poster.png", kind: .image)
     let file = PutioFileRoute(item: shown)
