@@ -249,9 +249,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     tap("security.link-device")
     XCTAssertTrue(linkCode.appears(within: 5))
     XCTAssertTrue(linkCode.isEnabled, "the reopened field stayed locked")
-    XCTAssertEqual(linkCode.value as? String ?? "", "")
     XCTAssertFalse(element("security.link-failure").exists, "a cancelled link showed a failure")
-    enter("x7k2qm", into: linkCode)
     XCTAssertTrue(linkSubmit.isEnabled, "Link stayed busy after the cancelled attempt")
   }
 

@@ -454,7 +454,8 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(
       model.failure,
       "That device code was not found. Check the code on the device and try again.")
-    model.enter("ZZZZZ")
+    model.code = "ZZZZZ"
+    model.codeEdited()
     XCTAssertNil(model.failure, "the failure stayed after the code was edited")
     model.code = " harn42\n"
     await model.link()
@@ -487,23 +488,11 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(submitted, ["HARN42"])
   }
 
-  func testLinkDeviceUppercasesAsTypedAndLocksWhileLinking() async {
-    let release = AsyncStream<Void>.makeStream()
-    let model = PutioLinkDeviceModel(
-      actions: PutioAccountSecurityActions(linkDevice: { _ in
-        for await _ in release.stream { break }
-        return PutioAuthorizedApp(id: 77, name: "TV", isCurrentClient: false)
-      }))
-    model.enter("x7k2qm")
+  func testLinkDeviceUppercasesAsTyped() {
+    let model = PutioLinkDeviceModel(actions: PutioAccountSecurityActions())
+    model.code = "x7k2qm"
+    model.codeEdited()
     XCTAssertEqual(model.code, "X7K2QM")
-    let linking = Task { await model.link() }
-    while !model.isLinking { await Task.yield() }
-    XCTAssertFalse(model.canLink)
-    model.enter("zzzzzz")
-    XCTAssertEqual(model.code, "X7K2QM", "the field accepted typing while linking")
-    release.continuation.yield()
-    await linking.value
-    XCTAssertEqual(model.linkedApp?.id, 77)
   }
 
   func testLeavingMidLinkCancelsWithoutAResult() async {

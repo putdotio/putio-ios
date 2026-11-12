@@ -485,15 +485,13 @@ struct LinkDeviceView: View {
   }
 
   private var codeField: some View {
-    TextField(
-      "",
-      text: Binding(get: { model.code }, set: { model.enter($0) })
-    )
+    TextField("", text: Bindable(model).code)
     .textInputAutocapitalization(.characters)
     .autocorrectionDisabled()
     .keyboardType(.asciiCapable)
     .submitLabel(.go)
     .onSubmit(link)
+    .onChange(of: model.code) { model.codeEdited() }
     .putioFont(PutioLinkDeviceLayout.codeFont)
     .kerning(PutioLinkDeviceLayout.codeTracking)
     .foregroundStyle(PutioTheme.Components.Field.text)
