@@ -1666,6 +1666,11 @@ final class BoardCaptureTests: XCTestCase {
       "portrait kept the Account list beside Proxy")
     rotate(.landscapeLeft)
     XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "landscape closed Proxy")
+    if element("shell.storage").becomesHittable(within: 3) {
+      sidebarToggle().tap()
+      XCTAssertTrue(
+        element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
+    }
     assertIPadAccountOpen("playback-settings.route", "rotating back to landscape")
     try captureBoard("rd-ios-acc-20-ipad-proxy")
   }

@@ -82,7 +82,7 @@ struct AccountScreen: View {
   }
 
   private var columns: some View {
-    PutioListDetail(selection: $destination) { selection in
+    PutioListDetail(selection: $destination, listWidth: .settings) { selection in
       list(selection: selection)
         .navigationBarTitleDisplayMode(.inline)
     } detail: { destination in
@@ -159,19 +159,14 @@ struct AccountScreen: View {
 }
 
 private struct AccountDetailReadableWidth: ViewModifier {
-  @State private var margin: CGFloat = PutioTheme.Spacing.space3
-
   func body(content: Content) -> some View {
     content
-      .contentMargins(.horizontal, margin, for: .scrollContent)
-      .onGeometryChange(for: CGFloat.self) { geometry in
-        max(PutioTheme.Spacing.space3, (geometry.size.width - Self.readableWidth) / 2)
-      } action: {
-        margin = $0
-      }
+      .frame(maxWidth: Self.readableWidth)
+      .frame(maxWidth: .infinity)
+      .background(PutioTheme.Colors.background)
   }
 
   private static let readableWidth =
-    PutioTheme.Spacing.space8 + PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3
+    PutioTheme.Spacing.space8 + PutioTheme.Spacing.space5 + PutioTheme.Spacing.space3
     + PutioTheme.Spacing.space2
 }
