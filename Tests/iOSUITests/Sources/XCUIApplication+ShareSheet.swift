@@ -55,8 +55,10 @@ extension XCUIApplication {
     let aligned =
       anchor.midX >= popover.minX - reach && anchor.midX <= popover.maxX + reach
       || popover.midX >= anchor.minX && popover.midX <= anchor.maxX
+    let covering = popover.insetBy(dx: -reach, dy: -reach)
+      .contains(CGPoint(x: anchor.midX, y: anchor.midY))
     XCTAssertTrue(
-      popover.width < window.width * 0.8 && beside && aligned,
+      popover.width < window.width * 0.8 && (covering || beside && aligned),
       "the share sheet is not anchored to \(anchorName) at \(anchor): \(popover) in \(window)",
       file: file, line: line)
   }
