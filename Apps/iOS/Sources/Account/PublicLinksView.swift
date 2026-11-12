@@ -18,7 +18,7 @@ struct PublicLinksView: View {
       .putioContentBackground()
       .putioConfirmAlert($confirmAlert)
       .putioToast($toast)
-      .task { await model.loadOnOpen() }
+      .task { await model.load() }
   }
 
   @ViewBuilder private var content: some View {

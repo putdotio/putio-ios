@@ -93,7 +93,6 @@ public final class PutioPublicLinksModel {
   public private(set) var revokingID: Int?
   @ObservationIgnored private let actions: PutioPublicLinkActions
   @ObservationIgnored private var generation = 0
-  @ObservationIgnored private var hasLoaded = false
   @ObservationIgnored private var revokedIDs = Set<Int>()
 
   public init(actions: PutioPublicLinkActions) {
@@ -107,12 +106,6 @@ public final class PutioPublicLinksModel {
 
   public func links(at now: Date) -> [PutioPublicLink] {
     links.filter { !$0.isExpired(at: now) }
-  }
-
-  public func loadOnOpen() async {
-    guard !hasLoaded else { return }
-    hasLoaded = true
-    await load()
   }
 
   @discardableResult

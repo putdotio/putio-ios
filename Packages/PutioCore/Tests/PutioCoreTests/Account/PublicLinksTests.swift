@@ -25,19 +25,26 @@ final class PublicLinksTests: XCTestCase {
           return links
         },
         now: { now }))
-    await model.loadOnOpen()
+    await model.load()
     XCTAssertEqual(model.state, .failed)
-    await model.loadOnOpen()
-    XCTAssertEqual(loads, 1, "reappearing reloaded the list")
     await model.load()
     XCTAssertEqual(model.links.map(\.id), [1, 2])
   }
 
-  func testACancelledLoadLeavesTheScreenAsItWas() async {
+  func testACancelledFirstLoadLoadsAgainOnTheNextOpen() async {
+    var loads = 0
     let model = PutioPublicLinksModel(
-      actions: PutioPublicLinkActions(list: { throw CancellationError() }))
+      actions: PutioPublicLinkActions(
+        list: {
+          loads += 1
+          if loads == 1 { throw CancellationError() }
+          return [link(1, hours: 10)]
+        },
+        now: { now }))
     await model.load()
     XCTAssertEqual(model.state, .loading)
+    await model.load()
+    XCTAssertEqual(model.links.map(\.id), [1], "the next open never loaded the list")
   }
 
   func testAFailedRevokeKeepsTheRowAndTheLastRevokeEmptiesTheList() async {
