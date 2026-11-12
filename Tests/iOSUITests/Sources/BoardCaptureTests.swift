@@ -1029,6 +1029,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.switches["privacy.diagnostics"].appears(within: 5), "Privacy controls never opened")
     app.showTabBar()
+    XCTAssertTrue(
+      tabButton("Downloads").becomesHittable(within: 5), "the tab bar stayed minimized")
     try captureBoard("rd-ios-acc-08-privacy")
   }
 
