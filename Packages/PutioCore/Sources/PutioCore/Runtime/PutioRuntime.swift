@@ -149,6 +149,8 @@ public final class PutioRuntime {
       .image
     case .pdf:
       .pdf
+    case PutioFileType(rawValue: "TEXT"):
+      .text
     default:
       .other(type.rawValue)
     }

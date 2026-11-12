@@ -597,9 +597,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
       BoardCapture("rd-ios-pv-01-image", .iphone, "testPreviewImage"),
       BoardCapture("rd-ios-pv-03-pdf", .iphone, "testPreviewDocument"),
+      BoardCapture("rd-ios-pv-04-text", .iphone, "testPreviewText"),
       BoardCapture("rd-ios-pv-05-unsupported", .iphone, "testPreviewCannotShow"),
       BoardCapture("rd-ios-pv-07-loading", .iphone, "testPreviewLoading", screenBase: false),
       BoardCapture("rd-ios-pv-08-error", .iphone, "testPreviewError"),
+      BoardCapture("rd-ios-pv-10-text-truncated", .iphone, "testPreviewTextTruncated"),
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
 
@@ -833,9 +835,10 @@ enum BrowserJourneyContract {
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
         "runtime-preview-document-middle", "runtime-preview-document-landscape",
-        "runtime-preview-cannot-show", "runtime-vlc-missing",
+        "runtime-preview-cannot-show", "runtime-preview-text", "runtime-preview-text-truncated",
+        "runtime-vlc-missing",
       ],
-      timeAllowance: 180),
+      timeAllowance: 300),
     JourneyPreflight(
       "deep-links", "DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens",
       attachmentNames: [

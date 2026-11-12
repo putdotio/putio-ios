@@ -1309,6 +1309,25 @@ import Foundation
           200,
           previewFile(id: corruptDocumentFileID, name: corruptDocumentName, type: "PDF", size: 1856)
         )
+      case "GET /v2/files/\(seasonSubtitleFileID)" where usesPreviews:
+        return (
+          200,
+          previewFile(
+            id: seasonSubtitleFileID, name: "Blue.Lights.S04E01.en.srt", type: "TEXT",
+            size: 41_000)
+        )
+      case "GET /v2/files/\(longTextFileID)" where usesPreviews:
+        return (
+          200, previewFile(id: longTextFileID, name: longTextName, type: "TEXT", size: 312_022)
+        )
+      case "GET /v2/files/\(shortTextFileID)" where usesPreviews:
+        return (
+          200, previewFile(id: shortTextFileID, name: shortTextName, type: "TEXT", size: 152)
+        )
+      case "GET /v2/files/\(binaryTextFileID)" where usesPreviews:
+        return (
+          200, previewFile(id: binaryTextFileID, name: binaryTextName, type: "TEXT", size: 1856)
+        )
       case "GET /v2/files/\(archiveFileID)":
         return (
           200,
@@ -1375,7 +1394,7 @@ import Foundation
         (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20, 0),
       ]
       let subtitles: [(id: Int, name: String, size: Int64)] = [
-        (445, "Blue.Lights.S04E01.en.srt", 41_000),
+        (seasonSubtitleFileID, "Blue.Lights.S04E01.en.srt", 41_000),
         (446, "Blue.Lights.S04E02.en.srt", 39_000),
       ]
       let videoRows = episodes.map { episode in
@@ -1419,6 +1438,13 @@ import Foundation
     static let oversizedImageFileID = 430
     static let corruptDocumentFileID = 431
     static let corruptDocumentName = "Harness Scan.pdf"
+    static let longTextFileID = 432
+    static let longTextName = "Blue.Lights.S04.en.srt"
+    static let binaryTextFileID = 433
+    static let binaryTextName = "Harness Notes.txt"
+    static let shortTextFileID = 434
+    static let shortTextName = "Harness Subtitles.en.srt"
+    static let seasonSubtitleFileID = 445
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
 
@@ -2253,6 +2279,9 @@ import Foundation
               size: 83_886_080),
             previewObject(
               id: corruptDocumentFileID, name: corruptDocumentName, type: "PDF", size: 1856),
+            previewObject(id: longTextFileID, name: longTextName, type: "TEXT", size: 312_022),
+            previewObject(id: binaryTextFileID, name: binaryTextName, type: "TEXT", size: 1856),
+            previewObject(id: shortTextFileID, name: shortTextName, type: "TEXT", size: 152),
           ]
           : [])
       if folderDeleted { rows.removeFirst() }

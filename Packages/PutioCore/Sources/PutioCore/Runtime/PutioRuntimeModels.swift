@@ -132,6 +132,7 @@ public enum PutioFileKind: Hashable, Sendable {
   case audio
   case image
   case pdf
+  case text
   case other(String)
 }
 

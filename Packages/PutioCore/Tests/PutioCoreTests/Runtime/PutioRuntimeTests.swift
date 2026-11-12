@@ -544,9 +544,18 @@ final class PutioRuntimeTests: XCTestCase {
             "size": 4096,
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z"
+          },
+          {
+            "id": 17,
+            "name": "Episode 1.en.srt",
+            "file_type": "TEXT",
+            "parent_id": 0,
+            "size": 2048,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
           }
         ],
-        "total": 6
+        "total": 7
       }
       """
   }

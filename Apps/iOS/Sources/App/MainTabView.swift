@@ -173,7 +173,7 @@ struct MainTabView: View {
       if let route = presentedPreviewRoute {
         PutioPreviewView(
           route: route,
-          download: { fileID in try await downloadPreview(fileID: fileID) },
+          download: { preview in try await downloadPreview(preview) },
           onDismiss: { presentedPreviewRoute = nil }
         )
         .id(route.id)
@@ -421,29 +421,35 @@ struct MainTabView: View {
   /// Previews download the whole file; the tokened URL never leaves this call.
   /// A rejected token on the raw GET is re-checked through the runtime, which
   /// signs the account out when the session really expired.
-  private func downloadPreview(fileID: PutioFileID) async throws -> Data {
+  private func downloadPreview(_ route: PutioPreviewRoute) async throws -> Data {
     #if DEBUG
-      guard scenario == .filesBrowser else { return try await fetchPreview(fileID: fileID) }
+      guard scenario == .filesBrowser else { return try await fetchPreview(route) }
       do {
-        let data = try await fetchPreview(fileID: fileID)
-        harnessPreviewRequests.record(fileID, .loaded)
+        let data = try await fetchPreview(route)
+        harnessPreviewRequests.record(route.id, .loaded)
         return data
       } catch {
-        harnessPreviewRequests.record(fileID, Task.isCancelled ? .cancelled : .failed)
+        harnessPreviewRequests.record(route.id, Task.isCancelled ? .cancelled : .failed)
         throw error
       }
     #else
-      return try await fetchPreview(fileID: fileID)
+      return try await fetchPreview(route)
     #endif
   }
 
-  private func fetchPreview(fileID: PutioFileID) async throws -> Data {
-    let source = try await runtime.resolveFileDownloadSource(fileID: fileID)
+  private func fetchPreview(_ route: PutioPreviewRoute) async throws -> Data {
+    let source = try await runtime.resolveFileDownloadSource(fileID: route.id)
     let url = try harnessPreviewURL(for: source) ?? source.url
     do {
-      return try await PutioPreviewDownloader.download(url)
+      switch route.kind {
+      case .image, .pdf:
+        return try await PutioPreviewDownloader.download(url)
+      case .text:
+        return try await PutioPreviewDownloader.downloadPrefix(
+          url, byteCount: PutioPreviewRoute.textLimitBytes + 1)
+      }
     } catch PutioRuntimeError.sessionExpired {
-      _ = try await runtime.getFile(fileID: fileID)
+      _ = try await runtime.getFile(fileID: route.id)
       throw PutioRuntimeError.transient
     }
   }
@@ -465,6 +471,11 @@ struct MainTabView: View {
       case .pdf where source.id.rawValue == HarnessSeededAPI.corruptDocumentFileID:
         return baseURL.appending(path: "runtime-proof-image.png")
       case .pdf: return baseURL.appending(path: "runtime-proof-document.pdf")
+      case .text where source.id.rawValue == HarnessSeededAPI.longTextFileID:
+        return baseURL.appending(path: "runtime-proof-long.srt")
+      case .text where source.id.rawValue == HarnessSeededAPI.binaryTextFileID:
+        return baseURL.appending(path: "runtime-proof-image.png")
+      case .text: return baseURL.appending(path: "runtime-proof-subtitles.srt")
       default: return nil
       }
     #else

@@ -42,7 +42,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(contents.sort, .dateAddedDescending)
     XCTAssertEqual(
       contents.items.map(\.kind),
-      [.video, .audio, .image, .pdf, .folder, .other("ARCHIVE")]
+      [.video, .audio, .image, .pdf, .folder, .other("ARCHIVE"), .text]
     )
 
     let video = try XCTUnwrap(contents.items.first)

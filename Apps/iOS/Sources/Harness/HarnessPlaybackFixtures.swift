@@ -32,6 +32,7 @@ import SwiftUI
       case .audio: "audio"
       case .image: "image"
       case .pdf: "pdf"
+      case .text: "text"
       case .other: "other"
       }
     }
