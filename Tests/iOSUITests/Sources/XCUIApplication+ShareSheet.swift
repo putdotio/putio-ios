@@ -28,8 +28,7 @@ extension XCUIApplication {
     return sheet
   }
 
-  func dismissShareSheet(_ sheet: XCUIElement, file: StaticString = #filePath, line: UInt = #line)
-  {
+  func dismissShareSheet(_ sheet: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
     let close = sheet.buttons["Close"]
     if close.exists {
       close.tap()
@@ -38,7 +37,8 @@ extension XCUIApplication {
     } else {
       coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.92)).tap()
     }
-    XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open", file: file, line: line)
+    XCTAssertTrue(
+      sheet.disappears(within: 5), "the share sheet stayed open", file: file, line: line)
   }
 
   private func assertAnchored(
