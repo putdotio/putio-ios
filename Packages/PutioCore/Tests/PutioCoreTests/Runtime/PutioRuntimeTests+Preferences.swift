@@ -26,6 +26,39 @@ extension PutioRuntimeTests {
     XCTAssertEqual(fixtures.capturedRequests().count, before)
   }
 
+  func testRefusedProxyRouteKeepsTheSessionAndTheCurrentRoute() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":403,"error_type":"UNAVAILABLE_VALUE","message":"No"}"#,
+      statusCode: 403, for: "POST /v2/account/settings")
+    do {
+      _ = try await runtime.setPlaybackRoute(name: "London")
+      XCTFail("a refused route saved")
+    } catch {
+      XCTAssertEqual(error as? PutioPlaybackRouteUnavailable, PutioPlaybackRouteUnavailable())
+    }
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("a refused route ended the session")
+    }
+    XCTAssertEqual(account.routeName, "default")
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+  }
+
+  func testProxyChoicesGroupDescribedRoutesWithDirectAndKeepAnUnlistedCurrentRoute() {
+    let routes = [
+      PutioPlaybackRoute(name: "default", description: "Amsterdam (Direct)"),
+      PutioPlaybackRoute(name: "cdn77", description: "cdn77 (Automatic)"),
+      PutioPlaybackRoute(name: "London", description: "London"),
+      PutioPlaybackRoute(name: "Utah", description: ""),
+    ]
+    let listed = PutioProxyChoices(routes: routes, current: "London")
+    XCTAssertEqual(listed.suggested.map(\.name), ["cdn77"])
+    XCTAssertEqual(listed.locations.map(\.name), ["London", "Utah"])
+    let retired = PutioProxyChoices(routes: routes, current: "Oslo")
+    XCTAssertEqual(retired.suggested.map(\.name), ["Oslo", "cdn77"])
+    XCTAssertEqual(PutioProxyChoices(routes: routes, current: "default").suggested.count, 1)
+  }
+
   func testRejectedPlaybackPreferencesRemainFailuresWhenAccountValuesAreUnchanged() async {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(

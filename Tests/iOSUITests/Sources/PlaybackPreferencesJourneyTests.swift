@@ -17,15 +17,28 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["Account"].appears(within: 10))
     playNextManuallyWithAutoplayOff(app)
     app.buttons["Account"].tap()
-    let proxy = openProxy(app)
-    let alternate = app.descendants(matching: .any)["playback-settings.route.edge"]
-    XCTAssertTrue(alternate.appears(within: 5))
+    let proxy = app.revealed("playback-settings.route")
+    XCTAssertTrue(proxy.appears(within: 10))
+    XCTAssertTrue(proxy.label.hasSuffix("Direct"), "proxy row read \(proxy.label)")
+    proxy.tap()
+    let routeRetry = app.buttons["proxy.retry"]
+    XCTAssertTrue(routeRetry.appears(within: 10))
+    routeRetry.tap()
+    let direct = choice("Direct", in: app)
+    let alternate = choice("edge", in: app)
+    XCTAssertTrue(alternate.appears(within: 10))
+    assertSelected(direct)
     alternate.tap()
-    XCTAssertTrue(app.staticTexts["Couldn’t save this setting"].appears(within: 10))
-    XCTAssertTrue(proxy.label.hasSuffix("default"), "proxy row read \(proxy.label)")
-    _ = openProxy(app, retryingRoutes: false)
-    XCTAssertTrue(alternate.appears(within: 5))
+    let saveFailure = app.staticTexts["Couldn’t save this setting"]
+    XCTAssertTrue(saveFailure.appears(within: 10))
+    assertSelected(direct)
+    XCTAssertFalse(alternate.isSelected, "a failed save kept the new proxy")
+    XCTAssertTrue(saveFailure.disappears(within: 10))
     alternate.tap()
+    let settled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "selected == true"), object: alternate)
+    XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed)
+    app.navigationBars.buttons["BackButton"].tap()
     let refresh = app.revealed("account.settings-retry")
     XCTAssertTrue(refresh.appears(within: 10))
     XCTAssertFalse(proxy.exists, "unconfirmed account preferences stayed editable")
@@ -166,6 +179,56 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
+  func testProxyListWaitsOnASlowLoadAndARefusedRouteKeepsTheCheckedOne() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-proxy", "slow",
+    ]
+    let proxy = openProxy(in: app)
+    XCTAssertTrue(app.descendants(matching: .any)["proxy.loading"].appears(within: 5))
+    let current = choice("cdn77", in: app)
+    XCTAssertTrue(current.appears(within: 15), "the slow proxy list never loaded")
+    assertSelected(current)
+    XCTAssertTrue(choice("Direct", in: app).exists)
+    XCTAssertTrue(choice("Washington, D.C.", in: app).exists)
+
+    app.terminate()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-proxy", "refused",
+    ]
+    _ = openProxy(in: app)
+    XCTAssertTrue(current.appears(within: 10))
+    let london = choice("London", in: app)
+    london.tap()
+    let alert = app.alerts["That proxy isn’t available for your account."]
+    XCTAssertTrue(alert.appears(within: 10), "the refused proxy showed no alert")
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    attachment.name = "runtime-proxy-refused"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    alert.buttons["OK"].tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    assertSelected(current)
+    XCTAssertFalse(london.isSelected, "the refused proxy stayed checked")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(proxy.appears(within: 5))
+    XCTAssertTrue(proxy.label.hasSuffix("cdn77"), "proxy row read \(proxy.label)")
+  }
+
+  private func openProxy(in app: XCUIApplication) -> XCUIElement {
+    app.launch()
+    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(app.buttons["Account"].appears(within: 10))
+    app.buttons["Account"].tap()
+    let proxy = app.revealed("playback-settings.route")
+    XCTAssertTrue(proxy.appears(within: 10))
+    proxy.tap()
+    return proxy
+  }
+
   func testPlaybackMethodAppliesOnTapRevertsAFailedSaveAndPersistsAcrossRelaunch() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
@@ -287,18 +350,6 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
       "manual play-next did not open the successor at its saved position")
     app.descendants(matching: .any)["video.done"].tap()
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
-  }
-
-  private func openProxy(_ app: XCUIApplication, retryingRoutes: Bool = true) -> XCUIElement {
-    let proxy = app.revealed("playback-settings.route")
-    XCTAssertTrue(proxy.appears(within: 10))
-    proxy.tap()
-    if retryingRoutes {
-      let routeRetry = app.buttons["playback-settings.retry-routes"]
-      XCTAssertTrue(routeRetry.appears(within: 10))
-      routeRetry.tap()
-    }
-    return proxy
   }
 
   private func lowerBelowNavigationBar(_ element: XCUIElement, in app: XCUIApplication) {

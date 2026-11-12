@@ -78,7 +78,7 @@ final class AccountJourneyTests: XCTestCase {
 
     let rows: [(identifier: String, title: String)] = [
       ("account.trash", "Trash"),
-      ("playback-settings.route", "Proxy"),
+      ("playback-settings.route", "Choose your proxy"),
       ("account.chromecast", "Chromecast"),
       ("account.privacy", "Privacy controls"),
       ("security.apps", "Where you are logged in"),

@@ -69,6 +69,7 @@ public enum PutioSettingSaveOutcome: Equatable, Sendable {
   case saved
   case savedUnconfirmed
   case failed
+  case unavailable
   case skipped
 }
 
@@ -77,7 +78,7 @@ extension PutioSettingSaveOutcome {
     switch self {
     case .saved, .savedUnconfirmed: return
     case .skipped: throw CancellationError()
-    case .failed: throw PutioSettingNotSaved()
+    case .failed, .unavailable: throw PutioSettingNotSaved()
     }
   }
 }
@@ -162,6 +163,8 @@ public final class PutioAccountPreferencesModel {
           return .savedUnconfirmed
         }
         return .saved
+      } catch is PutioPlaybackRouteUnavailable {
+        return .unavailable
       } catch {
         guard let message = Self.message(for: error) else { return .skipped }
         if isStale {
