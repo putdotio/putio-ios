@@ -523,7 +523,8 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(first.disappears(within: 10), "the gallery still lists the moved file")
 
     let account = app.buttons["Account"]
-    if !account.exists { app.swipeDown() }
+    app.scrollDown(toHit: account)
+    if !account.exists { app.tabBars.buttons["Files"].firstMatch.tap() }
     XCTAssertTrue(account.appears(within: 5), "the tab bar stayed minimized")
     account.tap()
     let signOut = app.revealed("auth.sign-out")
