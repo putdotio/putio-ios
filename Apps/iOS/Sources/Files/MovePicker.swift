@@ -187,12 +187,11 @@ private struct PutioMoveLevel: View {
         .accessibilityIdentifier("files.move-path")
       content
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
       if let footer {
         footerRow(footer)
       }
     }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
     .scrollContentBackground(.hidden)
     .background(PutioTheme.Components.Sheet.background)
@@ -303,7 +302,7 @@ private struct PutioMoveLevel: View {
   }
 
   private func footerRow(_ message: String) -> some View {
-    HStack(alignment: .firstTextBaseline, spacing: PutioTheme.Spacing.space2) {
+    HStack(alignment: .top, spacing: PutioTheme.Spacing.space2) {
       Image(putioIcon: .warningCircle)
         .resizable()
         .scaledToFit()
