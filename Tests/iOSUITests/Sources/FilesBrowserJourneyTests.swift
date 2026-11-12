@@ -706,10 +706,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     let folder = element(identifier: "files.item.410")
     openContextMenu(for: folder, actionLabel: "Rename").tap()
-    let name = element(identifier: "files.action-name")
-    XCTAssertTrue(name.appears(within: 5))
-    typeName("Renamed Harness", into: name, replacing: "Harness Folder")
-    app.buttons["Rename"].tap()
+    submitName("Renamed Harness", in: nameAlert("Rename"), as: "Rename")
     let renamed = XCTNSPredicateExpectation(
       predicate: NSPredicate(
         format: "(label == %@ OR label BEGINSWITH %@) AND enabled == true", "Renamed Harness",
@@ -911,44 +908,33 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
     documentRowBeforeEditing()
     openBrowseMenu()
-    let newFolder = app.buttons["files.new-folder"]
+    let newFolder = app.buttons["item-action.new-folder"]
     XCTAssertTrue(
       waitUntilHittable(newFolder, timeout: 5),
       "new-folder action is not tappable"
     )
     newFolder.tap()
 
-    XCTAssertTrue(app.staticTexts["New Folder"].appears(within: 5))
-    let createNameField = element(identifier: "files.action-name")
-    XCTAssertTrue(
-      createNameField.appears(within: 5),
-      "new-folder name field never appeared"
-    )
-    typeName("Watch Later", into: createNameField)
-    XCTAssertEqual(createNameField.value as? String, "Watch Later")
-    let create = app.buttons["Create"]
-    XCTAssertTrue(
-      waitUntilHittable(create, timeout: 5),
-      "create-folder action is not tappable"
-    )
-    create.tap()
+    let newFolderAlert = nameAlert("New folder")
+    XCTAssertTrue(newFolderAlert.staticTexts["In Files"].exists, "New folder does not name its folder")
+    let create = newFolderAlert.buttons["Create"]
+    XCTAssertFalse(create.isEnabled, "Create is enabled for an empty name")
+    submitName("Watch Later", in: newFolderAlert, as: "Create")
 
     let createdFolder = element(identifier: "files.item.415")
     XCTAssertTrue(createdFolder.appears(within: 5), "created folder never appeared")
     XCTAssertEqual(createdFolder.label.components(separatedBy: ", ").first, "Watch Later")
 
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
-    XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
-    let firstRenameField = element(identifier: "files.action-name")
-    XCTAssertTrue(firstRenameField.appears(within: 5), "rename name field never appeared")
-    typeName("Weekend", into: firstRenameField, replacing: "Watch Later")
-    XCTAssertEqual(firstRenameField.value as? String, "Weekend")
-    let firstRename = app.buttons["Rename"]
-    XCTAssertTrue(
-      waitUntilHittable(firstRename, timeout: 5),
-      "rename action is not tappable"
-    )
-    firstRename.tap()
+    let renameAlert = nameAlert("Rename")
+    let renameField = renameAlert.textFields.firstMatch
+    let rename = renameAlert.buttons["Rename"]
+    XCTAssertEqual(renameField.value as? String, "Watch Later")
+    XCTAssertFalse(rename.isEnabled, "Rename is enabled for an unchanged name")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    app.typeText(XCUIKeyboardKey.delete.rawValue)
+    XCTAssertFalse(rename.isEnabled, "Rename is enabled for an empty name")
+    submitName("Weekend", in: renameAlert, as: "Rename")
 
     let createdFolderButton = app.buttons["files.item.415"]
     XCTAssertTrue(
@@ -971,8 +957,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "folder navigation remained enabled while rename was pending"
     )
 
-    let renameFailure = app.staticTexts["Could not rename item"]
-    XCTAssertTrue(renameFailure.appears(within: 5), "rename failure was not surfaced")
+    let renameFailure = app.staticTexts["Couldn’t rename."]
+    XCTAssertTrue(renameFailure.appears(within: 10), "rename failure was not surfaced")
     XCTAssertTrue(
       createdFolderButton.appears(within: 5) && createdFolderButton.isHittable,
       "folder navigation did not re-enable after rename failure"
@@ -980,22 +966,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       createdFolderButton.label.components(separatedBy: ", ").first, "Watch Later",
       "failed rename did not roll back")
-    XCTAssertTrue(
-      renameFailure.disappears(within: 10), "rename failure toast did not clear")
-
-    openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
-    XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
-    let retryRenameField = element(identifier: "files.action-name")
-    XCTAssertTrue(
-      retryRenameField.appears(within: 5), "retry rename field never appeared")
-    typeName("Weekend", into: retryRenameField, replacing: "Watch Later")
-    XCTAssertEqual(retryRenameField.value as? String, "Weekend")
-    let retryRename = app.buttons["Rename"]
-    XCTAssertTrue(
-      waitUntilHittable(retryRename, timeout: 5),
-      "retry rename action is not tappable"
-    )
-    retryRename.tap()
+    addScreenshot(named: "runtime-rename-failed-toast")
+    let tryAgain = app.buttons["Try again"]
+    XCTAssertTrue(waitUntilHittable(tryAgain, timeout: 5), "the rename toast offers no Try again")
+    tryAgain.tap()
 
     let renamedFolder = element(identifier: "files.item.415")
     let renamed = XCTNSPredicateExpectation(
@@ -1104,9 +1078,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
     openBrowseMenu()
+    let select = app.buttons["item-action.select"]
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5), "file selection control is unavailable")
+    select.tap()
     let edit = app.buttons["files.selection.toggle"]
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5), "file selection control is unavailable")
-    edit.tap()
     XCTAssertTrue(
       app.buttons["files.bulk.move"].appears(within: 5),
       "bulk toolbar did not appear in edit mode"
@@ -1139,8 +1114,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     edit.tap()
     XCTAssertTrue(bulkMove.disappears(within: 5))
     openBrowseMenu()
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
-    edit.tap()
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5))
+    select.tap()
     XCTAssertTrue(bulkMove.appears(within: 5))
     XCTAssertEqual(
       bulkRetryFolder.value as? String, "Not selected",
@@ -1191,7 +1166,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(movedBulkSuccessFolder, timeout: 5))
 
     openBrowseMenu()
-    let nestedEdit = app.buttons["files.selection.toggle"]
+    let nestedEdit = app.buttons["item-action.select"]
     XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
     nestedEdit.tap()
     XCTAssertTrue(
@@ -1255,7 +1230,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
     openBrowseMenu()
-    let ambiguousEdit = app.buttons["files.selection.toggle"]
+    let ambiguousEdit = app.buttons["item-action.select"]
     XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
     ambiguousEdit.tap()
     ambiguousMoveFolder.tap()
@@ -1278,8 +1253,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
     XCTAssertTrue(waitUntilHittable(dismissAmbiguousMove, timeout: 5))
     dismissAmbiguousMove.tap()
-    XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
-    ambiguousEdit.tap()
+    let ambiguousDone = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(ambiguousDone, timeout: 5))
+    ambiguousDone.tap()
 
     let backToRefreshedRoot = app.navigationBars["Harness Folder"].buttons["Files"]
     XCTAssertTrue(waitUntilHittable(backToRefreshedRoot, timeout: 5))
@@ -1460,15 +1436,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func createFolder(named name: String, expectedID: Int) -> XCUIElement {
     openBrowseMenu()
-    let newFolder = app.buttons["files.new-folder"]
+    let newFolder = app.buttons["item-action.new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5), "new-folder action is unavailable")
     newFolder.tap()
-    let field = element(identifier: "files.action-name")
-    XCTAssertTrue(field.appears(within: 5), "new-folder field did not appear")
-    typeName(name, into: field)
-    let create = app.buttons["Create"]
-    XCTAssertTrue(waitUntilHittable(create, timeout: 5), "create-folder action is unavailable")
-    create.tap()
+    submitName(name, in: nameAlert("New folder"), as: "Create")
     let folder = element(identifier: "files.item.\(expectedID)")
     XCTAssertTrue(
       folder.appears(within: 5), "created folder \(expectedID) did not appear")
@@ -1476,21 +1447,20 @@ final class FilesBrowserJourneyTests: XCTestCase {
     return folder
   }
 
-  /// The name sheet focuses its field with the cursor after any current name,
-  /// so typing needs no tap.
-  private func typeName(
-    _ name: String,
-    into field: XCUIElement,
-    replacing currentName: String = ""
-  ) {
-    let focused = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "hasKeyboardFocus == true"),
-      object: field
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [focused], timeout: 5), .completed, "name field did not take focus")
-    field.typeText(
-      String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentName.count) + name)
+  private func nameAlert(_ title: String) -> XCUIElement {
+    let alert = app.alerts[title]
+    XCTAssertTrue(alert.appears(within: 5), "\(title) alert never appeared")
+    return alert
+  }
+
+  private func submitName(_ name: String, in alert: XCUIElement, as submitTitle: String) {
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    app.typeText(name)
+    XCTAssertEqual(alert.textFields.firstMatch.value as? String, name)
+    let submit = alert.buttons[submitTitle]
+    XCTAssertTrue(waitUntilHittable(submit, timeout: 5), "\(submitTitle) is not tappable")
+    submit.tap()
+    XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after \(submitTitle)")
   }
 
   private func addScreenshot(named name: String) {

@@ -15,7 +15,7 @@ struct PutioFolderScreen: View {
   @State private var retryRequest: RetryRequest?
   @State private var retrySequence: UInt64 = 0
   @State private var reportedLoaded = false
-  @State private var editor: FileEditor?
+  @State private var nameAlert: PutioTextAlert?
   @State private var pendingDeletion: PutioFileItem?
   @State private var pendingBulkDeletion: [PutioFileItem] = []
   @State private var pendingMove: MoveSelection?
@@ -169,27 +169,7 @@ struct PutioFolderScreen: View {
     }
     .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
     .environment(\.editMode, $editMode)
-    .sheet(item: $editor) { editor in
-      switch editor {
-      case .createFolder:
-        PutioFileNameEditor(
-          title: String(localized: "New Folder"),
-          submitTitle: String(localized: "Create"),
-          isValid: PutioFileNameEditor.isValidName,
-          onCancel: { self.editor = nil },
-          onSubmit: { submit(.createFolder($0)) }
-        )
-      case .rename(let item):
-        PutioFileNameEditor(
-          title: String(localized: "Rename Item"),
-          submitTitle: String(localized: "Rename"),
-          initialName: item.name,
-          isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
-          onCancel: { self.editor = nil },
-          onSubmit: { submit(.rename(item, $0)) }
-        )
-      }
-    }
+    .putioTextAlert($nameAlert)
     .sheet(item: $pendingMove) { selection in
       PutioMovePicker(
         items: selection.items,
@@ -514,7 +494,7 @@ struct PutioFolderScreen: View {
       return PutioItemAction(
         id: "rename", title: String(localized: "Rename"), icon: .pencilSimple,
         isDisabled: editingBlocked
-      ) { editor = .rename(item) }
+      ) { nameAlert = renameAlert(for: item) }
     case .move:
       return PutioItemAction(
         id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
@@ -583,20 +563,28 @@ struct PutioFolderScreen: View {
 
   private var browseMenu: some View {
     Menu {
-      Button {
-        editMode = .active
-      } label: {
-        Label("Select", systemImage: "checkmark.circle")
-      }
-      .disabled(fileActionPending || currentItems.isEmpty)
-      .accessibilityIdentifier("files.selection.toggle")
-      Button {
-        editor = .createFolder
-      } label: {
-        Label("New Folder", systemImage: "folder.badge.plus")
-      }
-      .disabled(!model.canStartAction || actionRequest != nil)
-      .accessibilityIdentifier("files.new-folder")
+      PutioItemMenuContent(
+        PutioItemMenu([
+          [
+            PutioItemAction(
+              id: "select",
+              title: String(localized: "Select"),
+              icon: .checkCircle,
+              isDisabled: fileActionPending || currentItems.isEmpty
+            ) {
+              editMode = .active
+            },
+            PutioItemAction(
+              id: "new-folder",
+              title: String(localized: "New folder"),
+              icon: .folderSimplePlus,
+              isDisabled: !model.canStartAction || actionRequest != nil
+            ) {
+              nameAlert = newFolderAlert()
+            },
+          ]
+        ])
+      )
       Section {
         sortSection
       }
@@ -783,9 +771,38 @@ struct PutioFolderScreen: View {
     actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
   }
 
-  private func submit(_ request: FileActionRequest) {
-    actionRequest = request
-    editor = nil
+  private var actionNotifier: PutioFolderActionNotifier {
+    PutioFolderActionNotifier(
+      folderID: route.id, owner: refreshRegistration.owner, requests: refreshRequests)
+  }
+
+  private func renameAlert(for item: PutioFileItem) -> PutioTextAlert {
+    let model = model
+    let notifier = actionNotifier
+    return PutioTextAlert(
+      title: String(localized: "Rename"),
+      initialText: item.name,
+      submitTitle: String(localized: "Rename"),
+      failureText: String(localized: "Couldn’t rename.")
+    ) { name in
+      await model.rename(item, to: name)
+      try notifier.settleNameAction(of: model)
+    }
+  }
+
+  private func newFolderAlert() -> PutioTextAlert {
+    let model = model
+    let notifier = actionNotifier
+    return PutioTextAlert(
+      title: String(localized: "New folder"),
+      message: String(localized: "In \(folderTitle)"),
+      initialText: "",
+      submitTitle: String(localized: "Create"),
+      failureText: String(localized: "Could not create folder")
+    ) { name in
+      await model.createFolder(name: name)
+      try notifier.settleNameAction(of: model)
+    }
   }
 
   private func runActionRequest() async {
@@ -797,12 +814,8 @@ struct PutioFolderScreen: View {
     } else {
       startedActionRequest = request
       switch request {
-      case .createFolder(let name):
-        await model.createFolder(name: name)
       case .sort(let sort):
         await model.setSort(sort)
-      case .rename(let item, let name):
-        await model.rename(item, to: name)
       case .delete(let item):
         await model.delete(item)
       case .setWatched(let item, let watched):
@@ -844,27 +857,7 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
-    // A failed mutation may still have reached the server. Notify siblings;
-    // this screen's model already reconciles its own mutation outcome.
-    let action =
-      switch outcome {
-      case .succeeded(let action), .failed(let action, _): action
-      }
-    if case .delete = action {
-      // A deleted folder can contain any of the other mounted destinations.
-      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
-    } else {
-      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
-    }
-    switch action {
-    case .rename(let fileID, _, _):
-      refreshRequests.request(folderID: fileID)
-    case .move(let fileID, _, _, let destinationID, _):
-      refreshRequests.request(folderID: fileID)
-      refreshRequests.request(folderID: destinationID)
-    default:
-      break
-    }
+    actionNotifier.notify(outcome.action)
     switch outcome {
     case .succeeded(let action):
       toast = successToast(for: action)
@@ -951,14 +944,12 @@ struct PutioFolderScreen: View {
     return String(localized: "\(successText) \(failed) couldn’t be moved.")
   }
 
-  private func successToast(for action: PutioFileAction) -> PutioToast {
+  private func successToast(for action: PutioFileAction) -> PutioToast? {
     switch action {
-    case .createFolder:
-      PutioToast(String(localized: "Folder created"))
+    case .createFolder, .rename:
+      nil
     case .sort:
       PutioToast(String(localized: "Sorting changed"))
-    case .rename:
-      PutioToast(String(localized: "Item renamed"))
     case .delete:
       PutioToast(deletionPresentation.singleSuccessTitle)
     case .move:
@@ -980,17 +971,8 @@ struct PutioFolderScreen: View {
     let kind: RetryKind
   }
 
-  private enum FileEditor: Hashable, Identifiable {
-    case createFolder
-    case rename(PutioFileItem)
-
-    var id: Self { self }
-  }
-
   private enum FileActionRequest: Equatable {
-    case createFolder(String)
     case sort(PutioFolderSort)
-    case rename(PutioFileItem, String)
     case delete(PutioFileItem)
     case setWatched(PutioFileItem, Bool)
     case move(PutioFileItem, PutioFolderRoute)
@@ -1008,6 +990,40 @@ struct PutioFolderScreen: View {
     }
   }
 }
+
+@MainActor
+private struct PutioFolderActionNotifier {
+  let folderID: PutioFileID
+  let owner: UUID
+  let requests: PutioFolderRefreshRequests
+
+  func notify(_ action: PutioFileAction) {
+    if case .delete = action {
+      // A deleted folder can contain any of the other mounted destinations.
+      requests.requestAllLoadedFolders(excludingOwner: owner)
+    } else {
+      requests.request(folderID: folderID, excludingOwner: owner)
+    }
+    switch action {
+    case .rename(let fileID, _, _):
+      requests.request(folderID: fileID)
+    case .move(let fileID, _, _, let destinationID, _):
+      requests.request(folderID: fileID)
+      requests.request(folderID: destinationID)
+    default:
+      break
+    }
+  }
+
+  func settleNameAction(of model: PutioFolderModel) throws {
+    let outcome = model.actionOutcome
+    model.clearActionOutcome()
+    if let outcome { notify(outcome.action) }
+    guard case .succeeded = outcome else { throw PutioNameActionFailure() }
+  }
+}
+
+private struct PutioNameActionFailure: Error {}
 
 private struct PutioBulkProgressSurface: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {

@@ -15,8 +15,8 @@ images and documents, and opens put.io links into the same screens.
 - `row-menus` lists each item kind's long-press rows in order, marks watched
   and unwatched with a seeded failure, swipes both ways, and shows Open in VLC
   only with VLC installed.
-- `file-actions` creates a folder, rolls back a failed rename, retries it,
-  moves by context menu and swipe, and trashes by swipe.
+- `file-actions` creates a folder, rolls back a failed rename, retries it from
+  the toast, moves by context menu and swipe, and trashes by swipe.
 - `bulk` selects all, deselects, ends selection, moves with partial-failure
   retry, and trashes with batch retry.
 - `trash-disabled` deletes permanently, with copy that says so, when the account
@@ -32,7 +32,8 @@ images and documents, and opens put.io links into the same screens.
 ## How to get to it (user POV)
 
 - Files tab: rows open folders and files; the `More` menu (`files.menu`) holds
-  Select, New Folder, and sort.
+  Select (`item-action.select`), New folder (`item-action.new-folder`), and
+  sort.
 - Long-press a row for its menu. Swipe right for Move; left for More,
   Download, and Trash.
 - Search tab: type a query and submit.
@@ -59,8 +60,9 @@ Preconditions:
   `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
   `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.
 - **File actions and bulk.** Run `--only file-actions`. The first rename fails
-  and rolls back, the retry applies, and bulk Trash fails once, then moves both
-  items on retry. Screenshot: `runtime-file-actions`.
+  and rolls back, Try again on the toast applies it, and bulk Trash fails once,
+  then moves both items on retry. Screenshots: `runtime-rename-failed-toast`,
+  `runtime-file-actions`.
 - **Trash off.** Run `--only trash-disabled`. The context menu says Delete, and
   the confirmation says the item cannot be restored.
 - **Trash.** Run `--only trash-management`. Screenshots:
@@ -87,7 +89,8 @@ Preconditions:
   still.
 - Menu items such as Select live in the toolbar menu; wait for the menu item to
   appear before you tap it.
-- `files.selection.toggle` is Select inside the menu and Done in the toolbar
-  while editing.
+- `files.selection.toggle` is Done in the toolbar while editing.
+- Rename and New folder are system alerts: find them with `app.alerts[title]`
+  and type once the keyboard shows; Rename selects the stem first.
 - Some fixture responses are delayed on purpose, such as a failed rename (5 s)
   and a Trash restore (3 s). Wait on the visible result.

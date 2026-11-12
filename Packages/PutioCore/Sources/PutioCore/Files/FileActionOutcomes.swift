@@ -44,6 +44,12 @@ public struct PutioFileActionFailure: Equatable, Sendable {
 public enum PutioFileActionOutcome: Equatable, Sendable {
   case succeeded(PutioFileAction)
   case failed(PutioFileAction, PutioFileActionFailure)
+
+  public var action: PutioFileAction {
+    switch self {
+    case .succeeded(let action), .failed(let action, _): action
+    }
+  }
 }
 
 public enum PutioBulkFileAction: Equatable, Sendable {

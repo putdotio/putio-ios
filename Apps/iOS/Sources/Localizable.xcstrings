@@ -739,6 +739,17 @@
         }
       }
     },
+    "Could not create folder" : {
+      "comment" : "ios-only: no New folder failure line on a board or in Android yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not create folder"
+          }
+        }
+      }
+    },
     "Could not delete original" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -977,6 +988,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not update items"
+          }
+        }
+      }
+    },
+    "Couldn’t rename." : {
+      "comment" : "android: mobile_files_rename_error | differs: the toast carries Try again as its action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t rename."
           }
         }
       }
@@ -1686,13 +1708,13 @@
         }
       }
     },
-    "Folder created" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
+    "Folders use the default sort unless you choose a different order inside them." : {
+      "comment" : "ios-only: no Android string for the iOS file settings screen",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Folder created"
+            "value" : "Folders use the default sort unless you choose a different order inside them."
           }
         }
       }
@@ -1841,6 +1863,17 @@
         }
       }
     },
+    "In %@" : {
+      "comment" : "android: mobile_files_new_folder_in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In %@"
+          }
+        }
+      }
+    },
     "Install VLC for iOS from the App Store to stream this file there." : {
       "comment" : "ios-only: no Android string for the iOS VLC handoff",
       "localizations" : {
@@ -1881,17 +1914,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item moved"
-          }
-        }
-      }
-    },
-    "Item renamed" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item renamed"
           }
         }
       }
@@ -2454,6 +2476,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New Folder"
+          }
+        }
+      }
+    },
+    "New folder" : {
+      "comment" : "android: mobile_files_new_folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New folder"
           }
         }
       }
@@ -3466,17 +3499,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename"
-          }
-        }
-      }
-    },
-    "Rename Item" : {
-      "comment" : "android: mobile_files_rename | differs: iOS names the item in the dialog",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rename Item"
           }
         }
       }
