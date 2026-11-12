@@ -217,9 +217,13 @@ final class PutioShareSheetAnchorView: UIView {
     controller.popoverPresentationController?.sourceView = self
     controller.popoverPresentationController?.sourceRect = bounds
     let model = model
-    controller.completionWithItemsHandler = { activity, completed, _, _ in
-      guard completed || activity == nil else { return }
+    controller.completionWithItemsHandler = { [weak controller] _, _, _, _ in
       MainActor.assumeIsolated {
+        if let controller, controller.presentingViewController != nil,
+          !controller.isBeingDismissed
+        {
+          return
+        }
         if let model { model.finish(file) } else { file.discard() }
       }
     }
