@@ -134,8 +134,10 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
 
     app.showTabBar()
     app.buttons["Files"].tap()
-    let video = app.descendants(matching: .any)["files.item.414"]
-    XCTAssertTrue(video.appears(within: 10))
+    XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 10))
+    let video = app.revealed("files.item.414")
+    XCTAssertTrue(video.appears(within: 5))
+    app.bringIntoView(video)
     video.tap()
     let error = app.descendants(matching: .any)["video.error"]
     let ready = app.descendants(matching: .any)["video.ready"]
