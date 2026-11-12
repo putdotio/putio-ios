@@ -488,6 +488,7 @@ import Foundation
       }
       prepareFilePreferencesLocked()
       folderSorts = [:]
+      persistFolderSortsLocked()
       filePreferences?.overridesReset = true
       persistFilePreferencesLocked()
       return (200, #"{"status":"OK"}"#)
@@ -750,6 +751,7 @@ import Foundation
       settingsSaved = false
       trashListRequests = 0
       folderSorts = [:]
+      persistFolderSortsLocked()
       seasonSortFailureDelivered = false
       trashEmptyRefreshFailed = false
       trashFreedBytes = 0

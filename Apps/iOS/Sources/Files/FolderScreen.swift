@@ -316,9 +316,11 @@ struct PutioFolderScreen: View {
     } else {
       ScrollViewReader { proxy in
         folderList(contents)
-          .onChange(of: model.isUpdatingSortOrder) { _, isUpdating in
-            guard isUpdating else { return }
-            proxy.scrollTo(accountNotice == nil ? ListTop.header : ListTop.notice, anchor: .top)
+          .task(id: model.isUpdatingSortOrder) {
+            guard model.isUpdatingSortOrder else { return }
+            withAnimation {
+              proxy.scrollTo(accountNotice == nil ? ListTop.header : ListTop.notice, anchor: .top)
+            }
           }
       }
     }

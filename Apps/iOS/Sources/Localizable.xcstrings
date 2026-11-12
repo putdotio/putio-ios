@@ -3384,6 +3384,17 @@
         }
       }
     },
+    "Sort files, %@" : {
+      "comment" : "ios-only: VoiceOver label for the sort button; Android announces the sort as state, which iOS 27 drops from a Menu",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort files, %@"
+          }
+        }
+      }
+    },
     "Updating file order" : {
       "comment" : "android: mobile_files_sorting",
       "localizations" : {
