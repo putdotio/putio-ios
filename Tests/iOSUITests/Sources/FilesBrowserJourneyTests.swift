@@ -633,7 +633,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let episodes = ["files.item.441", "files.item.442", "files.item.443"]
 
     beginSelection()
-    episodes.forEach { toggle($0) }
+    for id in episodes { toggle(id) }
     app.buttons["selection.action.trash"].tap()
     XCTAssertTrue(
       app.staticTexts["Moved 3 items to trash"].appears(within: 10), "bulk Trash has no toast")
@@ -651,7 +651,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     }
 
     beginSelection()
-    episodes.forEach { toggle($0) }
+    for id in episodes { toggle(id) }
     app.buttons["selection.action.watched"].tap()
     XCTAssertTrue(
       app.staticTexts["Marked as watched"].appears(within: 10), "bulk Watched has no toast")
