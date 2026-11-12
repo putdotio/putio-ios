@@ -592,7 +592,8 @@ final class PutioOfflineQueue {
   }
 
   private func yieldSlot(_ fileID: PutioFileID) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    guard let index = items.firstIndex(where: { $0.id == fileID }), !isPaused(items[index].stage)
+    else { return }
     if case .downloading(let progress) = items[index].stage {
       engine.pause(fileID: fileID)
       suspended.insert(fileID)

@@ -527,6 +527,30 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(engine.started.map(\.0), [ids[0], ids[1]], "the finished download restarted")
   }
 
+  func testLoweringTheLimitKeepsAPauseTheUserChose() async {
+    let gate = makeGate()
+    let slow = SlowStartEngine(gate: gate)
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: slow, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    queue.setConcurrencyLimit(2)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.pause(fileID: PutioFileID(rawValue: 2))
+    queue.setConcurrencyLimit(1)
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .paused(progress: 0))
+    XCTAssertFalse(queue.isWaitingForSlot(PutioFileID(rawValue: 2)))
+  }
+
   func testLoweringTheLimitRequeuesADownloadStillResolving() async {
     let gate = makeGate()
     let queue = PutioOfflineQueue(
