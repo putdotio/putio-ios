@@ -731,7 +731,6 @@ struct PutioFolderScreen: View {
           failureState(failure)
             .frame(maxHeight: .infinity, alignment: .top)
         }
-        .padding(.horizontal, PutioTheme.Spacing.space4)
         .frame(minHeight: geometry.size.height, alignment: .top)
       }
     }
