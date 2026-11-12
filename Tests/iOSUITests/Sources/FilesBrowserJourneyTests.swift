@@ -1052,6 +1052,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(scrollUntilShown(lastRow, swipes: 120), "paging never reached the 450th file")
     XCTAssertFalse(element(identifier: "files.more.460").exists, "the last page kept a footer")
     XCTAssertFalse(failed.exists, "a later page failed")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
