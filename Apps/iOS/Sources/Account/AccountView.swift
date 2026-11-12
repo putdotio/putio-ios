@@ -13,6 +13,7 @@ struct AccountView: View {
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.openURL) private var openURL
+  @Environment(\.locale) private var locale
   @State private var preferences: PutioAccountPreferencesModel
   @State private var isRefreshingStorage = false
   @State private var confirmsSignOut = false
@@ -59,6 +60,14 @@ struct AccountView: View {
 
   private var settingsList: some View {
     List {
+      if let notice = PutioInactiveAccountNotice(account: account) {
+        PutioInactiveAccountNoticeView(notice: notice, identifier: "account.status-notice")
+          .listRowInsets(
+            EdgeInsets(top: 0, leading: 0, bottom: PutioTheme.Spacing.space3, trailing: 0)
+          )
+          .listRowSeparator(.hidden)
+          .listRowBackground(Color.clear)
+      }
       AccountProfileHeader(account: account)
       Group {
         storageSection
@@ -182,8 +191,15 @@ struct AccountView: View {
           }
         }
         ProgressView(value: account.storage.usedFraction)
-          .tint(PutioTheme.Colors.accent)
+          .tint(showsStorageFull ? PutioTheme.Colors.destructive : PutioTheme.Colors.accent)
           .accessibilityHidden(true)
+        if showsStorageFull {
+          Text(PutioAccountSnapshot.Storage.fullMessage)
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.destructive)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("account.storage-full")
+        }
       }
       .padding(.vertical, PutioTheme.Spacing.space1)
       if runtime.session.isAccountStorageStale {
@@ -207,7 +223,7 @@ struct AccountView: View {
   }
 
   private var storageUsage: some View {
-    Text(account.storage.usageSummary())
+    Text(account.storage.statusSummary(locale: locale))
       .putioFont(PutioTheme.Typography.numeric)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityIdentifier("account.storage-used")
@@ -365,6 +381,10 @@ struct AccountView: View {
       }
       .accessibilityIdentifier("account.contact-support")
     }
+  }
+
+  private var showsStorageFull: Bool {
+    account.storage.isFull && !runtime.session.isAccountStorageStale
   }
 
   private var settingsLocked: Bool { preferences.isBusy || preferences.isStale }

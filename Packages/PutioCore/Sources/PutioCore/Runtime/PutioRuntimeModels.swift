@@ -20,9 +20,32 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
 
     /// Worded as put.io's web app and the main app show usage: "20 GB of 1 TB used".
     public func usageSummary(locale: Locale = .current) -> String {
-      let used = PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale)
-      let total = PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
+      let (used, total) = sizeTexts(locale: locale)
       return String(localized: "\(used) of \(total) used", bundle: .module)
+    }
+
+    public var isFull: Bool {
+      totalBytes > 0 && (availableBytes <= 0 || usedBytes >= totalBytes)
+    }
+
+    public func capacitySummary(locale: Locale = .current) -> String {
+      let (used, total) = sizeTexts(locale: locale)
+      return String(localized: "\(used) of \(total)", bundle: .module)
+    }
+
+    private func sizeTexts(locale: Locale) -> (used: String, total: String) {
+      (
+        PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale),
+        PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
+      )
+    }
+
+    public func statusSummary(locale: Locale = .current) -> String {
+      isFull ? capacitySummary(locale: locale) : usageSummary(locale: locale)
+    }
+
+    public static var fullMessage: String {
+      String(localized: "Full. Empty trash or delete files to make room.", bundle: .module)
     }
   }
 

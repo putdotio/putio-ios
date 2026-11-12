@@ -557,6 +557,22 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-04-account-end")
   }
 
+  func testAccountStorageFull() throws {
+    app.launchArguments.append("--putio-harness-account-storage-full")
+    openAccount()
+    XCTAssertTrue(element("account.storage-full").appears(within: 5), "storage never read full")
+    try captureBoard("rd-ios-acc-28-storage-full")
+  }
+
+  func testAccountInactive() throws {
+    let account = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_INACTIVE_ACCOUNT"])
+    app.launchArguments += ["--putio-harness-account-inactive", account]
+    openAccount()
+    XCTAssertTrue(
+      element("account.status-notice").appears(within: 10), "Account has no \(account) notice")
+    try captureBoard("rd-ios-acc-29-inactive")
+  }
+
   func testAnalyticsPrompt() throws {
     XCUIDevice.shared.orientation = .portrait
     launchAnalyticsPrompt()

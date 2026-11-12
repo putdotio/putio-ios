@@ -104,6 +104,11 @@ import Foundation
     static let inactiveAccountArgument = "--putio-harness-account-inactive"
     static let accountRenewsInBackgroundArgument = "--putio-harness-account-renews-in-background"
     static let inactiveAccountDeletionDays = 12
+    static let storageFullArgument = "--putio-harness-account-storage-full"
+
+    private static var storageFull: Bool {
+      ProcessInfo.processInfo.arguments.contains(storageFullArgument)
+    }
 
     private static var inactiveAccount: InactiveAccount? {
       let arguments = ProcessInfo.processInfo.arguments
@@ -2450,7 +2455,8 @@ import Foundation
         : !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled")
           && !(historyDisablesAfterClear && historyCleared)
       let defaultSort = usesFilePreferences ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC"
-      let usedBytes = diskUsedBytes - trashFreedBytes
+      let usedBytes =
+        storageFull ? diskTotalBytes - trashFreedBytes : diskUsedBytes - trashFreedBytes
       let trashSizeBytes = Int64(trashFolders.count) * trashFolderBytes
       return """
         {
