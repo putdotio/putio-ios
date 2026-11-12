@@ -677,6 +677,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-27-settings-failed", .iphone, "testAccountSettingsFailed"),
       BoardCapture("rd-ios-acc-21-save-failed", .iphone, "testAccountSaveFailed"),
       BoardCapture("rd-ios-acc-28-storage-full", .iphone, "testAccountStorageFull"),
+      BoardCapture("rd-ios-acc-05-default-sort", .iphone, "testAccountDefaultSort"),
+      BoardCapture("rd-ios-acc-23-reset-sort", .iphone, "testAccountResetSort"),
+      BoardCapture("rd-ios-acc-24-trash-off", .iphone, "testAccountTrashOff"),
+      BoardCapture("rd-ios-acc-59-trash-off-account", .iphone, "testAccountWithTrashOff"),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
