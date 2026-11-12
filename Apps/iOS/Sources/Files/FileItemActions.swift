@@ -90,8 +90,13 @@ struct PutioFileItemActionsHost: ViewModifier {
           actions: actions,
           refreshRequests: refreshRequests,
           onMove: { destination in
-            request = nil
-            perform { await model.move(item, to: destination) }
+            await model.move(item, to: destination)
+            if model.outcome?.isNameTaken(movingFileID: item.id) == true {
+              model.clearOutcome()
+              return .nameTaken(item.name)
+            }
+            present(model.outcome)
+            return .closed
           }
         )
       }
@@ -165,7 +170,7 @@ struct PutioFileItemActionsHost: ViewModifier {
     case .succeeded(.delete):
       toast = PutioToast(deletion.singleSuccessTitle)
     case .succeeded(.move):
-      toast = PutioToast(String(localized: "Item moved"))
+      toast = PutioToast(PutioMoveCopy.moved(1))
     case .succeeded:
       break
     case .failed(let action, let failure):

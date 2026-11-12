@@ -134,6 +134,29 @@
         }
       }
     },
+    "%lld items are in the selected folder." : {
+      "comment" : "android: mobile_files_move_moved_many",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item is in the selected folder."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items are in the selected folder."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld of %lld" : {
       "comment" : "android: mobile_viewer_position",
       "localizations" : {
@@ -141,6 +164,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld of %lld"
+          }
+        }
+      }
+    },
+    "A file or folder named “%@” already exists there. Choose another folder." : {
+      "comment" : "android: mobile_files_move_collision",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A file or folder named “%@” already exists there. Choose another folder."
+          }
+        }
+      }
+    },
+    "A folder can’t be moved into itself or a folder inside it." : {
+      "comment" : "android: mobile_files_move_into_itself",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A folder can’t be moved into itself or a folder inside it."
           }
         }
       }
@@ -504,17 +549,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking your session"
-          }
-        }
-      }
-    },
-    "Choose another folder." : {
-      "comment" : "ios-only: no Android string for the iOS move picker",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose another folder."
           }
         }
       }
@@ -1918,17 +1952,6 @@
         }
       }
     },
-    "Item moved" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item moved"
-          }
-        }
-      }
-    },
     "Item restored" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -2072,13 +2095,13 @@
         }
       }
     },
-    "Loading folders" : {
-      "comment" : "android: mobile_files_move_loading | differs: iOS drops the ellipsis",
+    "Loading folders…" : {
+      "comment" : "android: mobile_files_move_loading",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading folders"
+            "value" : "Loading folders…"
           }
         }
       }
@@ -2336,6 +2359,29 @@
         }
       }
     },
+    "Move %lld items" : {
+      "comment" : "android: mobile_files_move_title",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Move %lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Move deleted files to trash" : {
       "comment" : "android: mobile_settings_trash",
       "localizations" : {
@@ -2347,24 +2393,13 @@
         }
       }
     },
-    "Move the selected items here or go back." : {
-      "comment" : "ios-only: no Android string for the iOS move picker",
+    "Move to %@" : {
+      "comment" : "android: mobile_files_move_to",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Move the selected items here or go back."
-          }
-        }
-      }
-    },
-    "Move this item here or go back." : {
-      "comment" : "ios-only: no Android string for the iOS move picker",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move this item here or go back."
+            "value" : "Move to %@"
           }
         }
       }
@@ -2436,17 +2471,6 @@
         }
       }
     },
-    "Name" : {
-      "comment" : "android: mobile_files_name",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
-          }
-        }
-      }
-    },
     "Name, A to Z" : {
       "comment" : "android: mobile_files_sort_name_ascending",
       "localizations" : {
@@ -2476,17 +2500,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New account events will appear here."
-          }
-        }
-      }
-    },
-    "New Folder" : {
-      "comment" : "android: mobile_files_new_folder | differs: iOS uses title case",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New Folder"
           }
         }
       }
@@ -2535,13 +2548,13 @@
         }
       }
     },
-    "No folders here" : {
-      "comment" : "android: mobile_files_move_empty | differs: iOS drops the period",
+    "No folders here." : {
+      "comment" : "android: mobile_files_move_empty",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No folders here"
+            "value" : "No folders here."
           }
         }
       }

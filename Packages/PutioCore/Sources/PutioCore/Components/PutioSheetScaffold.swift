@@ -28,17 +28,20 @@ public struct PutioSheetPrimaryButton {
   public let title: String
   public let isBusy: Bool
   public let isEnabled: Bool
+  public let failure: String?
   public let action: @MainActor () -> Void
 
   public init(
     _ title: String,
     isBusy: Bool = false,
     isEnabled: Bool = true,
+    failure: String? = nil,
     action: @escaping @MainActor () -> Void
   ) {
     self.title = title
     self.isBusy = isBusy
     self.isEnabled = isEnabled
+    self.failure = failure
     self.action = action
   }
 
@@ -189,6 +192,34 @@ public struct PutioSheetScaffold<Content: View>: View {
     let button: PutioSheetPrimaryButton
 
     var body: some View {
+      VStack(alignment: .leading, spacing: PutioSheetLayout.primaryBarVerticalPadding) {
+        if let failure = button.failure {
+          failureRow(failure)
+        }
+        primary
+      }
+      .padding(.horizontal, PutioSheetLayout.contentPadding)
+      .padding(.vertical, PutioSheetLayout.primaryBarVerticalPadding)
+    }
+
+    private func failureRow(_ failure: String) -> some View {
+      HStack(alignment: .top, spacing: PutioTheme.Spacing.space2) {
+        Image(putioIcon: .warningCircle)
+          .resizable()
+          .scaledToFit()
+          .frame(width: PutioSheetLayout.failureIconSize, height: PutioSheetLayout.failureIconSize)
+          .accessibilityHidden(true)
+        Text(failure)
+          .putioFont(PutioTheme.Typography.caption)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      .foregroundStyle(PutioTheme.Colors.destructive)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("sheet.failure")
+    }
+
+    private var primary: some View {
       Button {
         button.action()
       } label: {
@@ -211,8 +242,6 @@ public struct PutioSheetScaffold<Content: View>: View {
       .disabled(!button.acceptsTap)
       .accessibilityLabel(button.title)
       .accessibilityIdentifier("sheet.primary")
-      .padding(.horizontal, PutioSheetLayout.contentPadding)
-      .padding(.vertical, PutioSheetLayout.primaryBarVerticalPadding)
     }
   }
 #endif
@@ -225,6 +254,7 @@ enum PutioSheetLayout {
   #else
     static let contentPadding = PutioTheme.Spacing.space3
     static let primaryBarVerticalPadding = PutioTheme.Spacing.space2
+    static let failureIconSize = PutioTheme.Spacing.space3
   #endif
   #if !os(iOS) && !os(tvOS)
     static let titleFont = PutioTheme.Typography.subheading

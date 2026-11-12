@@ -140,7 +140,7 @@ extension PutioRuntime {
     guard response.errors.count == 1, response.errors[0].id == fileID.rawValue else {
       throw PutioRuntimeError.invalidResponse
     }
-
+    if response.errors[0].errorType == "NAME_ALREADY_EXIST" { throw PutioMoveNameTaken() }
     throw runtimeError(forStructuredStatusCode: response.errors[0].statusCode)
   }
 

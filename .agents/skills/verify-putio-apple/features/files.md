@@ -17,6 +17,9 @@ images and documents, and opens put.io links into the same screens.
   only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it from
   the toast, moves by context menu and swipe, and trashes by swipe.
+- `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
+  name, disables the current folder and a folder inside the moved one, and
+  moves into a folder made in the sheet.
 - `bulk` selects all, deselects, ends selection, moves with partial-failure
   retry, and trashes with batch retry.
 - `trash-disabled` deletes permanently, with copy that says so, when the account
@@ -63,6 +66,9 @@ Preconditions:
   and rolls back, Try again on the toast applies it, and bulk Trash fails once,
   then moves both items on retry. Screenshots: `runtime-rename-failed-toast`,
   `runtime-file-actions`.
+- **Move sheet.** Run `--only move-sheet`. Moving `Blue.Lights.S04E01.en.srt`
+  (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
+  holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
 - **Trash off.** Run `--only trash-disabled`. The context menu says Delete, and
   the confirmation says the item cannot be restored.
 - **Trash.** Run `--only trash-management`. Screenshots:

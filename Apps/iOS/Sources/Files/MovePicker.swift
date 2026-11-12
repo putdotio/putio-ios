@@ -2,6 +2,30 @@ import Foundation
 import PutioCore
 import SwiftUI
 
+enum PutioMoveSheetResult: Equatable {
+  case closed
+  case nameTaken(String)
+}
+
+enum PutioMoveLevelStatus: Equatable {
+  case loading
+  case ready
+  case busy
+}
+
+extension PutioFileActionOutcome {
+  func isNameTaken(movingFileID id: PutioFileID) -> Bool {
+    guard case .failed(.move(let fileID, _, _, _, _), let failure) = self else { return false }
+    return fileID == id && failure.isNameTaken
+  }
+}
+
+enum PutioMoveCopy {
+  static func moved(_ count: Int) -> String {
+    String(localized: "\(count) items are in the selected folder.")
+  }
+}
+
 @MainActor
 struct PutioMovePicker: View {
   let items: [PutioFileItem]
@@ -9,223 +33,270 @@ struct PutioMovePicker: View {
   let continueLoad: PutioFolderContinue?
   let actions: PutioFileActions?
   let refreshRequests: PutioFolderRefreshRequests
-  let onMove: @MainActor (PutioFolderRoute) -> Void
+  let onMove: @MainActor (PutioFolderRoute) async -> PutioMoveSheetResult
 
   @Environment(\.dismiss) private var dismiss
-  // periphery:ignore - read only through `$path`
   @State private var path: [PutioFolderRoute] = []
+  @State private var levelStatus: [PutioFileID: PutioMoveLevelStatus] = [:]
+  @State private var takenName: String?
+  @State private var isMoving = false
 
   var body: some View {
-    NavigationStack(path: $path) {
-      destination(.root)
+    PutioSheetScaffold(
+      title: String(localized: "Move \(items.count) items"),
+      primaryButton: PutioSheetPrimaryButton(
+        String(localized: "Move to \(destination.title)"),
+        isBusy: isMoving || levelStatus.values.contains(.busy),
+        isEnabled: canMove,
+        failure: failure,
+        action: move
+      ),
+      path: navigationPath
+    ) {
+      level(.root, trail: [])
         .navigationDestination(for: PutioFolderRoute.self) { route in
-          destination(route)
+          level(route, trail: trail(to: route))
+            .navigationTitle(route.title)
         }
     }
+    .onChange(of: path) { takenName = nil }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-picker")
   }
 
-  private func destination(_ route: PutioFolderRoute) -> some View {
-    PutioMoveDestinationScreen(
-      route: route, items: items, load: load, continueLoad: continueLoad, actions: actions,
-      refreshRequests: refreshRequests, onMove: onMove
+  private func level(_ route: PutioFolderRoute, trail: [PutioFolderRoute]) -> some View {
+    PutioMoveLevel(
+      route: route,
+      trail: [.root] + trail,
+      load: load,
+      continueLoad: continueLoad,
+      actions: actions,
+      refreshRequests: refreshRequests,
+      isMoving: isMoving,
+      onOpen: { next in
+        levelStatus[next.id] = nil
+        path.append(next)
+      },
+      onStatusChange: { levelStatus[route.id] = $0 }
     )
-    .toolbar {
-      ToolbarItem(placement: .cancellationAction) {
-        Button("Cancel", role: .cancel) {
-          dismiss()
-        }
-        .accessibilityIdentifier("files.move-cancel")
+  }
+
+  private var navigationPath: Binding<NavigationPath> {
+    Binding(
+      get: { NavigationPath(path) },
+      set: { newPath in
+        guard newPath.count < path.count else { return }
+        for popped in path[newPath.count...] { levelStatus[popped.id] = nil }
+        path.removeLast(path.count - newPath.count)
+      }
+    )
+  }
+
+  private func trail(to route: PutioFolderRoute) -> [PutioFolderRoute] {
+    guard let index = path.firstIndex(of: route) else { return [route] }
+    return Array(path[...index])
+  }
+
+  private var destination: PutioFolderRoute { path.last ?? .root }
+
+  private var policy: PutioMovePickerPolicy { PutioMovePickerPolicy(items: items) }
+
+  private var destinationState: PutioMoveDestinationState { policy.state(along: path) }
+
+  private var canMove: Bool {
+    destinationState == .available && levelStatus[destination.id] == .ready
+  }
+
+  private var failure: String? {
+    switch destinationState {
+    case .intoItself:
+      return String(localized: "A folder can’t be moved into itself or a folder inside it.")
+    case .currentFolder:
+      return nil
+    case .available:
+      guard let takenName else { return nil }
+      return String(
+        localized:
+          "A file or folder named “\(takenName)” already exists there. Choose another folder."
+      )
+    }
+  }
+
+  private func move() {
+    let destination = destination
+    takenName = nil
+    isMoving = true
+    Task {
+      let result = await onMove(destination)
+      isMoving = false
+      switch result {
+      case .closed:
+        dismiss()
+      case .nameTaken(let name):
+        takenName = name
       }
     }
   }
 }
 
 @MainActor
-private struct PutioMoveDestinationScreen: View {
+private struct PutioMoveLevel: View {
   let route: PutioFolderRoute
-  let items: [PutioFileItem]
-  let onMove: @MainActor (PutioFolderRoute) -> Void
+  let trail: [PutioFolderRoute]
+  let isMoving: Bool
+  let onOpen: @MainActor (PutioFolderRoute) -> Void
+  let onStatusChange: @MainActor (PutioMoveLevelStatus) -> Void
 
   @State private var model: PutioFolderModel
+  @State private var newFolderAlert: PutioTextAlert?
   private let refreshRequests: PutioFolderRefreshRequests
-  @State private var toast: PutioToast?
-  @State private var newFolderName = ""
-  @State private var newFolderPresented = false
 
   init(
     route: PutioFolderRoute,
-    items: [PutioFileItem],
+    trail: [PutioFolderRoute],
     load: @escaping PutioFolderLoad,
     continueLoad: PutioFolderContinue?,
-    actions: PutioFileActions? = nil,
+    actions: PutioFileActions?,
     refreshRequests: PutioFolderRefreshRequests,
-    onMove: @escaping @MainActor (PutioFolderRoute) -> Void
+    isMoving: Bool,
+    onOpen: @escaping @MainActor (PutioFolderRoute) -> Void,
+    onStatusChange: @escaping @MainActor (PutioMoveLevelStatus) -> Void
   ) {
     self.route = route
-    self.items = items
-    self.onMove = onMove
+    self.trail = trail
     self.refreshRequests = refreshRequests
+    self.isMoving = isMoving
+    self.onOpen = onOpen
+    self.onStatusChange = onStatusChange
     _model = State(
       initialValue: PutioFolderModel(
         folderID: route.id, load: load, continueLoad: continueLoad, actions: actions))
   }
 
   var body: some View {
-    Group {
-      switch model.state {
-      case .loading:
-        PutioLoadingStateView(title: String(localized: "Loading folders"))
-      case .failed(let failure):
-        PutioErrorStateView(
-          title: failure.title,
-          message: failure.message,
-          retryTitle: String(localized: "Try again")
-        ) {
-          Task { await model.retry() }
-        }
-      case .loaded(let contents):
-        VStack(spacing: PutioTheme.Spacing.space3) {
-          if let failure = model.refreshFailure {
-            VStack(spacing: PutioTheme.Spacing.space2) {
-              Text("Could not refresh")
-                .putioFont(PutioTheme.Typography.subheading)
-              Text(failure.message)
-                .putioFont(PutioTheme.Typography.caption)
-                .foregroundStyle(PutioTheme.Colors.textSecondary)
-              Button("Try again") {
-                Task { await model.refresh() }
-              }
-            }
-            .padding(PutioTheme.Spacing.space4)
-          }
-          destinationList(contents)
-        }
-      }
+    VStack(alignment: .leading, spacing: 0) {
+      Text(trail.map(\.title).joined(separator: " / "))
+        .putioFont(PutioTheme.Typography.caption)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .lineLimit(1)
+        .truncationMode(.head)
+        .padding(.horizontal, PutioTheme.Spacing.space3)
+        .padding(.vertical, PutioTheme.Spacing.space2)
+        .accessibilityIdentifier("files.move-path")
+      content
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
-    .navigationTitle(route.title)
+    .scrollContentBackground(.hidden)
+    .background(PutioTheme.Components.Sheet.background)
     .navigationBarTitleDisplayMode(.inline)
-    .putioContentBackground()
+    .navigationBarBackButtonHidden(isMoving || model.activeAction != nil)
     .toolbar {
-      if model.supportsActions {
-        ToolbarItem(placement: .primaryAction) {
-          Menu {
-            Button {
-              newFolderPresented = true
-            } label: {
-              Label("New Folder", systemImage: "folder.badge.plus")
-            }
-            .disabled(!model.canStartAction)
-            .accessibilityIdentifier("files.move-new-folder")
-            Section {
-              PutioFolderSortRows(current: model.sort, isDisabled: !model.canStartAction) {
-                sort in
-                Task {
-                  await model.setSort(sort)
-                  presentActionOutcome()
-                }
-              }
-            }
-          } label: {
-            Label("More", systemImage: "ellipsis.circle")
+      ToolbarItem(placement: .primaryAction) {
+        Button {
+          newFolderAlert = makeNewFolderAlert()
+        } label: {
+          Label {
+            Text("New folder")
+          } icon: {
+            Image(putioIcon: .folderSimplePlus)
           }
-          .accessibilityIdentifier("files.move-menu")
-          .accessibilityLabel(PutioFolderSortRows.menuLabel(for: model.sort))
         }
-      }
-      ToolbarItem(placement: .confirmationAction) {
-        Button("Move") {
-          onMove(route)
-        }
-        .buttonStyle(.borderedProminent)
-        .disabled(!canMoveHere)
-        .accessibilityIdentifier("files.move-here.\(route.id.rawValue)")
+        .labelStyle(.iconOnly)
+        .tint(PutioTheme.Colors.textPrimary)
+        .disabled(!model.supportsActions || !model.canStartAction || !model.isLoaded || isMoving)
+        .accessibilityIdentifier("files.move-new-folder")
       }
     }
-    .safeAreaInset(edge: .bottom) {
-      moveSummary
-    }
-    .alert("New Folder", isPresented: $newFolderPresented) {
-      TextField("Name", text: $newFolderName)
-      Button("Create") {
-        let name = newFolderName
-        Task {
-          await model.createFolder(name: name)
-          presentActionOutcome()
-        }
-      }
-      .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-      Button("Cancel", role: .cancel) {}
-    }
+    .putioTextAlert($newFolderAlert)
     .task(id: route.id) {
       await model.loadIfNeeded()
     }
-    .putioToast($toast)
-    .navigationBarBackButtonHidden(model.activeAction != nil)
-    .interactiveDismissDisabled(model.activeAction != nil)
+    .onChange(of: status, initial: true) { _, status in
+      onStatusChange(status)
+    }
   }
 
-  private var moveSummary: some View {
-    HStack(spacing: PutioTheme.Spacing.space3) {
-      if let first = items.first {
-        PutioIconView(
-          first.kind == .folder ? .folderFill : .file,
-          size: PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
-        )
-        .foregroundStyle(PutioTheme.Components.FileRow.icon)
-      }
-      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
-        Text("Move")
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Text(items.count == 1 ? items[0].name : String(localized: "\(items.count) items"))
-          .putioFont(PutioTheme.Typography.body)
-          .foregroundStyle(PutioTheme.Colors.textPrimary)
-          .lineLimit(1)
-          .truncationMode(.middle)
-      }
-      Spacer()
-    }
-    .padding(PutioTheme.Spacing.space4)
-    .background(PutioTheme.Colors.surface, in: .rect(cornerRadius: PutioTheme.Radius.large))
-    .padding(.horizontal, PutioTheme.Spacing.space4)
-    .accessibilityElement(children: .combine)
-    .accessibilityIdentifier("files.move-summary")
+  private var status: PutioMoveLevelStatus {
+    if model.activeAction != nil { return .busy }
+    return model.isLoaded ? .ready : .loading
   }
 
   @ViewBuilder
-  private func destinationList(_ contents: PutioFolderContents) -> some View {
-    let folders = policy.folders(in: contents)
+  private var content: some View {
+    switch model.state {
+    case .loading:
+      PutioLoadingStateView(title: String(localized: "Loading folders…"))
+    case .failed(let failure):
+      PutioErrorStateView(
+        title: failure.title,
+        message: failure.message,
+        retryTitle: String(localized: "Try again")
+      ) {
+        Task { await model.retry() }
+      }
+    case .loaded(let contents):
+      VStack(spacing: PutioTheme.Spacing.space3) {
+        if let failure = model.refreshFailure {
+          VStack(spacing: PutioTheme.Spacing.space2) {
+            Text("Could not refresh")
+              .putioFont(PutioTheme.Typography.subheading)
+            Text(failure.message)
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+            Button("Try again") {
+              Task { await model.refresh() }
+            }
+          }
+          .padding(PutioTheme.Spacing.space4)
+        }
+        folderList(contents)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func folderList(_ contents: PutioFolderContents) -> some View {
+    let folders = PutioMovePickerPolicy.folders(in: contents)
     if folders.isEmpty, !contents.hasMore {
-      PutioEmptyStateView(
-        icon: .folderFill,
-        title: String(localized: "No folders here"),
-        message: canMoveHere ? emptyDestinationMessage : String(localized: "Choose another folder.")
-      )
+      Text("No folders here.")
+        .putioFont(PutioTheme.Typography.body)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("files.move-empty.\(route.id.rawValue)")
     } else {
       List {
         ForEach(folders) { folder in
-          NavigationLink(value: PutioFolderRoute(id: folder.id, title: folder.name)) {
-            PutioFileRow(
-              PutioBrowserItemPresentation(item: folder).row
-            )
+          Button {
+            onOpen(PutioFolderRoute(id: folder.id, title: folder.name))
+          } label: {
+            HStack(spacing: PutioTheme.Spacing.space2) {
+              PutioFileRow(PutioBrowserItemPresentation(item: folder).row)
+              Image(putioIcon: .caretRight)
+                .resizable()
+                .scaledToFit()
+                .frame(width: PutioTheme.Spacing.space3, height: PutioTheme.Spacing.space3)
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+                .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
           }
-          .disabled(model.activeAction != nil)
+          .buttonStyle(.plain)
+          .disabled(model.activeAction != nil || isMoving)
           .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
-          .listRowBackground(PutioTheme.Colors.background)
+          .listSectionSeparator(.hidden, edges: .top)
+          .listRowBackground(Color.clear)
         }
         if contents.hasMore {
           loadMoreRow
-            .listRowBackground(PutioTheme.Colors.background)
+            .listRowBackground(Color.clear)
         }
       }
       .listStyle(.plain)
     }
   }
 
-  // The picker hides files, so a page can add no rows; the row then stays
-  // visible and its task chains into the next page.
   @ViewBuilder
   private var loadMoreRow: some View {
     if let failure = model.loadMoreFailure {
@@ -261,29 +332,26 @@ private struct PutioMoveDestinationScreen: View {
     }
   }
 
-  private func presentActionOutcome() {
-    guard let outcome = model.actionOutcome else { return }
-    refreshRequests.request(folderID: route.id)
-    switch outcome {
-    case .succeeded(let action):
-      if case .createFolder = action { newFolderName = "" }
-    case .failed(_, let failure):
-      toast = PutioToast(failure.title)
+  private func makeNewFolderAlert() -> PutioTextAlert {
+    let model = model
+    let refreshRequests = refreshRequests
+    let folderID = route.id
+    return PutioTextAlert(
+      title: String(localized: "New folder"),
+      message: String(localized: "In \(route.title)"),
+      initialText: "",
+      submitTitle: String(localized: "Create"),
+      failureText: String(localized: "Could not create folder")
+    ) { name in
+      await model.createFolder(name: name)
+      guard let outcome = model.actionOutcome, case .createFolder = outcome.action else {
+        throw PutioMoveFolderCreationFailure()
+      }
+      model.clearActionOutcome()
+      refreshRequests.request(folderID: folderID)
+      if case .failed = outcome { throw PutioMoveFolderCreationFailure() }
     }
-    model.clearActionOutcome()
-  }
-
-  private var emptyDestinationMessage: String {
-    items.count == 1
-      ? String(localized: "Move this item here or go back.")
-      : String(localized: "Move the selected items here or go back.")
-  }
-
-  private var canMoveHere: Bool {
-    model.isLoaded && model.activeAction == nil && policy.canMove(to: route)
-  }
-
-  private var policy: PutioMovePickerPolicy {
-    PutioMovePickerPolicy(items: items)
   }
 }
+
+private struct PutioMoveFolderCreationFailure: Error {}

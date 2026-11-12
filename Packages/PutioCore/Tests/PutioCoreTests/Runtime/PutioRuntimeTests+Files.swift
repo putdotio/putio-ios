@@ -450,6 +450,42 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testMoveFileReportsANameCollisionAsNameTaken() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {
+        "status": "OK",
+        "errors": [
+          {
+            "error_type": "NAME_ALREADY_EXIST",
+            "id": 91,
+            "name": "Blue.Lights.S04E01.en.srt",
+            "status_code": 400
+          }
+        ]
+      }
+      """,
+      for: Self.moveFilesRoute
+    )
+    let action = PutioFileAction.move(
+      fileID: PutioFileID(rawValue: 91), name: "Blue.Lights.S04E01.en.srt",
+      sourceParentID: PutioFileID(rawValue: 3), destinationID: PutioFileID(rawValue: 7),
+      destinationName: "Series")
+
+    do {
+      try await runtime.moveFile(fileID: PutioFileID(rawValue: 91), to: PutioFileID(rawValue: 7))
+      XCTFail("a refused name must throw")
+    } catch {
+      XCTAssertEqual(PutioFileActionFailure(action: action, error: error)?.isNameTaken, true)
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("a name collision must preserve the signed-in session")
+    }
+    XCTAssertEqual(
+      PutioFileActionFailure(action: action, error: PutioRuntimeError.unknown)?.isNameTaken, false)
+  }
+
   func testMoveFileRejectsContradictoryOrMismatchedStructuredResponses() async {
     let (runtime, _) = await makeSignedInRuntime()
     let responses = [
