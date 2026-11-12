@@ -80,6 +80,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.buttons["Account"].tap()
     XCTAssertTrue(app.revealed("playback-settings.autoplay").appears(within: 10))
     assertToggle(autoplay, value: "1")
+    XCTAssertTrue(app.revealed("playback-settings.route").appears(within: 5))
     XCTAssertTrue(proxy.label.hasSuffix("edge"), "proxy row read \(proxy.label)")
     _ = app.revealed("playback-settings.subtitle-selection")
     assertToggle(subtitles, value: "1")
