@@ -286,6 +286,52 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertNil(PutioPreviewModel(route: archive) { _, _ in Data() }.share)
   }
 
+  func testOverlappingSharesFetchTheWholeTextOnce() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let whole = Data(repeating: 0x61, count: limit + 4_000)
+    var wholeFetches = 0
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 17), parentID: .root, title: "Long.srt", kind: .text)
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      guard extent == .whole else { return whole.prefix(limit + 1) }
+      wholeFetches += 1
+      for _ in 0..<5 { await Task.yield() }
+      return whole
+    }
+    await model.load()
+    let share = try XCTUnwrap(model.share)
+    async let first = share.export()
+    async let second = share.export()
+    let files = try await [first, second]
+    XCTAssertEqual(files[0], files[1])
+    XCTAssertEqual(wholeFetches, 1)
+    model.cancel()
+  }
+
+  func testClosingDuringAShareLeavesNoTemporaryDirectory() async throws {
+    let limit = PutioPreviewRoute.textLimitBytes
+    let gate = PreviewDownloadGate()
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 18), parentID: .root, title: "Long.srt", kind: .text)
+    let model = PutioPreviewModel(route: .preview(route)) { _, extent in
+      let body = Data(repeating: 0x61, count: limit + 4_000)
+      guard extent == .whole else { return body.prefix(limit + 1) }
+      await gate.wait()
+      return body
+    }
+    await model.load()
+    let share = try XCTUnwrap(model.share)
+    let export = Task { try await share.export() }
+    while !gate.isWaiting { await Task.yield() }
+    model.cancel()
+    gate.open()
+    do {
+      _ = try await export.value
+      XCTFail("a closed preview still shared a file")
+    } catch {}
+    XCTAssertFalse(FileManager.default.fileExists(atPath: model.shareDirectory.path))
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)
@@ -472,4 +518,20 @@ private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
   }
 
   override func stopLoading() {}
+}
+
+@MainActor
+private final class PreviewDownloadGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  var isWaiting: Bool { continuation != nil }
+
+  func wait() async {
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func open() {
+    continuation?.resume()
+    continuation = nil
+  }
 }

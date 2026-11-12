@@ -230,11 +230,12 @@ final class PutioPreviewModel {
   let route: PutioViewerRoute
   private(set) var state: PutioPreviewState
   private let download: PutioPreviewDownload
-  private let shareDirectory: URL
+  let shareDirectory: URL
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
   private var loadedBytes: Data?
   private var sharedFile: URL?
+  private var shareExport: Task<URL, any Error>?
 
   init(route: PutioViewerRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
@@ -291,6 +292,8 @@ final class PutioPreviewModel {
     generation &+= 1
     loadedBytes = nil
     sharedFile = nil
+    shareExport?.cancel()
+    shareExport = nil
     try? FileManager.default.removeItem(at: shareDirectory)
   }
 
@@ -309,18 +312,32 @@ final class PutioPreviewModel {
 
   func exportShareFile() async throws -> URL {
     if let sharedFile { return sharedFile }
-    guard case .preview(let route) = route else { throw PutioPreviewTooLargeError() }
+    if let shareExport { return try await shareExport.value }
     let request = generation
+    let export = Task { [weak self] in
+      guard let self else { throw CancellationError() }
+      defer { if request == generation { shareExport = nil } }
+      return try await writeShareFile(request: request)
+    }
+    shareExport = export
+    return try await export.value
+  }
+
+  private func writeShareFile(request: UInt64) async throws -> URL {
+    guard case .preview(let route) = route else { throw PutioPreviewTooLargeError() }
     let bytes: Data
     if let loadedBytes {
       bytes = loadedBytes
     } else {
       bytes = try await download(route, .whole)
     }
+    try Task.checkCancellation()
     let file = shareDirectory.appending(path: Self.shareFileName(route.title))
     try await Self.write(bytes, to: file)
     guard request == generation else {
       try? FileManager.default.removeItem(at: file)
+      let left = try? FileManager.default.contentsOfDirectory(atPath: shareDirectory.path)
+      if left?.isEmpty == true { try? FileManager.default.removeItem(at: shareDirectory) }
       throw CancellationError()
     }
     sharedFile = file
