@@ -260,9 +260,25 @@ final class PreviewJourneyTests: XCTestCase {
       waitForLabel(pill, in: middle), "scrolling did not move the pill: \(pill.label)")
     let number = pill.label.split(separator: " ")[1]
     let page = app.staticTexts["put.io harness page \(number)"]
-    XCTAssertTrue(page.exists, "page \(number) is not on screen")
+    let window = app.windows.firstMatch.frame
+    let bar = app.navigationBars.firstMatch.frame
+    XCTAssertTrue(
+      page.exists && page.frame.minY >= bar.maxY && page.frame.maxY <= window.maxY,
+      "page \(number) is not on screen: \(page.frame)")
     XCTAssertTrue(app.buttons["preview.back"].isHittable)
     screenshot("runtime-preview-document-middle")
+
+    XCUIDevice.shared.orientation = .landscapeLeft
+    XCTAssertTrue(
+      waitForFrame(pill) { _ in app.windows.firstMatch.frame.width > window.width },
+      "the document did not rotate")
+    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    XCTAssertTrue(pill.exists, "the landscape document has no page pill")
+    screenshot("runtime-preview-document-landscape")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(
+      waitForFrame(pill) { _ in app.windows.firstMatch.frame.width == window.width },
+      "the document did not rotate back")
 
     let fitted = page.frame
     element("preview.document").pinch(withScale: 2.5, velocity: 2)

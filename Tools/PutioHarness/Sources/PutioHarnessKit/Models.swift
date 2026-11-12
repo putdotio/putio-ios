@@ -832,7 +832,7 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
-        "runtime-preview-document-middle",
+        "runtime-preview-document-middle", "runtime-preview-document-landscape",
         "runtime-preview-cannot-show", "runtime-vlc-missing",
       ],
       timeAllowance: 180),

@@ -315,15 +315,6 @@ struct PutioPreviewView: View {
     if case .image = model.state { true } else { false }
   }
 
-  private static let imageFade: [Gradient.Stop] = [
-    .init(color: .black.opacity(0.6), location: 0), .init(color: .black.opacity(0), location: 1),
-  ]
-
-  private static let documentFade: [Gradient.Stop] = [
-    .init(color: .black, location: 0), .init(color: .black.opacity(0.85), location: 0.45),
-    .init(color: .black.opacity(0), location: 1),
-  ]
-
   private var showsDocument: Bool {
     if case .document = model.state { true } else { false }
   }
@@ -338,12 +329,14 @@ struct PutioPreviewView: View {
 
   @ViewBuilder
   private var topFade: some View {
-    if showsImage && showsBars || showsDocument {
+    if showsDocument {
+      PutioPDFBarFade()
+    } else if showsImage, showsBars {
       LinearGradient(
-        stops: showsDocument ? Self.documentFade : Self.imageFade,
+        colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
         startPoint: .top, endPoint: .bottom
       )
-      .frame(height: showsDocument ? 150 : 120)
+      .frame(height: 120)
       .ignoresSafeArea(edges: .top)
       .allowsHitTesting(false)
       .accessibilityHidden(true)
@@ -416,7 +409,7 @@ struct PutioPreviewView: View {
         .accessibilityIdentifier("preview.image")
     case .document(let document):
       PutioPDFView(document: document) { documentPage = $0 }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: .vertical)
         .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
         .accessibilityIdentifier("preview.document")
     case .failed(.loadFailed):
@@ -573,6 +566,30 @@ struct PutioPDFPagePosition: Equatable {
 
   var showsPill: Bool { count > 1 }
   var number: Int { index + 1 }
+}
+
+struct PutioPDFBarFade: View {
+  static func stops(barBottom: CGFloat) -> [Gradient.Stop] {
+    guard barBottom > 0 else { return [] }
+    let solid = max(0, barBottom - PutioTheme.Spacing.space3) / barBottom
+    return [
+      .init(color: .black, location: 0), .init(color: .black, location: solid),
+      .init(color: .black.opacity(0), location: 1),
+    ]
+  }
+
+  var body: some View {
+    GeometryReader { proxy in
+      let insets = proxy.safeAreaInsets
+      LinearGradient(
+        stops: Self.stops(barBottom: insets.top), startPoint: .top, endPoint: .bottom
+      )
+      .frame(width: proxy.size.width + insets.leading + insets.trailing, height: insets.top)
+      .offset(x: -insets.leading, y: -insets.top)
+    }
+    .allowsHitTesting(false)
+    .accessibilityHidden(true)
+  }
 }
 
 struct PutioPDFPagePill: View {
