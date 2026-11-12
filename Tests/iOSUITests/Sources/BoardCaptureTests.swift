@@ -1021,6 +1021,27 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-60-resume-off-confirm")
   }
 
+  func testAccountPrivacy() throws {
+    openAccountSettings()
+    let privacy = app.revealed("account.privacy")
+    XCTAssertTrue(privacy.appears(within: 5))
+    privacy.tap()
+    XCTAssertTrue(
+      app.switches["privacy.diagnostics"].appears(within: 5), "Privacy controls never opened")
+    try captureBoard("rd-ios-acc-08-privacy")
+  }
+
+  func testAccountHistoryOff() throws {
+    openAccountSettings()
+    scrollAccount(untilNearTop: "playback-settings.subtitles")
+    let history = app.switches["settings.history"]
+    app.bringIntoView(history)
+    history.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(
+      app.alerts["Turn off history?"].appears(within: 5), "the history alert never showed")
+    try captureBoard("rd-ios-acc-25-history-off")
+  }
+
   func testAccountPlaybackMethod() throws {
     openAccountSettings()
     let method = app.revealed("playback-settings.method")

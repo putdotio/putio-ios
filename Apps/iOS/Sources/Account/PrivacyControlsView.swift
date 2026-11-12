@@ -1,14 +1,9 @@
 import PutioCore
 import SwiftUI
 
-/// The account-wide privacy choices every put.io app shares
-/// (putdotio/support#95): strictly necessary processing is disclosed, never
-/// toggled; diagnostics are on by default and product analytics is opt-in.
-/// Each control carries its description in its row, followed by the policy
-/// links (putdotio/support#135).
 @MainActor
 struct PrivacyControlsView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.openURL) private var openURL
   @State private var model: PutioAccountPreferencesModel
   @State private var saveFailures = PutioSettingSaveFailures()
 
@@ -17,7 +12,7 @@ struct PrivacyControlsView: View {
   }
 
   var body: some View {
-    Form {
+    List {
       if model.isStale {
         Section {
           Text(
@@ -35,38 +30,40 @@ struct PrivacyControlsView: View {
       }
       if model.account != nil {
         Group {
-          Section {
-            // LabeledContent wraps its value under a two-line label, so the value
-            // is laid out as a trailing column like a toggle's switch.
-            alwaysOnLayout {
-              controlLabel(PutioPrivacyControls.strictlyNecessary)
-              if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
-              Text("Always on")
-                .foregroundStyle(PutioTheme.Colors.textSecondary)
-                .fixedSize()
-            }
-            .accessibilityElement(children: .combine)
+          PutioSettingsSection(footer: PutioPrivacyControls.groupFooter) {
+            PutioValueRow(
+              PutioPrivacyControls.strictlyNecessary.title,
+              subtitle: PutioPrivacyControls.strictlyNecessary.description,
+              icon: .shieldCheck,
+              value: String(localized: "Always on")
+            )
             .accessibilityIdentifier("privacy.strictly-necessary")
-            Toggle(isOn: binding(\.diagnosticsEnabled, save: { .diagnostics($0) })) {
-              controlLabel(PutioPrivacyControls.diagnostics)
-            }
+            PutioToggleRow(
+              title: PutioPrivacyControls.diagnostics.title,
+              subtitle: PutioPrivacyControls.diagnostics.description,
+              icon: .bug,
+              isOn: binding(\.diagnosticsEnabled, save: { .diagnostics($0) })
+            )
             .disabled(!model.canSave)
             .accessibilityIdentifier("privacy.diagnostics")
-            Toggle(
+            PutioToggleRow(
+              title: PutioPrivacyControls.productAnalytics.title,
+              subtitle: PutioPrivacyControls.productAnalytics.description,
+              icon: .chartLine,
               isOn: binding(\.productAnalyticsEnabled, save: { .productAnalytics($0) })
-            ) {
-              controlLabel(PutioPrivacyControls.productAnalytics)
-            }
+            )
             .disabled(!model.canSave)
             .accessibilityIdentifier("privacy.product-analytics")
-          } footer: {
-            Text(PutioPrivacyControls.groupFooter)
           }
-          Section {
-            Link("Privacy policy", destination: PutioPrivacyControls.privacyPolicyURL)
-              .accessibilityIdentifier("privacy.policy")
-            Link("Services we use", destination: PutioPrivacyControls.servicesWeUseURL)
-              .accessibilityIdentifier("privacy.services")
+          PutioSettingsSection {
+            PutioLinkRow(String(localized: "Privacy policy"), icon: .fileText) {
+              openURL(PutioPrivacyControls.privacyPolicyURL)
+            }
+            .accessibilityIdentifier("privacy.policy")
+            PutioLinkRow(String(localized: "Services we use"), icon: .list) {
+              openURL(PutioPrivacyControls.servicesWeUseURL)
+            }
+            .accessibilityIdentifier("privacy.services")
           }
         }
         .listRowBackground(PutioTheme.Colors.surface)
@@ -78,29 +75,10 @@ struct PrivacyControlsView: View {
       }
     }
     .navigationTitle(PutioPrivacyControls.title)
+    .navigationBarTitleDisplayMode(.inline)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .putioSettingSaveFailures(saveFailures)
-  }
-
-  /// At accessibility sizes a trailing column leaves the label too narrow to read.
-  private var alwaysOnLayout: AnyLayout {
-    dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(alignment: .leading, spacing: PutioTheme.Spacing.space1))
-      : AnyLayout(HStackLayout(spacing: PutioTheme.Spacing.space2))
-  }
-
-  /// The description sits inside the row, so the control's accessibility label
-  /// carries it and VoiceOver reads it with the switch, not as nearby text.
-  private func controlLabel(_ control: PutioPrivacyControls.Control) -> some View {
-    VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
-      Text(control.title)
-      Text(control.description)
-        .putioFont(PutioTheme.Typography.caption)
-        .foregroundStyle(PutioTheme.Colors.textSecondary)
-    }
-    .padding(.vertical, PutioTheme.Spacing.space1)
-    .accessibilityElement(children: .combine)
   }
 
   private func binding(

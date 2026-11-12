@@ -692,6 +692,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-24-trash-off", .iphone, "testAccountTrashOff"),
       BoardCapture("rd-ios-acc-59-trash-off-account", .iphone, "testAccountWithTrashOff"),
       BoardCapture("rd-ios-acc-60-resume-off-confirm", .iphone, "testAccountResumeOff"),
+      BoardCapture("rd-ios-acc-08-privacy", .iphone, "testAccountPrivacy"),
+      BoardCapture("rd-ios-acc-25-history-off", .iphone, "testAccountHistoryOff"),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),

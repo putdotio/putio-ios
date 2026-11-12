@@ -23,6 +23,17 @@
         }
       }
     },
+    "%@ · %@" : {
+      "comment" : "android: mobile_settings_privacy_controls_state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · %@"
+          }
+        }
+      }
+    },
     "%lld couldn’t be deleted." : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -97,6 +108,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Active transfers"
+          }
+        }
+      }
+    },
+    "Analytics off" : {
+      "comment" : "android: mobile_settings_analytics_off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analytics off"
+          }
+        }
+      }
+    },
+    "Analytics on" : {
+      "comment" : "android: mobile_settings_analytics_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analytics on"
           }
         }
       }
@@ -770,6 +803,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
+          }
+        }
+      }
+    },
+    "Diagnostics off" : {
+      "comment" : "android: mobile_settings_diagnostics_off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics off"
+          }
+        }
+      }
+    },
+    "Diagnostics on" : {
+      "comment" : "android: mobile_settings_diagnostics_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics on"
           }
         }
       }

@@ -48,14 +48,15 @@ public enum PutioPrivacyControls {
   public static let privacyPolicyURL = URL(string: "https://put.io/privacy-policy/")!
   public static let servicesWeUseURL = URL(string: "https://put.io/services-we-use/")!
 
-  /// The Account row's state line, such as "Diagnostics on · Product analytics off".
   public static func summary(for account: PutioAccountSnapshot) -> String {
-    func state(_ control: Control, _ enabled: Bool) -> String {
-      "\(control.title) \(enabled ? "on" : "off")"
-    }
-    return [
-      state(diagnostics, account.diagnosticsEnabled),
-      state(productAnalytics, account.productAnalyticsEnabled),
-    ].joined(separator: " · ")
+    let diagnostics =
+      account.diagnosticsEnabled
+      ? String(localized: "Diagnostics on", bundle: .module)
+      : String(localized: "Diagnostics off", bundle: .module)
+    let analytics =
+      account.productAnalyticsEnabled
+      ? String(localized: "Analytics on", bundle: .module)
+      : String(localized: "Analytics off", bundle: .module)
+    return String(localized: "\(diagnostics) · \(analytics)", bundle: .module)
   }
 }
