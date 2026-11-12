@@ -1031,6 +1031,8 @@ final class BoardCaptureTests: XCTestCase {
     app.showTabBar()
     XCTAssertTrue(
       tabButton("Downloads").becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertFalse(
+      element("board.tab-bar-expanding").appears(within: 1.5), "the tab bar never settled")
     try captureBoard("rd-ios-acc-08-privacy")
   }
 
