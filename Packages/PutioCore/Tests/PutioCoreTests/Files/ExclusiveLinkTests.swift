@@ -11,37 +11,38 @@ final class ExclusiveLinkTests: XCTestCase {
     let server = LinkServer([.success(link)])
     let model = PutioExclusiveLinkModel(item: item, create: server.create)
     XCTAssertTrue(model.canCreate)
-    await model.create()
+    await create(model)
     XCTAssertEqual(model.state, .created(link))
     XCTAssertFalse(model.canCreate)
-    await model.create()
+    XCTAssertFalse(model.start(), "a second tap started another request")
+    await create(model)
     XCTAssertEqual(server.calls, [item.id])
   }
 
   func testRefusalsKeepTheirReasonAndAllowAnotherTry() async {
     let server = LinkServer([.failure(PutioPublicLinkRefusal.daily), .success(link)])
     let model = PutioExclusiveLinkModel(item: item, create: server.create)
-    await model.create()
+    await create(model)
     XCTAssertEqual(model.state, .refused(.daily))
     XCTAssertTrue(model.canCreate)
-    await model.create()
+    await create(model)
     XCTAssertEqual(model.state, .created(link))
   }
 
   func testOtherFailuresNameTheirReasonAndRetry() async {
     let server = LinkServer([.failure(PutioRuntimeError.transient), .success(link)])
     let model = PutioExclusiveLinkModel(item: item, create: server.create)
-    await model.create()
+    await create(model)
     XCTAssertEqual(
       model.state, .failed("Couldn’t create a link. Check your connection and try again."))
-    await model.create()
+    await create(model)
     XCTAssertEqual(model.state, .created(link))
   }
 
   func testCancellingOrLosingTheSessionShowsNoFailure() async {
     for error: Error in [CancellationError(), PutioRuntimeError.sessionExpired] {
       let model = PutioExclusiveLinkModel(item: item, create: LinkServer([.failure(error)]).create)
-      await model.create()
+      await create(model)
       XCTAssertEqual(model.state, .ready, "\(error)")
     }
   }
@@ -53,7 +54,7 @@ final class ExclusiveLinkTests: XCTestCase {
       try await Task.sleep(for: .seconds(30))
       return link
     }
-    let task = Task { await model.create() }
+    let task = Task { await create(model) }
     await fulfillment(of: [started], timeout: 5)
     XCTAssertEqual(model.state, .creating)
     task.cancel()
@@ -92,6 +93,10 @@ final class ExclusiveLinkTests: XCTestCase {
       PutioExclusiveLinkCopy.body(name: "Blue Lights"),
       "Anyone with a link can open Blue Lights. A link stops working after 72 hours, or sooner when it hits its IP or data limit."
     )
+  }
+
+  private func create(_ model: PutioExclusiveLinkModel) async {
+    if model.start() { await model.create() }
   }
 
   private let item = PutioFileItem(

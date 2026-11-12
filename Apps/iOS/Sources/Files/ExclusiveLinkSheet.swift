@@ -94,13 +94,13 @@ struct PutioExclusiveLinkSheet: View {
   }
 
   private var bodyText: AttributedString {
-    let name = PutioExclusiveLinkCopy.displayName(model.item.name)
-    var text = AttributedString(PutioExclusiveLinkCopy.body(name: name))
-    if let range = text.range(of: name) {
-      text[range].foregroundColor = PutioTheme.Colors.textPrimary
-      text[range].font = ExclusiveLinkLayout.nameFont
-    }
-    return text
+    let marker = "\u{FFFC}"
+    let parts = PutioExclusiveLinkCopy.body(name: marker).components(separatedBy: marker)
+    var name = AttributedString(PutioExclusiveLinkCopy.displayName(model.item.name))
+    name.foregroundColor = PutioTheme.Colors.textPrimary
+    name.font = ExclusiveLinkLayout.nameFont
+    guard parts.count == 2 else { return AttributedString(parts.joined()) + name }
+    return AttributedString(parts[0]) + name + AttributedString(parts[1])
   }
 
   private func created(_ url: URL) -> some View {
@@ -169,7 +169,7 @@ struct PutioExclusiveLinkSheet: View {
 
   private func createButton(_ title: String) -> some View {
     Button {
-      request += 1
+      if model.start() { request += 1 }
     } label: {
       label(title, icon: .link)
         .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
