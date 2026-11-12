@@ -670,8 +670,9 @@ struct PutioTextPreviewView: UIViewRepresentable {
 }
 
 final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
-  private let textView = PutioPlainTextView(usingTextLayoutManager: true)
+  private let textView = UITextView(usingTextLayoutManager: true)
   private let notice = UILabel()
+  private lazy var textElement = PutioVisibleTextElement(container: self, textView: textView)
   private var shown: PutioTextPreview?
 
   private static let inset = PutioTheme.Spacing.space3
@@ -689,13 +690,13 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
     textView.contentInsetAdjustmentBehavior = .always
     textView.topEdgeEffect.isHidden = true
     textView.textContainer.lineFragmentPadding = 0
-    textView.accessibilityIdentifier = "preview.text"
     addSubview(textView)
     notice.numberOfLines = 0
     notice.textColor = UIColor(PutioTheme.Colors.textSecondary)
     notice.accessibilityIdentifier = "preview.text.truncated"
     notice.isHidden = true
     addSubview(notice)
+    accessibilityElements = [textElement, notice]
     registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
       (view: PutioTextPreviewContainer, _) in
       view.restyle()
@@ -762,10 +763,54 @@ final class PutioTextPreviewContainer: UIView, UITextViewDelegate {
   }
 }
 
-final class PutioPlainTextView: UITextView {
-  override var accessibilityValue: String? {
-    get { text }
+final class PutioVisibleTextElement: UIAccessibilityElement {
+  private weak var textView: UITextView?
+
+  init(container: UIView, textView: UITextView) {
+    self.textView = textView
+    super.init(accessibilityContainer: container)
+    accessibilityIdentifier = "preview.text"
+    accessibilityTraits = .staticText
+  }
+
+  override var accessibilityFrameInContainerSpace: CGRect {
+    get { textView?.frame ?? .zero }
     set {}
+  }
+
+  override var accessibilityValue: String? {
+    get { textView.flatMap(Self.visibleText(in:)) }
+    set {}
+  }
+
+  override func accessibilityScroll(_ direction: UIAccessibilityScrollDirection) -> Bool {
+    guard let textView else { return false }
+    let page = textView.bounds.height - textView.adjustedContentInset.top
+      - textView.adjustedContentInset.bottom
+    let minY = -textView.adjustedContentInset.top
+    let maxY = max(
+      minY,
+      textView.contentSize.height + textView.adjustedContentInset.bottom
+        - textView.bounds.height)
+    let y: CGFloat
+    switch direction {
+    case .down: y = min(maxY, textView.contentOffset.y + page)
+    case .up: y = max(minY, textView.contentOffset.y - page)
+    default: return false
+    }
+    guard y != textView.contentOffset.y else { return false }
+    textView.setContentOffset(CGPoint(x: textView.contentOffset.x, y: y), animated: false)
+    UIAccessibility.post(notification: .pageScrolled, argument: accessibilityValue)
+    return true
+  }
+
+  private static func visibleText(in textView: UITextView) -> String? {
+    let visible = textView.bounds.inset(by: textView.adjustedContentInset)
+    guard let start = textView.closestPosition(to: CGPoint(x: visible.minX, y: visible.minY)),
+      let end = textView.closestPosition(to: CGPoint(x: visible.maxX, y: visible.maxY)),
+      let range = textView.textRange(from: start, to: end)
+    else { return nil }
+    return textView.text(in: range)
   }
 }
 
