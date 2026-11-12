@@ -57,7 +57,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     XCTAssertTrue(alert.appears(within: 5))
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5))
     app.typeText(name)
-    alert.buttons["Create"].tap()
+    alert.buttons["Create"].firstMatch.tap()
     let folder = reachable(element("files.item.415"))
     XCTAssertTrue(folder.label == name || folder.label.hasPrefix(name + ", "), folder.label)
     centerRow(folder)

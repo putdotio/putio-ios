@@ -918,7 +918,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let newFolderAlert = nameAlert("New folder")
     XCTAssertTrue(
       newFolderAlert.staticTexts["In Files"].exists, "New folder does not name its folder")
-    let create = newFolderAlert.buttons["Create"]
+    let create = newFolderAlert.buttons["Create"].firstMatch
     XCTAssertFalse(create.isEnabled, "Create is enabled for an empty name")
     submitName("Watch Later", in: newFolderAlert, as: "Create")
 
@@ -929,7 +929,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
     let renameAlert = nameAlert("Rename")
     let renameField = renameAlert.textFields.firstMatch
-    let rename = renameAlert.buttons["Rename"]
+    let rename = renameAlert.buttons["Rename"].firstMatch
     XCTAssertEqual(renameField.value as? String, "Watch Later")
     XCTAssertFalse(rename.isEnabled, "Rename is enabled for an unchanged name")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
@@ -1458,7 +1458,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
     app.typeText(name)
     XCTAssertEqual(alert.textFields.firstMatch.value as? String, name)
-    let submit = alert.buttons[submitTitle]
+    let submit = alert.buttons[submitTitle].firstMatch
     XCTAssertTrue(waitUntilHittable(submit, timeout: 5), "\(submitTitle) is not tappable")
     submit.tap()
     XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after \(submitTitle)")

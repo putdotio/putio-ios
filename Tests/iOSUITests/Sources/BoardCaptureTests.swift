@@ -83,7 +83,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     let alert = openRename(Self.subtitleName)
     XCTAssertEqual(alert.textFields.firstMatch.value as? String, Self.subtitleName)
-    XCTAssertFalse(alert.buttons["Rename"].isEnabled, "Rename is enabled for an unchanged name")
+    XCTAssertFalse(
+      alert.buttons["Rename"].firstMatch.isEnabled, "Rename is enabled for an unchanged name")
     try captureBoard("rd-ios-20-rename")
   }
 
@@ -96,10 +97,12 @@ final class BoardCaptureTests: XCTestCase {
     let alert = app.alerts["New folder"]
     XCTAssertTrue(alert.appears(within: 5), "New folder never opened")
     XCTAssertTrue(alert.staticTexts["In Blue Lights"].exists, "New folder does not name its folder")
-    XCTAssertFalse(alert.buttons["Create"].isEnabled, "Create is enabled for an empty name")
+    XCTAssertFalse(
+      alert.buttons["Create"].firstMatch.isEnabled, "Create is enabled for an empty name")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
     app.typeText("Season 5")
-    XCTAssertTrue(alert.buttons["Create"].isEnabled, "Create stayed disabled for a name")
+    XCTAssertTrue(
+      alert.buttons["Create"].firstMatch.isEnabled, "Create stayed disabled for a name")
     try captureBoard("rd-ios-21-new-folder")
   }
 
@@ -112,7 +115,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(
       alert.textFields.firstMatch.value as? String, "Blue.Lights.S04E01.de.srt",
       "typing did not replace only the stem")
-    alert.buttons["Rename"].tap()
+    alert.buttons["Rename"].firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after Rename")
     XCTAssertTrue(app.staticTexts["Couldn’t rename."].appears(within: 10), "no failure toast")
     XCTAssertTrue(app.buttons["Try again"].exists, "the failure toast offers no Try again")
