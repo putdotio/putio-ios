@@ -686,6 +686,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-23-reset-sort", .iphone, "testAccountResetSort"),
       BoardCapture("rd-ios-acc-24-trash-off", .iphone, "testAccountTrashOff"),
       BoardCapture("rd-ios-acc-59-trash-off-account", .iphone, "testAccountWithTrashOff"),
+      BoardCapture("rd-ios-acc-60-resume-off-confirm", .iphone, "testAccountResumeOff"),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
@@ -1054,6 +1055,10 @@ enum BrowserJourneyContract {
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
       attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
+    JourneyPreflight(
+      "resume-setting",
+      "PlaybackPreferencesJourneyTests/testResumeOffAsksFirstAndSavedVideosStartAtZeroInPortrait",
+      attachmentNames: ["runtime-resume-off-confirm"], timeAllowance: 180),
     JourneyPreflight(
       "subtitles",
       "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",

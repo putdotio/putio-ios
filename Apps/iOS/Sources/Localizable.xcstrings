@@ -2260,17 +2260,6 @@
         }
       }
     },
-    "Loading playback settings" : {
-      "comment" : "android: mobile_settings_playback_loading",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading playback settings"
-          }
-        }
-      }
-    },
     "Loading playback type" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -3747,6 +3736,17 @@
         }
       }
     },
+    "Resume where you left off" : {
+      "comment" : "android: mobile_settings_resume_playback",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume where you left off"
+          }
+        }
+      }
+    },
     "Revoke" : {
       "comment" : "android: mobile_public_links_revoke",
       "localizations" : {
@@ -4462,6 +4462,17 @@
         }
       }
     },
+    "This erases every saved playback position on your account, on all devices." : {
+      "comment" : "ios-only: the resume confirmation is on the Account board; Android has not shipped its key yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This erases every saved playback position on your account, on all devices."
+          }
+        }
+      }
+    },
     "This folder contains too many files. Delete it permanently?" : {
       "comment" : "android: mobile_files_trash_limit_message",
       "localizations" : {
@@ -4700,6 +4711,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn off"
+          }
+        }
+      }
+    },
+    "Turn off resume?" : {
+      "comment" : "ios-only: the resume confirmation is on the Account board; Android has not shipped its key yet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off resume?"
           }
         }
       }

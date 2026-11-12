@@ -665,7 +665,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testAccountPlayback() throws {
     openAccount()
-    scrollAccount(untilNearTop: "playback-settings.autoplay")
+    scrollAccount(untilNearTop: "playback-settings.resume")
     try captureBoard("rd-ios-acc-03-account-middle")
   }
 
@@ -799,6 +799,17 @@ final class BoardCaptureTests: XCTestCase {
     openAccountSettings()
     XCTAssertFalse(element("account.trash").exists, "the Trash row shows with trash off")
     try captureBoard("rd-ios-acc-59-trash-off-account")
+  }
+
+  func testAccountResumeOff() throws {
+    openAccountSettings()
+    scrollAccount(untilNearTop: "playback-settings.resume")
+    let resume = app.switches["playback-settings.resume"]
+    XCTAssertTrue(resume.appears(within: 5))
+    resume.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(
+      app.alerts["Turn off resume?"].appears(within: 5), "the resume alert never showed")
+    try captureBoard("rd-ios-acc-60-resume-off-confirm")
   }
 
   private func openAccountSettings() {

@@ -116,6 +116,43 @@ extension PutioRuntimeTests {
 
   }
 
+  func testResumePlaybackWritesStartFromAndKeepsTheAcknowledgedValue() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    fixtures.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
+    let result = try await runtime.setResumePlaybackEnabled(false)
+    XCTAssertFalse(result.accountRefreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(account.rememberVideoTime)
+    let write = try XCTUnwrap(
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/account/settings" })
+    let body = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: XCTUnwrap(requestBodyData(for: write)))
+        as? [String: Any])
+    XCTAssertEqual(body.count, 1)
+    XCTAssertEqual(body["start_from"] as? Bool, false)
+  }
+
+  func testLostResumePlaybackResponseAcceptsTheAppliedValue() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    await assertRuntimeError(.transient) { _ = try await runtime.setResumePlaybackEnabled(false) }
+    fixtures.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: #""start_from": true"#, with: #""start_from": false"#),
+      for: "GET /v2/account/info")
+    let result = try await runtime.setResumePlaybackEnabled(false)
+    XCTAssertTrue(result.accountRefreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(account.rememberVideoTime)
+  }
+
   func testPreferenceWritesUseTypedSDKPatchesAndRefreshAuthoritativeSnapshot() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let settingsRoute = "POST /v2/account/settings"
