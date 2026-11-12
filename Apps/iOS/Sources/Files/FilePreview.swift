@@ -977,8 +977,11 @@ struct PutioPreviewView: View {
           isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
         )
       }
+      .padding(.horizontal, PutioTheme.Spacing.space1 / 2)
+      .modifier(PutioPreviewToolbarGlass())
       .padding(.trailing, toolbarInset)
     }
+    .sharedBackgroundVisibility(.hidden)
   }
 
   private var toolbarInset: CGFloat {
@@ -1733,6 +1736,16 @@ struct PutioPreviewBackLabel: View {
         Circle().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
       }
       .contentShape(Circle())
+  }
+}
+
+private struct PutioPreviewToolbarGlass: ViewModifier {
+  @ViewBuilder func body(content: Content) -> some View {
+    if HarnessRendering.usesRasterFallback {
+      content.background(.regularMaterial, in: Capsule())
+    } else {
+      content.glassEffect(.regular, in: Capsule())
+    }
   }
 }
 
