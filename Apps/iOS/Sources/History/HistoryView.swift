@@ -53,7 +53,9 @@ struct HistoryView: View {
         .navigationDestination(for: PutioFolderRoute.self) { route in
           PutioFolderScreen(
             route: route,
-            load: { try await runtime.listFiles(parentID: $0) },
+            load: {
+              try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize)
+            },
             continueLoad: { try await runtime.continueFiles(cursor: $0) },
             actions: PutioFileActions(runtime: runtime),
             trashEnabled: trashEnabled,

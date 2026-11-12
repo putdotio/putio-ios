@@ -312,7 +312,8 @@ extension PutioRuntimeTests {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
 
-    _ = try await runtime.listFiles(parentID: PutioFileID(rawValue: 42))
+    _ = try await runtime.listFiles(
+      parentID: PutioFileID(rawValue: 42), perPage: PutioRuntime.folderPageSize)
 
     let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let components = try XCTUnwrap(

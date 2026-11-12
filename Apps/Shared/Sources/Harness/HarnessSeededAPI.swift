@@ -571,9 +571,6 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
     }
     static let tvEmptyFolderID = 423
-    /// `--putio-harness-folder-states` adds `Empty Folder` (423) and
-    /// `Paging Folder` (460) to the root. The paging folder holds 450 files
-    /// served `per_page` at a time, and its second page fails once.
     private static var usesFolderStates: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-folder-states")
     }
@@ -581,10 +578,6 @@ import Foundation
     static let pagingFileCount = 450
     private static let pagingCursorPrefix = "paging-folder-offset-"
     nonisolated(unsafe) private static var pagingSecondPageFailed = false
-    /// `--putio-harness-hold-season-listing` holds the first Blue Lights
-    /// listing; `--putio-harness-season-more-held` and
-    /// `--putio-harness-season-more-fails` give Blue Lights a next page that
-    /// stays in flight or always fails.
     private static var holdsSeasonListing: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-season-listing")
     }
@@ -2992,10 +2985,10 @@ import Foundation
           ] : [])
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
         + (usesFolderStates
-          ? [
-            folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0),
-            folderObject(id: pagingFolderID, name: "Paging Folder", parentID: 0),
-          ] : [])
+          ? (usesTVBrowse
+            ? [] : [folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)])
+            + [folderObject(id: pagingFolderID, name: "Paging Folder", parentID: 0)]
+          : [])
         + (usesPreviews
           ? [
             previewObject(id: longPreviewFileID, name: longPreviewName, type: "IMAGE", size: 1856),
@@ -3058,8 +3051,6 @@ import Foundation
       """
     }
 
-    /// Pages of the 450-file Paging Folder. The cursor carries the offset
-    /// and page size; the second page fails once for retry proof.
     private static func pagingPage(offset: Int, perPage: Int) -> (Int, String) {
       let end = min(offset + perPage, pagingFileCount)
       let rows = (offset..<end).map { index in

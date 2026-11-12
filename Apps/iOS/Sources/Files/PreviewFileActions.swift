@@ -11,7 +11,7 @@ struct PutioPreviewFileActions {
 
   init(runtime: PutioRuntime, trashEnabled: Bool, refreshRequests: PutioFolderRefreshRequests) {
     actions = PutioFileActions(runtime: runtime)
-    load = { try await runtime.listFiles(parentID: $0) }
+    load = { try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize) }
     continueLoad = { try await runtime.continueFiles(cursor: $0) }
     lookUp = { try await runtime.getFile(fileID: $0) }
     self.trashEnabled = trashEnabled
