@@ -9,6 +9,8 @@ from a sign-out that did not finish.
 - `sign-out-recovery` shows "Signing out", lands a failed sign-out on the
   welcome, and never restores the account on relaunch; the cleanup finishes
   once the fault clears.
+- `sign-out-downloads` keeps a download through sign-out and back, removes it
+  with "Sign out and remove downloads", and dismisses the dialog unchanged.
 - `session-restore-storage` and `session-restore-check` restore through an
   unreadable credential and an offline session check: retry restores, a failed
   reset keeps the screen, and the secondary action lands on the fresh welcome.
@@ -47,6 +49,10 @@ Preconditions:
 - **Sign-out recovery.** Run `--only sign-out-recovery`. The failed sign-out
   and each relaunch show the welcome, never Files. Screenshots:
   `runtime-signing-out`, `runtime-sign-out-failure`.
+- **Sign-out dialog.** Run `--only sign-out-downloads`. Screenshots:
+  `runtime-sign-out-downloads`, `runtime-sign-out-no-downloads`. Boards:
+  `rd-ios-ses-08-sign-out`, `rd-ios-ses-16-sign-out-no-downloads`,
+  `rd-ios-ses-24-ipad-sign-out`.
 - **Restore recovery.** Run `--only session-restore-storage,session-restore-check`.
   `--putio-harness-saved-credential-at-launch` seeds the credential;
   `--putio-harness-credential-read-fails-once` and
@@ -89,5 +95,7 @@ Preconditions:
 ## Gotchas
 
 - Account rows load lazily. Scroll until the row exists before you tap it.
-- Sign-out asks "Are you sure?" first (`auth.sign-out-confirm`).
+- Sign-out asks once: an alert (`confirm-alert.confirm`) with no downloads,
+  otherwise a dialog with `auth.sign-out-confirm` and
+  `auth.sign-out-remove-downloads`.
 - Session rules live in [session lifecycle](../../../../docs/session.md).

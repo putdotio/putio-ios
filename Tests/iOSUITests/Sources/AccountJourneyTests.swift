@@ -112,6 +112,123 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(app.revealed("auth.sign-out").appears(within: 5))
   }
 
+  func testSignOutKeepsOrRemovesDownloadsAndDismissChangesNothing() throws {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = ["--putio-harness-scenario", "files-browser"]
+    app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
+    app.launch()
+    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+
+    let track = app.descendants(matching: .any)["files.item.408"]
+    XCTAssertTrue(track.appears(within: 10), "the harness track never appeared")
+    track.press(forDuration: 1)
+    let download = app.buttons["Download"].firstMatch
+    XCTAssertTrue(download.appears(within: 5), "the track menu has no Download")
+    download.tap()
+    let downloaded = app.descendants(matching: .any)["downloads.item.408"]
+    openDownloads(in: app)
+    XCTAssertTrue(downloaded.appears(within: 10), "the track never queued")
+    XCTAssertTrue(
+      waitForValue(downloaded, "completed", timeout: 60), "the track never finished downloading")
+
+    let keep = app.buttons["auth.sign-out-confirm"].firstMatch
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    tapSignOut(in: app)
+    XCTAssertTrue(remove.appears(within: 5), "the dialog offers no download removal")
+    XCTAssertTrue(keep.exists, "the dialog offers no plain Sign out")
+    XCTAssertTrue(app.staticTexts["Sign out of put.io?"].exists, "the dialog has no title")
+    let message = app.staticTexts.matching(
+      NSPredicate(
+        format: "label BEGINSWITH %@ AND label ENDSWITH %@", "Downloads use ",
+        " and stay on this \(deviceNoun). They come back when you sign in again.")
+    ).firstMatch
+    XCTAssertTrue(message.exists, "the dialog does not say downloads stay")
+    XCTAssertFalse(
+      message.label.hasPrefix("Downloads use 0 B"), "the dialog does not show the downloads' size")
+    XCTAssertEqual(remove.label, "Sign out and remove downloads")
+    attach(app, "runtime-sign-out-downloads")
+    dismissSignOutDialog(in: app)
+    XCTAssertTrue(remove.disappears(within: 5), "the dialog stayed open")
+    XCTAssertTrue(
+      app.descendants(matching: .any)["auth.sign-out"].exists, "dismissing the dialog signed out")
+    openDownloads(in: app)
+    XCTAssertTrue(downloaded.appears(within: 5), "dismissing the dialog removed the download")
+
+    tapSignOut(in: app)
+    XCTAssertTrue(keep.appears(within: 5))
+    keep.tap()
+    XCTAssertTrue(signIn.appears(within: 15), "Sign out never reached Welcome")
+    signIn.tap()
+    openDownloads(in: app)
+    XCTAssertTrue(downloaded.appears(within: 10), "signing back in lost the kept download")
+    XCTAssertTrue(waitForValue(downloaded, "completed", timeout: 5))
+
+    tapSignOut(in: app)
+    XCTAssertTrue(remove.appears(within: 5))
+    remove.tap()
+    XCTAssertTrue(signIn.appears(within: 15), "Sign out and remove downloads never reached Welcome")
+    signIn.tap()
+    openDownloads(in: app)
+    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 10), "the download survived")
+
+    tapSignOut(in: app)
+    let alert = app.alerts["Sign out of put.io?"]
+    XCTAssertTrue(alert.appears(within: 5), "sign-out with no downloads asked no question")
+    XCTAssertFalse(remove.exists, "the alert offers download removal with no downloads")
+    XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
+    attach(app, "runtime-sign-out-no-downloads")
+    alert.buttons["Cancel"].tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertTrue(app.descendants(matching: .any)["auth.sign-out"].exists, "Cancel left Account")
+    tapSignOut(in: app)
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 15))
+  }
+
+  private var deviceNoun: String {
+    UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+  }
+
+  private func openDownloads(in app: XCUIApplication) {
+    let downloads = app.buttons["Downloads"].firstMatch
+    app.scrollDown(toHit: downloads)
+    XCTAssertTrue(downloads.appears(within: 10), "the Downloads tab is missing")
+    downloads.tap()
+  }
+
+  private func tapSignOut(in app: XCUIApplication) {
+    let account = app.buttons["Account"].firstMatch
+    app.scrollDown(toHit: account)
+    XCTAssertTrue(account.appears(within: 10), "the Account tab is missing")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "Account has no Sign out")
+    app.bringIntoView(signOut)
+    XCTAssertTrue(signOut.becomesHittable(within: 5), "Sign out never became tappable")
+    signOut.tap()
+  }
+
+  private func dismissSignOutDialog(in app: XCUIApplication) {
+    let cancel = app.buttons["Cancel"].firstMatch
+    if cancel.exists, cancel.isHittable {
+      cancel.tap()
+    } else {
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+    }
+  }
+
+  private func waitForValue(_ target: XCUIElement, _ value: String, timeout: TimeInterval)
+    -> Bool
+  {
+    let matched = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", value), object: target)
+    return XCTWaiter.wait(for: [matched], timeout: timeout) == .completed
+  }
+
   func testSettingsLoadSlowly() {
     continueAfterFailure = false
     let app = launchSignedIn(settings: "slow-load")

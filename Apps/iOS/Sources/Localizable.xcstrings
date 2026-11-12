@@ -322,17 +322,6 @@
         }
       }
     },
-    "Are you sure?" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Are you sure?"
-          }
-        }
-      }
-    },
     "Audio" : {
       "comment" : "android: mobile_playback_audio_control",
       "localizations" : {
@@ -1500,6 +1489,50 @@
         }
       }
     },
+    "Downloads stay on this iPad and come back when you sign in again." : {
+      "comment" : "android: mobile_account_sign_out_message | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads stay on this iPad and come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads stay on this iPhone and come back when you sign in again." : {
+      "comment" : "android: mobile_account_sign_out_message | differs: names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads stay on this iPhone and come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
+      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPad. They come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
+      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPhone. They come back when you sign in again."
+          }
+        }
+      }
+    },
     "Each unused code signs you in once if you lose your authenticator app." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2256,17 +2289,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading Trash"
-          }
-        }
-      }
-    },
-    "Log out" : {
-      "comment" : "android: mobile_account_sign_out | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Log out"
           }
         }
       }
@@ -3985,6 +4007,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out"
+          }
+        }
+      }
+    },
+    "Sign out and remove downloads" : {
+      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out and remove downloads"
+          }
+        }
+      }
+    },
+    "Sign out of put.io?" : {
+      "comment" : "android: mobile_account_sign_out_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out of put.io?"
           }
         }
       }

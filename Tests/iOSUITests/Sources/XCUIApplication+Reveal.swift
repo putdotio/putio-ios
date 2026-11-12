@@ -34,11 +34,15 @@ extension XCUIApplication {
     scrollDown(toHit: buttons["Files"])
   }
 
-  /// Account's Log out asks "Are you sure?" before ending the session.
+  /// Sign out asks once: an alert with no downloads, otherwise a dialog
+  /// whose plain Sign out keeps them.
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {
-    let confirm = buttons["auth.sign-out-confirm"].firstMatch
+    let confirm = buttons.matching(
+      NSPredicate(
+        format: "identifier IN %@", ["auth.sign-out-confirm", "confirm-alert.confirm"])
+    ).firstMatch
     XCTAssertTrue(
-      confirm.appears(within: 5), "log out was not confirmed", file: file, line: line)
+      confirm.appears(within: 5), "sign out was not confirmed", file: file, line: line)
     confirm.tap()
   }
 }
