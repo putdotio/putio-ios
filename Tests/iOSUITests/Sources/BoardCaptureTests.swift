@@ -834,7 +834,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static func byteSize(in texts: [String]) -> String? {
-    let pattern = /[0-9][0-9.,]*\s?(?:bytes|B|KB|MB|GB|TB)/
+    let pattern = /[0-9][0-9.,]*\s?(?:bytes|B|kB|KB|MB|GB|TB)/
     return texts.lazy.compactMap { $0.firstMatch(of: pattern).map { String($0.output) } }.first
   }
 

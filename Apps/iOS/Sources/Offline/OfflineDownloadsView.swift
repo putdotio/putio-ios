@@ -111,6 +111,7 @@ struct PutioOfflineDownloadsView: View {
     List(selection: isEditing ? $selectedIDs : nil) {
       Section {
         LabeledContent("Downloaded", value: byteText(queue.storedBytes))
+          .accessibilityElement(children: .combine)
           .accessibilityIdentifier("downloads.storage-used")
         LabeledContent("Free on device", value: byteText(queue.availableBytes))
         if queue.pendingPositionCount > 0 {
