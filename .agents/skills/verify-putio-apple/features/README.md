@@ -47,5 +47,5 @@ behavior, then four H2 sections in this order: `Sub-features`,
 - [Playback](./playback.md): video, resume, audio, subtitles, playback
   preferences, Cast, and downloads.
 - [Account](./account.md): sign-out recovery, security, preferences, history,
-  rating, and the analytics prompt.
+  rating, the analytics prompt, and the inactive-account notice.
 - [tvOS](./tvos.md): device-code sign-in, browse, search, Trash, and playback.

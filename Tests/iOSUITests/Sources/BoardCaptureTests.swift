@@ -371,6 +371,27 @@ final class BoardCaptureTests: XCTestCase {
       app.images["Harness Poster.png"].appears(within: 5), "the image did not settle")
   }
 
+  func testInactiveNotice() throws {
+    XCUIDevice.shared.orientation = .portrait
+    try launchInactiveAccount()
+    try captureBoard("rd-ios-ses-19-inactive")
+  }
+
+  func testIPadInactiveNotice() throws {
+    XCUIDevice.shared.orientation = .landscapeLeft
+    try launchInactiveAccount()
+    try captureBoard("rd-ios-ses-26-ipad-inactive")
+  }
+
+  private func launchInactiveAccount() throws {
+    let account = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_INACTIVE_ACCOUNT"])
+    app.launchArguments += ["--putio-harness-account-inactive", account]
+    app.launch()
+    reachFilesRoot()
+    XCTAssertTrue(
+      element("account.inactive-notice").appears(within: 10), "the \(account) notice never showed")
+  }
+
   private func openLongPreview() {
     reachFilesRoot()
     let row = element("files.item.428")

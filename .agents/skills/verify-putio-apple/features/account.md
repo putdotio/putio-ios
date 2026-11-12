@@ -19,6 +19,9 @@ from a sign-out that did not finish.
   choice once.
 - `analytics-prompt-swipe` swipes the prompt away, signs out and in, and
   meets the prompt again.
+- `inactive-account`, `inactive-family`, and `active-account` show the
+  inactive-account notice on the Files root, clear it after renewal on return
+  to the foreground, and show nothing to an active account.
 
 ## How to get to it (user POV)
 
@@ -52,6 +55,11 @@ Preconditions:
   `runtime-analytics-prompt-failed`. Boards: `rd-ios-ses-10-analytics`,
   `rd-ios-ses-17-analytics-saving`, `rd-ios-ses-18-analytics-failed`,
   `rd-ios-ses-25-ipad-analytics`.
+- **Inactive account.** Run `--only inactive-account,inactive-family,active-account`.
+  `--putio-harness-account-inactive <owner|owner-no-date|family>` picks the
+  fixture; `--putio-harness-account-renews-in-background` turns it active when
+  the app leaves the foreground. Screenshots: `runtime-inactive-notice`,
+  `runtime-inactive-renewed`.
 
 ## Gotchas
 

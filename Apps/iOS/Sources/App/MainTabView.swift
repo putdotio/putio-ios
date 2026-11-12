@@ -249,6 +249,7 @@ struct MainTabView: View {
     .onChange(of: scenePhase) { _, phase in
       guard phase == .active else { return }
       Task { await offlineQueue.syncPendingPositions() }
+      Task { await runtime.refreshAccount() }
     }
     .task {
       // A cold launch is already active, so the scene-phase change never
@@ -555,7 +556,8 @@ struct MainTabView: View {
       onDownload: { route in Task { await requestDownload(route) } },
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
-      castButton: { AnyView(PutioCastButton(model: cast)) }
+      castButton: { AnyView(PutioCastButton(model: cast)) },
+      accountNotice: PutioInactiveAccountNotice(account: account)
     )
   }
 

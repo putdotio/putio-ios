@@ -452,7 +452,9 @@ public final class PutioSessionStore {
         twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled,
         diagnosticsEnabled: diagnosticsEnabled ?? account.diagnosticsEnabled,
         productAnalyticsEnabled: productAnalyticsEnabled ?? account.productAnalyticsEnabled,
-        avatarURL: account.avatarURL, trashSizeBytes: account.trashSizeBytes))
+        avatarURL: account.avatarURL, trashSizeBytes: account.trashSizeBytes,
+        status: account.status, isSubAccount: account.isSubAccount,
+        filesDeletionDate: account.filesDeletionDate))
   }
 
   @discardableResult
@@ -571,7 +573,11 @@ public final class PutioSessionStore {
       diagnosticsEnabled: account.settings.diagnosticsEnabled,
       productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
       avatarURL: URL(string: account.avatarURL).flatMap { $0.scheme == "https" ? $0 : nil },
-      trashSizeBytes: max(0, account.trashSize)
+      trashSizeBytes: max(0, account.trashSize),
+      status: PutioAccountSnapshot.Status(
+        accountStatus: account.accountStatus, accountActive: account.accountActive),
+      isSubAccount: account.isSubAccount,
+      filesDeletionDate: PutioAccountSnapshot.timestamp(account.filesWillBeDeletedAt)
     )
   }
 
