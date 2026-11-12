@@ -332,13 +332,11 @@ struct AccountView: View {
       }
       .accessibilityIdentifier("playback-settings.method")
       PutioNavigationRow(
-        String(localized: "Proxy"), icon: .globe, value: preferences.account?.routeName
+        String(localized: "Proxy"), icon: .globe,
+        value: preferences.account.map { PutioProxyChoices.title(for: $0.routeName) }
       ) {
-        ProxySettingsView(runtime: runtime, preferences: preferences) { name in
-          Task { await commitReporting(.proxy, .route(name)) }
-        }
+        ProxySettingsView(runtime: runtime, preferences: preferences)
       }
-      .id(AccountSettingRow.proxy)
       .accessibilityIdentifier("playback-settings.route")
       PutioNavigationRow(String(localized: "Chromecast"), icon: .screencast) {
         PutioCastPreferencesView(model: cast)
@@ -587,7 +585,7 @@ struct PutioPlaybackConfigRows: View {
 }
 
 enum AccountSettingRow: Hashable {
-  case defaultSort, trash, resume, autoplay, autoRotate, proxy, showSubtitles
+  case defaultSort, trash, resume, autoplay, autoRotate, showSubtitles
   case pickMatchingSubtitles
   case history
 }

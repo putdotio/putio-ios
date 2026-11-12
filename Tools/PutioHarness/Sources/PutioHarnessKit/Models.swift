@@ -683,6 +683,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-59-trash-off-account", .iphone, "testAccountWithTrashOff"),
       BoardCapture("rd-ios-acc-60-resume-off-confirm", .iphone, "testAccountResumeOff"),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
+      BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
+      BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
+      BoardCapture("rd-ios-acc-32-proxy-failed", .iphone, "testAccountProxyFailed"),
+      BoardCapture("rd-ios-acc-33-proxy-unavailable", .iphone, "testAccountProxyUnavailable"),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
@@ -1064,6 +1068,10 @@ enum BrowserJourneyContract {
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
       attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
+    JourneyPreflight(
+      "proxy",
+      "PlaybackPreferencesJourneyTests/testProxyListWaitsOnASlowLoadAndARefusedRouteKeepsTheCheckedOne",
+      attachmentNames: ["runtime-proxy-refused"], timeAllowance: 180),
     JourneyPreflight(
       "playback-method",
       "PlaybackPreferencesJourneyTests/testPlaybackMethodAppliesOnTapRevertsAFailedSaveAndPersistsAcrossRelaunch",

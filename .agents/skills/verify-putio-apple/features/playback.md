@@ -19,6 +19,8 @@ offline playback.
   plays a saved video from zero in portrait with Rotate off.
 - `playback-method` reverts a failed Direct play save, applies it on the next
   tap, and keeps it across relaunch.
+- `proxy` waits on a slow proxy list and keeps the checked proxy when put.io
+  refuses the tapped one.
 - `cast` connects, controls the session, switches subtitles, and syncs the
   position back.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
@@ -54,6 +56,12 @@ Preconditions:
   `runtime-resume-off-confirm`.
 - **Playback method.** Run `--only playback-method`. Screenshot:
   `runtime-playback-method`.
+- **Proxy.** Run `--only proxy`. Screenshot: `runtime-proxy-refused`.
+  `--putio-harness-proxy ready|slow|refused` seeds the proxy list with the
+  account on `cdn77`; `slow` holds the list for 6 s and `refused` answers every
+  proxy save with `UNAVAILABLE_VALUE`. Boards: `rd-ios-acc-07-proxy`,
+  `rd-ios-acc-31-proxy-loading`, `rd-ios-acc-32-proxy-failed`,
+  `rd-ios-acc-33-proxy-unavailable`.
 - **Cast.** Run `--only cast`. Screenshots: `runtime-cast-settings`,
   `runtime-cast-error`, `runtime-cast-controls`, `runtime-cast-signed-out`.
 - **Downloads.** Run `--only downloads,unsaved-downloads`. Screenshots:

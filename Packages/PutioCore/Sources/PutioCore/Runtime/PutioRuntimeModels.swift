@@ -453,6 +453,30 @@ public struct PutioPlaybackRoute: Equatable, Sendable, Identifiable {
     self.name = name
     self.description = description
   }
+
+  var hasOwnDescription: Bool {
+    !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && description != name
+  }
+}
+
+public struct PutioProxyChoices: Equatable, Sendable {
+  public static let directRouteName = "default"
+
+  public let suggested: [PutioPlaybackRoute]
+  public let locations: [PutioPlaybackRoute]
+
+  public init(routes: [PutioPlaybackRoute], current: String) {
+    let listed = routes.filter { $0.name != Self.directRouteName }
+    let unlisted =
+      current.isEmpty || current == Self.directRouteName || routes.contains { $0.name == current }
+      ? [] : [PutioPlaybackRoute(name: current, description: "")]
+    suggested = unlisted + listed.filter(\.hasOwnDescription)
+    locations = listed.filter { !$0.hasOwnDescription }
+  }
+}
+
+public struct PutioPlaybackRouteUnavailable: Error, Equatable, Sendable {
+  public init() {}
 }
 
 /// An input put.io rejected outright. Unlike `PutioRuntimeError`, these keep

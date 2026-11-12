@@ -878,6 +878,51 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-06-playback-method")
   }
 
+  func testAccountProxy() throws {
+    app.launchArguments += ["--putio-harness-proxy", "ready"]
+    openProxy()
+    XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "proxies never loaded")
+    try captureBoard("rd-ios-acc-07-proxy")
+  }
+
+  func testAccountProxyLoading() throws {
+    app.launchArguments += ["--putio-harness-proxy", "slow"]
+    openProxy()
+    XCTAssertTrue(element("proxy.loading").appears(within: 5), "proxies never started loading")
+    try captureBoard("rd-ios-acc-31-proxy-loading")
+  }
+
+  func testAccountProxyFailed() throws {
+    openProxy()
+    XCTAssertTrue(app.buttons["proxy.retry"].appears(within: 10), "proxies never failed")
+    try captureBoard("rd-ios-acc-32-proxy-failed")
+  }
+
+  func testAccountProxyUnavailable() throws {
+    app.launchArguments += ["--putio-harness-proxy", "refused"]
+    openProxy()
+    let london = proxyChoice("London")
+    XCTAssertTrue(london.appears(within: 10), "proxies never loaded")
+    london.tap()
+    XCTAssertTrue(
+      app.alerts["That proxy isn’t available for your account."].appears(within: 10),
+      "the refused proxy showed no alert")
+    try captureBoard("rd-ios-acc-33-proxy-unavailable")
+  }
+
+  private func openProxy() {
+    openAccountSettings()
+    let proxy = app.revealed("playback-settings.route")
+    XCTAssertTrue(proxy.appears(within: 5))
+    proxy.tap()
+    XCTAssertTrue(
+      app.navigationBars["Choose your proxy"].appears(within: 5), "the proxy screen never opened")
+  }
+
+  private func proxyChoice(_ title: String) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", title)).firstMatch
+  }
+
   private func openAccountSettings() {
     openAccount()
     XCTAssertTrue(

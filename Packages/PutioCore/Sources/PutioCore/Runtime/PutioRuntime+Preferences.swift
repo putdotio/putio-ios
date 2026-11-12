@@ -100,6 +100,9 @@ extension PutioRuntime {
         do {
           return try await sdk.saveAccountSettings(.patch(patch))
         } catch let error as PutioSDKError {
+          if patch.tunnelRouteName != nil, error.matches(errorType: "UNAVAILABLE_VALUE") {
+            throw PutioPlaybackRouteUnavailable()
+          }
           neverSent = Self.neverLeftDevice(error)
           throw error
         }

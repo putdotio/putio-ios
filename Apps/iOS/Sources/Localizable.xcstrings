@@ -553,6 +553,17 @@
         }
       }
     },
+    "Choose another one." : {
+      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose another one."
+          }
+        }
+      }
+    },
     "Choose how this app plays videos." : {
       "comment" : "android: mobile_settings_playback_method_description",
       "localizations" : {
@@ -560,6 +571,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose how this app plays videos."
+          }
+        }
+      }
+    },
+    "Choose your proxy" : {
+      "comment" : "android: mobile_settings_tunnel_route",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your proxy"
           }
         }
       }
@@ -1070,6 +1092,17 @@
         }
       }
     },
+    "Couldn’t load proxies" : {
+      "comment" : "android: mobile_settings_tunnel_route_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load proxies"
+          }
+        }
+      }
+    },
     "Couldn’t rename." : {
       "comment" : "android: mobile_files_rename_error | differs: the toast carries Try again as its action",
       "localizations" : {
@@ -1099,17 +1132,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Current playback position"
-          }
-        }
-      }
-    },
-    "Current proxy" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current proxy"
           }
         }
       }
@@ -1386,6 +1408,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Details"
+          }
+        }
+      }
+    },
+    "Direct" : {
+      "comment" : "android: mobile_settings_tunnel_route_default",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct"
           }
         }
       }
@@ -2293,13 +2326,13 @@
         }
       }
     },
-    "Loading proxies" : {
-      "comment" : "android: mobile_settings_tunnel_route_loading | differs: iOS drops the ellipsis",
+    "Loading proxies…" : {
+      "comment" : "android: mobile_settings_tunnel_route_loading",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading proxies"
+            "value" : "Loading proxies…"
           }
         }
       }
@@ -3890,6 +3923,17 @@
         }
       }
     },
+    "Route streams and downloads through a put.io proxy closer to you." : {
+      "comment" : "android: mobile_settings_tunnel_route_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route streams and downloads through a put.io proxy closer to you."
+          }
+        }
+      }
+    },
     "RSS paused because its source could not be reached" : {
       "comment" : "android: mobile_history_kind_rss_filter_paused | differs: iOS board wording",
       "localizations" : {
@@ -4385,6 +4429,17 @@
         }
       }
     },
+    "Straight from put.io, no proxy." : {
+      "comment" : "android: mobile_settings_tunnel_route_default_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Straight from put.io, no proxy."
+          }
+        }
+      }
+    },
     "Stream it anywhere." : {
       "comment" : "android: mobile_welcome_caption_stream",
       "localizations" : {
@@ -4447,6 +4502,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That didn’t work."
+          }
+        }
+      }
+    },
+    "That proxy isn’t available for your account." : {
+      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That proxy isn’t available for your account."
           }
         }
       }
@@ -4524,17 +4590,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The originals were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to."
-          }
-        }
-      }
-    },
-    "The selected proxy applies when you open media again." : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The selected proxy applies when you open media again."
           }
         }
       }

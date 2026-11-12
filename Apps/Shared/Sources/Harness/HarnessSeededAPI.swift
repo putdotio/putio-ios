@@ -191,6 +191,31 @@ import Foundation
       return AccountSettingsMode(rawValue: arguments[flag + 1])
     }()
     nonisolated(unsafe) private static var accountInfoRequests = 0
+
+    enum ProxyMode: String {
+      case ready
+      case slow
+      case refused
+    }
+
+    static let proxyArgument = "--putio-harness-proxy"
+    private static let proxyRoutesDelay: TimeInterval = 6
+    private static let proxyRoutes = [
+      ("default", "Amsterdam (Direct)"), ("cdn77", "cdn77 (Automatic)"),
+      ("Amsterdam", "Amsterdam"), ("London", "London"), ("Los Angeles", "Los Angeles"),
+      ("Montreal", "Montreal"), ("New York", "New York"), ("Oregon", "Oregon"), ("Utah", "Utah"),
+      ("Washington, D.C.", "Washington, D.C."),
+    ]
+
+    private static var seededRouteName: String { proxyMode == nil ? "default" : "cdn77" }
+
+    private static let proxyMode: ProxyMode? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: proxyArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return ProxyMode(rawValue: arguments[flag + 1])
+    }()
     nonisolated(unsafe) private static var accountSettingsAutoplaySaves = 0
     private static let accountSettingsLoadDelay: TimeInterval = 6
 
@@ -825,6 +850,9 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if Self.proxyMode == .slow, url.path == "/v2/tunnel/routes" {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + Self.proxyRoutesDelay, execute: deliverResponse)
       } else if Self.delaysAccountSettingsLoad(url) {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
@@ -1448,6 +1476,11 @@ import Foundation
           ]}
           """
         )
+      case "GET /v2/tunnel/routes" where proxyMode != nil:
+        let routes = proxyRoutes.map { name, description in
+          #"{"name":\#(jsonString(name)),"description":\#(jsonString(description))}"#
+        }
+        return (200, #"{"routes":[\#(routes.joined(separator: ","))]}"#)
       case "GET /v2/tunnel/routes":
         return fileActionsLock.withLock {
           if !preferencesRoutesFailed {
@@ -1469,6 +1502,14 @@ import Foundation
       where settingsStayUnconfirmed && requestPayload(request)?["hide_subtitles"] != nil:
         fileActionsLock.withLock { settingsSaved = true }
         return (200, #"{"status":"OK"}"#)
+      case "POST /v2/account/settings"
+      where proxyMode == .refused && requestPayload(request)?["tunnel_route_name"] != nil:
+        return (
+          403,
+          fixtureError(
+            statusCode: 403, type: "UNAVAILABLE_VALUE",
+            message: "The proxy is not available for this account")
+        )
       case "POST /v2/account/settings":
         return updateFilePreferences(request: request)
       case "POST /v2/two_factor/generate/totp":
@@ -2806,7 +2847,7 @@ import Foundation
               "used": \(usedBytes)
             },
             "settings": {
-              "tunnel_route_name": \(jsonString(filePreferences?.routeName ?? "default")),
+              "tunnel_route_name": \(jsonString(filePreferences?.routeName ?? seededRouteName)),
               "next_episode": true,
               "start_from": \(filePreferences?.rememberVideoTime ?? true),
               "history_enabled": \(historyEnabled),
