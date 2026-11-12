@@ -251,6 +251,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
       ["Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move", "Trash"])
     addScreenshot(named: "runtime-item-menu-vlc")
     dismissMenu()
+    let root = element(identifier: "files.screen.0")
+    for _ in 0..<2 where !root.exists {
+      app.navigationBars.buttons["BackButton"].tap()
+      _ = root.appears(within: 3)
+    }
+    XCTAssertTrue(root.appears(within: 5), "Files never returned to its root")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")

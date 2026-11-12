@@ -347,8 +347,8 @@ final class PreviewJourneyTests: XCTestCase {
 
   private func assertNoVLCAction(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    app.scrollDown(toHit: row, maximumSwipes: 3)
-    XCTAssertTrue(row.appears(within: 5), "row \(fileID) never scrolled into view")
+    XCTAssertTrue(row.appears(within: 5), "row \(fileID) never appeared")
+    revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5))
     XCTAssertFalse(app.buttons["Open in VLC"].exists)
@@ -356,15 +356,19 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
   }
 
-  private func openInVLC(fileID: Int) {
-    let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+  private func revealBelowNavigationBar(_ row: XCUIElement) {
     let bar = app.navigationBars.firstMatch
     var swipes = 0
     while row.frame.minY < bar.frame.maxY, swipes < 3 {
       app.swipeDown()
       swipes += 1
     }
+  }
+
+  private func openInVLC(fileID: Int) {
+    let row = element("files.item.\(fileID)")
+    XCTAssertTrue(row.appears(within: 5))
+    revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]
     XCTAssertTrue(action.appears(within: 5), "Open in VLC never appeared")
