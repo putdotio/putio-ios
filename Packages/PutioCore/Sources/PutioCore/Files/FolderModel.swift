@@ -278,8 +278,6 @@ public final class PutioFolderModel {
     await restore([item])
   }
 
-  /// Puts trashed rows back where they were and asks put.io to restore them
-  /// in one request.
   @discardableResult
   public func restore(_ items: [PutioFileItem]) async -> Bool {
     guard let actions, canStartAction, case .loaded(let contents) = state, !items.isEmpty
