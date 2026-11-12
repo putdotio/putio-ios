@@ -35,7 +35,7 @@ struct PutioPreviewMoreMenu: View {
       Label {
         Text("More")
       } icon: {
-        Image(putioIcon: .dotsThree)
+        PutioPreviewToolbarIcon(icon: .dotsThree)
       }
     }
     .menuOrder(.fixed)
