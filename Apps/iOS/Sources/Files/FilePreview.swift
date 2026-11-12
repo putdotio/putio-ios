@@ -734,6 +734,7 @@ struct PutioPreviewView: View {
   @State private var labelsHeight: CGFloat = 0
   @State private var restoring: Set<PutioFileID> = []
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   private let fileActions: PutioPreviewFileActions
   private let onDismiss: @MainActor () -> Void
 
@@ -941,6 +942,7 @@ struct PutioPreviewView: View {
         PutioPreviewBackLabel()
       }
       .buttonStyle(.plain)
+      .padding(.leading, toolbarInset)
       .accessibilityLabel(String(localized: "Back"))
       .accessibilityIdentifier("preview.back")
     }
@@ -954,25 +956,33 @@ struct PutioPreviewView: View {
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("preview.title")
     }
-    ToolbarItemGroup(placement: .topBarTrailing) {
-      Group {
-        if let share = model.share {
-          ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
-        } else {
-          Button {
-          } label: {
-            shareLabel
+    ToolbarItem(placement: .topBarTrailing) {
+      HStack(spacing: 0) {
+        Group {
+          if let share = model.share {
+            ShareLink(item: share, preview: SharePreview(share.name)) { shareLabel }
+          } else {
+            Button {
+            } label: {
+              shareLabel
+            }
+            .disabled(true)
           }
-          .disabled(true)
         }
+        .tint(PutioTheme.Colors.textPrimary)
+        .accessibilityLabel(Text("Share"))
+        .accessibilityIdentifier("preview.share")
+        PutioPreviewMoreMenu(
+          menu: moreMenu(for: pager.item(for: model.route.id)),
+          isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
+        )
       }
-      .tint(PutioTheme.Colors.textPrimary)
-      .accessibilityIdentifier("preview.share")
-      PutioPreviewMoreMenu(
-        menu: moreMenu(for: pager.item(for: model.route.id)),
-        isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
-      )
+      .padding(.trailing, toolbarInset)
     }
+  }
+
+  private var toolbarInset: CGFloat {
+    horizontalSizeClass == .regular ? PutioPreviewToolbarIcon.regularWidthInset : 0
   }
 
   private func moreMenu(for item: PutioFileItem?) -> PutioItemMenu {
@@ -1090,11 +1100,7 @@ struct PutioPreviewView: View {
   }
 
   private var shareLabel: some View {
-    Label {
-      Text("Share")
-    } icon: {
-      PutioPreviewToolbarIcon(icon: .export)
-    }
+    PutioPreviewToolbarIcon(icon: .export)
   }
 }
 
@@ -1701,7 +1707,7 @@ struct PutioPDFPagePill: View {
     Text("\(position.number) of \(position.count)")
       .putioFont(PutioTheme.Typography.caption)
       .foregroundStyle(PutioTheme.Colors.textPrimary)
-      .padding(.horizontal, PutioTheme.Spacing.space2 + PutioTheme.Spacing.space1)
+      .padding(.horizontal, PutioTheme.Spacing.space3)
       .frame(minHeight: PutioTheme.Spacing.space4)
       .background(PutioTheme.Components.Sheet.border, in: Capsule())
       .accessibilityElement(children: .ignore)
@@ -1732,6 +1738,8 @@ struct PutioPreviewBackLabel: View {
 
 struct PutioPreviewToolbarIcon: View {
   static let size: CGFloat = 22
+  static let target: CGFloat = 44
+  static let regularWidthInset: CGFloat = 6
   let icon: PutioIcon
 
   var body: some View {
@@ -1739,6 +1747,8 @@ struct PutioPreviewToolbarIcon: View {
       .resizable()
       .scaledToFit()
       .frame(width: Self.size, height: Self.size)
+      .frame(width: Self.target, height: Self.target)
+      .contentShape(Rectangle())
   }
 }
 
