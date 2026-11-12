@@ -207,7 +207,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     attachment.name = "runtime-proxy-refused"
     attachment.lifetime = .keepAlways
     add(attachment)
-    alert.buttons["OK"].tap()
+    alert.buttons.firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5))
     assertSelected(current)
     XCTAssertFalse(london.isSelected, "the refused proxy stayed checked")
