@@ -187,7 +187,11 @@ final class PutioOfflineQueue {
         }
       case .paused where !alive.contains(items[index].id) && isWaitingForSlot(items[index].id):
         resumeWhenFree.removeAll { $0 == items[index].id }
-        items[index].stage = .queued
+        if let localPath = items[index].localPath {
+          finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath, orRequeue: true)
+        } else {
+          items[index].stage = .queued
+        }
       case .paused where !alive.contains(items[index].id):
         // A previous launch may have died between pausing and the probe;
         // a playable package still on disk finishes now.
@@ -208,14 +212,20 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  private func finishRestoredIfPlayable(fileID: PutioFileID, localPath: String) {
+  private func finishRestoredIfPlayable(
+    fileID: PutioFileID, localPath: String, orRequeue requeues: Bool = false
+  ) {
     let url = Self.localURL(for: localPath)
     let isPlayable = isPlayable
     Task { @MainActor [weak self] in
-      guard await isPlayable(url), let self, self.isLive(),
-        case .paused = self.item(for: fileID)?.stage
-      else { return }
-      complete(fileID: fileID, localPath: localPath)
+      let playable = await isPlayable(url)
+      guard let self, self.isLive(), case .paused = self.item(for: fileID)?.stage else { return }
+      if playable {
+        complete(fileID: fileID, localPath: localPath)
+      } else if requeues {
+        update(fileID) { $0.stage = .queued }
+        schedule()
+      }
     }
   }
 
@@ -577,10 +587,6 @@ final class PutioOfflineQueue {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
     for item in inFlightItems.dropFirst(limit) { yieldSlot(item.id) }
-    let order = items.map(\.id)
-    resumeWhenFree.sort {
-      (order.firstIndex(of: $0) ?? .max) < (order.firstIndex(of: $1) ?? .max)
-    }
     persist()
     schedule()
   }
@@ -699,19 +705,20 @@ final class PutioOfflineQueue {
   private func schedule() {
     guard isLive(), !awaitsRestore else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
-    // Suspended tasks waiting for a slot resume in place before new work starts.
-    while slots > 0, let fileID = resumeWhenFree.first {
-      resumeWhenFree.removeFirst()
-      guard suspended.contains(fileID), let index = items.firstIndex(where: { $0.id == fileID }),
-        case .paused(let progress) = items[index].stage
-      else { continue }
-      suspended.remove(fileID)
-      items[index].stage = .downloading(progress: progress)
-      engine.resume(fileID: fileID)
-      persist()
-      slots -= 1
+    resumeWhenFree.removeAll { fileID in
+      guard suspended.contains(fileID), let stage = item(for: fileID)?.stage else { return true }
+      return !isPaused(stage)
     }
-    for item in items where slots > 0 && item.stage == .queued && workers[item.id] == nil {
+    for item in items where slots > 0 {
+      if resumeWhenFree.contains(item.id), case .paused(let progress) = item.stage {
+        resumeWhenFree.removeAll { $0 == item.id }
+        suspended.remove(item.id)
+        update(item.id) { $0.stage = .downloading(progress: progress) }
+        engine.resume(fileID: item.id)
+        slots -= 1
+        continue
+      }
+      guard item.stage == .queued, workers[item.id] == nil else { continue }
       slots -= 1
       let token = UUID()
       let task = Task { @MainActor [weak self] in
