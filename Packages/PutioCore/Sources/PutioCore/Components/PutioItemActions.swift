@@ -254,27 +254,16 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     func body(content: Content) -> some View {
       @Bindable var failures = sender
       content
-        .alert(
-          Text(presented?.title ?? String()),
+        .putioAlert(
+          presented?.title ?? String(),
           isPresented: isPresented,
-          presenting: presented
-        ) { alert in
-          TextField(alert.title, text: $text)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            .accessibilityIdentifier("text-alert.field")
-          Button(String(localized: "Cancel", bundle: .module), role: .cancel) {}
-          Button(alert.submitTitle) {
-            sender.send(alert, text: text.trimmingCharacters(in: .whitespacesAndNewlines))
-          }
-          .keyboardShortcut(.defaultAction)
-          .disabled(!PutioTextAlert.canSubmit(text, replacing: alert.initialText))
-          .accessibilityIdentifier("text-alert.submit")
-        } message: { alert in
-          if let message = alert.message {
-            Text(message)
-          }
-        }
+          message: presented?.message,
+          field: presented.map {
+            PutioAlertField(
+              label: $0.title, text: $text, accessibilityIdentifier: "text-alert.field")
+          },
+          actions: actions
+        )
         .onChange(of: request?.id, initial: true) {
           if let request {
             text = request.initialText
@@ -295,6 +284,20 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
           }
         }
         .putioToast($failures.toast)
+    }
+
+    private var actions: [PutioAlertAction] {
+      guard let presented else { return [] }
+      let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
+      return [
+        PutioAlertAction(String(localized: "Cancel", bundle: .module), tier: .cancel),
+        PutioAlertAction(
+          presented.submitTitle, tier: .primary, id: "text-alert.submit",
+          isDisabled: !PutioTextAlert.canSubmit(text, replacing: presented.initialText)
+        ) { [sender] in
+          sender.send(presented, text: name)
+        },
+      ]
     }
 
     private var isPresented: Binding<Bool> {

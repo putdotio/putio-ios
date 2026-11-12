@@ -2275,7 +2275,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func nameAlert(_ title: String) -> XCUIElement {
-    let alert = app.alerts[title]
+    let alert = app.putioAlert(title)
     XCTAssertTrue(alert.appears(within: 5), "\(title) alert never appeared")
     return alert
   }

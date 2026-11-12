@@ -45,7 +45,7 @@ final class ItemActionsGalleryTests: XCTestCase {
 
   func testTextAlertFailureClosesAndTryAgainResendsTheSameName() {
     launch(page: "text-alert")
-    let alert = app.alerts["Rename"]
+    let alert = app.putioAlert("Rename")
     XCTAssertTrue(alert.appears(within: 10), "rename alert never appeared")
     let field = alert.textFields.firstMatch
     let submit = alert.buttons["Rename"]

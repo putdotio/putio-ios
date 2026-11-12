@@ -11,6 +11,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
   public let id: String
   public let title: String
   public let tier: Tier
+  public let isDisabled: Bool
   let accessibilityIdentifier: String
   let perform: @MainActor @Sendable () -> Void
 
@@ -18,17 +19,25 @@ public struct PutioAlertAction: Identifiable, Sendable {
     _ title: String,
     tier: Tier,
     id: String? = nil,
+    isDisabled: Bool = false,
     perform: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.id = id ?? "\(tier).\(title)"
     accessibilityIdentifier = id ?? "putio-alert.\(tier)"
     self.title = title
     self.tier = tier
+    self.isDisabled = isDisabled
     self.perform = perform
   }
 }
 
 #if os(iOS)
+  struct PutioAlertField {
+    let label: String
+    let text: Binding<String>
+    let accessibilityIdentifier: String
+  }
+
   extension View {
     public func putioAlert(
       _ title: String,
@@ -36,15 +45,27 @@ public struct PutioAlertAction: Identifiable, Sendable {
       message: String? = nil,
       actions: [PutioAlertAction]
     ) -> some View {
+      putioAlert(title, isPresented: isPresented, message: message, field: nil, actions: actions)
+    }
+
+    func putioAlert(
+      _ title: String,
+      isPresented: Binding<Bool>,
+      message: String?,
+      field: PutioAlertField?,
+      actions: [PutioAlertAction]
+    ) -> some View {
       modifier(
         PutioAlertPresenter(
-          title: title, message: message, actions: actions, isPresented: isPresented))
+          title: title, message: message, field: field, actions: actions,
+          isPresented: isPresented))
     }
   }
 
   private struct PutioAlertPresenter: ViewModifier {
     let title: String
     let message: String?
+    let field: PutioAlertField?
     let actions: [PutioAlertAction]
     @Binding var isPresented: Bool
     @State private var shown = false
@@ -53,7 +74,8 @@ public struct PutioAlertAction: Identifiable, Sendable {
     func body(content: Content) -> some View {
       content
         .fullScreenCover(isPresented: $shown, onDismiss: finish) {
-          PutioAlertCard(title: title, message: message, actions: actions) { action in
+          PutioAlertCard(title: title, message: message, field: field, actions: actions) {
+            action in
             chosen = action
             isPresented = false
           }
@@ -78,21 +100,26 @@ public struct PutioAlertAction: Identifiable, Sendable {
   private struct PutioAlertCard: View {
     let title: String
     let message: String?
+    let field: PutioAlertField?
     let actions: [PutioAlertAction]
     let choose: (PutioAlertAction) -> Void
 
     @State private var appeared = false
+    @FocusState private var fieldFocused: Bool
     @PutioScaledMetric private var width: CGFloat
+    @PutioScaledMetric private var fieldHeight: CGFloat
 
     init(
-      title: String, message: String?, actions: [PutioAlertAction],
+      title: String, message: String?, field: PutioAlertField?, actions: [PutioAlertAction],
       choose: @escaping (PutioAlertAction) -> Void
     ) {
       self.title = title
       self.message = message
+      self.field = field
       self.actions = actions
       self.choose = choose
       _width = PutioScaledMetric(PutioAlertMetrics.width)
+      _fieldHeight = PutioScaledMetric(PutioAlertMetrics.fieldHeight)
     }
 
     var body: some View {
@@ -113,6 +140,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
       }
       .onAppear {
         withAnimation(.easeOut(duration: PutioTheme.Motion.durationBase)) { appeared = true }
+        fieldFocused = field != nil
       }
     }
 
@@ -132,10 +160,26 @@ public struct PutioAlertAction: Identifiable, Sendable {
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, PutioTheme.Spacing.space2)
+        if let field {
+          TextField(field.label, text: field.text)
+            .putioFont(PutioTheme.Typography.body)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .tint(PutioTheme.Colors.accent)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .focused($fieldFocused)
+            .onSubmit(submit)
+            .padding(.horizontal, PutioTheme.Spacing.space3)
+            .frame(minHeight: fieldHeight)
+            .background(PutioAlertMetrics.neutralFill, in: Capsule())
+            .accessibilityIdentifier(field.accessibilityIdentifier)
+        }
         PutioAlertButtonsLayout(spacing: PutioTheme.Spacing.space2) {
           ForEach(ordered) { action in
             Button(action.title) { dismiss(choosing: action) }
               .buttonStyle(PutioAlertButtonStyle(tier: action.tier))
+              .disabled(action.isDisabled)
+              .opacity(action.isDisabled ? PutioAlertMetrics.disabledOpacity : 1)
               .accessibilityIdentifier(action.accessibilityIdentifier)
           }
         }
@@ -167,7 +211,16 @@ public struct PutioAlertAction: Identifiable, Sendable {
       actions.filter { $0.tier == .cancel } + actions.filter { $0.tier != .cancel }
     }
 
+    private func submit() {
+      guard let primary = actions.first(where: { $0.tier == .primary && !$0.isDisabled }) else {
+        fieldFocused = true
+        return
+      }
+      dismiss(choosing: primary)
+    }
+
     private func dismiss(choosing action: PutioAlertAction) {
+      fieldFocused = false
       withAnimation(.easeIn(duration: PutioTheme.Motion.durationFast)) {
         appeared = false
       } completion: {
@@ -179,6 +232,9 @@ public struct PutioAlertAction: Identifiable, Sendable {
   enum PutioAlertMetrics {
     static let width = PutioMetricRole(value: 302, relativeTo: .body)
     static let buttonHeight = PutioMetricRole(value: 48, relativeTo: .body)
+    static let fieldHeight = PutioMetricRole(value: 44, relativeTo: .body)
+    static let neutralFill = PutioTheme.Colors.textPrimary.opacity(0.1)
+    static let disabledOpacity = 0.4
     static let cornerRadius = PutioTheme.Spacing.space4
     static let title = PutioFontRole(
       fontName: PutioTheme.Typography.heading.fontName,
@@ -225,7 +281,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
 
     var fill: Color {
       switch tier {
-      case .cancel, .neutral: PutioTheme.Colors.textPrimary.opacity(0.1)
+      case .cancel, .neutral: PutioAlertMetrics.neutralFill
       case .primary: PutioTheme.Components.Button.primaryBackground
       case .destructive: PutioTheme.Components.Button.dangerBackground
       }

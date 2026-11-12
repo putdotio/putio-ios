@@ -551,7 +551,7 @@ final class PreviewJourneyTests: XCTestCase {
     screenshot("runtime-preview-more-image")
 
     app.buttons["Rename"].firstMatch.tap()
-    let alert = app.alerts["Rename"]
+    let alert = app.putioAlert("Rename")
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
     XCTAssertEqual(alert.textFields.firstMatch.value as? String, "Gallery 1.png")
