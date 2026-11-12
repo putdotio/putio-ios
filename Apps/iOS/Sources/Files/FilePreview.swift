@@ -791,6 +791,13 @@ final class PutioVisibleTextElement: UIAccessibilityElement {
     super.init(accessibilityContainer: container)
     accessibilityIdentifier = "preview.text"
     accessibilityTraits = .staticText
+    accessibilityCustomActions = [
+      UIAccessibilityCustomAction(name: String(localized: "Copy all")) { [weak textView] _ in
+        guard let text = textView?.text else { return false }
+        UIPasteboard.general.string = text
+        return true
+      }
+    ]
   }
 
   override var accessibilityFrameInContainerSpace: CGRect {

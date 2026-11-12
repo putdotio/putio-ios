@@ -158,6 +158,20 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(latin1, PutioTextPreview(text: "Caf\u{E9}", isTruncated: false))
   }
 
+  func testVoiceOverCanCopyTheWholeTextPreview() throws {
+    let text = "1\n00:00:02,000 --> 00:00:05,000\nPreviously on Blue Lights.\n"
+    let container = PutioTextPreviewContainer()
+    container.show(
+      PutioTextPreview(text: text, isTruncated: false),
+      truncationNotice: PutioTextPreviewNotice(text: "", figure: ""))
+    let element = try XCTUnwrap(container.accessibilityElements?.first as? UIAccessibilityElement)
+    let copy = try XCTUnwrap(element.accessibilityCustomActions?.first)
+    UIPasteboard.general.string = ""
+
+    XCTAssertEqual(copy.actionHandler?(copy), true)
+    XCTAssertEqual(UIPasteboard.general.string, text)
+  }
+
   func testUndecodableTextLandsOnCannotShow() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 11), parentID: .root, title: "Notes.txt", kind: .text)
