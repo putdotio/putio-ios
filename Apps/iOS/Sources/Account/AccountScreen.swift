@@ -84,7 +84,7 @@ struct AccountScreen: View {
   }
 
   private var columns: some View {
-    PutioListDetail(selection: $destination) { _ in
+    PutioListDetail(selection: $destination, listWidth: Self.listWidth) { _ in
       list(open: destination)
         .navigationBarTitleDisplayMode(.inline)
     } detail: { destination in
@@ -92,6 +92,10 @@ struct AccountScreen: View {
         .modifier(AccountDetailReadableWidth())
     }
   }
+
+  private static let listWidth =
+    PutioTheme.Spacing.space8 - PutioTheme.Spacing.space5 - PutioTheme.Spacing.space4
+    + PutioTheme.Spacing.space1
 
   private var stack: some View {
     NavigationStack(path: stackPath) {
