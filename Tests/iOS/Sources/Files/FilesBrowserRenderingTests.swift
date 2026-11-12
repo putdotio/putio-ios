@@ -60,7 +60,7 @@ final class FilesBrowserRenderingTests: XCTestCase {
       },
       actions: nil,
       refreshRequests: PutioFolderRefreshRequests(),
-      onMove: { _ in }
+      onMove: { _ in .closed }
     )
     let controller = UIHostingController(rootView: picker)
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
