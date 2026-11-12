@@ -369,12 +369,18 @@ final class BoardCaptureTests: XCTestCase {
     downloadHarnessTrack()
     openSignOut()
     let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    let signIn = element("auth.sign-in")
+    addTeardownBlock { @MainActor [remove, signIn] in
+      guard remove.exists else { return }
+      remove.tap()
+      _ = signIn.appears(within: 15)
+    }
     XCTAssertTrue(remove.appears(within: 5), "the dialog offers no download removal")
     XCTAssertTrue(
       app.buttons["auth.sign-out-confirm"].firstMatch.exists, "the dialog has no plain Sign out")
     try captureBoard("rd-ios-ses-08-sign-out")
     remove.tap()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 15), "sign-out never reached Welcome")
+    XCTAssertTrue(signIn.appears(within: 15), "sign-out never reached Welcome")
   }
 
   func testSignOutWithoutDownloads() throws {
