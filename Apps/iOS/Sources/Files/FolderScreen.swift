@@ -324,6 +324,7 @@ struct PutioFolderScreen: View {
         folderList(contents)
           .task(id: model.isUpdatingSortOrder) {
             guard model.isUpdatingSortOrder else { return }
+            await Task.yield()
             withAnimation {
               proxy.scrollTo(accountNotice == nil ? ListTop.header : ListTop.notice, anchor: .top)
             }
@@ -612,7 +613,7 @@ struct PutioFolderScreen: View {
   private var sortMenu: some View {
     PutioFolderSortMenu(
       current: model.sort ?? defaultSort,
-      isDisabled: !model.canStartAction || actionRequest != nil
+      isDisabled: !model.canStartAction || actionRequest != nil || model.isUpdatingSortOrder
     ) { sort in
       actionRequest = .sort(sort)
     }

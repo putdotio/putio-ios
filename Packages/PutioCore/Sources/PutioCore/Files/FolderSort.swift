@@ -1,7 +1,5 @@
 import Foundation
 
-/// A sort key as the Files app presents it: one row per key, direction as a
-/// subtitle, and re-selecting the current key flips direction.
 public enum PutioFolderSortKey: CaseIterable, Hashable, Sendable {
   case name, size, dateAdded, dateModified, type, watchStatus
 
@@ -31,12 +29,6 @@ public enum PutioFolderSortKey: CaseIterable, Hashable, Sendable {
     case (.watchStatus, true): .watchStatusAscending
     case (.watchStatus, false): .watchStatusDescending
     }
-  }
-
-  /// The sort to request when the user taps this key while `current` applies.
-  public func selection(from current: PutioFolderSort?) -> PutioFolderSort {
-    guard let current, current.key == self else { return sort(ascending: true) }
-    return sort(ascending: !current.isAscending)
   }
 }
 
