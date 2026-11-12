@@ -61,7 +61,7 @@ public struct PutioToastView: View {
 
   public var body: some View {
     HStack(spacing: PutioToastLayout.contentGap) {
-      if let icon = toast.icon {
+      if PutioToastLayout.showsIcon, let icon = toast.icon {
         PutioToastIcon(icon: icon, size: iconSize)
       }
       Text(toast.text)
@@ -247,6 +247,7 @@ enum PutioToastLayout {
     static let presentationPadding = PutioTheme.TV.Spacing.large
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
+    static let showsIcon = false
     static let iconSize = PutioMetricRole(value: PutioTheme.TV.Spacing.medium, relativeTo: .body)
 
     static func fillsWidth(_ toast: PutioToast) -> Bool { true }
@@ -263,6 +264,7 @@ enum PutioToastLayout {
     static let duration = Duration.seconds(5)
     static let swipeDistance = PutioTheme.Spacing.space4
     static let cornerRadius: CGFloat = 26
+    static let showsIcon = true
     static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
 
     static func fillsWidth(_ toast: PutioToast) -> Bool { toast.action != nil }
