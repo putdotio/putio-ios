@@ -555,6 +555,8 @@ import Foundation
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
+    nonisolated(unsafe) private static var galleryEdits: [Int: (name: String, parentID: Int)] = [:]
+    nonisolated(unsafe) private static var galleryRenameAttempts = 0
     nonisolated(unsafe) private static var logoutFails = false
     nonisolated(unsafe) private static var sessionExpiryPending = ProcessInfo.processInfo
       .arguments.contains("--putio-harness-session-expires")
@@ -598,6 +600,7 @@ import Foundation
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
+    private static let galleryLock = NSLock()
     private static let logoutLock = NSLock()
     private let deliveryGate = HarnessResponseDeliveryGate()
 
@@ -700,6 +703,10 @@ import Foundation
       emptySearchLoads = 0
       searchContinuationFailed = false
       renameAttempts = 0
+      galleryLock.withLock {
+        galleryEdits = [:]
+        galleryRenameAttempts = 0
+      }
       bulkDeleteFailureDelivered = false
       offlineOriginalDeleteFailed = false
       offlineOriginalTrashed = false
@@ -1166,7 +1173,7 @@ import Foundation
       if query == "gallery", usesPreviews {
         return (
           200,
-          "{\"total\":\(galleryFirstPage.count),\"files\":[\(galleryRows(galleryFirstPage))]}"
+          "{\"total\":\(galleryFirstPage.count),\"files\":[\(galleryRows(galleryFirstPage, inFolder: false))]}"
         )
       }
       guard query == "harness" || query == "retry" else {
@@ -1871,34 +1878,80 @@ import Foundation
       (475, "Gallery 4.png", "IMAGE")
     ]
 
-    private static func galleryRows(_ page: [(id: Int, name: String, type: String)]) -> String {
-      page.map {
-        previewObject(
-          id: $0.id, name: $0.name, type: $0.type, size: 1856, parentID: galleryFolderID)
+    private static func galleryEntries(
+      _ page: [(id: Int, name: String, type: String)], inFolder: Bool = true
+    ) -> [(id: Int, name: String, type: String, parentID: Int)] {
+      let edits = galleryLock.withLock { galleryEdits }
+      return page.map { file in
+        let edit = edits[file.id]
+        return (file.id, edit?.name ?? file.name, file.type, edit?.parentID ?? galleryFolderID)
+      }
+      .filter { !inFolder || $0.parentID == galleryFolderID }
+    }
+
+    private static func galleryRows(
+      _ page: [(id: Int, name: String, type: String)], inFolder: Bool = true
+    ) -> String {
+      galleryEntries(page, inFolder: inFolder).map {
+        previewObject(id: $0.id, name: $0.name, type: $0.type, size: 1856, parentID: $0.parentID)
       }
       .joined(separator: ",")
     }
 
     private static var galleryFiles: String {
-      """
-      {"cursor":\(jsonString(galleryContinuationCursor)),
-      "parent":\(folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0)),
-      "files":[\(galleryRows(galleryFirstPage))],
-      "total":\(galleryFirstPage.count + gallerySecondPage.count)}
-      """
+      let total = galleryEntries(galleryFirstPage + gallerySecondPage).count
+      return """
+        {"cursor":\(jsonString(galleryContinuationCursor)),
+        "parent":\(folderObject(id: galleryFolderID, name: "Harness Gallery", parentID: 0)),
+        "files":[\(galleryRows(galleryFirstPage))],
+        "total":\(total)}
+        """
     }
 
     private static func galleryFile(id: Int) -> (Int, String)? {
       guard usesPreviews,
-        let file = (galleryFirstPage + gallerySecondPage).first(where: { $0.id == id })
+        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+          .first(where: { $0.id == id })
       else { return nil }
       return (
         200,
         #"{"status":"OK","file":"#
           + previewObject(
-            id: file.id, name: file.name, type: file.type, size: 1856, parentID: galleryFolderID)
+            id: file.id, name: file.name, type: file.type, size: 1856, parentID: file.parentID)
           + "}"
       )
+    }
+
+    private static func renameGalleryFile(_ fileID: Int, to name: String) -> (Int, String)? {
+      guard usesPreviews,
+        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+          .first(where: { $0.id == fileID })
+      else { return nil }
+      let attempt = galleryLock.withLock {
+        galleryRenameAttempts += 1
+        if galleryRenameAttempts > 1 { galleryEdits[fileID] = (name, file.parentID) }
+        return galleryRenameAttempts
+      }
+      guard attempt > 1 else {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_RENAME_FAILURE",
+            message: "The first gallery rename fails for the failure toast"
+          )
+        )
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func moveGalleryFile(_ fileID: Int, to parentID: Int) -> Bool {
+      guard usesPreviews,
+        let file = galleryEntries(galleryFirstPage + gallerySecondPage, inFolder: false)
+          .first(where: { $0.id == fileID })
+      else { return false }
+      galleryLock.withLock { galleryEdits[fileID] = (file.name, parentID) }
+      return true
     }
 
     private static func audioObject(id: Int, name: String) -> String {
@@ -2118,6 +2171,7 @@ import Foundation
         )
       }
 
+      if let response = renameGalleryFile(fileID, to: name) { return response }
       fileActionsLock.lock()
       if fileID == 410, !harnessFolderDeleted {
         harnessFolderName = name
@@ -2174,6 +2228,7 @@ import Foundation
       // Like the server, an item it cannot move is reported, not the batch.
       var errors: [String] = []
       for fileID in fileIDs {
+        if moveGalleryFile(fileID, to: parentID) { continue }
         if fileID == seasonSubtitleFileID, parentID == 410 {
           errors.append(
             #"{"error_type":"NAME_ALREADY_EXIST","id":\#(fileID),"name":"Blue.Lights.S04E01.en.srt","status_code":400}"#

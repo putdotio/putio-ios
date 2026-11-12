@@ -228,6 +228,7 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
 @Observable
 final class PutioPreviewModel {
   let route: PutioViewerRoute
+  private(set) var title: String
   private(set) var state: PutioPreviewState
   private let download: PutioPreviewDownload
   let shareDirectory: URL
@@ -239,6 +240,7 @@ final class PutioPreviewModel {
 
   init(route: PutioViewerRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
+    title = route.title
     self.download = download
     shareDirectory = URL.temporaryDirectory
       .appending(path: "PreviewShare", directoryHint: .isDirectory)
@@ -302,6 +304,12 @@ final class PutioPreviewModel {
     try? FileManager.default.removeItem(at: shareDirectory)
   }
 
+  func retitle(_ name: String) {
+    guard name != title else { return }
+    title = name
+    sharedFile = nil
+  }
+
   var share: PutioPreviewShareFile? {
     guard case .preview(let route) = route else { return nil }
     switch state {
@@ -309,7 +317,7 @@ final class PutioPreviewModel {
     case .text(let text) where !text.isTruncated || !route.exceedsSizeCap: break
     case .loading, .text, .failed: return nil
     }
-    return PutioPreviewShareFile(name: route.title, kind: route.kind) { [weak self] in
+    return PutioPreviewShareFile(name: title, kind: route.kind) { [weak self] in
       guard let self else { throw CancellationError() }
       return try await exportShareFile()
     }
@@ -337,7 +345,7 @@ final class PutioPreviewModel {
       bytes = try await download(route, .whole)
     }
     try Task.checkCancellation()
-    let file = shareDirectory.appending(path: Self.shareFileName(route.title))
+    let file = shareDirectory.appending(path: Self.shareFileName(title))
     try await Self.write(bytes, to: file)
     guard request == generation else {
       try? FileManager.default.removeItem(at: file)
@@ -431,6 +439,8 @@ extension EnvironmentValues {
 final class PutioPreviewPager {
   private let kind: PutioPreviewRoute.Kind?
   private let source: PutioPreviewSource?
+  private let opened: PutioFileItem?
+  private var lookedUp: [PutioFileID: PutioFileItem] = [:]
   private let download: PutioPreviewDownload
   private(set) var current: PutioViewerRoute
   private(set) var reads = PutioPreviewPageReads()
@@ -445,6 +455,7 @@ final class PutioPreviewPager {
   ) {
     current = route
     kind = file?.previewKind
+    opened = file?.item
     self.source = file?.previewKind == nil ? nil : source
     self.download = download
   }
@@ -473,8 +484,20 @@ final class PutioPreviewPager {
   func model(for route: PutioViewerRoute) -> PutioPreviewModel {
     if let model = models[route.id] { return model }
     let model = PutioPreviewModel(route: route, download: download)
+    if let name = lookedUp[route.id]?.name { model.retitle(name) }
     models[route.id] = model
     return model
+  }
+
+  func item(for id: PutioFileID) -> PutioFileItem? {
+    if let item = lookedUp[id] { return item }
+    if let item = source?.items().first(where: { $0.id == id }) { return item }
+    return opened?.id == id ? opened : nil
+  }
+
+  func update(_ item: PutioFileItem) {
+    lookedUp[item.id] = item
+    models[item.id]?.retitle(item.name)
   }
 
   func show(_ id: PutioFileID) {
@@ -622,19 +645,28 @@ struct PutioPreviewView: View {
   @State private var barsHidden = false
   @State private var documentPages: [PutioFileID: PutioPDFPagePosition] = [:]
   @State private var zoomedID: PutioFileID?
+  @State private var itemActions: PutioFileItemActionModel
+  @State private var itemAction: PutioFileItemActionRequest?
+  @State private var actedOn: PutioFileID?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+  private let fileActions: PutioPreviewFileActions
   private let onDismiss: @MainActor () -> Void
 
   init(
     route: PutioViewerRoute,
     file: PutioFileRoute? = nil,
     source: PutioPreviewSource? = nil,
+    fileActions: PutioPreviewFileActions,
     download: @escaping PutioPreviewDownload,
     onDismiss: @escaping @MainActor () -> Void
   ) {
     _pager = State(
       initialValue: PutioPreviewPager(
         opened: route, file: file, source: source, download: download))
+    _itemActions = State(
+      initialValue: PutioFileItemActionModel(
+        actions: fileActions.actions, refreshRequests: fileActions.refreshRequests))
+    self.fileActions = fileActions
     self.onDismiss = onDismiss
   }
 
@@ -646,12 +678,24 @@ struct PutioPreviewView: View {
         .background(Color.black)
         .overlay(alignment: .top) { topFade(model.state) }
         .overlay(alignment: .bottom) { bottomLabels(model.state) }
-        .navigationTitle(model.route.title)
+        .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar(model) }
         .toolbar(showsBars(model.state) ? .visible : .hidden, for: .navigationBar)
         .statusBarHidden(!showsBars(model.state))
     }
+    .modifier(
+      PutioFileItemActionsHost(
+        request: $itemAction,
+        model: itemActions,
+        actions: fileActions.actions,
+        load: fileActions.load,
+        continueLoad: fileActions.continueLoad,
+        trashEnabled: fileActions.trashEnabled,
+        refreshRequests: fileActions.refreshRequests
+      )
+    )
+    .task(id: fileActions.refreshRequests.revision) { await lookUpActedOnFile() }
     .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
     .onDisappear { pager.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
@@ -790,7 +834,7 @@ struct PutioPreviewView: View {
       .accessibilityIdentifier("preview.back")
     }
     ToolbarItem(placement: .principal) {
-      Text(model.route.title)
+      Text(model.title)
         .putioFont(PutioTheme.Typography.subheading)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .lineLimit(1)
@@ -812,17 +856,47 @@ struct PutioPreviewView: View {
       }
       .tint(PutioTheme.Colors.textPrimary)
       .accessibilityIdentifier("preview.share")
-      Button {
-      } label: {
-        Label {
-          Text("More")
-        } icon: {
-          Image(putioIcon: .dotsThree)
-        }
-      }
-      .disabled(true)
-      .accessibilityIdentifier("preview.more")
+      PutioPreviewMoreMenu(
+        menu: moreMenu(for: pager.item(for: model.route.id)),
+        isDisabled: !itemActions.canStartAction || itemAction != nil
+      )
     }
+  }
+
+  private func moreMenu(for item: PutioFileItem?) -> PutioItemMenu {
+    guard let item else { return PutioItemMenu([]) }
+    let rows = PutioFileMenu(
+      item: item,
+      capabilities: .init(
+        canEdit: true, canDownload: false, vlcInstalled: false, tracksWatched: false)
+    )
+    var actions: [PutioItemAction] = []
+    if rows.contains(.rename) {
+      actions.append(
+        PutioItemAction(id: "rename", title: String(localized: "Rename"), icon: .pencilSimple) {
+          request(.rename(item))
+        })
+    }
+    if rows.contains(.move) {
+      actions.append(
+        PutioItemAction(id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed) {
+          request(.move(item))
+        })
+    }
+    return PutioItemMenu([actions])
+  }
+
+  private func request(_ action: PutioFileItemActionRequest) {
+    actedOn = pager.current.id
+    itemAction = action
+  }
+
+  private func lookUpActedOnFile() async {
+    guard let id = actedOn,
+      let item = try? await fileActions.lookUp(id),
+      !Task.isCancelled
+    else { return }
+    pager.update(item)
   }
 
   private var shareLabel: some View {
@@ -863,7 +937,7 @@ struct PutioPreviewPage: View {
         .accessibilityIdentifier("preview.loading")
     case .image(let image):
       PutioZoomableImageView(
-        image: image, title: model.route.title, onSingleTap: onSingleTap,
+        image: image, title: model.title, onSingleTap: onSingleTap,
         onZoomChange: onZoomChange
       )
       .ignoresSafeArea()
@@ -875,7 +949,7 @@ struct PutioPreviewPage: View {
       )
       .padding(.leading, insets.leading)
       .padding(.trailing, insets.trailing)
-      .accessibilityLabel(Text("\(model.route.title), \(document.pageCount) pages"))
+      .accessibilityLabel(Text("\(model.title), \(document.pageCount) pages"))
       .accessibilityIdentifier("preview.document")
     case .text(let preview):
       PutioTextPreviewView(

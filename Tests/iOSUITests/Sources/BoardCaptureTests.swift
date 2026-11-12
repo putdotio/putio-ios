@@ -515,6 +515,31 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-01-image")
   }
 
+  func testPreviewMoreMenu() throws {
+    XCUIDevice.shared.orientation = .portrait
+    openPosterPreview()
+    openPreviewMore()
+    try captureBoard("rd-ios-pv-02-more")
+  }
+
+  func testPreviewRename() throws {
+    XCUIDevice.shared.orientation = .portrait
+    openPosterPreview()
+    openPreviewMore()
+    app.buttons["item-action.rename"].tap()
+    let alert = app.alerts["Rename"]
+    XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    XCTAssertEqual(alert.textFields.firstMatch.value as? String, "Harness Poster.png")
+    try captureBoard("rd-ios-pv-20-rename")
+  }
+
+  private func openPreviewMore() {
+    app.buttons["preview.more"].tap()
+    XCTAssertTrue(
+      app.buttons["item-action.rename"].appears(within: 5), "the viewer More never opened")
+  }
+
   func testPreviewPosition() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launchArguments.append("--putio-harness-previews")
