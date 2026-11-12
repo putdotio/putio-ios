@@ -32,8 +32,8 @@ images and documents, and opens put.io links into the same screens.
 ## How to get to it (user POV)
 
 - Files tab: rows open folders and files; the `More` menu (`files.menu`) holds
-  Select (`item-action.select`), New folder (`item-action.new-folder`), and
-  sort.
+  Select, New folder, and sort. iOS 27 drops menu item identifiers; find them
+  by label.
 - Long-press a row for its menu. Swipe right for Move; left for More,
   Download, and Trash.
 - Search tab: type a query and submit.

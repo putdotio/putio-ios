@@ -92,7 +92,7 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     openMoreMenu()
-    app.buttons["item-action.new-folder"].tap()
+    app.buttons["New folder"].tap()
     let alert = app.alerts["New folder"]
     XCTAssertTrue(alert.appears(within: 5), "New folder never opened")
     XCTAssertTrue(alert.staticTexts["In Blue Lights"].exists, "New folder does not name its folder")
@@ -538,7 +538,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(menu.appears(within: 10), "the folder has no More menu")
     menu.tap()
     XCTAssertTrue(
-      app.buttons["item-action.new-folder"].appears(within: 5), "More never listed New folder")
+      app.buttons["New folder"].appears(within: 5), "More never listed New folder")
   }
 
   private func openRename(_ name: String) -> XCUIElement {

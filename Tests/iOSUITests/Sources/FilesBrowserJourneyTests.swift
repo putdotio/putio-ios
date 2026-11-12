@@ -908,7 +908,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
     documentRowBeforeEditing()
     openBrowseMenu()
-    let newFolder = app.buttons["item-action.new-folder"]
+    let newFolder = app.buttons["New folder"]
     XCTAssertTrue(
       waitUntilHittable(newFolder, timeout: 5),
       "new-folder action is not tappable"
@@ -1079,7 +1079,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
     openBrowseMenu()
-    let select = app.buttons["item-action.select"]
+    let select = app.buttons["Select"]
     XCTAssertTrue(waitUntilHittable(select, timeout: 5), "file selection control is unavailable")
     select.tap()
     let edit = app.buttons["files.selection.toggle"]
@@ -1167,7 +1167,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(movedBulkSuccessFolder, timeout: 5))
 
     openBrowseMenu()
-    let nestedEdit = app.buttons["item-action.select"]
+    let nestedEdit = app.buttons["Select"]
     XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
     nestedEdit.tap()
     XCTAssertTrue(
@@ -1231,7 +1231,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
     openBrowseMenu()
-    let ambiguousEdit = app.buttons["item-action.select"]
+    let ambiguousEdit = app.buttons["Select"]
     XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
     ambiguousEdit.tap()
     ambiguousMoveFolder.tap()
@@ -1437,7 +1437,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func createFolder(named name: String, expectedID: Int) -> XCUIElement {
     openBrowseMenu()
-    let newFolder = app.buttons["item-action.new-folder"]
+    let newFolder = app.buttons["New folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5), "new-folder action is unavailable")
     newFolder.tap()
     submitName(name, in: nameAlert("New folder"), as: "Create")
