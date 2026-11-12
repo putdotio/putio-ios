@@ -160,7 +160,9 @@ public struct PutioNavigationValueRow<Value: Hashable>: View {
       } label: {
         HStack(spacing: PutioTheme.Spacing.space2) {
           PutioSettingsValueLayout(
-            title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle)
+            title: title, subtitle: subtitle, icon: icon, value: value, valueStyle: valueStyle
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
           PutioIconView(.caretRight, size: PutioSettingsLayout.accessorySize)
             .foregroundStyle(PutioTheme.Colors.textSecondary)
             .accessibilityHidden(true)

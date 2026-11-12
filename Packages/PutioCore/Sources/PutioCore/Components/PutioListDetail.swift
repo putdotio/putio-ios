@@ -39,6 +39,7 @@
       NavigationSplitView(columnVisibility: $columnVisibility) {
         list(listSelection)
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
+          .environment(\.putioListDetailShowsOpenRow, horizontalSizeClass == .regular)
           .environment(\.putioListDetailOpen, openAction)
           .navigationSplitViewColumnWidth(
             min: PutioListDetailLayout.listMinimumWidth,
@@ -115,9 +116,10 @@
     let style: PutioListDetailRowStyle
 
     @Environment(\.putioListDetailSelection) private var selection
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.putioListDetailShowsOpenRow) private var showsOpenRow
 
     private var isOpen: Bool { selection == item }
+    private var highlightsOpen: Bool { isOpen && showsOpenRow }
 
     func body(content: Content) -> some View {
       content
@@ -130,13 +132,12 @@
       switch style {
       case .plain: plainBackground
       case .grouped:
-        isOpen && horizontalSizeClass == .regular
-          ? PutioTheme.Colors.surfaceActive : PutioTheme.Colors.surface
+        highlightsOpen ? PutioTheme.Colors.surfaceActive : PutioTheme.Colors.surface
       }
     }
 
     @ViewBuilder private var plainBackground: some View {
-      if isOpen, horizontalSizeClass == .regular {
+      if highlightsOpen {
         RoundedRectangle(cornerRadius: PutioListDetailLayout.selectedRowRadius)
           .fill(PutioListDetailLayout.selectedRowTint)
           .padding(.horizontal, PutioListDetailLayout.selectedRowInset)
@@ -148,6 +149,7 @@
 
   extension EnvironmentValues {
     @Entry var putioListDetailSelection: AnyHashable? = nil
+    @Entry var putioListDetailShowsOpenRow = false
   }
 
   enum PutioListDetailLayout {
