@@ -239,7 +239,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-item-swipe-right")
     move.tap()
     XCTAssertTrue(element(identifier: "files.move-picker").appears(within: 5))
-    app.buttons["files.move-cancel"].tap()
+    app.buttons["sheet.dismiss"].tap()
     XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
 
     app.terminate()
@@ -296,6 +296,84 @@ final class FilesBrowserJourneyTests: XCTestCase {
       NSPredicate(format: "label == %@ AND identifier != %@", "More", "files.menu"))
     return labelled.allElementsBoundByIndex.first { abs($0.frame.midY - row.frame.midY) < 30 }
       ?? labelled.firstMatch
+  }
+
+  func testMoveSheetLevelsNameTakenNewFolderAndIntoItself() {
+    app.launch()
+    openSeasonFolder()
+
+    let subtitle = element(identifier: "files.item.445")
+    openContextMenu(for: subtitle, actionLabel: "Move").tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.0").appears(within: 5))
+    XCTAssertTrue(app.navigationBars["Move 1 item"].exists, "the sheet does not count its items")
+    openMoveLevel(410, path: "Files / Harness Folder")
+    let moveToHarness = app.buttons["Move to Harness Folder"]
+    XCTAssertTrue(
+      waitUntilHittable(moveToHarness, timeout: 5), "Move to Harness Folder is disabled")
+    moveToHarness.tap()
+    let moveError = element(identifier: "files.move-error")
+    XCTAssertTrue(moveError.appears(within: 10), "a taken name showed no error")
+    XCTAssertEqual(
+      moveError.label,
+      "A file or folder named “Blue.Lights.S04E01.en.srt” already exists there. Choose another folder."
+    )
+    XCTAssertTrue(element(identifier: "files.move-picker").exists, "a taken name closed the sheet")
+    addScreenshot(named: "runtime-move-name-taken")
+
+    openMoveLevel(440, path: "Files / Harness Folder / Blue Lights")
+    XCTAssertTrue(element(identifier: "files.move-empty.440").appears(within: 5))
+    XCTAssertFalse(app.buttons["Move to Blue Lights"].isEnabled, "the current folder is a target")
+    XCTAssertFalse(moveError.exists, "the taken name followed the sheet to another folder")
+
+    let newFolder = app.buttons["files.move-new-folder"]
+    XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
+    newFolder.tap()
+    let alert = nameAlert("New folder")
+    XCTAssertTrue(alert.staticTexts["In Blue Lights"].exists, "New folder does not name its level")
+    submitName("Extras", in: alert, as: "Create")
+    XCTAssertTrue(element(identifier: "files.move-folder.415").appears(within: 5))
+    openMoveLevel(415, path: "Files / Harness Folder / Blue Lights / Extras")
+    let moveToExtras = app.buttons["Move to Extras"]
+    XCTAssertTrue(waitUntilHittable(moveToExtras, timeout: 5), "Move to Extras is disabled")
+    moveToExtras.tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["1 item is in the selected folder."].appears(within: 5),
+      "the move showed no toast")
+    XCTAssertTrue(subtitle.disappears(within: 5), "the moved subtitle stayed in its folder")
+
+    let extras = element(identifier: "files.item.415")
+    XCTAssertTrue(waitUntilHittable(extras, timeout: 10), "the folder made in the sheet is missing")
+    openContextMenu(for: extras, actionLabel: "Move").tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.0").appears(within: 5))
+    openMoveLevel(410, path: "Files / Harness Folder")
+    openMoveLevel(440, path: "Files / Harness Folder / Blue Lights")
+    openMoveLevel(415, path: "Files / Harness Folder / Blue Lights / Extras")
+    XCTAssertTrue(moveError.appears(within: 5), "moving a folder into itself showed no error")
+    XCTAssertEqual(moveError.label, "A folder can’t be moved into itself or a folder inside it.")
+    XCTAssertFalse(app.buttons["Move to Extras"].isEnabled, "a folder can move into itself")
+
+    for _ in 0..<3 { tapSheetBack() }
+    let cancel = app.buttons["sheet.dismiss"]
+    XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "the sheet lost Cancel at Files")
+    cancel.tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
+    XCTAssertTrue(extras.exists, "cancelling the move removed its source")
+  }
+
+  private func openMoveLevel(_ id: Int, path: String) {
+    let row = element(identifier: "files.move-folder.\(id)")
+    XCTAssertTrue(waitUntilHittable(row, timeout: 10), "move folder \(id) never appeared")
+    row.tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.\(id)").appears(within: 5))
+    XCTAssertTrue(app.staticTexts[path].appears(within: 5), "the level has no path \(path)")
+  }
+
+  private func tapSheetBack() {
+    let back = app.navigationBars.buttons.matching(identifier: "BackButton")
+      .allElementsBoundByIndex.first { $0.isHittable }
+    XCTAssertNotNil(back, "the move sheet has no back control")
+    back?.tap()
   }
 
   private func openSeasonFolder() {
@@ -995,12 +1073,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.move-screen.0").appears(within: 5),
       "move picker did not open at Files"
     )
-    let moveToCurrentFolder = app.buttons["files.move-here.0"]
+    let moveToCurrentFolder = app.buttons["Move to Files"]
     XCTAssertTrue(moveToCurrentFolder.exists, "current-folder move action is missing")
     XCTAssertFalse(moveToCurrentFolder.isEnabled, "moving to the current folder is enabled")
-    XCTAssertFalse(
+    XCTAssertTrue(
       element(identifier: "files.move-folder.415").exists,
-      "source folder is available as its own move destination"
+      "the moved folder is not listed for its into-itself state"
     )
 
     let harnessDestination = element(identifier: "files.move-folder.410")
@@ -1013,12 +1091,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.move-screen.410").appears(within: 5),
       "move picker did not enter Harness Folder"
     )
-    let moveHere = app.buttons["files.move-here.410"]
+    let moveHere = app.buttons["Move to Harness Folder"]
     XCTAssertTrue(waitUntilHittable(moveHere, timeout: 5), "Move is not tappable")
     moveHere.tap()
 
     XCTAssertTrue(
-      app.staticTexts["Item moved"].appears(within: 5),
+      app.staticTexts["1 item is in the selected folder."].appears(within: 5),
       "move success was not surfaced"
     )
     XCTAssertTrue(
@@ -1048,11 +1126,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.move-screen.0").appears(within: 5),
       "move picker did not reopen at Files"
     )
-    let moveBackToRoot = app.buttons["files.move-here.0"]
+    let moveBackToRoot = app.buttons["Move to Files"]
     XCTAssertTrue(waitUntilHittable(moveBackToRoot, timeout: 5), "moving back to Files is disabled")
     moveBackToRoot.tap()
     XCTAssertTrue(
-      app.staticTexts["Item moved"].appears(within: 5),
+      app.staticTexts["1 item is in the selected folder."].appears(within: 5),
       "move back to Files did not settle"
     )
 
@@ -1142,7 +1220,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "Harness Folder is unavailable for the bulk move"
     )
     bulkDestination.tap()
-    let bulkMoveHere = app.buttons["files.move-here.410"]
+    let bulkMoveHere = app.buttons["Move to Harness Folder"]
     XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move is disabled")
     bulkMoveHere.tap()
     // One batch; the server reports Bulk Retry failed and moves Bulk Success.
@@ -1154,7 +1232,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(retryBulkMove, timeout: 5), "bulk move retry is unavailable")
     retryBulkMove.tap()
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item."].appears(within: 10),
+      app.staticTexts["1 item is in the selected folder."].appears(within: 10),
       "bulk move retry resent more than the failed item"
     )
 
@@ -1246,7 +1324,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let ambiguousBulkMove = app.buttons["files.bulk.move"]
     XCTAssertTrue(waitUntilHittable(ambiguousBulkMove, timeout: 5))
     ambiguousBulkMove.tap()
-    let moveAmbiguousToRoot = app.buttons["files.move-here.0"]
+    let moveAmbiguousToRoot = app.buttons["Move to Files"]
     XCTAssertTrue(waitUntilHittable(moveAmbiguousToRoot, timeout: 5))
     moveAmbiguousToRoot.tap()
 
@@ -1275,7 +1353,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "already-loaded destination did not refresh after the ambiguous move"
     )
     XCTAssertEqual(appliedMoveAtRoot.label.components(separatedBy: ", ").first, "Ambiguous Move")
-    assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
+    assertMovePickerCreatesAFolder(for: appliedMoveAtRoot)
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -1316,47 +1394,28 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
   }
 
-  private func assertMovePickerCreationAndSorting(for row: XCUIElement) {
+  private func assertMovePickerCreatesAFolder(for row: XCUIElement) {
     openContextMenu(for: row, actionLabel: "Move").tap()
     XCTAssertTrue(element(identifier: "files.move-screen.0").appears(within: 5))
-    let summary = element(identifier: "files.move-summary")
-    XCTAssertTrue(summary.appears(within: 5))
-    XCTAssertTrue(summary.label.contains("Ambiguous Move"), "move summary lost the source name")
-    let menu = app.buttons["files.move-menu"]
-    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
-    menu.tap()
-    let sizeSort = sortRow("Size")
-    XCTAssertTrue(waitUntilHittable(sizeSort, timeout: 5))
-    sizeSort.tap()
-    XCTAssertTrue(sizeSort.disappears(within: 5), "sort selection did not dismiss menu")
-    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
-    assertSortValue("Size, ascending", on: menu)
-    menu.tap()
-    assertSortRowSelected(sizeSort, label: "Size, Ascending")
-    addScreenshot(named: "runtime-move-menu-ascending")
-    sizeSort.tap()
-    XCTAssertTrue(sizeSort.disappears(within: 5), "sort selection did not dismiss menu")
-    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
-    assertSortValue("Size, descending", on: menu)
-    menu.tap()
-    assertSortRowSelected(sizeSort, label: "Size, Descending")
-    addScreenshot(named: "runtime-move-menu-descending")
+    XCTAssertTrue(app.navigationBars["Move 1 item"].exists, "the sheet does not count its items")
 
     let newFolder = app.buttons["files.move-new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
     newFolder.tap()
-    let field = app.alerts["New Folder"].textFields.firstMatch
-    XCTAssertTrue(field.appears(within: 5))
-    field.tap()
-    field.typeText("Move Destination")
-    app.alerts.buttons["Create"].tap()
+    let alert = nameAlert("New folder")
+    XCTAssertTrue(alert.staticTexts["In Files"].exists, "New folder does not name its level")
+    submitName("Move Destination", in: alert, as: "Create")
     let destination = element(identifier: "files.move-folder.419")
     XCTAssertTrue(destination.appears(within: 5), "new move destination did not appear")
     XCTAssertTrue(destination.label.contains("Move Destination"))
     destination.tap()
     XCTAssertTrue(element(identifier: "files.move-screen.419").appears(within: 5))
-    let cancel = app.buttons["files.move-cancel"]
-    XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "nested move folder lost Cancel")
+    XCTAssertTrue(
+      element(identifier: "files.move-empty.419").appears(within: 5),
+      "an empty level does not say it has no folders")
+    tapSheetBack()
+    let cancel = app.buttons["sheet.dismiss"]
+    XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "the sheet lost Cancel at Files")
     cancel.tap()
     XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
     XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))

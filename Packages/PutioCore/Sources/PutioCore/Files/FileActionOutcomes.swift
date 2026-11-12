@@ -15,9 +15,14 @@ public enum PutioFileAction: Equatable, Sendable {
   case setWatched(fileID: PutioFileID, parentID: PutioFileID, name: String, watched: Bool)
 }
 
+/// put.io refused a move because the destination already holds an item with
+/// the moved item's name.
+public struct PutioMoveNameTaken: Error, Equatable, Sendable {}
+
 public struct PutioFileActionFailure: Equatable, Sendable {
   public let title: String
   public let message: String
+  public let isNameTaken: Bool
 
   init?(action: PutioFileAction, error: Error) {
     guard let browserFailure = PutioBrowserErrorPresentation(error: error) else {
@@ -38,6 +43,7 @@ public struct PutioFileActionFailure: Equatable, Sendable {
       title = String(localized: "Could not update watch status", bundle: .module)
     }
     message = browserFailure.message
+    isNameTaken = error is PutioMoveNameTaken
   }
 }
 

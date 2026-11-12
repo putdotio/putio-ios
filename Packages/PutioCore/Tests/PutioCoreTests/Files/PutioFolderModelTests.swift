@@ -222,14 +222,12 @@ final class PutioFolderModelTests: XCTestCase {
       load: { _ in BrowserTestFixtures.contents(items: [video], hasMore: true) },
       continueLoad: { _ in BrowserTestFixtures.contents(items: [later]) }
     )
-    let policy = PutioMovePickerPolicy(item: BrowserTestFixtures.item(id: 3, parentID: 7))
-
     _ = await model.loadIfNeeded()
     let appended = await model.loadMore()
 
     XCTAssertTrue(appended)
     guard case .loaded(let contents) = model.state else { return XCTFail("Expected contents") }
-    XCTAssertEqual(policy.folders(in: contents), [later])
+    XCTAssertEqual(PutioMovePickerPolicy.folders(in: contents), [later])
     XCTAssertFalse(contents.hasMore)
   }
 
@@ -404,7 +402,8 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testBulkMovePickerExcludesEverySelectedFolderAndCurrentParent() {
+  func testMovePickerStatesFollowThePathFromFiles() {
+    let parent = PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Series")
     let firstFolder = BrowserTestFixtures.item(
       id: 7, parentID: 42, name: "First", kind: .folder)
     let selectedFile = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Episode.mkv")
@@ -413,21 +412,26 @@ final class PutioFolderModelTests: XCTestCase {
     let eligible = BrowserTestFixtures.item(
       id: 10, parentID: 42, name: "Destination", kind: .folder)
     let policy = PutioMovePickerPolicy(items: [firstFolder, selectedFile, secondFolder])
+    let route = { (item: PutioFileItem) in PutioFolderRoute(id: item.id, title: item.name) }
+    let inside = PutioFolderRoute(id: PutioFileID(rawValue: 11), title: "Inside")
 
     XCTAssertEqual(
-      policy.folders(
+      PutioMovePickerPolicy.folders(
         in: BrowserTestFixtures.contents(
           items: [firstFolder, selectedFile, secondFolder, eligible]
         )
       ),
-      [eligible]
+      [firstFolder, secondFolder, eligible]
     )
-    XCTAssertFalse(
-      policy.canMove(to: PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Current")))
-    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: firstFolder.id, title: "First")))
-    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: secondFolder.id, title: "Second")))
-    XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: "Destination")))
-    XCTAssertFalse(PutioMovePickerPolicy(items: []).canMove(to: .root))
+    XCTAssertEqual(policy.state(along: []), .available)
+    XCTAssertEqual(policy.state(along: [parent]), .currentFolder)
+    XCTAssertEqual(policy.state(along: [parent, route(eligible)]), .available)
+    XCTAssertEqual(policy.state(along: [parent, route(firstFolder)]), .intoItself)
+    XCTAssertEqual(policy.state(along: [parent, route(secondFolder), inside]), .intoItself)
+    XCTAssertEqual(
+      PutioMovePickerPolicy(items: [selectedFile]).state(along: [parent, route(firstFolder)]),
+      .available)
+    XCTAssertEqual(PutioMovePickerPolicy(items: []).state(along: []), .currentFolder)
   }
 
   func testInitialLoadRunsOnceAndUsesStableFolderID() async throws {

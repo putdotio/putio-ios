@@ -71,6 +71,83 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-63-file-menu")
   }
 
+  func testMove() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.445")
+    try captureBoard("rd-ios-19-move")
+  }
+
+  func testMoveFolder() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.445")
+    openMoveLevel(410)
+    XCTAssertTrue(element("files.move-folder.440").appears(within: 10), "Blue Lights is not listed")
+    try captureBoard("rd-ios-35-move-folder")
+  }
+
+  func testMoveLoading() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-hold-move-folders")
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.445")
+    openMoveLevel(410)
+    XCTAssertTrue(app.staticTexts["Loading folders…"].appears(within: 5), "no loading state")
+    try captureBoard("rd-ios-36-move-loading")
+  }
+
+  func testMoveCurrentFolder() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.445")
+    openMoveLevel(410)
+    openMoveLevel(440)
+    XCTAssertTrue(element("files.move-empty.440").appears(within: 10), "no empty state")
+    XCTAssertFalse(app.buttons["Move to Blue Lights"].isEnabled, "the current folder is a target")
+    try captureBoard("rd-ios-37-move-current-folder")
+  }
+
+  func testMoveNameTaken() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.445")
+    openMoveLevel(410)
+    XCTAssertTrue(element("files.move-folder.440").appears(within: 10), "Blue Lights is not listed")
+    app.buttons["Move to Harness Folder"].tap()
+    XCTAssertTrue(element("files.move-error").appears(within: 10), "a taken name showed no error")
+    try captureBoard("rd-ios-38-move-failed")
+  }
+
+  func testMoved() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openSeasonFolder()
+    openMoveSheet(for: "files.item.446")
+    openMoveLevel(410)
+    app.buttons["Move to Harness Folder"].tap()
+    XCTAssertTrue(
+      app.staticTexts["1 item is in the selected folder."].appears(within: 10), "no moved toast")
+    XCTAssertTrue(element("files.item.446").disappears(within: 5), "the moved row stayed")
+    try captureBoard("rd-ios-39-moved")
+  }
+
+  func testMoveIntoItself() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    openHarnessFolder()
+    openMoveSheet(for: "files.item.440")
+    openMoveLevel(410)
+    openMoveLevel(440)
+    XCTAssertTrue(element("files.move-error").appears(within: 10), "into itself showed no error")
+    try captureBoard("rd-ios-69-move-into-itself")
+  }
+
   func testMoreMenu() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
@@ -667,6 +744,20 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the item menu never opened")
+  }
+
+  private func openMoveSheet(for identifier: String) {
+    openItemMenu(identifier)
+    app.buttons["Move"].firstMatch.tap()
+    XCTAssertTrue(element("files.move-screen.0").appears(within: 5), "Move never opened")
+    XCTAssertTrue(element("files.move-folder.410").appears(within: 10), "Files lists no folders")
+  }
+
+  private func openMoveLevel(_ id: Int) {
+    let row = element("files.move-folder.\(id)")
+    XCTAssertTrue(row.appears(within: 10), "move folder \(id) never appeared")
+    row.tap()
+    XCTAssertTrue(element("files.move-screen.\(id)").appears(within: 5), "level \(id) never opened")
   }
 
   private static let subtitleName = "Blue.Lights.S04E01.en.srt"

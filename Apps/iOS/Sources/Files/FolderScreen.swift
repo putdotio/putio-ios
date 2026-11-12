@@ -181,12 +181,11 @@ struct PutioFolderScreen: View {
         actions: actions,
         refreshRequests: refreshRequests,
         onMove: { destination in
-          pendingMove = nil
-          if selection.isBulk {
+          guard !selection.isBulk, let item = selection.items.first else {
             actionRequest = .bulkMove(selection.items, destination)
-          } else if let item = selection.items.first {
-            actionRequest = .move(item, destination)
+            return .closed
           }
+          return await move(item, to: destination)
         }
       )
     }
@@ -831,6 +830,21 @@ struct PutioFolderScreen: View {
     }
   }
 
+  private func move(
+    _ item: PutioFileItem, to destination: PutioFolderRoute
+  ) async -> PutioMoveSheetResult {
+    await model.move(item, to: destination)
+    guard let outcome = model.actionOutcome,
+      case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
+    else { return .closed }
+    if case .failed(_, let failure) = outcome, failure.isNameTaken {
+      model.clearActionOutcome()
+      return .nameTaken(item.name)
+    }
+    presentActionOutcome()
+    return .closed
+  }
+
   private func runActionRequest() async {
     guard let request = actionRequest else { return }
     // `.task(id:)` re-runs when the screen reappears mid-mutation; rejoin
@@ -846,8 +860,6 @@ struct PutioFolderScreen: View {
         await model.delete(item)
       case .setWatched(let item, let watched):
         await model.setWatched(item, watched)
-      case .move(let item, let destination):
-        await model.move(item, to: destination)
       case .bulkDelete(let items):
         await model.delete(items)
       case .bulkMove(let items, let destination):
@@ -965,8 +977,8 @@ struct PutioFolderScreen: View {
     if outcome.action == .delete {
       return deletionPresentation.outcomeMessage(succeeded: succeeded, failed: failed)
     }
+    guard failed > 0 else { return PutioMoveCopy.moved(succeeded) }
     let successText = String(localized: "Moved \(succeeded) items.")
-    guard failed > 0 else { return successText }
     return String(localized: "\(successText) \(failed) couldn’t be moved.")
   }
 
@@ -979,7 +991,7 @@ struct PutioFolderScreen: View {
     case .delete:
       PutioToast(deletionPresentation.singleSuccessTitle)
     case .move:
-      PutioToast(String(localized: "Item moved"))
+      PutioToast(PutioMoveCopy.moved(1))
     case .setWatched(_, _, _, let watched):
       PutioToast(
         watched
@@ -1001,7 +1013,6 @@ struct PutioFolderScreen: View {
     case sort(PutioFolderSort)
     case delete(PutioFileItem)
     case setWatched(PutioFileItem, Bool)
-    case move(PutioFileItem, PutioFolderRoute)
     case bulkDelete([PutioFileItem])
     case bulkMove([PutioFileItem], PutioFolderRoute)
     case bulkRetry(PutioBulkFileOutcome)

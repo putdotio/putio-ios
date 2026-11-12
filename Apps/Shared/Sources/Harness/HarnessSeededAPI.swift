@@ -489,6 +489,13 @@ import Foundation
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
+    /// Season subtitles moved out of the season folder, by new parent id.
+    nonisolated(unsafe) private static var movedSubtitleParents: [Int: Int] = [:]
+    /// `--putio-harness-hold-move-folders` never answers the move sheet's
+    /// folder listing of Harness Folder, so its loading state stays on screen.
+    private static var holdsMoveFolders: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
+    }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
@@ -609,6 +616,7 @@ import Foundation
       offlineOriginalTrashed = false
       ambiguousMoveFailureDelivered = false
       partialMoveFailureDelivered = false
+      movedSubtitleParents = [:]
       trashDeleteFailureDelivered = false
       trashListRequests = 0
       folderSorts = [:]
@@ -672,7 +680,7 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
-      } else if Self.holdsPreviewLookup(url) {
+      } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url) {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
@@ -695,6 +703,13 @@ import Foundation
     private static func holdsPreviewLookup(_ url: URL) -> Bool {
       guard usesPreviews, url.path == "/v2/files/\(longPreviewFileID)" else { return false }
       return fileActionsLock.withLock { longPreviewLookups == 1 }
+    }
+
+    private static func holdsMoveFolderListing(_ url: URL) -> Bool {
+      guard holdsMoveFolders, url.path == "/v2/files/list" else { return false }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      return query.contains { $0.name == "parent_id" && $0.value == "410" }
+        && query.contains { $0.name == "file_type" && $0.value == "FOLDER" }
     }
 
     override func stopLoading() {
@@ -1539,10 +1554,6 @@ import Foundation
         (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
         (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
       ]
-      let subtitles: [(id: Int, name: String, size: Int64)] = [
-        (seasonSubtitleFileID, "Blue.Lights.S04E01.en.srt", 41_000),
-        (446, "Blue.Lights.S04E02.en.srt", 39_000),
-      ]
       let videoRows = episodes.map { episode in
         """
         {"id":\(episode.id),"name":\(jsonString(episode.name)),"file_type":"VIDEO",
@@ -1552,18 +1563,62 @@ import Foundation
         "start_from":\(playbackPosition(fileID: episode.id))}
         """
       }
-      let subtitleRows = subtitles.map { subtitle in
-        """
-        {"id":\(subtitle.id),"name":\(jsonString(subtitle.name)),"file_type":"TEXT",
-        "parent_id":\(seasonFolderID),"size":\(subtitle.size),
-        "created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z"}
-        """
+      let (movedAway, folderRows) = fileActionsLock.withLock {
+        (Set(movedSubtitleParents.keys), childFolderRowsLocked(of: seasonFolderID))
       }
-      let rows = videoRows + subtitleRows
+      let subtitleRows = seasonSubtitles.keys.sorted().filter { !movedAway.contains($0) }.compactMap
+      {
+        id in
+        seasonSubtitles[id].map {
+          subtitleRow(id: id, name: $0.name, size: $0.size, parentID: seasonFolderID)
+        }
+      }
+      let rows = folderRows + videoRows + subtitleRows
       return """
         {"parent":\(seasonFolderObject),"files":[\(rows.joined(separator: ","))],
         "total":\(rows.count)}
         """
+    }
+
+    private static let seasonSubtitles: [Int: (name: String, size: Int64)] = [
+      seasonSubtitleFileID: ("Blue.Lights.S04E01.en.srt", 41_000),
+      446: ("Blue.Lights.S04E02.en.srt", 39_000),
+    ]
+
+    private static func subtitleRow(id: Int, name: String, size: Int64, parentID: Int) -> String {
+      """
+      {"id":\(id),"name":\(jsonString(name)),"file_type":"TEXT",
+      "parent_id":\(parentID),"size":\(size),
+      "created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z"}
+      """
+    }
+
+    private static func childFolderRowsLocked(of parentID: Int) -> [String] {
+      actionFolders
+        .filter { $0.value.parentID == parentID }
+        .sorted { $0.key < $1.key }
+        .map { folderObject(id: $0.key, name: $0.value.name, parentID: parentID) }
+    }
+
+    /// A harness-created folder lists the folders and season subtitles moved into it.
+    private static func actionFolderListing(_ folderID: Int) -> (Int, String)? {
+      fileActionsLock.withLock {
+        guard let folder = actionFolders[folderID] else { return nil }
+        let subtitleRows = movedSubtitleParents.filter { $0.value == folderID }.keys.sorted()
+          .compactMap { id in
+            seasonSubtitles[id].map {
+              subtitleRow(id: id, name: $0.name, size: $0.size, parentID: folderID)
+            }
+          }
+        let rows = childFolderRowsLocked(of: folderID) + subtitleRows
+        return (
+          200,
+          """
+          {"parent":\(folderObject(id: folderID, name: folder.name, parentID: folder.parentID)),
+          "files":[\(rows.joined(separator: ","))],"total":\(rows.count)}
+          """
+        )
+      }
     }
 
     private static var seasonFolderObject: String {
@@ -1723,6 +1778,7 @@ import Foundation
           )
         )
       case .some(let parentID):
+        if let listing = actionFolderListing(parentID) { return listing }
         return (
           404,
           fixtureError(
@@ -1779,13 +1835,19 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    /// Files, Harness Folder, the season folder, and folders the run created.
+    private static func isDestination(_ parentID: Int) -> Bool {
+      [0, 410, seasonFolderID].contains(parentID)
+        || fileActionsLock.withLock { actionFolders[parentID] != nil }
+    }
+
     private static func createFolder(request: URLRequest) -> (Int, String) {
       guard
         let payload = requestPayload(request),
         let name = payload["name"] as? String,
         !name.isEmpty,
         let parentID = payload["parent_id"] as? Int,
-        parentID == 0 || parentID == 410
+        isDestination(parentID)
       else {
         return (
           400,
@@ -1862,7 +1924,7 @@ import Foundation
       guard
         let fileIDs = requestFileIDs(request),
         let parentID = requestPayload(request)?["parent_id"] as? Int,
-        parentID == 0 || parentID == 410
+        isDestination(parentID)
       else {
         return (
           400,
@@ -1878,6 +1940,17 @@ import Foundation
       // Like the server, an item it cannot move is reported, not the batch.
       var errors: [String] = []
       for fileID in fileIDs {
+        // Harness Folder already holds a file named like the first subtitle.
+        if fileID == seasonSubtitleFileID, parentID == 410 {
+          errors.append(
+            #"{"error_type":"NAME_ALREADY_EXIST","id":\#(fileID),"name":"Blue.Lights.S04E01.en.srt","status_code":400}"#
+          )
+          continue
+        }
+        if seasonSubtitles[fileID] != nil {
+          movedSubtitleParents[fileID] = parentID == seasonFolderID ? nil : parentID
+          continue
+        }
         guard actionFolders[fileID] != nil else {
           errors.append(
             #"{"error_type":"HARNESS_FILE_NOT_FOUND","id":\#(fileID),"status_code":404}"#)

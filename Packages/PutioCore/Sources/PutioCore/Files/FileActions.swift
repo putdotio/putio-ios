@@ -126,31 +126,32 @@ public struct PutioFileActions: Sendable {
   }
 }
 
+public enum PutioMoveDestinationState: Equatable, Sendable {
+  case available
+  case currentFolder
+  case intoItself
+}
+
 public struct PutioMovePickerPolicy: Sendable {
   let items: [PutioFileItem]
-
-  init(item: PutioFileItem) {
-    items = [item]
-  }
 
   public init(items: [PutioFileItem]) {
     self.items = items
   }
 
-  public func canMove(to destination: PutioFolderRoute) -> Bool {
-    !items.isEmpty
-      && items.allSatisfy { item in
-        destination.id != item.parentID
-          && !(item.kind == .folder && destination.id == item.id)
-      }
+  /// Where the items would land after opening `path` from the root. Moved
+  /// folders stay listed, so a path through one is the into-itself case.
+  public func state(along path: [PutioFolderRoute]) -> PutioMoveDestinationState {
+    let movedFolderIDs = Set(items.lazy.filter { $0.kind == .folder }.map(\.id))
+    if path.contains(where: { movedFolderIDs.contains($0.id) }) { return .intoItself }
+    let destination = path.last ?? .root
+    if items.isEmpty || items.contains(where: { $0.parentID == destination.id }) {
+      return .currentFolder
+    }
+    return .available
   }
 
-  public func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
-    let selectedFolderIDs = Set(
-      items.lazy.filter { $0.kind == .folder }.map(\.id)
-    )
-    return contents.items.filter { candidate in
-      candidate.kind == .folder && !selectedFolderIDs.contains(candidate.id)
-    }
+  public static func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
+    contents.items.filter { $0.kind == .folder }
   }
 }

@@ -593,6 +593,15 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
       BoardCapture("rd-ios-63-file-menu", .iphone, "testFileMenu"),
       BoardCapture("rd-ios-64-vlc-menu", .iphone, "testVLCMenu"),
+      BoardCapture("rd-ios-19-move", .iphone, "testMove"),
+      BoardCapture("rd-ios-35-move-folder", .iphone, "testMoveFolder", screenBase: false),
+      BoardCapture("rd-ios-36-move-loading", .iphone, "testMoveLoading", screenBase: false),
+      BoardCapture(
+        "rd-ios-37-move-current-folder", .iphone, "testMoveCurrentFolder", screenBase: false),
+      BoardCapture("rd-ios-38-move-failed", .iphone, "testMoveNameTaken"),
+      BoardCapture("rd-ios-39-moved", .iphone, "testMoved", screenBase: false),
+      BoardCapture(
+        "rd-ios-69-move-into-itself", .iphone, "testMoveIntoItself", screenBase: false),
       BoardCapture("Main", .iphone, "testFilesRoot"),
       BoardCapture(
         "rd-ios-hist-13-tab-hidden", .iphone, "testHistoryTabHidden", screenBase: false),
@@ -947,6 +956,9 @@ enum BrowserJourneyContract {
       "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
       attachmentNames: ["runtime-rename-failed-toast", "runtime-file-actions"],
       timeAllowance: 300),
+    JourneyPreflight(
+      "move-sheet", "FilesBrowserJourneyTests/testMoveSheetLevelsNameTakenNewFolderAndIntoItself",
+      attachmentNames: ["runtime-move-name-taken"], timeAllowance: 120),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
