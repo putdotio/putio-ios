@@ -53,7 +53,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     let name = "Accessible archive with a very long name preserving the final chapter number 12345"
     app.buttons["files.menu"].tap()
     app.buttons["New folder"].tap()
-    let alert = app.alerts["New folder"]
+    let alert = app.putioAlert("New folder")
     XCTAssertTrue(alert.appears(within: 5))
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5))
     app.typeText(name)

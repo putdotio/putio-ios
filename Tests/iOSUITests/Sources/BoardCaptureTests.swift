@@ -470,7 +470,7 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openMoreMenu()
     app.buttons["New folder"].tap()
-    let alert = app.alerts["New folder"]
+    let alert = app.putioAlert("New folder")
     XCTAssertTrue(alert.appears(within: 5), "New folder never opened")
     XCTAssertTrue(alert.staticTexts["In Blue Lights"].exists, "New folder does not name its folder")
     XCTAssertFalse(
@@ -962,7 +962,7 @@ final class BoardCaptureTests: XCTestCase {
     openPosterPreview()
     openPreviewMore()
     app.buttons["Rename"].firstMatch.tap()
-    let alert = app.alerts["Rename"]
+    let alert = app.putioAlert("Rename")
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened over the viewer")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
     XCTAssertEqual(alert.textFields.firstMatch.value as? String, "Harness Poster.png")
@@ -2051,7 +2051,7 @@ final class BoardCaptureTests: XCTestCase {
   private func openRename() -> XCUIElement {
     openItemMenu("files.item.445")
     app.buttons["Rename"].firstMatch.tap()
-    let alert = app.alerts["Rename"]
+    let alert = app.putioAlert("Rename")
     XCTAssertTrue(alert.appears(within: 5), "Rename never opened")
     XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
     return alert

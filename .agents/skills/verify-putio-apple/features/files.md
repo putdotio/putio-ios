@@ -180,7 +180,7 @@ Preconditions:
   appear before you tap it.
 - `selection.close` leaves selection; bar actions are
   `selection.action.<move|download|watched|unwatched|trash>`.
-- Rename and New folder are system alerts: find them with `app.alerts[title]`
+- Rename and New folder are drawn alerts: find them with `app.putioAlert(title)`
   and type once the keyboard shows; Rename selects the stem first.
 - Some fixture responses are delayed on purpose, such as a failed rename (5 s)
   and a Trash restore (3 s). Wait on the visible result.
