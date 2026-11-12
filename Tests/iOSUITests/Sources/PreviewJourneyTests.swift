@@ -347,7 +347,8 @@ final class PreviewJourneyTests: XCTestCase {
 
   private func assertNoVLCAction(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+    app.scrollDown(toHit: row, maximumSwipes: 3)
+    XCTAssertTrue(row.appears(within: 5), "row \(fileID) never scrolled into view")
     row.press(forDuration: 1)
     XCTAssertTrue(app.buttons["Rename"].appears(within: 5))
     XCTAssertFalse(app.buttons["Open in VLC"].exists)
