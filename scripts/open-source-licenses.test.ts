@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { buildManifest, configPath, parseConfig, resolveRepository } from "./open-source-licenses.ts";
+import { buildManifest, configPath, parseConfig, resolvedPins, resolveRepository } from "./open-source-licenses.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -36,6 +36,12 @@ test("a notice for a package that is no longer resolved stops generation", async
   const resolved = await resolveRepository(root);
   resolved.delete("intercom-ios-sp");
   assert.throws(() => buildManifest(config(), resolved), /intercom-ios-sp has a notice but is not resolved/);
+});
+
+test("one package resolved to two versions stops generation", () => {
+  const pin = (version: string) =>
+    JSON.stringify({ pins: [{ identity: "swift-syntax", state: { version } }] });
+  assert.throws(() => resolvedPins([pin("604.0.0"), pin("605.0.0")]), /swift-syntax resolves to both 604.0.0 and 605.0.0/);
 });
 
 test("notices accept only https links", () => {

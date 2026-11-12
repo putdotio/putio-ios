@@ -87,38 +87,37 @@ struct PutioAppInfo: Equatable {
 }
 
 struct AppInfoView: View {
-  @State private var channel: PutioReleaseChannel?
+  @State private var channel = PutioReleaseChannel.resolve(
+    bundleIdentifier: Bundle.main.bundleIdentifier, environment: nil)
   @State private var toast: PutioToast?
 
   var body: some View {
     List {
       Group {
-        if let channel {
-          let info = PutioAppInfo.current(channel: channel)
-          PutioSettingsSection(
-            String(localized: "Version, build, and device details for support."),
-            footer: String(
-              localized:
-                "Nothing here identifies you or your files. Paste it into a support ticket.")
-          ) {
-            ForEach(info.fields) { field in
-              PutioValueRow(field.title, value: field.value, valueStyle: field.valueStyle)
-                .accessibilityIdentifier("app-info.\(field.id)")
-            }
+        let info = PutioAppInfo.current(channel: channel)
+        PutioSettingsSection(
+          String(localized: "Version, build, and device details for support."),
+          footer: String(
+            localized:
+              "Nothing here identifies you or your files. Paste it into a support ticket.")
+        ) {
+          ForEach(info.fields) { field in
+            PutioValueRow(field.title, value: field.value, valueStyle: field.valueStyle)
+              .accessibilityIdentifier("app-info.\(field.id)")
           }
-          Section {
-            Button {
-              UIPasteboard.general.string = info.supportText
-              toast = PutioToast(String(localized: "Copied to clipboard"))
-            } label: {
-              Text(String(localized: "Copy for support"))
-                .putioFont(PutioTheme.Typography.body)
-                .foregroundStyle(PutioTheme.Colors.textPrimary)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-            }
-            .accessibilityIdentifier("app-info.copy")
+        }
+        Section {
+          Button {
+            UIPasteboard.general.string = info.supportText
+            toast = PutioToast(String(localized: "Copied to clipboard"))
+          } label: {
+            Text(String(localized: "Copy for support"))
+              .putioFont(PutioTheme.Typography.body)
+              .foregroundStyle(PutioTheme.Colors.textPrimary)
+              .frame(maxWidth: .infinity)
+              .contentShape(Rectangle())
           }
+          .accessibilityIdentifier("app-info.copy")
         }
       }
       .listRowBackground(PutioTheme.Colors.surface)
@@ -152,11 +151,17 @@ struct PutioLicenseManifest: Decodable, Equatable {
   let app: PutioLicenseNotice
   let packages: [PutioLicenseNotice]
 
-  static func bundled(_ bundle: Bundle = .main) -> PutioLicenseManifest? {
-    guard let url = bundle.url(forResource: "OpenSourceLicenses", withExtension: "json"),
-      let data = try? Data(contentsOf: url)
-    else { return nil }
-    return try? JSONDecoder().decode(PutioLicenseManifest.self, from: data)
+  static let bundled: PutioLicenseManifest? = load(.main)
+
+  static func load(_ bundle: Bundle) -> PutioLicenseManifest? {
+    do {
+      guard let url = bundle.url(forResource: "OpenSourceLicenses", withExtension: "json")
+      else { throw CocoaError(.fileNoSuchFile) }
+      return try JSONDecoder().decode(PutioLicenseManifest.self, from: Data(contentsOf: url))
+    } catch {
+      assertionFailure("OpenSourceLicenses.json is unreadable; run mise run generate: \(error)")
+      return nil
+    }
   }
 
   func notices(appVersion: String?) -> [PutioLicenseNotice] {
@@ -169,9 +174,9 @@ struct PutioLicenseManifest: Decodable, Equatable {
 
 struct OpenSourceLicensesView: View {
   @Environment(\.openURL) private var openURL
-  private let notices =
-    PutioLicenseManifest.bundled()?.notices(
-      appVersion: PutioAppInfo.shortVersion) ?? []
+  private var notices: [PutioLicenseNotice] {
+    PutioLicenseManifest.bundled?.notices(appVersion: PutioAppInfo.shortVersion) ?? []
+  }
 
   var body: some View {
     List {

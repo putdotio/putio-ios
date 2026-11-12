@@ -81,6 +81,10 @@ export const resolvedPins = (files: string[]): Map<string, string> => {
     const resolved = JSON.parse(file) as ResolvedFile;
     for (const pin of resolved.pins) {
       if (pin.state.version === undefined) throw new Error(`${pin.identity} is not pinned to a version`);
+      const pinned = versions.get(pin.identity);
+      if (pinned !== undefined && pinned !== pin.state.version) {
+        throw new Error(`${pin.identity} resolves to both ${pinned} and ${pin.state.version}`);
+      }
       versions.set(pin.identity, pin.state.version);
     }
   }
