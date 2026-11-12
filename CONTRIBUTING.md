@@ -91,14 +91,14 @@ putio-android checkout:
 pnpm strings:android ~/projects/putdotio/putio-android
 ```
 
-### Optional brand fonts
+### Brand fonts
 
-Missing brand fonts use system fallbacks and do not block setup or verification.
-To download or repair them, then include them in the generated app resources:
+`mise run generate` downloads any missing or damaged brand font before it
+generates the workspace, so the app bundles them. Managed worktrees copy them
+through [.worktreeinclude](.worktreeinclude). To repair them alone:
 
 ```bash
 mise run fonts-setup
-mise run generate
 ```
 
 [Config/BrandFonts.json](Config/BrandFonts.json) owns download locations, checksums,
