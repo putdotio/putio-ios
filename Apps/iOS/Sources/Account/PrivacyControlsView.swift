@@ -10,6 +10,7 @@ import SwiftUI
 struct PrivacyControlsView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var model: PutioAccountPreferencesModel
+  @State private var saveFailures = PutioSettingSaveFailures()
 
   init(runtime: PutioRuntime) {
     _model = State(initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
@@ -29,16 +30,6 @@ struct PrivacyControlsView: View {
           }
           .disabled(model.isBusy)
           .accessibilityIdentifier("privacy.refresh")
-        }
-        .listRowBackground(PutioTheme.Colors.surface)
-      } else if let failure = model.failure {
-        Section {
-          Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-          if model.failedMutation != nil {
-            Button("Try again") { Task { await model.retrySave() } }
-              .disabled(model.isBusy)
-              .accessibilityIdentifier("privacy.retry-save")
-          }
         }
         .listRowBackground(PutioTheme.Colors.surface)
       }
@@ -89,6 +80,7 @@ struct PrivacyControlsView: View {
     .navigationTitle(PutioPrivacyControls.title)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
+    .putioSettingSaveFailures(saveFailures)
   }
 
   /// At accessibility sizes a trailing column leaves the label too narrow to read.
@@ -117,6 +109,10 @@ struct PrivacyControlsView: View {
   ) -> Binding<Bool> {
     Binding(
       get: { model.account?[keyPath: value] ?? false },
-      set: { enabled in Task { await model.save(mutation(enabled)) } })
+      set: { enabled in
+        Task {
+          if await model.save(mutation(enabled)) == .failed { saveFailures.report() }
+        }
+      })
   }
 }

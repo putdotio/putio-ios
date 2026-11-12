@@ -309,6 +309,21 @@ final class FilePreferencesTests: XCTestCase {
     XCTAssertEqual(model.settingsState, .ready, "a save in flight hid the settings")
   }
 
+  func testSettingsLoadWithoutAnAccountFailsInsteadOfLoadingForever() async {
+    let session = PreferencesSessionFixture()
+    session.account = nil
+    var reads = 0
+    let model = model(
+      session: session,
+      refresh: {
+        reads += 1
+        return true
+      })
+    await model.loadSettingsIfNeeded()
+    XCTAssertEqual(model.settingsState, .failed)
+    XCTAssertEqual(reads, 0)
+  }
+
   func testSaveOutcomesSeparateFailuresFromUnconfirmedAndSkippedSaves() async {
     let session = PreferencesSessionFixture()
     var results: [Result<Bool, PutioRuntimeError>] = [

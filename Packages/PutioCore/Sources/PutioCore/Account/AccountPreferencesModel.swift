@@ -123,7 +123,11 @@ public final class PutioAccountPreferencesModel {
   }
 
   public func loadSettings() async {
-    guard !isRefreshing, account != nil else { return }
+    guard !isRefreshing else { return }
+    guard account != nil else {
+      settingsLoad = .failed
+      return
+    }
     isRefreshing = true
     failure = nil
     let task = Task { @MainActor in
