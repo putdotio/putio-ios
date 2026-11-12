@@ -962,12 +962,13 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["preview.back"].tap()
       _ = viewer.disappears(within: 2)
     }
-    let root = element("files.screen.0")
-    for _ in 0..<3 where !root.isHittable {
+    let album = element("files.screen.496")
+    let gallery = element("files.screen.470")
+    for _ in 0..<3 where album.exists || gallery.exists {
       app.navigationBars.buttons.firstMatch.tap()
-      _ = root.appears(within: 2)
+      _ = album.disappears(within: 2)
     }
-    XCTAssertTrue(root.isHittable, "the album stayed open for the next launch")
+    XCTAssertFalse(album.exists || gallery.exists, "the album stayed open for the next launch")
   }
 
   private func openPosterPreview() {

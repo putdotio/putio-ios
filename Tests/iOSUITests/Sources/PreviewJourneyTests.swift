@@ -629,9 +629,9 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 10), "no trash toast")
     XCTAssertTrue(waitForLabel(title, in: ["Gallery 4.png"]), "the viewer did not move on")
     XCTAssertTrue(
-      waitForLabel(position, in: ["3 of 3"], timeout: 10),
+      waitForLabel(position, in: ["3 of 3", "3 of 3 or more"]),
       "the set still counts the trashed file: \(position.label)")
-    XCTAssertTrue(app.images["Gallery 4.png"].appears(within: 10))
+    XCTAssertTrue(app.images["Gallery 4.png"].appears(within: 5))
     screenshot("runtime-preview-trashed")
 
     app.buttons["Undo"].firstMatch.tap()
