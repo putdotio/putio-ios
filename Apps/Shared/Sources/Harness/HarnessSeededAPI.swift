@@ -726,6 +726,8 @@ import Foundation
       } else if Self.delaysAccountSettingsLoad(url) {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
+      } else if Self.delaysGalleryContinuation(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url) {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -763,6 +765,10 @@ import Foundation
     private static func delaysAccountSettingsLoad(_ url: URL) -> Bool {
       guard accountSettingsMode == .slowLoad, url.path == "/v2/account/info" else { return false }
       return fileActionsLock.withLock { accountInfoRequests > 1 }
+    }
+
+    private static func delaysGalleryContinuation(_ request: URLRequest) -> Bool {
+      usesPreviews && requestPayload(request)?["cursor"] as? String == galleryContinuationCursor
     }
 
     private static func holdsPreviewLookup(_ url: URL) -> Bool {
@@ -1085,7 +1091,10 @@ import Foundation
         )
       }
       if query == "gallery", usesPreviews {
-        return (200, "{\"total\":4,\"files\":[\(galleryRows(galleryFirstPage))]}")
+        return (
+          200,
+          "{\"total\":\(galleryFirstPage.count),\"files\":[\(galleryRows(galleryFirstPage))]}"
+        )
       }
       guard query == "harness" || query == "retry" else {
         return (200, #"{"total":0,"files":[]}"#)
@@ -1754,12 +1763,13 @@ import Foundation
 
     static let galleryFolderID = 470
     static let galleryContinuationCursor = "gallery-page-2"
-    private static let galleryFirstPage: [(id: Int, name: String, type: String)] = [
-      (471, "Gallery 1.png", "IMAGE"),
-      (472, "Gallery Clip.mkv", "VIDEO"),
-      (473, "Gallery 2.png", "IMAGE"),
-      (474, "Gallery 3.png", "IMAGE"),
-    ]
+    private static let galleryFirstPage: [(id: Int, name: String, type: String)] =
+      [
+        (471, "Gallery 1.png", "IMAGE"),
+        (472, "Gallery Clip.mkv", "VIDEO"),
+        (473, "Gallery 2.png", "IMAGE"),
+        (474, "Gallery 3.png", "IMAGE"),
+      ] + (476...495).map { (id: $0, name: "Gallery Note \($0 - 475).txt", type: "TEXT") }
     private static let gallerySecondPage: [(id: Int, name: String, type: String)] = [
       (475, "Gallery 4.png", "IMAGE")
     ]

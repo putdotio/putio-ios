@@ -694,6 +694,7 @@ struct PutioPreviewView: View {
     .scrollTargetBehavior(.paging)
     .scrollPosition($position)
     .scrollIndicators(.hidden)
+    .scrollEdgeEffectHidden(true, for: .all)
     .scrollDisabled(routes.count < 2 || zoomedID == current)
     .onScrollGeometryChange(for: CGFloat.self, of: \.containerSize.width) { _, width in
       align(width: width)

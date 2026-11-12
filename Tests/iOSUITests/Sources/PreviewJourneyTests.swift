@@ -209,9 +209,10 @@ final class PreviewJourneyTests: XCTestCase {
     let position = element("preview.position")
     XCTAssertEqual(title.label, "Gallery 1.png")
     XCTAssertTrue(position.appears(within: 5), "a folder of images shows no position")
+    XCTAssertEqual(position.label, "1 of 3 or more", "the set does not say more files remain")
     XCTAssertTrue(
       waitForLabel(position, in: ["1 of 4"], timeout: 10),
-      "the next folder page did not join the set: \(position.label)")
+      "the preview did not load the next folder page: \(position.label)")
 
     app.swipeLeft()
     XCTAssertTrue(waitForLabel(title, in: ["Gallery 2.png"]), "the swipe skipped past the video")
