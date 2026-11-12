@@ -57,7 +57,7 @@
   enum PutioInactiveAccountNoticeLayout {
     static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
     static let titleFont = PutioFontRole(
-      fontName: PutioTheme.Typography.subheading.fontName,
+      fontName: PutioTheme.Typography.heading.fontName,
       size: PutioTheme.Typography.body.size,
       lineHeight: PutioTheme.Typography.body.lineHeight,
       textStyle: .body
