@@ -666,6 +666,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-13-landscape-image", .iphone, "testPreviewLandscapeImage"),
       BoardCapture("rd-ios-pv-20-rename", .iphone, "testPreviewRename"),
       BoardCapture("rd-ios-pv-21-vlc-failed-toast", .iphone, "testPreviewVLCFailedToast"),
+      BoardCapture("rd-ios-pv-11-trashed", .iphone, "testPreviewTrashed"),
+      BoardCapture("rd-ios-pv-18-more-trash-off", .iphone, "testPreviewMoreTrashOff"),
+      BoardCapture("rd-ios-pv-19-delete-confirm", .iphone, "testPreviewDeleteConfirm"),
       BoardCapture("rd-ios-pv-17-duo-folded-image", .duoFolded, "testPreviewImage"),
       BoardCapture("rd-ios-pv-16-duo-image", .duoOpen, "testPreviewImage"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
@@ -1012,6 +1015,12 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "preview-vlc-failed", "PreviewJourneyTests/testVLCFailureToastNamesTheCause",
       attachmentNames: ["runtime-preview-vlc-failed"],
+      "preview-trash", "PreviewJourneyTests/testTrashShowsTheNextFileAndUndoBringsItBack",
+      attachmentNames: ["runtime-preview-trashed", "runtime-preview-trashed-last"],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "preview-delete", "PreviewJourneyTests/testTrashOffDeletesTheShownFileAfterAsking",
+      attachmentNames: ["runtime-preview-more-trash-off", "runtime-preview-delete-confirm"],
       timeAllowance: 180),
     JourneyPreflight(
       "preview-paging", "PreviewJourneyTests/testSwipesBetweenFilesOfTheSameKind",

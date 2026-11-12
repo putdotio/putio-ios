@@ -774,6 +774,50 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-20-rename")
   }
 
+  func testPreviewTrashed() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-previews")
+    app.launch()
+    reachFilesRoot()
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let third = element("files.item.474")
+    XCTAssertTrue(third.appears(within: 10), "the gallery never loaded")
+    third.tap()
+    XCTAssertTrue(app.images["Gallery 3.png"].appears(within: 10), "the third image never loaded")
+    let position = element("preview.position")
+    let deadline = Date.now.addingTimeInterval(10)
+    while position.label != "3 of 4", Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    openPreviewMore()
+    app.buttons["Move to trash"].firstMatch.tap()
+    XCTAssertTrue(app.staticTexts["Moved to trash"].appears(within: 10), "no trash toast")
+    XCTAssertTrue(app.images["Gallery 4.png"].appears(within: 10), "the next image never showed")
+    try captureBoard("rd-ios-pv-11-trashed")
+  }
+
+  func testPreviewMoreTrashOff() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    openPosterPreview()
+    openPreviewMore()
+    XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
+    try captureBoard("rd-ios-pv-18-more-trash-off")
+  }
+
+  func testPreviewDeleteConfirm() throws {
+    XCUIDevice.shared.orientation = .portrait
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    openPosterPreview()
+    openPreviewMore()
+    app.buttons["Delete permanently"].firstMatch.tap()
+    XCTAssertTrue(
+      app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never confirmed")
+    try captureBoard("rd-ios-pv-19-delete-confirm")
+  }
+
   private func openPreviewMore() {
     let more = app.buttons["preview.more"]
     XCTAssertTrue(more.appears(within: 10), "the viewer has no More")
