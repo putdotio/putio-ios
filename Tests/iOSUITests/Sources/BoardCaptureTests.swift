@@ -1029,10 +1029,9 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.switches["privacy.diagnostics"].appears(within: 5), "Privacy controls never opened")
     app.showTabBar()
-    XCTAssertTrue(
-      tabButton("Downloads").becomesHittable(within: 5), "the tab bar stayed minimized")
-    XCTAssertFalse(
-      element("board.tab-bar-expanding").appears(within: 1.5), "the tab bar never settled")
+    let downloads = tabButton("Downloads")
+    XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertTrue(holdsFrame(downloads, within: 5), "the tab bar never settled")
     try captureBoard("rd-ios-acc-08-privacy")
   }
 
@@ -1257,6 +1256,18 @@ final class BoardCaptureTests: XCTestCase {
 
   private func tabButton(_ label: String) -> XCUIElement {
     app.buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+  }
+
+  private func holdsFrame(_ element: XCUIElement, within timeout: TimeInterval) -> Bool {
+    let deadline = Date.now.addingTimeInterval(timeout)
+    var previous = element.frame
+    while Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.3))
+      let current = element.frame
+      if current == previous { return true }
+      previous = current
+    }
+    return false
   }
 
   private func sidebarToggle() -> XCUIElement {
