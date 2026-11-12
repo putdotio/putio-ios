@@ -73,11 +73,15 @@ struct MainTabView: View {
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
 
+  private var shellToast: Binding<PutioToast?> {
+    presentedPreview == nil ? $previewToast : .constant(nil)
+  }
+
   var body: some View {
     TabView(selection: $selectedTab) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
+          .putioToast(shellToast)
       } label: {
         Label {
           Text("Files")
@@ -87,6 +91,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
+          .putioToast(shellToast)
       } label: {
         Label {
           Text("Downloads")
@@ -104,7 +109,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
+          .putioToast(shellToast)
           .id(historyRevision)
         } label: {
           Label {
@@ -142,6 +147,7 @@ struct MainTabView: View {
             }
           )
         }
+        .putioToast(shellToast)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -157,7 +163,7 @@ struct MainTabView: View {
           refreshRequests: folderRefreshRequests,
           onFileSelected: { route in selectFile(route) }
         )
-        .putioToast(presentedPreview == nil ? $previewToast : .constant(nil))
+        .putioToast(shellToast)
       }
     }
     .tabViewStyle(.sidebarAdaptable)

@@ -544,6 +544,7 @@ final class PutioPreviewPager {
     let following = PutioFileRoute(item: rest[min(index, rest.count - 1)])
     guard let next = PutioViewerRoute(opening: following.openAction) else { return false }
     current = next
+    reads = PutioPreviewPageReads()
     models.removeValue(forKey: id)?.cancel()
     return true
   }
