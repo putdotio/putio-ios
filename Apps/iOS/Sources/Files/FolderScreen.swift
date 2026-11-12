@@ -789,6 +789,9 @@ struct PutioFolderScreen: View {
       try notifier.settleNameAction(of: model) { action in
         guard case .rename(let fileID, _, _) = action else { return false }
         return fileID == item.id
+      } alreadyApplied: {
+        guard case .loaded(let contents) = model.state else { return false }
+        return contents.items.contains { $0.id == item.id && $0.name == name }
       }
     }
   }
@@ -1021,9 +1024,12 @@ private struct PutioFolderActionNotifier {
   }
 
   func settleNameAction(
-    of model: PutioFolderModel, matching isNameAction: (PutioFileAction) -> Bool
+    of model: PutioFolderModel,
+    matching isNameAction: (PutioFileAction) -> Bool,
+    alreadyApplied: () -> Bool = { false }
   ) throws {
     guard let outcome = model.actionOutcome, isNameAction(outcome.action) else {
+      if alreadyApplied() { return }
       throw PutioNameActionFailure()
     }
     model.clearActionOutcome()
