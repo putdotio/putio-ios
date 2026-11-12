@@ -118,7 +118,7 @@ struct AccountView: View {
           securitySection
           aboutSection
         }
-        if settingsState != .loading {
+        if preferences.settingsState != .loading {
           Section {
             signOutRow
           }
@@ -444,10 +444,8 @@ struct AccountView: View {
   }
 
   private func retrySettingsLoad() {
-    Task {
-      if preferences.settingsState == .failed { await preferences.loadSettings() }
-      if appConfig.config == nil { await appConfig.retry() }
-    }
+    if preferences.settingsState == .failed { Task { await preferences.loadSettings() } }
+    if appConfig.config == nil { Task { await appConfig.retry() } }
   }
 
   private var settingsLocked: Bool { preferences.isBusy || preferences.isStale }

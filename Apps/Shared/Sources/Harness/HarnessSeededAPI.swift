@@ -53,7 +53,7 @@ import Foundation
       var hideSubtitles = false
       var dontAutoSelectSubtitles = false
       var autoplayNextVideo = false
-      var rememberVideoTime = true
+      var rememberVideoTime: Bool?
       var diagnosticsEnabled = true
       var productAnalyticsEnabled = false
     }
