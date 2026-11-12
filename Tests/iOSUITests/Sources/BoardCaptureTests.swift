@@ -1899,8 +1899,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testAccountLinkDevice() throws {
     let code = openLinkDevice()
-    app.swipeDown()
-    XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")
+    dismissKeyboard()
     XCTAssertEqual(code.value as? String, "X7K2QM")
     showSettledTabBar()
     try captureBoard("rd-ios-acc-49-link-device")
@@ -1929,10 +1928,16 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountLinkDeviceLinked() throws {
     app.launchArguments += ["--putio-harness-link-device", "accept"]
     _ = openLinkDevice()
+    dismissKeyboard()
     showSettledTabBar()
     app.buttons["security.link-submit"].tap()
     XCTAssertTrue(app.putioAlert("Connected").appears(within: 10), "the link never connected")
     try captureBoard("rd-ios-acc-52-link-device-linked")
+  }
+
+  private func dismissKeyboard() {
+    app.swipeDown()
+    XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")
   }
 
   private func openLinkDevice() -> XCUIElement {

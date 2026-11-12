@@ -467,7 +467,7 @@ struct LinkDeviceView: View {
       }
       .padding(PutioTheme.Spacing.space3)
     }
-    .scrollDismissesKeyboard(.interactively)
+    .scrollDismissesKeyboard(.immediately)
     .navigationTitle(String(localized: "Link a device"))
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
