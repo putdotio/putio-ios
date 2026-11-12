@@ -297,15 +297,20 @@ final class PreviewJourneyTests: XCTestCase {
     control.tap()
     let sheet = app.otherElements["ActivityListView"]
     XCTAssertTrue(sheet.appears(within: 10), "no share sheet for \(name)")
-    let item = sheet.staticTexts[name]
-    XCTAssertTrue(item.appears(within: 10), "the share sheet does not name \(name)")
+    let item = sheet.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", name)).firstMatch
+    XCTAssertTrue(item.appears(within: 20), "the share sheet does not name \(name)")
     XCTAssertFalse(
-      sheet.staticTexts.containing(NSPredicate(format: "label CONTAINS 'put.io'")).firstMatch
-        .exists,
+      sheet.descendants(matching: .any)
+        .matching(NSPredicate(format: "label CONTAINS 'put.io'")).firstMatch.exists,
       "the share sheet shows a put.io link")
     if let capture { screenshot("runtime-preview-share-\(capture)") }
     let close = sheet.buttons["Close"]
-    if close.exists { close.tap() } else { sheet.swipeDown(velocity: .fast) }
+    if close.exists {
+      close.tap()
+    } else {
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+    }
     XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
   }
 

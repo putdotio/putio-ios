@@ -567,6 +567,7 @@ struct PutioPreviewView: View {
           .disabled(true)
         }
       }
+      .tint(PutioTheme.Colors.textPrimary)
       .accessibilityIdentifier("preview.share")
       Button {
       } label: {
