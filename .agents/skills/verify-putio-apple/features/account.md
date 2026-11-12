@@ -17,8 +17,8 @@ from a sign-out that did not finish.
 - `rating` opens rating and contact links only after an explicit tap.
 - `analytics-prompt` shows saving and failed states, retries, and saves the
   choice once.
-- `analytics-prompt-swipe` swipes the prompt away and meets it again on the
-  next launch.
+- `analytics-prompt-swipe` swipes the prompt away, signs out and in, and
+  meets the prompt again.
 
 ## How to get to it (user POV)
 

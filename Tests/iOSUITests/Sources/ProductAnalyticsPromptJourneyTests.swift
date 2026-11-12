@@ -60,7 +60,7 @@ final class ProductAnalyticsPromptJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
-  func testSwipingThePromptAwayAsksAgainOnTheNextLaunch() {
+  func testSwipingThePromptAwayStoresNoAnswer() {
     continueAfterFailure = false
     let app = XCUIApplication()
     app.launchArguments = Self.launchArguments
@@ -70,8 +70,14 @@ final class ProductAnalyticsPromptJourneyTests: XCTestCase {
     prompt.swipeDown(velocity: .fast)
     XCTAssertTrue(prompt.disappears(within: 5), "swiping down left the prompt open")
 
-    app.terminate()
-    app.launch()
+    let account = app.buttons["Account"]
+    XCTAssertTrue(account.appears(within: 5))
+    account.tap()
+    let signOut = app.revealed("auth.sign-out", maximumSwipes: 12)
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
     reachPrompt(app, prompt)
     XCTAssertTrue(app.buttons["analytics-prompt.allow"].isEnabled)
   }

@@ -826,7 +826,7 @@ enum BrowserJourneyContract {
       ]),
     JourneyPreflight(
       "analytics-prompt-swipe",
-      "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayAsksAgainOnTheNextLaunch"),
+      "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayStoresNoAnswer"),
     JourneyPreflight(
       "audio", "AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack",
       attachmentNames: ["runtime-audio-player"], timeAllowance: 120),
