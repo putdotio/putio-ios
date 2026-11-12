@@ -70,7 +70,7 @@ ships.
 
 ### asc pin and telemetry
 
-[mise.toml](../mise.toml) pins asc 5.15.0 and [mise.lock](../mise.lock) holds
+[mise.toml](../mise.toml) pins asc and [mise.lock](../mise.lock) holds
 each platform's SHA-256, which mise checks before installing. CI installs asc
 only through mise, never from Homebrew.
 
