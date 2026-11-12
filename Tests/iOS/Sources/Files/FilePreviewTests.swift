@@ -421,6 +421,27 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertFalse(pager.remove(images[1].id), "the only file left the viewer open")
   }
 
+  func testAFileMovedOutOfItsFolderStopsPagingThatFolder() async throws {
+    let shown = BrowserTestFixtures.item(id: 21, parentID: 5, name: "Poster.png", kind: .image)
+    let file = PutioFileRoute(item: shown)
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    var pages = 0
+    let source = PutioPreviewSource(
+      items: { [] }, hasMore: { true },
+      loadMore: {
+        pages += 1
+        return true
+      })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+    pager.update(BrowserTestFixtures.item(id: 21, parentID: 9, name: "Poster.png", kind: .image))
+
+    pager.readPagesIfNeeded()
+    for _ in 0..<20 { await Task.yield() }
+    pager.cancel()
+    XCTAssertEqual(pages, 0, "the viewer paged a folder its file left")
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)

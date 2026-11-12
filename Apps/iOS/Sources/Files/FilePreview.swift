@@ -546,8 +546,13 @@ final class PutioPreviewPager {
     showReturning()
   }
 
+  var canReturn: Bool {
+    guard let id = returning else { return false }
+    return routes.contains { $0.id == id }
+  }
+
   func showReturning() {
-    guard let id = returning, routes.contains(where: { $0.id == id }) else { return }
+    guard canReturn, let id = returning else { return }
     returning = nil
     show(id)
   }
@@ -584,7 +589,10 @@ final class PutioPreviewPager {
   }
 
   private func needsPage(from source: PutioPreviewSource) -> Bool {
-    guard let set = folderSet else { return source.hasMore() && !reads.stopped }
+    guard let set = folderSet else {
+      return source.hasMore() && !reads.stopped
+        && item(for: current.id)?.parentID == opened?.parentID
+    }
     return reads.shouldRead(index: set.index, count: set.items.count, hasMore: source.hasMore())
   }
 
@@ -786,10 +794,8 @@ struct PutioPreviewView: View {
       lookup = PutioPreviewLookup(fileID: id)
     }
     .task(id: lookup) { await lookUpSettledFile() }
-    .onChange(of: pager.pagingKey, initial: true) {
-      pager.showReturning()
-      pager.readPagesIfNeeded()
-    }
+    .onChange(of: pager.pagingKey, initial: true) { pager.readPagesIfNeeded() }
+    .onChange(of: pager.canReturn) { pager.showReturning() }
     .onDisappear { pager.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
   }

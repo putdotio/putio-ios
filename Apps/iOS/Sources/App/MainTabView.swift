@@ -185,7 +185,10 @@ struct MainTabView: View {
             runtime: runtime, trashEnabled: account.trashEnabled,
             refreshRequests: folderRefreshRequests),
           download: { preview, extent in try await downloadPreview(preview, extent) },
-          onDismiss: { presentedPreview = nil },
+          onDismiss: {
+            guard presentedPreview?.id == preview.id else { return }
+            presentedPreview = nil
+          },
           presentToast: { previewToast = $0 }
         )
         .id(preview.id)
