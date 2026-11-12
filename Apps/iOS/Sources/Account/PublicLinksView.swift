@@ -97,7 +97,7 @@ struct PublicLinksView: View {
         PutioFileRowModel(
           name: link.fileName,
           kind: PutioBrowserItemPresentation.rowKind(for: link.kind),
-          secondaryText: link.expiryText(at: .now)
+          dateText: link.expiryText(at: .now)
         )
       )
       .contentShape(Rectangle())

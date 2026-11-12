@@ -54,7 +54,14 @@ final class PublicLinksJourneyTests: XCTestCase {
     menuItem("Share").tap()
     let sheet = app.otherElements["ActivityListView"]
     XCTAssertTrue(sheet.appears(within: 10), "Share opened no share sheet")
-    app.dismissShareSheet(sheet)
+    let close = sheet.buttons["Close"]
+    if close.exists {
+      close.tap()
+    } else {
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+    }
+    if !sheet.disappears(within: 3) { sheet.swipeDown(velocity: .fast) }
+    XCTAssertTrue(sheet.disappears(within: 5), "the share sheet stayed open")
 
     askToRevoke(sintel)
     XCTAssertTrue(
