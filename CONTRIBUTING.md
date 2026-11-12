@@ -94,8 +94,9 @@ pnpm strings:android ~/projects/putdotio/putio-android
 ### Brand fonts
 
 `mise run generate` downloads any missing or damaged brand font before it
-generates the workspace, so the app bundles them. Managed worktrees copy them
-through [.worktreeinclude](.worktreeinclude). To repair them alone:
+generates the workspace, so the app bundles them. Without the font host it
+generates with system fallbacks. Managed worktrees copy the fonts through
+[.worktreeinclude](.worktreeinclude). To repair them alone:
 
 ```bash
 mise run fonts-setup
