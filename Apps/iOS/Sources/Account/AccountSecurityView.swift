@@ -486,28 +486,28 @@ struct LinkDeviceView: View {
 
   private var codeField: some View {
     TextField("", text: Bindable(model).code)
-    .textInputAutocapitalization(.characters)
-    .autocorrectionDisabled()
-    .keyboardType(.asciiCapable)
-    .submitLabel(.go)
-    .onSubmit(link)
-    .onChange(of: model.code) { model.codeEdited() }
-    .putioFont(PutioLinkDeviceLayout.codeFont)
-    .kerning(PutioLinkDeviceLayout.codeTracking)
-    .foregroundStyle(PutioTheme.Components.Field.text)
-    .tint(PutioTheme.Colors.accent)
-    .focused($focused)
-    .disabled(model.isLinking)
-    .padding(.horizontal, PutioTheme.Spacing.space3)
-    .frame(minHeight: fieldHeight)
-    .background {
-      Capsule()
-        .fill(PutioTheme.Colors.surface)
-        .onTapGesture { focused = true }
-    }
-    .accessibilityLabel(String(localized: "Link a device"))
-    .accessibilityHint(LinkDeviceView.noteText)
-    .accessibilityIdentifier("security.link-code")
+      .textInputAutocapitalization(.characters)
+      .autocorrectionDisabled()
+      .keyboardType(.asciiCapable)
+      .submitLabel(.go)
+      .onSubmit(link)
+      .onChange(of: model.code) { model.codeEdited() }
+      .putioFont(PutioLinkDeviceLayout.codeFont)
+      .kerning(PutioLinkDeviceLayout.codeTracking)
+      .foregroundStyle(PutioTheme.Components.Field.text)
+      .tint(PutioTheme.Colors.accent)
+      .focused($focused)
+      .disabled(model.isLinking)
+      .padding(.horizontal, PutioTheme.Spacing.space3)
+      .frame(minHeight: fieldHeight)
+      .background {
+        Capsule()
+          .fill(PutioTheme.Colors.surface)
+          .onTapGesture { focused = true }
+      }
+      .accessibilityLabel(String(localized: "Link a device"))
+      .accessibilityHint(LinkDeviceView.noteText)
+      .accessibilityIdentifier("security.link-code")
   }
 
   private static var noteText: String {
