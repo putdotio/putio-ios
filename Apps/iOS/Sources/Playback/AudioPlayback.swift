@@ -531,11 +531,11 @@ final class PutioAudioPlayerModel {
   private func startReporting(track: PutioAudioTrack, remembers: Bool, savedSeconds: Int) {
     let reporter = PutioVideoPositionReporter(
       fileID: track.id,
-      remembersPosition: remembers,
+      remembersPosition: true,
       pipeline: positionPipeline,
       report: reportPosition,
       currentPosition: { [weak self] in self?.reportablePosition },
-      savedPosition: remembers ? savedSeconds : nil,
+      savedPosition: remembers ? savedSeconds : 0,
       endOfPlayback: .keepsPosition,
       schedule: schedulePositionReports
     )
