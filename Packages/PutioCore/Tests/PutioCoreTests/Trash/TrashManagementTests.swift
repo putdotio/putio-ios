@@ -973,6 +973,35 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [item])
   }
 
+  func testTryAgainDuringAnOfflineRetryStartsItsOwnLoad() async {
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let initial = Task { await model.loadIfNeeded() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.fail(request: 0, with: PutioFolderLoadError.offline)
+    await initial.value
+    let background = Task { await model.retryKeepingFailure() }
+    await waitUntil("the background retry started") { loader.requestCount >= 2 }
+
+    let tryAgain = Task { await model.retryFailedLoad() }
+    await waitUntil("Try again started its own load") { loader.requestCount >= 3 }
+    let item = trashItem(id: 92, name: "Again.mkv")
+    loader.succeed(request: 2, with: page(items: [item]))
+    await tryAgain.value
+    loader.fail(request: 1, with: PutioFolderLoadError.offline)
+    await background.value
+
+    XCTAssertEqual(model.page?.items, [item])
+  }
+
   func testAFailedFirstLoadUsesTheSharedErrorCopy() async {
     let model = model(TrashActionsStub(pages: [.failure(.transient)]))
 

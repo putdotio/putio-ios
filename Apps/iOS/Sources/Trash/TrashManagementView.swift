@@ -11,6 +11,7 @@ struct TrashManagementView: View {
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @Environment(\.locale) private var locale
+  @Environment(\.calendar) private var calendar
 
   init(
     runtime: PutioRuntime,
@@ -34,7 +35,7 @@ struct TrashManagementView: View {
           retryTitle: String(localized: "Try again"),
           retryIdentifier: "trash.retry"
         ) {
-          Task { await model.refresh() }
+          Task { await model.retryFailedLoad() }
         }
       case .loaded(let page):
         loadedContent(page)
@@ -232,10 +233,12 @@ struct TrashManagementView: View {
               }
               .disabled(!model.canMutate)
               .tint(PutioTheme.Colors.success)
+              .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
             }
             .swipeActions(edge: .trailing) {
               Button("Delete", role: .destructive) { pendingDeletion = item }
                 .disabled(!model.canMutate)
+                .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
             }
         }
         if let cursor = page.nextCursor {
@@ -388,7 +391,7 @@ struct TrashManagementView: View {
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
-    Self.rowModel(for: item, locale: locale)
+    Self.rowModel(for: item, locale: locale, calendar: calendar)
   }
 
   static func rowModel(

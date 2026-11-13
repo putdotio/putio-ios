@@ -984,7 +984,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(bulkRestore.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(restoreRow, timeout: 5))
     restoreRow.swipeRight()
-    let restore = app.buttons["Restore"].firstMatch
+    let restore = app.buttons["trash.restore.419"]
     XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
     restore.tap()
     XCTAssertTrue(element(identifier: "trash.progress").appears(within: 5))
@@ -1003,13 +1003,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let deleteRow = app.staticTexts["Delete Me"]
     XCTAssertTrue(deleteRow.appears(within: 5))
-    permanentlyDeleteTrashItem(named: "Delete Me")
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
     XCTAssertTrue(
       app.staticTexts["Could not permanently delete item"].appears(within: 5)
     )
     XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
 
-    permanentlyDeleteTrashItem(named: "Delete Me")
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
     XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
     XCTAssertTrue(deleteRow.disappears(within: 5))
 
@@ -1770,11 +1770,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(field.value as? String, query)
   }
 
-  private func permanentlyDeleteTrashItem(named name: String) {
+  private func permanentlyDeleteTrashItem(id: Int, name: String) {
     let row = app.staticTexts[name]
     XCTAssertTrue(waitUntilHittable(row, timeout: 5))
     row.swipeLeft()
-    let delete = app.buttons["Delete"].firstMatch
+    let delete = app.buttons["trash.delete.\(id)"]
     XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
     delete.tap()
     XCTAssertTrue(
