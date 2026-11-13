@@ -6,25 +6,27 @@ import XCTest
 
 @MainActor
 final class TrashManagementViewTests: XCTestCase {
-  func testRowsShowWhenTheItemWasDeletedAndWhenItExpires() throws {
-    let deletedAt = Date(timeIntervalSince1970: 1_790_000_000)
+  func testRowsShowTheFilesGlyphSizeAndWhenTheItemIsGone() {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "UTC")!
+    let now = Date(timeIntervalSince1970: 1_790_000_000)
     let item = PutioTrashItem(
       id: PutioFileID(rawValue: 91),
       parentID: .root,
-      name: "Old.mkv",
-      kind: .video,
-      sizeBytes: 2_048,
-      deletedAt: deletedAt,
-      expiresAt: deletedAt.addingTimeInterval(14 * 86_400)
+      name: "notes.txt",
+      kind: .text,
+      sizeBytes: 2_000,
+      deletedAt: now.addingTimeInterval(-13 * 86_400),
+      expiresAt: now.addingTimeInterval(12 * 86_400)
     )
+
     let locale = Locale(identifier: "en_US")
-
     let row = TrashManagementView.rowModel(
-      for: item, relativeTo: deletedAt.addingTimeInterval(3 * 86_400), locale: locale)
+      for: item, relativeTo: now, locale: locale, calendar: calendar)
 
-    let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
-    XCTAssertEqual(row.sizeText, "\(size) · Deleted 3 days ago")
-    let expiry = item.expiresAt.formatted(Date.FormatStyle(locale: locale).month(.wide).day())
-    XCTAssertEqual(row.secondaryText, "Expires on \(expiry)")
+    XCTAssertEqual(row.kind, .file)
+    XCTAssertEqual(row.sizeText, PutioFileRowModel.sizeText(bytes: 2_000, locale: locale))
+    XCTAssertEqual(row.dateText, "Gone in 12 days")
+    XCTAssertNil(row.secondaryText)
   }
 }

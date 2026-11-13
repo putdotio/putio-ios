@@ -962,11 +962,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     // The second page loads on its own, as Files pages do.
     XCTAssertTrue(app.staticTexts["Empty Me"].appears(within: 5))
     XCTAssertTrue(element(identifier: "trash.load-more").disappears(within: 5))
-    XCTAssertTrue(element(identifier: "trash.expiry-notice").exists)
+    XCTAssertTrue(element(identifier: "trash.header").exists)
     let restoreDetail = app.staticTexts.matching(
-      NSPredicate(format: "label BEGINSWITH %@", "Expires on ")
+      NSPredicate(format: "label BEGINSWITH %@", "Gone ")
     ).firstMatch
-    XCTAssertTrue(restoreDetail.exists, "Trash rows do not show their expiry date")
+    XCTAssertTrue(restoreDetail.exists, "Trash rows do not say when they are gone")
     addScreenshot(named: "runtime-trash-loaded")
 
     let trashMenu = app.buttons["trash.menu"]
@@ -985,9 +985,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["trash.bulk.delete"].isEnabled)
     app.buttons["trash.selection.done"].tap()
     XCTAssertTrue(bulkRestore.disappears(within: 5))
-    let restoreActions = app.buttons["trash.item.419.actions"]
-    XCTAssertTrue(waitUntilHittable(restoreActions, timeout: 5))
-    restoreActions.tap()
+    XCTAssertTrue(waitUntilHittable(restoreRow, timeout: 5))
+    restoreRow.swipeRight()
     let restore = app.buttons["trash.restore.419"]
     XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
     restore.tap()
@@ -1029,13 +1028,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let confirmEmpty = app.buttons["trash.empty-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirmEmpty, timeout: 5))
     confirmEmpty.tap()
-    XCTAssertTrue(app.staticTexts["Trash is empty"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 10))
     XCTAssertTrue(app.staticTexts["Trash emptied"].appears(within: 5))
     // The seeded account refresh after emptying fails once: the stale-storage
     // warning must stay visible with its own retry, alongside the empty state.
     let staleStorage = app.staticTexts["Storage totals are out of date"]
     XCTAssertTrue(staleStorage.appears(within: 5), app.debugDescription)
-    XCTAssertTrue(app.staticTexts["Trash is empty"].exists, "empty state hidden behind the error")
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].exists, "empty state hidden behind the error")
     let updateStorage = app.buttons["Update storage"]
     XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
     updateStorage.tap()
@@ -1051,7 +1051,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
     retryRefresh.tap()
     XCTAssertTrue(refreshError.disappears(within: 5))
-    XCTAssertTrue(app.staticTexts["Trash is empty"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
     addScreenshot(named: "runtime-trash-empty")
 
     app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -1066,6 +1066,44 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  func testOfflineTrashRetriesOnItsOwn() {
+    openSeededTrash("offline")
+
+    XCTAssertTrue(app.staticTexts["put.io is out of reach"].appears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists)
+    addScreenshot(named: "runtime-trash-offline")
+    XCTAssertTrue(
+      app.staticTexts["poster.jpg"].appears(within: 30), "offline Trash never retried on its own")
+    XCTAssertTrue(element(identifier: "trash.header").exists)
+  }
+
+  func testFailedTrashLoadTriesAgain() {
+    openSeededTrash("failing")
+
+    let retry = app.buttons["trash.retry"]
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 10), "Trash never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists)
+    retry.tap()
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Try again did not reload")
+    XCTAssertTrue(app.staticTexts["Gone today"].exists)
+    XCTAssertTrue(app.staticTexts["Gone tomorrow"].exists)
+    XCTAssertTrue(app.staticTexts["Gone in 14 days"].exists)
+  }
+
+  private func openSeededTrash(_ mode: String) {
+    app.launchArguments += ["--putio-harness-trash", mode]
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    app.buttons["Account"].tap()
+    let trashEntry = element(identifier: "account.trash")
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    trashEntry.tap()
   }
 
   func testSortRoundTripAndContinuationAppendsTheSecondPage() {
@@ -1732,9 +1770,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func permanentlyDeleteTrashItem(id: Int, name: String) {
-    let actions = app.buttons["trash.item.\(id).actions"]
-    XCTAssertTrue(waitUntilHittable(actions, timeout: 5))
-    actions.tap()
+    let row = app.staticTexts[name]
+    XCTAssertTrue(waitUntilHittable(row, timeout: 5))
+    row.swipeLeft()
     let delete = app.buttons["trash.delete.\(id)"]
     XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
     delete.tap()

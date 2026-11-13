@@ -211,6 +211,24 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.loadedCursors, [nil, "next"])
   }
 
+  func testTheTrashSizeComesFromTheFirstPageAfterMoreLoads() async {
+    let first = trashItem(id: 91, name: "First.mkv")
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [first], cursor: "next", totalCount: 2, sizeBytes: 4_096)),
+        .success(page(items: [second], sizeBytes: 0)),
+      ]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.loadMore()
+
+    XCTAssertEqual(model.page?.items, [first, second])
+    XCTAssertEqual(model.page?.sizeBytes, 4_096)
+  }
+
   func testRestoreRemovesTrashItemAndReturnsAuthoritativeDestination() async {
     let trashedItem = trashItem(id: 91, name: "Restored.mkv", parentID: 5)
     var destinations: [PutioFileID?] = []
@@ -939,6 +957,103 @@ final class TrashManagementTests: XCTestCase {
       return XCTFail("a cancelled retry must not strand the spinner, got \(model.state)")
     }
     XCTAssertFalse(model.isRefreshing)
+  }
+
+  func testAnOfflineFirstLoadShowsTheOfflineStateAndItsRetryKeepsIt() async {
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let initial = Task { await model.loadIfNeeded() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.fail(request: 0, with: PutioFolderLoadError.offline)
+    await initial.value
+    guard case .failed(let failure) = model.state else {
+      return XCTFail("expected failed, got \(model.state)")
+    }
+    XCTAssertTrue(failure.isOffline)
+    XCTAssertEqual(failure.title, "put.io is out of reach")
+    XCTAssertEqual(failure.message, "Your connection dropped, or we did. Retrying on its own.")
+
+    let retry = Task { await model.retryKeepingFailure() }
+    await waitUntil("the retry started") { loader.requestCount >= 2 }
+    XCTAssertEqual(model.state, .failed(failure))
+    let item = trashItem(id: 91, name: "Back.mkv")
+    loader.succeed(request: 1, with: page(items: [item]))
+    await retry.value
+
+    XCTAssertEqual(model.page?.items, [item])
+  }
+
+  func testTryAgainDuringAnOfflineRetryStartsItsOwnLoad() async {
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let initial = Task { await model.loadIfNeeded() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.fail(request: 0, with: PutioFolderLoadError.offline)
+    await initial.value
+    let background = Task { await model.retryKeepingFailure() }
+    await waitUntil("the background retry started") { loader.requestCount >= 2 }
+
+    let tryAgain = Task { await model.retryFailedLoad() }
+    await waitUntil("Try again started its own load") { loader.requestCount >= 3 }
+    let item = trashItem(id: 92, name: "Again.mkv")
+    loader.succeed(request: 2, with: page(items: [item]))
+    await tryAgain.value
+    loader.fail(request: 1, with: PutioFolderLoadError.offline)
+    await background.value
+
+    XCTAssertEqual(model.page?.items, [item])
+  }
+
+  func testAnOfflineRetryThatFindsTheSessionExpiredLeavesTheOfflineState() async {
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let initial = Task { await model.loadIfNeeded() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.fail(request: 0, with: PutioFolderLoadError.offline)
+    await initial.value
+    let retry = Task { await model.retryKeepingFailure() }
+    await waitUntil("the retry started") { loader.requestCount >= 2 }
+    loader.fail(request: 1, with: PutioRuntimeError.sessionExpired)
+    await retry.value
+
+    XCTAssertEqual(model.state, .loading)
+  }
+
+  func testAFailedFirstLoadUsesTheSharedErrorCopy() async {
+    let model = model(TrashActionsStub(pages: [.failure(.transient)]))
+
+    await model.loadIfNeeded()
+
+    guard case .failed(let failure) = model.state else {
+      return XCTFail("expected failed, got \(model.state)")
+    }
+    XCTAssertFalse(failure.isOffline)
+    XCTAssertEqual(failure.title, "Couldn’t load this")
+    XCTAssertEqual(failure.message, "Check your connection and try again.")
   }
 
   func testConcurrentListingsFromTwoScreensDoNotMergeIntoOneCompleteListing() async {

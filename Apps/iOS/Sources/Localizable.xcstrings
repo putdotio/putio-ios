@@ -100,17 +100,6 @@
         }
       }
     },
-    "%@ · Deleted %@" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ · Deleted %@"
-          }
-        }
-      }
-    },
     "%@, %lld pages" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
       "localizations" : {
@@ -1459,6 +1448,17 @@
         }
       }
     },
+    "Deleted items stay 14 days" : {
+      "comment" : "android: mobile_trash_retention | differs: iOS board wording; Android lowercases it after the size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted items stay 14 days"
+          }
+        }
+      }
+    },
     "Deleted to make room for RSS · %@" : {
       "comment" : "android: mobile_history_kind_rss_file_deleted | differs: iOS board wording",
       "localizations" : {
@@ -1932,17 +1932,6 @@
         }
       }
     },
-    "Expires on %@" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expires on %@"
-          }
-        }
-      }
-    },
     "Expires within 72 hours" : {
       "comment" : "android: mobile_public_links_expiry_unknown",
       "localizations" : {
@@ -1983,6 +1972,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files you download for offline playback appear here."
+          }
+        }
+      }
+    },
+    "Files you move to trash stay here for 14 days." : {
+      "comment" : "android: mobile_trash_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files you move to trash stay here for 14 days."
           }
         }
       }
@@ -2105,17 +2105,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Get VLC"
-          }
-        }
-      }
-    },
-    "Heads up: Files in trash have an expiry date of 14 days." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Heads up: Files in trash have an expiry date of 14 days."
           }
         }
       }
@@ -2622,17 +2611,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "More"
-          }
-        }
-      }
-    },
-    "More actions for %@" : {
-      "comment" : "android: mobile_trash_actions_named | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "More actions for %@"
           }
         }
       }
@@ -5125,17 +5103,6 @@
         }
       }
     },
-    "Trash is empty" : {
-      "comment" : "android: mobile_trash_empty_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trash is empty"
-          }
-        }
-      }
-    },
     "Trash is off for this account, so this can’t be undone." : {
       "comment" : "android: mobile_files_delete_permanently_message",
       "localizations" : {
@@ -5532,17 +5499,6 @@
         }
       }
     },
-    "When you send files to trash, we keep them here for 14 days." : {
-      "comment" : "android: mobile_trash_empty_message | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "When you send files to trash, we keep them here for 14 days."
-          }
-        }
-      }
-    },
     "Works on every device. Converted videos play at up to 1080p, stereo." : {
       "comment" : "android: mobile_settings_playback_standard_description",
       "localizations" : {
@@ -5705,6 +5661,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t confirm the copy of “%@”. It may still show up in %@."
+          }
+        }
+      }
+    },
+    "Your trash is empty" : {
+      "comment" : "android: mobile_trash_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your trash is empty"
           }
         }
       }

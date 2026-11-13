@@ -1093,6 +1093,12 @@ import Foundation
       case nil:
         break
       }
+      if HarnessTrash.consumeOfflineFailure(method: request.httpMethod ?? "GET", path: url.path) {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
+      }
       if Self.searchesOffline, url.path == "/v2/files/search" {
         deliveryGate.deliver(generation: generation) {
           self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
@@ -1138,6 +1144,9 @@ import Foundation
       } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if HarnessTrash.delaysList(method: request.httpMethod ?? "GET", path: url.path) {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + HarnessTrash.slowDelay, execute: deliverResponse)
       } else if HarnessPublicLinks.delaysList, url.path == HarnessPublicLinks.listPath {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + HarnessPublicLinks.slowDelay, execute: deliverResponse)
@@ -1736,6 +1745,9 @@ import Foundation
           401,
           fixtureError(statusCode: 401, type: "invalid_token", message: "Session expired")
         )
+      }
+      if HarnessTrash.handles(method: request.httpMethod ?? "GET", path: url.path) {
+        return HarnessTrash.response()
       }
       if HarnessPublicLinks.handles(method: request.httpMethod ?? "GET", path: url.path) {
         return HarnessPublicLinks.response(method: request.httpMethod ?? "GET", path: url.path)
