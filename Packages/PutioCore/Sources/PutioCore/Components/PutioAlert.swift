@@ -148,6 +148,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
         }
         .frame(maxWidth: width)
         .padding(PutioTheme.Spacing.space3)
+        .padding(.bottom, PutioAlertMetrics.lift * 2)
       } else {
         ScrollView {
           card
@@ -266,6 +267,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
     static let neutralFill = PutioTheme.Colors.textPrimary.opacity(0.1)
     static let disabledOpacity = 0.4
     static let cornerRadius = PutioTheme.Spacing.space4
+    static let lift = PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3
     static let title = PutioFontRole(
       fontName: PutioTheme.Typography.heading.fontName,
       size: PutioTheme.Typography.sizeMd,
