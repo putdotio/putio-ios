@@ -640,12 +640,22 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: "Missing Metadata", code: 0)), .unknown)
     }
 
-    func testLocalFileAndCastFailuresKeepTheirCause() {
-        for code in [URLError.Code.fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile] {
-            XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(code)), .source, "\(code.rawValue)")
+    func testURLErrorsReadNetworkOnlyForTransportFailures() {
+        let urlErrors: [(Int, AnalyticsEvent.PlaybackError)] = [
+            (-1008, .source), (-1100, .source), (-1101, .source), (-1102, .source), (-1104, .source),
+            (-1001, .network), (-1003, .network), (-1004, .network), (-1005, .network), (-1006, .network), (-1007, .network),
+            (-1009, .network), (-1010, .network), (-1011, .network), (-1014, .network), (-1015, .network), (-1016, .network),
+            (-1017, .network), (-1018, .network), (-1019, .network), (-1020, .network), (-1200, .network), (-1201, .network),
+            (-1202, .network), (-1203, .network), (-1204, .network), (-1205, .network), (-1206, .network),
+            (-1, .unknown), (-999, .unknown), (-1000, .unknown), (-1002, .unknown), (-1013, .unknown), (-1022, .unknown),
+            (-1103, .unknown), (-2000, .unknown), (-3001, .unknown), (-3003, .unknown)
+        ]
+        for (code, playbackError) in urlErrors {
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: NSURLErrorDomain, code: code)), playbackError, "\(code)")
         }
-        XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.notConnectedToInternet)), .network)
+    }
 
+    func testCastFailuresKeepTheirCause() {
         let expected: [(GCKErrorCode, AnalyticsEvent.PlaybackError)] = [
             (.networkError, .network), (.timeout, .network), (.networkNotReachable, .network), (.disconnected, .network),
             (.mediaLoadFailed, .media), (.mediaError, .media),
