@@ -1197,8 +1197,12 @@ final class OfflineDownloadsTests: XCTestCase {
       startConversion: { _ in }, conversionStatus: { _ in .completed },
       reportPosition: { _, _ in }, deleteOriginal: { _ in })
     engine.estimates = [1: 600_000_000, 2: 600_000_000]
-    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
-    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
+      estimatedBytes: 600_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video,
+      estimatedBytes: 600_000_000)
     await settle()
     // Item 2 resolved while item 1 was still resolving; item 1's estimate is reserved.
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
