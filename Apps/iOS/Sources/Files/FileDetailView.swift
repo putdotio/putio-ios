@@ -167,11 +167,9 @@ struct PutioFileDetailView: View {
         Menu {
           PutioItemMenuContent(more)
         } label: {
-          iconLabel(.dotsThree)
+          PutioFileDetailIconLabel(icon: .dotsThree)
         }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.circle)
-        .tint(PutioTheme.Colors.surfaceActive)
+        .buttonStyle(.plain)
         .accessibilityLabel(Text("More"))
         .accessibilityIdentifier("files.detail.more")
       }
@@ -189,16 +187,9 @@ struct PutioFileDetailView: View {
   private func iconButton(
     _ icon: PutioIcon, label: String, action: @escaping () -> Void
   ) -> some View {
-    Button(action: action) { iconLabel(icon) }
-      .buttonStyle(.borderedProminent)
-      .buttonBorderShape(.circle)
-      .tint(PutioTheme.Colors.surfaceActive)
+    Button(action: action) { PutioFileDetailIconLabel(icon: icon) }
+      .buttonStyle(.plain)
       .accessibilityLabel(Text(label))
-  }
-
-  private func iconLabel(_ icon: PutioIcon) -> some View {
-    PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
-      .foregroundStyle(PutioTheme.Colors.textPrimary)
   }
 
   private var moreMenu: PutioItemMenu? {
@@ -363,6 +354,19 @@ struct PutioFileDetailView: View {
       staysUntilDismissed: true)
     toast = preparing
     preparingToast = preparing.id
+  }
+}
+
+private struct PutioFileDetailIconLabel: View {
+  let icon: PutioIcon
+  @Environment(\.isEnabled) private var isEnabled
+
+  var body: some View {
+    PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
+      .foregroundStyle(isEnabled ? PutioTheme.Colors.textPrimary : PutioTheme.Colors.textDisabled)
+      .padding(PutioTheme.Spacing.space2)
+      .background(PutioTheme.Colors.surfaceActive, in: Circle())
+      .contentShape(Circle())
   }
 }
 
