@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -84,16 +84,37 @@ test("beta persists the selected TestFlight groups before distribution", async (
 });
 
 test("every workflow that runs asc turns its telemetry off first", async () => {
-  for (const name of ["beta.yml", "release.yml", "screenshots.yml", "submit.yml", "ci.yml"]) {
+  const runsAsc = (step: RecordValue): boolean =>
+    typeof step.run === "string" && /(?:^|[\s|;&(`"/])(?:asc["\s]|node\s+scripts\/app-store\.ts|PUTIO_REQUIRE_ASC=1)/m.test(step.run);
+  const checked = new Set<string>();
+  for (const name of (await readdir(new URL("../.github/workflows/", import.meta.url))).sort()) {
+    if (!/\.ya?ml$/.test(name)) continue;
     const workflow = await loadYaml(`.github/workflows/${name}`);
-    const serialized = JSON.stringify(workflow);
-    assert.match(serialized, /install-asc\.sh/, `${name} installs the pinned asc`);
-    assert.doesNotMatch(serialized, /brew install/, `${name} must not install asc from Homebrew`);
-    assert.doesNotMatch(serialized, /asc web /, `${name} must not use asc web sessions`);
-    const env = name === "ci.yml"
-      ? recordAt(recordAt(recordAt(workflow, "jobs", name), "verify-tooling", name), "env", name)
-      : recordAt(workflow, "env", name);
-    assert.equal(env.ASC_TELEMETRY_DISABLED, "1", `${name} sets ASC_TELEMETRY_DISABLED`);
+    const workflowEnv = workflow.env === undefined ? {} : recordAt(workflow, "env", name);
+    for (const [jobName, job] of Object.entries(recordAt(workflow, "jobs", name))) {
+      const context = `${name}.jobs.${jobName}`;
+      const jobRecord = asRecord(job, context);
+      if (jobRecord.steps === undefined) continue;
+      const steps = arrayAt(jobRecord, "steps", context).map((step, index) => asRecord(step, `${context}.steps[${index}]`));
+      const firstAsc = steps.findIndex(runsAsc);
+      if (firstAsc === -1) continue;
+      checked.add(`${name}:${jobName}`);
+      const install = steps.findIndex((step) => JSON.stringify(step).includes("install-asc.sh"));
+      assert.ok(install !== -1 && install <= firstAsc, `${context} installs the pinned asc before running it`);
+      const serialized = JSON.stringify(jobRecord);
+      assert.doesNotMatch(serialized, /brew install/, `${context} must not install asc from Homebrew`);
+      assert.doesNotMatch(serialized, /asc web /, `${context} must not use asc web sessions`);
+      const jobEnv = jobRecord.env === undefined ? {} : recordAt(jobRecord, "env", context);
+      assert.equal({ ...workflowEnv, ...jobEnv }.ASC_TELEMETRY_DISABLED, "1", `${context} sets ASC_TELEMETRY_DISABLED`);
+      steps.forEach((step, index) => {
+        if (step.env === undefined) return;
+        const stepEnv = recordAt(step, "env", `${context}.steps[${index}]`);
+        if ("ASC_TELEMETRY_DISABLED" in stepEnv) assert.equal(stepEnv.ASC_TELEMETRY_DISABLED, "1", `${context}.steps[${index}] keeps ASC_TELEMETRY_DISABLED`);
+      });
+    }
+  }
+  for (const job of ["beta.yml:beta", "ci.yml:verify-tooling", "release.yml:release", "release.yml:listing", "screenshots.yml:screenshots", "signing-check.yml:signing", "submit.yml:submit"]) {
+    assert.ok(checked.has(job), `${job} runs asc and is checked`);
   }
 });
 
