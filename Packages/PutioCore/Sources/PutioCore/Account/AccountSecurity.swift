@@ -481,6 +481,7 @@ public final class PutioLinkDeviceModel {
   public private(set) var failure: String?
   public private(set) var linkedApp: PutioAuthorizedApp?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
+  @ObservationIgnored private var linking: Task<Void, Never>?
 
   public init(actions: PutioAccountSecurityActions, code: String? = nil) {
     self.actions = actions
@@ -495,6 +496,12 @@ public final class PutioLinkDeviceModel {
     !isLinking && !Self.normalized(code).isEmpty
   }
 
+  public func codeEdited() {
+    failure = nil
+    let uppercased = code.uppercased()
+    if uppercased != code { code = uppercased }
+  }
+
   public func link() async {
     guard canLink else { return }
     let code = Self.normalized(code)
@@ -505,16 +512,25 @@ public final class PutioLinkDeviceModel {
     isLinking = true
     failure = nil
     let task = Task { @MainActor in
-      defer { isLinking = false }
       do {
-        linkedApp = try await actions.linkDevice(code)
+        let app = try await actions.linkDevice(code)
+        guard !Task.isCancelled else { return }
+        linkedApp = app
       } catch {
-        guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
-        failure = message
-        if error as? PutioAccountSecurityError == .invalidDeviceCode { self.code = "" }
+        guard !Task.isCancelled else { return }
+        failure = PutioAccountSecurityPresentation.message(for: error)
       }
+      isLinking = false
     }
+    linking = task
     await task.value
+    if linking == task { linking = nil }
+  }
+
+  public func cancel() {
+    linking?.cancel()
+    linking = nil
+    isLinking = false
   }
 
   public func acknowledgeLink() {

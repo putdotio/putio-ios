@@ -738,6 +738,16 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-40-apps-swipe", .iphone, "testAccountAppsSwipe"),
       BoardCapture("rd-ios-acc-41-apps-revoke-failed", .iphone, "testAccountAppsRevokeFailed"),
       BoardCapture("rd-ios-acc-13b-apps-confirm", .iphone, "testAccountAppsSignOutOthers"),
+      BoardCapture("rd-ios-acc-49-link-device", .iphone, "testAccountLinkDevice"),
+      BoardCapture(
+        "rd-ios-acc-50-link-device-linking", .iphone, "testAccountLinkDeviceLinking",
+        screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-51-link-device-failed", .iphone, "testAccountLinkDeviceFailed",
+        screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-52-link-device-linked", .iphone, "testAccountLinkDeviceLinked",
+        screenBase: false),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
@@ -1271,6 +1281,9 @@ enum BrowserJourneyContract {
         "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
       ],
       timeAllowance: 240),
+    JourneyPreflight(
+      "link-device-cancel", "AccountSecurityJourneyTests/testLeavingMidLinkCancelsCleanly",
+      timeAllowance: 90),
     JourneyPreflight(
       "sign-out-other-apps",
       "AccountSecurityJourneyTests/testSignOutOfAllOtherAppsAsksFirstAndKeepsFailedApps",

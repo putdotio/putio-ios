@@ -99,6 +99,21 @@ import Foundation
       ]
     static let securityTwoFactorCode = "246810"
     static let securityDeviceCode = "HARN42"
+    static let boardDeviceCode = "X7K2QM"
+    static let linkDeviceArgument = "--putio-harness-link-device"
+
+    enum LinkDeviceMode: String {
+      case hold
+      case accept
+    }
+
+    private static let linkDeviceMode: LinkDeviceMode? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: linkDeviceArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return LinkDeviceMode(rawValue: arguments[flag + 1])
+    }()
     static let securityPassword = "harness-pass"
 
     enum InactiveAccount: String {
@@ -1087,6 +1102,7 @@ import Foundation
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url)
         || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
         || (Self.holdsSearch && url.path == "/v2/files/search")
+        || Self.holdsDeviceLink(replayableRequest)
       {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -1128,6 +1144,13 @@ import Foundation
     private static func delaysAccountSettingsLoad(_ url: URL) -> Bool {
       guard accountSettingsMode == .slowLoad, url.path == "/v2/account/info" else { return false }
       return fileActionsLock.withLock { accountInfoRequests > 1 }
+    }
+
+    private static func holdsDeviceLink(_ request: URLRequest) -> Bool {
+      guard usesAccountSecurity, linkDeviceMode == .hold, request.httpMethod == "POST",
+        request.url?.path == "/v2/oauth2/oob/code"
+      else { return false }
+      return requestPayload(request)?["code"] as? String == boardDeviceCode
     }
 
     private static func delaysGalleryContinuation(_ request: URLRequest) -> Bool {
@@ -1861,14 +1884,25 @@ import Foundation
         }
       case "POST /v2/oauth2/oob/code":
         return securityFixture {
-          guard requestPayload(request)?["code"] as? String == securityDeviceCode else {
+          let code = requestPayload(request)?["code"] as? String
+          if code == boardDeviceCode, linkDeviceMode == .accept {
+            if !securityGrants.contains(where: { $0.id == 78 }) {
+              securityGrants.append((78, "put.io for Apple TV", nil, true))
+            }
+            return (
+              200, #"{"app":{"id":78,"name":"put.io for Apple TV","description":"Apple TV"}}"#
+            )
+          }
+          guard code == securityDeviceCode else {
             return (
               400,
               fixtureError(
                 statusCode: 400, type: "code_not_found", message: "Unknown device code")
             )
           }
-          securityGrants.append((77, "Bedroom TV", nil, false))
+          if !securityGrants.contains(where: { $0.id == 77 }) {
+            securityGrants.append((77, "Bedroom TV", nil, false))
+          }
           return (
             200, #"{"app":{"id":77,"name":"Bedroom TV","description":"Apple TV, linked just now"}}"#
           )

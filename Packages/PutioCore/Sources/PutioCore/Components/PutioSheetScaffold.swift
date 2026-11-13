@@ -220,27 +220,9 @@ public struct PutioSheetScaffold<Content: View>: View {
     }
 
     private var primary: some View {
-      Button {
+      PutioBlockButton(button.title, isBusy: button.isBusy, isEnabled: button.isEnabled) {
         button.action()
-      } label: {
-        ZStack {
-          Text(button.title)
-            .opacity(button.isBusy ? 0 : 1)
-          if button.isBusy {
-            ProgressView()
-              .tint(PutioTheme.Components.Button.primaryForeground)
-          }
-        }
-        .putioFont(PutioButtonSize.regular.brandLabel)
-        .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
-        .frame(maxWidth: .infinity)
       }
-      .buttonStyle(.borderedProminent)
-      .buttonBorderShape(.capsule)
-      .controlSize(.large)
-      .tint(PutioTheme.Colors.accent)
-      .disabled(!button.acceptsTap)
-      .accessibilityLabel(button.title)
       .accessibilityIdentifier("sheet.primary")
     }
   }

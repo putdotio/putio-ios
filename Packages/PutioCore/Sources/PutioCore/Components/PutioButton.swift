@@ -191,3 +191,48 @@ extension PutioButtonSize {
     }
   #endif
 }
+
+#if !os(tvOS)
+  public struct PutioBlockButton: View {
+    private let title: String
+    private let isBusy: Bool
+    private let isEnabled: Bool
+    private let action: @MainActor () -> Void
+
+    public init(
+      _ title: String,
+      isBusy: Bool = false,
+      isEnabled: Bool = true,
+      action: @escaping @MainActor () -> Void
+    ) {
+      self.title = title
+      self.isBusy = isBusy
+      self.isEnabled = isEnabled
+      self.action = action
+    }
+
+    public var body: some View {
+      Button {
+        action()
+      } label: {
+        ZStack {
+          Text(title)
+            .opacity(isBusy ? 0 : 1)
+          if isBusy {
+            ProgressView()
+              .tint(PutioTheme.Components.Button.primaryForeground)
+          }
+        }
+        .putioFont(PutioButtonSize.regular.brandLabel)
+        .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
+        .frame(maxWidth: .infinity)
+      }
+      .buttonStyle(.borderedProminent)
+      .buttonBorderShape(.capsule)
+      .controlSize(.large)
+      .tint(PutioTheme.Colors.accent)
+      .disabled(!isEnabled || isBusy)
+      .accessibilityLabel(title)
+    }
+  }
+#endif

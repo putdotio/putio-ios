@@ -66,6 +66,11 @@ Preconditions:
 - **Security.** Run `--only account-security`. Screenshots:
   `runtime-security-recovery-codes`, `runtime-security-apps`,
   `runtime-danger-clear-data`.
+- **Link a device.** `--only account-security` links a seeded code and
+  `--only link-device-cancel` leaves mid-link.
+  `--putio-harness-link-device <hold|accept>` holds or accepts the board code
+  `X7K2QM`; without it the code is unknown. Boards:
+  `rd-ios-acc-49-link-device` to `rd-ios-acc-52-link-device-linked`.
 - **Logged-in apps.** Run `--only sign-out-other-apps`. The seeded Apple TV
   revoke fails once. Screenshots: `runtime-security-sign-out-others-partial`,
   `runtime-security-sign-out-others-done`. Never run it on the live account: it

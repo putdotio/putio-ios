@@ -97,27 +97,32 @@ final class AccountSecurityJourneyTests: XCTestCase {
     screenshot("runtime-security-apps")
     back()
 
-    // Device linking needs six characters, rejects an unknown code, and
-    // submits the code uppercased.
     tap("security.link-device")
+    XCTAssertTrue(app.navigationBars["Link a device"].appears(within: 5))
     let linkCode = app.textFields["security.link-code"]
+    let linkSubmit = app.buttons["security.link-submit"]
     XCTAssertTrue(linkCode.appears(within: 5))
-    enter("ZZZ", into: linkCode)
+    XCTAssertFalse(linkSubmit.isEnabled, "Link was enabled with an empty field")
+    enter("zzz", into: linkCode)
+    XCTAssertEqual(linkCode.value as? String, "ZZZ", "the code was not uppercased as typed")
     tap("security.link-submit")
     XCTAssertTrue(app.staticTexts["Must be exactly 6 characters."].appears(within: 5))
-    enter("ZZZ", into: linkCode)
+    enter("zzz", into: linkCode)
     tap("security.link-submit")
     XCTAssertTrue(
       app.staticTexts["That device code was not found. Check the code on the device and try again."]
         .appears(within: 10))
-    XCTAssertEqual(linkCode.value as? String, "Activation code", "a rejected code stayed")
-    enter("harn42", into: linkCode)
+    XCTAssertEqual(linkCode.value as? String, "ZZZZZZ", "a rejected code was not kept for editing")
+    enter(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6) + "harn42", into: linkCode)
     tap("security.link-submit")
-    let connected = app.alerts["Connected"]
+    let connected = app.putioAlert("Connected")
     XCTAssertTrue(connected.appears(within: 10))
-    XCTAssertTrue(connected.staticTexts["Bedroom TV is now signed in with your account."].exists)
-    connected.buttons["security.link-done"].firstMatch.tap()
-    XCTAssertTrue(linkCode.disappears(within: 5), "linking did not return to Account")
+    XCTAssertTrue(app.staticTexts["Bedroom TV is now signed in with your account."].exists)
+    app.buttons["security.link-done"].firstMatch.tap()
+    XCTAssertTrue(connected.disappears(within: 5))
+    XCTAssertEqual(linkCode.value as? String ?? "", "", "OK did not clear the field")
+    XCTAssertFalse(linkSubmit.isEnabled)
+    back()
     tap("security.apps")
     XCTAssertTrue(element("security.app.77").appears(within: 10))
     back()
@@ -223,6 +228,29 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(
       element("files.screen.0").appears(within: 15), "this app was signed out after relaunch")
     XCTAssertFalse(element("auth.sign-in").exists)
+  }
+
+  func testLeavingMidLinkCancelsCleanly() throws {
+    app.launchArguments += ["--putio-harness-link-device", "hold"]
+    app.launch()
+    signIn()
+    app.buttons["Account"].tap()
+    tap("security.link-device")
+    let linkCode = app.textFields["security.link-code"]
+    let linkSubmit = app.buttons["security.link-submit"]
+    enter("x7k2qm", into: linkCode)
+    tap("security.link-submit")
+    XCTAssertTrue(
+      linkCode.wait(for: \.isEnabled, toEqual: false, timeout: 5), "the field stayed editable")
+    XCTAssertFalse(linkSubmit.isEnabled, "Link stayed tappable while linking")
+    back()
+    XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
+    XCTAssertFalse(app.putioAlerts.firstMatch.appears(within: 3), "a cancelled link reported back")
+    tap("security.link-device")
+    XCTAssertTrue(linkCode.appears(within: 5))
+    XCTAssertTrue(linkCode.isEnabled, "the reopened field stayed locked")
+    XCTAssertFalse(element("security.link-failure").exists, "a cancelled link showed a failure")
+    XCTAssertTrue(linkSubmit.isEnabled, "Link stayed busy after the cancelled attempt")
   }
 
   private func signIn() {

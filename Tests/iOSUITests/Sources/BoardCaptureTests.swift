@@ -1897,6 +1897,65 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-13b-apps-confirm")
   }
 
+  func testAccountLinkDevice() throws {
+    let code = openLinkDevice()
+    dismissKeyboard()
+    XCTAssertEqual(code.value as? String, "X7K2QM")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-49-link-device")
+  }
+
+  func testAccountLinkDeviceLinking() throws {
+    app.launchArguments += ["--putio-harness-link-device", "hold"]
+    let code = openLinkDevice()
+    app.buttons["security.link-submit"].tap()
+    XCTAssertTrue(code.wait(for: \.isEnabled, toEqual: false, timeout: 5), "linking never started")
+    XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-50-link-device-linking")
+  }
+
+  func testAccountLinkDeviceFailed() throws {
+    let code = openLinkDevice()
+    app.buttons["security.link-submit"].tap()
+    XCTAssertTrue(element("security.link-failure").appears(within: 10), "the link never failed")
+    XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")
+    XCTAssertEqual(code.value as? String, "X7K2QM", "the rejected code was cleared")
+    showSettledTabBar()
+    try captureBoard("rd-ios-acc-51-link-device-failed")
+  }
+
+  func testAccountLinkDeviceLinked() throws {
+    app.launchArguments += ["--putio-harness-link-device", "accept"]
+    _ = openLinkDevice()
+    dismissKeyboard()
+    showSettledTabBar()
+    app.buttons["security.link-submit"].tap()
+    XCTAssertTrue(app.putioAlert("Connected").appears(within: 10), "the link never connected")
+    try captureBoard("rd-ios-acc-52-link-device-linked")
+  }
+
+  private func dismissKeyboard() {
+    app.swipeDown()
+    XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")
+  }
+
+  private func openLinkDevice() -> XCUIElement {
+    app.launchArguments.append("--putio-harness-account-security")
+    openAccount()
+    let row = app.revealed("security.link-device")
+    app.bringIntoView(row)
+    XCTAssertTrue(row.becomesHittable(within: 10), "Account has no Link a device row")
+    row.tap()
+    XCTAssertTrue(
+      app.navigationBars["Link a device"].appears(within: 5), "Link a device never opened")
+    let code = app.textFields["security.link-code"]
+    XCTAssertTrue(code.becomesHittable(within: 5), "the code field is missing")
+    code.tap()
+    code.typeText("x7k2qm")
+    return code
+  }
+
   private func openLoggedInApps() {
     app.launchArguments.append("--putio-harness-account-security")
     openAccountSettings()
