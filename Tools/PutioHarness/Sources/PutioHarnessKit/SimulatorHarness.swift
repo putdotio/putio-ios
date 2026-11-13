@@ -1783,7 +1783,7 @@ public struct SimulatorHarness {
                   board, session: session, mediaBaseURL: mediaBaseURL,
                   environment: postureEnvironment, directory: deviceDirectory))
             } catch {
-              failures.append((board.id, error))
+              failures.append((board.captureName, error))
             }
           }
           guard xxl else { return }
@@ -1795,7 +1795,7 @@ public struct SimulatorHarness {
                     board, textSize: .xxl, session: session, mediaBaseURL: mediaBaseURL,
                     environment: postureEnvironment, directory: deviceDirectory))
               } catch {
-                failures.append(("\(board.id)-xxl", error))
+                failures.append(("\(board.captureName)-xxl", error))
               }
             }
           }
@@ -1817,6 +1817,7 @@ public struct SimulatorHarness {
       commit: sourceRevision,
       createdAt: ISO8601DateFormatter().string(from: Date()),
       command: "journey --boards \(boards.map(\.id).joined(separator: ","))"
+        + (boards.first?.orientation.map { " --orientation \($0.rawValue)" } ?? "")
         + (xxl ? " --xxl" : ""),
       runtime: runtimeName,
       fixtureSet: BoardCaptureContract.fixtureSet,
@@ -1850,7 +1851,7 @@ public struct SimulatorHarness {
     _ board: BoardCapture, textSize: BoardTextSize = .standard, session: SimulatorSession,
     mediaBaseURL: URL, environment: [String: String], directory: URL
   ) throws -> BoardArtifact {
-    let name = textSize == .xxl ? "\(board.id)-xxl" : board.id
+    let name = textSize == .xxl ? "\(board.captureName)-xxl" : board.captureName
     let staging = directory.appending(path: ".\(name)")
     try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: staging) }
@@ -1889,6 +1890,7 @@ public struct SimulatorHarness {
     return BoardArtifact(
       board: board.id,
       device: board.device,
+      orientation: board.orientation,
       textSize: textSize,
       deviceType: session.deviceType.name,
       pointWidth: layout.width,

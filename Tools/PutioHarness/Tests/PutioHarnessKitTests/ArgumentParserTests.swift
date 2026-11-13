@@ -401,3 +401,31 @@ import Testing
     try BoardCaptureContract.resolve(["rd-ios-duo-01-folded-folder"], device: .duoOpen).first?
       .device == .duoOpen)
 }
+
+@Test func parsesTheBoardOrientation() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-pv-14-ipad-image", "--orientation",
+      "portrait",
+    ])
+      == .boards(
+        ids: ["rd-ios-pv-14-ipad-image"], orientation: .portrait, runID: nil, output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-pv-14-ipad-image", "--orientation",
+      "upside-down",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-pv-16-duo-image", "--orientation",
+      "portrait",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-02-folder", "--device", "duo-open",
+      "--orientation", "landscape",
+    ])
+  }
+}

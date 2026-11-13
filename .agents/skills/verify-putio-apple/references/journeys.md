@@ -90,6 +90,10 @@ A board state needs one row there and one seeded test step.
   orientation the board uses.
 - `--device <iphone|ipad|duo-folded|duo-open>` captures the listed boards on
   that device instead of the one their row names.
+- `--orientation <portrait|landscape>` holds every listed board in that
+  orientation instead of the one its test sets, and names the capture
+  `<board-id>-<orientation>.png`. The open iPhone Duo is never rotated, so the
+  run refuses its boards.
 - `duo-folded` runs on the iPhone Duo runtime, on its outer display. The test
   fails unless the window reports compact width under 600 pt.
 - `duo-open` unfolds the Duo after boot with

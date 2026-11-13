@@ -287,6 +287,22 @@ import Testing
     board: "rd-ios-duo-01-folded-folder")
 }
 
+@Test func orientedBoardPosesTheTestAndNamesTheCaptureByOrientation() throws {
+  let portrait = try #require(
+    BoardCaptureContract.resolve(["rd-ios-pv-15-ipad-pdf"], orientation: .portrait).first)
+  #expect(portrait.device == .ipad)
+  #expect(portrait.testIdentifier == "PutioUITests/BoardCaptureTests/testIPadPreviewDocument")
+  #expect(portrait.testEnvironment["PUTIO_BOARD_ORIENTATION"] == "portrait")
+  #expect(portrait.testEnvironment["PUTIO_BOARD_ID"] == "rd-ios-pv-15-ipad-pdf")
+  #expect(portrait.captureName == "rd-ios-pv-15-ipad-pdf-portrait")
+  let posed = try #require(BoardCaptureContract.resolve(["rd-ios-pv-15-ipad-pdf"]).first)
+  #expect(posed.testEnvironment["PUTIO_BOARD_ORIENTATION"] == nil)
+  #expect(posed.captureName == "rd-ios-pv-15-ipad-pdf")
+  try requireBoardScreenshot(
+    pixelWidth: 1668, pixelHeight: 2420, matches: BoardLayout(width: 834, height: 1210, scale: 2),
+    board: portrait.captureName)
+}
+
 @Test func duoOpenBoardMapsToTheFolderTestOnTheOpenPosture() throws {
   let board = try #require(BoardCaptureContract.resolve(["rd-ios-duo-02-open-folder"]).first)
   #expect(board.device == .duoOpen)

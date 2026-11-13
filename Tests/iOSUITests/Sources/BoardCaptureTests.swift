@@ -3029,8 +3029,13 @@ final class BoardCaptureTests: XCTestCase {
   private static let openDuoSize = CGSize(width: 951, height: 669)
 
   private func orient(_ orientation: UIDeviceOrientation) {
-    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
-    XCUIDevice.shared.orientation = orientation
+    let environment = ProcessInfo.processInfo.environment
+    guard environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
+    switch environment["PUTIO_BOARD_ORIENTATION"] {
+    case "portrait": XCUIDevice.shared.orientation = .portrait
+    case "landscape": XCUIDevice.shared.orientation = .landscapeLeft
+    default: XCUIDevice.shared.orientation = orientation
+    }
   }
 
   private func rotate(_ orientation: UIDeviceOrientation) {
