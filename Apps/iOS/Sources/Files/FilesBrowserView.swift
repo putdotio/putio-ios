@@ -209,7 +209,8 @@ struct FilesBrowserView: View {
         let item = items.first(where: { $0.id == open.route.id }), item != open.route.item
       else { return }
       selection.wrappedValue = PutioFileDetailSelection(
-        route: PutioFileRoute(item: item), folderTitles: open.folderTitles)
+        route: PutioFileRoute(item: item),
+        folderTitles: item.parentID == open.route.item.parentID ? open.folderTitles : nil)
     }
   }
 
@@ -235,16 +236,16 @@ struct FilesBrowserView: View {
       .modifier(
         PutioFileDetailColumn(
           selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
-          clear: showsDetail ? detailClear : nil,
-          reconcile: showsDetail ? detailReconcile : nil)
+          clear: detailClear,
+          reconcile: detailReconcile)
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         destination(route)
           .modifier(
             PutioFileDetailColumn(
               selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
-              clear: showsDetail ? detailClear : nil,
-              reconcile: showsDetail ? detailReconcile : nil)
+              clear: detailClear,
+              reconcile: detailReconcile)
           )
       }
     }
@@ -289,20 +290,22 @@ struct FilesBrowserView: View {
 private struct PutioFileDetailColumn: ViewModifier {
   let selection: PutioFileDetailSelection?
   let select: PutioFileSelection?
-  let clear: PutioFileDetailClear?
-  let reconcile: PutioFileDetailReconcile?
+  let clear: PutioFileDetailClear
+  let reconcile: PutioFileDetailReconcile
 
   @ViewBuilder func body(content: Content) -> some View {
-    if let select {
+    let invalidating =
       content
+      .environment(\.putioFileDetailClear, clear)
+      .environment(\.putioFileDetailReconcile, reconcile)
+    if let select {
+      invalidating
         .environment(\.horizontalSizeClass, .regular)
         .toolbar(removing: .sidebarToggle)
         .environment(\.putioFileDetailSelect, select)
-        .environment(\.putioFileDetailClear, clear)
-        .environment(\.putioFileDetailReconcile, reconcile)
         .putioListDetailOpenRow(selection?.route.id)
     } else {
-      content
+      invalidating
     }
   }
 }

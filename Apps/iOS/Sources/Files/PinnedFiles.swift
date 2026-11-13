@@ -94,6 +94,7 @@ struct PutioPinnedRows: View {
   let onMove: @MainActor @Sendable (PutioFileItem) -> Void
   var onLink: (@MainActor @Sendable (PutioFileItem) -> Void)? = nil
   @Environment(\.putioFileDetailSelect) private var detailSelect
+  @Environment(\.putioFileDetailReconcile) private var detailReconcile
 
   var body: some View {
     ForEach(pins) { pin in
@@ -102,6 +103,9 @@ struct PutioPinnedRows: View {
         .putioItemActions(menu(for: pin.item))
         .putioListDetailRow(pin.id)
         .selectionDisabled()
+    }
+    .onChange(of: pins) { _, pins in
+      detailReconcile?(pins.map(\.item))
     }
   }
 

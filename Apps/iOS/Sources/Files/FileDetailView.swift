@@ -56,7 +56,7 @@ struct PutioFileDetailView: View {
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
     .putioToast($toast)
-    .task(id: LoadKey(id: item.id, reload: reloadKey)) { await load() }
+    .task(id: LoadKey(id: item.id, parentID: item.parentID, reload: reloadKey)) { await load() }
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
       if toast?.id == preparingToast { toast = nil }
@@ -230,7 +230,7 @@ struct PutioFileDetailView: View {
 
   private func load() async {
     async let videoDetails = try? loadDetails(item.id)
-    if folderTitles == nil, loadedFolder == nil {
+    if folderTitles == nil {
       let name = try? await loadFolderName(item.parentID)
       if !Task.isCancelled { loadedFolder = name }
     }
@@ -241,6 +241,7 @@ struct PutioFileDetailView: View {
 
   private struct LoadKey: Equatable {
     let id: PutioFileID
+    let parentID: PutioFileID
     let reload: UInt64
   }
 
