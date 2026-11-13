@@ -2042,14 +2042,14 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountClearData() throws {
     openClearData()
     selectClearCategories()
-    showSettledTabBar()
+    showClearDataTabBar()
     try captureBoard("rd-ios-acc-15-clear")
   }
 
   func testAccountClearDataConfirm() throws {
     openClearData()
     selectClearCategories()
-    showSettledTabBar()
+    showClearDataTabBar()
     tapClear()
     XCTAssertTrue(
       app.putioAlert("Clear the selected data?").appears(within: 5), "the confirm never showed")
@@ -2059,7 +2059,7 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountClearDataNone() throws {
     openClearData()
     XCTAssertFalse(app.buttons["danger.clear"].isEnabled, "Clear was enabled with no selection")
-    showSettledTabBar()
+    showClearDataTabBar()
     try captureBoard("rd-ios-acc-53-clear-none")
   }
 
@@ -2069,7 +2069,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       app.buttons["danger.clear.files"].wait(for: \.isEnabled, toEqual: false, timeout: 5),
       "clearing never started")
-    showSettledTabBar()
+    showClearDataTabBar()
     try captureBoard("rd-ios-acc-54-clear-progress")
   }
 
@@ -2077,14 +2077,14 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments += ["--putio-harness-clear-data", "accept"]
     confirmClearData()
     XCTAssertTrue(element("danger.clear-success").appears(within: 10), "clearing never finished")
-    showSettledTabBar()
+    showClearDataTabBar()
     try captureBoard("rd-ios-acc-55-clear-done")
   }
 
   func testAccountClearDataFailed() throws {
     confirmClearData()
     XCTAssertTrue(element("danger.clear-failure").appears(within: 10), "clearing never failed")
-    showSettledTabBar()
+    showClearDataTabBar()
     try captureBoard("rd-ios-acc-56-clear-failed")
   }
 
@@ -2107,6 +2107,17 @@ final class BoardCaptureTests: XCTestCase {
       row.tap()
       XCTAssertTrue(row.isSelected, "\(category) was not checked")
     }
+  }
+
+  private func showClearDataTabBar() {
+    let downloads = tabButton("Downloads")
+    var swipes = 0
+    while !downloads.isHittable, swipes < 4 {
+      app.swipeDown()
+      swipes += 1
+    }
+    XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertTrue(holdsFrame(downloads, within: 5), "the tab bar never settled")
   }
 
   private func tapClear() {
