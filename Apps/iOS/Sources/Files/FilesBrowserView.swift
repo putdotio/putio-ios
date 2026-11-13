@@ -189,15 +189,15 @@ struct FilesBrowserView: View {
     let selection = $selectedFile
     let path = path
     return { route in
-      selection.wrappedValue = PutioFileDetailSelection(
-        route: route, folderTitles: PutioFileDetailSelection.folderTitles(of: route.item, in: path))
+      selection.wrappedValue = PutioFileDetailSelection(route: route, in: path)
     }
   }
 
   private var detailClear: PutioFileDetailClear {
     let selection = $selectedFile
     return { ids in
-      guard let open = selection.wrappedValue?.route.id, ids?.contains(open) ?? true else { return }
+      guard let open = selection.wrappedValue else { return }
+      if let ids, ids.isDisjoint(with: open.ancestorIDs.union([open.route.id])) { return }
       selection.wrappedValue = nil
     }
   }
@@ -208,9 +208,13 @@ struct FilesBrowserView: View {
       guard let open = selection.wrappedValue,
         let item = items.first(where: { $0.id == open.route.id }), item != open.route.item
       else { return }
-      selection.wrappedValue = PutioFileDetailSelection(
-        route: PutioFileRoute(item: item),
-        folderTitles: item.parentID == open.route.item.parentID ? open.folderTitles : nil)
+      selection.wrappedValue =
+        item.parentID == open.route.item.parentID
+        ? PutioFileDetailSelection(
+          route: PutioFileRoute(item: item), folderTitles: open.folderTitles,
+          ancestorIDs: open.ancestorIDs)
+        : PutioFileDetailSelection(
+          route: PutioFileRoute(item: item), folderTitles: nil, ancestorIDs: [item.parentID])
     }
   }
 
@@ -313,11 +317,26 @@ private struct PutioFileDetailColumn: ViewModifier {
 struct PutioFileDetailSelection {
   let route: PutioFileRoute
   let folderTitles: [String]?
+  let ancestorIDs: Set<PutioFileID>
 
-  static func folderTitles(of item: PutioFileItem, in path: [PutioFolderRoute]) -> [String]? {
-    if item.parentID == .root { return [PutioFolderRoute.root.title] }
-    guard let index = path.lastIndex(where: { $0.id == item.parentID }) else { return nil }
-    return path[...index].filter { $0 != .pinnedList }.map(\.title)
+  init(route: PutioFileRoute, folderTitles: [String]?, ancestorIDs: Set<PutioFileID>) {
+    self.route = route
+    self.folderTitles = folderTitles
+    self.ancestorIDs = ancestorIDs
+  }
+
+  init(route: PutioFileRoute, in path: [PutioFolderRoute]) {
+    let parentID = route.item.parentID
+    let folders = path.lastIndex(where: { $0.id == parentID }).map { index in
+      path[...index].filter { $0 != .pinnedList }
+    }
+    self.route = route
+    if parentID == .root {
+      folderTitles = [PutioFolderRoute.root.title]
+    } else {
+      folderTitles = folders?.map(\.title)
+    }
+    ancestorIDs = Set(folders?.map(\.id) ?? []).union([parentID])
   }
 }
 
