@@ -914,6 +914,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-43-portrait-video", .iphone, "testPortraitVideoPlayer"),
       BoardCapture(
         "rd-ios-pb-44-portrait-converting", .iphone, "testPortraitConversionConverting"),
+      BoardCapture("rd-ios-trash-01-list", .iphone, "testTrashList"),
+      BoardCapture("rd-ios-trash-06-empty", .iphone, "testTrashEmpty", screenBase: false),
+      BoardCapture("rd-ios-trash-12-loading", .iphone, "testTrashLoading", screenBase: false),
+      BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
