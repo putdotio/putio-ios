@@ -292,14 +292,13 @@ struct MainTabView: View {
       .preferredColorScheme(.dark)
     }
     .modifier(PutioOfflinePersistenceFailureAlert(queue: offlineQueue))
-    .alert(
-      "Could not start download",
-      isPresented: Binding(get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } })
-    ) {
-      Button("OK", role: .cancel) { offlineFailure = nil }
-    } message: {
-      Text(offlineFailure?.message ?? "")
-    }
+    .putioAlert(
+      String(localized: "Could not start download"),
+      isPresented: Binding(
+        get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } }),
+      message: offlineFailure?.message,
+      actions: [PutioAlertAction(String(localized: "OK"), tier: .neutral)]
+    )
     .onChange(of: scenePhase) { _, phase in
       guard phase == .active else { return }
       externalPlayback.refreshInstallation()

@@ -616,7 +616,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.selection.summary").label)
     addScreenshot(named: "runtime-selection-trash-off")
     delete.tap()
-    let alert = app.alerts["Delete 3 items permanently?"]
+    let alert = app.putioAlert("Delete 3 items permanently?")
     XCTAssertTrue(alert.appears(within: 5), "Delete did not ask first")
     alert.buttons["Cancel"].firstMatch.tap()
     XCTAssertTrue(alert.disappears(within: 5))

@@ -26,6 +26,7 @@ offline playback.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.
+- `download-start-failed` reports a download that put.io refuses to start.
 - `large-text-audio` keeps the audio controls usable at the largest text size
   in portrait and landscape.
 
@@ -64,9 +65,10 @@ Preconditions:
   `rd-ios-acc-33-proxy-unavailable`.
 - **Cast.** Run `--only cast`. Screenshots: `runtime-cast-settings`,
   `runtime-cast-error`, `runtime-cast-controls`, `runtime-cast-signed-out`.
-- **Downloads.** Run `--only downloads,unsaved-downloads`. Screenshots:
-  `runtime-downloads-picker`, `runtime-downloads-queue`,
-  `runtime-downloads-detail`, `runtime-downloads-remove`.
+- **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
+  Screenshots: `runtime-downloads-picker`, `runtime-downloads-queue`,
+  `runtime-downloads-detail`, `runtime-downloads-remove`,
+  `runtime-downloads-start-failed`.
 - **Large text.** Run `--only accessibility-audio`. Screenshots:
   `runtime-accessibility-audio-portrait`, `runtime-accessibility-audio-landscape`,
   and their `-controls` variants.
