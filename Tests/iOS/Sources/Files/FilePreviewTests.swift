@@ -523,8 +523,9 @@ final class FilePreviewTests: XCTestCase {
 
   func testTheTitleSpanCapsTheTitleAtTheNarrowerSideLessTheGap() {
     var span = PutioPreviewTitleSpan()
-    XCTAssertEqual(span.width, 0)
     span.leading = 60
+    span.centre = 30
+    XCTAssertNil(span.width)
     span.trailing = 300
     span.centre = 201
     XCTAssertEqual(span.width, 166)

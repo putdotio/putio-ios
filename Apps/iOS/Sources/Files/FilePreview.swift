@@ -1770,7 +1770,7 @@ struct PutioPreviewTitleSpan: Equatable {
   var centre: CGFloat = 0 { didSet { settle() } }
   var leading: CGFloat = 0 { didSet { settle() } }
   var trailing: CGFloat = 0 { didSet { settle() } }
-  private(set) var width: CGFloat = 0
+  private(set) var width: CGFloat?
 
   private mutating func settle() {
     guard leading > 0, centre > leading, trailing > centre else { return }
