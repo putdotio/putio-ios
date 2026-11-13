@@ -56,11 +56,6 @@ struct PutioFileDetailView: View {
     .toolbar(showsNavigationBar ? .visible : .hidden, for: .navigationBar)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar(removing: .sidebarToggle)
-    .background {
-      if let file = share.presented(for: item.id) {
-        PutioShareSheetAnchor(file: file, name: item.name, model: share)
-      }
-    }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
     .putioToast($toast)
@@ -162,6 +157,11 @@ struct PutioFileDetailView: View {
         iconButton(.export, label: String(localized: "Share")) { startShare() }
           .disabled(shareSource == nil || isFetchingShare)
           .accessibilityIdentifier("files.detail.share")
+          .background {
+            if let file = share.presented(for: item.id) {
+              PutioShareSheetAnchor(file: file, name: item.name, model: share)
+            }
+          }
       }
       if let more = moreMenu {
         Menu {

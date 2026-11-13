@@ -1691,6 +1691,60 @@ final class BoardCaptureTests: XCTestCase {
     assertBackReturnsToRow("files.item.413", fileID: 413)
   }
 
+  func testIPadDetailDocument() throws {
+    orient(.landscapeLeft)
+    app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.413")
+    XCTAssertTrue(row.exists, "the document row never appeared")
+    let window = app.windows.firstMatch
+    guard window.frame.width > window.frame.height else {
+      row.tap()
+      assertPreviewFillsWindow(fileID: 413)
+      XCTAssertTrue(
+        app.staticTexts["put.io harness page 1"].appears(within: 10), "the document never loaded")
+      try captureBoard("rd-ios-pv-17-ipad-detail-pdf")
+      assertBackReturnsToRow("files.item.413", fileID: 413)
+      return
+    }
+    selectFile(row, id: 413)
+    XCTAssertTrue(
+      element("files.detail.preview-glyph").appears(within: 5), "the document shows no glyph")
+    XCTAssertEqual(element("files.detail.title").label, "document-scan-march-2026.pdf")
+    assertFact("size", "Size, 1.1 MB")
+    assertFact("added", "Added, Mar 18, 2026")
+    assertFact("folder", "Folder, Files")
+    XCTAssertFalse(element("files.detail.fact.length").exists, "a document lists a length")
+    XCTAssertFalse(element("files.detail.download").exists, "a document offers Download")
+    try captureBoard("rd-ios-pv-17-ipad-detail-pdf")
+
+    let share = element("files.detail.share")
+    let sheet = app.openShareSheet(from: share, sharing: "document-scan-march-2026.pdf")
+    app.dismissShareSheet(sheet)
+    XCTAssertTrue(row.isSelected, "sharing cleared the selection")
+
+    openDetailMore(lacking: ["Open", "Share", "Select", "Download"])
+    element("files.detail.fact.folder").tap()
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
+
+    element("files.detail.open").tap()
+    assertPreviewFillsWindow(fileID: 413)
+    assertPreviewKeepsFileAcrossRotation(fileID: 413) { element("preview.page") }
+    assertBackReturnsToDetail(row, fileID: 413)
+
+    row.tap()
+    assertPreviewFillsWindow(fileID: 413)
+    assertBackReturnsToDetail(row, fileID: 413)
+  }
+
+  private func assertBackReturnsToDetail(_ row: XCUIElement, fileID: Int) {
+    assertBackReturnsToRow(row.identifier, fileID: fileID)
+    XCTAssertTrue(
+      element("files.detail.\(fileID)").appears(within: 5), "Back did not keep the detail")
+    XCTAssertTrue(row.isSelected, "Back did not keep the row selected")
+  }
+
   private func openDocumentOnSecondPage() {
     app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
     app.launch()
