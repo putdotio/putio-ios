@@ -7,6 +7,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
     case video
     case audio
     case image
+    case pdf
     case file
   }
 
@@ -313,7 +314,7 @@ extension PutioFileRowModel.Kind {
       case .video: .fileVideo
       case .audio: .fileAudio
       case .image: .image
-      case .file: .file
+      case .pdf, .file: .file
       }
     #else
       switch self {
@@ -321,6 +322,7 @@ extension PutioFileRowModel.Kind {
       case .video: .fileVideoFill
       case .audio: .fileAudioFill
       case .image: .imageFill
+      case .pdf: .filePdfFill
       case .file: .fileFill
       }
     #endif
