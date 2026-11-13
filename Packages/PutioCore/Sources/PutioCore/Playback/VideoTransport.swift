@@ -48,6 +48,33 @@ public struct PutioVideoTimeline: Equatable, Sendable {
   }
 }
 
+public struct PutioVideoPlayhead: Equatable, Sendable {
+  public private(set) var timeline = PutioVideoTimeline(elapsedSeconds: 0, durationSeconds: nil)
+  private var seeks: UInt64 = 0
+  private var pendingSeek: UInt64?
+
+  public init() {}
+
+  public mutating func seekStarted(to seconds: Double) -> UInt64 {
+    timeline = PutioVideoTimeline(
+      elapsedSeconds: timeline.clamped(seconds), durationSeconds: timeline.durationSeconds)
+    seeks &+= 1
+    pendingSeek = seeks
+    return seeks
+  }
+
+  public mutating func seekFinished(_ seek: UInt64) {
+    guard pendingSeek == seek else { return }
+    pendingSeek = nil
+  }
+
+  public mutating func observed(elapsedSeconds: Double, durationSeconds: Double?) {
+    timeline = PutioVideoTimeline(
+      elapsedSeconds: pendingSeek == nil ? elapsedSeconds : timeline.elapsedSeconds,
+      durationSeconds: durationSeconds)
+  }
+}
+
 public struct PutioVideoControlsVisibility: Equatable, Sendable {
   public enum Pin: Hashable, Sendable {
     case voiceOver

@@ -27,6 +27,25 @@ final class PutioVideoTransportTests: XCTestCase {
       PutioVideoTimeline(elapsedSeconds: 585, durationSeconds: 590).target(skippingBy: 10), 590)
   }
 
+  func testTicksBeforeASeekLandsKeepTheTarget() {
+    var playhead = PutioVideoPlayhead()
+    playhead.observed(elapsedSeconds: 50, durationSeconds: 600)
+
+    let first = playhead.seekStarted(to: playhead.timeline.target(skippingBy: 10))
+    playhead.observed(elapsedSeconds: 50.25, durationSeconds: 600)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 60, "a tick before the seek landed moved back")
+
+    let second = playhead.seekStarted(to: playhead.timeline.target(skippingBy: 10))
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 70, "a second skip started from a stale time")
+    playhead.seekFinished(first)
+    playhead.observed(elapsedSeconds: 60, durationSeconds: 600)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 70, "an earlier seek released a later one")
+
+    playhead.seekFinished(second)
+    playhead.observed(elapsedSeconds: 70.5, durationSeconds: 600)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 70.5)
+  }
+
   func testControlsHideOnlyAfterTheLatestIdlePeriodWhilePlaying() {
     var visibility = PutioVideoControlsVisibility()
     let stale = visibility.idleGeneration

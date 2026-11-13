@@ -113,7 +113,7 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack {
       content
-      if case .ready = model.state {
+      if isReady {
         PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
           castControls
         }

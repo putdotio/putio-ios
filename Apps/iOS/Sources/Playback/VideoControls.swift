@@ -46,7 +46,7 @@ final class PutioVideoTransport {
   }
 
   private(set) var isPlaying = false
-  private(set) var timeline = PutioVideoTimeline(elapsedSeconds: 0, durationSeconds: nil)
+  private var playhead = PutioVideoPlayhead()
   private(set) var speed: PutioAudioSpeed = .normal
   private(set) var controlsEnabled = false
   private(set) var audioTracks: [Track] = []
@@ -63,6 +63,8 @@ final class PutioVideoTransport {
   @ObservationIgnored private var legible:
     (group: AVMediaSelectionGroup, options: [AVMediaSelectionOption])?
   @ObservationIgnored private var trackLoad: Task<Void, Never>?
+
+  var timeline: PutioVideoTimeline { playhead.timeline }
 
   var selectedAudioTitle: String? {
     selectedAudio.flatMap { index in audioTracks.first { $0.id == index }?.title }
@@ -114,13 +116,14 @@ final class PutioVideoTransport {
 
   func seek(to seconds: Double) {
     guard controlsEnabled, let player else { return }
-    let target = timeline.clamped(seconds)
-    timeline = PutioVideoTimeline(elapsedSeconds: target, durationSeconds: timeline.durationSeconds)
+    let seek = playhead.seekStarted(to: seconds)
     player.seek(
-      to: CMTime(seconds: target, preferredTimescale: 600),
+      to: CMTime(seconds: playhead.timeline.elapsedSeconds, preferredTimescale: 600),
       toleranceBefore: .zero,
       toleranceAfter: .zero
-    )
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in self?.playhead.seekFinished(seek) }
+    }
   }
 
   func setSpeed(_ speed: PutioAudioSpeed) {
@@ -165,6 +168,7 @@ final class PutioVideoTransport {
     selectedSubtitle = nil
     isPlaying = false
     controlsEnabled = false
+    playhead = PutioVideoPlayhead()
   }
 
   private func refreshPlaying() {
@@ -174,9 +178,9 @@ final class PutioVideoTransport {
 
   private func update(time: CMTime) {
     guard let item = player?.currentItem else { return }
-    let duration = item.duration.isNumeric ? item.duration.seconds : nil
-    timeline = PutioVideoTimeline(
-      elapsedSeconds: time.isNumeric ? time.seconds : 0, durationSeconds: duration)
+    playhead.observed(
+      elapsedSeconds: time.isNumeric ? time.seconds : 0,
+      durationSeconds: item.duration.isNumeric ? item.duration.seconds : nil)
   }
 
   private func loadTracks() {
@@ -255,6 +259,8 @@ struct PutioVideoControls<Trailing: View>: View {
     .opacity(visibility.isVisible ? 1 : 0)
     .allowsHitTesting(visibility.isVisible)
     .accessibilityHidden(!visibility.isVisible)
+    .statusBarHidden(!visibility.isVisible)
+    .persistentSystemOverlays(visibility.isVisible ? .automatic : .hidden)
     .overlay {
       if !visibility.isVisible {
         Color.clear

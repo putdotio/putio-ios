@@ -226,9 +226,6 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     let server = try LoopbackMediaServer(directory: playlist.deletingLastPathComponent())
     let base = try await server.start()
     defer { server.stop() }
-    // AVPlayer's automatic media selection picks its own subtitle, Off for
-    // this fixture, when the item becomes ready, replacing any selection
-    // made before.
     let item = AVPlayerItem(url: base.appending(path: "multi-subtitles.m3u8"))
     let surface = PutioVideoSurfaceView()
     let defaultApplied = expectation(description: "default subtitle applied")
