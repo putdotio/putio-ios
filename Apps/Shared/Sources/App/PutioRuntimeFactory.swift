@@ -205,7 +205,11 @@ enum PutioRuntimeFactory {
       return try storage.read()
     }
 
+    func readSignOutPending() throws -> Bool { try storage.readSignOutPending() }
+
     func write(_ token: String) throws { try storage.write(token) }
+
+    func markSignOutPending() throws { try storage.markSignOutPending() }
 
     func clear() throws {
       if failsClear { throw HarnessRuntimeError.credentialRemovalFixture }

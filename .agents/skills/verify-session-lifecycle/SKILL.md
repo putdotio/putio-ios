@@ -7,8 +7,8 @@ description: Model-check put.io sign-in, restore, sign-out, and expiry in PutioS
 
 [PutioSession.tla](../../../Tests/Formal/Session/PutioSession.tla) models
 `PutioSessionStore` as the shipped iOS and tvOS screens drive it. TLC checks
-every order of user actions, server answers, put.io revocations, and app
-relaunches within the bounds below.
+every order of user actions, server answers, put.io revocations, app
+relaunches, and reinstalls within the bounds below.
 
 ## Properties
 
@@ -17,9 +17,10 @@ relaunches within the bounds below.
   session the app can no longer revoke stays under "Where you're signed in".
 - **`SignedInIsSaved`:** while signed in, the SDK token is the saved token.
   Harm: a relaunch restores a different session, or none.
-- **`PendingSignOutNeverSignedIn`:** while the sign-out intent is set, the
-  account is never signed in. Harm: a sign-out that did not finish brings the
-  account back on reopen.
+- **`PendingSignOutNeverSignedIn`:** while the sign-out intent is set, in
+  defaults or on the saved credential, the account is never signed in. Harm: a
+  sign-out that did not finish brings the account back on reopen or after a
+  reinstall.
 - **`SessionCheckKeepsCredential`:** session-check recovery keeps the saved
   credential. Harm: "Try again" has nothing to restore.
 
@@ -62,7 +63,8 @@ below, and prints the new digest.
    which session method it calls, or from which state.
 3. Run `mise run formal-session`.
 4. Show that a property still fails on a broken model, for example
-   `-- --variant restoreIgnoresSignOutIntent` or
+   `-- --variant restoreIgnoresSignOutIntent`,
+   `-- --variant restoreIgnoresKeychainIntent`, or
    `-- --variant removeBeforeRevoking`.
 5. Set the sync digest below to the one the script printed.
 
@@ -80,10 +82,11 @@ below, and prints the new digest.
 
 ## Coverage
 
-Sync digest: `b92e033e35d153e23f5df150707e2d4cc8bc21480257f3774fd4e75f756cd76d`
+Sync digest: `cbac3c34c8cdd4fd48dbfe7ba892be9145fa454feb757d415d15214e35a2d13f`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)
+- `Packages/PutioCore/Sources/PutioCore/Session/PutioTokenStore.swift` (sign-out mark on the saved credential)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
 - `Apps/iOS/Sources/Session/WelcomeScreen.swift` (web sign-in, restore retry, discard)
 - `Apps/iOS/Sources/App/SessionRootView.swift` (launch restore)

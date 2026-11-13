@@ -144,7 +144,9 @@ private final class FailingClearTokenStore: PutioTokenStore {
   }
 
   func read() throws -> String? { try storage.read() }
+  func readSignOutPending() throws -> Bool { try storage.readSignOutPending() }
   func write(_ token: String) throws { try storage.write(token) }
+  func markSignOutPending() throws { try storage.markSignOutPending() }
   func clear() throws {
     try clearFails.withLock { clearFails in
       if clearFails { throw URLError(.cannotWriteToFile) }
@@ -183,11 +185,25 @@ private final class KeychainFailureTokenStore: PutioTokenStore {
     return try storage.read()
   }
 
+  func readSignOutPending() throws -> Bool {
+    if failures.withLock({ $0.read }) {
+      throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
+    }
+    return try storage.readSignOutPending()
+  }
+
   func write(_ token: String) throws {
     if failures.withLock({ $0.write }) {
       throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
     }
     try storage.write(token)
+  }
+
+  func markSignOutPending() throws {
+    if failures.withLock({ $0.write }) {
+      throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
+    }
+    try storage.markSignOutPending()
   }
 
   func clear() throws {
@@ -1004,6 +1020,50 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(relaunched.state, .signedOut(.userSignedOut))
     XCTAssertFalse(intent.isPending)
     XCTAssertNil(try tokenStore.read())
+  }
+
+  func testReinstallAfterAFailedSignOutRemovesTheSurvivingCredentialInsteadOfRestoringIt()
+    async throws
+  {
+    stubSignedInRoutes()
+    let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
+    let (store, _) = makeStore(
+      tokenStore: tokenStore, signOutIntentStore: PutioInMemorySignOutIntentStore())
+    await store.restore()
+    fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    await store.signOut()
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+
+    fixtures.networkFailureRoutes = []
+    let wipedDefaults = PutioInMemorySignOutIntentStore()
+    let (reinstalled, reinstalledSDK) = makeStore(
+      tokenStore: tokenStore, signOutIntentStore: wipedDefaults)
+    await reinstalled.restore()
+
+    XCTAssertEqual(reinstalled.state, .signedOut(.userSignedOut))
+    XCTAssertFalse(reinstalled.isSignOutCleanupPending)
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertTrue(reinstalledSDK.config.token.isEmpty)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/validate"), 1)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/account/info"), 1)
+  }
+
+  func testReinstallWithASavedCredentialAndNoPendingSignOutRestoresTheSession() async throws {
+    stubSignedInRoutes()
+    let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
+    let (store, _) = makeStore(
+      tokenStore: tokenStore, signOutIntentStore: PutioInMemorySignOutIntentStore())
+    await store.restore()
+    guard case .signedIn = store.state else { return XCTFail("expected a restored account") }
+
+    let (reinstalled, _) = makeStore(
+      tokenStore: tokenStore, signOutIntentStore: PutioInMemorySignOutIntentStore())
+    await reinstalled.restore()
+
+    guard case .signedIn = reinstalled.state else {
+      return XCTFail("expected the saved credential to restore")
+    }
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
   }
 
   func testUnreadableCredentialKeepsAPendingSignOutQuiet() async {
