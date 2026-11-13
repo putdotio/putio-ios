@@ -703,6 +703,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func signOutFromAccount() {
     let account = app.buttons["Account"]
+    let closeSearch = app.buttons["Close"]
+    if closeSearch.exists { closeSearch.tap() }
     if !account.exists { app.buttons["Files"].tap() }
     XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
     account.tap()
@@ -1616,12 +1618,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.search-filters").exists)
     addScreenshot(named: "runtime-search-offline")
 
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10))
+    signOutFromAccount()
   }
 
   func testRecentSearchesRecordRunRemoveClearTurnedOffAndFailedWrite() {

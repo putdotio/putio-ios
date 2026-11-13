@@ -33,7 +33,13 @@ final class ShellJourneyTests: XCTestCase {
         element("files.screen.410").disappears(within: 5),
         "\(tab) did not replace the Files content")
     }
-    searchTab().tap()
+    let search = searchTab()
+    XCTAssertGreaterThan(
+      search.frame.minX, tabButton("Account").frame.maxX + 8,
+      "Search sits inside the tab bar instead of beside it")
+    search.tap()
+    XCTAssertTrue(app.searchFields.firstMatch.appears(within: 5), "Search opened no field")
+    app.buttons["Close"].tap()
     tabButton("Files").tap()
     XCTAssertTrue(
       element("files.screen.410").appears(within: 5), "switching tabs reset the Files path")

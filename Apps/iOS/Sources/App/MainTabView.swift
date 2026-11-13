@@ -206,6 +206,7 @@ struct MainTabView: View {
     .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .tabViewSearchActivation(.searchTabSelection)
     .task {
       externalPlayback.refreshInstallation()
       await appConfig.loadIfNeeded()
