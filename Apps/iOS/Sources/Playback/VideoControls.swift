@@ -372,7 +372,7 @@ struct PutioVideoTopBar<Trailing: View>: View {
   var body: some View {
     ZStack {
       Text(title)
-        .putioFont(Self.titleFont)
+        .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
         .lineLimit(1)
         .truncationMode(.middle)
@@ -411,13 +411,6 @@ struct PutioVideoTopBar<Trailing: View>: View {
       }
     }
   }
-
-  private static let titleFont = PutioFontRole(
-    fontName: PutioTheme.Components.Button.label.fontName,
-    size: PutioTheme.Typography.sizeBase,
-    lineHeight: PutioTheme.Components.Button.label.lineHeight,
-    textStyle: .body
-  )
 }
 
 struct PutioVideoOptionsMenu: View {
@@ -517,6 +510,12 @@ private enum PutioVideoMetrics {
   static let close: CGFloat = 44
   static let skip: CGFloat = 56
   static let playPause: CGFloat = 72
+  static let titleFont = PutioFontRole(
+    fontName: PutioTheme.Components.Button.label.fontName,
+    size: PutioTheme.Typography.sizeBase,
+    lineHeight: PutioTheme.Components.Button.label.lineHeight,
+    textStyle: .body
+  )
 }
 
 struct PutioVideoCircleLabel<Glyph: View>: View {
