@@ -99,7 +99,9 @@ Preconditions:
 - **Privacy controls.** Run `--only privacy-controls`. Screenshots:
   `runtime-privacy-save-failed`, `runtime-privacy-controls`.
 - **History.** Run `--only history`. Screenshots: `runtime-history-loaded`,
-  `runtime-history-error`, `runtime-history-empty`.
+  `runtime-history-error`, `runtime-history-navigation-blocked`,
+  `runtime-history-empty`. `--putio-harness-history-board` seeds the board's
+  feed for `rd-ios-hist-01-list`.
 - **Rows.** Run `--only account-rows`. Every navigation row opens its screen
   and goes back; Two-factor authentication and Privacy policy record their
   URLs.
