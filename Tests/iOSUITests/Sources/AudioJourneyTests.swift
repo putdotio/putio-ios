@@ -158,7 +158,8 @@ final class AudioJourneyTests: XCTestCase {
         return !value.isEmpty
       },
       object: saves)
-    XCTAssertEqual(XCTWaiter.wait(for: [firstSave], timeout: 20), .completed, "no save while playing")
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [firstSave], timeout: 20), .completed, "no save while playing")
     XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 5, "saved before the 10 s tick")
     let value = saves.value as? String ?? ""
     let parts = value.split(separator: "@")

@@ -182,7 +182,8 @@ final class PutioAudioPlayerModel {
     positionPipeline: PutioPlaybackPositionPipeline,
     remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
     notificationCenter: NotificationCenter = .default,
-    schedulePositionReports: @escaping PutioVideoPositionReporter.Scheduler = { interval, callback in
+    schedulePositionReports: @escaping PutioVideoPositionReporter.Scheduler = {
+      interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     },
     reportPosition: @escaping PutioPlaybackPositionReport,

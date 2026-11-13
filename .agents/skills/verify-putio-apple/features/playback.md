@@ -43,8 +43,7 @@ Preconditions:
 
 - Seeded `files-browser` fixtures and the harness's loopback media server.
   `Root Movie.mkv` (412) is 590 s long, saved at 560 s on iOS (589 s on tvOS),
-  and starts with an invalid stream. iOS plays a position at 95% of the length
-  or beyond from 0, so 560 s is the latest start that still reaches the end.
+  and starts with an invalid stream.
 
 - **Walk.** Run the full journey without `--only`. Screenshots:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus

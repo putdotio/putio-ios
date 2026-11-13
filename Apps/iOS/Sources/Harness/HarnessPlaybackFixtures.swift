@@ -154,7 +154,8 @@ import SwiftUI
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Audio positions saved")
         .accessibilityValue(
-          saves.map { "\($0.fileID.rawValue)@\($0.seconds)" }.joined(separator: ","))
+          saves.map { "\($0.fileID.rawValue)@\($0.seconds)" }.joined(separator: ",")
+        )
         .accessibilityIdentifier("audio.position-saves")
         .allowsHitTesting(false)
     }
