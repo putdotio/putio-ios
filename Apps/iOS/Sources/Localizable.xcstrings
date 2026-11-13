@@ -3145,6 +3145,17 @@
         }
       }
     },
+    "Open" : {
+      "comment" : "android: mobile_files_detail_open",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      }
+    },
     "Open in VLC" : {
       "comment" : "android: mobile_files_open_in_vlc",
       "localizations" : {

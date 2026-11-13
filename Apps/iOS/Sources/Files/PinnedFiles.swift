@@ -105,7 +105,7 @@ struct PutioPinnedRows: View {
         .selectionDisabled()
     }
     .onChange(of: pins) { _, pins in
-      detailReconcile?(pins.map(\.item))
+      detailReconcile?(pins.map(\.item), nil)
     }
   }
 
@@ -125,8 +125,8 @@ struct PutioPinnedRows: View {
     } else {
       Button {
         let route = PutioFileRoute(item: pin.item)
-        if let detailSelect, case .video = route.openAction {
-          detailSelect(route)
+        if let detailSelect, route.opensInDetail {
+          detailSelect(route, nil)
         } else {
           onOpen(route)
         }
