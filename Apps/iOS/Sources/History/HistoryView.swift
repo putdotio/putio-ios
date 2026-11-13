@@ -200,7 +200,7 @@ struct HistoryView: View {
 
   private func eventRow(_ event: PutioHistoryEventItem) -> some View {
     Group {
-      if event.fileID != nil {
+      if let fileID = event.fileID, fileID.rawValue > 0 {
         Button {
           Task { await model.openFile(event: event) }
         } label: {

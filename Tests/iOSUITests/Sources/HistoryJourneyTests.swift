@@ -40,6 +40,7 @@ final class HistoryJourneyTests: XCTestCase {
       if id == 803 { XCTAssertTrue(app.staticTexts[dayTitle(daysAgo: 3)].exists) }
       if id == 801 { XCTAssertTrue(app.staticTexts[dayTitle(daysAgo: 10)].exists) }
     }
+    XCTAssertFalse(app.buttons["history.item.801"].exists, "an event without a file is a button")
     let failedTransfer = element("history.item.806")
     reveal(failedTransfer)
     XCTAssertTrue(failedTransfer.label.contains("Transfer failed"))
