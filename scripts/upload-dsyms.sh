@@ -16,5 +16,5 @@ fail() {
 [ -d "$dsym_dir/Putio.app.dSYM" ] || fail "$dsym_dir has no Putio.app.dSYM. Check DEBUG_INFORMATION_FORMAT for Release."
 
 args=(debug-files upload --project ios --wait-for 600)
-if [ -n "${SENTRY_ORG:-}" ]; then args+=(--org "$SENTRY_ORG"); fi
+if [ -n "${SENTRY_ORG:-}" ]; then args+=(--org "$SENTRY_ORG"); else unset SENTRY_ORG; fi
 sentry-cli "${args[@]}" "$dsym_dir" || fail "sentry-cli could not upload $dsym_dir. Retry with this run's dsyms artifact."
