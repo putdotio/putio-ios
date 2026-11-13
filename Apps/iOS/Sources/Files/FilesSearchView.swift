@@ -17,6 +17,7 @@ struct FilesSearchView: View {
   @State private var query = ""
   @State private var filter = PutioFileSearchFilter.all
   @State private var model: PutioFileSearchModel
+  @State private var recent: PutioRecentSearchesModel
   @State private var folderNames: PutioFolderNames
   @State private var itemActions: PutioFileItemActionModel
   @State private var itemAction: PutioFileItemActionRequest?
@@ -49,6 +50,8 @@ struct FilesSearchView: View {
         search: { try await runtime.searchFiles(query: $0, filter: $1) },
         continueSearch: { try await runtime.continueFileSearch(cursor: $0) }
       ))
+    _recent = State(
+      initialValue: PutioRecentSearchesModel(actions: PutioRecentSearchActions(runtime: runtime)))
     _folderNames = State(
       initialValue: PutioFolderNames(rootName: PutioFolderRoute.root.title) {
         try await runtime.getFile(fileID: $0)
@@ -66,7 +69,16 @@ struct FilesSearchView: View {
         }
         .navigationTitle("Search")
         .putioContentBackground()
-        .searchable(text: $query, prompt: "Search in Files")
+        .searchable(text: $query, prompt: "Search your files")
+        .onSubmit(of: .search) {
+          Task { await recent.record(query) }
+        }
+        .task { await recent.load() }
+        .onChange(of: recent.editFailure) { _, failure in
+          guard failure != nil else { return }
+          recent.clearEditFailure()
+          toast = PutioToast(String(localized: "Couldn’t update recent searches"))
+        }
         .task(id: Request(query: query, filter: filter, revision: refreshRequests.revision)) {
           await model.apply(query: query, filter: filter, revision: refreshRequests.revision)
         }
@@ -181,9 +193,10 @@ struct FilesSearchView: View {
   private var results: some View {
     switch model.state {
     case .idle:
-      PutioEmptyStateView(
-        icon: .file, title: String(localized: "Search your files"),
-        message: String(localized: "Find files by their stored name."))
+      RecentSearchesView(model: recent) { term in
+        query = term
+        Task { await recent.record(term) }
+      }
     case .loading:
       PutioLoadingStateView(
         title: String(localized: "Searching files"), titleVisibility: .hidden)

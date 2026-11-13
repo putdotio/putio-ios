@@ -95,6 +95,8 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
   /// File ids, newest pin first, as the Android apps write them.
   case pinnedFiles = "pinned_files"
+  case searchHistory
+  case searchHistoryEnabled
 }
 
 /// This app's view of the config document. Missing or unknown values decode

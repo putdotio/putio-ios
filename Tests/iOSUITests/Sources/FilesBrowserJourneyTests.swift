@@ -1624,6 +1624,106 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
+  func testRecentSearchesRecordRunRemoveClearTurnedOffAndFailedWrite() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    app.buttons["Search"].tap()
+    let field = app.searchFields.firstMatch
+    XCTAssertTrue(waitUntilHittable(field, timeout: 5))
+    XCTAssertTrue(app.staticTexts["Find your files"].appears(within: 5), "no first-use state")
+    XCTAssertFalse(app.staticTexts["Recent searches"].exists)
+    addScreenshot(named: "runtime-search-start")
+
+    field.tap()
+    field.typeText("one\n")
+    for query in ["two", "three", "four", "five", "six"] {
+      replaceSearchQuery(query, in: field)
+    }
+    clearSearchQuery(in: field)
+    assertRecentSearches(["six", "five", "four", "three", "two"])
+
+    recentSearch("three").tap()
+    XCTAssertEqual(field.value as? String, "three", "the recent search did not run")
+    clearSearchQuery(in: field)
+    assertRecentSearches(["three", "six", "five", "four", "two"])
+    addScreenshot(named: "runtime-search-recent")
+
+    app.buttons["files.search-recent-remove.two"].tap()
+    assertRecentSearches(["three", "six", "five", "four"])
+
+    app.buttons["files.search-recent-clear"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Find your files"].appears(within: 5), "Clear left recent searches")
+
+    app.launchArguments += ["--putio-harness-search-history", "off"]
+    relaunchSignedIn()
+    app.buttons["Search"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Find your files"].appears(within: 5), "history off showed searches")
+    field.tap()
+    field.typeText("blue\n")
+    XCTAssertTrue(element(identifier: "files.search-item.440").appears(within: 10))
+    clearSearchQuery(in: field)
+    XCTAssertTrue(
+      app.staticTexts["Find your files"].appears(within: 5), "history off recorded blue")
+
+    app.launchArguments[app.launchArguments.count - 1] = "fail-write"
+    relaunchSignedIn()
+    app.buttons["Search"].tap()
+    assertRecentSearches(["blue lights", "sintel", "mp3", "tree rings"])
+    app.buttons["files.search-recent-remove.mp3"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t update recent searches"].appears(within: 10),
+      "no write failure toast")
+    assertRecentSearches(["blue lights", "sintel", "mp3", "tree rings"])
+    addScreenshot(named: "runtime-search-recent-failed")
+    app.buttons["files.search-recent-remove.mp3"].tap()
+    assertRecentSearches(["blue lights", "sintel", "tree rings"])
+
+    signOutFromAccount()
+  }
+
+  private func relaunchSignedIn() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    let root = element(identifier: "files.screen.0")
+    if signIn.appears(within: 5) { signIn.tap() }
+    XCTAssertTrue(root.appears(within: 10), "Files never opened after relaunch")
+  }
+
+  private func recentSearch(_ term: String) -> XCUIElement {
+    app.buttons["files.search-recent.\(term)"]
+  }
+
+  private func assertRecentSearches(
+    _ terms: [String], file: StaticString = #filePath, line: UInt = #line
+  ) {
+    XCTAssertTrue(
+      app.staticTexts["Recent searches"].appears(within: 5), "no Recent searches header",
+      file: file, line: line)
+    for term in terms {
+      XCTAssertTrue(
+        recentSearch(term).appears(within: 5), "\(term) is missing", file: file, line: line)
+    }
+    let shown = app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "files.search-recent.")
+    ).allElementsBoundByIndex.sorted { $0.frame.minY < $1.frame.minY }.map(\.identifier)
+    XCTAssertEqual(
+      shown, terms.map { "files.search-recent.\($0)" }, "recent searches out of order",
+      file: file, line: line)
+  }
+
+  private func clearSearchQuery(in field: XCUIElement) {
+    field.tap()
+    let clear = field.buttons["Clear text"]
+    XCTAssertTrue(waitUntilHittable(clear, timeout: 5))
+    clear.tap()
+  }
+
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
     field.tap()
     let clear = field.buttons["Clear text"]

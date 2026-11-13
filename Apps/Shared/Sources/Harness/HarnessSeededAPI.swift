@@ -178,6 +178,56 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    static let searchHistoryArgument = "--putio-harness-search-history"
+    private static let searchHistoryLock = NSLock()
+    nonisolated(unsafe) private static var searchHistory =
+      searchHistoryMode == nil ? [] : boardSearches
+    nonisolated(unsafe) private static var searchHistoryWriteFailed = false
+    private static let boardSearches = ["blue lights", "sintel", "mp3", "tree rings"]
+
+    private static var searchHistoryMode: String? {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: searchHistoryArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return arguments[flag + 1]
+    }
+
+    private static func readSearchHistory() -> (Int, String) {
+      let terms = searchHistoryLock.withLock { searchHistory }
+      let data =
+        (try? JSONSerialization.data(withJSONObject: ["status": "OK", "value": terms])) ?? Data()
+      return (200, String(decoding: data, as: UTF8.self))
+    }
+
+    private static func readSearchHistoryEnabled() -> (Int, String) {
+      (200, #"{"status":"OK","value":\#(searchHistoryMode != "off")}"#)
+    }
+
+    private static func writeSearchHistory(request: URLRequest) -> (Int, String) {
+      guard let terms = requestPayload(request)?["value"] as? [String] else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_INVALID_SEARCH_HISTORY",
+            message: "value must list search terms")
+        )
+      }
+      return searchHistoryLock.withLock {
+        if searchHistoryMode == "fail-write", !searchHistoryWriteFailed {
+          searchHistoryWriteFailed = true
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_SEARCH_HISTORY_WRITE",
+              message: "The first recent-search write fails for the failure proof")
+          )
+        }
+        searchHistory = terms
+        return (200, #"{"status":"OK"}"#)
+      }
+    }
+
     static let inactiveAccountArgument = "--putio-harness-account-inactive"
     static let accountRenewsInBackgroundArgument = "--putio-harness-account-renews-in-background"
     static let inactiveAccountDeletionDays = 12
@@ -1761,6 +1811,12 @@ import Foundation
         return readPins()
       case "PUT /v2/config/pinned_files":
         return writePins(request: request)
+      case "GET /v2/config/searchHistory":
+        return readSearchHistory()
+      case "GET /v2/config/searchHistoryEnabled":
+        return readSearchHistoryEnabled()
+      case "PUT /v2/config/searchHistory":
+        return writeSearchHistory(request: request)
       case "PUT /v2/config/streaming_method":
         return updateStreamingMethodConfig(request: request)
       case "PUT /v2/config/auto_rotate_video":

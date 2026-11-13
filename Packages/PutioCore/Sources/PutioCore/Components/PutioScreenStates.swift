@@ -143,7 +143,7 @@ public struct PutioEmptyStateView: View {
     self.action = nil
   }
 
-  static func detailPlaceholder(title: String, message: String) -> Self {
+  public static func textOnly(title: String, message: String) -> Self {
     Self(placeholderTitle: title, message: message)
   }
 

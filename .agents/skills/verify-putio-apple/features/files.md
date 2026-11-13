@@ -10,6 +10,8 @@ images and documents, and opens put.io links into the same screens.
   parent's place.
 - `browse-sort` changes the folder sort from the sort button and appends the
   next page on scroll.
+- `recent-searches` keeps the last five submitted searches, runs, removes and
+  clears them, hides them while history is off, and keeps them on a failed write.
 - `search` pages results, retries a failed page, and restores the open folder
   after a relaunch.
 - `row-menus` lists each item kind's long-press rows in order, marks watched
@@ -111,6 +113,11 @@ Preconditions:
   search offline; `--putio-harness-search-more-fails` gives `blue` a next page
   that always fails. Screenshots: `runtime-search-none`,
   `runtime-search-long-query`, `runtime-search-failed`, `runtime-search-offline`.
+- **Recent searches.** Run `--only recent-searches`.
+  `--putio-harness-search-history <recent|off|fail-write>` seeds the board's
+  four searches; `off` turns history off and `fail-write` fails the first
+  write. Without it the list starts empty. Screenshots: `runtime-search-start`,
+  `runtime-search-recent`, `runtime-search-recent-failed`.
 - **Item menus.** Run `--only row-menus`. The first Mark as unwatched on
   `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
   `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.
