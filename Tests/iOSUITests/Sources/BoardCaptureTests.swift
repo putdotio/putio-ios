@@ -128,6 +128,14 @@ final class BoardCaptureTests: XCTestCase {
       if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
     }
     try captureBoard("rd-ios-dl-01-list")
+    if fixture == "list" {
+      app.revealed("downloads.item.441").tap()
+      XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
+      element("video.done").tap()
+      app.revealed("downloads.item.408").tap()
+      XCTAssertTrue(element("audio.duration").appears(within: 20), "the finished audio did not play")
+      element("audio.done").tap()
+    }
     guard fixture == "offline" else { return }
     tabButton("Files").tap()
     XCTAssertTrue(

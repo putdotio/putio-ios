@@ -34,6 +34,7 @@
     func freeBytes(isPad: Bool) -> Int64 {
       switch self {
       case .downloadingStates: 3_100_000_000
+      case .empty: isPad ? 217_000_000_000 : 149_300_000_000
       default: isPad ? 212_600_000_000 : 144_900_000_000
       }
     }
@@ -154,7 +155,7 @@
       PutioOfflineItem(
         id: PutioFileID(rawValue: id), parentID: parentID, name: name, kind: kind,
         createdAt: created, stage: stage, localPath: nil, storedBytes: 0,
-        selectedAudioLanguages: kind == .video ? ["en"] : [], storedAudioTracks: [],
+        selectedAudioLanguages: kind == .video ? ["en", "tr"] : [], storedAudioTracks: [],
         storedSubtitleTracks: [], resumePositionSeconds: 0, pendingPositionSeconds: nil,
         estimatedBytes: estimatedBytes)
     }
