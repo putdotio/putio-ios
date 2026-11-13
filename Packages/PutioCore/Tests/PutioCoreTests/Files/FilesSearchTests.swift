@@ -59,6 +59,16 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.state, .idle)
   }
 
+  func testShownTermCutsLongQueriesAtFiftyCharacters() {
+    XCTAssertEqual(PutioFileSearchModel.shownTerm(" blorp \n"), "blorp")
+    let long = "blue lights season four episode one organic 1080p hdtv"
+    XCTAssertEqual(
+      PutioFileSearchModel.shownTerm(long),
+      "blue lights season four episode one organic 1080p…")
+    let fifty = String(repeating: "a", count: 50)
+    XCTAssertEqual(PutioFileSearchModel.shownTerm(fifty), fifty)
+  }
+
   func testFailureCanRetryTheSameQueryAndEmptyResultsRemainLoaded() async {
     var attempts = 0
     let model = PutioFileSearchModel(

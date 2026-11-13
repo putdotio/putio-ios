@@ -105,6 +105,12 @@ Preconditions:
   search; Videos sends `type=VIDEO`; the `search.requests` probe lists each
   search as `query|type`. `--putio-harness-hold-search` holds every search.
   Screenshot: `runtime-search-grouped`.
+- **Search states.** Run `--only search-states`. `blorp` matches nothing, a
+  54-character query shows cut at 50, `retry` under Videos fails once and Try
+  again repeats `retry|VIDEO`. `--putio-harness-search-offline` fails every
+  search offline; `--putio-harness-search-more-fails` gives `blue` a next page
+  that always fails. Screenshots: `runtime-search-none`,
+  `runtime-search-long-query`, `runtime-search-failed`, `runtime-search-offline`.
 - **Item menus.** Run `--only row-menus`. The first Mark as unwatched on
   `S04E02` (442) fails and rolls back. Screenshots: `runtime-item-swipe-left`,
   `runtime-item-menu-folder`, `runtime-item-swipe-right`, `runtime-item-menu-vlc`.

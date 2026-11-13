@@ -1216,6 +1216,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(folderResult.appears(within: 10))
     let moreRetry = app.buttons["files.search-more-retry"]
     XCTAssertTrue(moreRetry.appears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load more results."].exists, "the failed page never said so")
     XCTAssertTrue(folderResult.exists, "failed continuation removed the first page")
     moreRetry.tap()
     XCTAssertTrue(videoResult.appears(within: 10), "search continuation never appended")
@@ -1253,7 +1255,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(searchField.appears(within: 5))
 
     replaceSearchQuery("no-matching-file", in: searchField)
-    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Nothing matches"].appears(within: 10))
     XCTAssertFalse(folderResult.exists)
     let refreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
     let refreshEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
@@ -1261,7 +1263,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let emptyRefreshRetry = app.buttons["files.search-retry"]
     XCTAssertTrue(emptyRefreshRetry.appears(within: 10))
     emptyRefreshRetry.tap()
-    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Nothing matches"].appears(within: 10))
     replaceSearchQuery("retry", in: searchField)
     let retry = element(identifier: "files.search-retry")
     XCTAssertTrue(retry.appears(within: 10))
@@ -1485,7 +1487,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(
       element(identifier: "files.item.415").exists, "deleted folder kept its child row")
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Nothing matches"].appears(within: 10))
     XCTAssertFalse(folderResult.exists, "search kept the deleted folder")
     XCTAssertFalse(element(identifier: "files.search-item.411").exists)
     app.buttons["Files"].tap()
@@ -1550,6 +1552,76 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     if app.keyboards.firstMatch.exists { searchField.typeText("\n") }
     signOutFromAccount()
+  }
+
+  func testSearchEmptyAndFailureStates() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+
+    app.buttons["Search"].tap()
+    let searchField = app.searchFields.firstMatch
+    XCTAssertTrue(waitUntilHittable(searchField, timeout: 5))
+    searchField.tap()
+    searchField.typeText("blorp\n")
+    let nothing = app.staticTexts["Nothing matches"]
+    XCTAssertTrue(nothing.appears(within: 10), "an unmatched query never said so")
+    XCTAssertTrue(
+      app.staticTexts["No files or folders named blorp. Try fewer words."].exists,
+      "the empty state does not name the query")
+    XCTAssertTrue(element(identifier: "files.search-filters").exists, "no filters on no results")
+    addScreenshot(named: "runtime-search-none")
+
+    let long = "blue lights season four episode one organic 1080p hdtv"
+    replaceSearchQuery(long, in: searchField)
+    let shown =
+      "No files or folders named blue lights season four episode one organic 1080p…. "
+      + "Try fewer words."
+    XCTAssertTrue(app.staticTexts[shown].appears(within: 10), "the long query was not cut")
+    XCTAssertTrue(element(identifier: "files.search-filters").exists)
+    addScreenshot(named: "runtime-search-long-query")
+
+    element(identifier: "files.search-filter.videos").tap()
+    replaceSearchQuery("retry", in: searchField)
+    let retry = element(identifier: "files.search-retry")
+    XCTAssertTrue(retry.appears(within: 10), "the seeded search failure never showed")
+    XCTAssertTrue(app.staticTexts["Couldn’t search"].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    XCTAssertTrue(element(identifier: "files.search-filters").exists, "no filters on failure")
+    addScreenshot(named: "runtime-search-failed")
+    let requests = element(identifier: "search.requests")
+    retry.tap()
+    XCTAssertTrue(
+      element(identifier: "files.search-item.411").appears(within: 10), "Try again never loaded")
+    let repeated = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value ENDSWITH %@", "retry|VIDEO;retry|VIDEO"),
+      object: requests)
+    XCTAssertEqual(
+      XCTWaiter().wait(for: [repeated], timeout: 5), .completed,
+      "Try again changed the query or filter")
+
+    if app.keyboards.firstMatch.exists { searchField.typeText("\n") }
+    app.terminate()
+    app.launchArguments.append("--putio-harness-search-offline")
+    app.launch()
+    XCTAssertTrue(waitUntilHittable(app.buttons["Search"], timeout: 15))
+    app.buttons["Search"].tap()
+    XCTAssertTrue(waitUntilHittable(searchField, timeout: 5))
+    searchField.tap()
+    searchField.typeText("blue\n")
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t search"].appears(within: 10), "offline search never failed")
+    XCTAssertTrue(element(identifier: "files.search-filters").exists)
+    addScreenshot(named: "runtime-search-offline")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {

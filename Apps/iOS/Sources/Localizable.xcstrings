@@ -1082,17 +1082,6 @@
         }
       }
     },
-    "Could not search files" : {
-      "comment" : "android: mobile_search_error_title | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not search files"
-          }
-        }
-      }
-    },
     "Could not start download" : {
       "comment" : "android: mobile_downloads_meta_failed_unexpected | differs: iOS spells out “Could not”",
       "localizations" : {
@@ -1144,6 +1133,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load logged-in apps"
+          }
+        }
+      }
+    },
+    "Couldn’t load more results." : {
+      "comment" : "android: mobile_search_paging_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load more results."
           }
         }
       }
@@ -1234,6 +1234,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t rename."
+          }
+        }
+      }
+    },
+    "Couldn’t search" : {
+      "comment" : "android: mobile_search_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t search"
           }
         }
       }
@@ -2991,6 +3002,17 @@
         }
       }
     },
+    "No files or folders named %@. Try fewer words." : {
+      "comment" : "android: mobile_search_no_results_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No files or folders named %@. Try fewer words."
+          }
+        }
+      }
+    },
     "No folders here." : {
       "comment" : "android: mobile_files_move_empty",
       "localizations" : {
@@ -3020,17 +3042,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No next video"
-          }
-        }
-      }
-    },
-    "No results" : {
-      "comment" : "android: mobile_search_no_results_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No results"
           }
         }
       }
@@ -3097,6 +3108,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing here identifies you or your files. Paste it into a support ticket."
+          }
+        }
+      }
+    },
+    "Nothing matches" : {
+      "comment" : "android: mobile_search_no_results_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing matches"
           }
         }
       }
@@ -5330,17 +5352,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trash is off for this account, so this can’t be undone."
-          }
-        }
-      }
-    },
-    "Try a different file name." : {
-      "comment" : "ios-only: no Android string for the iOS search screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try a different file name."
           }
         }
       }

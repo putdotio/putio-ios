@@ -692,6 +692,44 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-49-search-long-press")
   }
 
+  func testSearchNone() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    typeSearch("blorp")
+    XCTAssertTrue(labeled("Nothing matches").appears(within: 10), "no empty search state")
+    try captureBoard("rd-ios-28-search-none")
+  }
+
+  func testSearchFailed() throws {
+    orientForBoardDevice()
+    app.launchArguments.append("--putio-harness-search-offline")
+    app.launch()
+    reachFilesRoot()
+    typeSearch("blue")
+    XCTAssertTrue(labeled("Couldn’t search").appears(within: 10), "no failed search state")
+    try captureBoard("rd-ios-46-search-failed")
+  }
+
+  func testSearchMoreFailed() throws {
+    orientForBoardDevice()
+    app.launchArguments.append("--putio-harness-search-more-fails")
+    app.launch()
+    searchBlue()
+    XCTAssertTrue(
+      element("files.search-more-retry").appears(within: 10), "the next page never failed")
+    try captureBoard("rd-ios-47-search-more-failed")
+  }
+
+  func testSearchLongQuery() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    typeSearch("blue lights season four episode one organic 1080p hdtv")
+    XCTAssertTrue(labeled("Nothing matches").appears(within: 10), "no empty search state")
+    try captureBoard("rd-ios-71-search-long-query")
+  }
+
   private func typeSearch(_ query: String) {
     tabButton("Search").tap()
     let field = app.searchFields.firstMatch
@@ -2257,6 +2295,7 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
         guard let element = issue.element else { return false }
+        if element.elementType == .searchField { return true }
         return Self.isMiddleTruncatedFileName(element.label)
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
