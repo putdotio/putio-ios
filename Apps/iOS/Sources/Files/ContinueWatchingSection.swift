@@ -35,6 +35,7 @@ struct PutioContinueWatchingSection: View {
           }
           .scrollTargetLayout()
         }
+        .scrollTargetBehavior(.viewAligned)
         .contentMargins(.horizontal, PutioTheme.Spacing.space3, for: .scrollContent)
         .scrollIndicators(.hidden)
         .accessibilityIdentifier("files.continue-watching")
@@ -113,16 +114,11 @@ private struct PutioContinueWatchingCard: View {
             PutioItemAction(
               id: "remove-continue-watching",
               title: String(localized: "Remove from Continue watching"), icon: .x,
-              perform: remove)
+              isDisabled: isDisabled, perform: remove)
           ]
         ]))
     }
-    .accessibilityElement(children: .ignore)
     .accessibilityLabel(Text("Resume \(entry.name), \(entry.remainingSpoken) left"))
-    .accessibilityAddTraits(.isButton)
-    .accessibilityAction {
-      if !isDisabled { play(entry.videoRoute) }
-    }
     .accessibilityAction(named: Text("Remove from Continue watching")) {
       if !isDisabled { remove() }
     }
