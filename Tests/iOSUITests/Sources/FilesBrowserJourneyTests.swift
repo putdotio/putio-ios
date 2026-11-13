@@ -1064,6 +1064,44 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  func testOfflineTrashRetriesOnItsOwn() {
+    openSeededTrash("offline")
+
+    XCTAssertTrue(app.staticTexts["put.io is out of reach"].appears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists)
+    addScreenshot(named: "runtime-trash-offline")
+    XCTAssertTrue(
+      app.staticTexts["poster.jpg"].appears(within: 30), "offline Trash never retried on its own")
+    XCTAssertTrue(element(identifier: "trash.header").exists)
+  }
+
+  func testFailedTrashLoadTriesAgain() {
+    openSeededTrash("failing")
+
+    let retry = app.buttons["trash.retry"]
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 10), "Trash never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists)
+    retry.tap()
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Try again did not reload")
+    XCTAssertTrue(app.staticTexts["Gone today"].exists)
+    XCTAssertTrue(app.staticTexts["Gone tomorrow"].exists)
+    XCTAssertTrue(app.staticTexts["Gone in 14 days"].exists)
+  }
+
+  private func openSeededTrash(_ mode: String) {
+    app.launchArguments += ["--putio-harness-trash", mode]
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    app.buttons["Account"].tap()
+    let trashEntry = element(identifier: "account.trash")
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    trashEntry.tap()
+  }
+
   func testSortRoundTripAndContinuationAppendsTheSecondPage() {
     app.launch()
 

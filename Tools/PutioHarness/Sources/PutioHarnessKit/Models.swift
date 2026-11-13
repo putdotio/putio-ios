@@ -1244,6 +1244,10 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 90),
     JourneyPreflight(
+      "trash-offline", "FilesBrowserJourneyTests/testOfflineTrashRetriesOnItsOwn",
+      attachmentNames: ["runtime-trash-offline"], timeAllowance: 90),
+    JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
+    JourneyPreflight(
       "sort-continuation",
       "FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage",
       attachmentNames: ["runtime-sorted-root"], timeAllowance: 90),
