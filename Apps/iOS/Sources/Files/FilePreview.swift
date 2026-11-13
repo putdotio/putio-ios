@@ -733,6 +733,7 @@ struct PutioPreviewView: View {
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var labelsHeight: CGFloat = 0
   @State private var restoring: Set<PutioFileID> = []
+  @State private var linkItem: PutioFileItem?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   private let fileActions: PutioPreviewFileActions
@@ -775,6 +776,7 @@ struct PutioPreviewView: View {
             .padding(.bottom, labelsHeight)
         }
         .putioConfirmAlert($confirmAlert)
+        .putioExclusiveLinkSheet($linkItem)
         .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar(model) }
@@ -792,6 +794,7 @@ struct PutioPreviewView: View {
           )
         )
     }
+    .environment(\.putioExclusiveLink, fileActions.createLink)
     .onChange(of: pager.name(for: pager.current.id)) { _, name in
       if let name { pager.currentModel.retitle(name) }
     }
@@ -994,7 +997,8 @@ struct PutioPreviewView: View {
     let rows = PutioFileMenu(
       item: item,
       capabilities: .init(
-        canEdit: true, canDownload: false, vlcInstalled: false, tracksWatched: false)
+        canEdit: true, canDownload: false, vlcInstalled: false, tracksWatched: false,
+        canLink: true)
     )
     var actions: [PutioItemAction] = []
     if rows.contains(.rename) {
@@ -1008,6 +1012,12 @@ struct PutioPreviewView: View {
         PutioItemAction(id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed) {
           request(.move(item))
         })
+    }
+    if rows.contains(.exclusiveLink) {
+      actions.append(
+        PutioItemAction(
+          id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link
+        ) { linkItem = item })
     }
     if rows.contains(.trash) {
       actions.append(

@@ -175,7 +175,7 @@ Preconditions:
 - **Preview More menu.** Run `--only preview-more`. Screenshots:
   `runtime-preview-more-pdf`, `runtime-preview-more-image`,
   `runtime-preview-rename`, `runtime-preview-rename-failed`,
-  `runtime-preview-moved`.
+  `runtime-preview-moved`, `runtime-preview-exclusive-link`.
 - **Open in VLC outcomes.** Run `--only preview-vlc,preview-vlc-failed`.
   Screenshots: `runtime-preview-vlc-missing`, `runtime-preview-vlc-failed`.
 - **Preview trash.** Run `--only preview-trash`. Screenshots:

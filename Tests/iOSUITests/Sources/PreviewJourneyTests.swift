@@ -589,6 +589,19 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(title.label, "Gallery One.png")
     screenshot("runtime-preview-moved")
 
+    app.buttons["preview.more"].tap()
+    app.buttons["Exclusive link"].firstMatch.tap()
+    let create = app.buttons["files.exclusive-link.create"]
+    XCTAssertTrue(create.appears(within: 5), "Exclusive link never opened over the viewer")
+    create.tap()
+    XCTAssertTrue(
+      element("files.exclusive-link.created").appears(within: 10), "the link was never created")
+    screenshot("runtime-preview-exclusive-link")
+    let sheet = element("files.exclusive-link")
+    sheet.swipeDown(velocity: .fast)
+    XCTAssertTrue(sheet.disappears(within: 5), "Exclusive access stayed open")
+    XCTAssertTrue(element("preview.screen.471").exists, "closing the sheet left the viewer")
+
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.471").disappears(within: 5))
     XCTAssertTrue(element("files.item.473").appears(within: 10))
@@ -866,6 +879,7 @@ final class PreviewJourneyTests: XCTestCase {
     let rename = app.buttons["Rename"].firstMatch
     XCTAssertTrue(rename.appears(within: 5), "More never opened")
     XCTAssertTrue(app.buttons["Move"].firstMatch.exists)
+    XCTAssertTrue(app.buttons["Exclusive link"].firstMatch.exists, "More has no Exclusive link")
     for absent in ["Play", "Select", "Pin", "Make a copy", "Mark as watched", "Download"] {
       XCTAssertFalse(app.buttons[absent].exists, "More lists \(absent)")
     }
