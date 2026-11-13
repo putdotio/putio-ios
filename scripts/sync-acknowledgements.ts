@@ -168,8 +168,8 @@ function castArtifact(url: string): string {
 function castEntries(pin: Pin): Entry[] {
   const manifest = join(checkoutFor(pin), "Package.swift");
   const url =
-    /name: "GoogleCastDynamicBinary",\s*url: "([^"]+)"/.exec(readFileSync(manifest, "utf8"))?.[1] ??
-    fail(`no GoogleCastDynamicBinary URL in ${manifest}`);
+    /name: "GoogleCastStaticBinary",\s*url: "([^"]+)"/.exec(readFileSync(manifest, "utf8"))?.[1] ??
+    fail(`no GoogleCastStaticBinary URL in ${manifest}`);
   const licenses = join(dirname(castArtifact(url)), "OpenSourceLicenses");
   const text = readFileSync(join(licenses, "oss_licenses.bin"));
   const index = spawnSync("plutil", ["-convert", "json", "-o", "-", join(licenses, "oss_licenses_index.plist")], {

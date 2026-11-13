@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		5A0F0000000000000000030A /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020A /* Sentry-Dynamic */; };
 		5A0F0000000000000000030B /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020B /* RealmSwift */; };
-		5A0F0000000000000000030C /* GoogleCastDynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020C /* GoogleCastDynamic */; };
+		5A0F0000000000000000030C /* GoogleCastStatic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020C /* GoogleCastStatic */; };
 		5A0F00000000000000000406 /* AcknowledgementsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0F00000000000000000405 /* AcknowledgementsTests.swift */; };
 		5A0F00000000000000000301 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000201 /* Sentry-Dynamic */; };
 		5A0F00000000000000000302 /* Intercom in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000202 /* Intercom */; };
@@ -59,6 +59,8 @@
 		551ED6CE7AEFF7629BF265E0 /* FilesViewControllerReleaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D636A863E602DB68C5EFD3 /* FilesViewControllerReleaseTests.swift */; };
 		3B822D1680EB7D9D7ED1359E /* FilesSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE812E6AD719535E04F2F68E /* FilesSelectionTests.swift */; };
 		C2FAE30F6EA726D70174E5A4 /* FilesListStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E977407085148A2174714E3 /* FilesListStub.swift */; };
+		5A45C0000000000000000002 /* CastStubReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A45C0000000000000000001 /* CastStubReceiverTests.swift */; };
+		5A45C0000000000000000004 /* CastStubReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A45C0000000000000000003 /* CastStubReceiver.swift */; };
 		357CF86FCEE47F2437B05021 /* VideoConversionSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */; };
 		AEC00AD466B75DCC2DD81B80 /* AuthAppsListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1845221008DE68CC9F30ECF /* AuthAppsListTests.swift */; };
 		53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */; };
@@ -431,6 +433,8 @@
 		92D636A863E602DB68C5EFD3 /* FilesViewControllerReleaseTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilesViewControllerReleaseTests.swift; sourceTree = "<group>"; };
 		CE812E6AD719535E04F2F68E /* FilesSelectionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilesSelectionTests.swift; sourceTree = "<group>"; };
 		0E977407085148A2174714E3 /* FilesListStub.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FilesListStub.swift; sourceTree = "<group>"; };
+		5A45C0000000000000000001 /* CastStubReceiverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CastStubReceiverTests.swift; sourceTree = "<group>"; };
+		5A45C0000000000000000003 /* CastStubReceiver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CastStubReceiver.swift; sourceTree = "<group>"; };
 		63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoConversionSessionTests.swift; sourceTree = "<group>"; };
 		E1845221008DE68CC9F30ECF /* AuthAppsListTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthAppsListTests.swift; sourceTree = "<group>"; };
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
@@ -462,7 +466,7 @@
 				5A0F00000000000000000305 /* KeychainAccess in Frameworks */,
 				5A0F00000000000000000306 /* PutioSDK in Frameworks */,
 				5A0F00000000000000000309 /* StatefulViewController in Frameworks */,
-				5A0F0000000000000000030C /* GoogleCastDynamic in Frameworks */,
+				5A0F0000000000000000030C /* GoogleCastStatic in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -495,6 +499,8 @@
 				92D636A863E602DB68C5EFD3 /* FilesViewControllerReleaseTests.swift */,
 				CE812E6AD719535E04F2F68E /* FilesSelectionTests.swift */,
 				0E977407085148A2174714E3 /* FilesListStub.swift */,
+				5A45C0000000000000000003 /* CastStubReceiver.swift */,
+				5A45C0000000000000000001 /* CastStubReceiverTests.swift */,
 				63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */,
 				E1845221008DE68CC9F30ECF /* AuthAppsListTests.swift */,
 				109100000000000000000002 /* DownloadQueueControllerTests.swift */,
@@ -1028,7 +1034,7 @@
 				5A0F00000000000000000205 /* KeychainAccess */,
 				5A0F00000000000000000206 /* PutioSDK */,
 				5A0F00000000000000000209 /* StatefulViewController */,
-				5A0F0000000000000000020C /* GoogleCastDynamic */,
+				5A0F0000000000000000020C /* GoogleCastStatic */,
 			);
 			productName = Putio;
 			productReference = ACEF62EA1F9A26AA0026B25E /* Putio.app */;
@@ -1188,6 +1194,8 @@
 				551ED6CE7AEFF7629BF265E0 /* FilesViewControllerReleaseTests.swift in Sources */,
 				3B822D1680EB7D9D7ED1359E /* FilesSelectionTests.swift in Sources */,
 				C2FAE30F6EA726D70174E5A4 /* FilesListStub.swift in Sources */,
+				5A45C0000000000000000004 /* CastStubReceiver.swift in Sources */,
+				5A45C0000000000000000002 /* CastStubReceiverTests.swift in Sources */,
 				357CF86FCEE47F2437B05021 /* VideoConversionSessionTests.swift in Sources */,
 				AEC00AD466B75DCC2DD81B80 /* AuthAppsListTests.swift in Sources */,
 				109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */,
@@ -1389,11 +1397,6 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					GoogleCast,
-				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1417,11 +1420,6 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
-				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-framework",
-					GoogleCast,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1892,10 +1890,10 @@
 			package = 5A0F00000000000000000104 /* XCRemoteSwiftPackageReference "realm-swift" */;
 			productName = RealmSwift;
 		};
-		5A0F0000000000000000020C /* GoogleCastDynamic */ = {
+		5A0F0000000000000000020C /* GoogleCastStatic */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0F00000000000000000109 /* XCRemoteSwiftPackageReference "google-cast-ios-sdk" */;
-			productName = GoogleCastDynamic;
+			productName = GoogleCastStatic;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
