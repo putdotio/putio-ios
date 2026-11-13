@@ -134,7 +134,7 @@ struct ClearDataView: View {
             .accessibilityIdentifier("danger.clear.\(category.rawValue)")
           }
         }
-        .disabled(model.isClearing)
+        .disabled(model.isBusy)
         Section {
           PutioDestructiveRow(
             String(localized: "Clear"), alignment: .center, isBusy: model.isClearing,
@@ -150,7 +150,7 @@ struct ClearDataView: View {
             Button(String(localized: "Refresh account")) {
               Task { await model.refreshAccount() }
             }
-            .disabled(model.isClearing)
+            .disabled(model.isBusy)
             .accessibilityIdentifier("danger.clear-refresh")
           }
         }

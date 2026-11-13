@@ -256,6 +256,7 @@ public final class PutioLinkDeviceModel {
 public final class PutioClearDataModel {
   public private(set) var selection: Set<PutioAccountDataCategory> = []
   public private(set) var isClearing = false
+  public private(set) var isRefreshing = false
   public private(set) var failure: String?
   public private(set) var didClear = false
   public private(set) var refreshWarning: String?
@@ -275,14 +276,16 @@ public final class PutioClearDataModel {
     self.onCleared = onCleared
   }
 
-  public var canClear: Bool { !isClearing && !selection.isEmpty }
+  public var isBusy: Bool { isClearing || isRefreshing }
+
+  public var canClear: Bool { !isBusy && !selection.isEmpty }
 
   public var orderedSelection: [PutioAccountDataCategory] {
     PutioAccountDataCategory.allCases.filter(selection.contains)
   }
 
   public func toggle(_ category: PutioAccountDataCategory) {
-    guard !isClearing else { return }
+    guard !isBusy else { return }
     if selection.remove(category) == nil { selection.insert(category) }
     failure = nil
     didClear = false
@@ -313,9 +316,9 @@ public final class PutioClearDataModel {
   }
 
   public func refreshAccount() async {
-    guard refreshWarning != nil, !isClearing else { return }
-    isClearing = true
-    defer { isClearing = false }
+    guard refreshWarning != nil, !isBusy else { return }
+    isRefreshing = true
+    defer { isRefreshing = false }
     if await actions.refreshAccount() { refreshWarning = nil }
   }
 }

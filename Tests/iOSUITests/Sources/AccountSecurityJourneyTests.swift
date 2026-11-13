@@ -85,7 +85,9 @@ final class AccountSecurityJourneyTests: XCTestCase {
 
     for row in [files, history, trash] { tap(row) }
     assertSelected([files, history, trash])
-    XCTAssertFalse(app.buttons["danger.clear.friends"].isSelected)
+    let friends = app.buttons["danger.clear.friends"]
+    app.bringIntoView(friends)
+    XCTAssertFalse(friends.isSelected)
     XCTAssertTrue(clear.isEnabled, "Clear stayed disabled with three categories")
 
     let confirm = app.putioAlert("Clear the selected data?")

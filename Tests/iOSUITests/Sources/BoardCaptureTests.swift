@@ -2050,7 +2050,7 @@ final class BoardCaptureTests: XCTestCase {
     openClearData()
     selectClearCategories()
     showSettledTabBar()
-    app.buttons["danger.clear"].tap()
+    tapClear()
     XCTAssertTrue(
       app.putioAlert("Clear the selected data?").appears(within: 5), "the confirm never showed")
     try captureBoard("rd-ios-acc-16-clear-confirm")
@@ -2103,15 +2103,22 @@ final class BoardCaptureTests: XCTestCase {
   private func selectClearCategories() {
     for category in ["files", "history", "trash"] {
       let row = app.buttons["danger.clear.\(category)"]
+      app.bringIntoView(row)
       row.tap()
       XCTAssertTrue(row.isSelected, "\(category) was not checked")
     }
   }
 
+  private func tapClear() {
+    let clear = app.buttons["danger.clear"]
+    app.bringIntoView(clear)
+    clear.tap()
+  }
+
   private func confirmClearData() {
     openClearData()
     selectClearCategories()
-    app.buttons["danger.clear"].tap()
+    tapClear()
     XCTAssertTrue(
       app.putioAlert("Clear the selected data?").appears(within: 5), "the confirm never showed")
     app.buttons["confirm-alert.confirm"].firstMatch.tap()

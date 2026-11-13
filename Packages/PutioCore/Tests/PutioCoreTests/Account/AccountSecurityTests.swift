@@ -285,6 +285,8 @@ final class AccountSecurityTests: XCTestCase {
     var cleared: [Set<PutioAccountDataCategory>] = []
     var notified: [Set<PutioAccountDataCategory>] = []
     var refreshes = 0
+    var observed: PutioClearDataModel?
+    var refreshStates: [Bool] = []
     let model = PutioClearDataModel(
       actions: PutioAccountSecurityActions(
         clearData: { selection in
@@ -294,9 +296,12 @@ final class AccountSecurityTests: XCTestCase {
         },
         refreshAccount: {
           refreshes += 1
+          refreshStates.append(observed?.isClearing ?? true)
+          refreshStates.append(observed?.isBusy ?? false)
           return refreshes == 2
         }),
       onCleared: { categories, committed in notified.append(committed ? categories : []) })
+    observed = model
     await model.clear()
     XCTAssertTrue(cleared.isEmpty)
     model.toggle(.trash)
@@ -316,6 +321,8 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNotNil(model.refreshWarning)
     await model.refreshAccount()
     XCTAssertNil(model.refreshWarning)
+    XCTAssertEqual(
+      refreshStates, [false, true, false, true], "a refresh showed as a clear in progress")
     model.toggle(.files)
     XCTAssertFalse(model.didClear, "a new selection kept the earlier result")
     await model.clear()
