@@ -2796,17 +2796,24 @@ final class BoardCaptureTests: XCTestCase {
   private static let subtitleName = "Blue.Lights.S04E01.en.srt"
 
   private func openMoreMenu() {
-    let menu = app.buttons["files.menu"]
-    XCTAssertTrue(menu.appears(within: 10), "the folder has no More menu")
-    menu.tap()
+    tapFolderMore()
     XCTAssertTrue(
       app.buttons["New folder"].appears(within: 5), "More never listed New folder")
   }
 
-  private func select(_ identifiers: [String]) {
+  private func tapFolderMore() {
     let menu = app.buttons["files.menu"]
-    XCTAssertTrue(menu.appears(within: 10), "the folder has no More menu")
-    menu.tap()
+    if menu.appears(within: 10) { return menu.tap() }
+    let overflow = app.buttons["BottomOverflowBarButtonItem"]
+    XCTAssertTrue(overflow.exists, "the folder has no More menu")
+    overflow.tap()
+    let more = app.collectionViews.buttons["More"]
+    XCTAssertTrue(more.appears(within: 5), "the toolbar overflow has no More")
+    more.tap()
+  }
+
+  private func select(_ identifiers: [String]) {
+    tapFolderMore()
     let start = app.buttons["Select"].firstMatch
     XCTAssertTrue(start.appears(within: 5), "More has no Select")
     start.tap()
