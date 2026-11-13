@@ -148,11 +148,19 @@ struct HistoryView: View {
           .accessibilityIdentifier("history.progress")
       }
       ForEach(PutioHistoryDay.group(page.items, now: groupingDate)) { day in
-        Section(day.title) {
+        Section {
           ForEach(day.items) { event in
             eventRow(event)
+              .listRowInsets(.vertical, PutioTheme.Spacing.space2)
               .listRowBackground(PutioTheme.Colors.background)
           }
+        } header: {
+          Text(day.title)
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .accessibilityAddTraits(.isHeader)
+            .listRowInsets(.top, PutioTheme.Spacing.space3)
+            .listRowInsets(.bottom, PutioTheme.Spacing.space1)
         }
       }
       if let before = page.nextBefore, model.refreshFailure == nil {
@@ -238,7 +246,7 @@ private struct PutioHistoryRow: View {
         presentation.icon,
         size: PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
       )
-      .foregroundStyle(PutioTheme.Components.FileRow.icon)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: textGap) {
         Text(presentation.name)
