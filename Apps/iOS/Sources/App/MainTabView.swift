@@ -100,7 +100,7 @@ struct MainTabView: View {
         Label {
           Text("Files")
         } icon: {
-          Image(putioIcon: .folderFill)
+          tabIcon(.folderFill, for: .files)
         }
       }
       Tab(value: SelectedTab.downloads) {
@@ -110,7 +110,7 @@ struct MainTabView: View {
         Label {
           Text("Downloads")
         } icon: {
-          Image(putioIcon: .arrowCircleDown)
+          tabIcon(.arrowCircleDown, for: .downloads)
         }
       }
       // Stays while a write is unsaved, in case its alert could not present.
@@ -129,7 +129,7 @@ struct MainTabView: View {
           Label {
             Text("History")
           } icon: {
-            Image(putioIcon: .clockCounterClockwise)
+            tabIcon(.clockCounterClockwise, for: .history)
           }
         }
       }
@@ -159,7 +159,7 @@ struct MainTabView: View {
         Label {
           Text("Account")
         } icon: {
-          Image(putioIcon: .userCircle)
+          tabIcon(.userCircle, for: .account)
         }
       }
       Tab(value: SelectedTab.search, role: .search) {
@@ -176,6 +176,14 @@ struct MainTabView: View {
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
         .shellTabContent(shellToast)
+      } label: {
+        Label {
+          Text("Search")
+        } icon: {
+          selectedTab == .search
+            ? Image(systemName: "magnifyingglass")
+            : Image(systemName: "magnifyingglass", fixed: PutioTheme.Colors.textPrimary)
+        }
       }
       if !pins.sectionItems.isEmpty {
         TabSection {
@@ -394,6 +402,11 @@ struct MainTabView: View {
         opensLaunchLink: deepLinks.hasReceivedLink)
     else { return }
     analyticsPrompt = PutioProductAnalyticsPromptModel(actions: .init(runtime: runtime))
+  }
+
+  private func tabIcon(_ icon: PutioIcon, for tab: SelectedTab) -> Image {
+    selectedTab == tab
+      ? Image(putioIcon: icon) : Image(putioIcon: icon, fixed: PutioTheme.Colors.textPrimary)
   }
 
   private var tabSelection: Binding<SelectedTab> {

@@ -83,6 +83,26 @@ extension Image {
   }
 }
 
+#if canImport(UIKit)
+  extension Image {
+    public init(putioIcon: PutioIcon, fixed color: Color) {
+      guard let source = UIImage(named: putioIcon.rawValue, in: .module, with: nil) else {
+        self.init(putioIcon: putioIcon)
+        return
+      }
+      self.init(uiImage: source.withTintColor(UIColor(color), renderingMode: .alwaysOriginal))
+    }
+
+    public init(systemName: String, fixed color: Color) {
+      guard let source = UIImage(systemName: systemName) else {
+        self.init(systemName: systemName)
+        return
+      }
+      self.init(uiImage: source.withTintColor(UIColor(color), renderingMode: .alwaysOriginal))
+    }
+  }
+#endif
+
 extension Image {
   /// The retro put.io wordmark from the design package's `logo-retro-dark.svg`.
   public static var putioWordmark: Image {
