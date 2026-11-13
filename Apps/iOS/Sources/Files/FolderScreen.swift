@@ -47,6 +47,10 @@ struct PutioFolderScreen: View {
   @State private var copyModel: PutioSharedFileCopyModel?
   @State private var copyTask: Task<Void, Never>?
   @State private var listWidth: CGFloat = 0
+  @State private var visibleRows = PutioVisibleRows()
+  @State private var restoredScroll = false
+  @Environment(\.putioFolderScrollAnchors) private var scrollAnchors
+  private static let restorePageLimit = 20
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -339,6 +343,20 @@ struct PutioFolderScreen: View {
     } else {
       ScrollViewReader { proxy in
         folderList(contents)
+          .task {
+            guard !restoredScroll else { return }
+            if let anchor = scrollAnchors?.anchor(for: route.id) {
+              var pages = 0
+              while !currentItems.contains(where: { $0.id == anchor }),
+                pages < Self.restorePageLimit, await model.loadMore()
+              {
+                pages += 1
+              }
+              await Task.yield()
+              proxy.scrollTo(anchor, anchor: .top)
+            }
+            restoredScroll = true
+          }
           .task(id: model.isUpdatingSortOrder) {
             guard model.isUpdatingSortOrder else { return }
             await Task.yield()
@@ -393,6 +411,8 @@ struct PutioFolderScreen: View {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
         }
+        .onAppear { visibleRows.appear(item.id) }
+        .onDisappear { visibleRows.disappear(item.id) }
       }
 
       if contents.hasMore {
@@ -416,6 +436,13 @@ struct PutioFolderScreen: View {
       if route.id == .root { await continueWatching?.reconcile() }
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
+    .onScrollPhaseChange { oldPhase, newPhase, context in
+      guard restoredScroll, oldPhase != .idle, newPhase == .idle else { return }
+      let geometry = context.geometry
+      let scrolled = geometry.contentOffset.y + geometry.contentInsets.top > 1
+      scrollAnchors?.save(
+        scrolled ? visibleRows.topmost(in: contents.items) : nil, for: route.id)
+    }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
   }
 

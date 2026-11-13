@@ -48,6 +48,8 @@ struct FilesBrowserView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var isLandscape: Bool?
   @State private var selectedFile: PutioFileDetailSelection?
+  @State private var scrollAnchors = PutioFolderScrollAnchors()
+  @State private var layout = PutioFilesLayout()
 
   init(
     runtime: PutioRuntime,
@@ -97,7 +99,9 @@ struct FilesBrowserView: View {
   var body: some View {
     Group {
       if let isLandscape {
-        if horizontalSizeClass == .regular, isLandscape {
+        let showsColumns = horizontalSizeClass == .regular && isLandscape
+        let _ = layout.show(columns: showsColumns)
+        if showsColumns {
           columns
         } else {
           stack(showsDetail: false)
@@ -114,6 +118,7 @@ struct FilesBrowserView: View {
       isLandscape = landscape
     }
     .environment(\.putioExclusiveLink, createLink)
+    .environment(\.putioFolderScrollAnchors, scrollAnchors)
     .environment(
       \.putioPinnedFiles,
       PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
@@ -126,6 +131,8 @@ struct FilesBrowserView: View {
       pinToast = PutioToast(PutioScreenErrorKind.failed.message)
     }
     .onChange(of: path) { oldPath, newPath in
+      scrollAnchors.keep(only: Set(newPath.map(\.id)).union([PutioFolderRoute.root.id]))
+      if horizontalSizeClass == .compact { selectedFile = nil }
       if didRestoreNavigation, let accountID {
         navigationRestoration.save(path: newPath, for: accountID)
       }
@@ -137,6 +144,7 @@ struct FilesBrowserView: View {
     .task(id: navigationRequest?.id) {
       if let navigationRequest, appliedNavigationRequest != navigationRequest.id {
         appliedNavigationRequest = navigationRequest.id
+        if horizontalSizeClass == .compact { selectedFile = nil }
         path = navigationRequest.path
         didRestoreNavigation = true
         if let accountID { navigationRestoration.save(path: path, for: accountID) }
@@ -161,19 +169,49 @@ struct FilesBrowserView: View {
       stack(showsDetail: true)
     } detail: { _ in
       if let selectedFile {
-        PutioFileDetailView(
-          route: selectedFile.route,
-          folderTitles: selectedFile.folderTitles,
-          offlineStatus: offlineFiles?.status(selectedFile.route.id) ?? .remote,
-          reloadKey: refreshRequests.revision,
-          loadDetails: loadVideoDetails,
-          loadFolderName: loadFolderName,
-          onPlay: onFileSelected,
-          onDownload: onDownload,
-          onExternalPlayback: onExternalPlayback
-        )
+        detail(selectedFile, pushed: false)
       }
     }
+  }
+
+  private func detail(_ selection: PutioFileDetailSelection, pushed: Bool) -> some View {
+    PutioFileDetailView(
+      route: selection.route,
+      folderTitles: selection.folderTitles,
+      offlineStatus: offlineFiles?.status(selection.route.id) ?? .remote,
+      reloadKey: refreshRequests.revision,
+      loadDetails: loadVideoDetails,
+      loadFolderName: loadFolderName,
+      showsNavigationBar: pushed,
+      onPlay: onFileSelected,
+      onDownload: onDownload,
+      onExternalPlayback: onExternalPlayback
+    )
+  }
+
+  @ViewBuilder private var pushedDetail: some View {
+    if let selectedFile {
+      detail(selectedFile, pushed: true)
+    }
+  }
+
+  private func stackPath(inColumns: Bool) -> Binding<[PutioFolderRoute]> {
+    let folders = $path
+    let selection = $selectedFile
+    let layout = layout
+    let pushesSelection = !inColumns && horizontalSizeClass == .compact
+    return Binding(
+      get: {
+        folders.wrappedValue
+          + (pushesSelection && selection.wrappedValue != nil ? [.openFile] : [])
+      },
+      set: { routes in
+        guard layout.accepts(routes, from: inColumns, replacing: folders.wrappedValue) else {
+          return
+        }
+        folders.wrappedValue = routes.filter { $0 != .openFile }
+        if pushesSelection, !routes.contains(.openFile) { selection.wrappedValue = nil }
+      })
   }
 
   private var detailSelection: Binding<PutioFileID?> {
@@ -219,7 +257,7 @@ struct FilesBrowserView: View {
   }
 
   private func stack(showsDetail: Bool) -> some View {
-    NavigationStack(path: $path) {
+    NavigationStack(path: stackPath(inColumns: showsDetail)) {
       PutioFolderScreen(
         route: .root,
         load: load,
@@ -244,13 +282,18 @@ struct FilesBrowserView: View {
           reconcile: detailReconcile)
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
-        destination(route)
-          .modifier(
-            PutioFileDetailColumn(
-              selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
-              clear: detailClear,
-              reconcile: detailReconcile)
-          )
+        if route == .openFile {
+          pushedDetail
+        } else {
+          destination(route)
+            .modifier(
+              PutioFileDetailColumn(
+                selection: showsDetail ? selectedFile : nil,
+                select: showsDetail ? detailSelect : nil,
+                clear: detailClear,
+                reconcile: detailReconcile)
+            )
+        }
       }
     }
   }
@@ -338,6 +381,31 @@ struct PutioFileDetailSelection {
     }
     ancestorIDs = Set(folders?.map(\.id) ?? []).union([parentID])
   }
+}
+
+@MainActor
+private final class PutioFilesLayout {
+  private static let settleTime: TimeInterval = 0.5
+  private var showsColumns = false
+  private var switchedAt = Date.distantPast
+
+  func show(columns: Bool) {
+    guard columns != showsColumns else { return }
+    showsColumns = columns
+    switchedAt = .now
+  }
+
+  func accepts(
+    _ routes: [PutioFolderRoute], from columns: Bool, replacing path: [PutioFolderRoute]
+  ) -> Bool {
+    guard columns == showsColumns else { return false }
+    let settling = Date.now.timeIntervalSince(switchedAt) < Self.settleTime
+    return !(settling && routes.isEmpty && !path.isEmpty)
+  }
+}
+
+extension PutioFolderRoute {
+  fileprivate static let openFile = PutioFolderRoute(id: PutioFileID(rawValue: -2), title: "")
 }
 
 struct PutioFilesNavigationRequest: Equatable {

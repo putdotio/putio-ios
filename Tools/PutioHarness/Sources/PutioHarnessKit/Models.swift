@@ -663,6 +663,13 @@ enum BoardCaptureContract {
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
       BoardCapture("rd-ios-duo-02-open-folder", .duoOpen, "testFolder"),
+      BoardCapture("rd-ios-15-duo-open", .duoOpen, "testDuoOpen"),
+      BoardCapture("rd-ios-16-duo-nothing", .duoOpen, "testDuoNothingSelected"),
+      BoardCapture("rd-ios-duo-02-closed-files", .duoFolded, "testDuoFoldKeepsScroll"),
+      BoardCapture("rd-ios-duo-03-closed-search", .duoFolded, "testSearch"),
+      BoardCapture("rd-ios-duo-04-closed-selection", .duoFolded, "testSelection"),
+      BoardCapture("rd-ios-duo-05-open-files", .duoOpen, "testIPadRoot"),
+      BoardCapture("rd-ios-duo-06-open-search", .duoOpen, "testSearch"),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),

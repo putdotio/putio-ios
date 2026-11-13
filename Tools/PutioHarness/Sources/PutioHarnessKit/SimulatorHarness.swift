@@ -1775,25 +1775,28 @@ public struct SimulatorHarness {
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register { mediaServer.stop() }
         let mediaBaseURL = try mediaServer.start()
-        for board in group {
-          do {
-            captured.append(
-              try captureBoard(
-                board, session: session, mediaBaseURL: mediaBaseURL, directory: deviceDirectory))
-          } catch {
-            failures.append((board.id, error))
-          }
-        }
-        guard xxl else { return }
-        try withContentSize(BoardTextSize.xxl.contentSizeCategory, session: session) {
-          for board in group where board.isScreenBase {
+        try withPostureTool(device) { postureEnvironment in
+          for board in group {
             do {
               captured.append(
                 try captureBoard(
-                  board, textSize: .xxl, session: session, mediaBaseURL: mediaBaseURL,
-                  directory: deviceDirectory))
+                  board, session: session, mediaBaseURL: mediaBaseURL,
+                  environment: postureEnvironment, directory: deviceDirectory))
             } catch {
-              failures.append(("\(board.id)-xxl", error))
+              failures.append((board.id, error))
+            }
+          }
+          guard xxl else { return }
+          try withContentSize(BoardTextSize.xxl.contentSizeCategory, session: session) {
+            for board in group where board.isScreenBase {
+              do {
+                captured.append(
+                  try captureBoard(
+                    board, textSize: .xxl, session: session, mediaBaseURL: mediaBaseURL,
+                    environment: postureEnvironment, directory: deviceDirectory))
+              } catch {
+                failures.append(("\(board.id)-xxl", error))
+              }
             }
           }
         }
@@ -1832,9 +1835,20 @@ public struct SimulatorHarness {
     )
   }
 
+  private func withPostureTool(
+    _ device: BoardDevice, _ operation: ([String: String]) throws -> Void
+  ) throws {
+    guard device.requiredDeviceTypeIdentifier == foldableDeviceTypeIdentifier else {
+      return try operation([:])
+    }
+    try DuoPosture(context: context, runner: runner, fileManager: fileManager).withTool { tool in
+      try operation([DuoPosture.toolEnvironment: tool.path])
+    }
+  }
+
   private func captureBoard(
     _ board: BoardCapture, textSize: BoardTextSize = .standard, session: SimulatorSession,
-    mediaBaseURL: URL, directory: URL
+    mediaBaseURL: URL, environment: [String: String], directory: URL
   ) throws -> BoardArtifact {
     let name = textSize == .xxl ? "\(board.id)-xxl" : board.id
     let staging = directory.appending(path: ".\(name)")
@@ -1847,10 +1861,10 @@ public struct SimulatorHarness {
       session: session,
       mediaBaseURL: mediaBaseURL,
       environment: board.testEnvironment.reduce(
-        into: [
+        into: environment.merging([
           "TEST_RUNNER_PUTIO_BOARD_ID": board.id,
           "TEST_RUNNER_PUTIO_BOARD_TEXT_AUDIT": textSize == .xxl ? "1" : "0",
-        ]
+        ]) { _, board in board }
       ) { environment, entry in environment["TEST_RUNNER_" + entry.key] = entry.value },
       resultBundle: resultBundle,
       attachmentNames: [board.id],
