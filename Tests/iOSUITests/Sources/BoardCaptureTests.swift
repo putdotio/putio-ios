@@ -1524,6 +1524,7 @@ final class BoardCaptureTests: XCTestCase {
   func testIPadInactiveNotice() throws {
     orient(.landscapeLeft)
     try launchInactiveAccount()
+    assertEmptyFileDetail()
     try captureBoard("rd-ios-ses-26-ipad-inactive")
   }
 
@@ -1673,8 +1674,26 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadAnalyticsPrompt() throws {
     orient(.landscapeLeft)
+    app.launchArguments += ["--putio-harness-continue-watching", "three"]
     launchAnalyticsPrompt()
+    _ = element("files.continue-watching.item.442").appears(within: 10)
     try captureBoard("rd-ios-ses-25-ipad-analytics")
+    let deny = app.buttons["analytics-prompt.deny"]
+    deny.tap()
+    if element("analytics-prompt.failure").appears(within: 5) { deny.tap() }
+    XCTAssertTrue(element("analytics-prompt").disappears(within: 10), "the prompt stayed open")
+    XCTAssertTrue(
+      element("files.continue-watching.item.442").appears(within: 10),
+      "Continue watching was not behind the prompt")
+    assertEmptyFileDetail()
+  }
+
+  private func assertEmptyFileDetail() {
+    XCTAssertTrue(
+      element("putio.list-detail.empty").appears(within: 10),
+      "the Files root has no detail column")
+    XCTAssertTrue(app.staticTexts["No file selected"].exists, "the empty detail has no title")
+    XCTAssertTrue(app.staticTexts["Tap a file to see it here."].exists)
   }
 
   func testAccountSettingsLoading() throws {
