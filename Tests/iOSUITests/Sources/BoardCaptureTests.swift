@@ -205,6 +205,20 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-11-swipe")
   }
 
+  func testSwipeLeading() throws {
+    orient(.portrait)
+    app.launch()
+    openSeasonFolder()
+    let row = element("files.item.444")
+    XCTAssertTrue(row.appears(within: 5), "the fourth episode never appeared")
+    row.swipeRight()
+    let move = app.buttons["item-swipe.move"]
+    XCTAssertTrue(move.appears(within: 5), "the right swipe showed no Move")
+    try captureBoard("rd-ios-11-swipe-leading")
+    move.tap()
+    XCTAssertTrue(element("files.move-screen.0").appears(within: 5), "Move never opened")
+  }
+
   func testTrashed() throws {
     orient(.portrait)
     app.launch()
