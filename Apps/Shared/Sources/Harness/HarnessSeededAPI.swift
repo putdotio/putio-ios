@@ -2276,13 +2276,7 @@ import Foundation
       #"{"duration":2989,"codec":"h264","width":1920,"height":1080}"#
 
     private static func seasonEpisodeSubtitles(id: Int) -> (Int, String) {
-      guard seasonEpisodes.contains(where: { $0.id == id }) else {
-        return (
-          404,
-          fixtureError(statusCode: 404, type: "FILE_NOT_FOUND", message: "No such episode")
-        )
-      }
-      return (
+      (
         200,
         """
         {"default":"en","subtitles":[

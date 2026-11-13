@@ -1,12 +1,15 @@
 import Foundation
 
-/// What a video's detail lists beyond its row: the length, when put.io
-/// reports one, and the subtitle languages, or `nil` when they could not load.
+/// What a video's detail lists beyond its row: the saved position, the
+/// length when put.io reports one, and the subtitle languages, or `nil` when
+/// they could not load.
 public struct PutioVideoDetails: Equatable, Sendable {
+  public let resumePositionSeconds: Int
   public let durationSeconds: Int?
   public let subtitles: [String]?
 
-  public init(durationSeconds: Int?, subtitles: [String]?) {
+  public init(resumePositionSeconds: Int, durationSeconds: Int?, subtitles: [String]?) {
+    self.resumePositionSeconds = resumePositionSeconds
     self.durationSeconds = durationSeconds
     self.subtitles = subtitles
   }

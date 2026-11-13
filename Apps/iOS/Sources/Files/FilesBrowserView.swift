@@ -6,7 +6,7 @@ extension EnvironmentValues {
   /// The account's default folder sort, which folders without their own
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
-  @Entry var putioFilesShowsColumns = false
+  @Entry var putioFileDetailSelect: PutioFileSelection? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
@@ -42,8 +42,8 @@ struct FilesBrowserView: View {
   private let loadVideoDetails: PutioVideoDetailsLoad
   private let loadFolderName: PutioFolderNameLoad
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @State private var isLandscape = false
-  @State private var selectedFile: PutioFileRoute?
+  @State private var isLandscape: Bool?
+  @State private var selectedFile: PutioFileDetailSelection?
 
   init(
     runtime: PutioRuntime,
@@ -77,7 +77,7 @@ struct FilesBrowserView: View {
     self.pins = pins
     createLink = { try await runtime.createPublicLink(fileID: $0) }
     loadVideoDetails = { try await runtime.videoDetails(fileID: $0) }
-    loadFolderName = { try await runtime.getFile(fileID: $0).name }
+    loadFolderName = { try await runtime.fileName(fileID: $0) }
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -92,10 +92,10 @@ struct FilesBrowserView: View {
 
   var body: some View {
     Group {
-      if showsColumns {
-        columns
+      if let isLandscape {
+        if horizontalSizeClass == .regular, isLandscape { columns } else { stack }
       } else {
-        stack
+        Color.clear
       }
     }
     .onGeometryChange(for: Bool.self) { geometry in
@@ -144,10 +144,6 @@ struct FilesBrowserView: View {
     }
   }
 
-  private var showsColumns: Bool {
-    horizontalSizeClass == .regular && isLandscape
-  }
-
   private var columns: some View {
     PutioListDetail(
       selection: detailSelection,
@@ -155,13 +151,14 @@ struct FilesBrowserView: View {
       emptyMessage: String(localized: "Tap a file to see it here.")
     ) { _ in
       stack
-        .environment(\.putioFilesShowsColumns, true)
+        .environment(\.putioFileDetailSelect, detailSelect)
     } detail: { _ in
       if let selectedFile {
         PutioFileDetailView(
-          route: selectedFile,
-          folderTitles: folderTitles(for: selectedFile.item),
-          isOnDevice: isOnDevice(selectedFile.item),
+          route: selectedFile.route,
+          folderTitles: selectedFile.folderTitles,
+          offlineStatus: offlineFiles?.status(selectedFile.route.id) ?? .remote,
+          reloadKey: refreshRequests.revision,
           loadDetails: loadVideoDetails,
           loadFolderName: loadFolderName,
           onPlay: onFileSelected,
@@ -175,33 +172,19 @@ struct FilesBrowserView: View {
   private var detailSelection: Binding<PutioFileID?> {
     let selection = $selectedFile
     return Binding(
-      get: { selection.wrappedValue?.id },
+      get: { selection.wrappedValue?.route.id },
       set: { id in
         if id == nil { selection.wrappedValue = nil }
       })
   }
 
-  private var openFile: PutioFileSelection {
-    let open = onFileSelected
-    guard showsColumns else { return open }
+  private var detailSelect: PutioFileSelection {
     let selection = $selectedFile
+    let path = path
     return { route in
-      guard case .video = route.openAction else {
-        open(route)
-        return
-      }
-      selection.wrappedValue = route
+      selection.wrappedValue = PutioFileDetailSelection(
+        route: route, folderTitles: PutioFileDetailSelection.folderTitles(of: route.item, in: path))
     }
-  }
-
-  private func folderTitles(for item: PutioFileItem) -> [String]? {
-    if item.parentID == .root { return [PutioFolderRoute.root.title] }
-    guard let index = path.lastIndex(where: { $0.id == item.parentID }) else { return nil }
-    return path[...index].filter { $0 != .pinnedList }.map(\.title)
-  }
-
-  private func isOnDevice(_ item: PutioFileItem) -> Bool {
-    offlineFiles?.items(item.parentID).contains { $0.id == item.id } ?? false
   }
 
   private var stack: some View {
@@ -215,7 +198,7 @@ struct FilesBrowserView: View {
         tracksWatched: tracksWatched,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
-        onFileSelected: openFile,
+        onFileSelected: onFileSelected,
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
         onBulkDownload: onBulkDownload,
@@ -232,7 +215,7 @@ struct FilesBrowserView: View {
             continueLoad: continueLoad,
             trashEnabled: trashEnabled,
             refreshRequests: refreshRequests,
-            onFileSelected: openFile
+            onFileSelected: onFileSelected
           )
         } else {
           folderScreen(route)
@@ -250,13 +233,24 @@ struct FilesBrowserView: View {
       trashEnabled: trashEnabled,
       tracksWatched: tracksWatched,
       refreshRequests: refreshRequests,
-      onFileSelected: openFile,
+      onFileSelected: onFileSelected,
       onExternalPlayback: onExternalPlayback,
       onDownload: onDownload,
       onBulkDownload: onBulkDownload,
       castButton: castButton,
       offlineFiles: offlineFiles
     )
+  }
+}
+
+struct PutioFileDetailSelection {
+  let route: PutioFileRoute
+  let folderTitles: [String]?
+
+  static func folderTitles(of item: PutioFileItem, in path: [PutioFolderRoute]) -> [String]? {
+    if item.parentID == .root { return [PutioFolderRoute.root.title] }
+    guard let index = path.lastIndex(where: { $0.id == item.parentID }) else { return nil }
+    return path[...index].filter { $0 != .pinnedList }.map(\.title)
   }
 }
 

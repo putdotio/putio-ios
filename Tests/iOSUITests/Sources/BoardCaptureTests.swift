@@ -731,6 +731,7 @@ final class BoardCaptureTests: XCTestCase {
     app.navigationBars.buttons.firstMatch.tap()
     XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
     XCTAssertTrue(element("files.detail.442").exists, "going back emptied the detail")
+    assertFact("folder", "Folder, Harness Folder / Blue Lights")
     let folder = element("files.item.440")
     XCTAssertTrue(folder.appears(within: 5), "the season folder row is missing")
     folder.tap()

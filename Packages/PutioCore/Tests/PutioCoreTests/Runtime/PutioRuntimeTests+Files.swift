@@ -349,7 +349,7 @@ extension PutioRuntimeTests {
     let fileRoute = "GET /v2/files/441"
     let subtitlesRoute = "GET /v2/files/441/subtitles"
     fixtures.setFixture(
-      #"{"file":{"id":441,"name":"Episode.mkv","file_type":"VIDEO","parent_id":440,"size":3,"created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z","video_metadata":{"duration":2989.4,"codec":"h264","width":1920,"height":1080}}}"#,
+      #"{"file":{"id":441,"name":"Episode.mkv","file_type":"VIDEO","parent_id":440,"size":3,"created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z","start_from":1122,"video_metadata":{"duration":2989.4,"codec":"h264","width":1920,"height":1080}}}"#,
       for: fileRoute)
     fixtures.setFixture(
       """
@@ -363,13 +363,18 @@ extension PutioRuntimeTests {
 
     let details = try await runtime.videoDetails(fileID: PutioFileID(rawValue: 441))
     XCTAssertEqual(
-      details, PutioVideoDetails(durationSeconds: 2989, subtitles: ["English", "Episode.tr.srt"]))
+      details,
+      PutioVideoDetails(
+        resumePositionSeconds: 1122, durationSeconds: 2989,
+        subtitles: ["English", "Episode.tr.srt"]))
     XCTAssertEqual(PutioFileDetailText.clock(seconds: 2989), "49:49")
     XCTAssertEqual(PutioFileDetailText.clock(seconds: 3723), "1:02:03")
 
     fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: subtitlesRoute)
     let withoutSubtitles = try await runtime.videoDetails(fileID: PutioFileID(rawValue: 441))
-    XCTAssertEqual(withoutSubtitles, PutioVideoDetails(durationSeconds: 2989, subtitles: nil))
+    XCTAssertEqual(
+      withoutSubtitles,
+      PutioVideoDetails(resumePositionSeconds: 1122, durationSeconds: 2989, subtitles: nil))
   }
 
   func testSetFolderSortPostsTheServerKey() async throws {

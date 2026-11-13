@@ -9,7 +9,8 @@ typealias PutioFolderNameLoad = @MainActor @Sendable (PutioFileID) async throws 
 struct PutioFileDetailView: View {
   let route: PutioFileRoute
   let folderTitles: [String]?
-  let isOnDevice: Bool
+  let offlineStatus: PutioOfflineFileStatus
+  let reloadKey: UInt64
   let loadDetails: PutioVideoDetailsLoad
   let loadFolderName: PutioFolderNameLoad
   let onPlay: PutioFileSelection
@@ -20,6 +21,7 @@ struct PutioFileDetailView: View {
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioPinnedFiles) private var pinned
   @State private var details: PutioVideoDetails?
+  @State private var detailsID: PutioFileID?
   @State private var loadedFolder: String?
   @State private var share = PutioFileShareModel()
   @State private var toast: PutioToast?
@@ -51,9 +53,10 @@ struct PutioFileDetailView: View {
         PutioShareSheetAnchor(file: file, name: item.name, model: share)
       }
     }
-    .putioToast($toast)
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
-    .task(id: item.id) { await load() }
+    .putioToast($toast)
+    .task(id: LoadKey(id: item.id, reload: reloadKey)) { await load() }
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
       if toast?.id == preparingToast { toast = nil }
@@ -91,7 +94,7 @@ struct PutioFileDetailView: View {
       }
       .lineLimit(1)
       .accessibilityIdentifier("files.detail.play")
-      if isOnDevice {
+      if offlineStatus == .onDevice {
         iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded")) {}
           .disabled(true)
           .accessibilityIdentifier("files.detail.on-device")
@@ -99,6 +102,7 @@ struct PutioFileDetailView: View {
         iconButton(.arrowCircleDown, label: String(localized: "Download")) {
           onDownload(route)
         }
+        .disabled(offlineStatus == .queued)
         .accessibilityIdentifier("files.detail.download")
       }
       if fileShare != nil {
@@ -123,8 +127,9 @@ struct PutioFileDetailView: View {
   }
 
   private var primaryTitle: String {
-    guard item.resumePositionSeconds > 0 else { return String(localized: "Play") }
-    let time = PutioFileDetailText.clock(seconds: item.resumePositionSeconds)
+    let position = details?.resumePositionSeconds ?? item.resumePositionSeconds
+    guard position > 0 else { return String(localized: "Play") }
+    let time = PutioFileDetailText.clock(seconds: position)
     return String(localized: "Resume from \(time)")
   }
 
@@ -152,7 +157,7 @@ struct PutioFileDetailView: View {
     }
     if let pins = pinned?.model, !item.isShared || pins.isPinned(item.id) {
       let item = item
-      let location = folderTitles?.last ?? PutioFolderRoute.root.title
+      let location = folderTitles?.last ?? loadedFolder
       actions.append(
         pins.isPinned(item.id)
           ? PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
@@ -223,15 +228,25 @@ struct PutioFileDetailView: View {
   }
 
   private func load() async {
-    details = nil
-    loadedFolder = nil
-    async let videoDetails = try? loadDetails(item.id)
-    if folderTitles == nil {
-      loadedFolder = try? await loadFolderName(item.parentID)
+    let id = item.id
+    if detailsID != id {
+      details = nil
+      loadedFolder = nil
+      detailsID = id
+    }
+    async let videoDetails = try? loadDetails(id)
+    if folderTitles == nil, loadedFolder == nil {
+      let name = try? await loadFolderName(item.parentID)
+      if !Task.isCancelled { loadedFolder = name }
     }
     let loaded = await videoDetails
-    guard !Task.isCancelled else { return }
+    guard !Task.isCancelled, let loaded else { return }
     details = loaded
+  }
+
+  private struct LoadKey: Equatable {
+    let id: PutioFileID
+    let reload: UInt64
   }
 
   private var shareSource: PutioFileShareSource? {

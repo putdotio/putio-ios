@@ -36,7 +36,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioAccountStorage) private var accountStorage
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @Environment(\.putioFilesShowsColumns) private var showsColumns
+  @Environment(\.putioFileDetailSelect) private var detailSelect
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -147,7 +147,7 @@ struct PutioFolderScreen: View {
     }
     .navigationTitle(folderTitle)
     .navigationBarTitleDisplayMode(
-      route.id == .root && !isEditing && !showsColumns ? .large : .inline
+      route.id == .root && !isEditing && detailSelect == nil ? .large : .inline
     )
     .navigationBarBackButtonHidden(navigationLocked || isEditing)
     .putioContentBackground()
@@ -522,7 +522,7 @@ struct PutioFolderScreen: View {
           if let previewOpen, fileRoute.previewKind != nil {
             previewOpen(fileRoute, in: model.previewSource)
           } else {
-            onFileSelected(fileRoute)
+            openRow(fileRoute)
           }
         } label: {
           PutioFileRow(presentation.row)
@@ -533,6 +533,14 @@ struct PutioFolderScreen: View {
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
         .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
       )
+    }
+  }
+
+  private func openRow(_ route: PutioFileRoute) {
+    if let detailSelect, case .video = route.openAction {
+      detailSelect(route)
+    } else {
+      onFileSelected(route)
     }
   }
 
