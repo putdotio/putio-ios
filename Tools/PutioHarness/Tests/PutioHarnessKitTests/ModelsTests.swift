@@ -300,6 +300,19 @@ import Testing
   #expect(posed.captureName == "rd-ios-pv-15-ipad-pdf")
 }
 
+@Test func boardManifestCommandReplaysEveryOverride() throws {
+  #expect(
+    BoardCaptureContract.command(
+      ids: ["rd-ios-02-folder", "rd-ios-04-sort"], device: .ipad, orientation: .portrait,
+      xxl: true)
+      == "journey --boards rd-ios-02-folder,rd-ios-04-sort --device ipad --orientation portrait --xxl"
+  )
+  #expect(
+    BoardCaptureContract.command(
+      ids: ["rd-ios-02-folder"], device: nil, orientation: nil, xxl: false)
+      == "journey --boards rd-ios-02-folder")
+}
+
 @Test func heldOrientationRejectsAWindowInTheOtherPose() throws {
   let tall = BoardLayout(width: 3, height: 4, scale: 2)
   let wide = BoardLayout(width: 4, height: 3, scale: 2)

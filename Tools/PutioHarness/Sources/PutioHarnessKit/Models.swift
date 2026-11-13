@@ -856,6 +856,17 @@ enum BoardCaptureContract {
     "confirm-alert", "selection-none", "selection-some", "selection-all", "split",
   ]
 
+  static func command(
+    ids: [String], device: BoardDevice?, orientation: BoardOrientation?, xxl: Bool
+  ) -> String {
+    [
+      "journey --boards \(ids.joined(separator: ","))",
+      device.map { "--device \($0.rawValue)" },
+      orientation.map { "--orientation \($0.rawValue)" },
+      xxl ? "--xxl" : nil,
+    ].compactMap { $0 }.joined(separator: " ")
+  }
+
   static func resolve(
     _ ids: [String], device: BoardDevice? = nil, orientation: BoardOrientation? = nil
   ) throws -> [BoardCapture] {

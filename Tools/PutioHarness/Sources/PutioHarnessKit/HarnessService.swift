@@ -71,8 +71,10 @@ public struct HarnessService {
       let runID = try requestedRunID ?? simulator.defaultRunID()
       let sourceRevision = try simulator.pinProofSourceRevision()
       let run = try simulator.captureBoards(
-        boards, xxl: xxl, runID: runID,
-        sourceRevision: sourceRevision)
+        boards, xxl: xxl,
+        command: BoardCaptureContract.command(
+          ids: boards.map(\.id), device: device, orientation: orientation, xxl: xxl),
+        runID: runID, sourceRevision: sourceRevision)
       return .result(
         HarnessResult(
           command: "journey --boards",
