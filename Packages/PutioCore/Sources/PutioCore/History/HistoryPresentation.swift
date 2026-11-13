@@ -10,14 +10,12 @@ public struct PutioHistoryDay: Identifiable, Equatable {
     locale: Locale = .current
   ) -> [PutioHistoryDay] {
     let today = calendar.startOfDay(for: now)
-    var order: [Date] = []
     var groups: [Date: [PutioHistoryEventItem]] = [:]
     for item in items {
       let day = min(calendar.startOfDay(for: item.createdAt), today)
-      if groups[day] == nil { order.append(day) }
       groups[day, default: []].append(item)
     }
-    return order.map { day in
+    return groups.keys.sorted(by: >).map { day in
       PutioHistoryDay(
         id: day, title: title(for: day, today: today, calendar: calendar, locale: locale),
         items: groups[day, default: []])
