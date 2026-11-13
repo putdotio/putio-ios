@@ -8,10 +8,12 @@ extension EnvironmentValues {
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
   @Entry var putioFileDetailSelect: PutioFileSelection? = nil
   @Entry var putioFileDetailClear: PutioFileDetailClear? = nil
+  @Entry var putioFileDetailReconcile: PutioFileDetailReconcile? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
 typealias PutioFileDetailClear = @MainActor @Sendable (Set<PutioFileID>?) -> Void
+typealias PutioFileDetailReconcile = @MainActor @Sendable ([PutioFileItem]) -> Void
 typealias PutioBulkFileSelection = @MainActor @Sendable ([PutioFileRoute]) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
@@ -200,6 +202,17 @@ struct FilesBrowserView: View {
     }
   }
 
+  private var detailReconcile: PutioFileDetailReconcile {
+    let selection = $selectedFile
+    return { items in
+      guard let open = selection.wrappedValue,
+        let item = items.first(where: { $0.id == open.route.id }), item != open.route.item
+      else { return }
+      selection.wrappedValue = PutioFileDetailSelection(
+        route: PutioFileRoute(item: item), folderTitles: open.folderTitles)
+    }
+  }
+
   private func stack(showsDetail: Bool) -> some View {
     NavigationStack(path: $path) {
       PutioFolderScreen(
@@ -222,14 +235,16 @@ struct FilesBrowserView: View {
       .modifier(
         PutioFileDetailColumn(
           selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
-          clear: showsDetail ? detailClear : nil)
+          clear: showsDetail ? detailClear : nil,
+          reconcile: showsDetail ? detailReconcile : nil)
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         destination(route)
           .modifier(
             PutioFileDetailColumn(
               selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
-              clear: showsDetail ? detailClear : nil)
+              clear: showsDetail ? detailClear : nil,
+              reconcile: showsDetail ? detailReconcile : nil)
           )
       }
     }
@@ -275,6 +290,7 @@ private struct PutioFileDetailColumn: ViewModifier {
   let selection: PutioFileDetailSelection?
   let select: PutioFileSelection?
   let clear: PutioFileDetailClear?
+  let reconcile: PutioFileDetailReconcile?
 
   @ViewBuilder func body(content: Content) -> some View {
     if let select {
@@ -283,6 +299,7 @@ private struct PutioFileDetailColumn: ViewModifier {
         .toolbar(removing: .sidebarToggle)
         .environment(\.putioFileDetailSelect, select)
         .environment(\.putioFileDetailClear, clear)
+        .environment(\.putioFileDetailReconcile, reconcile)
         .putioListDetailOpenRow(selection?.route.id)
     } else {
       content

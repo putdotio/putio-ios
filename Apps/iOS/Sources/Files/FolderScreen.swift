@@ -38,6 +38,7 @@ struct PutioFolderScreen: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.putioFileDetailSelect) private var detailSelect
   @Environment(\.putioFileDetailClear) private var detailClear
+  @Environment(\.putioFileDetailReconcile) private var detailReconcile
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -287,6 +288,9 @@ struct PutioFolderScreen: View {
     .onChange(of: fileActionPending) { _, pending in
       guard !pending, let pins = pinned?.model, !pins.items.isEmpty else { return }
       Task { await pins.load() }
+    }
+    .onChange(of: currentItems) { _, items in
+      detailReconcile?(items)
     }
     .onChange(of: isEditing) { _, editing in
       guard editing else { return }
