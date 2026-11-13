@@ -771,6 +771,8 @@ enum BoardCaptureContract {
         screenBase: false),
       BoardCapture(
         "rd-ios-acc-58-ipad-danger", .ipad, "testIPadAccountClearData", screenBase: false),
+      BoardCapture("rd-ios-acc-61-duo-closed", .duoFolded, "testAccountTop"),
+      BoardCapture("rd-ios-acc-62-duo-open", .duoOpen, "testIPadAccount"),
       BoardCapture(
         "rd-ios-acc-29-inactive", .iphone, "testAccountInactive",
         environment: ["PUTIO_INACTIVE_ACCOUNT": "owner"]),
