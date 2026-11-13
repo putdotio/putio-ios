@@ -94,8 +94,8 @@ enum AnalyticsEvent: Equatable {
         }
     }
 
-    /// The web app's playback errors: `source` is a deleted, unpaid, or
-    /// throttled file, `unsupported` one the player can't play as it is.
+    /// The web app's playback errors: `source` is a deleted, unpaid,
+    /// throttled, or unreadable file, `unsupported` one the player can't play as it is.
     enum PlaybackError: String, CaseIterable {
         case network, media, source, unsupported, unknown
 
@@ -109,13 +109,12 @@ enum AnalyticsEvent: Equatable {
                 }
                 return
             }
-            if let error = error as? URLError, [.fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile].contains(error.code) {
-                self = .source
+            if let error = error as? URLError {
+                self.init(urlErrorCode: error.code)
                 return
             }
             let error = error as NSError?
             switch error?.domain {
-            case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
             case kGCKErrorDomain?: self = error.map { Self(castCode: $0.code) } ?? .unknown
             default: self = .unknown
@@ -127,6 +126,22 @@ enum AnalyticsEvent: Equatable {
             case 402, 404, 429: self = .source
             case 0, 408, 500...: self = .network
             default: self = .unknown
+            }
+        }
+
+        private init(urlErrorCode code: URLError.Code) {
+            switch code {
+            case .resourceUnavailable, .fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile,
+                URLError.Code(rawValue: NSURLErrorFileOutsideSafeArea):
+                self = .source
+            case .timedOut, .cannotFindHost, .cannotConnectToHost, .networkConnectionLost, .dnsLookupFailed, .httpTooManyRedirects,
+                .notConnectedToInternet, .redirectToNonExistentLocation, .badServerResponse, .zeroByteResource, .cannotDecodeRawData,
+                .cannotDecodeContentData, .cannotParseResponse, .internationalRoamingOff, .callIsActive, .dataNotAllowed, .secureConnectionFailed,
+                .serverCertificateHasBadDate, .serverCertificateUntrusted, .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid,
+                .clientCertificateRejected, .clientCertificateRequired:
+                self = .network
+            default:
+                self = .unknown
             }
         }
 
