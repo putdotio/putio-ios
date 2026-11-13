@@ -733,6 +733,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     let row = element("files.item.442")
     selectVideo(row, id: 442, primary: "Resume from 21:00")
+    XCTAssertGreaterThanOrEqual(
+      row.frame.maxX, 384, "the list column is narrower than its 384 pt minimum")
     XCTAssertFalse(element("video.ready").exists, "selecting a video started playback")
     assertFact("length", "Length, 49:49")
     assertFact("subtitles", "Subtitles, English, Turkish")
@@ -956,7 +958,7 @@ final class BoardCaptureTests: XCTestCase {
 
     openDetailMore(
       lacking: ["Play", "Download", "Share", "Select", "Mark as watched", "Mark as unwatched"])
-    element("files.detail.title").tap()
+    element("files.detail.fact.folder").tap()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
     element("files.detail.open").tap()
     XCTAssertTrue(element("preview.screen.406").appears(within: 10), "Open showed no preview")

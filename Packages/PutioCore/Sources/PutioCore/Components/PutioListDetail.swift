@@ -41,28 +41,11 @@
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
           .environment(\.putioListDetailShowsOpenRow, horizontalSizeClass == .regular)
           .environment(\.putioListDetailOpen, openAction)
-          .navigationSplitViewColumnWidth(
-            min: PutioListDetailLayout.listMinimumWidth,
-            ideal: PutioListDetailLayout.listIdealWidth
-          )
+          .background(PutioListColumnWidth())
           .toolbar(removing: .sidebarToggle)
       } detail: {
-        if let selection {
-          NavigationStack {
-            detail(selection)
-          }
-          .id(selection)
-        } else if let emptyState {
-          PutioEmptyStateView.textOnly(
-            title: emptyState.title, message: emptyState.message
-          )
-          .putioContentBackground()
-          .accessibilityIdentifier("putio.list-detail.empty")
-        } else {
-          PutioTheme.Colors.background
-            .ignoresSafeArea()
-            .accessibilityIdentifier("putio.list-detail.empty")
-        }
+        detailColumn
+          .background(PutioListColumnWidth())
       }
       .navigationSplitViewStyle(.balanced)
       .onChange(of: selection) { _, current in
@@ -76,6 +59,25 @@
         guard sizeClass == .regular else { return }
         columnVisibility = .all
         if selection == nil, let retainedSelection { selection = retainedSelection }
+      }
+    }
+
+    @ViewBuilder private var detailColumn: some View {
+      if let selection {
+        NavigationStack {
+          detail(selection)
+        }
+        .id(selection)
+      } else if let emptyState {
+        PutioEmptyStateView.textOnly(
+          title: emptyState.title, message: emptyState.message
+        )
+        .putioContentBackground()
+        .accessibilityIdentifier("putio.list-detail.empty")
+      } else {
+        PutioTheme.Colors.background
+          .ignoresSafeArea()
+          .accessibilityIdentifier("putio.list-detail.empty")
       }
     }
 
@@ -161,9 +163,27 @@
     @Entry var putioListDetailShowsOpenRow = false
   }
 
+  private struct PutioListColumnWidth: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller { Controller() }
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+      override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        guard let split = splitViewController,
+          split.minimumPrimaryColumnWidth != PutioListDetailLayout.listMinimumWidth
+            || split.preferredPrimaryColumnWidth != PutioListDetailLayout.listIdealWidth
+        else { return }
+        split.minimumPrimaryColumnWidth = PutioListDetailLayout.listMinimumWidth
+        split.preferredPrimaryColumnWidth = PutioListDetailLayout.listIdealWidth
+      }
+    }
+  }
+
   enum PutioListDetailLayout {
-    static let listMinimumWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space5
-    static let listIdealWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
+    static let listMinimumWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
+    static let listIdealWidth =
+      PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6 + PutioTheme.Spacing.space5
     static let selectedRowTint = PutioTheme.Colors.accent.opacity(0.14)
     static let selectedRowRadius = PutioTheme.Radius.large
     static let selectedRowInset = PutioTheme.Spacing.space2
