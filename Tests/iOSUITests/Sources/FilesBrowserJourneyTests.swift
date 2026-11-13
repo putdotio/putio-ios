@@ -2,6 +2,7 @@ import XCTest
 
 final class FilesBrowserJourneyTests: XCTestCase {
   private var app: XCUIApplication!
+  private let toastDuration: TimeInterval = 5
 
   override func setUpWithError() throws {
     try super.setUpWithError()
@@ -2034,6 +2035,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.staticTexts["Moved to trash"].appears(within: 5),
       "Trash success was not surfaced"
     )
+    let trashToastExpiry = Date.now.addingTimeInterval(toastDuration)
     XCTAssertTrue(
       movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
     XCTAssertTrue(
@@ -2046,11 +2048,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "new-folder action is unavailable while the Undo toast shows")
     newFolderUnderToast.tap()
     let alertOverToast = nameAlert("New folder")
-    XCTAssertTrue(
-      app.staticTexts["Moved to trash"].disappears(within: 10),
-      "the Undo toast never timed out under the alert")
+    RunLoop.current.run(until: trashToastExpiry.addingTimeInterval(1))
     XCTAssertTrue(alertOverToast.exists, "the alert closed before the toast timed out")
     submitName("Bulk Retry", in: alertOverToast, as: "Create")
+    XCTAssertFalse(
+      app.buttons["Undo"].exists, "the Undo toast outlived its timeout under the alert")
     let bulkRetryFolder = element(identifier: "files.item.416")
     XCTAssertTrue(
       bulkRetryFolder.appears(within: 5),
