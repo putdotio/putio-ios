@@ -23,7 +23,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     let section = element("files.continue-watching")
     let allFiles = element("files.all-files")
     XCTAssertTrue(allFiles.appears(within: 5), "the root has no All files header")
-    XCTAssertEqual(allFiles.label, "All files, 30.6 GB of 1.1 TB")
+    XCTAssertEqual(allFiles.label, "All files, 30.62 GB of 1.1 TB")
     XCTAssertFalse(section.exists, "Continue watching showed before anything was played")
 
     playNestedMovieToTheMiddle(convertsFirst: true)
