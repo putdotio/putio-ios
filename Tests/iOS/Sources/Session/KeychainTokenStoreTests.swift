@@ -37,4 +37,26 @@ final class KeychainTokenStoreTests: XCTestCase {
       attributes[kSecAttrAccessible as String] as? String,
       kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String)
   }
+
+  func testSignOutMarkStaysWithTheCredentialUntilANewTokenOrAClear() throws {
+    let store = PutioKeychainTokenStore(service: service)
+    try store.markSignOutPending()
+    XCTAssertFalse(try store.readSignOutPending())
+
+    try store.write("signed-in-token")
+    XCTAssertFalse(try store.readSignOutPending())
+
+    try store.markSignOutPending()
+    XCTAssertTrue(try store.readSignOutPending())
+    XCTAssertEqual(try store.read(), "signed-in-token")
+    XCTAssertTrue(try PutioKeychainTokenStore(service: service).readSignOutPending())
+
+    try store.write("new-token")
+    XCTAssertFalse(try store.readSignOutPending())
+
+    try store.markSignOutPending()
+    try store.clear()
+    XCTAssertFalse(try store.readSignOutPending())
+    XCTAssertNil(try store.read())
+  }
 }
