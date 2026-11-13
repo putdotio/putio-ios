@@ -201,7 +201,7 @@ struct TrashManagementView: View {
       .refreshable { await model.refresh() }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
-        if !isEmpty {
+        if !page.items.isEmpty {
           header(page)
             .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
