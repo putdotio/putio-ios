@@ -100,6 +100,13 @@ A board state needs one row there and one seeded test step.
   Simulator runtime update, the event format changed.
 - The run fails on an id with no table row, and when any board produces no
   capture.
+- Downloads boards launch with `--putio-harness-downloads <fixture>`, which
+  seeds the queue from
+  [HarnessDownloadsFixture](../../../../Apps/iOS/Sources/Offline/HarnessDownloadsFixture.swift).
+  A seeded queue never starts, resumes, or advances a download, so rows hold
+  their state. `offline` also cuts every API request but sign-in.
+  `--putio-harness-offline-writes-fail` makes removal fail;
+  `--putio-harness-notifications-denied` reports notifications as off.
 - Captures use the seeded fixtures, never the live account. Compare them with
   their boards yourself; the run proves only that the state was reached.
 - Redesign pull requests list each capture in the board table the

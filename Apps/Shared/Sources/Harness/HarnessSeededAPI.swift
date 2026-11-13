@@ -762,6 +762,16 @@ import Foundation
     private static var searchesOffline: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-search-offline")
     }
+    private static let downloadsOffline: Bool = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: "--putio-harness-downloads"),
+        arguments.indices.contains(flag + 1)
+      else { return false }
+      return arguments[flag + 1] == "offline"
+    }()
+    private static func reachesOffline(_ url: URL) -> Bool {
+      url.path.hasPrefix("/v2/oauth2/") || url.path == "/v2/account/info"
+    }
     private static var failsSearchContinuation: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-search-more-fails")
     }
@@ -1086,6 +1096,12 @@ import Foundation
         return
       case nil:
         break
+      }
+      if Self.downloadsOffline, !Self.reachesOffline(url) {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
       }
       if Self.searchesOffline, url.path == "/v2/files/search" {
         deliveryGate.deliver(generation: generation) {

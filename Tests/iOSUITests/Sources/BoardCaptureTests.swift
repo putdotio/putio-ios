@@ -98,6 +98,64 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-43-offline")
   }
 
+  func testDownloadsFixture() throws {
+    let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
+    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
+    orient(.portrait)
+    app.launchArguments += ["--putio-harness-downloads", fixture]
+    app.launch()
+    let downloads = tabButton("Downloads")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !downloads.exists, !signIn.exists, Date.now < deadline {
+      _ = downloads.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !downloads.appears(within: 15) { sidebarToggle().tap() }
+    XCTAssertTrue(downloads.appears(within: 5), "the Downloads tab is missing")
+    downloads.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+    if rows.isEmpty {
+      XCTAssertTrue(element("downloads.empty").appears(within: 5), "the empty fixture has rows")
+    }
+    for _ in 0..<2 {
+      for (id, state) in rows {
+        let row = app.revealed("downloads.item.\(id)")
+        XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
+        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id)")
+      }
+      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+      RunLoop.current.run(until: .now.addingTimeInterval(3))
+    }
+    try captureBoard("rd-ios-dl-01-list")
+    guard fixture == "offline" else { return }
+    tabButton("Files").tap()
+    XCTAssertTrue(
+      app.staticTexts["put.io is out of reach"].appears(within: 15),
+      "the offline fixture left the network up")
+  }
+
+  private static let listFixtureRows: [(id: Int, state: String)] = [
+    (442, "downloading;42"), (443, "queued"), (444, "failed;resolution"), (441, "completed"),
+    (9_001, "completed"), (408, "completed"),
+  ]
+
+  private static let downloadsFixtureRows: [String: [(id: Int, state: String)]] = [
+    "list": listFixtureRows,
+    "offline": listFixtureRows,
+    "empty": [],
+    "downloading-states": [
+      (442, "downloading;42"), (447, "converting;12"), (443, "paused;42"),
+      (448, "downloading;42"), (444, "downloading;6"), (449, "queued"), (441, "completed"),
+      (9_001, "completed"),
+    ],
+    "attention-states": [
+      (442, "failed;resolution"), (443, "failed;authentication"), (444, "failed;notFound"),
+      (447, "failed;storage"), (448, "failed;download"), (441, "completed"),
+      (9_001, "completed"), (408, "completed"),
+    ],
+  ]
+
   func testFolderLoading() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")
