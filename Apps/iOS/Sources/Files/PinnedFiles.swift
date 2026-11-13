@@ -93,14 +93,19 @@ struct PutioPinnedRows: View {
   let onOpen: PutioFileSelection
   let onMove: @MainActor @Sendable (PutioFileItem) -> Void
   var onLink: (@MainActor @Sendable (PutioFileItem) -> Void)? = nil
+  @Environment(\.putioFileDetailSelect) private var detailSelect
+  @Environment(\.putioFileDetailReconcile) private var detailReconcile
 
   var body: some View {
     ForEach(pins) { pin in
       row(pin)
         .frame(maxWidth: .infinity, alignment: .leading)
         .putioItemActions(menu(for: pin.item))
-        .listRowBackground(PutioTheme.Colors.background)
+        .putioListDetailRow(pin.id)
         .selectionDisabled()
+    }
+    .onChange(of: pins) { _, pins in
+      detailReconcile?(pins.map(\.item))
     }
   }
 
@@ -119,7 +124,12 @@ struct PutioPinnedRows: View {
       .accessibilityIdentifier("files.pinned.item.\(pin.id.rawValue)")
     } else {
       Button {
-        onOpen(PutioFileRoute(item: pin.item))
+        let route = PutioFileRoute(item: pin.item)
+        if let detailSelect, case .video = route.openAction {
+          detailSelect(route)
+        } else {
+          onOpen(route)
+        }
       } label: {
         label.contentShape(Rectangle())
       }

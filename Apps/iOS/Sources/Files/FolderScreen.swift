@@ -36,6 +36,9 @@ struct PutioFolderScreen: View {
   @Environment(\.putioAccountStorage) private var accountStorage
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.putioFileDetailSelect) private var detailSelect
+  @Environment(\.putioFileDetailClear) private var detailClear
+  @Environment(\.putioFileDetailReconcile) private var detailReconcile
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -145,7 +148,9 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(folderTitle)
-    .navigationBarTitleDisplayMode(route.id == .root && !isEditing ? .large : .inline)
+    .navigationBarTitleDisplayMode(
+      route.id == .root && !isEditing && detailSelect == nil ? .large : .inline
+    )
     .navigationBarBackButtonHidden(navigationLocked || isEditing)
     .putioContentBackground()
     .toolbar {
@@ -284,8 +289,13 @@ struct PutioFolderScreen: View {
       guard !pending, let pins = pinned?.model, !pins.items.isEmpty else { return }
       Task { await pins.load() }
     }
+    .onChange(of: currentItems) { _, items in
+      detailReconcile?(items)
+    }
     .onChange(of: isEditing) { _, editing in
-      if editing { share.leave() }
+      guard editing else { return }
+      share.leave()
+      detailClear?(nil)
     }
   }
 
@@ -519,7 +529,7 @@ struct PutioFolderScreen: View {
           if let previewOpen, fileRoute.previewKind != nil {
             previewOpen(fileRoute, in: model.previewSource)
           } else {
-            onFileSelected(fileRoute)
+            openRow(fileRoute)
           }
         } label: {
           PutioFileRow(presentation.row)
@@ -530,6 +540,14 @@ struct PutioFolderScreen: View {
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
         .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
       )
+    }
+  }
+
+  private func openRow(_ route: PutioFileRoute) {
+    if let detailSelect, case .video = route.openAction {
+      detailSelect(route)
+    } else {
+      onFileSelected(route)
     }
   }
 
@@ -553,7 +571,7 @@ struct PutioFolderScreen: View {
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
     let row = content.frame(maxWidth: .infinity, alignment: .leading)
-      .listRowBackground(PutioTheme.Colors.background)
+      .putioListDetailRow(item.id)
       .background {
         if let file = share.presented(for: item.id) {
           PutioShareSheetAnchor(file: file, name: item.name, model: share)
@@ -1007,6 +1025,11 @@ struct PutioFolderScreen: View {
     return contents.items
   }
 
+  private func releaseDetail(_ id: PutioFileID) {
+    guard !currentItems.contains(where: { $0.id == id }) else { return }
+    detailClear?([id])
+  }
+
   private var isEditing: Bool {
     selection.isActive
   }
@@ -1072,6 +1095,7 @@ struct PutioFolderScreen: View {
     _ item: PutioFileItem, to destination: PutioFolderRoute
   ) async -> PutioMoveSheetResult {
     await model.move(item, to: destination)
+    releaseDetail(item.id)
     guard let outcome = model.actionOutcome,
       case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
     else { return .closed }
@@ -1133,6 +1157,7 @@ struct PutioFolderScreen: View {
     startedActionRequest = nil
     selection.retain(currentItems.map(\.id))
     if case .delete(let item, _) = request {
+      releaseDetail(item.id)
       presentActionOutcome(deleting: item)
     } else {
       presentActionOutcome()

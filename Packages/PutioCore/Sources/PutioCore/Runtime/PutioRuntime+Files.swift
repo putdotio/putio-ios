@@ -235,6 +235,35 @@ extension PutioRuntime {
     return snapshot(file)
   }
 
+  /// The saved position, length and subtitle languages a video's detail
+  /// shows. A subtitle lookup that fails, or an account that hides
+  /// subtitles, leaves `subtitles` nil.
+  public func videoDetails(fileID: PutioFileID) async throws -> PutioVideoDetails {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    async let subtitles = subtitleLanguages(fileID: fileID)
+    let file = try await performAuthenticatedOperation {
+      try await sdk.getFile(
+        fileID: fileID.rawValue,
+        query: PutioFileDetailsQuery(
+          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false))
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    let duration = file.metaData.map { Int($0.duration.rounded()) }.flatMap { $0 > 0 ? $0 : nil }
+    return PutioVideoDetails(
+      resumePositionSeconds: file.startFrom, durationSeconds: duration, subtitles: await subtitles)
+  }
+
+  private func subtitleLanguages(fileID: PutioFileID) async -> [String]? {
+    guard case .signedIn(let account) = session.state, !account.hideSubtitles else { return nil }
+    guard
+      let response = try? await performAuthenticatedOperation({
+        try await sdk.getSubtitles(fileID: fileID.rawValue)
+      })
+    else { return nil }
+    return PutioFileDetailText.subtitleLanguages(
+      response.subtitles.map { (language: $0.language, name: $0.name) })
+  }
+
   /// Resolves the download-token URL for previews and external players.
   /// Folders have no download representation and resolve as invalid.
   public func resolveFileDownloadSource(fileID: PutioFileID) async throws

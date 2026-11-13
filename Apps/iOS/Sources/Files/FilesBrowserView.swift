@@ -6,9 +6,14 @@ extension EnvironmentValues {
   /// The account's default folder sort, which folders without their own
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
+  @Entry var putioFileDetailSelect: PutioFileSelection? = nil
+  @Entry var putioFileDetailClear: PutioFileDetailClear? = nil
+  @Entry var putioFileDetailReconcile: PutioFileDetailReconcile? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
+typealias PutioFileDetailClear = @MainActor @Sendable (Set<PutioFileID>?) -> Void
+typealias PutioFileDetailReconcile = @MainActor @Sendable ([PutioFileItem]) -> Void
 typealias PutioBulkFileSelection = @MainActor @Sendable ([PutioFileRoute]) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
@@ -38,6 +43,11 @@ struct FilesBrowserView: View {
   private let pins: PutioPinnedFilesModel
   @State private var pinToast: PutioToast?
   private let createLink: PutioPublicLinkCreate
+  private let loadVideoDetails: PutioVideoDetailsLoad
+  private let loadFolderName: PutioFolderNameLoad
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @State private var isLandscape: Bool?
+  @State private var selectedFile: PutioFileDetailSelection?
 
   init(
     runtime: PutioRuntime,
@@ -70,6 +80,8 @@ struct FilesBrowserView: View {
     actions = PutioFileActions(runtime: runtime)
     self.pins = pins
     createLink = { try await runtime.createPublicLink(fileID: $0) }
+    loadVideoDetails = { try await runtime.videoDetails(fileID: $0) }
+    loadFolderName = { try await runtime.getFile(fileID: $0).name }
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -83,39 +95,23 @@ struct FilesBrowserView: View {
   }
 
   var body: some View {
-    NavigationStack(path: $path) {
-      PutioFolderScreen(
-        route: .root,
-        load: load,
-        continueLoad: continueLoad,
-        actions: actions,
-        trashEnabled: trashEnabled,
-        tracksWatched: tracksWatched,
-        onLoaded: onRootLoaded,
-        refreshRequests: refreshRequests,
-        onFileSelected: onFileSelected,
-        onExternalPlayback: onExternalPlayback,
-        onDownload: onDownload,
-        onBulkDownload: onBulkDownload,
-        castButton: castButton,
-        accountNotice: accountNotice,
-        offlineFiles: offlineFiles
-      )
-      .navigationDestination(for: PutioFolderRoute.self) { route in
-        if route == .pinnedList {
-          PutioPinnedListScreen(
-            model: pins,
-            actions: actions,
-            load: load,
-            continueLoad: continueLoad,
-            trashEnabled: trashEnabled,
-            refreshRequests: refreshRequests,
-            onFileSelected: onFileSelected
-          )
+    Group {
+      if let isLandscape {
+        if horizontalSizeClass == .regular, isLandscape {
+          columns
         } else {
-          folderScreen(route)
+          stack(showsDetail: false)
         }
+      } else {
+        Color.clear
       }
+    }
+    .onGeometryChange(for: Bool.self) { geometry in
+      let insets = geometry.safeAreaInsets
+      return geometry.size.width + insets.leading + insets.trailing
+        > geometry.size.height + insets.top + insets.bottom
+    } action: { landscape in
+      isLandscape = landscape
     }
     .environment(\.putioExclusiveLink, createLink)
     .environment(
@@ -156,6 +152,126 @@ struct FilesBrowserView: View {
     }
   }
 
+  private var columns: some View {
+    PutioListDetail(
+      selection: detailSelection,
+      emptyTitle: String(localized: "No file selected"),
+      emptyMessage: String(localized: "Tap a file to see it here.")
+    ) { _ in
+      stack(showsDetail: true)
+    } detail: { _ in
+      if let selectedFile {
+        PutioFileDetailView(
+          route: selectedFile.route,
+          folderTitles: selectedFile.folderTitles,
+          offlineStatus: offlineFiles?.status(selectedFile.route.id) ?? .remote,
+          reloadKey: refreshRequests.revision,
+          loadDetails: loadVideoDetails,
+          loadFolderName: loadFolderName,
+          onPlay: onFileSelected,
+          onDownload: onDownload,
+          onExternalPlayback: onExternalPlayback
+        )
+      }
+    }
+  }
+
+  private var detailSelection: Binding<PutioFileID?> {
+    let selection = $selectedFile
+    return Binding(
+      get: { selection.wrappedValue?.route.id },
+      set: { id in
+        if id == nil { selection.wrappedValue = nil }
+      })
+  }
+
+  private var detailSelect: PutioFileSelection {
+    let selection = $selectedFile
+    let path = path
+    return { route in
+      selection.wrappedValue = PutioFileDetailSelection(route: route, in: path)
+    }
+  }
+
+  private var detailClear: PutioFileDetailClear {
+    let selection = $selectedFile
+    return { ids in
+      guard let open = selection.wrappedValue else { return }
+      if let ids, ids.isDisjoint(with: open.ancestorIDs.union([open.route.id])) { return }
+      selection.wrappedValue = nil
+    }
+  }
+
+  private var detailReconcile: PutioFileDetailReconcile {
+    let selection = $selectedFile
+    return { items in
+      guard let open = selection.wrappedValue,
+        let item = items.first(where: { $0.id == open.route.id }), item != open.route.item
+      else { return }
+      selection.wrappedValue =
+        item.parentID == open.route.item.parentID
+        ? PutioFileDetailSelection(
+          route: PutioFileRoute(item: item), folderTitles: open.folderTitles,
+          ancestorIDs: open.ancestorIDs)
+        : PutioFileDetailSelection(
+          route: PutioFileRoute(item: item), folderTitles: nil, ancestorIDs: [item.parentID])
+    }
+  }
+
+  private func stack(showsDetail: Bool) -> some View {
+    NavigationStack(path: $path) {
+      PutioFolderScreen(
+        route: .root,
+        load: load,
+        continueLoad: continueLoad,
+        actions: actions,
+        trashEnabled: trashEnabled,
+        tracksWatched: tracksWatched,
+        onLoaded: onRootLoaded,
+        refreshRequests: refreshRequests,
+        onFileSelected: onFileSelected,
+        onExternalPlayback: onExternalPlayback,
+        onDownload: onDownload,
+        onBulkDownload: onBulkDownload,
+        castButton: castButton,
+        accountNotice: accountNotice,
+        offlineFiles: offlineFiles
+      )
+      .modifier(
+        PutioFileDetailColumn(
+          selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
+          clear: detailClear,
+          reconcile: detailReconcile)
+      )
+      .navigationDestination(for: PutioFolderRoute.self) { route in
+        destination(route)
+          .modifier(
+            PutioFileDetailColumn(
+              selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
+              clear: detailClear,
+              reconcile: detailReconcile)
+          )
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func destination(_ route: PutioFolderRoute) -> some View {
+    if route == .pinnedList {
+      PutioPinnedListScreen(
+        model: pins,
+        actions: actions,
+        load: load,
+        continueLoad: continueLoad,
+        trashEnabled: trashEnabled,
+        refreshRequests: refreshRequests,
+        onFileSelected: onFileSelected
+      )
+    } else {
+      folderScreen(route)
+    }
+  }
+
   private func folderScreen(_ route: PutioFolderRoute) -> some View {
     PutioFolderScreen(
       route: route,
@@ -172,6 +288,55 @@ struct FilesBrowserView: View {
       castButton: castButton,
       offlineFiles: offlineFiles
     )
+  }
+}
+
+private struct PutioFileDetailColumn: ViewModifier {
+  let selection: PutioFileDetailSelection?
+  let select: PutioFileSelection?
+  let clear: PutioFileDetailClear
+  let reconcile: PutioFileDetailReconcile
+
+  @ViewBuilder func body(content: Content) -> some View {
+    let invalidating =
+      content
+      .environment(\.putioFileDetailClear, clear)
+      .environment(\.putioFileDetailReconcile, reconcile)
+    if let select {
+      invalidating
+        .environment(\.horizontalSizeClass, .regular)
+        .toolbar(removing: .sidebarToggle)
+        .environment(\.putioFileDetailSelect, select)
+        .putioListDetailOpenRow(selection?.route.id)
+    } else {
+      invalidating
+    }
+  }
+}
+
+struct PutioFileDetailSelection {
+  let route: PutioFileRoute
+  let folderTitles: [String]?
+  let ancestorIDs: Set<PutioFileID>
+
+  init(route: PutioFileRoute, folderTitles: [String]?, ancestorIDs: Set<PutioFileID>) {
+    self.route = route
+    self.folderTitles = folderTitles
+    self.ancestorIDs = ancestorIDs
+  }
+
+  init(route: PutioFileRoute, in path: [PutioFolderRoute]) {
+    let parentID = route.item.parentID
+    let folders = path.lastIndex(where: { $0.id == parentID }).map { index in
+      path[...index].filter { $0 != .pinnedList }
+    }
+    self.route = route
+    if parentID == .root {
+      folderTitles = [PutioFolderRoute.root.title]
+    } else {
+      folderTitles = folders?.map(\.title)
+    }
+    ancestorIDs = Set(folders?.map(\.id) ?? []).union([parentID])
   }
 }
 

@@ -581,6 +581,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-04-sort", .iphone, "testSortMenu"),
       BoardCapture("rd-ios-72-sorting", .iphone, "testSortingUpdate"),
       BoardCapture("rd-ios-12-ipad-split", .ipad, "testIPadSplit"),
+      BoardCapture(
+        "rd-ios-33-ipad-detail-not-downloaded", .ipad, "testIPadDetailNotDownloaded"),
       BoardCapture("rd-ios-08-empty", .iphone, "testEmptyFolder"),
       BoardCapture("rd-ios-32-load-more-failed", .iphone, "testFolderLoadMoreFailed"),
       BoardCapture("rd-ios-40-loading", .iphone, "testFolderLoading"),
