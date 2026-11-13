@@ -67,13 +67,13 @@ struct AccountView: View {
       }
       switch settingsState {
       case .loading:
-        Section {
+        AccountUntitledSection {
           PutioSettingsLoadingRow(String(localized: "Loading account settings"))
             .accessibilityIdentifier("account.settings-loading")
         }
         downloadsSection
       case .failed:
-        Section {
+        AccountUntitledSection {
           PutioSettingsFailedRows(
             String(localized: "Couldn’t load account settings"),
             identifier: "account.settings-failed",
@@ -93,7 +93,7 @@ struct AccountView: View {
         aboutSection
       }
       if preferences.settingsState != .loading {
-        Section {
+        AccountUntitledSection {
           signOutRow
         }
       }
@@ -200,7 +200,6 @@ struct AccountView: View {
             .accessibilityIdentifier("account.storage-full")
         }
       }
-      .padding(.vertical, PutioTheme.Spacing.space1)
       if runtime.session.isAccountStorageStale {
         PutioErrorStateView(
           title: PutioTrashErrorPresentation.staleStorage.title,
@@ -557,11 +556,28 @@ private struct AccountListStyle: ViewModifier {
   func body(content: Content) -> some View {
     content
       .listStyle(.insetGrouped)
+      .listSectionSpacing(PutioTheme.Spacing.space1)
+      .environment(\.defaultMinListHeaderHeight, PutioTheme.Spacing.space0)
       .navigationTitle("Account")
       .putioFont(PutioTheme.Typography.body)
       .putioContentBackground()
       .task { await preferences.loadSettingsIfNeeded() }
       .task { await appConfig.loadIfNeeded() }
+  }
+}
+
+private struct AccountUntitledSection<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    Section {
+      content
+    } header: {
+      Color.clear
+        .frame(height: PutioTheme.Spacing.space3)
+        .listRowInsets(EdgeInsets())
+        .accessibilityHidden(true)
+    }
   }
 }
 
