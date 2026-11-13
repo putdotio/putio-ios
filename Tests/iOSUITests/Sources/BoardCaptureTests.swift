@@ -130,10 +130,10 @@ final class BoardCaptureTests: XCTestCase {
     }
     try captureBoard(board)
     if fixture == "list" {
-      app.revealed("downloads.item.9001").tap()
+      app.buttons["downloads.item.9001"].firstMatch.tap()
       XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
       element("video.done").tap()
-      app.revealed("downloads.item.408").tap()
+      app.buttons["downloads.item.408"].firstMatch.tap()
       XCTAssertTrue(element("audio.duration").appears(within: 20), "the finished audio did not play")
       element("audio.done").tap()
     }

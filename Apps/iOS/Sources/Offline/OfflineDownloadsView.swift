@@ -31,6 +31,7 @@ struct PutioOfflineDownloadsView: View {
           icon: .arrowCircleDown, title: String(localized: "No downloads"),
           message: String(localized: "Files you download for offline playback appear here.")
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("downloads.empty")
       } else {
         list
