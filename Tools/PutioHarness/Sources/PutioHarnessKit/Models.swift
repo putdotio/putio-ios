@@ -805,6 +805,10 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-30-inactive-family", .iphone, "testAccountInactive", screenBase: false,
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
+      BoardCapture("rd-ios-trash-01-list", .iphone, "testTrashList"),
+      BoardCapture("rd-ios-trash-06-empty", .iphone, "testTrashEmpty", screenBase: false),
+      BoardCapture("rd-ios-trash-12-loading", .iphone, "testTrashLoading", screenBase: false),
+      BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(

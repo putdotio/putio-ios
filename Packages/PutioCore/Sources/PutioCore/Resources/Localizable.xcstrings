@@ -995,6 +995,51 @@
         }
       }
     },
+    "Gone in %lld days" : {
+      "comment" : "android: mobile_trash_gone_in",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Gone in %lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Gone in %lld days"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Gone today" : {
+      "comment" : "android: mobile_trash_gone_today",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gone today"
+          }
+        }
+      }
+    },
+    "Gone tomorrow" : {
+      "comment" : "android: mobile_trash_gone_tomorrow",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gone tomorrow"
+          }
+        }
+      }
+    },
     "History" : {
       "comment" : "android: mobile_destination_history",
       "localizations" : {

@@ -237,10 +237,12 @@ public struct PutioTrashActions: Sendable {
 public struct PutioTrashErrorPresentation: Equatable, Sendable {
   public let title: String
   public let message: String
+  public let isOffline: Bool
 
-  init(title: String, message: String) {
+  init(title: String, message: String, isOffline: Bool = false) {
     self.title = title
     self.message = message
+    self.isOffline = isOffline
   }
 
   public static let staleStorage = PutioTrashErrorPresentation(
@@ -249,8 +251,28 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
       localized: "Account storage could not be updated after the last deletion.", bundle: .module)
   )
 
+  static func loadFailure(_ error: Error) -> PutioTrashErrorPresentation? {
+    #if os(tvOS)
+      PutioTrashErrorPresentation(
+        title: String(localized: "Could not load Trash", bundle: .module), error: error)
+    #else
+      guard let failure = PutioTrashErrorPresentation(
+        title: PutioScreenErrorKind.failed.title, error: error)
+      else { return nil }
+      guard failure.isOffline else { return failure }
+      return PutioTrashErrorPresentation(
+        title: PutioScreenErrorKind.offline.title, message: PutioScreenErrorKind.offline.message,
+        isOffline: true)
+    #endif
+  }
+
   init?(title: String, error: Error) {
     self.title = title
+    isOffline = error as? PutioFolderLoadError == .offline
+    if isOffline {
+      message = PutioScreenErrorKind.failed.message
+      return
+    }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
       return nil
@@ -487,6 +509,11 @@ public final class PutioTrashModel {
     await load(initial: false, supersedesRefresh: false)
   }
 
+  public func retryKeepingFailure() async {
+    guard case .failed = state else { return }
+    await load(initial: false, keepsFailure: true)
+  }
+
   /// Retries only the account storage snapshot after a committed deletion
   /// could not reload it.
   public func retryStorageRefresh() async {
@@ -699,12 +726,15 @@ public final class PutioTrashModel {
     mutationOutcome = nil
   }
 
-  private func load(initial: Bool, supersedesRefresh: Bool = false) async {
-    await performLoad(initial: initial, supersedesRefresh: supersedesRefresh)
+  private func load(
+    initial: Bool, supersedesRefresh: Bool = false, keepsFailure: Bool = false
+  ) async {
+    await performLoad(
+      initial: initial, supersedesRefresh: supersedesRefresh, keepsFailure: keepsFailure)
     await repairIfRequested()
   }
 
-  private func performLoad(initial: Bool, supersedesRefresh: Bool) async {
+  private func performLoad(initial: Bool, supersedesRefresh: Bool, keepsFailure: Bool) async {
     if initial {
       // An initial load may supersede one still unwinding after cancellation.
       guard page == nil else { return }
@@ -725,7 +755,7 @@ public final class PutioTrashModel {
     let previousState = state
     let previousRefreshFailure = refreshFailure
     let previousPaginationFailure = paginationFailure
-    if previousPage == nil { state = .loading }
+    if previousPage == nil, !keepsFailure { state = .loading }
     paginationFailure = nil
     refreshFailure = nil
     do {
@@ -750,10 +780,7 @@ public final class PutioTrashModel {
         state = .loaded(reconciliation.prune(shownPage))
         refreshFailure = PutioTrashErrorPresentation(
           title: String(localized: "Could not refresh Trash", bundle: .module), error: error)
-      } else if let failure = PutioTrashErrorPresentation(
-        title: String(localized: "Could not load Trash", bundle: .module),
-        error: error
-      ) {
+      } else if let failure = PutioTrashErrorPresentation.loadFailure(error) {
         state = .failed(failure)
       }
     }

@@ -4,10 +4,14 @@ import PutioSDK
 extension PutioRuntime {
   public func listTrash(cursor: String? = nil) async throws -> PutioTrashPage {
     let result = try await performAuthenticatedOperation {
-      if let cursor {
-        return try await sdk.continueListTrash(cursor: cursor)
+      do {
+        if let cursor {
+          return try await sdk.continueListTrash(cursor: cursor)
+        }
+        return try await sdk.listTrash()
+      } catch let error as PutioSDKError where Self.neverLeftDevice(error) {
+        throw PutioFolderLoadError.offline
       }
-      return try await sdk.listTrash()
     }
     if let cursor, let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
       throw PutioRuntimeError.invalidResponse

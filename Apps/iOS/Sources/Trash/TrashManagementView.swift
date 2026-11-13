@@ -10,6 +10,7 @@ struct TrashManagementView: View {
   @State private var toast: PutioToast?
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
+  @Environment(\.locale) private var locale
 
   init(
     runtime: PutioRuntime,
@@ -25,12 +26,13 @@ struct TrashManagementView: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: String(localized: "Loading Trash"))
+        PutioLoadingStateView(title: String(localized: "Loading Trash"), titleVisibility: .hidden)
       case .failed(let failure):
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: String(localized: "Try again")
+          retryTitle: String(localized: "Try again"),
+          retryIdentifier: "trash.retry"
         ) {
           Task { await model.refresh() }
         }
@@ -39,6 +41,7 @@ struct TrashManagementView: View {
       }
     }
     .navigationTitle("Trash")
+    .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
     .navigationBarBackButtonHidden(isEditing)
     .toolbar {
@@ -162,6 +165,7 @@ struct TrashManagementView: View {
       }
     }
     .task { await model.refreshOnAppear() }
+    .task(id: isOffline) { await retryWhileOffline() }
     .onDisappear { model.abandonListing() }
     .onChange(of: model.reconciliationVersion) { _, _ in
       Task {
@@ -197,13 +201,10 @@ struct TrashManagementView: View {
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
         if !page.items.isEmpty {
-          Section {
-            Text("Heads up: Files in trash have an expiry date of 14 days.")
-              .putioFont(PutioTheme.Typography.caption)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
-              .accessibilityIdentifier("trash.expiry-notice")
-          }
-          .listRowBackground(Color.clear)
+          header(page)
+            .listRowSeparator(.hidden)
+            .listRowBackground(PutioTheme.Colors.background)
+            .selectionDisabled()
         }
         if let failure = model.refreshFailure {
           Section {
@@ -222,48 +223,20 @@ struct TrashManagementView: View {
           Section { emptyState }.listRowBackground(Color.clear)
         }
         ForEach(page.items) { item in
-          HStack {
-            PutioFileRow(rowModel(for: item))
-            if !isEditing {
-              Menu {
-                Button("Restore") {
-                  Task { await model.restore(item) }
-                }
-                .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
-                Button("Delete Permanently", role: .destructive) {
-                  pendingDeletion = item
-                }
-                .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
-              } label: {
-                // Sized as a button icon, but it sits beside the row's
-                // Body name, so it scales with Body.
-                PutioIconView(
-                  .dotsThreeCircle,
-                  size: PutioMetricRole(
-                    value: PutioTheme.ScaledMetrics.buttonIconSize.value, relativeTo: .body)
-                )
-                .foregroundStyle(PutioTheme.Colors.accent)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+          PutioFileRow(rowModel(for: item))
+            .tag(item.id)
+            .listRowBackground(PutioTheme.Colors.background)
+            .swipeActions(edge: .leading) {
+              Button("Restore") {
+                Task { await model.restore(item) }
               }
               .disabled(!model.canMutate)
-              .accessibilityLabel("More actions for \(item.name)")
-              .accessibilityIdentifier("trash.item.\(item.id.rawValue).actions")
+              .tint(PutioTheme.Colors.success)
             }
-          }
-          .tag(item.id)
-          .listRowBackground(PutioTheme.Colors.surface)
-          .swipeActions(edge: .leading) {
-            Button("Restore") {
-              Task { await model.restore(item) }
+            .swipeActions(edge: .trailing) {
+              Button("Delete", role: .destructive) { pendingDeletion = item }
+                .disabled(!model.canMutate)
             }
-            .disabled(!model.canMutate)
-            .tint(PutioTheme.Colors.success)
-          }
-          .swipeActions(edge: .trailing) {
-            Button("Delete", role: .destructive) { pendingDeletion = item }
-              .disabled(!model.canMutate)
-          }
         }
         if let cursor = page.nextCursor {
           if let failure = model.paginationFailure {
@@ -295,6 +268,7 @@ struct TrashManagementView: View {
           }
         }
       }
+      .listStyle(.plain)
       .refreshable { await model.refresh() }
       .accessibilityIdentifier("trash.list")
     }
@@ -342,10 +316,57 @@ struct TrashManagementView: View {
 
   private var emptyState: some View {
     PutioEmptyStateView(
-      icon: .trash,
-      title: String(localized: "Trash is empty"),
-      message: String(localized: "When you send files to trash, we keep them here for 14 days.")
+      kaomoji: .shrug,
+      title: String(localized: "Your trash is empty"),
+      message: String(localized: "Files you move to trash stay here for 14 days.")
     )
+  }
+
+  private func header(_ page: PutioTrashPage) -> some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(alignment: .firstTextBaseline) {
+        headerSize(page)
+        Spacer(minLength: PutioTheme.Spacing.space2)
+        headerRetention
+      }
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+        headerSize(page)
+        headerRetention
+      }
+    }
+    .foregroundStyle(PutioTheme.Colors.textSecondary)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("trash.header")
+  }
+
+  private func headerSize(_ page: PutioTrashPage) -> some View {
+    Text(PutioFileRowModel.sizeText(bytes: page.sizeBytes, locale: locale))
+      .putioFont(PutioTheme.Typography.numeric)
+  }
+
+  private var headerRetention: some View {
+    Text("Deleted items stay 14 days")
+      .putioFont(PutioTheme.Typography.caption)
+      .fixedSize(horizontal: false, vertical: true)
+  }
+
+  private var isOffline: Bool {
+    if case .failed(let failure) = model.state { return failure.isOffline }
+    return false
+  }
+
+  private func retryWhileOffline() async {
+    var attempt = 0
+    while isOffline {
+      do {
+        try await Task.sleep(for: .seconds(min(3 << min(attempt, 4), 30)))
+      } catch {
+        return
+      }
+      guard isOffline else { return }
+      await model.retryKeepingFailure()
+      attempt += 1
+    }
   }
 
   @ViewBuilder
@@ -367,33 +388,20 @@ struct TrashManagementView: View {
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
-    Self.rowModel(for: item)
+    Self.rowModel(for: item, locale: locale)
   }
 
   static func rowModel(
-    for item: PutioTrashItem, relativeTo now: Date = .now, locale: Locale = .current
+    for item: PutioTrashItem, relativeTo now: Date = .now, locale: Locale = .current,
+    calendar: Calendar = .current
   ) -> PutioFileRowModel {
-    let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
-    let deleted = PutioBrowserItemPresentation.relativeDateText(
-      for: item.deletedAt, relativeTo: now, locale: locale)
-    let expires = item.expiresAt.formatted(
-      Date.FormatStyle(locale: locale).month(.wide).day())
-    return PutioFileRowModel(
+    PutioFileRowModel(
       name: item.name,
-      kind: rowKind(for: item.kind),
-      sizeText: String(localized: "\(size) · Deleted \(deleted)"),
-      secondaryText: String(localized: "Expires on \(expires)")
+      kind: PutioBrowserItemPresentation.rowKind(for: item.kind),
+      sizeText: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale),
+      dateText: PutioTrashExpiry.text(until: item.expiresAt, from: now, calendar: calendar),
+      showsDisclosure: false
     )
-  }
-
-  private static func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
-    switch kind {
-    case .folder: .folder
-    case .video: .video
-    case .audio: .audio
-    case .image: .image
-    case .pdf, .text, .other: .file
-    }
   }
 
   private func present(_ outcome: PutioTrashMutationOutcome?) {
