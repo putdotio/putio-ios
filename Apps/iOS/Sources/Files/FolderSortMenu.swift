@@ -40,6 +40,7 @@ struct PutioFolderSortMenu: View {
     }
     .disabled(isDisabled)
     .allowsHitTesting(!isBusy)
+    .accessibilityRespondsToUserInteraction(!isBusy)
     .accessibilityIdentifier("files.sort")
     .accessibilityLabel(Self.accessibilityLabel(for: current))
   }

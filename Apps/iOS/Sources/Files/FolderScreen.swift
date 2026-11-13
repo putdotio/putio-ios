@@ -167,7 +167,9 @@ struct PutioFolderScreen: View {
       }
       if !isEditing, let castButton {
         ToolbarItem(placement: .primaryAction) { castButton }
-        ToolbarSpacer(.fixed, placement: .primaryAction)
+        if model.supportsActions {
+          ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
       }
       if !isEditing, model.supportsActions {
         if #available(iOS 27, *) {
@@ -1060,7 +1062,7 @@ struct PutioFolderScreen: View {
   }
 
   private var navigationLocked: Bool {
-    isSorting ? false : fileActionPending
+    !isSorting && fileActionPending
   }
 
   private var actionNotifier: PutioFolderActionNotifier {
