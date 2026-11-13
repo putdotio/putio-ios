@@ -44,22 +44,8 @@
           .background(PutioListColumnWidth())
           .toolbar(removing: .sidebarToggle)
       } detail: {
-        if let selection {
-          NavigationStack {
-            detail(selection)
-          }
-          .id(selection)
-        } else if let emptyState {
-          PutioEmptyStateView.textOnly(
-            title: emptyState.title, message: emptyState.message
-          )
-          .putioContentBackground()
-          .accessibilityIdentifier("putio.list-detail.empty")
-        } else {
-          PutioTheme.Colors.background
-            .ignoresSafeArea()
-            .accessibilityIdentifier("putio.list-detail.empty")
-        }
+        detailColumn
+          .background(PutioListColumnWidth())
       }
       .navigationSplitViewStyle(.balanced)
       .onChange(of: selection) { _, current in
@@ -73,6 +59,25 @@
         guard sizeClass == .regular else { return }
         columnVisibility = .all
         if selection == nil, let retainedSelection { selection = retainedSelection }
+      }
+    }
+
+    @ViewBuilder private var detailColumn: some View {
+      if let selection {
+        NavigationStack {
+          detail(selection)
+        }
+        .id(selection)
+      } else if let emptyState {
+        PutioEmptyStateView.textOnly(
+          title: emptyState.title, message: emptyState.message
+        )
+        .putioContentBackground()
+        .accessibilityIdentifier("putio.list-detail.empty")
+      } else {
+        PutioTheme.Colors.background
+          .ignoresSafeArea()
+          .accessibilityIdentifier("putio.list-detail.empty")
       }
     }
 
