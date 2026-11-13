@@ -1830,25 +1830,16 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
-    if isIPadBoard {
-      openIPadAccount()
-      scrollIPadAccount(toHit: "account.trash").tap()
-    } else {
-      openAccount()
-      let row = app.revealed("account.trash")
-      app.bringIntoView(row)
-      row.tap()
-    }
+    openAccount()
+    let row = app.revealed("account.trash")
+    app.bringIntoView(row)
+    row.tap()
     XCTAssertTrue(app.navigationBars["Trash"].appears(within: 5), "Trash never opened")
   }
 
   private func captureTrashBoard(_ board: String) throws {
-    if !isIPadBoard { showSettledTabBar() }
+    showSettledTabBar()
     try captureBoard(board)
-  }
-
-  private var isIPadBoard: Bool {
-    ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
   }
 
   func testAccountPublicLinkMenu() throws {
