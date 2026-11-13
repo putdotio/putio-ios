@@ -2045,6 +2045,12 @@ import Foundation
         return permanentlyDeleteTrash(request: request)
       case "POST /v2/trash/empty":
         return emptyTrash()
+      case "GET /v2/files/411" where fileActionsLock.withLock({ harnessFolderDeleted }):
+        return (
+          404,
+          fixtureError(
+            statusCode: 404, type: "FILE_NOT_FOUND", message: "Harness Folder is deleted")
+        )
       case "GET /v2/files/411":
         return (
           200,
@@ -2174,6 +2180,17 @@ import Foundation
         return clearPlaybackPosition(fileID: 412)
       case "GET /v2/files/441":
         return (200, seasonEpisodeFile(id: 441))
+      case "GET /v2/files/442", "GET /v2/files/443", "GET /v2/files/444":
+        let fileID = Int(url.lastPathComponent) ?? 0
+        guard seasonFolderSeeded,
+          !fileActionsLock.withLock({ removedSeasonFileIDs.contains(fileID) })
+        else {
+          return (
+            404,
+            fixtureError(statusCode: 404, type: "FILE_NOT_FOUND", message: "No such episode")
+          )
+        }
+        return (200, seasonEpisodeFile(id: fileID))
       case "POST /v2/files/443/start-from/set":
         return setPlaybackPosition(request: request, fileID: 443)
       case "POST /v2/files/441/start-from/set" where refusesWatchedEpisode:

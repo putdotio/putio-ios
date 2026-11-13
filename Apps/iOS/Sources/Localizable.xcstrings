@@ -34,6 +34,17 @@
         }
       }
     },
+    "%@ left" : {
+      "comment" : "android: mobile_files_continue_watching_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ left"
+          }
+        }
+      }
+    },
     "%@ selected" : {
       "comment" : "ios-only: the selection header names the selected size, as the board draws it",
       "localizations" : {
@@ -286,6 +297,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "All"
+          }
+        }
+      }
+    },
+    "All files" : {
+      "comment" : "android: mobile_files_all_files",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All files"
           }
         }
       }
@@ -726,6 +748,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contact us"
+          }
+        }
+      }
+    },
+    "Continue watching" : {
+      "comment" : "android: mobile_files_continue_watching",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue watching"
           }
         }
       }
@@ -3592,6 +3625,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove %@ from recent searches"
+          }
+        }
+      }
+    },
+    "Remove from Continue watching" : {
+      "comment" : "android: mobile_files_continue_watching_remove",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Continue watching"
+          }
+        }
+      }
+    },
+    "Resume %@, %@ left" : {
+      "comment" : "android: mobile_files_continue_watching_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume %@, %@ left"
           }
         }
       }

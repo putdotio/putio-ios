@@ -8,6 +8,8 @@ images and documents, and opens put.io links into the same screens.
 
 - `folder-header` shows each folder's item count and size, and Back keeps the
   parent's place.
+- `continue-watching` lists a video played to the middle on the root, removes
+  it from its menu, lists no finished video, and drops a trashed one.
 - `browse-sort` changes the folder sort from the sort button and appends the
   next page on scroll.
 - `recent-searches` keeps the last five submitted searches, runs, removes and

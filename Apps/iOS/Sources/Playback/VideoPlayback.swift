@@ -20,6 +20,7 @@ struct PutioVideoPlaybackView: View {
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   private let fileID: PutioFileID
   private let onDismiss: @MainActor @Sendable () -> Void
+  private let onDurationKnown: @MainActor @Sendable (Double) -> Void
   private let preferredAudioLanguages: [String]
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
@@ -33,6 +34,7 @@ struct PutioVideoPlaybackView: View {
   init(
     route: PutioVideoRoute,
     onDismiss: @escaping @MainActor @Sendable () -> Void,
+    onDurationKnown: @escaping @MainActor @Sendable (Double) -> Void = { _ in },
     preferredAudioLanguages: [String] = [],
     remembersPlaybackPosition: Bool = true,
     suggestsNextVideo: Bool = true,
@@ -55,6 +57,7 @@ struct PutioVideoPlaybackView: View {
     self.onCast = onCast
     self.fileID = route.id
     self.onDismiss = onDismiss
+    self.onDurationKnown = onDurationKnown
     self.preferredAudioLanguages = preferredAudioLanguages
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportsPlayerFailures = reportsPlayerFailures
@@ -269,6 +272,7 @@ struct PutioVideoPlaybackView: View {
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
         onReady: { playerIsReady = true },
+        onDurationKnown: onDurationKnown,
         observesPlaybackState: showsHarnessReadiness,
         onAudioSelected: { selectedAudioLanguage = $0 },
         onPositionChanged: { observedPlaybackPosition = $0 },
@@ -433,6 +437,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
   let onReady: @MainActor @Sendable () -> Void
+  let onDurationKnown: @MainActor @Sendable (Double) -> Void
   let observesPlaybackState: Bool
   let onAudioSelected: @MainActor @Sendable (String) -> Void
   let onPositionChanged: @MainActor @Sendable (Int) -> Void
@@ -471,6 +476,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       reportPosition: { try await reportPosition($0, $1) },
       in: controller,
       onReady: onReady,
+      onDurationKnown: { onDurationKnown($0) },
       observesPlaybackState: observesPlaybackState,
       onAudioSelected: { code in onAudioSelected(code) },
       onPositionChanged: { position in onPositionChanged(position) },
@@ -614,6 +620,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var mediaSelectionObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
+  private var onDurationKnown: (@MainActor (Double) -> Void)?
   private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
   #if DEBUG
     /// Harness probe; set before `start` and reported only while observing.
@@ -690,6 +697,7 @@ final class PutioSystemVideoPlayerCoordinator {
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
     in controller: AVPlayerViewController,
     onReady: @escaping @MainActor () -> Void = {},
+    onDurationKnown: @escaping @MainActor (Double) -> Void = { _ in },
     observesPlaybackState: Bool = false,
     onAudioSelected: @escaping @MainActor @Sendable (String) -> Void = { _ in },
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
@@ -706,6 +714,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.observesPlaybackState = observesPlaybackState
     self.fileID = fileID
     self.onReady = onReady
+    self.onDurationKnown = onDurationKnown
     self.onAudioSelected = observesPlaybackState ? onAudioSelected : nil
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
     self.onPlaybackEnded = onPlaybackEnded
@@ -991,6 +1000,9 @@ final class PutioSystemVideoPlayerCoordinator {
     guard generation == playbackGeneration, !readyReported, !failureReported else { return }
     readyReported = true
     positionReporter?.ready()
+    if let duration = driver?.itemDuration, duration.isValid, duration.isNumeric {
+      onDurationKnown?(CMTimeGetSeconds(duration))
+    }
     onReady?()
   }
 

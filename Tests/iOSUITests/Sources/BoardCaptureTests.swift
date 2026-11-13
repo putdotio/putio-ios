@@ -833,9 +833,37 @@ final class BoardCaptureTests: XCTestCase {
 
   func testFilesRoot() throws {
     orient(.portrait)
+    try reachContinueWatching()
+    try captureBoard("Main")
+  }
+
+  func testContinueWatchingMenu() throws {
+    orient(.portrait)
+    try reachContinueWatching()
+    element("files.continue-watching.item.442").press(forDuration: 1)
+    XCTAssertTrue(
+      app.buttons["Remove from Continue watching"].appears(within: 5),
+      "the card menu has no Remove")
+    try captureBoard("rd-ios-25-continue-watching-menu")
+  }
+
+  func testIPadRoot() throws {
+    orient(.landscapeLeft)
+    app.launchArguments += ["--putio-harness-pins", "three"]
+    try reachContinueWatching()
+    XCTAssertTrue(element("files.pinned.item.440").appears(within: 10), "the pins never loaded")
+    try captureBoard("rd-ios-26-ipad-root")
+  }
+
+  private func reachContinueWatching() throws {
+    app.launchArguments += ["--putio-harness-continue-watching", "three"]
     app.launch()
     reachFilesRoot()
-    try captureBoard("Main")
+    for id in [442, 411, 414] {
+      XCTAssertTrue(
+        element("files.continue-watching.item.\(id)").appears(within: 10),
+        "the card for \(id) never appeared")
+    }
   }
 
   func testHistoryTabHidden() throws {

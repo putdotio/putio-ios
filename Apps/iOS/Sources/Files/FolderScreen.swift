@@ -32,6 +32,8 @@ struct PutioFolderScreen: View {
   @State private var pinItemActions: PutioFileItemActionModel?
   @Environment(\.putioDefaultFolderSort) private var defaultSort
   @Environment(\.putioPinnedFiles) private var pinned
+  @Environment(\.putioContinueWatching) private var continueWatching
+  @Environment(\.putioAccountStorage) private var accountStorage
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.putioFileShare) private var fileShare
@@ -349,7 +351,11 @@ struct PutioFolderScreen: View {
           .selectionDisabled()
       }
       listTop(contents)
+      continueWatchingSection
       pinnedSection
+      if route.id == .root, !isEditing {
+        PutioAllFilesHeader(storage: accountStorage)
+      }
       let items = contents.items.filter { !trashingIDs.contains($0.id) }
       let prefetchIDs = contents.hasMore ? Set(items.suffix(Self.prefetchDistance).map(\.id)) : []
       ForEach(items) { item in
@@ -389,6 +395,13 @@ struct PutioFolderScreen: View {
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+  }
+
+  @ViewBuilder
+  private var continueWatchingSection: some View {
+    if route.id == .root, !isEditing, let continueWatching {
+      PutioContinueWatchingSection(context: continueWatching, isDisabled: navigationLocked)
+    }
   }
 
   private var pinnedSectionContext: PutioPinnedFilesContext? {
