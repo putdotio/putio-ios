@@ -1885,6 +1885,7 @@ public struct SimulatorHarness {
     let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: layoutURL))
     try requireBoardScreenshot(
       pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: name)
+    try requireBoardOrientation(layout, held: board.orientation, board: name)
     try? fileManager.removeItem(at: resultBundle)
     let artifact = try artifact(for: screenshot)
     return BoardArtifact(
@@ -2926,6 +2927,17 @@ func requireBoardScreenshot(
     throw HarnessFailure(
       "board \(board) capture is \(pixelWidth)x\(pixelHeight) px, but the app window measured "
         + "\(layout.width)x\(layout.height) pt at \(layout.scale)x")
+  }
+}
+
+func requireBoardOrientation(
+  _ layout: BoardLayout, held orientation: BoardOrientation?, board: String
+) throws {
+  guard let orientation else { return }
+  guard (layout.height > layout.width) == (orientation == .portrait) else {
+    throw HarnessFailure(
+      "board \(board) was held \(orientation.rawValue), but the app window measured "
+        + "\(layout.width)x\(layout.height) pt: its test sets its own orientation")
   }
 }
 

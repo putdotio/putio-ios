@@ -298,9 +298,20 @@ import Testing
   let posed = try #require(BoardCaptureContract.resolve(["rd-ios-pv-15-ipad-pdf"]).first)
   #expect(posed.testEnvironment["PUTIO_BOARD_ORIENTATION"] == nil)
   #expect(posed.captureName == "rd-ios-pv-15-ipad-pdf")
-  try requireBoardScreenshot(
-    pixelWidth: 1668, pixelHeight: 2420, matches: BoardLayout(width: 834, height: 1210, scale: 2),
-    board: portrait.captureName)
+}
+
+@Test func heldOrientationRejectsAWindowInTheOtherPose() throws {
+  let tall = BoardLayout(width: 3, height: 4, scale: 2)
+  let wide = BoardLayout(width: 4, height: 3, scale: 2)
+  try requireBoardOrientation(tall, held: .portrait, board: "tall")
+  try requireBoardOrientation(wide, held: .landscape, board: "wide")
+  try requireBoardOrientation(wide, held: nil, board: "posed")
+  #expect(throws: HarnessFailure.self) {
+    try requireBoardOrientation(wide, held: .portrait, board: "wide")
+  }
+  #expect(throws: HarnessFailure.self) {
+    try requireBoardOrientation(tall, held: .landscape, board: "tall")
+  }
 }
 
 @Test func duoOpenBoardMapsToTheFolderTestOnTheOpenPosture() throws {

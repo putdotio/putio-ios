@@ -92,8 +92,10 @@ A board state needs one row there and one seeded test step.
   that device instead of the one their row names.
 - `--orientation <portrait|landscape>` holds every listed board in that
   orientation instead of the one its test sets, and names the capture
-  `<board-id>-<orientation>.png`. The open iPhone Duo is never rotated, so the
-  run refuses its boards.
+  `<board-id>-<orientation>.png`. A board whose test sets or changes the
+  orientation itself fails when its window lands in the other pose. The run
+  refuses open iPhone Duo boards, which never rotate, and landscape for folded
+  iPhone Duo boards, which need a compact width.
 - `duo-folded` runs on the iPhone Duo runtime, on its outer display. The test
   fails unless the window reports compact width under 600 pt.
 - `duo-open` unfolds the Duo after boot with

@@ -877,6 +877,13 @@ enum BoardCaptureContract {
       throw HarnessFailure(
         "--orientation cannot pose \(open.id): the open iPhone Duo is never rotated")
     }
+    if orientation == .landscape,
+      let folded = resolved.first(where: { $0.device == .duoFolded })
+    {
+      throw HarnessFailure(
+        "--orientation landscape cannot pose \(folded.id): "
+          + "the folded iPhone Duo needs a compact width")
+    }
     return resolved.map { $0.held(orientation) }
   }
 }

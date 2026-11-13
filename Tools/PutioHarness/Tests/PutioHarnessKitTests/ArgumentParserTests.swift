@@ -428,4 +428,10 @@ import Testing
       "--orientation", "landscape",
     ])
   }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--boards", "rd-ios-duo-01-folded-folder", "--orientation",
+      "landscape",
+    ])
+  }
 }
