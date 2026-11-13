@@ -758,6 +758,18 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-52-link-device-linked", .iphone, "testAccountLinkDeviceLinked",
         screenBase: false),
+      BoardCapture("rd-ios-acc-15-clear", .iphone, "testAccountClearData"),
+      BoardCapture(
+        "rd-ios-acc-16-clear-confirm", .iphone, "testAccountClearDataConfirm", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-53-clear-none", .iphone, "testAccountClearDataNone", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-54-clear-progress", .iphone, "testAccountClearDataProgress",
+        screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-55-clear-done", .iphone, "testAccountClearDataDone", screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-56-clear-failed", .iphone, "testAccountClearDataFailed", screenBase: false),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
@@ -1302,9 +1314,16 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
       timeAllowance: 240),
     JourneyPreflight(
-      "account-security", "AccountSecurityJourneyTests/testAppsLinkingAndClearData",
-      attachmentNames: ["runtime-security-apps", "runtime-danger-clear-data"],
-      timeAllowance: 240),
+      "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
+      attachmentNames: ["runtime-security-apps"], timeAllowance: 180),
+    JourneyPreflight(
+      "clear-data",
+      "AccountSecurityJourneyTests/testClearDataAsksFirstAndKeepsTheSelectionOnFailure",
+      attachmentNames: ["runtime-danger-clear-failed", "runtime-danger-clear-data"],
+      timeAllowance: 150),
+    JourneyPreflight(
+      "clear-data-leave", "AccountSecurityJourneyTests/testLeavingMidClearFinishesCleanly",
+      timeAllowance: 120),
     JourneyPreflight(
       "browser-handoffs",
       "AccountSecurityJourneyTests/testTwoFactorAndDestroyOpenTheBrowserAndRefreshOnReturn",

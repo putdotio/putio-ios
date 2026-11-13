@@ -664,17 +664,6 @@
         }
       }
     },
-    "Clear selected data" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear selected data"
-          }
-        }
-      }
-    },
     "Clear the selected data?" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -693,17 +682,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Clear your data"
-          }
-        }
-      }
-    },
-    "Cleared data cannot be recovered." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cleared data cannot be recovered."
           }
         }
       }
@@ -3717,6 +3695,28 @@
         }
       }
     },
+    "These permanently delete data from your put.io account, on every device. To free up space on this iPad, delete downloads in Downloads instead." : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These permanently delete data from your put.io account, on every device. To free up space on this iPad, delete downloads in Downloads instead."
+          }
+        }
+      }
+    },
+    "These permanently delete data from your put.io account, on every device. To free up space on this iPhone, delete downloads in Downloads instead." : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These permanently delete data from your put.io account, on every device. To free up space on this iPhone, delete downloads in Downloads instead."
+          }
+        }
+      }
+    },
     "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
       "comment" : "android: mobile_settings_open_source_licenses_description",
       "localizations" : {
@@ -3768,6 +3768,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This iPhone stays signed in. Every other app and device has to sign in again."
+          }
+        }
+      }
+    },
+    "This permanently deletes %@ from your put.io account. It can’t be undone." : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This permanently deletes %@ from your put.io account. It can’t be undone."
           }
         }
       }
@@ -4894,17 +4905,6 @@
         }
       }
     },
-    "This removes the selected data from your account permanently." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This removes the selected data from your account permanently."
-          }
-        }
-      }
-    },
     "This selection does not fit. Deselect a language or free up space." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -5396,17 +5396,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Welcome!"
-          }
-        }
-      }
-    },
-    "What to clear" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What to clear"
           }
         }
       }

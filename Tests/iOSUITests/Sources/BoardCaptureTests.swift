@@ -2039,6 +2039,111 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-52-link-device-linked")
   }
 
+  func testAccountClearData() throws {
+    openClearData()
+    selectClearCategories()
+    showClearDataTabBar()
+    try captureBoard("rd-ios-acc-15-clear")
+  }
+
+  func testAccountClearDataConfirm() throws {
+    openClearData()
+    selectClearCategories()
+    showClearDataTabBar()
+    tapClear()
+    XCTAssertTrue(
+      app.putioAlert("Clear the selected data?").appears(within: 5), "the confirm never showed")
+    try captureBoard("rd-ios-acc-16-clear-confirm")
+  }
+
+  func testAccountClearDataNone() throws {
+    openClearData()
+    XCTAssertFalse(app.buttons["danger.clear"].isEnabled, "Clear was enabled with no selection")
+    showClearDataTabBar()
+    try captureBoard("rd-ios-acc-53-clear-none")
+  }
+
+  func testAccountClearDataProgress() throws {
+    app.launchArguments += ["--putio-harness-clear-data", "hold"]
+    confirmClearData()
+    XCTAssertTrue(
+      app.buttons["danger.clear.files"].wait(for: \.isEnabled, toEqual: false, timeout: 5),
+      "clearing never started")
+    showClearDataTabBar()
+    try captureBoard("rd-ios-acc-54-clear-progress")
+  }
+
+  func testAccountClearDataDone() throws {
+    app.launchArguments += ["--putio-harness-clear-data", "accept"]
+    confirmClearData()
+    XCTAssertTrue(element("danger.clear-success").appears(within: 10), "clearing never finished")
+    showClearDataTabBar()
+    try captureBoard("rd-ios-acc-55-clear-done")
+  }
+
+  func testAccountClearDataFailed() throws {
+    confirmClearData()
+    XCTAssertTrue(element("danger.clear-failure").appears(within: 10), "clearing never failed")
+    showClearDataTabBar()
+    try captureBoard("rd-ios-acc-56-clear-failed")
+  }
+
+  private func openClearData() {
+    app.launchArguments.append("--putio-harness-account-security")
+    openAccount()
+    let row = app.revealed("account.clear-data", maximumSwipes: 8)
+    app.bringIntoView(row)
+    XCTAssertTrue(row.becomesHittable(within: 10), "Account has no Clear your data row")
+    row.tap()
+    XCTAssertTrue(
+      app.navigationBars["Clear your data"].appears(within: 5), "Clear your data never opened")
+    XCTAssertTrue(app.buttons["danger.clear.files"].appears(within: 5), "the checklist is missing")
+  }
+
+  private func selectClearCategories() {
+    for category in ["files", "history", "trash"] {
+      let row = app.buttons["danger.clear.\(category)"]
+      app.bringIntoView(row)
+      row.tap()
+      XCTAssertTrue(row.isSelected, "\(category) was not checked")
+    }
+  }
+
+  private func showClearDataTabBar() {
+    let downloads = tabButton("Downloads")
+    var swipes = 0
+    while !downloads.isHittable, swipes < 4 {
+      if swipes.isMultiple(of: 2) {
+        app.swipeDown()
+      } else {
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        bottom.press(
+          forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0)
+        top.press(
+          forDuration: 0.05, thenDragTo: bottom, withVelocity: .slow, thenHoldForDuration: 0.3)
+      }
+      swipes += 1
+    }
+    XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
+    XCTAssertTrue(holdsFrame(downloads, within: 5), "the tab bar never settled")
+  }
+
+  private func tapClear() {
+    let clear = app.buttons["danger.clear"]
+    app.bringIntoView(clear)
+    clear.tap()
+  }
+
+  private func confirmClearData() {
+    openClearData()
+    selectClearCategories()
+    tapClear()
+    XCTAssertTrue(
+      app.putioAlert("Clear the selected data?").appears(within: 5), "the confirm never showed")
+    app.buttons["confirm-alert.confirm"].firstMatch.tap()
+  }
+
   private func dismissKeyboard() {
     app.swipeDown()
     XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 5), "the keyboard stayed up")

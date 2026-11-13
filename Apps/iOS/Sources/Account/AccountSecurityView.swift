@@ -111,7 +111,7 @@ private enum PutioLinkDeviceLayout {
 
 struct ClearDataView: View {
   @State private var model: PutioClearDataModel
-  @State private var confirms = false
+  @State private var confirmAlert: PutioConfirmAlert?
 
   init(
     actions: PutioAccountSecurityActions,
@@ -121,67 +121,105 @@ struct ClearDataView: View {
   }
 
   var body: some View {
-    Form {
-      Section {
-        ForEach(PutioAccountDataCategory.allCases, id: \.self) { category in
-          Toggle(
-            category.title,
-            isOn: Binding(
-              get: { model.selection.contains(category) },
-              set: { selected in
-                if selected {
-                  model.selection.insert(category)
-                } else {
-                  model.selection.remove(category)
-                }
-              })
+    List {
+      Group {
+        PutioSettingsSection(Self.intro) {
+          ForEach(PutioAccountDataCategory.allCases, id: \.self) { category in
+            PutioCheckRow(
+              category.title, icon: category.icon,
+              isChecked: model.selection.contains(category)
+            ) {
+              model.toggle(category)
+            }
+            .accessibilityIdentifier("danger.clear.\(category.rawValue)")
+          }
+        }
+        .disabled(model.isBusy)
+        Section {
+          PutioDestructiveRow(
+            String(localized: "Clear"), alignment: .center, isBusy: model.isClearing,
+            action: confirm
           )
-          .disabled(model.isClearing)
-          .accessibilityIdentifier("danger.clear.\(category.rawValue)")
+          .disabled(!model.canClear)
+          .accessibilityIdentifier("danger.clear")
+        } footer: {
+          outcome
         }
-      } header: {
-        Text("What to clear")
-      } footer: {
-        Text("Cleared data cannot be recovered.")
-      }
-      .listRowBackground(PutioTheme.Colors.surface)
-      Section {
-        if let failure = model.failure {
-          Text(failure)
-            .foregroundStyle(PutioTheme.Colors.destructive)
-            .accessibilityIdentifier("danger.clear-failure")
-        }
-        if let warning = model.refreshWarning {
-          Text(warning).foregroundStyle(PutioTheme.Colors.textSecondary)
-          Button("Refresh account") { Task { await model.refreshAccount() } }
-            .disabled(model.isClearing)
+        if model.refreshWarning != nil {
+          Section {
+            Button(String(localized: "Refresh account")) {
+              Task { await model.refreshAccount() }
+            }
+            .disabled(model.isBusy)
             .accessibilityIdentifier("danger.clear-refresh")
-        } else if model.didClear {
-          Text("Done. The selected data has been cleared.")
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .accessibilityIdentifier("danger.clear-success")
+          }
         }
-        Button(role: .destructive) {
-          confirms = true
-        } label: {
-          if model.isClearing { ProgressView() } else { Text("Clear selected data") }
-        }
-        .disabled(!model.canClear)
-        .accessibilityIdentifier("danger.clear")
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("Clear your data")
+    .navigationTitle(String(localized: "Clear your data"))
+    .navigationBarTitleDisplayMode(.inline)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
-    .confirmationDialog(
-      "Clear the selected data?", isPresented: $confirms, titleVisibility: .visible
+    .putioConfirmAlert($confirmAlert)
+  }
+
+  @ViewBuilder private var outcome: some View {
+    Group {
+      if let failure = model.failure {
+        Text(failure)
+          .foregroundStyle(PutioTheme.Colors.destructive)
+          .accessibilityIdentifier("danger.clear-failure")
+      } else if let warning = model.refreshWarning {
+        Text(warning)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      } else if model.didClear {
+        Text(String(localized: "Done. The selected data has been cleared."))
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .accessibilityIdentifier("danger.clear-success")
+      }
+    }
+    .putioFont(PutioTheme.Typography.caption)
+  }
+
+  private func confirm() {
+    let model = model
+    let categories = model.orderedSelection.map(\.title).formatted(.list(type: .and))
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Clear the selected data?"),
+      message: String(
+        localized:
+          "This permanently deletes \(categories) from your put.io account. It can’t be undone."),
+      confirmTitle: String(localized: "Clear")
     ) {
-      Button("Clear", role: .destructive) { Task { await model.clear() } }
-        .accessibilityIdentifier("danger.clear-confirm")
-      Button("Cancel", role: .cancel) {}
-    } message: {
-      Text("This removes the selected data from your account permanently.")
+      Task { await model.clear() }
+    }
+  }
+
+  private static var intro: String {
+    UIDevice.current.userInterfaceIdiom == .pad
+      ? String(
+        localized:
+          "These permanently delete data from your put.io account, on every device. To free up space on this iPad, delete downloads in Downloads instead."
+      )
+      : String(
+        localized:
+          "These permanently delete data from your put.io account, on every device. To free up space on this iPhone, delete downloads in Downloads instead."
+      )
+  }
+}
+
+extension PutioAccountDataCategory {
+  fileprivate var icon: PutioIcon {
+    switch self {
+    case .files: .folder
+    case .finishedTransfers: .checkCircle
+    case .activeTransfers: .cloudArrowDown
+    case .rssFeeds: .rss
+    case .rssLogs: .listBullets
+    case .history: .clockCounterClockwise
+    case .trash: .trash
+    case .friends: .users
     }
   }
 }
