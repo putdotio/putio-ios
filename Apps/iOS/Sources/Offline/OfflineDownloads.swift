@@ -719,6 +719,8 @@ final class PutioOfflineQueue {
         resolution = try await convert(fileID: fileID)
       }
       if item.kind == .video, case .ready(let source) = resolution {
+        try checkActiveWork()
+        guard let current = self.item(for: fileID), !isPaused(current.stage) else { return }
         let estimate = try await engine.estimatedBytes(url: source.url)
         try checkActiveWork()
         update(fileID) { $0.estimatedBytes = estimate }

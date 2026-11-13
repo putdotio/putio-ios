@@ -18,7 +18,6 @@ final class OfflineDownloadsTests: XCTestCase {
     var resumed: [PutioFileID] = []
     var cancelled: [PutioFileID] = []
     var alive: [PutioFileID] = []
-    /// Stream estimates by the file id in the source URL; 1,000 bytes otherwise.
     var estimates: [Int: Int64] = [:]
     var estimateError: Error?
     var replayCompletionOnRestore: PutioFileID?
@@ -2586,7 +2585,6 @@ final class OfflineDownloadsTests: XCTestCase {
   }
 
   func testStreamEstimateCountsEveryAudioRendition() {
-    // 1.5 Mbps floor for video, 128 kbps per audio rendition, over 100 s.
     XCTAssertEqual(
       PutioSystemOfflineDownloadEngine.estimatedBytes(
         seconds: 100, videoBitrate: 0, audioRenditions: 2),

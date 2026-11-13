@@ -138,7 +138,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     let (duration, variants) = try await asset.load(.duration, .variants)
     let audible = try await asset.loadMediaSelectionGroup(for: .audible)
     let seconds = duration.seconds.isFinite ? max(duration.seconds, 0) : 0
-    let variantBitrate = variants.compactMap(\.averageBitRate).max() ?? 0
+    let variantBitrate = variants.compactMap { $0.averageBitRate ?? $0.peakBitRate }.max() ?? 0
     return Self.estimatedBytes(
       seconds: seconds, videoBitrate: variantBitrate, audioRenditions: audible?.options.count ?? 0)
   }
