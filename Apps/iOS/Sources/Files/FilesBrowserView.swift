@@ -132,6 +132,7 @@ struct FilesBrowserView: View {
     }
     .onChange(of: path) { oldPath, newPath in
       scrollAnchors.keep(only: Set(newPath.map(\.id)).union([PutioFolderRoute.root.id]))
+      if horizontalSizeClass == .compact { selectedFile = nil }
       if didRestoreNavigation, let accountID {
         navigationRestoration.save(path: newPath, for: accountID)
       }

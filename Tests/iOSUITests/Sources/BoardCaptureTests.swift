@@ -2,6 +2,7 @@ import XCTest
 
 final class BoardCaptureTests: XCTestCase {
   private var app: XCUIApplication!
+  private var movedHinge = false
 
   override func setUpWithError() throws {
     try super.setUpWithError()
@@ -887,6 +888,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func restoreDuoPosture() {
+    guard movedHinge else { return }
     switch ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] {
     case "duo-folded": try? setHinge(degrees: 0)
     case "duo-open": try? setHinge(degrees: 180)
@@ -906,8 +908,12 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(
       spawned, 0, "the posture tool did not start: \(String(cString: strerror(spawned)))")
     guard spawned == 0 else { return }
+    movedHinge = true
     var status: Int32 = 0
-    waitpid(pid, &status, 0)
+    var waited: pid_t
+    repeat { waited = waitpid(pid, &status, 0) } while waited == -1 && errno == EINTR
+    XCTAssertEqual(
+      waited, pid, "waiting for the posture tool failed: \(String(cString: strerror(errno)))")
     XCTAssertEqual(status, 0, "the posture tool exited with \(status)")
   }
 
