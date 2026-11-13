@@ -594,6 +594,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-75-unavailable", .iphone, "testFolderUnavailable"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
+      BoardCapture(
+        "rd-ios-11-swipe-leading", .iphone, "testSwipeLeading", screenBase: false),
       BoardCapture("rd-ios-17-folder-long-press", .iphone, "testFolderLongPress"),
       BoardCapture("rd-ios-63-file-menu", .iphone, "testFileMenu"),
       BoardCapture("rd-ios-18-pinned", .iphone, "testPinned"),
