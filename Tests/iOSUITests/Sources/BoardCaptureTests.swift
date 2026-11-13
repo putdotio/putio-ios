@@ -2113,7 +2113,16 @@ final class BoardCaptureTests: XCTestCase {
     let downloads = tabButton("Downloads")
     var swipes = 0
     while !downloads.isHittable, swipes < 4 {
-      app.swipeDown()
+      if swipes.isMultiple(of: 2) {
+        app.swipeDown()
+      } else {
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+        bottom.press(
+          forDuration: 0.05, thenDragTo: top, withVelocity: .slow, thenHoldForDuration: 0)
+        top.press(
+          forDuration: 0.05, thenDragTo: bottom, withVelocity: .slow, thenHoldForDuration: 0.3)
+      }
       swipes += 1
     }
     XCTAssertTrue(downloads.becomesHittable(within: 5), "the tab bar stayed minimized")
