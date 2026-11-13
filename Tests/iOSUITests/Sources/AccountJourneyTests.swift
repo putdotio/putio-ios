@@ -104,7 +104,8 @@ final class AccountJourneyTests: XCTestCase {
           predicate: NSPredicate(format: "value == %@", "\(opened)|\(row.title)"),
           object: requests)
         XCTAssertEqual(
-          XCTWaiter.wait(for: [request], timeout: 5), .completed, "\(row.identifier) opened nothing")
+          XCTWaiter.wait(for: [request], timeout: 5), .completed, "\(row.identifier) opened nothing"
+        )
         continue
       }
       let destination = app.navigationBars[row.title]
