@@ -1094,7 +1094,7 @@
       }
     },
     "Couldn’t load logged-in apps" : {
-      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "comment" : "android: mobile_logged_in_apps_load_error",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2440,7 +2440,7 @@
       }
     },
     "Loading logged-in apps…" : {
-      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "comment" : "android: mobile_logged_in_apps_loading",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2561,7 +2561,7 @@
       }
     },
     "Logged-in apps" : {
-      "comment" : "ios-only: Android shows logged-in apps without a settings row string",
+      "comment" : "android: mobile_settings_logged_in_apps",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3344,7 +3344,7 @@
       }
     },
     "Pin" : {
-      "comment" : "ios-only: Android's mobile_files_pin is newer than the Android snapshot",
+      "comment" : "android: mobile_files_pin",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3355,7 +3355,7 @@
       }
     },
     "Pinned" : {
-      "comment" : "ios-only: Android's mobile_files_pinned is newer than the Android snapshot",
+      "comment" : "android: mobile_files_pinned",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3740,7 +3740,7 @@
       }
     },
     "Sign out of all other apps" : {
-      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "comment" : "android: mobile_logged_in_apps_sign_out_others",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3751,7 +3751,7 @@
       }
     },
     "Sign out of all other apps?" : {
-      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "comment" : "android: mobile_logged_in_apps_sign_out_others_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3916,7 +3916,7 @@
       }
     },
     "Unpin" : {
-      "comment" : "ios-only: Android's mobile_files_unpin is newer than the Android snapshot",
+      "comment" : "android: mobile_files_unpin",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3960,7 +3960,7 @@
       }
     },
     "Used on %@" : {
-      "comment" : "ios-only: Android's logged-in apps strings postdate Config/AndroidStrings.json",
+      "comment" : "android: mobile_logged_in_apps_used_on",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4257,7 +4257,7 @@
       }
     },
     "Reset all sort settings" : {
-      "comment" : "ios-only: Android has no reset-sorts row; iOS board wording",
+      "comment" : "android: mobile_settings_reset_sorts",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4400,7 +4400,7 @@
       }
     },
     "Rotate to landscape" : {
-      "comment" : "ios-only: no Android string for the iOS playback settings screen",
+      "comment" : "android: mobile_settings_rotate_to_landscape",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4983,7 +4983,7 @@
       }
     },
     "This erases every saved playback position on your account, on all devices." : {
-      "comment" : "ios-only: the resume confirmation is on the Account board; Android has not shipped its key yet",
+      "comment" : "android: mobile_settings_resume_confirm_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5170,7 +5170,7 @@
       }
     },
     "Turn off" : {
-      "comment" : "android: mobile_settings_trash_confirm_action",
+      "comment" : "android: mobile_settings_turn_off",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5181,7 +5181,7 @@
       }
     },
     "Turn off resume?" : {
-      "comment" : "ios-only: the resume confirmation is on the Account board; Android has not shipped its key yet",
+      "comment" : "android: mobile_settings_resume_confirm_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {

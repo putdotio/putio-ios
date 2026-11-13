@@ -2,7 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "%@ of %@" : {
-      "comment" : "android: mobile_account_storage_full_value",
+      "comment" : "android: account_storage_full_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -985,7 +985,7 @@
       }
     },
     "Full. Empty trash or delete files to make room." : {
-      "comment" : "android: mobile_account_storage_full | differs: iOS has no Transfers, so it drops the transfers sentence",
+      "comment" : "android: account_storage_full | differs: iOS has no Transfers, so it drops the transfers sentence",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1084,7 +1084,7 @@
       }
     },
     "Maybe you’d like to create a new folder?" : {
-      "comment" : "android: mobile_files_empty_message | differs: iOS board wording, as on web",
+      "comment" : "android: mobile_files_empty_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1251,7 +1251,7 @@
       }
     },
     "No files whatsoever!" : {
-      "comment" : "android: mobile_files_empty_title | differs: iOS board wording, as on web",
+      "comment" : "android: mobile_files_empty_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
