@@ -151,8 +151,6 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       seconds: seconds, videoBitrate: variantBitrate, audioRenditions: audible?.options.count ?? 0)
   }
 
-  /// The best video variant, at least 1.5 Mbps, plus a conservative 128 kbps
-  /// per audio rendition. Subtitles are too small to count.
   static func estimatedBytes(seconds: Double, videoBitrate: Double, audioRenditions: Int) -> Int64 {
     let video = max(videoBitrate, 1_500_000) / 8 * seconds
     let audio = 128_000 / 8 * seconds * Double(audioRenditions)
