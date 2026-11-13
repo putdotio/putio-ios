@@ -176,6 +176,7 @@ struct OfflineDownloadEngineTests {
     let relay = PutioOfflineDownloadRelay(dispatch: { work in MainActor.assumeIsolated { work() } })
     let engine = PutioSystemOfflineDownloadEngine(
       accountID: 1,
+      estimate: { _ in 0 },
       prepareConfiguration: { _, _ in
         await gate.wait()
         return configuration

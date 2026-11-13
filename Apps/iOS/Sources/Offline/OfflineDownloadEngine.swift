@@ -42,6 +42,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// an engine only ever maps its own account's tasks.
   let accountID: Int
 
+  private let estimate: @MainActor (URL) async throws -> Int64
   private let prepareConfiguration:
     @MainActor (URL, String) async throws -> AVAssetDownloadConfiguration
   private let makeTask: @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask
@@ -50,6 +51,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
 
   init(
     accountID: Int,
+    estimate: @escaping @MainActor (URL) async throws -> Int64 =
+      PutioSystemOfflineDownloadEngine.streamEstimate,
     prepareConfiguration:
       @escaping @MainActor (URL, String) async throws -> AVAssetDownloadConfiguration =
       PutioSystemOfflineDownloadEngine.prepareConfiguration,
@@ -65,6 +68,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     }
   ) {
     self.accountID = accountID
+    self.estimate = estimate
     self.prepareConfiguration = prepareConfiguration
     self.makeTask = makeTask
     self.relay = relay
@@ -131,9 +135,13 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     relay.engine = self
   }
 
+  func estimatedBytes(url: URL) async throws -> Int64 {
+    try await estimate(url)
+  }
+
   /// Every property load must succeed; a failure here fails the download
   /// instead of admitting it on a guess.
-  func estimatedBytes(url: URL) async throws -> Int64 {
+  static func streamEstimate(url: URL) async throws -> Int64 {
     let asset = AVURLAsset(url: url)
     let (duration, variants) = try await asset.load(.duration, .variants)
     let audible = try await asset.loadMediaSelectionGroup(for: .audible)
