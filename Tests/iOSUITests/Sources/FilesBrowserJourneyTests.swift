@@ -2,6 +2,7 @@ import XCTest
 
 final class FilesBrowserJourneyTests: XCTestCase {
   private var app: XCUIApplication!
+  private let toastDuration: TimeInterval = 5
 
   override func setUpWithError() throws {
     try super.setUpWithError()
@@ -2020,6 +2021,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "ancestor Files list did not refresh after the move"
     )
     XCTAssertEqual(movedFolderAtRoot.label.components(separatedBy: ", ").first, "Weekend")
+    XCTAssertTrue(
+      app.staticTexts["1 item is in the selected folder."].disappears(within: 10),
+      "the move toast still covers the moved folder")
 
     movedFolderAtRoot.swipeLeft()
     let swipeTrash = app.buttons["Move to trash"]
@@ -2031,12 +2035,28 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.staticTexts["Moved to trash"].appears(within: 5),
       "Trash success was not surfaced"
     )
+    let trashToastExpiry = Date.now.addingTimeInterval(toastDuration)
     XCTAssertTrue(
       movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
     XCTAssertTrue(
-      app.buttons["Undo"].disappears(within: 10), "the Undo toast never timed out")
+      waitUntilHittable(app.buttons["Undo"], timeout: 5), "the Trash toast offers no Undo")
 
-    let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
+    openBrowseMenu()
+    let newFolderUnderToast = app.buttons["New folder"]
+    XCTAssertTrue(
+      waitUntilHittable(newFolderUnderToast, timeout: 5),
+      "new-folder action is unavailable while the Undo toast shows")
+    newFolderUnderToast.tap()
+    let alertOverToast = nameAlert("New folder")
+    RunLoop.current.run(until: trashToastExpiry.addingTimeInterval(1))
+    XCTAssertTrue(alertOverToast.exists, "the alert closed before the toast timed out")
+    submitName("Bulk Retry", in: alertOverToast, as: "Create")
+    XCTAssertFalse(
+      app.buttons["Undo"].exists, "the Undo toast outlived its timeout under the alert")
+    let bulkRetryFolder = element(identifier: "files.item.416")
+    XCTAssertTrue(
+      bulkRetryFolder.appears(within: 5),
+      "a folder created after a toast timed out under its alert did not appear")
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
     openBrowseMenu()
     let select = app.buttons["Select"]
