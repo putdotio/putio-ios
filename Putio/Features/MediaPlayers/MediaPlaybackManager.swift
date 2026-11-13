@@ -5,20 +5,29 @@ import AVKit
 class MediaPlaybackManager {
     static let sharedInstance = MediaPlaybackManager()
 
-    func play(_ media: MediaPlayerItem, sourceViewController: UIViewController) {
+    func play(
+        _ media: MediaPlayerItem,
+        sourceViewController: UIViewController,
+        onLocalFileFailure: (() -> Void)? = nil
+    ) {
         ProductAnalytics.capture(.screenViewed(.player))
         switch media.fileType {
         case .audio:
             self.playAudio(media, sourceViewController)
         case .video:
-            self.playVideo(media, sourceViewController)
+            self.playVideo(media, sourceViewController, onLocalFileFailure: onLocalFileFailure)
         }
     }
 
-    private func playVideo(_ video: MediaPlayerItem, _ sourceViewController: UIViewController) {
+    private func playVideo(
+        _ video: MediaPlayerItem,
+        _ sourceViewController: UIViewController,
+        onLocalFileFailure: (() -> Void)?
+    ) {
         let videoPlayerVC = VideoPlayerViewController()
 
         videoPlayerVC.item = video
+        videoPlayerVC.onLocalFileFailure = onLocalFileFailure
         videoPlayerVC.player = AVPlayer(url: video.url)
 
         if (sourceViewController as? AVPlayerViewControllerDelegate) != nil {
