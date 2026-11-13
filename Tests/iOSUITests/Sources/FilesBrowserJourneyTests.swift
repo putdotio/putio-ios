@@ -1616,12 +1616,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.search-filters").exists)
     addScreenshot(named: "runtime-search-offline")
 
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10))
+    signOutFromAccount()
   }
 
   func testRecentSearchesRecordRunRemoveClearTurnedOffAndFailedWrite() {
