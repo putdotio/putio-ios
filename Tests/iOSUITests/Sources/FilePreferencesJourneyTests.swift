@@ -179,13 +179,42 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(diagnostics, enabled: false)
     assertToggle(analytics, enabled: true)
     app.navigationBars.buttons["BackButton"].tap()
+    signOut()
+    XCTAssertTrue(signIn.appears(within: 10))
+  }
+
+  func testFailedPrivacySaveRevertsWithToast() {
+    app.launch()
+    let signIn = element("auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    openPreferences()
+    openPrivacy()
+    let diagnostics = app.switches["privacy.diagnostics"]
+    assertToggle(diagnostics, enabled: true)
+    tapToggle(diagnostics)
+    let toast = app.staticTexts["Couldn’t save this setting"]
+    XCTAssertTrue(toast.appears(within: 10))
+    addScreenshot(named: "runtime-privacy-save-failed")
+    assertToggle(diagnostics, enabled: true)
+    XCTAssertTrue(toast.disappears(within: 10))
+    tapToggle(diagnostics)
+    assertToggle(diagnostics, enabled: false)
+    XCTAssertFalse(toast.exists)
+    app.navigationBars.buttons["BackButton"].tap()
+    assertPrivacySummary("Diagnostics off · Analytics off")
+    signOut()
+    XCTAssertTrue(signIn.appears(within: 10))
+  }
+
+  private func signOut() {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(waitUntilHittable(signOut))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   private func cancelConfirmation(_ confirmation: XCUIElement) {
