@@ -164,6 +164,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openItemMenu("files.item.442")
     XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-64-vlc-menu")
   }
 

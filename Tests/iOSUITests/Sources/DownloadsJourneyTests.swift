@@ -81,6 +81,23 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(item.value as? String, "completed")
     XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
 
+    // The same stored copy plays English once English is preferred.
+    app.terminate()
+    let preference = try XCTUnwrap(
+      app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"))
+    app.launchArguments[preference + 1] = "en,tr"
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    app.buttons["Downloads"].tap()
+    XCTAssertTrue(item.appears(within: 10))
+    item.tap()
+    XCTAssertTrue(ready.appears(within: 20))
+    XCTAssertTrue(
+      waitForValue(language, "en", timeout: 10),
+      "offline playback did not switch to English: \(language.value ?? "")")
+    element("video.done").tap()
+    XCTAssertTrue(item.appears(within: 10))
+
     // Multi-select removal: local removal is the default, the original is a
     // separately worded destructive choice, and both are named for VoiceOver.
     app.buttons["downloads.select"].tap()
