@@ -65,6 +65,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private var workers: [PutioFileID: Worker] = [:]
   /// File ids whose engine task is suspended and can be resumed in place.
   @ObservationIgnored private var suspended: Set<PutioFileID> = []
+  @ObservationIgnored private var streamEstimated: Set<PutioFileID> = []
   /// Suspended tasks the user asked to resume while every slot was busy.
   private var resumeWhenFree: [PutioFileID] = []
   /// Items whose package is being read for completion; a second completion
@@ -364,6 +365,7 @@ final class PutioOfflineQueue {
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       suspended.remove(fileID)
+      streamEstimated.remove(fileID)
       resumeWhenFree.removeAll { $0 == fileID }
       engine.cancel(fileID: fileID)
       deleteLocalAsset(for: fileID)
@@ -724,6 +726,7 @@ final class PutioOfflineQueue {
         let estimate = try await engine.estimatedBytes(url: source.url)
         try checkActiveWork()
         update(fileID) { $0.estimatedBytes = estimate }
+        streamEstimated.insert(fileID)
       }
       // Every await above may have let pause or remove run; nothing below
       // touches the engine unless this worker still owns a live item.
@@ -947,9 +950,15 @@ final class PutioOfflineQueue {
 
   private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
     inFlightItems
-      .filter { $0.id != fileID }
+      .filter { $0.id != fileID && reservesEstimate($0) }
       .map { max(0, $0.estimatedBytes - $0.storedBytes) }
       .reduce(0, +)
+  }
+
+  private func reservesEstimate(_ item: PutioOfflineItem) -> Bool {
+    if item.kind == .audio { return true }
+    if case .downloading = item.stage { return true }
+    return streamEstimated.contains(item.id)
   }
 
   /// A failure that lands after the user paused keeps the pause; the retry
