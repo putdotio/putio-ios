@@ -241,11 +241,9 @@ struct FilesBrowserView: View {
     let onFileSelected = onFileSelected
     return { route, origin in
       if let open = selection.wrappedValue, open.route.id == route.id,
-        route.videoPlaybackRoute == nil
+        open.origin?.folderID == origin?.folderID, route.videoPlaybackRoute == nil
       {
-        if let previewOpen, let source = (origin ?? open.origin)?.previewSource,
-          route.previewKind != nil
-        {
+        if let previewOpen, let source = origin?.previewSource, route.previewKind != nil {
           previewOpen(route, in: source)
         } else {
           onFileSelected(route)
