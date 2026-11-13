@@ -242,7 +242,9 @@ struct PutioVideoControls<Trailing: View>: View {
           PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
         }
         Spacer(minLength: PutioTheme.Spacing.space3)
-        PutioVideoScrubber(transport: transport) { visibility.interacted() } onScrubbing: {
+        PutioVideoScrubber(transport: transport) {
+          visibility.interacted()
+        } onScrubbing: {
           visibility.set(.scrubbing, $0)
         }
       }
