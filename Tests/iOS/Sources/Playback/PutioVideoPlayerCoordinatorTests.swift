@@ -465,7 +465,7 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     let transport = PutioVideoTransport()
     let first = AVPlayer()
     transport.playerChanged(from: nil, to: first)
-    transport.setControlsEnabled(true)
+    transport.setControlsEnabled(true, for: first)
 
     transport.playerChanged(from: first, to: AVPlayer())
     XCTAssertFalse(transport.controlsEnabled, "a retried player inherited unlocked controls")
@@ -475,11 +475,22 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     let transport = PutioVideoTransport()
     let stale = AVPlayer()
     transport.playerChanged(from: nil, to: stale)
-    transport.playerChanged(from: nil, to: AVPlayer())
-    transport.setControlsEnabled(true)
+    let live = AVPlayer()
+    transport.playerChanged(from: nil, to: live)
+    transport.setControlsEnabled(true, for: live)
 
     transport.playerChanged(from: stale, to: nil)
     XCTAssertTrue(transport.controlsEnabled, "a dismantled surface detached the live player")
+  }
+
+  func testAStaleSurfaceCannotUnlockTheLivePlayersControls() {
+    let transport = PutioVideoTransport()
+    let stale = AVPlayer()
+    transport.playerChanged(from: nil, to: stale)
+    transport.playerChanged(from: nil, to: AVPlayer())
+
+    transport.setControlsEnabled(true, for: stale)
+    XCTAssertFalse(transport.controlsEnabled, "a stale surface unlocked the live player's controls")
   }
 
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {

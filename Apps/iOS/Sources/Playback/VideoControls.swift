@@ -56,6 +56,7 @@ final class PutioVideoTransport {
   private(set) var selectedSubtitle: Int?
 
   @ObservationIgnored private var player: AVPlayer?
+  @ObservationIgnored private var attachment: UInt64 = 0
   @ObservationIgnored private var timeObservation: Any?
   @ObservationIgnored private var statusObservation: NSKeyValueObservation?
   @ObservationIgnored private var selectionObservation: NSObjectProtocol?
@@ -83,6 +84,7 @@ final class PutioVideoTransport {
 
   private func attach(_ player: AVPlayer?) {
     detach()
+    attachment &+= 1
     guard let player else { return }
     self.player = player
     player.defaultRate = speed.rawValue
@@ -97,7 +99,8 @@ final class PutioVideoTransport {
     }
   }
 
-  func setControlsEnabled(_ enabled: Bool) {
+  func setControlsEnabled(_ enabled: Bool, for player: AVPlayer?) {
+    guard player === self.player else { return }
     controlsEnabled = enabled
     if enabled { loadTracks() }
   }
@@ -122,13 +125,14 @@ final class PutioVideoTransport {
   func seek(to seconds: Double) {
     guard controlsEnabled, let player else { return }
     let seek = playhead.seekStarted(to: seconds)
+    let attachment = attachment
     player.seek(
       to: CMTime(seconds: playhead.timeline.elapsedSeconds, preferredTimescale: 600),
       toleranceBefore: .zero,
       toleranceAfter: .zero
-    ) { [weak self, weak player] _ in
-      Task { @MainActor [weak self, weak player] in
-        guard let self, let player, self.player === player else { return }
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        guard let self, self.attachment == attachment else { return }
         playhead.seekFinished(seek)
       }
     }
@@ -435,46 +439,43 @@ struct PutioVideoOptionsMenu: View {
 
   var body: some View {
     Menu {
-      Group {
-        if transport.audioTracks.count > 1 {
-          Menu {
-            ForEach(transport.audioTracks) { track in
-              choice(track.title, selected: transport.selectedAudio == track.id) {
-                transport.selectAudio(track.id)
-              }
-            }
-          } label: {
-            Text("Audio")
-            if let title = transport.selectedAudioTitle { Text(title) }
-          }
-        }
-        if !transport.subtitles.isEmpty {
-          Menu {
-            choice(String(localized: "Off"), selected: transport.selectedSubtitle == nil) {
-              transport.selectSubtitle(nil)
-            }
-            ForEach(transport.subtitles) { track in
-              choice(track.title, selected: transport.selectedSubtitle == track.id) {
-                transport.selectSubtitle(track.id)
-              }
-            }
-          } label: {
-            Text("Subtitles")
-            Text(transport.selectedSubtitleTitle)
-          }
-        }
+      if transport.audioTracks.count > 1 {
         Menu {
-          ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
-            choice(speed.title, selected: transport.speed == speed) {
-              transport.setSpeed(speed)
+          ForEach(transport.audioTracks) { track in
+            choice(track.title, selected: transport.selectedAudio == track.id) {
+              transport.selectAudio(track.id)
             }
           }
         } label: {
-          Text("Playback speed")
-          Text(transport.speed.title)
+          Text("Audio")
+          if let title = transport.selectedAudioTitle { Text(title) }
         }
       }
-      .onAppear(perform: onChange)
+      if !transport.subtitles.isEmpty {
+        Menu {
+          choice(String(localized: "Off"), selected: transport.selectedSubtitle == nil) {
+            transport.selectSubtitle(nil)
+          }
+          ForEach(transport.subtitles) { track in
+            choice(track.title, selected: transport.selectedSubtitle == track.id) {
+              transport.selectSubtitle(track.id)
+            }
+          }
+        } label: {
+          Text("Subtitles")
+          Text(transport.selectedSubtitleTitle)
+        }
+      }
+      Menu {
+        ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
+          choice(speed.title, selected: transport.speed == speed) {
+            transport.setSpeed(speed)
+          }
+        }
+      } label: {
+        Text("Playback speed")
+        Text(transport.speed.title)
+      }
     } label: {
       Image(putioIcon: .dotsThree)
         .resizable()
