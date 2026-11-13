@@ -20,7 +20,6 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // Download queues at once: no language sheet comes up.
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
@@ -81,7 +80,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(item.value as? String, "completed")
     XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
 
-    // The same stored copy plays English once English is preferred.
     app.terminate()
     let preference = try XCTUnwrap(
       app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"))
