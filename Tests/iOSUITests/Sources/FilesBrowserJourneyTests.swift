@@ -2020,6 +2020,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "ancestor Files list did not refresh after the move"
     )
     XCTAssertEqual(movedFolderAtRoot.label.components(separatedBy: ", ").first, "Weekend")
+    XCTAssertTrue(
+      app.staticTexts["1 item is in the selected folder."].disappears(within: 10),
+      "the move toast still covers the moved folder")
 
     movedFolderAtRoot.swipeLeft()
     let swipeTrash = app.buttons["Move to trash"]
