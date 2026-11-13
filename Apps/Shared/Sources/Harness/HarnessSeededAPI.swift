@@ -809,6 +809,10 @@ import Foundation
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     private static var trashHitsChildrenLimit: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
+        || trashLimitArrivesLate
+    }
+    private static var trashLimitArrivesLate: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit-late")
     }
     private static var settingsStayUnconfirmed: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-unconfirmed-settings")
@@ -1166,6 +1170,8 @@ import Foundation
         DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
+      } else if Self.trashLimitArrivesLate, Self.trashLimitRefuses(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
         // Long enough for the journey to observe the in-flight progress overlay
         // and leave the screen, short enough that the destination refresh has
@@ -1288,6 +1294,11 @@ import Foundation
         let fileIDs = requestFileIDs(request)
       else { return false }
       return !bulkDeleteProgressFolderIDs.isDisjoint(with: fileIDs)
+    }
+
+    private static func trashLimitRefuses(_ request: URLRequest) -> Bool {
+      trashHitsChildrenLimit && request.url?.path == "/v2/files/delete"
+        && !requestSkipsTrash(request) && requestFileIDs(request) == [albumCoverFileID]
     }
 
     private static func requestSkipsTrash(_ request: URLRequest) -> Bool {
@@ -2466,8 +2477,9 @@ import Foundation
       (475, "Gallery 4.png", "IMAGE")
     ]
     static let albumFolderID = 496
+    static let albumCoverFileID = 497
     private static let albumFiles: [(id: Int, name: String, type: String)] = [
-      (497, "Album Cover.png", "IMAGE")
+      (albumCoverFileID, "Album Cover.png", "IMAGE")
     ]
     private static var allGalleryFiles: [(id: Int, name: String, type: String)] {
       galleryFirstPage + gallerySecondPage + albumFiles
@@ -2941,7 +2953,7 @@ import Foundation
         fileActionsLock.withLock { tvSeasonPackTrashed = true }
         return (200, #"{"status":"OK"}"#)
       }
-      if fileID == 497, trashHitsChildrenLimit, !requestSkipsTrash(request) {
+      if trashLimitRefuses(request) {
         return (
           400,
           fixtureError(

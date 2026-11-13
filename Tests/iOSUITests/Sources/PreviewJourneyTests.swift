@@ -698,17 +698,7 @@ final class PreviewJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
-    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
-    gallery.tap()
-    let album = element("files.item.496")
-    XCTAssertTrue(album.appears(within: 10), "the album folder never appeared")
-    app.bringIntoView(album)
-    album.tap()
-    let cover = element("files.item.497")
-    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
-    cover.tap()
-    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10))
+    let cover = openAlbumCover()
 
     removeShownFile(row: "Move to trash")
     let limit = app.alerts["We couldn’t send these files to trash"]
@@ -729,6 +719,42 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["Undo"].exists, "a permanent delete offers Undo")
     XCTAssertTrue(cover.disappears(within: 10), "the folder kept the file")
     signOutFromFiles()
+  }
+
+  func testLateTrashLimitShowsTheFailureToastOverTheFolder() {
+    app.launchArguments.append("--putio-harness-trash-limit-late")
+    app.launch()
+    signIn()
+
+    let cover = openAlbumCover()
+
+    removeShownFile(row: "Move to trash")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.497").disappears(within: 5), "the viewer stayed open")
+    XCTAssertTrue(element("files.screen.496").exists, "the viewer did not land in the folder")
+    let failure = app.staticTexts["Could not move item to Trash"]
+    XCTAssertTrue(failure.appears(within: 15), "the late refusal showed no toast")
+    XCTAssertFalse(
+      app.alerts["We couldn’t send these files to trash"].exists,
+      "the late refusal asked from a closed viewer")
+    XCTAssertTrue(cover.exists, "the folder dropped the refused file")
+    screenshot("runtime-preview-trash-limit-late")
+    signOutFromFiles()
+  }
+
+  private func openAlbumCover() -> XCUIElement {
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 10), "the album folder never appeared")
+    app.bringIntoView(album)
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10))
+    return cover
   }
 
   private func openGalleryImage(_ id: Int, title: String) {
