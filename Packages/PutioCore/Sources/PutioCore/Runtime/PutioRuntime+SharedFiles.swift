@@ -39,7 +39,9 @@ extension PutioRuntime {
       try await sdk.getCloneInfo(cloneID: copyID)
     }
     switch info.status {
-    case .done: return .done
+    case .done:
+      _ = await session.refreshAccountAfterStorageMutation()
+      return .done
     case .error: return .failed
     default: return .running
     }

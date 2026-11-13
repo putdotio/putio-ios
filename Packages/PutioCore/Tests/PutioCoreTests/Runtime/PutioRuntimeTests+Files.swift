@@ -840,8 +840,13 @@ extension PutioRuntimeTests {
 
     fixtures.setFixture(
       #"{"status":"OK","shared_file_clone_status":"DONE"}"#, for: "GET /v2/sharing/clone/77")
+    let accountReadsBeforeDone = fixtures.capturedRequests()
+      .filter { $0.url?.path == "/v2/account/info" }.count
     let done = try await runtime.sharedFileCopyProgress(copyID: 77)
     XCTAssertEqual(done, .done)
+    XCTAssertEqual(
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/info" }.count,
+      accountReadsBeforeDone + 1, "a finished copy left storage unreconciled")
     fixtures.setFixture(
       #"{"status":"OK","shared_file_clone_status":"ERROR","error_msg":"Disk full"}"#,
       for: "GET /v2/sharing/clone/77")

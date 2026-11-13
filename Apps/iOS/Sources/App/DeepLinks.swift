@@ -237,7 +237,7 @@ final class PutioDeepLinkModel {
     if id == .root { return .files([], file: nil) }
     let item = try await file(id)
     guard item.id == id else { throw PutioDeepLinkFailure.invalidResponse }
-    var path: [PutioFolderRoute] = []
+    var folders: [PutioFileItem] = []
     var current = item
     var seen: Set<PutioFileID> = []
     while true {
@@ -247,7 +247,7 @@ final class PutioDeepLinkModel {
         throw PutioDeepLinkFailure.invalidResponse
       }
       if current.kind == .folder {
-        path.insert(PutioFolderRoute(id: current.id, title: current.name), at: 0)
+        folders.insert(current, at: 0)
       } else if current.id != item.id {
         throw PutioDeepLinkFailure.invalidResponse
       }
@@ -257,6 +257,11 @@ final class PutioDeepLinkModel {
         throw PutioDeepLinkFailure.invalidResponse
       }
       current = parent
+    }
+    var path: [PutioFolderRoute] = []
+    for (index, folder) in folders.enumerated() {
+      let parent = index > 0 ? folders[index - 1] : nil
+      path.append((path.last ?? .root).child(folder, in: parent))
     }
     return .files(path, file: item.kind == .folder ? nil : PutioFileRoute(item: item))
   }
