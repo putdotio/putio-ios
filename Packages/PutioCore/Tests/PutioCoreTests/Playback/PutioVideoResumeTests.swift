@@ -27,6 +27,7 @@ private final class ReporterHarness {
   private(set) var reported: [Int] = []
   private(set) var attempted: [Int] = []
   var failingSaves = 0
+  var saveError = PutioRuntimeError.invalidResponse
   let pipeline = PutioPlaybackPositionPipeline()
   let fileID = PutioFileID(rawValue: 7)
 
@@ -59,7 +60,7 @@ private final class ReporterHarness {
     attempted.append(seconds)
     if failingSaves > 0 {
       failingSaves -= 1
-      throw PutioRuntimeError.invalidResponse
+      throw saveError
     }
     reported.append(seconds)
   }
@@ -178,6 +179,24 @@ final class PutioVideoPositionReporterTests: XCTestCase {
     reporter.savePosition()
     await harness.drain()
     XCTAssertEqual(harness.reported, [])
+    schedule.tick()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [40, 40])
+    XCTAssertEqual(harness.reported, [40])
+  }
+
+  func testASaveThatLandsOnTheTransientRetryIsNotSentAgain() async throws {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter()
+    reporter.positionEstablished()
+    reporter.ready()
+    let schedule = try XCTUnwrap(harness.schedules.first)
+
+    harness.failingSaves = 1
+    harness.saveError = .transient
+    harness.position = 40
+    reporter.savePosition()
+    await harness.drain()
     schedule.tick()
     await harness.drain()
     XCTAssertEqual(harness.attempted, [40, 40])

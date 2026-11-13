@@ -148,11 +148,16 @@ public final class PutioVideoPositionReporter {
     ) { [weak self] fileID, seconds in
       do {
         try await report(fileID, seconds)
+        self?.saveSucceeded(seconds)
       } catch {
         self?.saveFailed(seconds)
         throw error
       }
     }
+  }
+
+  private func saveSucceeded(_ position: Int) {
+    if requestedPosition == nil { requestedPosition = position }
   }
 
   private func saveFailed(_ position: Int) {
