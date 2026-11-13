@@ -84,8 +84,24 @@ test("beta persists the selected TestFlight groups before distribution", async (
 });
 
 test("every workflow that runs asc turns its telemetry off first", async () => {
+  const ascCall = /(?:^|[\s|;&(`"/])asc"?[ \t]+([a-z-][^\n]*)/gm;
+  const localOnly = /^(?:telemetry|version|signing\s+keychain\s+delete)\b/;
+  const telemetryAssertion = /^\s*asc telemetry status --output json \| jq -e '\.enabled == false(?: and [^'|]*)?'(?:\s*>\s*\/dev\/null)?\s*$/m;
+  const commands = (text: string): string => text.split("\n").filter((line) => !/^\s*(?:#|echo\s|printf\s)/.test(line)).join("\n");
+  const storeCallAt = (text: string): number => [...text.matchAll(ascCall)].find((call) => !localOnly.test(call[1] ?? ""))?.index ?? -1;
+  const storeScripts: string[] = [];
+  for (const script of (await readdir(new URL("./", import.meta.url))).sort()) {
+    if (script.endsWith(".sh") && storeCallAt(commands(await readFile(new URL(script, import.meta.url), "utf8"))) !== -1) storeScripts.push(script);
+  }
+  assert.ok(storeScripts.includes("install-signing.sh"), "install-signing.sh is recognized as reaching App Store Connect");
+  const storeReaches = (step: RecordValue): number[] => {
+    if (typeof step.run !== "string") return [];
+    const text = commands(step.run);
+    return [storeCallAt(text), ...storeScripts.map((script) => text.indexOf(`scripts/${script}`))].filter((at) => at !== -1);
+  };
   const runsAsc = (step: RecordValue): boolean =>
-    typeof step.run === "string" && /(?:^|[\s|;&(`"/])(?:asc["\s]|node\s+scripts\/app-store\.ts|PUTIO_REQUIRE_ASC=1)/m.test(step.run);
+    storeReaches(step).length > 0 ||
+    (typeof step.run === "string" && /(?:^|[\s|;&(`"/])(?:asc["\s]|node\s+scripts\/app-store\.ts|PUTIO_REQUIRE_ASC=1)/m.test(step.run));
   const checked = new Set<string>();
   for (const name of (await readdir(new URL("../.github/workflows/", import.meta.url))).sort()) {
     if (!/\.ya?ml$/.test(name)) continue;
@@ -110,6 +126,19 @@ test("every workflow that runs asc turns its telemetry off first", async () => {
         if (step.env === undefined) return;
         const stepEnv = recordAt(step, "env", `${context}.steps[${index}]`);
         if ("ASC_TELEMETRY_DISABLED" in stepEnv) assert.equal(stepEnv.ASC_TELEMETRY_DISABLED, "1", `${context}.steps[${index}] keeps ASC_TELEMETRY_DISABLED`);
+      });
+      steps.forEach((step, index) => {
+        if (typeof step.run !== "string") return;
+        const stepContext = `${context}.steps[${index}]`;
+        const text = commands(step.run);
+        const reaches = storeReaches(step);
+        if (reaches.length === 0) return;
+        const asserted = text.search(telemetryAssertion);
+        assert.ok(asserted !== -1 && asserted < Math.min(...reaches), `${stepContext} asserts asc telemetry is off before reaching App Store Connect`);
+        const runDefaults = (owner: RecordValue): RecordValue => asRecord(asRecord(owner.defaults ?? {}, "defaults").run ?? {}, "defaults.run");
+        const shell = step.shell ?? runDefaults(jobRecord).shell ?? runDefaults(workflow).shell;
+        assert.equal(shell, "bash", `${stepContext} runs in bash -e so a failed assertion stops the step`);
+        assert.doesNotMatch(text, /\bset\s+(?:[-+][a-z]*\s+)*\+[a-z]*e|\bset\s+\+o\s+errexit/i, `${stepContext} keeps errexit on`);
       });
     }
   }
