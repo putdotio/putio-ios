@@ -866,6 +866,25 @@ final class BoardCaptureTests: XCTestCase {
     }
   }
 
+  func testHistoryList() throws {
+    orientForBoardDevice()
+    app.launchArguments.append("--putio-harness-history-board")
+    app.launch()
+    reachFilesRoot()
+    tabButton("History").tap()
+    XCTAssertTrue(
+      element("history.item.901").appears(within: 10), "the seeded history never loaded")
+    XCTAssertTrue(app.staticTexts["Today"].exists, "History has no Today section")
+    XCTAssertTrue(app.staticTexts["Yesterday"].exists, "History has no Yesterday section")
+    for (id, kind) in [
+      (907, "Shared with you"), (904, "Transfer failed"), (903, "RSS filter paused"),
+    ] {
+      XCTAssertTrue(
+        element("history.item.\(id)").label.contains(kind), "event \(id) does not read \(kind)")
+    }
+    try captureBoard("rd-ios-hist-01-list")
+  }
+
   func testHistoryTabHidden() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-history-disabled")

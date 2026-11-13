@@ -23,9 +23,11 @@ final class HistoryJourneyTests: XCTestCase {
     let missingEvent = element("history.item.808")
     XCTAssertTrue(folderEvent.appears(within: 10))
     XCTAssertTrue(app.staticTexts["Today"].exists)
-    XCTAssertTrue(
+    XCTAssertTrue(missingEvent.label.contains("Shared with you"), "a share does not say so")
+    XCTAssertFalse(missingEvent.label.contains("Fixture Friend"), "a share still names its sender")
+    XCTAssertFalse(
       app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", " ago")).firstMatch.exists,
-      "event times must read as relative dates, not running durations")
+      "event times must read as times of day")
     XCTAssertFalse(element("history.item.807").exists, "unknown event was rendered")
     let moreRetry = app.buttons["history.more-retry"]
     reveal(moreRetry)
@@ -35,9 +37,15 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Yesterday"].exists)
     for id in [805, 804, 803, 802, 801] {
       reveal(element("history.item.\(id)"))
-      if id == 803 { XCTAssertTrue(app.staticTexts["Last week"].exists) }
-      if id == 801 { XCTAssertTrue(app.staticTexts["Ancient times"].exists) }
+      if id == 803 { XCTAssertTrue(app.staticTexts[dayTitle(daysAgo: 3)].exists) }
+      if id == 801 { XCTAssertTrue(app.staticTexts[dayTitle(daysAgo: 10)].exists) }
     }
+    let failedTransfer = element("history.item.806")
+    reveal(failedTransfer)
+    XCTAssertTrue(failedTransfer.label.contains("Transfer failed"))
+    failedTransfer.tap()
+    XCTAssertTrue(failedTransfer.exists, "tapping a transfer event left History")
+    XCTAssertFalse(app.staticTexts[navigationBlocked].exists, "a transfer event tried to open")
     XCTAssertFalse(moreRetry.exists)
     scrollToTop()
     addScreenshot(named: "runtime-history-loaded")
@@ -53,13 +61,10 @@ final class HistoryJourneyTests: XCTestCase {
 
     reveal(missingEvent)
     missingEvent.tap()
-    let openRetry = app.buttons["history.open-retry"]
-    XCTAssertTrue(openRetry.appears(within: 10))
-    XCTAssertTrue(app.staticTexts["This item is no longer available."].exists)
+    XCTAssertTrue(app.staticTexts[navigationBlocked].appears(within: 10), "no blocked toast")
     XCTAssertTrue(missingEvent.exists, "missing file removed its history event")
-    openRetry.tap()
-    XCTAssertTrue(waitUntilHittable(openRetry))
-    XCTAssertTrue(missingEvent.exists)
+    XCTAssertFalse(app.buttons["history.open-retry"].exists, "a missing file offered a retry")
+    addScreenshot(named: "runtime-history-navigation-blocked")
 
     reveal(folderEvent)
     folderEvent.tap()
@@ -67,7 +72,6 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.411").exists)
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(folderEvent.appears(within: 5))
-    XCTAssertFalse(openRetry.exists)
     let videoEvent = element("history.item.809")
     reveal(videoEvent)
     videoEvent.tap()
@@ -78,8 +82,6 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(folderEvent.appears(within: 5))
 
     reveal(missingEvent)
-    missingEvent.tap()
-    XCTAssertTrue(openRetry.appears(within: 10))
     missingEvent.swipeLeft()
     let delete = app.buttons["Delete"]
     XCTAssertTrue(waitUntilHittable(delete))
@@ -90,7 +92,6 @@ final class HistoryJourneyTests: XCTestCase {
     mutationRetry.tap()
     XCTAssertTrue(missingEvent.disappears(within: 10))
     XCTAssertTrue(mutationRetry.disappears(within: 5))
-    XCTAssertFalse(openRetry.exists, "deleted event left an obsolete navigation retry")
 
     let clear = app.buttons["history.clear"]
     XCTAssertTrue(waitUntilHittable(clear))
@@ -128,6 +129,18 @@ final class HistoryJourneyTests: XCTestCase {
     signIn()
     XCTAssertFalse(app.buttons["History"].exists, "disabled history remained in the tab bar")
     signOut()
+  }
+
+  private let navigationBlocked =
+    "This item cannot be opened right now. Check Files, then try again."
+
+  private func dayTitle(daysAgo: Int) -> String {
+    let calendar = Calendar.current
+    let today = calendar.startOfDay(for: .now)
+    let day = calendar.date(byAdding: .day, value: -daysAgo, to: today) ?? today
+    let style = Date.FormatStyle().month(.abbreviated).day()
+    let sameYear = calendar.component(.year, from: day) == calendar.component(.year, from: today)
+    return day.formatted(sameYear ? style : style.year())
   }
 
   private func signIn() {

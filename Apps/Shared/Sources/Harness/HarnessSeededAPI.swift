@@ -1390,6 +1390,9 @@ import Foundation
       if historyCleared {
         return (200, #"{"status":"OK","has_more":false,"events":[]}"#)
       }
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-history-board") {
+        return (200, boardHistory())
+      }
       if before == nil {
         historyRootLoads += 1
         // The refresh failure belongs to the History journey; previews only
@@ -1493,6 +1496,48 @@ import Foundation
       }
       let events = rows.filter { !historyDeletedIDs.contains($0.0) }.map(\.1).joined(separator: ",")
       return (200, "{\"status\":\"OK\",\"has_more\":\(before == nil),\"events\":[\(events)]}")
+    }
+
+    private static func boardHistory() -> String {
+      let calendar = Calendar.current
+      let today = calendar.startOfDay(for: Date())
+      let formatter = ISO8601DateFormatter()
+      func event(
+        _ id: Int, _ type: String, daysAgo: Int, hour: Int, minute: Int, fields: String
+      ) -> String {
+        let day = calendar.date(byAdding: .day, value: -daysAgo, to: today) ?? today
+        let date = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
+        return
+          "{\"id\":\(id),\"user_id\":1,\"type\":\(jsonString(type)),\"created_at\":\(jsonString(formatter.string(from: date))),\(fields)}"
+      }
+      let events = [
+        event(
+          907, "file_shared", daysAgo: 0, hour: 18, minute: 15,
+          fields:
+            #""file_name":"FFTT Tree Rings November 10, 2026.mp3","file_size":4096,"sharing_user_name":"Fixture Friend","file_id":0"#
+        ),
+        event(
+          906, "transfer_completed", daysAgo: 0, hour: 14, minute: 2,
+          fields:
+            #""transfer_name":"Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv","transfer_size":1073741824,"file_id":0"#
+        ),
+        event(
+          905, "upload", daysAgo: 1, hour: 20, minute: 36,
+          fields: #""file_name":"document-scan-march-2026.pdf","file_size":2048,"file_id":0"#),
+        event(
+          904, "transfer_error", daysAgo: 1, hour: 20, minute: 12,
+          fields: #""transfer_name":"ubuntu-24.04.1-desktop-amd64.iso""#),
+        event(
+          903, "rss_filter_paused", daysAgo: 1, hour: 7, minute: 40,
+          fields: #""rss_filter_title":"Weekly Episodes""#),
+        event(
+          902, "upload", daysAgo: 2, hour: 21, minute: 58,
+          fields: #""file_name":"IMG_4392.HEIC","file_size":2048,"file_id":0"#),
+        event(
+          901, "file_from_rss_deleted_for_space", daysAgo: 2, hour: 3, minute: 10,
+          fields: #""file_name":"Old.Episode.S01E01.mkv","file_size":1024"#),
+      ]
+      return "{\"status\":\"OK\",\"has_more\":false,\"events\":[\(events.joined(separator: ","))]}"
     }
 
     private static func deleteHistory(id: Int) -> (Int, String) {
