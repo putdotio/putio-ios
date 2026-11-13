@@ -9,7 +9,7 @@ extension PutioRuntime {
           return try await sdk.continueListTrash(cursor: cursor)
         }
         return try await sdk.listTrash()
-      } catch let error as PutioSDKError where Self.neverLeftDevice(error) {
+      } catch let error as PutioSDKError where Self.folderLoadError(error) == .offline {
         throw PutioFolderLoadError.offline
       }
     }

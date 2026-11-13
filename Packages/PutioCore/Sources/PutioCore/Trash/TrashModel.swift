@@ -509,6 +509,11 @@ public final class PutioTrashModel {
     await load(initial: false, supersedesRefresh: false)
   }
 
+  public func retryFailedLoad() async {
+    guard case .failed = state else { return }
+    await load(initial: false, supersedesRefresh: true)
+  }
+
   public func retryKeepingFailure() async {
     guard case .failed = state else { return }
     await load(initial: false, keepsFailure: true)
