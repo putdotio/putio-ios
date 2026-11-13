@@ -26,8 +26,34 @@ enum PutioMoveCopy {
   }
 }
 
+enum PutioSharedFileCopyMessage {
+  static func text(for result: PutioSharedFileCopyResult) -> String {
+    let name = result.name
+    let folder = result.destination.title
+    return switch result.outcome {
+    case .copied: String(localized: "Copied “\(name)” to \(folder).")
+    case .failed: String(localized: "Couldn’t copy “\(name)” to \(folder).")
+    case .unconfirmed:
+      String(
+        localized: "Couldn’t confirm the copy of “\(name)”. It may still show up in \(folder).")
+    case .concurrentLimit:
+      String(
+        localized:
+          "You’re already copying as much as put.io allows at once. Try again when that copy finishes."
+      )
+    case .tooManyFiles: String(localized: "That’s too many files to copy at once.")
+    }
+  }
+}
+
+enum PutioFolderPickerPurpose: Equatable {
+  case move
+  case copy
+}
+
 @MainActor
 struct PutioMovePicker: View {
+  var purpose = PutioFolderPickerPurpose.move
   let items: [PutioFileItem]
   let load: PutioFolderLoad
   let continueLoad: PutioFolderContinue?
@@ -43,9 +69,9 @@ struct PutioMovePicker: View {
 
   var body: some View {
     PutioSheetScaffold(
-      title: String(localized: "Move \(items.count) items"),
+      title: title,
       primaryButton: PutioSheetPrimaryButton(
-        String(localized: "Move to \(destination.title)"),
+        primaryTitle,
         isBusy: isMoving || levelStatus.values.contains(.busy),
         isEnabled: canMove,
         failure: failure,
@@ -62,6 +88,20 @@ struct PutioMovePicker: View {
     .onChange(of: path) { takenName = nil }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.move-picker")
+  }
+
+  private var title: String {
+    switch purpose {
+    case .move: String(localized: "Move \(items.count) items")
+    case .copy: String(localized: "Copy \(items.count) items")
+    }
+  }
+
+  private var primaryTitle: String {
+    switch purpose {
+    case .move: String(localized: "Move to \(destination.title)")
+    case .copy: String(localized: "Copy to \(destination.title)")
+    }
   }
 
   private func level(_ route: PutioFolderRoute, trail: [PutioFolderRoute]) -> some View {

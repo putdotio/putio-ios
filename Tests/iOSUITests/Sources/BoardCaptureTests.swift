@@ -331,6 +331,69 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-63-file-menu")
   }
 
+  func testSharedRoot() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-shared-items")
+    app.launch()
+    openSharedRoot()
+    XCTAssertTrue(element("files.item.522").appears(within: 10), "selin never appeared")
+    try captureBoard("rd-ios-54-shared-root")
+  }
+
+  func testSharedLongPress() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-shared-items")
+    app.launch()
+    openSharedFileMenu()
+    try captureBoard("rd-ios-55-shared-long-press")
+  }
+
+  func testCopy() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-shared-items")
+    app.launch()
+    openCopySheet()
+    try captureBoard("rd-ios-56-copy")
+  }
+
+  func testCopied() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-shared-items")
+    app.launch()
+    openCopySheet()
+    app.buttons["Copy to Files"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Copied “Tears.of.Steel.2012.mkv” to Files."].appears(within: 15),
+      "the copy never confirmed")
+    try captureBoard("rd-ios-57-copied")
+  }
+
+  private func openSharedRoot() {
+    openRoot()
+    let shared = app.revealed("files.item.520", maximumSwipes: 12)
+    XCTAssertTrue(shared.exists, "Items shared with you never appeared")
+    shared.tap()
+    XCTAssertTrue(element("files.item.521").appears(within: 10), "deniz never appeared")
+  }
+
+  private func openSharedFileMenu() {
+    openSharedRoot()
+    element("files.item.521").tap()
+    let video = element("files.item.524")
+    XCTAssertTrue(video.appears(within: 10), "the shared video never appeared")
+    video.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["Make a copy"].appears(within: 5), "the menu has no Make a copy")
+    XCTAssertTrue(app.staticTexts["Shared by deniz"].exists, "the row never named deniz")
+  }
+
+  private func openCopySheet() {
+    openSharedFileMenu()
+    app.buttons["Make a copy"].tap()
+    XCTAssertTrue(element("files.move-screen.0").appears(within: 5), "Copy never opened")
+    XCTAssertTrue(app.staticTexts["Copy 1 item"].exists, "the sheet is not titled for a copy")
+    XCTAssertTrue(app.buttons["Copy to Files"].appears(within: 10), "Copy to Files never enabled")
+  }
+
   func testMove() throws {
     orient(.portrait)
     app.launch()

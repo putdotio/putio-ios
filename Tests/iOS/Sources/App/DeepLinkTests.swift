@@ -176,6 +176,30 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertNil(model.failure)
   }
 
+  func testSharedFolderPathNamesTheFriendWhoSharedIt() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/3"))
+    let folders = [
+      PutioFileItem(
+        id: PutioFileID(rawValue: 1), parentID: .root, name: "Items shared with you",
+        kind: .folder, sizeBytes: 0, createdAt: .distantPast, updatedAt: .distantPast,
+        resumePositionSeconds: 0, isShared: true, isSharedRoot: true),
+      PutioFileItem(
+        id: PutioFileID(rawValue: 2), parentID: PutioFileID(rawValue: 1), name: "deniz",
+        kind: .folder, sizeBytes: 0, createdAt: .distantPast, updatedAt: .distantPast,
+        resumePositionSeconds: 0, isShared: true),
+      PutioFileItem(
+        id: PutioFileID(rawValue: 3), parentID: PutioFileID(rawValue: 2), name: "Holiday",
+        kind: .folder, sizeBytes: 0, createdAt: .distantPast, updatedAt: .distantPast,
+        resumePositionSeconds: 0, isShared: true),
+    ]
+    await model.resolve(historyEnabled: true) { id in folders[id.rawValue - 1] }
+    guard case .files(let path, file: nil) = model.destination else {
+      return XCTFail("no folder path: \(String(describing: model.destination))")
+    }
+    XCTAssertEqual(path.map(\.sharedBy), [nil, "deniz", "deniz"])
+  }
+
   func testModelOwnedResolutionSurvivesTheCallersCancellation() async throws {
     let model = signedInModel()
     model.receive(try url("/files/10"))

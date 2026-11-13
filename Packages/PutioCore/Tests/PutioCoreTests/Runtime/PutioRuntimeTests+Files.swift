@@ -818,4 +818,65 @@ extension PutioRuntimeTests {
       _ = try await runtime.resolveFileDownloadSource(fileID: .root)
     }
   }
+
+  func testCopySharedFileClonesIntoTheParentAndReadsTheCopyStatus() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK","id":77}"#, for: "POST /v2/sharing/clone")
+    fixtures.setFixture(
+      #"{"status":"OK","shared_file_clone_status":"PROCESSING"}"#, for: "GET /v2/sharing/clone/77")
+
+    let copyID = try await runtime.copySharedFile(
+      fileID: PutioFileID(rawValue: 91), to: PutioFileID(rawValue: 7))
+    XCTAssertEqual(copyID, 77)
+    let progress = try await runtime.sharedFileCopyProgress(copyID: copyID)
+    XCTAssertEqual(progress, .running)
+
+    let request = try XCTUnwrap(
+      fixtures.capturedRequests().first { $0.url?.path == "/v2/sharing/clone" })
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["file_ids"] as? String, "91")
+    XCTAssertEqual(json["parent_id"] as? Int, 7)
+
+    fixtures.setFixture(
+      #"{"status":"OK","shared_file_clone_status":"DONE"}"#, for: "GET /v2/sharing/clone/77")
+    let accountReadsBeforeDone = fixtures.capturedRequests()
+      .filter { $0.url?.path == "/v2/account/info" }.count
+    let done = try await runtime.sharedFileCopyProgress(copyID: 77)
+    XCTAssertEqual(done, .done)
+    XCTAssertEqual(
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/info" }.count,
+      accountReadsBeforeDone + 1, "a finished copy left storage unreconciled")
+    fixtures.setFixture(
+      #"{"status":"OK","shared_file_clone_status":"ERROR","error_msg":"Disk full"}"#,
+      for: "GET /v2/sharing/clone/77")
+    let failed = try await runtime.sharedFileCopyProgress(copyID: 77)
+    XCTAssertEqual(failed, .failed)
+  }
+
+  func testCopySharedFileNamesEachRefusalWithoutExpiringTheSession() async {
+    let cases: [(String, Int, PutioSharedFileCopyRefusal)] = [
+      ("SharedFileCloneConcurrentLimit", 400, .concurrentLimit),
+      ("SharedFileCloneTooManyFiles", 400, .tooManyFiles),
+      ("SharedFileCloneTooManyChildren", 400, .tooManyFiles),
+      ("SOMETHING_ELSE", 400, .rejected),
+    ]
+    for (type, statusCode, expected) in cases {
+      fixtures.reset()
+      let (runtime, _) = await makeSignedInRuntime()
+      fixtures.setFixture(
+        #"{"status":"ERROR","error_type":"\#(type)","status_code":\#(statusCode)}"#,
+        statusCode: statusCode, for: "POST /v2/sharing/clone")
+      do {
+        _ = try await runtime.copySharedFile(
+          fileID: PutioFileID(rawValue: 91), to: PutioFileID(rawValue: 7))
+        XCTFail("a refused copy read as started")
+      } catch {
+        XCTAssertEqual(error as? PutioSharedFileCopyRefusal, expected, type)
+      }
+      guard case .signedIn = runtime.session.state else {
+        return XCTFail("a refused copy must keep the session")
+      }
+    }
+  }
 }

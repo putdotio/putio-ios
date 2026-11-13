@@ -82,6 +82,23 @@ final class FileMenuTests: XCTestCase {
       PutioFileMenu(item: item(.folder, shared: true), capabilities: everything).sections, [])
   }
 
+  func testSharedFilesAddMakeACopyAndSharedFoldersStayEmpty() {
+    let copying = PutioFileMenu.Capabilities(
+      canEdit: true, canDownload: true, vlcInstalled: false, tracksWatched: true,
+      canShare: true, canCopy: true)
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.video, shared: true), capabilities: copying, isDownloaded: true)
+        .sections,
+      [[.play, .download, .share], [.makeCopy]])
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.folder, shared: true), capabilities: copying).sections, [])
+    XCTAssertFalse(PutioFileMenu(item: item(.video), capabilities: copying).contains(.makeCopy))
+    var unpinned = copying
+    unpinned.pinned = false
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.video, shared: true), capabilities: unpinned).contains(.pin))
+  }
+
   func testSelectionBarFollowsTheIssueTable() {
     let videos = [item(.video, resume: 0), item(.video, resume: 90)]
     XCTAssertEqual(selectionBar(videos), [.move, .download, .markWatched, .trash])

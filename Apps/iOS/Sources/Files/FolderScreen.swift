@@ -33,11 +33,15 @@ struct PutioFolderScreen: View {
   @Environment(\.putioDefaultFolderSort) private var defaultSort
   @Environment(\.putioPinnedFiles) private var pinned
   @Environment(\.putioPreviewOpen) private var previewOpen
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
   @State private var share = PutioFileShareModel()
   @State private var preparingToast: PutioToast.ID?
+  @State private var copyModel: PutioSharedFileCopyModel?
+  @State private var copyTask: Task<Void, Never>?
+  @State private var listWidth: CGFloat = 0
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -88,6 +92,7 @@ struct PutioFolderScreen: View {
         initialContents: initialContents
       )
     )
+    _copyModel = State(initialValue: actions.map(PutioSharedFileCopyModel.init(actions:)))
     _refreshRegistration = State(
       initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     _pinItemActions = State(
@@ -171,12 +176,17 @@ struct PutioFolderScreen: View {
     .putioTextAlert($nameAlert)
     .sheet(item: $pendingMove) { selection in
       PutioMovePicker(
+        purpose: selection.purpose,
         items: selection.items,
         load: actions?.loadFolders ?? load,
         continueLoad: actions?.continueFolders ?? continueLoad,
         actions: actions,
         refreshRequests: refreshRequests,
         onMove: { destination in
+          if selection.purpose == .copy, let item = selection.items.first {
+            startCopy(item, to: destination)
+            return .closed
+          }
           guard !selection.isBulk, let item = selection.items.first else {
             actionRequest = .bulkMove(selection.items, destination)
             return .closed
@@ -192,7 +202,10 @@ struct PutioFolderScreen: View {
       if toast?.id == preparingToast { toast = nil }
       preparingToast = nil
     }
-    .onDisappear { share.leave() }
+    .onDisappear {
+      share.leave()
+      copyTask?.cancel()
+    }
     .modifier(
       PutioPinnedMoveHost(
         request: $pinMoveRequest, itemActions: pinItemActions, actions: actions, load: load,
@@ -346,7 +359,8 @@ struct PutioFolderScreen: View {
             relativeTo: relativeDateReference ?? .now,
             locale: locale,
             sort: contents.sort ?? defaultSort
-          )
+          ),
+          in: contents.folder
         )
         .task(id: prefetchIDs.contains(item.id) ? model.continuationKey : nil) {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
@@ -373,6 +387,7 @@ struct PutioFolderScreen: View {
       _ = await model.refresh()
       await pinnedSectionContext?.model.load()
     }
+    .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
   }
 
@@ -460,7 +475,9 @@ struct PutioFolderScreen: View {
   }
 
   @ViewBuilder
-  private func row(_ presentation: PutioBrowserItemPresentation) -> some View {
+  private func row(
+    _ presentation: PutioBrowserItemPresentation, in parent: PutioFileItem?
+  ) -> some View {
     if isEditing {
       PutioSelectableRow(isSelected: selection.contains(presentation.id)) {
         selection.toggle(presentation.id)
@@ -470,10 +487,10 @@ struct PutioFolderScreen: View {
       .disabled(fileActionPending)
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       .accessibilityValue(Text(selectionAccessibilityValue(for: presentation.item)))
-    } else if let folderRoute = presentation.folderRoute {
+    } else if presentation.item.kind == .folder {
       fileActions(
         for: presentation.item,
-        content: NavigationLink(value: folderRoute) {
+        content: NavigationLink(value: route.child(presentation.item, in: parent)) {
           PutioFileRow(presentation.row)
         }
         .disabled(navigationLocked)
@@ -483,6 +500,7 @@ struct PutioFolderScreen: View {
       let fileRoute = PutioFileRoute(item: presentation.item)
       fileActions(
         for: presentation.item,
+        preview: sharedPreview(presentation),
         content: Button {
           if let previewOpen, fileRoute.previewKind != nil {
             previewOpen(fileRoute, in: model.previewSource)
@@ -504,6 +522,7 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func fileActions<Content: View>(
     for item: PutioFileItem,
+    preview: AnyView? = nil,
     content: Content
   ) -> some View {
     let menu = PutioFileMenu(
@@ -515,6 +534,7 @@ struct PutioFolderScreen: View {
         tracksWatched: tracksWatched,
         canShare: fileShare != nil,
         canLink: exclusiveLink != nil,
+        canCopy: copyModel != nil,
         pinned: pinned.map { $0.model.isPinned(item.id) }),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
@@ -534,8 +554,32 @@ struct PutioFolderScreen: View {
       row.putioItemActions(
         PutioItemMenu(menu.sections.map { $0.compactMap { actions[$0] } }),
         leading: menu.leadingSwipe.compactMap { actions[$0] },
-        trailing: menu.trailingSwipe.compactMap { actions[$0] })
+        trailing: menu.trailingSwipe.compactMap { actions[$0] },
+        preview: preview)
     }
+  }
+
+  private var sharedPreviewWidth: CGFloat? {
+    guard horizontalSizeClass == .compact else { return nil }
+    return max(listWidth - 2 * PutioTheme.Spacing.space2, 0)
+  }
+
+  private func sharedPreview(_ presentation: PutioBrowserItemPresentation) -> AnyView? {
+    guard presentation.item.isShared, let sharedBy = route.sharedBy else { return nil }
+    let row = presentation.row
+    return AnyView(
+      PutioFileRow(
+        PutioFileRowModel(
+          name: row.name, kind: row.kind, sizeText: row.sizeText,
+          dateText: String(localized: "Shared by \(sharedBy)"), secondaryText: row.secondaryText,
+          isOnDevice: row.isOnDevice, isWatched: row.isWatched,
+          showsDisclosure: row.showsDisclosure, downloadState: row.downloadState)
+      )
+      .padding(.horizontal, PutioTheme.Spacing.space3)
+      .padding(.vertical, PutioTheme.Spacing.space2)
+      .frame(width: sharedPreviewWidth, alignment: .leading)
+      .background(PutioTheme.Components.FileRow.backgroundActive)
+      .accessibilityIdentifier("files.shared-by.\(presentation.id.rawValue)"))
   }
 
   private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction {
@@ -604,6 +648,11 @@ struct PutioFolderScreen: View {
         id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
         isDisabled: fileActionPending
       ) { linkItem = item }
+    case .makeCopy:
+      return PutioItemAction(
+        id: "make-copy", title: String(localized: "Make a copy"), icon: .copy,
+        isDisabled: fileActionPending || copyModel?.isRunning != false
+      ) { pendingMove = MoveSelection(items: [item], isBulk: false, purpose: .copy) }
     case .trash:
       return PutioItemAction(
         id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,
@@ -633,6 +682,18 @@ struct PutioFolderScreen: View {
       staysUntilDismissed: true)
     toast = preparing
     preparingToast = preparing.id
+  }
+
+  private func startCopy(_ item: PutioFileItem, to destination: PutioFolderRoute) {
+    guard let copyModel else { return }
+    copyTask = Task {
+      guard let result = await copyModel.copy(item, to: destination) else {
+        if Task.isCancelled { refreshRequests.request(folderID: destination.id) }
+        return
+      }
+      if result.mayHaveLanded { refreshRequests.request(folderID: destination.id) }
+      toast = PutioToast(PutioSharedFileCopyMessage.text(for: result))
+    }
   }
 
   private func requestDeletion(of item: PutioFileItem) {
@@ -1236,6 +1297,7 @@ struct PutioFolderScreen: View {
   private struct MoveSelection: Equatable, Identifiable {
     let items: [PutioFileItem]
     let isBulk: Bool
+    var purpose = PutioFolderPickerPurpose.move
 
     var id: [PutioFileID] {
       items.map(\.id)

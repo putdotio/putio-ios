@@ -604,6 +604,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-51-trash-off-menu", .iphone, "testTrashOffMenu"),
       BoardCapture("rd-ios-52-trash-unknown-menu", .iphone, "testTrashUnknownMenu"),
       BoardCapture("rd-ios-53-trash-limit", .iphone, "testTrashLimit"),
+      BoardCapture("rd-ios-54-shared-root", .iphone, "testSharedRoot"),
+      BoardCapture("rd-ios-55-shared-long-press", .iphone, "testSharedLongPress"),
+      BoardCapture("rd-ios-56-copy", .iphone, "testCopy"),
+      BoardCapture("rd-ios-57-copied", .iphone, "testCopied", screenBase: false),
       BoardCapture("rd-ios-19-move", .iphone, "testMove"),
       BoardCapture("rd-ios-78-link-create", .iphone, "testExclusiveLinkCreating"),
       BoardCapture("rd-ios-79-link-created", .iphone, "testExclusiveLinkCreated"),
@@ -981,6 +985,13 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "item-menus", "ItemActionsGalleryTests/testLongPressAndSwipeMoreListTheSameItemsInOrder",
       attachmentNames: ["item-menu-long-press", "item-menu-swipe-more"]),
+    JourneyPreflight(
+      "shared-copy",
+      "SharedItemsJourneyTests/testSharedFoldersOfferNothingAndASharedFileCopiesIntoAnyFolder",
+      attachmentNames: [
+        "shared-root", "shared-file-menu", "shared-copy-sheet", "shared-copied",
+      ],
+      timeAllowance: 180),
     JourneyPreflight(
       "text-alert-retry",
       "ItemActionsGalleryTests/testTextAlertFailureClosesAndTryAgainResendsTheSameName",
