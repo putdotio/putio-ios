@@ -60,6 +60,8 @@ images and documents, and opens put.io links into the same screens.
   account has Trash off.
 - `preview-trash-limit` asks before deleting the shown file permanently when
   Trash refuses it.
+- `preview-trash-limit-late` shows the failure toast over the folder when the
+  refusal arrives after the viewer closed.
 - `deep-links` opens links cold, warm, and signed out.
 - `large-text` keeps long names, selection, and the download picker usable at
   the largest text size.
@@ -182,6 +184,9 @@ Preconditions:
   `runtime-preview-more-trash-off`, `runtime-preview-delete-confirm`.
 - **Preview trash limit.** Run `--only preview-trash-limit`. Screenshot:
   `runtime-preview-trash-limit`.
+- **Late preview trash limit.** Run `--only preview-trash-limit-late`.
+  `--putio-harness-trash-limit-late` holds the refusal for 5 seconds.
+  Screenshot: `runtime-preview-trash-limit-late`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
   `runtime-deep-link-folder`. Link rules live in

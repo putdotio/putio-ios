@@ -810,6 +810,9 @@ import Foundation
     private static var trashHitsChildrenLimit: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
     }
+    private static var trashLimitArrivesLate: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit-late")
+    }
     private static var settingsStayUnconfirmed: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-unconfirmed-settings")
     }
@@ -1166,6 +1169,8 @@ import Foundation
         DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
+      } else if Self.delaysTrashLimitRefusal(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
         // Long enough for the journey to observe the in-flight progress overlay
         // and leave the screen, short enough that the destination refresh has
@@ -1288,6 +1293,12 @@ import Foundation
         let fileIDs = requestFileIDs(request)
       else { return false }
       return !bulkDeleteProgressFolderIDs.isDisjoint(with: fileIDs)
+    }
+
+    private static func delaysTrashLimitRefusal(_ request: URLRequest) -> Bool {
+      trashHitsChildrenLimit && trashLimitArrivesLate
+        && request.url?.path == "/v2/files/delete" && !requestSkipsTrash(request)
+        && requestFileIDs(request) == [497]
     }
 
     private static func requestSkipsTrash(_ request: URLRequest) -> Bool {

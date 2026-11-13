@@ -731,6 +731,37 @@ final class PreviewJourneyTests: XCTestCase {
     signOutFromFiles()
   }
 
+  func testLateTrashLimitShowsTheFailureToastOverTheFolder() {
+    app.launchArguments += ["--putio-harness-trash-limit", "--putio-harness-trash-limit-late"]
+    app.launch()
+    signIn()
+
+    let gallery = app.revealed("files.item.470", maximumSwipes: 8)
+    XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
+    gallery.tap()
+    let album = element("files.item.496")
+    XCTAssertTrue(album.appears(within: 10), "the album folder never appeared")
+    app.bringIntoView(album)
+    album.tap()
+    let cover = element("files.item.497")
+    XCTAssertTrue(cover.appears(within: 10), "the album never loaded")
+    cover.tap()
+    XCTAssertTrue(app.images["Album Cover.png"].appears(within: 10))
+
+    removeShownFile(row: "Move to trash")
+    app.buttons["preview.back"].tap()
+    XCTAssertTrue(element("preview.screen.497").disappears(within: 3), "the viewer stayed open")
+    XCTAssertTrue(element("files.screen.496").exists, "the viewer did not land in the folder")
+    let failure = app.staticTexts["Could not move item to Trash"]
+    XCTAssertTrue(failure.appears(within: 10), "the late refusal showed no toast")
+    XCTAssertFalse(
+      app.alerts["We couldn’t send these files to trash"].exists,
+      "the late refusal asked from a closed viewer")
+    XCTAssertTrue(cover.exists, "the folder dropped the refused file")
+    screenshot("runtime-preview-trash-limit-late")
+    signOutFromFiles()
+  }
+
   private func openGalleryImage(_ id: Int, title: String) {
     let gallery = app.revealed("files.item.470", maximumSwipes: 8)
     XCTAssertTrue(gallery.exists, "the gallery folder never appeared")
