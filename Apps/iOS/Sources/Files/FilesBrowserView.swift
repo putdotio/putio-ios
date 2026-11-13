@@ -144,6 +144,7 @@ struct FilesBrowserView: View {
     .task(id: navigationRequest?.id) {
       if let navigationRequest, appliedNavigationRequest != navigationRequest.id {
         appliedNavigationRequest = navigationRequest.id
+        if horizontalSizeClass == .compact { selectedFile = nil }
         path = navigationRequest.path
         didRestoreNavigation = true
         if let accountID { navigationRestoration.save(path: path, for: accountID) }

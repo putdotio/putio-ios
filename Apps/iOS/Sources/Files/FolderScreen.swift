@@ -50,6 +50,7 @@ struct PutioFolderScreen: View {
   @State private var visibleRows = PutioVisibleRows()
   @State private var restoredScroll = false
   @Environment(\.putioFolderScrollAnchors) private var scrollAnchors
+  private static let restorePageLimit = 20
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -345,6 +346,12 @@ struct PutioFolderScreen: View {
           .task {
             guard !restoredScroll else { return }
             if let anchor = scrollAnchors?.anchor(for: route.id) {
+              var pages = 0
+              while !currentItems.contains(where: { $0.id == anchor }),
+                pages < Self.restorePageLimit, await model.loadMore()
+              {
+                pages += 1
+              }
               await Task.yield()
               proxy.scrollTo(anchor, anchor: .top)
             }
