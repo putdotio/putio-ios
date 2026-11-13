@@ -1122,7 +1122,13 @@ final class BoardCaptureTests: XCTestCase {
     if !account.appears(within: 3) { sidebarToggle().tap() }
     XCTAssertTrue(account.appears(within: 5), "the Account tab is missing")
     account.tap()
-    let signOut = app.revealed("auth.sign-out")
+    let signOut = app.descendants(matching: .any)["auth.sign-out"]
+    let list = app.collectionViews.firstMatch
+    var swipes = 0
+    while !signOut.appears(within: 3), swipes < 6 {
+      if list.exists { list.swipeUp() } else { app.swipeUp() }
+      swipes += 1
+    }
     XCTAssertTrue(signOut.appears(within: 5), "Account has no Sign out")
     signOut.tap()
     app.confirmSignOut()
@@ -2417,7 +2423,13 @@ final class BoardCaptureTests: XCTestCase {
     if !account.appears(within: 3) { sidebarToggle().tap() }
     XCTAssertTrue(account.appears(within: 5), "the Account tab is missing")
     account.tap()
-    let signOut = app.revealed("auth.sign-out")
+    let signOut = app.descendants(matching: .any)["auth.sign-out"]
+    let list = app.collectionViews.firstMatch
+    var swipes = 0
+    while !signOut.appears(within: 3), swipes < 6 {
+      if list.exists { list.swipeUp() } else { app.swipeUp() }
+      swipes += 1
+    }
     XCTAssertTrue(signOut.appears(within: 5), "Account has no Sign out")
     app.bringIntoView(signOut)
     XCTAssertTrue(signOut.becomesHittable(within: 5), "Sign out never became tappable")

@@ -157,7 +157,6 @@ struct FilesBrowserView: View {
       emptyMessage: String(localized: "Tap a file to see it here.")
     ) { _ in
       stack(showsDetail: true)
-        .environment(\.horizontalSizeClass, .regular)
     } detail: { _ in
       if let selectedFile {
         PutioFileDetailView(
@@ -280,6 +279,7 @@ private struct PutioFileDetailColumn: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
     if let select {
       content
+        .environment(\.horizontalSizeClass, .regular)
         .toolbar(removing: .sidebarToggle)
         .environment(\.putioFileDetailSelect, select)
         .environment(\.putioFileDetailClear, clear)
