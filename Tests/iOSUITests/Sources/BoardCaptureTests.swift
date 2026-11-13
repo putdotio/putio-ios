@@ -802,6 +802,10 @@ final class BoardCaptureTests: XCTestCase {
     let onDevice = element("files.detail.on-device")
     XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
     XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")
+    let onDeviceCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    onDeviceCapture.name = "ipad-detail-on-device"
+    onDeviceCapture.lifetime = .keepAlways
+    add(onDeviceCapture)
     XCTAssertFalse(element("files.detail.download").exists, "Download stayed beside on device")
   }
 
@@ -1698,8 +1702,9 @@ final class BoardCaptureTests: XCTestCase {
     reachFilesRoot()
     let row = app.revealed("files.item.413")
     XCTAssertTrue(row.exists, "the document row never appeared")
-    let window = app.windows.firstMatch
-    guard window.frame.width > window.frame.height else {
+    let portrait = ProcessInfo.processInfo.environment["PUTIO_BOARD_ORIENTATION"] == "portrait"
+    assertWindowSettles(portrait: portrait)
+    guard !portrait else {
       row.tap()
       assertPreviewFillsWindow(fileID: 413)
       XCTAssertTrue(
@@ -1776,19 +1781,22 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertFalse(element("files.screen.0").isHittable, "the list shows beside the viewer")
   }
 
+  private func assertWindowSettles(portrait: Bool) {
+    let window = app.windows.firstMatch
+    let deadline = Date.now.addingTimeInterval(10)
+    while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    XCTAssertEqual(
+      window.frame.width < window.frame.height, portrait, "the window never settled")
+  }
+
   private func assertPreviewKeepsFileAcrossRotation(
     fileID: Int, content: () -> XCUIElement
   ) {
-    let window = app.windows.firstMatch
     for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
       rotate(orientation)
-      let portrait = orientation == .portrait
-      let deadline = Date.now.addingTimeInterval(10)
-      while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
-        RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
-      }
-      XCTAssertEqual(
-        window.frame.width < window.frame.height, portrait, "the viewer did not rotate")
+      assertWindowSettles(portrait: orientation == .portrait)
       XCTAssertTrue(content().appears(within: 10), "rotating lost the open file")
       assertPreviewFillsWindow(fileID: fileID)
     }
