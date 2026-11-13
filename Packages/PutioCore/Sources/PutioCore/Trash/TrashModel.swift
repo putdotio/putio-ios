@@ -256,21 +256,19 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
       PutioTrashErrorPresentation(
         title: String(localized: "Could not load Trash", bundle: .module), error: error)
     #else
-      guard
-        let failure = PutioTrashErrorPresentation(
-          title: PutioScreenErrorKind.failed.title, error: error)
-      else { return nil }
-      guard failure.isOffline else { return failure }
-      return PutioTrashErrorPresentation(
-        title: PutioScreenErrorKind.offline.title, message: PutioScreenErrorKind.offline.message,
-        isOffline: true)
+      if error as? PutioFolderLoadError == .offline {
+        return PutioTrashErrorPresentation(
+          title: PutioScreenErrorKind.offline.title,
+          message: PutioScreenErrorKind.offline.message, isOffline: true)
+      }
+      return PutioTrashErrorPresentation(title: PutioScreenErrorKind.failed.title, error: error)
     #endif
   }
 
   init?(title: String, error: Error) {
     self.title = title
-    isOffline = error as? PutioFolderLoadError == .offline
-    if isOffline {
+    isOffline = false
+    if error as? PutioFolderLoadError == .offline {
       message = PutioScreenErrorKind.failed.message
       return
     }
@@ -788,6 +786,8 @@ public final class PutioTrashModel {
           title: String(localized: "Could not refresh Trash", bundle: .module), error: error)
       } else if let failure = PutioTrashErrorPresentation.loadFailure(error) {
         state = .failed(failure)
+      } else if keepsFailure {
+        state = .loading
       }
     }
   }
