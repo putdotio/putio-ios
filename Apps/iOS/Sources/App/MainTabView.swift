@@ -144,10 +144,6 @@ struct MainTabView: View {
             if categories.contains(.history) { historyRevision &+= 1 }
             // Downloaded copies of cleared files would only play as orphans.
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
-          },
-          onAccountDestroyed: {
-            offlineQueue.purgeAccountStorage()
-            PutioFilesNavigationRestoration().clear(accountID: account.id)
           }
         )
         .putioToast(shellToast)
