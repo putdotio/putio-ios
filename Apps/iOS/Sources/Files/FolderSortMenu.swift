@@ -4,6 +4,7 @@ import SwiftUI
 struct PutioFolderSortMenu: View {
   let current: PutioFolderSort?
   let isDisabled: Bool
+  var isBusy = false
   let onSelect: @MainActor (PutioFolderSort) -> Void
 
   private var choices: PutioFolderSortChoices {
@@ -38,8 +39,11 @@ struct PutioFolderSortMenu: View {
       Label("Sort files", systemImage: "arrow.up.arrow.down")
     }
     .disabled(isDisabled)
+    .allowsHitTesting(!isBusy)
+    .accessibilityRespondsToUserInteraction(!isBusy)
     .accessibilityIdentifier("files.sort")
     .accessibilityLabel(Self.accessibilityLabel(for: current))
+    .accessibilityValue(isBusy ? Text("Updating file order") : Text(verbatim: ""))
   }
 
   private func row(

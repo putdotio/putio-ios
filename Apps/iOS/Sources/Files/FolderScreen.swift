@@ -154,11 +154,25 @@ struct PutioFolderScreen: View {
     .navigationBarBackButtonHidden(navigationLocked || isEditing)
     .putioContentBackground()
     .toolbar {
+      if !isEditing, route.id != .root {
+        ToolbarItem(placement: .principal) {
+          Text(folderTitle)
+            .putioFont(PutioTheme.Typography.subheading)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("files.title")
+        }
+      }
+      if !isEditing, let castButton {
+        ToolbarItem(placement: .primaryAction) { castButton }
+        if model.supportsActions {
+          ToolbarSpacer(.fixed, placement: .primaryAction)
+        }
+      }
       if !isEditing, model.supportsActions {
         if #available(iOS 27, *) {
-          if let castButton {
-            ToolbarItem(placement: .primaryAction) { castButton }
-          }
           ToolbarItemGroup(placement: .primaryAction) {
             sortMenu
             browseMenu
@@ -166,13 +180,10 @@ struct PutioFolderScreen: View {
           .visibilityPriority(.high)
         } else {
           ToolbarItemGroup(placement: .primaryAction) {
-            if let castButton { castButton }
             sortMenu
             browseMenu
           }
         }
-      } else if !isEditing, let castButton {
-        ToolbarItem(placement: .primaryAction) { castButton }
       }
     }
     .putioToast($toast)
@@ -813,8 +824,10 @@ struct PutioFolderScreen: View {
   private var sortMenu: some View {
     PutioFolderSortMenu(
       current: model.sort ?? defaultSort,
-      isDisabled: !model.canStartAction || actionRequest != nil || model.isUpdatingSortOrder
+      isDisabled: !isSorting && !canSort,
+      isBusy: isSorting
     ) { sort in
+      guard canSort else { return }
       actionRequest = .sort(sort)
     }
   }
@@ -844,7 +857,7 @@ struct PutioFolderScreen: View {
         ])
       )
     } label: {
-      Label("More", systemImage: "ellipsis.circle")
+      Label("More", systemImage: "ellipsis")
     }
     .accessibilityIdentifier("files.menu")
   }
@@ -1042,10 +1055,18 @@ struct PutioFolderScreen: View {
     actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
   }
 
+  private var canSort: Bool {
+    model.canStartAction && actionRequest == nil
+  }
+
+  private var isSorting: Bool {
+    if model.isUpdatingSortOrder { return true }
+    if case .sort = actionRequest { return true }
+    return false
+  }
+
   private var navigationLocked: Bool {
-    if model.isUpdatingSortOrder { return false }
-    if case .sort = actionRequest { return false }
-    return fileActionPending
+    !isSorting && fileActionPending
   }
 
   private var actionNotifier: PutioFolderActionNotifier {
