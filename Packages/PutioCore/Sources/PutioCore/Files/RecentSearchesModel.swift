@@ -14,18 +14,22 @@ public struct PutioRecentSearches: Equatable, Sendable {
 public struct PutioRecentSearchActions: Sendable {
   let load: @MainActor @Sendable () async throws -> PutioRecentSearches
   let save: @MainActor @Sendable ([String]) async throws -> Void
+  let session: @MainActor @Sendable () -> UInt64
 
   public init(runtime: PutioRuntime) {
     load = { try await runtime.recentSearches() }
     save = { try await runtime.setRecentSearches($0) }
+    session = { runtime.session.authenticationGeneration }
   }
 
   init(
     load: @escaping @MainActor @Sendable () async throws -> PutioRecentSearches,
-    save: @escaping @MainActor @Sendable ([String]) async throws -> Void
+    save: @escaping @MainActor @Sendable ([String]) async throws -> Void,
+    session: @escaping @MainActor @Sendable () -> UInt64 = { 0 }
   ) {
     self.load = load
     self.save = save
+    self.session = session
   }
 }
 
@@ -49,8 +53,11 @@ public final class PutioRecentSearchesModel {
   public func clearEditFailure() { editFailure = nil }
 
   public func load() async {
+    let owner = actions.session()
     await serially {
-      guard let stored = try? await self.actions.load() else { return }
+      guard self.actions.session() == owner, let stored = try? await self.actions.load(),
+        self.actions.session() == owner
+      else { return }
       self.confirmed = Self.normalized(stored)
       self.publish()
     }
@@ -87,16 +94,18 @@ public final class PutioRecentSearchesModel {
 
   private func edit(_ edit: Edit) async {
     let id = UUID()
+    let owner = actions.session()
     pending.append((id, edit))
     publish()
-    await serially { await self.commit(edit, id: id) }
+    await serially { await self.commit(edit, id: id, owner: owner) }
   }
 
-  private func commit(_ edit: Edit, id: UUID) async {
+  private func commit(_ edit: Edit, id: UUID, owner: UInt64) async {
     defer {
       pending.removeAll { $0.id == id }
       publish()
     }
+    guard actions.session() == owner else { return }
     guard let loaded = try? await actions.load() else {
       if case .record = edit { return }
       editFailure = UUID()
@@ -106,7 +115,7 @@ public final class PutioRecentSearchesModel {
     confirmed = stored
     guard stored.enabled else { return }
     let next = edit.applied(to: stored.terms)
-    guard next != stored.terms else { return }
+    guard next != stored.terms, actions.session() == owner else { return }
     do {
       try await actions.save(next)
       confirmed?.terms = next

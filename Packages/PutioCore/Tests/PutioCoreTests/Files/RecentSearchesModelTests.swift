@@ -9,11 +9,17 @@ final class RecentSearchesModelTests: XCTestCase {
   private var saved: [[String]] = []
   private var loadFails = false
   private var saveFails = false
+  private var generation: UInt64 = 1
+  private var holdNextLoad: AsyncStream<Void>?
 
   private func makeModel() -> PutioRecentSearchesModel {
     PutioRecentSearchesModel(
       actions: PutioRecentSearchActions(
         load: { [unowned self] in
+          if let hold = holdNextLoad {
+            holdNextLoad = nil
+            for await _ in hold { break }
+          }
           if loadFails { throw PutioRuntimeError.transient }
           return stored
         },
@@ -21,7 +27,8 @@ final class RecentSearchesModelTests: XCTestCase {
           if saveFails { throw PutioRuntimeError.transient }
           stored.terms = terms
           saved.append(terms)
-        }))
+        },
+        session: { [unowned self] in generation }))
   }
 
   func testASixthSearchEvictsTheOldestAndARepeatMovesToTheTop() async {
@@ -109,6 +116,24 @@ final class RecentSearchesModelTests: XCTestCase {
     await model.remove("sintel")
     XCTAssertEqual(model.terms, ["sintel"])
     XCTAssertNotNil(model.editFailure)
+  }
+
+  func testAnEditQueuedBeforeAnAccountSwitchNeverTouchesTheNewAccount() async {
+    stored.terms = ["sintel"]
+    let pause = AsyncStream<Void>.makeStream()
+    holdNextLoad = pause.stream
+    let model = makeModel()
+
+    let first = Task { await model.record("private query") }
+    let second = Task { await model.clear() }
+    while holdNextLoad != nil { await Task.yield() }
+    generation += 1
+    pause.continuation.yield()
+    await first.value
+    await second.value
+
+    XCTAssertEqual(saved, [])
+    XCTAssertEqual(stored.terms, ["sintel"])
   }
 
   func testAnEditAppliesToWhatAnotherClientStoredSinceTheLoad() async {
