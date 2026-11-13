@@ -1152,7 +1152,7 @@ enum BrowserJourneyContract {
       "preview-more", "PreviewJourneyTests/testMoreMenuRenamesAndMovesTheShownFile",
       attachmentNames: [
         "runtime-preview-more-pdf", "runtime-preview-more-image", "runtime-preview-rename",
-        "runtime-preview-rename-failed", "runtime-preview-moved",
+        "runtime-preview-rename-failed", "runtime-preview-moved", "runtime-preview-exclusive-link",
       ],
       timeAllowance: 180),
     JourneyPreflight(

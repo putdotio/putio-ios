@@ -6,6 +6,16 @@ extension EnvironmentValues {
   @Entry var putioExclusiveLink: PutioPublicLinkCreate? = nil
 }
 
+extension PutioItemAction {
+  static func exclusiveLink(
+    isDisabled: Bool = false, perform: @escaping @MainActor @Sendable () -> Void
+  ) -> PutioItemAction {
+    PutioItemAction(
+      id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
+      isDisabled: isDisabled, perform: perform)
+  }
+}
+
 extension View {
   func putioExclusiveLinkSheet(_ item: Binding<PutioFileItem?>) -> some View {
     modifier(PutioExclusiveLinkHost(item: item))

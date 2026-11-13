@@ -172,10 +172,7 @@ Preconditions:
   `runtime-preview-share-text`.
 - **Preview paging.** Run `--only preview-paging`. Screenshot:
   `runtime-preview-position`.
-- **Preview More menu.** Run `--only preview-more`. Screenshots:
-  `runtime-preview-more-pdf`, `runtime-preview-more-image`,
-  `runtime-preview-rename`, `runtime-preview-rename-failed`,
-  `runtime-preview-moved`.
+- **Preview More menu.** Run `--only preview-more`.
 - **Open in VLC outcomes.** Run `--only preview-vlc,preview-vlc-failed`.
   Screenshots: `runtime-preview-vlc-missing`, `runtime-preview-vlc-failed`.
 - **Preview trash.** Run `--only preview-trash`. Screenshots:

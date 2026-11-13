@@ -1491,6 +1491,7 @@ final class BoardCaptureTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     openPosterPreview()
     openPreviewMore()
+    XCTAssertTrue(app.buttons["Exclusive link"].firstMatch.exists, "More has no Exclusive link")
     try captureBoard("rd-ios-pv-02-more")
   }
 
@@ -1532,6 +1533,7 @@ final class BoardCaptureTests: XCTestCase {
     openAlbumCover()
     openPreviewMore()
     XCTAssertTrue(app.buttons["Delete permanently"].firstMatch.exists, "More has no delete row")
+    XCTAssertTrue(app.buttons["Exclusive link"].firstMatch.exists, "More has no Exclusive link")
     try captureBoard("rd-ios-pv-18-more-trash-off")
     leaveAlbum()
   }
