@@ -763,7 +763,7 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-search-offline")
     }
     private static let downloadsOffline: Bool = {
-      let arguments = ProcessInfo.processInfo.arguments
+      let arguments = HarnessLaunch.arguments
       guard let flag = arguments.firstIndex(of: "--putio-harness-downloads"),
         arguments.indices.contains(flag + 1)
       else { return false }

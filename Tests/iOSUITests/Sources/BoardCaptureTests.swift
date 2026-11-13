@@ -101,6 +101,7 @@ final class BoardCaptureTests: XCTestCase {
   func testDownloadsFixture() throws {
     let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
     let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
+    let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
     orient(.portrait)
     app.launchArguments += ["--putio-harness-downloads", fixture]
     app.launch()
@@ -127,9 +128,9 @@ final class BoardCaptureTests: XCTestCase {
       }
       if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
     }
-    try captureBoard("rd-ios-dl-01-list")
+    try captureBoard(board)
     if fixture == "list" {
-      app.revealed("downloads.item.441").tap()
+      app.revealed("downloads.item.9001").tap()
       XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
       element("video.done").tap()
       app.revealed("downloads.item.408").tap()
@@ -142,6 +143,12 @@ final class BoardCaptureTests: XCTestCase {
       app.staticTexts["put.io is out of reach"].appears(within: 15),
       "the offline fixture left the network up")
   }
+
+  private static let downloadsFixtureBoards = [
+    "list": "rd-ios-dl-01-list", "empty": "rd-ios-dl-02-empty",
+    "downloading-states": "rd-ios-dl-11-downloading-states",
+    "attention-states": "rd-ios-dl-12-attention-states", "offline": "rd-ios-dl-19-offline",
+  ]
 
   private static let listFixtureRows: [(id: Int, state: String)] = [
     (442, "downloading;42"), (443, "queued"), (444, "failed;resolution"), (441, "completed"),

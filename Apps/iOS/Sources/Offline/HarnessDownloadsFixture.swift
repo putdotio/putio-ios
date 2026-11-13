@@ -52,9 +52,11 @@
     }
 
     func items(now: Date) -> [PutioOfflineItem] {
+      let calendar = Calendar.current
       let today = now
-      let yesterday = now.addingTimeInterval(-86_400)
-      let october24 = Self.latestOctober24(onOrBefore: now.addingTimeInterval(-2 * 86_400))
+      let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now
+      let october24 = Self.latestOctober24(
+        onOrBefore: calendar.date(byAdding: .day, value: -2, to: now) ?? now)
       switch self {
       case .list, .offline:
         return [
@@ -186,7 +188,7 @@
     {}
     func pause(fileID: PutioFileID) {}
     func resume(fileID: PutioFileID) {}
-    func cancel(fileID: PutioFileID) { onCancelled?(fileID) }
+    func cancel(fileID: PutioFileID) {}
     func restoreTasks() async -> [PutioFileID] { [] }
     func stop() {}
     func retryPersisting() throws {}
