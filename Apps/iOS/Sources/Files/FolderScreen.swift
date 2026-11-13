@@ -47,7 +47,7 @@ struct PutioFolderScreen: View {
   @State private var copyModel: PutioSharedFileCopyModel?
   @State private var copyTask: Task<Void, Never>?
   @State private var listWidth: CGFloat = 0
-  @State private var scrollPosition = ScrollPosition()
+  @State private var visibleRows = PutioVisibleRows()
   @State private var restoredScroll = false
   @Environment(\.putioFolderScrollAnchors) private var scrollAnchors
   private let relativeDateReference: Date?
@@ -344,9 +344,9 @@ struct PutioFolderScreen: View {
         folderList(contents)
           .task {
             guard !restoredScroll else { return }
-            if let offset = scrollAnchors?.offset(for: route.id), offset > 0 {
+            if let anchor = scrollAnchors?.anchor(for: route.id) {
               await Task.yield()
-              scrollPosition.scrollTo(y: offset)
+              proxy.scrollTo(anchor, anchor: .top)
             }
             restoredScroll = true
           }
@@ -404,6 +404,8 @@ struct PutioFolderScreen: View {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
         }
+        .onAppear { visibleRows.appear(item.id) }
+        .onDisappear { visibleRows.disappear(item.id) }
       }
 
       if contents.hasMore {
@@ -427,12 +429,12 @@ struct PutioFolderScreen: View {
       if route.id == .root { await continueWatching?.reconcile() }
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
-    .scrollPosition($scrollPosition)
     .onScrollPhaseChange { oldPhase, newPhase, context in
       guard restoredScroll, oldPhase != .idle, newPhase == .idle else { return }
       let geometry = context.geometry
+      let scrolled = geometry.contentOffset.y + geometry.contentInsets.top > 1
       scrollAnchors?.save(
-        geometry.contentOffset.y + geometry.contentInsets.top, for: route.id)
+        scrolled ? visibleRows.topmost(in: contents.items) : nil, for: route.id)
     }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
   }

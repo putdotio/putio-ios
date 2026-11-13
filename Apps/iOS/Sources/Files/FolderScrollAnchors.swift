@@ -7,17 +7,30 @@ extension EnvironmentValues {
 
 @MainActor
 final class PutioFolderScrollAnchors {
-  private var offsets: [PutioFileID: CGFloat] = [:]
+  private var anchors: [PutioFileID: PutioFileID] = [:]
 
-  func offset(for folderID: PutioFileID) -> CGFloat? {
-    offsets[folderID]
+  func anchor(for folderID: PutioFileID) -> PutioFileID? {
+    anchors[folderID]
   }
 
-  func save(_ offset: CGFloat, for folderID: PutioFileID) {
-    offsets[folderID] = offset
+  func save(_ itemID: PutioFileID?, for folderID: PutioFileID) {
+    anchors[folderID] = itemID
   }
 
   func keep(only folderIDs: Set<PutioFileID>) {
-    offsets = offsets.filter { folderIDs.contains($0.key) }
+    anchors = anchors.filter { folderIDs.contains($0.key) }
+  }
+}
+
+@MainActor
+final class PutioVisibleRows {
+  private var ids: Set<PutioFileID> = []
+
+  func appear(_ id: PutioFileID) { ids.insert(id) }
+
+  func disappear(_ id: PutioFileID) { ids.remove(id) }
+
+  func topmost(in items: [PutioFileItem]) -> PutioFileID? {
+    items.first { ids.contains($0.id) }?.id
   }
 }
