@@ -659,6 +659,21 @@ enum BoardCaptureContract {
         screenBase: false),
       BoardCapture("rd-ios-duo-01-folded-folder", .duoFolded, "testFolder"),
       BoardCapture("rd-ios-duo-02-open-folder", .duoOpen, "testFolder"),
+      BoardCapture(
+        "rd-ios-dl-01-list", .iphone, "testDownloadsFixture",
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
+      BoardCapture(
+        "rd-ios-dl-02-empty", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
+      BoardCapture(
+        "rd-ios-dl-11-downloading-states", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "downloading-states"]),
+      BoardCapture(
+        "rd-ios-dl-12-attention-states", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "attention-states"]),
+      BoardCapture(
+        "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),

@@ -1,5 +1,6 @@
 import PutioCore
 import SwiftUI
+import UIKit
 
 enum PutioOfflineQueueFactory {
   @MainActor
@@ -12,11 +13,12 @@ enum PutioOfflineQueueFactory {
     #else
       let harness = false
     #endif
-    let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
-      accountID: accountID)
+    let seeded = harness ? seededQueue() : nil
+    let seededFreeBytes = seeded?.freeBytes
     var directory: URL?
     if harness {
-      directory = FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+      directory = FileManager.default.temporaryDirectory.appending(
+        path: seeded == nil ? "harness-offline" : "harness-offline-fixture")
       // `--putio-harness-offline-writes-fail` puts the store under a regular
       // file, so every queue write fails and the shell reports it.
       if ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-writes-fail") {
@@ -30,8 +32,9 @@ enum PutioOfflineQueueFactory {
     let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory, accountID: accountID),
-      engine: engine,
+      engine: seeded?.engine ?? PutioSystemOfflineDownloadEngine(accountID: accountID),
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
+      availableStorage: { seededFreeBytes ?? PutioOfflineQueue.deviceAvailableBytes() },
       notifyCompletion: { item in
         guard !harness else { return }
         PutioOfflineNotifications.notifyCompletion(item)
@@ -68,8 +71,43 @@ enum PutioOfflineQueueFactory {
         else { return nil }
         return current.trashEnabled
       },
-      isLive: { runtime.session.authenticationGeneration == sessionGeneration }
+      isLive: { runtime.session.authenticationGeneration == sessionGeneration },
+      seed: seeded?.seed
     )
+  }
+
+  private struct SeededQueue {
+    let seed: PutioOfflineQueueSeed
+    let engine: any PutioOfflineDownloadEngine
+    let freeBytes: Int64
+  }
+
+  @MainActor
+  private static func seededQueue() -> SeededQueue? {
+    #if DEBUG
+      guard let fixture = HarnessDownloadsFixture.parse(HarnessLaunch.arguments) else {
+        return nil
+      }
+      return SeededQueue(
+        seed: fixture.seed(now: .now, mediaBaseURL: harnessMediaBaseURL),
+        engine: HarnessFrozenOfflineEngine(),
+        freeBytes: fixture.freeBytes(isPad: UIDevice.current.userInterfaceIdiom == .pad))
+    #else
+      return nil
+    #endif
+  }
+
+  private static var harnessMediaBaseURL: URL? {
+    #if DEBUG
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else { return nil }
+      return baseURL
+    #else
+      return nil
+    #endif
   }
 
   /// The seeded scenario pins preferred languages so the journey is
@@ -94,11 +132,7 @@ enum PutioOfflineQueueFactory {
     -> PutioPlaybackSource
   {
     #if DEBUG
-      guard scenario == .filesBrowser,
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else { return source }
+      guard scenario == .filesBrowser, let baseURL = harnessMediaBaseURL else { return source }
       let path = kind == .audio ? "runtime-proof-audio.m4a" : "multi-audio/runtime-proof-multi.m3u8"
       return PutioPlaybackSource(
         url: baseURL.appending(path: path), startFromSeconds: source.startFromSeconds)

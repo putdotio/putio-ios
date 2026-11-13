@@ -55,6 +55,7 @@ final class PutioOfflineQueue {
   /// False once the owning shell's session ended; originals paths then neither
   /// start work nor write.
   @ObservationIgnored private let isLive: @MainActor () -> Bool
+  @ObservationIgnored private let seed: PutioOfflineQueueSeed?
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -103,7 +104,8 @@ final class PutioOfflineQueue {
     reportPosition: @escaping PutioOfflinePositionReport,
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
     trashSetting: @escaping @MainActor () async -> Bool? = { nil },
-    isLive: @escaping @MainActor () -> Bool = { true }
+    isLive: @escaping @MainActor () -> Bool = { true },
+    seed: PutioOfflineQueueSeed? = nil
   ) {
     self.store = store
     self.engine = engine
@@ -122,14 +124,15 @@ final class PutioOfflineQueue {
     self.deleteOriginal = deleteOriginal
     self.trashSetting = trashSetting
     self.isLive = isLive
-    let loaded = store.load()
+    self.seed = seed
+    let loaded = seed?.loaded ?? store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
     resumeWhenFree = loaded.waitingForSlot
     awaitsRestore = !resumeWhenFree.isEmpty
     // Queues written before the sidecar existed are its only record.
-    recordPackages(at: items.compactMap(\.localPath))
+    if seed == nil { recordPackages(at: items.compactMap(\.localPath)) }
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
     engine.onLocation = { [weak self] id, url in self?.engineLocated(id, url) }
     engine.onFinished = { [weak self] id, error in self?.engineFinished(id, error) }
@@ -165,6 +168,7 @@ final class PutioOfflineQueue {
   func restore() async {
     guard isLive(), !restored else { return }
     restored = true
+    guard seed == nil else { return }
     awaitsRestore = true
     if !pendingOriginals.isEmpty {
       let owed = pendingOriginals
@@ -639,7 +643,8 @@ final class PutioOfflineQueue {
       return nil
     }
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
-    return PutioPlaybackSource(url: Self.localURL(for: localPath), startFromSeconds: resume)
+    let url = seed?.playbackURL(localPath) ?? Self.localURL(for: localPath)
+    return PutioPlaybackSource(url: url, startFromSeconds: resume)
   }
 
   /// Records a position locally first, then forwards it. A failed forward
@@ -715,7 +720,7 @@ final class PutioOfflineQueue {
   private var inFlightCount: Int { inFlightItems.count }
 
   private func schedule() {
-    guard isLive(), !awaitsRestore else { return }
+    guard seed == nil, isLive(), !awaitsRestore else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
     var requeued = false
     resumeWhenFree.removeAll { fileID in

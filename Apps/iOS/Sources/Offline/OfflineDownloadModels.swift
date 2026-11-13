@@ -208,3 +208,8 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
     }
   }
 }
+
+struct PutioOfflineQueueSeed {
+  let loaded: PutioOfflineStore.Loaded
+  let playbackURL: @MainActor (String) -> URL
+}

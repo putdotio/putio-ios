@@ -31,6 +31,7 @@ struct PutioOfflineDownloadsView: View {
           icon: .arrowCircleDown, title: String(localized: "No downloads"),
           message: String(localized: "Files you download for offline playback appear here.")
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("downloads.empty")
       } else {
         list
@@ -483,9 +484,17 @@ struct PutioOfflineTrackPickerView: View {
 /// only after the first item is queued.
 enum PutioOfflineNotifications {
   static func requestPermissionIfNeeded(center: UNUserNotificationCenter = .current()) async {
-    let settings = await center.notificationSettings()
-    guard settings.authorizationStatus == .notDetermined else { return }
+    guard await authorizationStatus(center: center) == .notDetermined else { return }
     _ = try? await center.requestAuthorization(options: [.alert, .sound])
+  }
+
+  static func authorizationStatus(center: UNUserNotificationCenter = .current()) async
+    -> UNAuthorizationStatus
+  {
+    #if DEBUG
+      if HarnessDownloadsFixture.notificationsDenied { return .denied }
+    #endif
+    return await center.notificationSettings().authorizationStatus
   }
 
   static func notifyCompletion(
