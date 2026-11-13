@@ -596,6 +596,11 @@ struct PutioFolderScreen: View {
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown,
         isDisabled: fileActionPending
       ) { onDownload?(route) }
+    case .downloadWithDirectPlay:
+      return PutioItemAction(
+        id: "download-direct", title: String(localized: "Download with Direct play"),
+        icon: .downloadSimple, isDisabled: fileActionPending
+      ) { onDownload?(route) }
     case .openInVLC:
       return PutioItemAction(
         id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone,

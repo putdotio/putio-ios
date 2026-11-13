@@ -401,6 +401,11 @@ struct FilesSearchView: View {
       return PutioItemAction(
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown
       ) { onDownload?(route) }
+    case .downloadWithDirectPlay:
+      return PutioItemAction(
+        id: "download-direct", title: String(localized: "Download with Direct play"),
+        icon: .downloadSimple
+      ) { onDownload?(route) }
     case .openInVLC:
       return PutioItemAction(
         id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone

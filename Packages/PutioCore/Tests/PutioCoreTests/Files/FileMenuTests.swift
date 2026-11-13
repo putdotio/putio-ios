@@ -11,7 +11,8 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(
       PutioFileMenu(item: item(.video, resume: 0), capabilities: everything).sections,
       [
-        [.play, .download, .openInVLC], [.select, .markWatched], [.rename, .move], [.trash],
+        [.play, .download, .downloadWithDirectPlay, .openInVLC], [.select, .markWatched],
+        [.rename, .move], [.trash],
       ])
     XCTAssertEqual(
       PutioFileMenu(item: item(.other("iso")), capabilities: everything).sections,
@@ -26,7 +27,9 @@ final class FileMenuTests: XCTestCase {
       item: item(.video, resume: 1_260),
       capabilities: .init(
         canEdit: true, canDownload: true, vlcInstalled: false, tracksWatched: true, pinned: false))
-    XCTAssertEqual(video.sections, [[.play, .download], [.pin, .markUnwatched], [.move]])
+    XCTAssertEqual(
+      video.sections,
+      [[.play, .download, .downloadWithDirectPlay], [.pin, .markUnwatched], [.move]])
     XCTAssertEqual(video.trailingSwipe, [.download])
     let folder = PutioFileMenu.searchResult(
       item: item(.folder),
@@ -69,7 +72,7 @@ final class FileMenuTests: XCTestCase {
       item: item(.video, resume: 0),
       capabilities: .init(
         canEdit: false, canDownload: true, vlcInstalled: false, tracksWatched: true))
-    XCTAssertEqual(menu.sections, [[.play, .download]])
+    XCTAssertEqual(menu.sections, [[.play, .download, .downloadWithDirectPlay]])
     XCTAssertEqual(menu.leadingSwipe, [])
   }
 
@@ -77,7 +80,7 @@ final class FileMenuTests: XCTestCase {
     let shared = item(.video, resume: 0, shared: true)
     XCTAssertEqual(
       PutioFileMenu(item: shared, capabilities: everything).sections,
-      [[.play, .download, .openInVLC]])
+      [[.play, .download, .downloadWithDirectPlay, .openInVLC]])
     XCTAssertEqual(
       PutioFileMenu(item: item(.folder, shared: true), capabilities: everything).sections, [])
   }
@@ -89,7 +92,7 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(
       PutioFileMenu(item: item(.video, shared: true), capabilities: copying, isDownloaded: true)
         .sections,
-      [[.play, .download, .share], [.makeCopy]])
+      [[.play, .download, .downloadWithDirectPlay, .share], [.makeCopy]])
     XCTAssertEqual(
       PutioFileMenu(item: item(.folder, shared: true), capabilities: copying).sections, [])
     XCTAssertFalse(PutioFileMenu(item: item(.video), capabilities: copying).contains(.makeCopy))
@@ -140,12 +143,14 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(rows(.image), [.share])
     XCTAssertEqual(rows(.pdf, size: cap), [.share])
     XCTAssertEqual(rows(.text), [.share])
-    XCTAssertEqual(rows(.video, downloaded: true), [.play, .download, .share])
+    XCTAssertEqual(
+      rows(.video, downloaded: true), [.play, .download, .downloadWithDirectPlay, .share])
     XCTAssertEqual(rows(.audio, downloaded: true), [.play, .download, .share])
-    XCTAssertEqual(rows(.video), [.play, .download])
+    XCTAssertEqual(rows(.video), [.play, .download, .downloadWithDirectPlay])
     XCTAssertEqual(rows(.audio), [.play, .download])
     XCTAssertEqual(rows(.image, size: cap + 1), [.select])
-    XCTAssertEqual(rows(.video, size: cap + 1, downloaded: true), [.play, .download])
+    XCTAssertEqual(
+      rows(.video, size: cap + 1, downloaded: true), [.play, .download, .downloadWithDirectPlay])
     XCTAssertEqual(rows(.other("iso")), [.select])
     XCTAssertFalse(
       PutioFileMenu(item: item(.folder), capabilities: sharing, isDownloaded: true)
@@ -159,8 +164,8 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(
       PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities).sections,
       [
-        [.play, .download, .openInVLC], [.select, .pin, .markWatched], [.rename, .move],
-        [.trash],
+        [.play, .download, .downloadWithDirectPlay, .openInVLC], [.select, .pin, .markWatched],
+        [.rename, .move], [.trash],
       ])
     capabilities.pinned = true
     XCTAssertEqual(

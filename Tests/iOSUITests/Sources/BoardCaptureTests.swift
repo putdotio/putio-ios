@@ -152,6 +152,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.442")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-03-row-actions")
   }
 

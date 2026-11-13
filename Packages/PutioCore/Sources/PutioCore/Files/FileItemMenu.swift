@@ -3,6 +3,7 @@ import Foundation
 public enum PutioFileMenuRow: String, Hashable, Sendable {
   case play
   case download
+  case downloadWithDirectPlay
   case openInVLC
   case share
   case select
@@ -55,7 +56,10 @@ public struct PutioFileMenu: Equatable, Sendable {
     var playback: [PutioFileMenuRow] = []
     if let route, route.isPlayable {
       playback.append(.play)
-      if capabilities.canDownload, route.supportsOfflineDownload { playback.append(.download) }
+      if capabilities.canDownload, route.supportsOfflineDownload {
+        playback.append(.download)
+        if item.kind == .video { playback.append(.downloadWithDirectPlay) }
+      }
       if capabilities.vlcInstalled, route.supportsExternalPlayback {
         playback.append(.openInVLC)
       }
