@@ -719,17 +719,6 @@
         }
       }
     },
-    "Confirm" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirm"
-          }
-        }
-      }
-    },
     "Connected" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -1569,17 +1558,6 @@
         }
       }
     },
-    "Disable" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable"
-          }
-        }
-      }
-    },
     "Disconnect" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -1796,17 +1774,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empty Trash permanently?"
-          }
-        }
-      }
-    },
-    "Enable" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable"
           }
         }
       }
@@ -2811,17 +2778,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New folder"
-          }
-        }
-      }
-    },
-    "Next" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next"
           }
         }
       }
@@ -4586,17 +4542,6 @@
         }
       }
     },
-    "Sign-in" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign-in"
-          }
-        }
-      }
-    },
     "Sign-in didn’t finish" : {
       "comment" : "android: mobile_welcome_failed_title",
       "localizations" : {
@@ -5286,17 +5231,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uploaded · %@"
-          }
-        }
-      }
-    },
-    "Used" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used"
           }
         }
       }
