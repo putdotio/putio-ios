@@ -111,6 +111,15 @@
     }
   }
 
+  extension View {
+    /// Marks `item` open for rows below a navigation push in the list column,
+    /// which the environment set by `PutioListDetail` does not reach.
+    public func putioListDetailOpenRow<Item: Hashable>(_ item: Item?) -> some View {
+      environment(\.putioListDetailSelection, item.map(AnyHashable.init))
+        .environment(\.putioListDetailShowsOpenRow, true)
+    }
+  }
+
   private struct PutioListDetailRow: ViewModifier {
     let item: AnyHashable
     let style: PutioListDetailRowStyle

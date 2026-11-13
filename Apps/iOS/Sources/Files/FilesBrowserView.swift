@@ -93,7 +93,11 @@ struct FilesBrowserView: View {
   var body: some View {
     Group {
       if let isLandscape {
-        if horizontalSizeClass == .regular, isLandscape { columns } else { stack }
+        if horizontalSizeClass == .regular, isLandscape {
+          columns
+        } else {
+          stack(showsDetail: false)
+        }
       } else {
         Color.clear
       }
@@ -150,8 +154,7 @@ struct FilesBrowserView: View {
       emptyTitle: String(localized: "No file selected"),
       emptyMessage: String(localized: "Tap a file to see it here.")
     ) { _ in
-      stack
-        .environment(\.putioFileDetailSelect, detailSelect)
+      stack(showsDetail: true)
     } detail: { _ in
       if let selectedFile {
         PutioFileDetailView(
@@ -187,7 +190,7 @@ struct FilesBrowserView: View {
     }
   }
 
-  private var stack: some View {
+  private func stack(showsDetail: Bool) -> some View {
     NavigationStack(path: $path) {
       PutioFolderScreen(
         route: .root,
@@ -206,21 +209,34 @@ struct FilesBrowserView: View {
         accountNotice: accountNotice,
         offlineFiles: offlineFiles
       )
+      .modifier(
+        PutioFileDetailColumn(
+          selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil)
+      )
       .navigationDestination(for: PutioFolderRoute.self) { route in
-        if route == .pinnedList {
-          PutioPinnedListScreen(
-            model: pins,
-            actions: actions,
-            load: load,
-            continueLoad: continueLoad,
-            trashEnabled: trashEnabled,
-            refreshRequests: refreshRequests,
-            onFileSelected: onFileSelected
+        destination(route)
+          .modifier(
+            PutioFileDetailColumn(
+              selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil)
           )
-        } else {
-          folderScreen(route)
-        }
       }
+    }
+  }
+
+  @ViewBuilder
+  private func destination(_ route: PutioFolderRoute) -> some View {
+    if route == .pinnedList {
+      PutioPinnedListScreen(
+        model: pins,
+        actions: actions,
+        load: load,
+        continueLoad: continueLoad,
+        trashEnabled: trashEnabled,
+        refreshRequests: refreshRequests,
+        onFileSelected: onFileSelected
+      )
+    } else {
+      folderScreen(route)
     }
   }
 
@@ -240,6 +256,21 @@ struct FilesBrowserView: View {
       castButton: castButton,
       offlineFiles: offlineFiles
     )
+  }
+}
+
+private struct PutioFileDetailColumn: ViewModifier {
+  let selection: PutioFileDetailSelection?
+  let select: PutioFileSelection?
+
+  @ViewBuilder func body(content: Content) -> some View {
+    if let select {
+      content
+        .environment(\.putioFileDetailSelect, select)
+        .putioListDetailOpenRow(selection?.route.id)
+    } else {
+      content
+    }
   }
 }
 
