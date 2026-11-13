@@ -56,6 +56,9 @@ struct SessionRootView: View {
         }
         // The root survives shell removal, including failed sign-out and expiry.
         cast.disconnect()
+        if case .signingOut = state {
+          PutioContinueWatchingStore.clear(accountID: previousAccount.id)
+        }
       }
       if case .signedIn = state {
         cast = PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario)

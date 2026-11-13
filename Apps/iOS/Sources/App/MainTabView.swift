@@ -44,6 +44,12 @@ struct MainTabView: View {
     _pins = State(
       initialValue: PutioPinnedFilesModel(
         actions: PutioPinnedFilesActions(runtime: runtime), rootName: PutioFolderRoute.root.title))
+    #if DEBUG
+      HarnessContinueWatching.seed(scenario: scenario, accountID: account.id)
+    #endif
+    _continueWatching = State(
+      initialValue: PutioContinueWatchingModel(
+        store: PutioContinueWatchingStore(accountID: account.id)))
   }
 
   private enum SelectedTab: Hashable {
@@ -75,6 +81,7 @@ struct MainTabView: View {
   private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
   @State private var appConfig: PutioAppConfigModel
   @State private var pins: PutioPinnedFilesModel
+  @State private var continueWatching: PutioContinueWatchingModel
   @State private var analyticsPrompt: PutioProductAnalyticsPromptModel?
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
@@ -421,18 +428,36 @@ struct MainTabView: View {
     selectedFileRoute = route
     switch route.openAction {
     case .video(let videoRoute):
-      stopAudio()
-      if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
-        cast.cast(videoRoute)
-      } else {
-        presentVideo(videoRoute)
-      }
+      playVideo(videoRoute)
     case .audio(let audioRoute):
       presentAudio(audioRoute)
     case .preview, .unsupported:
       presentedPreview = PutioViewerRoute(opening: route.openAction).map {
         PutioPreviewPresentation(route: $0, file: route, source: source)
       }
+    }
+  }
+
+  private func reconcileContinueWatching() async {
+    await continueWatching.reconcile(
+      loadFile: { try await runtime.getFile(fileID: $0) },
+      keepsLocalPosition: { offlineQueue.item(for: $0)?.isPlayable == true })
+  }
+
+  private func resumeVideo(_ route: PutioVideoRoute) {
+    if let item = offlineQueue.item(for: route.id), item.isPlayable {
+      openOffline(item)
+    } else {
+      playVideo(route)
+    }
+  }
+
+  private func playVideo(_ route: PutioVideoRoute) {
+    stopAudio()
+    if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
+      cast.cast(route)
+    } else {
+      presentVideo(route)
     }
   }
 
@@ -658,6 +683,16 @@ struct MainTabView: View {
     )
     .putioToast($externalPlayback.toast)
     .environment(
+      \.putioContinueWatching,
+      PutioContinueWatchingContext(
+        model: continueWatching, play: { resumeVideo($0) },
+        reconcile: { await reconcileContinueWatching() })
+    )
+    .environment(\.putioAccountStorage, account.storage)
+    .task(id: folderRefreshRequests.revision) {
+      await reconcileContinueWatching()
+    }
+    .environment(
       \.putioPreviewOpen,
       PutioPreviewOpenAction { route, source in selectFile(route, in: source) }
     )
@@ -674,6 +709,11 @@ struct MainTabView: View {
     PutioVideoPlaybackView(
       route: route,
       onDismiss: dismissPresentedVideo,
+      onDurationKnown: { duration in
+        continueWatching.opened(
+          fileID: route.id, parentID: route.parentID, name: route.title,
+          durationSeconds: duration)
+      },
       preferredAudioLanguages: offlineQueue.item(for: route.id)?.isPlayable == true
         ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
       remembersPlaybackPosition: account.rememberVideoTime,
@@ -689,6 +729,7 @@ struct MainTabView: View {
         } else {
           try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         }
+        continueWatching.positionSaved(fileID: fileID, seconds: seconds)
         #if DEBUG
           if scenario == .filesBrowser {
             harnessReportedPosition = (fileID, seconds)

@@ -633,6 +633,10 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-61-selection-failed", .iphone, "testSelectionFailed", screenBase: false),
       BoardCapture("Main", .iphone, "testFilesRoot"),
+      BoardCapture(
+        "rd-ios-25-continue-watching-menu", .iphone, "testContinueWatchingMenu",
+        screenBase: false),
+      BoardCapture("rd-ios-26-ipad-root", .ipad, "testIPadRoot"),
       BoardCapture("rd-ios-07-search", .iphone, "testSearch"),
       BoardCapture("rd-ios-42-search-loading", .iphone, "testSearchLoading"),
       BoardCapture("rd-ios-48-search-filter", .iphone, "testSearchFilter"),
@@ -1361,6 +1365,13 @@ enum BrowserJourneyContract {
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
+    JourneyPreflight(
+      "continue-watching",
+      "ContinueWatchingJourneyTests/testStartedVideoIsListedRemovedFinishedAndTrashed",
+      attachmentNames: [
+        "continue-watching-card", "continue-watching-menu", "continue-watching-none",
+      ],
+      timeAllowance: 180),
   ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
