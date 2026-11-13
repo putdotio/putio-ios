@@ -414,9 +414,8 @@ struct MainTabView: View {
     for route in routes { requestDownload(route) }
   }
 
-  /// Queues at once; the queue sizes and stores every audio and subtitle
-  /// rendition when the download starts.
   private func requestDownload(_ route: PutioFileRoute) {
+    offlineQueue.refreshStorage()
     offlineQueue.enqueue(
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
       kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes)
