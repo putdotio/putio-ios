@@ -84,6 +84,7 @@ struct AccountScreen: View {
     PutioListDetail(selection: $destination) { _ in
       list(open: destination)
         .navigationBarTitleDisplayMode(.inline)
+        .contentMargins(.top, PutioTheme.Spacing.space0, for: .scrollContent)
     } detail: { destination in
       destinationView(destination)
         .modifier(AccountDetailReadableWidth())
