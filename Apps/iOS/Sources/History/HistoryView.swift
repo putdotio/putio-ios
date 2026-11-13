@@ -256,29 +256,40 @@ private struct PutioHistoryRow: View {
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
           .truncationMode(.middle)
-        HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
-          Text(presentation.kind)
-            .putioFont(PutioTheme.Typography.caption)
-            .foregroundStyle(
-              presentation.tone == .destructive
-                ? PutioTheme.Colors.destructive : PutioTheme.Colors.textSecondary
-            )
-            .lineLimit(dynamicTypeSize > .large ? nil : 1)
-            .fixedSize(horizontal: false, vertical: true)
-          Text(verbatim: "·")
-            .putioFont(PutioTheme.Typography.caption)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .accessibilityHidden(true)
-          Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
-            .putioFont(PutioTheme.Typography.numeric)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .lineLimit(1)
-            .fixedSize()
+        ViewThatFits(in: .horizontal) {
+          HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
+            kindText(presentation).fixedSize()
+            Text(verbatim: "·")
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+              .accessibilityHidden(true)
+            timeText.fixedSize()
+          }
+          VStack(alignment: .leading, spacing: 0) {
+            kindText(presentation).fixedSize(horizontal: false, vertical: true)
+            timeText
+          }
         }
       }
       Spacer(minLength: 0)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }
     }
     .accessibilityElement(children: .combine)
+  }
+
+  private func kindText(_ presentation: PutioHistoryEventPresentation) -> some View {
+    Text(presentation.kind)
+      .putioFont(PutioTheme.Typography.caption)
+      .foregroundStyle(
+        presentation.tone == .destructive
+          ? PutioTheme.Colors.destructive : PutioTheme.Colors.textSecondary
+      )
+  }
+
+  private var timeText: some View {
+    Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
+      .putioFont(PutioTheme.Typography.numeric)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .lineLimit(1)
   }
 }
