@@ -187,7 +187,7 @@ struct FilesBrowserView: View {
       route: selection.route,
       folderTitles: selection.folderTitles,
       previewSource: selection.origin?.previewSource,
-      menu: detailMenu(selection),
+      menu: pushed ? nil : detailMenu(selection),
       offlineStatus: offlineFiles?.status(selection.route.id) ?? .remote,
       reloadKey: refreshRequests.revision,
       loadDetails: loadVideoDetails,
