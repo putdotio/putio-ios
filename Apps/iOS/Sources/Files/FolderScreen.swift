@@ -291,7 +291,7 @@ struct PutioFolderScreen: View {
     .onChange(of: isEditing) { _, editing in
       guard editing else { return }
       share.leave()
-      detailClear?()
+      detailClear?(nil)
     }
   }
 
@@ -1021,6 +1021,11 @@ struct PutioFolderScreen: View {
     return contents.items
   }
 
+  private func releaseDetail(_ id: PutioFileID) {
+    guard !currentItems.contains(where: { $0.id == id }) else { return }
+    detailClear?([id])
+  }
+
   private var isEditing: Bool {
     selection.isActive
   }
@@ -1086,6 +1091,7 @@ struct PutioFolderScreen: View {
     _ item: PutioFileItem, to destination: PutioFolderRoute
   ) async -> PutioMoveSheetResult {
     await model.move(item, to: destination)
+    releaseDetail(item.id)
     guard let outcome = model.actionOutcome,
       case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
     else { return .closed }
@@ -1147,6 +1153,7 @@ struct PutioFolderScreen: View {
     startedActionRequest = nil
     selection.retain(currentItems.map(\.id))
     if case .delete(let item, _) = request {
+      releaseDetail(item.id)
       presentActionOutcome(deleting: item)
     } else {
       presentActionOutcome()

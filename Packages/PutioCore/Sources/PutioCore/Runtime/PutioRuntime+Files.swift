@@ -236,7 +236,8 @@ extension PutioRuntime {
   }
 
   /// The saved position, length and subtitle languages a video's detail
-  /// shows. A subtitle lookup that fails leaves `subtitles` nil.
+  /// shows. A subtitle lookup that fails, or an account that hides
+  /// subtitles, leaves `subtitles` nil.
   public func videoDetails(fileID: PutioFileID) async throws -> PutioVideoDetails {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     async let subtitles = subtitleLanguages(fileID: fileID)
@@ -253,6 +254,7 @@ extension PutioRuntime {
   }
 
   private func subtitleLanguages(fileID: PutioFileID) async -> [String]? {
+    guard case .signedIn(let account) = session.state, !account.hideSubtitles else { return nil }
     guard
       let response = try? await performAuthenticatedOperation({
         try await sdk.getSubtitles(fileID: fileID.rawValue)
@@ -260,19 +262,6 @@ extension PutioRuntime {
     else { return nil }
     return PutioFileDetailText.subtitleLanguages(
       response.subtitles.map { (language: $0.language, name: $0.name) })
-  }
-
-  /// A file's name alone, without the stream and conversion fields.
-  public func fileName(fileID: PutioFileID) async throws -> String {
-    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
-    let file = try await performAuthenticatedOperation {
-      try await sdk.getFile(
-        fileID: fileID.rawValue,
-        query: PutioFileDetailsQuery(
-          mp4Size: false, startFrom: false, streamURL: false, mp4StreamURL: false))
-    }
-    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
-    return file.name
   }
 
   /// Resolves the download-token URL for previews and external players.

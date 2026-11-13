@@ -21,7 +21,6 @@ struct PutioFileDetailView: View {
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioPinnedFiles) private var pinned
   @State private var details: PutioVideoDetails?
-  @State private var detailsID: PutioFileID?
   @State private var loadedFolder: String?
   @State private var share = PutioFileShareModel()
   @State private var toast: PutioToast?
@@ -228,13 +227,7 @@ struct PutioFileDetailView: View {
   }
 
   private func load() async {
-    let id = item.id
-    if detailsID != id {
-      details = nil
-      loadedFolder = nil
-      detailsID = id
-    }
-    async let videoDetails = try? loadDetails(id)
+    async let videoDetails = try? loadDetails(item.id)
     if folderTitles == nil, loadedFolder == nil {
       let name = try? await loadFolderName(item.parentID)
       if !Task.isCancelled { loadedFolder = name }

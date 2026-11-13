@@ -7,10 +7,11 @@ extension EnvironmentValues {
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
   @Entry var putioFileDetailSelect: PutioFileSelection? = nil
-  @Entry var putioFileDetailClear: (@MainActor @Sendable () -> Void)? = nil
+  @Entry var putioFileDetailClear: PutioFileDetailClear? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
+typealias PutioFileDetailClear = @MainActor @Sendable (Set<PutioFileID>?) -> Void
 typealias PutioBulkFileSelection = @MainActor @Sendable ([PutioFileRoute]) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
@@ -78,7 +79,7 @@ struct FilesBrowserView: View {
     self.pins = pins
     createLink = { try await runtime.createPublicLink(fileID: $0) }
     loadVideoDetails = { try await runtime.videoDetails(fileID: $0) }
-    loadFolderName = { try await runtime.fileName(fileID: $0) }
+    loadFolderName = { try await runtime.getFile(fileID: $0).name }
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -191,9 +192,12 @@ struct FilesBrowserView: View {
     }
   }
 
-  private var detailClear: @MainActor @Sendable () -> Void {
+  private var detailClear: PutioFileDetailClear {
     let selection = $selectedFile
-    return { selection.wrappedValue = nil }
+    return { ids in
+      guard let open = selection.wrappedValue?.route.id, ids?.contains(open) ?? true else { return }
+      selection.wrappedValue = nil
+    }
   }
 
   private func stack(showsDetail: Bool) -> some View {
@@ -270,8 +274,7 @@ struct FilesBrowserView: View {
 private struct PutioFileDetailColumn: ViewModifier {
   let selection: PutioFileDetailSelection?
   let select: PutioFileSelection?
-
-  let clear: (@MainActor @Sendable () -> Void)?
+  let clear: PutioFileDetailClear?
 
   @ViewBuilder func body(content: Content) -> some View {
     if let select {
