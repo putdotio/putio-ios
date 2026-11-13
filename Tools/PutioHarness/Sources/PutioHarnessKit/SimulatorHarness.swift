@@ -391,8 +391,8 @@ let unusedSimulatorJobs = [
   "com.apple.WebBookmarks.webbookmarksd",
 ]
 
-/// Template devices keep this prefix; CI caches them and local runs reuse them.
-/// The harness never deletes a finished one.
+/// Finished template devices keep this prefix; CI caches them and local runs
+/// reuse them. One still being made has another name until its first boot ends.
 let simulatorTemplatePrefix = "putio-template-"
 
 func simulatorTemplateName(runtime: String, deviceType: String) -> String {
@@ -2194,18 +2194,18 @@ public struct SimulatorHarness {
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> String? {
     let onCI = environment["CI"].map { $0 == "true" || $0 == "1" } ?? false
-    let enabled = environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 == "1" } ?? !onCI
+    let enabled = environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 != "0" } ?? !onCI
     guard platform == .ios, enabled else { return nil }
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
-    let output = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "find Simulator template")
-    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-    if let template = devices.devices[runtime.identifier]?.first(where: { $0.name == name }) {
-      return template.udid
+    if let template = try existingTemplate(named: name, runtime: runtime) {
+      return template
     }
-    // The template takes its name only once it has booted and shut down, so a
-    // concurrent run never clones a half-made one, and a failed one is deleted.
-    let pending = "\(name)-making-\(String(UUID().uuidString.prefix(8)).lowercased())"
+    // The device takes the template's name only after its first boot, so no run
+    // clones a half-made one; a failed or interrupted one is deleted.
+    let pending = "putio-pending-\(name)-\(String(UUID().uuidString.prefix(8)).lowercased())"
+    try SimulatorLifecycle.shared.register { [runner] in
+      try cleanupSimulators(named: [pending], runner: runner, attempts: 1)
+    }
     let identifier = try createDevice(
       name: pending, type: deviceType.identifier, runtime: runtime.identifier)
     do {
@@ -2213,14 +2213,25 @@ public struct SimulatorHarness {
       _ = try runner.checked(
         "xcrun", ["simctl", "shutdown", identifier],
         context: "shut down \(platform.rawValue) Simulator template")
+      if let template = try existingTemplate(named: name, runtime: runtime) {
+        try cleanupSimulatorIdentifiers([identifier], runner: runner)
+        return template
+      }
       _ = try runner.checked(
         "xcrun", ["simctl", "rename", identifier, name],
         context: "name \(platform.rawValue) Simulator template")
     } catch {
-      _ = try? runner.run("xcrun", ["simctl", "delete", identifier])
+      try? cleanupSimulatorIdentifiers([identifier], runner: runner)
       throw error
     }
     return identifier
+  }
+
+  private func existingTemplate(named name: String, runtime: RuntimeRecord) throws -> String? {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "list Simulator templates")
+    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    return devices.devices[runtime.identifier]?.first(where: { $0.name == name })?.udid
   }
 
   private func cloneDevice(_ template: String, name: String) throws -> String {
