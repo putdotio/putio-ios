@@ -65,6 +65,8 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(missingEvent.exists, "missing file removed its history event")
     XCTAssertFalse(app.buttons["history.open-retry"].exists, "a missing file offered a retry")
     addScreenshot(named: "runtime-history-navigation-blocked")
+    XCTAssertTrue(
+      app.staticTexts[navigationBlocked].disappears(within: 10), "the blocked toast never left")
 
     reveal(folderEvent)
     folderEvent.tap()
