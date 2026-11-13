@@ -499,7 +499,7 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   func makeUIView(context: Context) -> PutioVideoSurfaceView {
     let surface = PutioVideoSurfaceView()
     let transport = transport
-    surface.onPlayerChange = { player in transport.attach(player) }
+    surface.onPlayerChange = { old, new in transport.playerChanged(from: old, to: new) }
     surface.onPlaybackControlsChange = { shown in transport.setControlsEnabled(shown) }
     #if DEBUG
       if let subtitleSelected {

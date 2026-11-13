@@ -5,7 +5,7 @@ import SwiftUI
 import UIKit
 
 final class PutioVideoSurfaceView: UIView {
-  var onPlayerChange: (@MainActor (AVPlayer?) -> Void)?
+  var onPlayerChange: (@MainActor (_ old: AVPlayer?, _ new: AVPlayer?) -> Void)?
   var onPlaybackControlsChange: (@MainActor (Bool) -> Void)?
 
   override class var layerClass: AnyClass { AVPlayerLayer.self }
@@ -13,9 +13,10 @@ final class PutioVideoSurfaceView: UIView {
   var player: AVPlayer? {
     get { playerLayer?.player }
     set {
-      guard playerLayer?.player !== newValue else { return }
+      let old = playerLayer?.player
+      guard old !== newValue else { return }
       playerLayer?.player = newValue
-      onPlayerChange?(newValue)
+      onPlayerChange?(old, newValue)
     }
   }
 
@@ -75,7 +76,12 @@ final class PutioVideoTransport {
       ?? String(localized: "Off")
   }
 
-  func attach(_ player: AVPlayer?) {
+  func playerChanged(from old: AVPlayer?, to new: AVPlayer?) {
+    guard new != nil || old === player else { return }
+    attach(new)
+  }
+
+  private func attach(_ player: AVPlayer?) {
     detach()
     guard let player else { return }
     self.player = player
@@ -241,6 +247,7 @@ struct PutioVideoControls<Trailing: View>: View {
       Color.clear
         .contentShape(Rectangle())
         .onTapGesture { animate { visibility.toggled() } }
+        .ignoresSafeArea()
         .accessibilityHidden(true)
       VStack(spacing: 0) {
         PutioVideoTopBar(title: title, onClose: onClose) {
@@ -268,6 +275,7 @@ struct PutioVideoControls<Trailing: View>: View {
         Color.clear
           .contentShape(Rectangle())
           .onTapGesture { animate { visibility.toggled() } }
+          .ignoresSafeArea()
           .accessibilityHidden(true)
       }
     }

@@ -463,11 +463,23 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
 
   func testANewPlayerStartsWithTheTransportLocked() {
     let transport = PutioVideoTransport()
-    transport.attach(AVPlayer())
+    let first = AVPlayer()
+    transport.playerChanged(from: nil, to: first)
     transport.setControlsEnabled(true)
 
-    transport.attach(AVPlayer())
+    transport.playerChanged(from: first, to: AVPlayer())
     XCTAssertFalse(transport.controlsEnabled, "a retried player inherited unlocked controls")
+  }
+
+  func testAStaleSurfaceClearingItsPlayerLeavesTheLiveOneAttached() {
+    let transport = PutioVideoTransport()
+    let stale = AVPlayer()
+    transport.playerChanged(from: nil, to: stale)
+    transport.playerChanged(from: nil, to: AVPlayer())
+    transport.setControlsEnabled(true)
+
+    transport.playerChanged(from: stale, to: nil)
+    XCTAssertTrue(transport.controlsEnabled, "a dismantled surface detached the live player")
   }
 
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {
