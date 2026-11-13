@@ -733,6 +733,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     let row = element("files.item.442")
     selectVideo(row, id: 442, primary: "Resume from 21:00")
+    XCTAssertGreaterThanOrEqual(
+      row.frame.maxX, 384, "the list column is narrower than its 384 pt minimum")
     XCTAssertFalse(element("video.ready").exists, "selecting a video started playback")
     assertFact("length", "Length, 49:49")
     assertFact("subtitles", "Subtitles, English, Turkish")

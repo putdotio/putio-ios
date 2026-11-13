@@ -172,6 +172,7 @@
         super.viewWillLayoutSubviews()
         guard let split = splitViewController,
           split.minimumPrimaryColumnWidth != PutioListDetailLayout.listMinimumWidth
+            || split.preferredPrimaryColumnWidth != PutioListDetailLayout.listIdealWidth
         else { return }
         split.minimumPrimaryColumnWidth = PutioListDetailLayout.listMinimumWidth
         split.preferredPrimaryColumnWidth = PutioListDetailLayout.listIdealWidth
