@@ -564,7 +564,7 @@ public final class PutioTrashModel {
             items: shownPage.items + newItems,
             nextCursor: fresh.nextCursor,
             totalCount: fresh.totalCount ?? shownPage.totalCount,
-            sizeBytes: fresh.sizeBytes
+            sizeBytes: shownPage.sizeBytes
           )))
     } catch is CancellationError {
       paginationFailure = previousPaginationFailure
