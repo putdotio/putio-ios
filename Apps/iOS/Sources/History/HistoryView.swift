@@ -9,6 +9,7 @@ struct HistoryView: View {
   let onFileSelected: PutioFileSelection
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.locale) private var locale
   @State private var groupingDate = Date.now
   @State private var model: PutioHistoryModel
   @State private var path: [PutioFolderRoute] = []
@@ -147,7 +148,7 @@ struct HistoryView: View {
           .listRowBackground(PutioTheme.Colors.background)
           .accessibilityIdentifier("history.progress")
       }
-      ForEach(PutioHistoryDay.group(page.items, now: groupingDate)) { day in
+      ForEach(PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)) { day in
         Section {
           ForEach(day.items) { event in
             eventRow(event)
@@ -200,7 +201,7 @@ struct HistoryView: View {
 
   private func eventRow(_ event: PutioHistoryEventItem) -> some View {
     Group {
-      if let fileID = event.fileID, fileID.rawValue > 0 {
+      if event.fileID != nil {
         Button {
           Task { await model.openFile(event: event) }
         } label: {
@@ -235,6 +236,7 @@ private struct PutioHistoryRow: View {
   let isOpening: Bool
 
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.locale) private var locale
   @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
   @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var textGap
   @PutioScaledMetric(PutioMetricRole(value: 6, relativeTo: .caption)) private var separatorGap
@@ -267,7 +269,7 @@ private struct PutioHistoryRow: View {
             .putioFont(PutioTheme.Typography.caption)
             .foregroundStyle(PutioTheme.Colors.textSecondary)
             .accessibilityHidden(true)
-          Text(PutioHistoryEventPresentation.time(event.createdAt))
+          Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
             .putioFont(PutioTheme.Typography.numeric)
             .foregroundStyle(PutioTheme.Colors.textSecondary)
             .lineLimit(1)
