@@ -59,22 +59,31 @@ struct SimulatorTemplateTests {
     #expect(run.calls == ["simctl list devices -j"])
   }
 
-  @Test func missingTemplateIsCreatedBootedOnceAndShutDown() throws {
+  @Test(arguments: [["PUTIO_SIMULATOR_TEMPLATES": "1"], [:], ["CI": "false"]])
+  func missingTemplateIsMadeUnderATemporaryNameThenRenamed(environment: [String: String])
+    throws
+  {
     let run = try withFakeTemplateSimctl(existing: nil) { harness in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: enabled)
+        environment: environment)
     }
+    let name = "putio-template-iOS-26-5-iPhone-17-Pro"
     #expect(run.template == "NEW-TEMPLATE")
+    #expect(run.calls.count == 6)
+    #expect(run.calls.first == "simctl list devices -j")
+    let create = run.calls.dropFirst().first ?? ""
+    #expect(create.hasPrefix("simctl create \(name)-making-"))
     #expect(
-      run.calls == [
-        "simctl list devices -j",
-        "simctl create putio-template-iOS-26-5-iPhone-17-Pro"
-          + " com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
-          + " com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      create.hasSuffix(
+        " com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
+          + " com.apple.CoreSimulator.SimRuntime.iOS-26-5"))
+    #expect(
+      Array(run.calls.dropFirst(2)) == [
         "simctl boot NEW-TEMPLATE",
         "simctl bootstatus NEW-TEMPLATE -b -d",
         "simctl shutdown NEW-TEMPLATE",
+        "simctl rename NEW-TEMPLATE \(name)",
       ])
   }
 
@@ -85,10 +94,12 @@ struct SimulatorTemplateTests {
         environment: [:])
     }
     #expect(run.template == "CACHED-TEMPLATE")
+    #expect(run.calls == ["simctl list devices -j"])
   }
 
   @Test(arguments: [
     (HarnessPlatform.ios, ["CI": "true"]),
+    (HarnessPlatform.ios, ["CI": "1"]),
     (HarnessPlatform.ios, ["PUTIO_SIMULATOR_TEMPLATES": "0"]),
     (HarnessPlatform.tvos, ["PUTIO_SIMULATOR_TEMPLATES": "1"]),
   ])

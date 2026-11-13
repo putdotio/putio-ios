@@ -391,7 +391,8 @@ let unusedSimulatorJobs = [
   "com.apple.WebBookmarks.webbookmarksd",
 ]
 
-/// CI caches devices with this prefix; the harness never deletes them.
+/// Template devices keep this prefix; CI caches them and local runs reuse them.
+/// The harness never deletes a finished one.
 let simulatorTemplatePrefix = "putio-template-"
 
 func simulatorTemplateName(runtime: String, deviceType: String) -> String {
@@ -2192,8 +2193,8 @@ public struct SimulatorHarness {
     deviceType: DeviceTypeRecord,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> String? {
-    let enabled =
-      environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 == "1" } ?? (environment["CI"] == nil)
+    let onCI = environment["CI"].map { $0 == "true" || $0 == "1" } ?? false
+    let enabled = environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 == "1" } ?? !onCI
     guard platform == .ios, enabled else { return nil }
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
     let output = try runner.checked(
@@ -2202,12 +2203,23 @@ public struct SimulatorHarness {
     if let template = devices.devices[runtime.identifier]?.first(where: { $0.name == name }) {
       return template.udid
     }
+    // The template takes its name only once it has booted and shut down, so a
+    // concurrent run never clones a half-made one, and a failed one is deleted.
+    let pending = "\(name)-making-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let identifier = try createDevice(
-      name: name, type: deviceType.identifier, runtime: runtime.identifier)
-    try boot(identifier, label: "\(platform.rawValue) template")
-    _ = try runner.checked(
-      "xcrun", ["simctl", "shutdown", identifier],
-      context: "shut down \(platform.rawValue) Simulator template")
+      name: pending, type: deviceType.identifier, runtime: runtime.identifier)
+    do {
+      try boot(identifier, label: "\(platform.rawValue) template")
+      _ = try runner.checked(
+        "xcrun", ["simctl", "shutdown", identifier],
+        context: "shut down \(platform.rawValue) Simulator template")
+      _ = try runner.checked(
+        "xcrun", ["simctl", "rename", identifier, name],
+        context: "name \(platform.rawValue) Simulator template")
+    } catch {
+      _ = try? runner.run("xcrun", ["simctl", "delete", identifier])
+      throw error
+    }
     return identifier
   }
 
