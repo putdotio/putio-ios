@@ -1767,14 +1767,14 @@ struct PutioPreviewTitleSpan: Equatable {
   )
   static let gap = PutioTheme.Spacing.space3
 
-  var centre: CGFloat = 0
-  var leading: CGFloat = 0
-  var trailing: CGFloat = 0
+  var centre: CGFloat = 0 { didSet { settle() } }
+  var leading: CGFloat = 0 { didSet { settle() } }
+  var trailing: CGFloat = 0 { didSet { settle() } }
+  private(set) var width: CGFloat = 0
 
-  var width: CGFloat? {
-    guard leading > 0, centre > leading, trailing > centre else { return nil }
-    let half = min(centre - leading, trailing - centre) - Self.gap
-    return half > 0 ? 2 * half : nil
+  private mutating func settle() {
+    guard leading > 0, centre > leading, trailing > centre else { return }
+    width = max(0, 2 * (min(centre - leading, trailing - centre) - Self.gap))
   }
 }
 

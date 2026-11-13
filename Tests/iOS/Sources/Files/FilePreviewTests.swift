@@ -521,6 +521,21 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(pages, 0, "the viewer paged a folder its file left")
   }
 
+  func testTheTitleSpanCapsTheTitleAtTheNarrowerSideLessTheGap() {
+    var span = PutioPreviewTitleSpan()
+    XCTAssertEqual(span.width, 0)
+    span.leading = 60
+    span.trailing = 300
+    span.centre = 201
+    XCTAssertEqual(span.width, 166)
+    span.centre = 500
+    XCTAssertEqual(span.width, 166)
+    span.trailing = 900
+    XCTAssertEqual(span.width, 768)
+    span.leading = 490
+    XCTAssertEqual(span.width, 0)
+  }
+
   func testThePagePillShowsOnlyForMultiPageDocuments() {
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 0).showsPill)
     XCTAssertFalse(PutioPDFPagePosition(index: 0, count: 1).showsPill)

@@ -391,6 +391,7 @@ final class PreviewJourneyTests: XCTestCase {
     let text = element("preview.text")
     XCTAssertTrue(text.appears(within: 10), "the short text never loaded")
     XCTAssertEqual(element("preview.title").label, "Harness Subtitles.en.srt")
+    assertTitleCentred()
     XCTAssertTrue((text.value as? String ?? "").hasPrefix("1\n00:00:02,000 --> 00:00:05,000"))
     XCTAssertFalse(element("preview.text.truncated").exists, "a short file shows the end line")
     screenshot("runtime-preview-text")
@@ -407,6 +408,7 @@ final class PreviewJourneyTests: XCTestCase {
     long.tap()
     let longText = element("preview.text")
     XCTAssertTrue(longText.appears(within: 10), "the long text never loaded")
+    assertTitleCentred()
     let notice = element("preview.text.truncated")
     XCTAssertFalse(notice.isOnScreen, "the end line shows before the end")
     longText.scrollTextToEnd(revealing: notice)
@@ -422,6 +424,22 @@ final class PreviewJourneyTests: XCTestCase {
     assertShares("Blue.Lights.S04.en.srt", from: app.buttons["preview.share"])
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.432").disappears(within: 5))
+  }
+
+  private func assertTitleCentred(file: StaticString = #filePath, line: UInt = #line) {
+    let title = element("preview.title").frame
+    let back = app.buttons["preview.back"].frame
+    let share = app.buttons["preview.share"].frame
+    let window = app.windows.firstMatch.frame
+    XCTAssertEqual(
+      title.midX, window.midX, accuracy: 1, "the title is off centre: \(title) in \(window)",
+      file: file, line: line)
+    XCTAssertGreaterThanOrEqual(
+      title.minX, back.maxX + 15, "the title crowds Back: \(title), \(back)", file: file,
+      line: line)
+    XCTAssertLessThanOrEqual(
+      title.maxX, share.minX - 15, "the title crowds Share: \(title), \(share)", file: file,
+      line: line)
   }
 
   private func assertShares(_ name: String, from control: XCUIElement, capture: String? = nil) {
