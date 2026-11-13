@@ -1,11 +1,10 @@
 import UIKit
-import Intercom
 import PutioSDK
 
 class DestroyAccounViewController: UIViewController {
     @IBAction func supportButtonTapped(_ sender: Any) {
         ProductAnalytics.capture(.supportStarted)
-        Intercom.present()
+        (UIApplication.shared.delegate as? AppDelegate)?.supportMessenger?.present()
     }
 
     @IBAction func destroyButtonTapped(_ sender: Any) {

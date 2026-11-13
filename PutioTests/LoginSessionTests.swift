@@ -245,6 +245,47 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertEqual(messenger.events, [.logout, .logout])
     }
 
+    func testARejectedTokenLogsOutOfSupport() throws {
+        let (appDelegate, _) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-1", answeringAccountID: 1, answersConfig: true, rejectsToken: true)
+        let messenger = SupportMessengerSpy(loggedInUserID: "1")
+        appDelegate.supportMessenger = messenger
+
+        appDelegate.authenticate(token: "token-1")
+
+        waitForRoot(LoginViewController.self, in: appDelegate)
+        XCTAssertEqual(messenger.events, [.logout])
+    }
+
+    func testAFailedSessionLoadKeepsSupportForRetry() throws {
+        let (appDelegate, _) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-1", answeringAccountID: 1, answersConfig: false)
+        let messenger = SupportMessengerSpy(loggedInUserID: "1")
+        appDelegate.supportMessenger = messenger
+
+        appDelegate.authenticate(token: "token-1")
+
+        waitForRoot(LoginViewController.self, in: appDelegate)
+        XCTAssertEqual(messenger.events, [])
+    }
+
+    func testContactUsAndAccountDestructionOpenSupportForTheSignedInAccount() throws {
+        let (appDelegate, _) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-2", answeringAccountID: 2, answersConfig: true)
+        let messenger = SupportMessengerSpy(loggedInUserID: "1")
+        appDelegate.supportMessenger = messenger
+        addTeardownBlock { DownloadQueueController.sharedInstance.pause() }
+        let sharedDelegate = try XCTUnwrap(UIApplication.shared.delegate as? AppDelegate)
+        let previousMessenger = sharedDelegate.supportMessenger
+        sharedDelegate.supportMessenger = messenger
+        addTeardownBlock { sharedDelegate.supportMessenger = previousMessenger }
+
+        appDelegate.authenticate(token: "token-2")
+        waitForRoot(RootContainerViewController.self, in: appDelegate)
+        let contactUs = try XCTUnwrap(SettingsViewModel().buildSections().flatMap(\.items).first { $0.title == NSLocalizedString("Contact us", comment: "") })
+        contactUs.action?()
+        DestroyAccounViewController().supportButtonTapped(self)
+
+        XCTAssertEqual(messenger.events, [.logout, .setUserHash("hash-2"), .login("2"), .present(signedInAs: "2"), .present(signedInAs: "2")])
+    }
+
     private func makeKeychain() -> PutioKeychain {
         let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil)
         addTeardownBlock {
@@ -254,7 +295,7 @@ final class LoginSessionTests: XCTestCase {
         return keychain
     }
 
-    private func makeOwnerlessLaunch(cachedUserID: Int?, token: String, answeringAccountID: Int, answersConfig: Bool) throws -> (AppDelegate, Realm) {
+    private func makeOwnerlessLaunch(cachedUserID: Int?, token: String, answeringAccountID: Int, answersConfig: Bool, rejectsToken: Bool = false) throws -> (AppDelegate, Realm) {
         let previousConfiguration = Realm.Configuration.defaultConfiguration
         var configuration = PutioRealm.configuration()
         configuration.inMemoryIdentifier = "LoginSessionTests.\(UUID().uuidString)"
@@ -277,7 +318,7 @@ final class LoginSessionTests: XCTestCase {
 
         let previousToken = api.mediaToken
         api.setToken(token: token)
-        AccountStub.answer(accountID: answeringAccountID, answersConfig: answersConfig, in: self)
+        AccountStub.answer(accountID: answeringAccountID, answersConfig: answersConfig, rejectsToken: rejectsToken, in: self)
         addTeardownBlock {
             window.isHidden = true
             api.setToken(token: previousToken)
@@ -326,6 +367,7 @@ final class LoginSessionTests: XCTestCase {
             case setUserHash(String)
             case login(String)
             case logout
+            case present(signedInAs: String?)
         }
 
         private(set) var events: [Event] = []
@@ -353,6 +395,10 @@ final class LoginSessionTests: XCTestCase {
             events.append(.logout)
             loggedInUserID = nil
         }
+
+        func present() {
+            events.append(.present(signedInAs: loggedInUserID))
+        }
     }
 }
 
@@ -360,6 +406,7 @@ private final class AccountStub: URLProtocol {
     private struct Answers {
         var accountID = 0
         var answersConfig = false
+        var rejectsToken = false
     }
 
     private static let answers = OSAllocatedUnfairLock(initialState: Answers())
@@ -373,8 +420,9 @@ private final class AccountStub: URLProtocol {
     }
 
     override func startLoading() {
+        let statusCode = Self.answers.withLock { $0.rejectsToken } ? 401 : 200
         guard let url = request.url, let body = Self.body(for: url.path),
-              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
+              let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
         else {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
@@ -387,6 +435,9 @@ private final class AccountStub: URLProtocol {
 
     private static func body(for path: String) -> Data? {
         answers.withLock { answers in
+            if answers.rejectsToken {
+                return Data(#"{"error_type":"invalid_grant","status_code":401}"#.utf8)
+            }
             switch path {
             case "/v2/account/info":
                 return accountInfo(id: answers.accountID)
@@ -400,8 +451,8 @@ private final class AccountStub: URLProtocol {
 
     override func stopLoading() {}
 
-    static func answer(accountID: Int, answersConfig: Bool, in testCase: XCTestCase) {
-        answers.withLock { $0 = Answers(accountID: accountID, answersConfig: answersConfig) }
+    static func answer(accountID: Int, answersConfig: Bool, rejectsToken: Bool = false, in testCase: XCTestCase) {
+        answers.withLock { $0 = Answers(accountID: accountID, answersConfig: answersConfig, rejectsToken: rejectsToken) }
         URLProtocol.registerClass(AccountStub.self)
         testCase.addTeardownBlock { URLProtocol.unregisterClass(AccountStub.self) }
     }

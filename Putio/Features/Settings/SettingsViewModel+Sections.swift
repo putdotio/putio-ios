@@ -298,7 +298,7 @@ extension SettingsViewModel {
                     value: "",
                     action: {
                         ProductAnalytics.capture(.supportStarted)
-                        Intercom.present()
+                        (UIApplication.shared.delegate as? AppDelegate)?.supportMessenger?.present()
                     },
                     visible: true
                 )

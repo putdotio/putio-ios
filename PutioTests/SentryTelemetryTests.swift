@@ -430,6 +430,31 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertFalse(json.contains(fileName), "\(fileName) left the device: \(json)")
     }
 
+    func testASupportLoginFailureSendsNoHashTokenOrAccountID() throws {
+        let previous = SentryTelemetry.isCapturing
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        let accountID = 7_301_946
+        let hash = "synthetic-user-hash-9c41d2"
+        let token = "synthetic-oauth-token-b7e2"
+        let rejection = NSError(domain: "com.intercom.sdk", code: 401, userInfo: [
+            NSLocalizedDescriptionKey: "user \(accountID) rejected with \(hash)",
+            NSUnderlyingErrorKey: NSError(domain: "com.intercom.sdk", code: 1, userInfo: ["token": token]),
+            "user_id": String(accountID)
+        ])
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+
+        SupportIdentity.signIn(accountID: accountID, userHash: hash, messenger: FailingSupportMessenger(error: rejection))
+
+        XCTAssertEqual(sent().map(\.tags), [["category": "support_login"]])
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.domain, "io.put.support-login.rejected")
+        XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.code, 401)
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
+        for secret in [String(accountID), hash, token] {
+            XCTAssertFalse(json.contains(secret), "\(secret) left the device: \(json)")
+        }
+    }
+
     func testSDKFailureReasons() {
         let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/account/info", method: .get)
         let request = PutioSDKErrorRequestInformation(config: config)
@@ -810,6 +835,16 @@ final class SentryTelemetryTests: XCTestCase {
         SentryTelemetry.isCapturing = true
         addTeardownBlock { SentryTelemetry.isCapturing = previous }
     }
+}
+
+private struct FailingSupportMessenger: SupportMessenger {
+    let error: Error
+    var isUserLoggedIn: Bool { false }
+    var loggedInUserID: String? { nil }
+    func setUserHash(_ hash: String) {}
+    func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void) { completion(.failure(error)) }
+    func logout() {}
+    func present() {}
 }
 
 /// Stands in for the network: records every request that starts loading.
