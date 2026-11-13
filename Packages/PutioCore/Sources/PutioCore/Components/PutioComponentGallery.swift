@@ -1096,6 +1096,8 @@ enum GalleryFixtures {
     PutioFileRowModel(name: "IMG_2041.HEIC", kind: .image, sizeText: "3.1 MB", dateText: "Oct 20"),
     PutioFileRowModel(
       name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+    PutioFileRowModel(
+      name: "document-scan-march-2026.pdf", kind: .pdf, sizeText: "1.1 MB", dateText: "Mar 18"),
   ]
 
   private static let downloadStates: [(episode: String, state: PutioDownloadState)] = [
@@ -1368,7 +1370,7 @@ enum GalleryFixtures {
         dateText: "Oct 23"),
       PutioFileRowModel(name: "IMG_4392.HEIC", kind: .image, sizeText: "2.4 MB", dateText: "May 4"),
       PutioFileRowModel(
-        name: "document-scan-march-2026.pdf", kind: .file, sizeText: "1.1 MB", dateText: "Mar 18"),
+        name: "document-scan-march-2026.pdf", kind: .pdf, sizeText: "1.1 MB", dateText: "Mar 18"),
       PutioFileRowModel(
         name: "ubuntu-24.04.1-desktop-amd64.iso", kind: .file, sizeText: "6.1 GB",
         dateText: "Oct 20"),
