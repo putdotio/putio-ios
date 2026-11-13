@@ -65,8 +65,14 @@ Preconditions:
   `--putio-harness-restore-seconds` and `--putio-harness-sign-out-seconds` hold
   the progress screens. Screenshots: `runtime-session-storage`,
   `runtime-session-restoring`, `runtime-session-check-failed`.
-- **Security.** Run `--only account-security`. Screenshots:
-  `runtime-security-apps`, `runtime-danger-clear-data`.
+- **Security.** Run `--only account-security`. Screenshot:
+  `runtime-security-apps`.
+- **Clear your data.** Run `--only clear-data,clear-data-leave`. The first
+  clear fails once; `--putio-harness-clear-data <hold|accept|slow>` holds,
+  accepts or delays it instead. Screenshots: `runtime-danger-clear-failed`,
+  `runtime-danger-clear-data`. Boards: `rd-ios-acc-15-clear`,
+  `rd-ios-acc-16-clear-confirm`, `rd-ios-acc-53-clear-none` to
+  `rd-ios-acc-56-clear-failed`.
 - **Browser handoffs.** Run `--only browser-handoffs,destroyed-account`.
   `--putio-harness-rating-link` records opened URLs.
   `--putio-harness-two-factor-on` seeds two-factor on;

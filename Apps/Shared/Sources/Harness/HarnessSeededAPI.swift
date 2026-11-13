@@ -118,6 +118,24 @@ import Foundation
       return LinkDeviceMode(rawValue: arguments[flag + 1])
     }()
 
+    static let clearDataArgument = "--putio-harness-clear-data"
+
+    enum ClearDataMode: String {
+      case hold
+      case accept
+      case slow
+    }
+
+    private static let clearDataMode: ClearDataMode? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: clearDataArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return ClearDataMode(rawValue: arguments[flag + 1])
+    }()
+
+    private static let slowClearDelay: TimeInterval = 4
+
     enum InactiveAccount: String {
       case owner
       case ownerNoDate = "owner-no-date"
@@ -612,7 +630,7 @@ import Foundation
         )
       }
       let outcome = securityFixture {
-        if !securityClearFailed {
+        if !securityClearFailed, clearDataMode == nil {
           securityClearFailed = true
           return (
             503,
@@ -1128,12 +1146,16 @@ import Foundation
       } else if Self.delaysAccountSettingsLoad(url) {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
+      } else if Self.clearsData(replayableRequest, mode: .slow) {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + Self.slowClearDelay, execute: deliverResponse)
       } else if Self.delaysGalleryContinuation(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url)
         || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
         || (Self.holdsSearch && url.path == "/v2/files/search")
         || Self.holdsDeviceLink(replayableRequest)
+        || Self.clearsData(replayableRequest, mode: .hold)
       {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -1182,6 +1204,11 @@ import Foundation
         request.url?.path == "/v2/oauth2/oob/code"
       else { return false }
       return requestPayload(request)?["code"] as? String == boardDeviceCode
+    }
+
+    private static func clearsData(_ request: URLRequest, mode: ClearDataMode) -> Bool {
+      usesAccountSecurity && clearDataMode == mode && request.httpMethod == "POST"
+        && request.url?.path == "/v2/account/clear"
     }
 
     private static func delaysGalleryContinuation(_ request: URLRequest) -> Bool {

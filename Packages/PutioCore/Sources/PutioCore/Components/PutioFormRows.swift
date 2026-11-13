@@ -469,6 +469,40 @@ private struct PutioChoiceRow: View {
   }
 }
 
+public struct PutioCheckRow: View {
+  private let title: String
+  private let icon: PutioIcon?
+  private let isChecked: Bool
+  private let toggle: () -> Void
+  @Environment(\.isEnabled) private var isEnabled
+
+  public init(
+    _ title: String, icon: PutioIcon? = nil, isChecked: Bool, toggle: @escaping () -> Void
+  ) {
+    self.title = title
+    self.icon = icon
+    self.isChecked = isChecked
+    self.toggle = toggle
+  }
+
+  public var body: some View {
+    Button(action: toggle) {
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+          .frame(maxWidth: .infinity, alignment: .leading)
+        if isChecked {
+          Image(systemName: "checkmark")
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .accessibilityHidden(true)
+        }
+      }
+      .opacity(isEnabled ? 1 : PutioSettingsLayout.disabledOpacity)
+      .contentShape(Rectangle())
+    }
+    .accessibilityAddTraits(isChecked ? .isSelected : [])
+  }
+}
+
 public struct PutioActionRow: View {
   private let title: String
   private let icon: PutioIcon?
@@ -492,22 +526,37 @@ public struct PutioActionRow: View {
 public struct PutioDestructiveRow: View {
   private let title: String
   private let alignment: Alignment
+  private let isBusy: Bool
   private let action: () -> Void
+  @Environment(\.isEnabled) private var isEnabled
 
-  public init(_ title: String, alignment: Alignment = .leading, action: @escaping () -> Void) {
+  public init(
+    _ title: String, alignment: Alignment = .leading, isBusy: Bool = false,
+    action: @escaping () -> Void
+  ) {
     self.title = title
     self.alignment = alignment
+    self.isBusy = isBusy
     self.action = action
   }
 
   public var body: some View {
     Button(role: .destructive, action: action) {
-      Text(title)
-        .putioFont(PutioFormLayout.titleFont)
-        .foregroundStyle(PutioTheme.Colors.destructive)
-        .frame(maxWidth: .infinity, alignment: alignment)
-        .contentShape(Rectangle())
+      ZStack(alignment: alignment) {
+        Text(title)
+          .putioFont(PutioFormLayout.titleFont)
+          .foregroundStyle(PutioTheme.Colors.destructive)
+          .opacity(isBusy ? 0 : isEnabled ? 1 : PutioSettingsLayout.disabledOpacity)
+        if isBusy {
+          ProgressView()
+            .tint(PutioTheme.Colors.textSecondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: alignment)
+      .contentShape(Rectangle())
     }
+    .disabled(isBusy)
+    .accessibilityLabel(title)
   }
 }
 
@@ -813,6 +862,7 @@ private struct PutioNeutralSwitchTint: ViewModifier {
 
 enum PutioSettingsLayout {
   static let iconGap = PutioTheme.Spacing.space3
+  static let disabledOpacity = 0.4
   #if os(tvOS)
     static let iconSize = PutioMetricRole(
       value: PutioTheme.TV.Typography.label.size,

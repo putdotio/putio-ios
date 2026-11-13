@@ -299,7 +299,11 @@ final class AccountSecurityTests: XCTestCase {
       onCleared: { categories, committed in notified.append(committed ? categories : []) })
     await model.clear()
     XCTAssertTrue(cleared.isEmpty)
-    model.selection = [.history, .trash]
+    model.toggle(.trash)
+    model.toggle(.files)
+    model.toggle(.history)
+    model.toggle(.files)
+    XCTAssertEqual(model.orderedSelection, [.history, .trash])
     await model.clear()
     XCTAssertEqual(model.selection, [.history, .trash], "a failed clear dropped the selection")
     XCTAssertNotNil(model.failure)
@@ -312,7 +316,8 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNotNil(model.refreshWarning)
     await model.refreshAccount()
     XCTAssertNil(model.refreshWarning)
-    model.selection = [.files]
+    model.toggle(.files)
+    XCTAssertFalse(model.didClear, "a new selection kept the earlier result")
     await model.clear()
     XCTAssertFalse(model.didClear, "an earlier success survived a failed attempt")
     XCTAssertNil(model.refreshWarning)

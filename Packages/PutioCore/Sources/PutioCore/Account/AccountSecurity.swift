@@ -254,7 +254,7 @@ public final class PutioLinkDeviceModel {
 @MainActor
 @Observable
 public final class PutioClearDataModel {
-  public var selection: Set<PutioAccountDataCategory> = []
+  public private(set) var selection: Set<PutioAccountDataCategory> = []
   public private(set) var isClearing = false
   public private(set) var failure: String?
   public private(set) var didClear = false
@@ -276,6 +276,17 @@ public final class PutioClearDataModel {
   }
 
   public var canClear: Bool { !isClearing && !selection.isEmpty }
+
+  public var orderedSelection: [PutioAccountDataCategory] {
+    PutioAccountDataCategory.allCases.filter(selection.contains)
+  }
+
+  public func toggle(_ category: PutioAccountDataCategory) {
+    guard !isClearing else { return }
+    if selection.remove(category) == nil { selection.insert(category) }
+    failure = nil
+    didClear = false
+  }
 
   public func clear() async {
     guard canClear else { return }

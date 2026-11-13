@@ -12,7 +12,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     ]
   }
 
-  func testAppsLinkingAndClearData() throws {
+  func testAppsAndLinking() throws {
     app.launch()
     signIn()
     app.buttons["Account"].tap()
@@ -68,28 +68,94 @@ final class AccountSecurityJourneyTests: XCTestCase {
     tap("security.apps")
     XCTAssertTrue(element("security.app.77").appears(within: 10))
     back()
+  }
 
-    // Clear Data retries a transient failure before confirming.
+  func testClearDataAsksFirstAndKeepsTheSelectionOnFailure() throws {
+    app.launch()
+    signIn()
+    app.buttons["Account"].tap()
     tap("account.clear-data")
-    let history = app.switches["danger.clear.history"]
-    XCTAssertTrue(history.appears(within: 5))
+    XCTAssertTrue(app.navigationBars["Clear your data"].appears(within: 5))
+    let files = app.buttons["danger.clear.files"]
+    let history = app.buttons["danger.clear.history"]
+    let trash = app.buttons["danger.clear.trash"]
     let clear = app.buttons["danger.clear"]
+    XCTAssertTrue(files.appears(within: 5))
     XCTAssertFalse(clear.isEnabled, "clearing was offered with nothing selected")
-    tapToggle(history)
-    tapToggle(app.switches["danger.clear.trash"])
-    assertToggle(history, value: "1")
-    tap("danger.clear")
-    let clearConfirm = app.buttons["danger.clear-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(clearConfirm))
-    clearConfirm.tap()
-    XCTAssertTrue(element("danger.clear-failure").appears(within: 10))
-    assertToggle(history, value: "1")
-    tap("danger.clear")
-    XCTAssertTrue(waitUntilHittable(clearConfirm))
-    clearConfirm.tap()
-    XCTAssertTrue(reveal("danger.clear-success"), "clearing reported no success")
-    assertToggle(history, value: "0")
+
+    for row in [files, history, trash] { tap(row) }
+    assertSelected([files, history, trash])
+    XCTAssertFalse(app.buttons["danger.clear.friends"].isSelected)
+    XCTAssertTrue(clear.isEnabled, "Clear stayed disabled with three categories")
+
+    let confirm = app.putioAlert("Clear the selected data?")
+    tap(clear)
+    XCTAssertTrue(confirm.appears(within: 5))
+    XCTAssertTrue(
+      app.staticTexts[
+        "This permanently deletes Files, History, and Trash from your put.io account. It can’t be undone."
+      ].exists, "the confirm did not name the selected categories")
+    app.buttons["putio-alert.cancel"].firstMatch.tap()
+    XCTAssertTrue(confirm.disappears(within: 5))
+    assertSelected([files, history, trash])
+
+    tap(clear)
+    XCTAssertTrue(confirm.appears(within: 5))
+    app.buttons["confirm-alert.confirm"].firstMatch.tap()
+    XCTAssertTrue(
+      element("danger.clear-failure").appears(within: 10),
+      "the first clear did not fail, so Cancel sent a request")
+    XCTAssertEqual(
+      element("danger.clear-failure").label, "Check your connection and try again.")
+    assertSelected([files, history, trash])
+    XCTAssertTrue(clear.isEnabled, "Clear was not offered again after a failure")
+    screenshot("runtime-danger-clear-failed")
+
+    tap(clear)
+    XCTAssertTrue(confirm.appears(within: 5))
+    app.buttons["confirm-alert.confirm"].firstMatch.tap()
+    XCTAssertTrue(element("danger.clear-success").appears(within: 10), "clearing never finished")
+    XCTAssertFalse(element("danger.clear-failure").exists)
+    XCTAssertFalse(files.isSelected || history.isSelected || trash.isSelected)
+    XCTAssertFalse(clear.isEnabled, "Clear stayed enabled after the selection was cleared")
     screenshot("runtime-danger-clear-data")
+
+    tap(history)
+    XCTAssertFalse(element("danger.clear-success").exists, "a new selection kept the old result")
+  }
+
+  func testLeavingMidClearFinishesCleanly() throws {
+    app.launchArguments += ["--putio-harness-clear-data", "slow"]
+    app.launch()
+    signIn()
+    app.buttons["History"].tap()
+    XCTAssertTrue(
+      element("history.item.810").appears(within: 10), "the seeded history never loaded")
+    app.buttons["Account"].tap()
+    tap("account.clear-data")
+    let history = app.buttons["danger.clear.history"]
+    let clear = app.buttons["danger.clear"]
+    tap(history)
+    tap(clear)
+    XCTAssertTrue(app.putioAlert("Clear the selected data?").appears(within: 5))
+    app.buttons["confirm-alert.confirm"].firstMatch.tap()
+    XCTAssertTrue(
+      history.wait(for: \.isEnabled, toEqual: false, timeout: 5), "the rows stayed editable")
+    XCTAssertFalse(clear.isEnabled, "Clear stayed tappable while clearing")
+    back()
+    XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
+
+    app.buttons["History"].tap()
+    XCTAssertTrue(
+      app.staticTexts["No history"].appears(within: 15), "the clear did not finish after leaving")
+    app.buttons["Account"].tap()
+    tap("account.clear-data")
+    XCTAssertTrue(history.appears(within: 5))
+    XCTAssertTrue(history.isEnabled, "the reopened rows stayed locked")
+    XCTAssertFalse(history.isSelected, "the reopened screen kept the old selection")
+    XCTAssertFalse(element("danger.clear-failure").exists)
+    XCTAssertFalse(element("danger.clear-success").exists)
+    XCTAssertFalse(clear.isEnabled)
   }
 
   func testTwoFactorAndDestroyOpenTheBrowserAndRefreshOnReturn() throws {
@@ -250,14 +316,6 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertEqual(app.textFields.count, 0, "a code field exists", file: file, line: line)
   }
 
-  /// Waits for an outcome row that may sit below the fold after a relayout.
-  private func reveal(_ identifier: String) -> Bool {
-    let target = element(identifier)
-    if target.appears(within: 5) { return true }
-    app.swipeUp()
-    return target.appears(within: 10)
-  }
-
   private func tap(_ identifier: String, file: StaticString = #filePath, line: UInt = #line) {
     // Lazy List rows below the fold are absent until scrolled into view.
     let target = app.revealed(identifier)
@@ -275,21 +333,19 @@ final class AccountSecurityJourneyTests: XCTestCase {
     field.typeText(text)
   }
 
-  private func tapToggle(_ toggle: XCUIElement) {
-    app.bringIntoView(toggle)
-    XCTAssertTrue(waitUntilHittable(toggle))
-    // Form exposes the full row as the switch accessibility frame.
-    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+  private func tap(_ target: XCUIElement, file: StaticString = #filePath, line: UInt = #line) {
+    app.bringIntoView(target)
+    XCTAssertTrue(
+      waitUntilHittable(target), "\(target) never became hittable", file: file, line: line)
+    target.tap()
   }
 
-  private func assertToggle(
-    _ toggle: XCUIElement, value: String, file: StaticString = #filePath, line: UInt = #line
+  private func assertSelected(
+    _ rows: [XCUIElement], file: StaticString = #filePath, line: UInt = #line
   ) {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@ AND enabled == true", value), object: toggle)
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [expectation], timeout: 10), .completed,
-      "toggle value was \(toggle.value ?? "nil")", file: file, line: line)
+    for row in rows {
+      XCTAssertTrue(row.isSelected, "\(row) is not checked", file: file, line: line)
+    }
   }
 
   private func waitUntilHittable(_ target: XCUIElement, timeout: TimeInterval = 10) -> Bool {
