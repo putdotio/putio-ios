@@ -824,10 +824,10 @@ struct PutioFolderScreen: View {
   private var sortMenu: some View {
     PutioFolderSortMenu(
       current: model.sort ?? defaultSort,
-      isDisabled: !isSorting && (!model.canStartAction || actionRequest != nil),
+      isDisabled: !isSorting && !canSort,
       isBusy: isSorting
     ) { sort in
-      guard model.canStartAction, actionRequest == nil else { return }
+      guard canSort else { return }
       actionRequest = .sort(sort)
     }
   }
@@ -1053,6 +1053,10 @@ struct PutioFolderScreen: View {
 
   private var fileActionPending: Bool {
     actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
+  }
+
+  private var canSort: Bool {
+    model.canStartAction && actionRequest == nil
   }
 
   private var isSorting: Bool {

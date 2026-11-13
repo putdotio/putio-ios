@@ -43,6 +43,7 @@ struct PutioFolderSortMenu: View {
     .accessibilityRespondsToUserInteraction(!isBusy)
     .accessibilityIdentifier("files.sort")
     .accessibilityLabel(Self.accessibilityLabel(for: current))
+    .accessibilityValue(isBusy ? Text("Updating file order") : Text(verbatim: ""))
   }
 
   private func row(

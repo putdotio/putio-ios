@@ -2247,12 +2247,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func openSortMenu() {
     let sort = app.buttons["files.sort"]
     let ready = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: sort)
+      predicate: NSPredicate(
+        format: "hittable == true AND enabled == true AND NOT (value == %@)", "Updating file order"),
+      object: sort)
     XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed, "sort is unavailable")
-    let updating = app.descendants(matching: .any).matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", "files.sorting.")
-    ).firstMatch
-    XCTAssertTrue(updating.disappears(within: 10), "the previous sort never settled")
     sort.tap()
     XCTAssertTrue(app.staticTexts["Sort by"].appears(within: 5), "the sort menu did not open")
   }
