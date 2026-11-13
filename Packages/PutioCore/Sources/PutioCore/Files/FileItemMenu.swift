@@ -48,7 +48,7 @@ public struct PutioFileMenu: Equatable, Sendable {
 
   public init(item: PutioFileItem, capabilities: Capabilities, isDownloaded: Bool = false) {
     guard !(item.isShared && item.kind == .folder) else {
-      sections = []
+      sections = capabilities.pinned == true ? [[.unpin]] : []
       return
     }
     let route = item.kind == .folder ? nil : PutioFileRoute(item: item)
@@ -68,7 +68,9 @@ public struct PutioFileMenu: Equatable, Sendable {
     var destructive: [PutioFileMenuRow] = []
     let editable = capabilities.canEdit && !item.isShared
     if editable { organize.append(.select) }
-    if !item.isShared, let pinned = capabilities.pinned { organize.append(pinned ? .unpin : .pin) }
+    if let pinned = capabilities.pinned, pinned || !item.isShared {
+      organize.append(pinned ? .unpin : .pin)
+    }
     if editable {
       if capabilities.tracksWatched, item.kind == .video {
         organize.append(item.isWatched ? .markUnwatched : .markWatched)

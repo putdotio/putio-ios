@@ -93,6 +93,10 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(
       PutioFileMenu(item: item(.folder, shared: true), capabilities: copying).sections, [])
     XCTAssertFalse(PutioFileMenu(item: item(.video), capabilities: copying).contains(.makeCopy))
+    var unpinned = copying
+    unpinned.pinned = false
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.video, shared: true), capabilities: unpinned).contains(.pin))
   }
 
   func testSelectionBarFollowsTheIssueTable() {
