@@ -438,6 +438,12 @@ struct MainTabView: View {
     }
   }
 
+  private func reconcileContinueWatching() async {
+    await continueWatching.reconcile(
+      loadFile: { try await runtime.getFile(fileID: $0) },
+      keepsLocalPosition: { offlineQueue.item(for: $0)?.isPlayable == true })
+  }
+
   private func playVideo(_ route: PutioVideoRoute) {
     stopAudio()
     if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
@@ -670,13 +676,13 @@ struct MainTabView: View {
     .putioToast($externalPlayback.toast)
     .environment(
       \.putioContinueWatching,
-      PutioContinueWatchingContext(model: continueWatching) { playVideo($0) }
+      PutioContinueWatchingContext(
+        model: continueWatching, play: { playVideo($0) },
+        reconcile: { await reconcileContinueWatching() })
     )
     .environment(\.putioAccountStorage, account.storage)
     .task(id: folderRefreshRequests.revision) {
-      await continueWatching.reconcile(
-        loadFile: { try await runtime.getFile(fileID: $0) },
-        keepsLocalPosition: { offlineQueue.item(for: $0)?.isPlayable == true })
+      await reconcileContinueWatching()
     }
     .environment(
       \.putioPreviewOpen,

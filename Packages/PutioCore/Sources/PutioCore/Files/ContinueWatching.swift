@@ -1,8 +1,5 @@
 import Foundation
 import Observation
-
-/// A video started on this device and not yet finished, as a Continue
-/// watching card shows it.
 public struct PutioContinueWatchingEntry: Identifiable, Codable, Equatable, Sendable {
   public let fileID: PutioFileID
   public var parentID: PutioFileID
@@ -34,31 +31,26 @@ public struct PutioContinueWatchingEntry: Identifiable, Codable, Equatable, Send
   }
 
   public var remainingClock: String {
-    let seconds = remainingSeconds
-    let hours = seconds / 3600
-    let minutes = seconds % 3600 / 60
-    let rest = seconds % 60
-    let paddedRest = rest < 10 ? "0\(rest)" : "\(rest)"
-    guard hours > 0 else { return "\(minutes):\(paddedRest)" }
-    let paddedMinutes = minutes < 10 ? "0\(minutes)" : "\(minutes)"
-    return "\(hours):\(paddedMinutes):\(paddedRest)"
+    let left = Duration.seconds(remainingSeconds)
+    return remainingSeconds < 3600
+      ? left.formatted(.time(pattern: .minuteSecond))
+      : left.formatted(.time(pattern: .hourMinuteSecond))
+  }
+
+  public var remainingSpoken: String {
+    Duration.seconds(remainingSeconds).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .wide))
   }
 
   public var videoRoute: PutioVideoRoute {
     PutioVideoRoute(id: fileID, parentID: parentID, title: name)
   }
-
-  /// Above 0 % and below 95 % of the length, and more than 10 seconds before
-  /// the end: the bounds Android's Continue watching uses.
   public static func isInProgress(positionSeconds: Int, durationSeconds: Double) -> Bool {
     guard durationSeconds.isFinite, durationSeconds > 0, positionSeconds > 0 else { return false }
     let position = Double(positionSeconds)
     return position < durationSeconds * 0.95 && durationSeconds - position > 10
   }
 }
-
-/// One JSON document per account. A damaged document reads as an empty list,
-/// and entries outside the in-progress bounds are dropped.
 @MainActor
 public final class PutioContinueWatchingStore {
   private let defaults: UserDefaults
@@ -93,11 +85,6 @@ public final class PutioContinueWatchingStore {
     "putio.files.continue-watching.\(accountID)"
   }
 }
-
-/// put.io keeps a position per file but lists no started videos, so the list
-/// comes from videos played on this device. A video joins once the player
-/// knows its length and a position for it is saved; newest first, at most
-/// `limit`. Finished, removed, trashed and deleted videos leave.
 @MainActor
 @Observable
 public final class PutioContinueWatchingModel {
@@ -162,11 +149,6 @@ public final class PutioContinueWatchingModel {
     media[fileID] = nil
     update(entries.filter { $0.fileID != fileID })
   }
-
-  /// Reads each entry's file again. A file put.io no longer has leaves; a
-  /// position saved elsewhere moves the entry or, once finished, removes it.
-  /// `keepsLocalPosition` names files whose position the device owns, such
-  /// as downloads awaiting sync. Other failures keep the entry.
   public func reconcile(
     loadFile: @MainActor (PutioFileID) async throws -> PutioFileItem,
     keepsLocalPosition: @MainActor (PutioFileID) -> Bool = { _ in false }

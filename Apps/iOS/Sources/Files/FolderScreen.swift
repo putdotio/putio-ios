@@ -392,6 +392,7 @@ struct PutioFolderScreen: View {
     .refreshable {
       _ = await model.refresh()
       await pinnedSectionContext?.model.load()
+      if route.id == .root { await continueWatching?.reconcile() }
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")

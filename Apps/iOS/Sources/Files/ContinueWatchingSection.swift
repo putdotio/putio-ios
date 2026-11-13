@@ -4,6 +4,7 @@ import SwiftUI
 struct PutioContinueWatchingContext {
   let model: PutioContinueWatchingModel
   let play: @MainActor (PutioVideoRoute) -> Void
+  let reconcile: @MainActor () async -> Void
 }
 
 extension EnvironmentValues {
@@ -117,10 +118,14 @@ private struct PutioContinueWatchingCard: View {
         ]))
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(Text("Resume \(entry.name), \(entry.remainingClock) left"))
+    .accessibilityLabel(Text("Resume \(entry.name), \(entry.remainingSpoken) left"))
     .accessibilityAddTraits(.isButton)
-    .accessibilityAction { play(entry.videoRoute) }
-    .accessibilityAction(named: Text("Remove from Continue watching")) { remove() }
+    .accessibilityAction {
+      if !isDisabled { play(entry.videoRoute) }
+    }
+    .accessibilityAction(named: Text("Remove from Continue watching")) {
+      if !isDisabled { remove() }
+    }
     .accessibilityIdentifier("files.continue-watching.item.\(entry.fileID.rawValue)")
   }
 }
