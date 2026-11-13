@@ -33,6 +33,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioDefaultFolderSort) private var defaultSort
   @Environment(\.putioPinnedFiles) private var pinned
   @Environment(\.putioPreviewOpen) private var previewOpen
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -558,6 +559,11 @@ struct PutioFolderScreen: View {
     }
   }
 
+  private var sharedPreviewWidth: CGFloat? {
+    guard horizontalSizeClass == .compact else { return nil }
+    return max(listWidth - 2 * PutioTheme.Spacing.space2, 0)
+  }
+
   private func sharedPreview(_ presentation: PutioBrowserItemPresentation) -> AnyView? {
     guard presentation.item.isShared, let sharedBy = route.sharedBy else { return nil }
     let row = presentation.row
@@ -571,7 +577,7 @@ struct PutioFolderScreen: View {
       )
       .padding(.horizontal, PutioTheme.Spacing.space3)
       .padding(.vertical, PutioTheme.Spacing.space2)
-      .frame(width: max(listWidth - 2 * PutioTheme.Spacing.space2, 0), alignment: .leading)
+      .frame(width: sharedPreviewWidth, alignment: .leading)
       .background(PutioTheme.Components.FileRow.backgroundActive)
       .accessibilityIdentifier("files.shared-by.\(presentation.id.rawValue)"))
   }
