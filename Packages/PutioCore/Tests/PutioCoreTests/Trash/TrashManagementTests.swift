@@ -211,6 +211,24 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.loadedCursors, [nil, "next"])
   }
 
+  func testTheTrashSizeComesFromTheFirstPageAfterMoreLoads() async {
+    let first = trashItem(id: 91, name: "First.mkv")
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [first], cursor: "next", totalCount: 2, sizeBytes: 4_096)),
+        .success(page(items: [second], sizeBytes: 0)),
+      ]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.loadMore()
+
+    XCTAssertEqual(model.page?.items, [first, second])
+    XCTAssertEqual(model.page?.sizeBytes, 4_096)
+  }
+
   func testRestoreRemovesTrashItemAndReturnsAuthoritativeDestination() async {
     let trashedItem = trashItem(id: 91, name: "Restored.mkv", parentID: 5)
     var destinations: [PutioFileID?] = []
