@@ -873,7 +873,7 @@ final class BoardCaptureTests: XCTestCase {
     reachFilesRoot()
     tabButton("History").tap()
     XCTAssertTrue(
-      element("history.item.901").appears(within: 10), "the seeded history never loaded")
+      element("history.item.907").appears(within: 10), "the seeded history never loaded")
     XCTAssertTrue(app.staticTexts["Today"].exists, "History has no Today section")
     XCTAssertTrue(app.staticTexts["Yesterday"].exists, "History has no Yesterday section")
     for (id, kind) in [
