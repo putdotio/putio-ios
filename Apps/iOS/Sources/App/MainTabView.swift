@@ -444,6 +444,14 @@ struct MainTabView: View {
       keepsLocalPosition: { offlineQueue.item(for: $0)?.isPlayable == true })
   }
 
+  private func resumeVideo(_ route: PutioVideoRoute) {
+    if let item = offlineQueue.item(for: route.id), item.isPlayable {
+      openOffline(item)
+    } else {
+      playVideo(route)
+    }
+  }
+
   private func playVideo(_ route: PutioVideoRoute) {
     stopAudio()
     if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
@@ -677,7 +685,7 @@ struct MainTabView: View {
     .environment(
       \.putioContinueWatching,
       PutioContinueWatchingContext(
-        model: continueWatching, play: { playVideo($0) },
+        model: continueWatching, play: { resumeVideo($0) },
         reconcile: { await reconcileContinueWatching() })
     )
     .environment(\.putioAccountStorage, account.storage)
