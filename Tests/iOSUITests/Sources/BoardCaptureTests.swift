@@ -814,17 +814,17 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("files.screen.440").appears(within: 10), "unfolding reset the path")
     XCTAssertTrue(row.appears(within: 5) && row.isSelected, "unfolding lost the selected row")
 
-    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    navigationBack().tap()
     XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
     openFolder(440)
     XCTAssertTrue(element("files.detail.442").exists, "opening a folder emptied the detail")
 
     try fold()
     XCTAssertTrue(element("files.detail.442").appears(within: 10), "folding dropped the selection")
-    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    navigationBack().tap()
     XCTAssertTrue(element("files.screen.440").appears(within: 5), "Back left the folder")
     XCTAssertTrue(element("files.detail.442").disappears(within: 5), "Back kept the file open")
-    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    navigationBack().tap()
     XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
     openFolder(440)
     try unfold()
@@ -2621,10 +2621,15 @@ final class BoardCaptureTests: XCTestCase {
     }
     if signIn.exists { signIn.tap() }
     for _ in folderScreens where !root.isHittable && folderScreens.contains(where: \.exists) {
-      app.navigationBars.buttons.firstMatch.tap()
+      navigationBack().tap()
       _ = root.appears(within: 2)
     }
     XCTAssertTrue(root.appears(within: 15), "seeded session never reached Files")
+  }
+
+  private func navigationBack() -> XCUIElement {
+    let back = app.descendants(matching: .any).matching(identifier: "BackButton").firstMatch
+    return back.exists ? back : app.navigationBars.buttons.firstMatch
   }
 
   private func tabButton(_ label: String) -> XCUIElement {

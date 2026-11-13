@@ -184,7 +184,14 @@ struct FilesBrowserView: View {
     )
   }
 
-  private var pushedSelection: Binding<PutioFileRoute?> {
+  @ViewBuilder private var pushedDetail: some View {
+    if let selectedFile {
+      detail(selectedFile, pushed: true)
+    }
+  }
+
+  private func pushedSelection(onTop: Bool) -> Binding<PutioFileRoute?> {
+    guard onTop, horizontalSizeClass == .compact else { return .constant(nil) }
     let selection = $selectedFile
     return Binding(
       get: { selection.wrappedValue?.route },
@@ -260,15 +267,14 @@ struct FilesBrowserView: View {
           clear: detailClear,
           reconcile: detailReconcile)
       )
-      .navigationDestination(
-        item: horizontalSizeClass == .compact ? pushedSelection : .constant(nil)
-      ) { _ in
-        if let selectedFile {
-          detail(selectedFile, pushed: true)
-        }
+      .navigationDestination(item: pushedSelection(onTop: path.isEmpty)) { _ in
+        pushedDetail
       }
       .navigationDestination(for: PutioFolderRoute.self) { route in
         destination(route)
+          .navigationDestination(item: pushedSelection(onTop: route == path.last)) { _ in
+            pushedDetail
+          }
           .modifier(
             PutioFileDetailColumn(
               selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
