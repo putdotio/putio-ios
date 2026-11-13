@@ -98,6 +98,8 @@ A board state needs one row there and one seeded test step.
   book. The test never rotates it and fails unless the window has the open
   landscape size with regular width and height. If the open step fails after a
   Simulator runtime update, the event format changed.
+- Duo board tests get the same tool in `PUTIO_DUO_POSTURE_TOOL` and fold or
+  unfold mid-test with `fold()` and `unfold()`.
 - The run fails on an id with no table row, and when any board produces no
   capture.
 - Captures use the seeded fixtures, never the live account. Compare them with

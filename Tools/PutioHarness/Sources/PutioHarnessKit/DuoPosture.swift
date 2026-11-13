@@ -6,10 +6,26 @@ struct DuoPosture {
   let fileManager: FileManager
 
   static let openSteps = [["angle", "180"]]
+  static let toolEnvironment = "TEST_RUNNER_PUTIO_DUO_POSTURE_TOOL"
 
   var source: URL { context.root.appending(path: "Tools/PutioHarness/Guest/DuoPosture.m") }
 
   func open(simulator identifier: String) throws {
+    try withTool { tool in
+      for step in Self.openSteps {
+        let output = try runner.run("xcrun", ["simctl", "spawn", identifier, tool.path] + step)
+        guard output.status == 0 else {
+          throw HarnessFailure(
+            "open the iPhone Duo: `duo-posture \(step.joined(separator: " "))` failed. "
+              + "It sends a vendor HID event through the guest's private HIDVirtualEventService, "
+              + "the event Device Hub sends; a Simulator runtime update may have changed it.\n"
+              + output.combinedOutput)
+        }
+      }
+    }
+  }
+
+  func withTool<T>(_ operation: (URL) throws -> T) throws -> T {
     let directory = fileManager.temporaryDirectory.appending(
       path: "putio-duo-posture-\(UUID().uuidString)")
     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -23,15 +39,6 @@ struct DuoPosture {
         "-o", tool.path, source.path,
       ],
       context: "build the iPhone Duo posture tool")
-    for step in Self.openSteps {
-      let output = try runner.run("xcrun", ["simctl", "spawn", identifier, tool.path] + step)
-      guard output.status == 0 else {
-        throw HarnessFailure(
-          "open the iPhone Duo: `duo-posture \(step.joined(separator: " "))` failed. "
-            + "It sends a vendor HID event through the guest's private HIDVirtualEventService, "
-            + "the event Device Hub sends; a Simulator runtime update may have changed it.\n"
-            + output.combinedOutput)
-      }
-    }
+    return try operation(tool)
   }
 }

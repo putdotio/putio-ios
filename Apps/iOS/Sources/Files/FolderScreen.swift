@@ -47,6 +47,9 @@ struct PutioFolderScreen: View {
   @State private var copyModel: PutioSharedFileCopyModel?
   @State private var copyTask: Task<Void, Never>?
   @State private var listWidth: CGFloat = 0
+  @State private var visibleRows = PutioVisibleRows()
+  @State private var restoredScroll = false
+  @Environment(\.putioFolderScrollAnchors) private var scrollAnchors
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -339,6 +342,13 @@ struct PutioFolderScreen: View {
     } else {
       ScrollViewReader { proxy in
         folderList(contents)
+          .task {
+            guard !restoredScroll else { return }
+            restoredScroll = true
+            guard let anchor = scrollAnchors?.anchor(for: route.id) else { return }
+            await Task.yield()
+            proxy.scrollTo(anchor, anchor: .top)
+          }
           .task(id: model.isUpdatingSortOrder) {
             guard model.isUpdatingSortOrder else { return }
             await Task.yield()
@@ -393,6 +403,11 @@ struct PutioFolderScreen: View {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
         }
+        .onAppear {
+          visibleRows.appear(item.id)
+          scrollAnchors?.save(visibleRows.topmost(in: items), for: route.id)
+        }
+        .onDisappear { visibleRows.disappear(item.id) }
       }
 
       if contents.hasMore {

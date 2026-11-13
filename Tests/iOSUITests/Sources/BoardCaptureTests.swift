@@ -798,6 +798,119 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertFalse(element("files.detail.download").exists, "Download stayed beside on device")
   }
 
+  func testDuoOpen() throws {
+    app.launch()
+    openSeasonFolder()
+    let row = element("files.item.442")
+    selectVideo(row, id: 442, primary: "Resume from 21:00")
+    assertFact("folder", "Folder, Harness Folder / Blue Lights")
+    try captureBoard("rd-ios-15-duo-open")
+
+    try fold()
+    XCTAssertTrue(element("files.detail.442").appears(within: 10), "folding dropped the selection")
+    XCTAssertEqual(element("files.detail.play").label, "Resume from 21:00")
+    try unfold()
+    XCTAssertTrue(element("files.detail.442").appears(within: 10), "unfolding lost the selection")
+    XCTAssertTrue(element("files.screen.440").exists, "unfolding reset the Files path")
+    XCTAssertTrue(row.appears(within: 5) && row.isSelected, "unfolding lost the selected row")
+
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
+    openFolder(440)
+    XCTAssertTrue(element("files.detail.442").exists, "opening a folder emptied the detail")
+
+    try fold()
+    XCTAssertTrue(element("files.detail.442").appears(within: 10), "folding dropped the selection")
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.440").appears(within: 5), "Back left the folder")
+    XCTAssertTrue(element("files.detail.442").disappears(within: 5), "Back kept the file open")
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
+    openFolder(440)
+    try unfold()
+    XCTAssertTrue(element("files.screen.440").appears(within: 10), "unfolding reset the path")
+    XCTAssertTrue(app.staticTexts["No file selected"].appears(within: 5), "a closed file came back")
+  }
+
+  func testDuoNothingSelected() throws {
+    app.launch()
+    openSeasonFolder()
+    XCTAssertTrue(
+      app.staticTexts["No file selected"].appears(within: 5), "the empty detail has no title")
+    XCTAssertTrue(app.staticTexts["Tap a file to see it here."].exists)
+    try captureBoard("rd-ios-16-duo-nothing")
+  }
+
+  func testDuoFoldKeepsScroll() throws {
+    app.launchArguments += [
+      "--putio-harness-continue-watching", "three", "--putio-harness-pins", "three",
+    ]
+    app.launch()
+    reachFilesRoot()
+    let card = element("files.continue-watching.item.442")
+    XCTAssertTrue(card.appears(within: 10), "Continue watching never loaded")
+    try captureBoard("rd-ios-duo-02-closed-files")
+    let list = element("files.screen.0")
+    for _ in 0..<2 where card.exists && card.isHittable { list.swipeUp() }
+    XCTAssertFalse(card.exists && card.isHittable, "the root never scrolled")
+    try unfold()
+    XCTAssertTrue(app.staticTexts["No file selected"].appears(within: 10), "the root never opened")
+    XCTAssertTrue(list.appears(within: 10), "unfolding left the root")
+    XCTAssertFalse(card.exists && card.isHittable, "unfolding scrolled the root to the top")
+    try fold()
+    XCTAssertTrue(list.appears(within: 10), "folding left the root")
+    XCTAssertFalse(card.exists && card.isHittable, "folding scrolled the root to the top")
+  }
+
+  private func openFolder(_ id: Int) {
+    let folder = app.revealed("files.item.\(id)")
+    XCTAssertTrue(folder.appears(within: 10), "the folder row \(id) is missing")
+    folder.tap()
+    XCTAssertTrue(element("files.header.\(id)").appears(within: 10), "the folder never pushed")
+  }
+
+  private func fold() throws {
+    try setHinge(degrees: 0)
+    let window = app.windows.firstMatch
+    XCTAssertTrue(
+      waitUntil(10) { window.exists && window.frame.width < Self.regularWidthThreshold },
+      "the iPhone Duo never folded: window is \(window.frame.size) pt")
+  }
+
+  private func unfold() throws {
+    try setHinge(degrees: 180)
+    let window = app.windows.firstMatch
+    XCTAssertTrue(
+      waitUntil(10) { window.exists && window.frame.size == Self.openDuoSize },
+      "the iPhone Duo never unfolded: window is \(window.frame.size) pt")
+  }
+
+  private func setHinge(degrees: Int) throws {
+    let tool = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_DUO_POSTURE_TOOL"],
+      "the harness passed no iPhone Duo posture tool")
+    let arguments = [tool, "angle", String(degrees)]
+    var argv: [UnsafeMutablePointer<CChar>?] = arguments.map { strdup($0) } + [nil]
+    defer { for pointer in argv { free(pointer) } }
+    var pid: pid_t = 0
+    let spawned = posix_spawn(&pid, tool, nil, nil, &argv, environ)
+    XCTAssertEqual(
+      spawned, 0, "the posture tool did not start: \(String(cString: strerror(spawned)))")
+    guard spawned == 0 else { return }
+    var status: Int32 = 0
+    waitpid(pid, &status, 0)
+    XCTAssertEqual(status, 0, "the posture tool exited with \(status)")
+  }
+
+  private func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
+    let deadline = Date.now.addingTimeInterval(timeout)
+    while !condition() {
+      guard Date.now < deadline else { return false }
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.2))
+    }
+    return true
+  }
+
   private func selectVideo(_ row: XCUIElement, id: Int, primary: String) {
     XCTAssertTrue(row.appears(within: 10), "the row for \(id) never appeared")
     row.tap()

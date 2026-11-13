@@ -13,6 +13,7 @@ struct PutioFileDetailView: View {
   let reloadKey: UInt64
   let loadDetails: PutioVideoDetailsLoad
   let loadFolderName: PutioFolderNameLoad
+  var showsNavigationBar = false
   let onPlay: PutioFileSelection
   let onDownload: PutioFileSelection?
   let onExternalPlayback: PutioFileSelection?
@@ -46,7 +47,8 @@ struct PutioFileDetailView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .putioContentBackground()
-    .toolbar(.hidden, for: .navigationBar)
+    .toolbar(showsNavigationBar ? .visible : .hidden, for: .navigationBar)
+    .navigationBarTitleDisplayMode(.inline)
     .toolbar(removing: .sidebarToggle)
     .background {
       if let file = share.presented(for: item.id) {

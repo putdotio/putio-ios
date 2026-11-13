@@ -48,6 +48,7 @@ struct FilesBrowserView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var isLandscape: Bool?
   @State private var selectedFile: PutioFileDetailSelection?
+  @State private var scrollAnchors = PutioFolderScrollAnchors()
 
   init(
     runtime: PutioRuntime,
@@ -114,6 +115,7 @@ struct FilesBrowserView: View {
       isLandscape = landscape
     }
     .environment(\.putioExclusiveLink, createLink)
+    .environment(\.putioFolderScrollAnchors, scrollAnchors)
     .environment(
       \.putioPinnedFiles,
       PutioPinnedFilesContext(model: pins) { path.append(.pinnedList) }
@@ -126,6 +128,7 @@ struct FilesBrowserView: View {
       pinToast = PutioToast(PutioScreenErrorKind.failed.message)
     }
     .onChange(of: path) { oldPath, newPath in
+      scrollAnchors.keep(only: Set(newPath.map(\.id)).union([PutioFolderRoute.root.id]))
       if didRestoreNavigation, let accountID {
         navigationRestoration.save(path: newPath, for: accountID)
       }
@@ -161,19 +164,33 @@ struct FilesBrowserView: View {
       stack(showsDetail: true)
     } detail: { _ in
       if let selectedFile {
-        PutioFileDetailView(
-          route: selectedFile.route,
-          folderTitles: selectedFile.folderTitles,
-          offlineStatus: offlineFiles?.status(selectedFile.route.id) ?? .remote,
-          reloadKey: refreshRequests.revision,
-          loadDetails: loadVideoDetails,
-          loadFolderName: loadFolderName,
-          onPlay: onFileSelected,
-          onDownload: onDownload,
-          onExternalPlayback: onExternalPlayback
-        )
+        detail(selectedFile, pushed: false)
       }
     }
+  }
+
+  private func detail(_ selection: PutioFileDetailSelection, pushed: Bool) -> some View {
+    PutioFileDetailView(
+      route: selection.route,
+      folderTitles: selection.folderTitles,
+      offlineStatus: offlineFiles?.status(selection.route.id) ?? .remote,
+      reloadKey: refreshRequests.revision,
+      loadDetails: loadVideoDetails,
+      loadFolderName: loadFolderName,
+      showsNavigationBar: pushed,
+      onPlay: onFileSelected,
+      onDownload: onDownload,
+      onExternalPlayback: onExternalPlayback
+    )
+  }
+
+  private var pushedSelection: Binding<PutioFileRoute?> {
+    let selection = $selectedFile
+    return Binding(
+      get: { selection.wrappedValue?.route },
+      set: { route in
+        if route == nil { selection.wrappedValue = nil }
+      })
   }
 
   private var detailSelection: Binding<PutioFileID?> {
@@ -243,6 +260,13 @@ struct FilesBrowserView: View {
           clear: detailClear,
           reconcile: detailReconcile)
       )
+      .navigationDestination(
+        item: horizontalSizeClass == .compact ? pushedSelection : .constant(nil)
+      ) { _ in
+        if let selectedFile {
+          detail(selectedFile, pushed: true)
+        }
+      }
       .navigationDestination(for: PutioFolderRoute.self) { route in
         destination(route)
           .modifier(
