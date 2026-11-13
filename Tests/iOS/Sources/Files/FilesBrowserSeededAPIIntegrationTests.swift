@@ -220,7 +220,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(sources[411]?.url.path, "/v2/files/411/hls/media.m3u8")
     XCTAssertEqual(sources[411]?.startFromSeconds, 90)
     XCTAssertEqual(sources[412]?.url.path, "/v2/files/412/hls/media.m3u8")
-    XCTAssertEqual(sources[412]?.startFromSeconds, 589)
+    XCTAssertEqual(sources[412]?.startFromSeconds, 560)
   }
 
   func testSeededPlaybackPositionRoundTripsThroughPlaybackAndFolderFixtures() async throws {

@@ -848,18 +848,20 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     let controller = AVPlayerViewController()
     let reports = PlaybackPositionReportSpy()
+    var isReady = false
 
     coordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 567),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
       in: controller,
+      onReady: { isReady = true },
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
     await waitUntil { driver.events == ["play"] }
     statusObservation.emit(.readyToPlay)
-    await waitUntil { capture.positionReportSchedule != nil }
+    await waitUntil { isReady }
     driver.currentTime = CMTime(seconds: 10, preferredTimescale: 600)
     try XCTUnwrap(capture.positionReportSchedule).tick()
     coordinator.stop(controller: controller)
