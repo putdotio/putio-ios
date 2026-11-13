@@ -2204,7 +2204,7 @@ public struct SimulatorHarness {
     // clones a half-made one; a failed or interrupted one is deleted.
     let pending = "putio-pending-\(name)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     try SimulatorLifecycle.shared.register { [runner] in
-      try cleanupSimulators(named: [pending], runner: runner, attempts: 1)
+      try cleanupSimulators(named: [pending], runner: runner)
     }
     let identifier = try createDevice(
       name: pending, type: deviceType.identifier, runtime: runtime.identifier)
