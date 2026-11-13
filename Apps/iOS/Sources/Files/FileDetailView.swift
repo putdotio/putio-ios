@@ -169,9 +169,9 @@ struct PutioFileDetailView: View {
         } label: {
           iconLabel(.dotsThree)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.borderedProminent)
         .buttonBorderShape(.circle)
-        .tint(PutioTheme.Colors.textPrimary)
+        .tint(PutioTheme.Colors.surfaceActive)
         .accessibilityLabel(Text("More"))
         .accessibilityIdentifier("files.detail.more")
       }
@@ -190,14 +190,15 @@ struct PutioFileDetailView: View {
     _ icon: PutioIcon, label: String, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) { iconLabel(icon) }
-      .buttonStyle(.bordered)
+      .buttonStyle(.borderedProminent)
       .buttonBorderShape(.circle)
-      .tint(PutioTheme.Colors.textPrimary)
+      .tint(PutioTheme.Colors.surfaceActive)
       .accessibilityLabel(Text(label))
   }
 
   private func iconLabel(_ icon: PutioIcon) -> some View {
     PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
   }
 
   private var moreMenu: PutioItemMenu? {

@@ -733,6 +733,9 @@ import Foundation
     private static var documentCreatedAt: String {
       usesBoardDocument ? "2026-03-18T10:00:00Z" : "2026-08-28T10:00:00Z"
     }
+    private static var documentUpdatedAt: String {
+      usesBoardDocument ? "2026-03-18T10:00:00Z" : "2026-08-29T10:00:00Z"
+    }
     nonisolated(unsafe) private static var longPreviewLookups = 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
@@ -3492,7 +3495,7 @@ import Foundation
             "parent_id": 0,
             "size": \(documentSize),
             "created_at": "\(documentCreatedAt)",
-            "updated_at": "2026-08-29T10:00:00Z"
+            "updated_at": "\(documentUpdatedAt)"
           }
           """,
         ] + mutableFolderRows
