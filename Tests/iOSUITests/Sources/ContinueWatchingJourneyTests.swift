@@ -48,9 +48,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     app.answerResumePrompt()
     XCTAssertTrue(element("video.ready").appears(within: 15), "the root video never played")
     XCTAssertTrue(element("video.ended").appears(within: 45), "the root video never finished")
-    let done = element("video.done")
-    XCTAssertTrue(done.becomesHittable(within: 5), "video Done is not tappable")
-    done.tap()
+    app.closeVideo()
     XCTAssertTrue(root.appears(within: 10), "the player did not return to the root")
     XCTAssertFalse(
       element("files.continue-watching.item.412").shows(within: 3),
@@ -80,7 +78,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     XCTAssertTrue(video.appears(within: 10), "the nested video never appeared")
     video.tap()
     if !convertsFirst { app.answerResumePrompt() }
-    XCTAssertTrue(element("video.done").appears(within: 10), "the player never opened")
+    XCTAssertTrue(app.videoClose.appears(within: 10), "the player never opened")
     if convertsFirst {
       XCTAssertTrue(element("video.error").appears(within: 10), "the conversion never failed")
       app.buttons["Try again"].tap()
@@ -96,7 +94,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
       },
       object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "playback never moved")
-    element("video.done").tap()
+    app.closeVideo()
     XCTAssertTrue(element("files.screen.410").appears(within: 10), "the player did not close")
     app.navigationBars["Harness Folder"].buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10), "the root never came back")
