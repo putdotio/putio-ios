@@ -37,6 +37,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Environment(\.putioFileDetailSelect) private var detailSelect
+  @Environment(\.putioFileDetailClear) private var detailClear
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -288,7 +289,9 @@ struct PutioFolderScreen: View {
       Task { await pins.load() }
     }
     .onChange(of: isEditing) { _, editing in
-      if editing { share.leave() }
+      guard editing else { return }
+      share.leave()
+      detailClear?()
     }
   }
 

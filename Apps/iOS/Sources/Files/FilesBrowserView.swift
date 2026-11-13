@@ -7,6 +7,7 @@ extension EnvironmentValues {
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
   @Entry var putioFileDetailSelect: PutioFileSelection? = nil
+  @Entry var putioFileDetailClear: (@MainActor @Sendable () -> Void)? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
@@ -190,6 +191,11 @@ struct FilesBrowserView: View {
     }
   }
 
+  private var detailClear: @MainActor @Sendable () -> Void {
+    let selection = $selectedFile
+    return { selection.wrappedValue = nil }
+  }
+
   private func stack(showsDetail: Bool) -> some View {
     NavigationStack(path: $path) {
       PutioFolderScreen(
@@ -211,13 +217,15 @@ struct FilesBrowserView: View {
       )
       .modifier(
         PutioFileDetailColumn(
-          selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil)
+          selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
+          clear: showsDetail ? detailClear : nil)
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         destination(route)
           .modifier(
             PutioFileDetailColumn(
-              selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil)
+              selection: showsDetail ? selectedFile : nil, select: showsDetail ? detailSelect : nil,
+              clear: showsDetail ? detailClear : nil)
           )
       }
     }
@@ -263,10 +271,13 @@ private struct PutioFileDetailColumn: ViewModifier {
   let selection: PutioFileDetailSelection?
   let select: PutioFileSelection?
 
+  let clear: (@MainActor @Sendable () -> Void)?
+
   @ViewBuilder func body(content: Content) -> some View {
     if let select {
       content
         .environment(\.putioFileDetailSelect, select)
+        .environment(\.putioFileDetailClear, clear)
         .putioListDetailOpenRow(selection?.route.id)
     } else {
       content
