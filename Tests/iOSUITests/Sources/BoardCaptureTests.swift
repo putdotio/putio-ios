@@ -811,7 +811,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(element("files.detail.play").label, "Resume from 21:00")
     try unfold()
     XCTAssertTrue(element("files.detail.442").appears(within: 10), "unfolding lost the selection")
-    XCTAssertTrue(element("files.screen.440").exists, "unfolding reset the Files path")
+    XCTAssertTrue(element("files.screen.440").appears(within: 10), "unfolding reset the path")
     XCTAssertTrue(row.appears(within: 5) && row.isSelected, "unfolding lost the selected row")
 
     app.navigationBars.buttons["BackButton"].firstMatch.tap()

@@ -47,7 +47,7 @@ struct PutioFolderScreen: View {
   @State private var copyModel: PutioSharedFileCopyModel?
   @State private var copyTask: Task<Void, Never>?
   @State private var listWidth: CGFloat = 0
-  @State private var visibleRows = PutioVisibleRows()
+  @State private var scrollPosition = ScrollPosition()
   @State private var restoredScroll = false
   @Environment(\.putioFolderScrollAnchors) private var scrollAnchors
   private let relativeDateReference: Date?
@@ -344,10 +344,11 @@ struct PutioFolderScreen: View {
         folderList(contents)
           .task {
             guard !restoredScroll else { return }
+            if let offset = scrollAnchors?.offset(for: route.id), offset > 0 {
+              await Task.yield()
+              scrollPosition.scrollTo(y: offset)
+            }
             restoredScroll = true
-            guard let anchor = scrollAnchors?.anchor(for: route.id) else { return }
-            await Task.yield()
-            proxy.scrollTo(anchor, anchor: .top)
           }
           .task(id: model.isUpdatingSortOrder) {
             guard model.isUpdatingSortOrder else { return }
@@ -403,11 +404,6 @@ struct PutioFolderScreen: View {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
         }
-        .onAppear {
-          visibleRows.appear(item.id)
-          scrollAnchors?.save(visibleRows.topmost(in: items), for: route.id)
-        }
-        .onDisappear { visibleRows.disappear(item.id) }
       }
 
       if contents.hasMore {
@@ -431,6 +427,13 @@ struct PutioFolderScreen: View {
       if route.id == .root { await continueWatching?.reconcile() }
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
+    .scrollPosition($scrollPosition)
+    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+      geometry.contentOffset.y + geometry.contentInsets.top
+    } action: { _, offset in
+      guard restoredScroll else { return }
+      scrollAnchors?.save(offset, for: route.id)
+    }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
   }
 
