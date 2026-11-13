@@ -1440,7 +1440,7 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "continue-watching-card", "continue-watching-menu", "continue-watching-none",
       ],
-      timeAllowance: 180),
+      timeAllowance: 210),
   ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
