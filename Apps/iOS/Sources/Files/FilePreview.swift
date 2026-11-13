@@ -732,6 +732,7 @@ struct PutioPreviewView: View {
   @Binding private var toast: PutioToast?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var labelsHeight: CGFloat = 0
+  @State private var titleSpan = PutioPreviewTitleSpan()
   @State private var restoring: Set<PutioFileID> = []
   @State private var linkItem: PutioFileItem?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
@@ -765,6 +766,9 @@ struct PutioPreviewView: View {
       pages
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
+        .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).midX }) {
+          titleSpan.centre = $0
+        }
         .overlay(alignment: .top) { topFade(model.state) }
         .overlay(alignment: .bottom) {
           bottomLabels(model.state)
@@ -946,16 +950,20 @@ struct PutioPreviewView: View {
       }
       .buttonStyle(.plain)
       .padding(.leading, toolbarInset)
+      .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).maxX }) {
+        titleSpan.leading = $0
+      }
       .accessibilityLabel(String(localized: "Back"))
       .accessibilityIdentifier("preview.back")
     }
     .sharedBackgroundVisibility(.hidden)
     ToolbarItem(placement: .principal) {
       Text(model.title)
-        .putioFont(PutioTheme.Typography.subheading)
+        .putioFont(PutioPreviewTitleSpan.font)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .lineLimit(1)
         .truncationMode(.middle)
+        .frame(maxWidth: titleSpan.width)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("preview.title")
     }
@@ -983,6 +991,9 @@ struct PutioPreviewView: View {
       }
       .padding(.horizontal, PutioTheme.Spacing.space1 / 2)
       .modifier(PutioPreviewToolbarGlass())
+      .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minX }) {
+        titleSpan.trailing = $0
+      }
       .padding(.trailing, toolbarInset)
     }
     .sharedBackgroundVisibility(.hidden)
@@ -1744,6 +1755,26 @@ struct PutioPreviewBackLabel: View {
         Circle().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
       }
       .contentShape(Circle())
+  }
+}
+
+struct PutioPreviewTitleSpan: Equatable {
+  static let font = PutioFontRole(
+    fontName: PutioTheme.Typography.subheading.fontName,
+    size: PutioTheme.Typography.sizeBase,
+    lineHeight: PutioTheme.Typography.subheading.lineHeight,
+    textStyle: PutioTheme.Typography.subheading.textStyle
+  )
+  static let gap = PutioTheme.Spacing.space3
+
+  var centre: CGFloat = 0
+  var leading: CGFloat = 0
+  var trailing: CGFloat = 0
+
+  var width: CGFloat? {
+    guard leading > 0, centre > leading, trailing > centre else { return nil }
+    let half = min(centre - leading, trailing - centre) - Self.gap
+    return half > 0 ? 2 * half : nil
   }
 }
 
