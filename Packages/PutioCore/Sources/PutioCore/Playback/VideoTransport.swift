@@ -25,10 +25,6 @@ public struct PutioVideoTimeline: Equatable, Sendable {
     remainingSeconds.map { "-" + Self.clock($0) } ?? "--:--"
   }
 
-  public var durationText: String {
-    durationSeconds.map(Self.clock) ?? "--:--"
-  }
-
   public func target(skippingBy seconds: Double) -> Double {
     clamped(elapsedSeconds + seconds)
   }

@@ -464,6 +464,15 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     coordinator.stop(surface: surface)
   }
 
+  func testANewPlayerStartsWithTheTransportLocked() {
+    let transport = PutioVideoTransport()
+    transport.attach(AVPlayer())
+    transport.setControlsEnabled(true)
+
+    transport.attach(AVPlayer())
+    XCTAssertFalse(transport.controlsEnabled, "a retried player inherited unlocked controls")
+  }
+
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)

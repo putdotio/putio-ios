@@ -84,9 +84,8 @@ final class PutioVideoTransport {
       MainActor.assumeIsolated { self?.update(time: time) }
     }
     statusObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) {
-      [weak self] player, _ in
-      let playing = player.timeControlStatus != .paused
-      Task { @MainActor [weak self] in self?.isPlaying = playing }
+      [weak self] _, _ in
+      Task { @MainActor [weak self] in self?.refreshPlaying() }
     }
     if controlsEnabled { loadTracks() }
   }
@@ -165,6 +164,12 @@ final class PutioVideoTransport {
     selectedAudio = nil
     selectedSubtitle = nil
     isPlaying = false
+    controlsEnabled = false
+  }
+
+  private func refreshPlaying() {
+    guard let player else { return }
+    isPlaying = player.timeControlStatus != .paused
   }
 
   private func update(time: CMTime) {
@@ -222,7 +227,6 @@ struct PutioVideoControls<Trailing: View>: View {
   @ViewBuilder let trailing: Trailing
 
   @State private var visibility = PutioVideoControlsVisibility()
-  @State private var scrubSeconds: Double?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -238,7 +242,9 @@ struct PutioVideoControls<Trailing: View>: View {
           PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
         }
         Spacer(minLength: PutioTheme.Spacing.space3)
-        scrubber
+        PutioVideoScrubber(transport: transport) { visibility.interacted() } onScrubbing: {
+          visibility.set(.scrubbing, $0)
+        }
       }
       .padding(PutioTheme.Spacing.space3)
       centre
@@ -297,7 +303,19 @@ struct PutioVideoControls<Trailing: View>: View {
     .disabled(!transport.controlsEnabled)
   }
 
-  private var scrubber: some View {
+  private func animate(_ change: () -> Void) {
+    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2), change)
+  }
+}
+
+private struct PutioVideoScrubber: View {
+  let transport: PutioVideoTransport
+  let onInteract: () -> Void
+  let onScrubbing: (Bool) -> Void
+
+  @State private var scrubSeconds: Double?
+
+  var body: some View {
     let shown = PutioVideoTimeline(
       elapsedSeconds: scrubSeconds ?? transport.timeline.elapsedSeconds,
       durationSeconds: transport.timeline.durationSeconds)
@@ -310,7 +328,7 @@ struct PutioVideoControls<Trailing: View>: View {
           set: { seconds in
             if scrubSeconds == nil {
               transport.seek(to: seconds)
-              visibility.interacted()
+              onInteract()
             } else {
               scrubSeconds = seconds
             }
@@ -324,7 +342,7 @@ struct PutioVideoControls<Trailing: View>: View {
             transport.seek(to: scrubSeconds)
             self.scrubSeconds = nil
           }
-          visibility.set(.scrubbing, editing)
+          onScrubbing(editing)
         }
       )
       .sliderThumbVisibility(.hidden)
@@ -338,10 +356,6 @@ struct PutioVideoControls<Trailing: View>: View {
     }
     .putioFont(PutioTheme.Typography.numeric)
     .foregroundStyle(.white.opacity(0.78))
-  }
-
-  private func animate(_ change: () -> Void) {
-    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2), change)
   }
 }
 

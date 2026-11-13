@@ -680,6 +680,7 @@ final class PutioVideoPlayerCoordinator {
   private weak var surface: PutioVideoSurfaceView?
 
   private enum ControlGate {
+    case audio
     case defaultSubtitle
     case position
   }
@@ -760,7 +761,7 @@ final class PutioVideoPlayerCoordinator {
     readyReported = false
     defaultSubtitleRequested = false
     failureReported = false
-    pendingControlGates = [.defaultSubtitle, .position]
+    pendingControlGates = [.audio, .defaultSubtitle, .position]
     self.surface = surface
     positionReporter?.cancel()
     self.observesPlaybackState = observesPlaybackState
@@ -782,6 +783,7 @@ final class PutioVideoPlayerCoordinator {
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
+          self?.settleControls(.audio, generation: playbackGeneration)
           self?.reportMediaSelection(for: item, generation: playbackGeneration)
           self?.reportReady(generation: playbackGeneration)
         case .failed:
