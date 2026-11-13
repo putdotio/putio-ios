@@ -268,7 +268,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
     static let disabledOpacity = 0.4
     static let cornerRadius = PutioTheme.Spacing.space4
     static let lift = PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3
-    static let scrim = Color.black.opacity(0.36)
+    static let scrim = Color(.sRGB, white: 0.047, opacity: 0.795)
     static let title = PutioFontRole(
       fontName: PutioTheme.Typography.heading.fontName,
       size: 17,
