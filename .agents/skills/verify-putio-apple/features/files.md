@@ -185,7 +185,7 @@ Preconditions:
 - **Preview trash limit.** Run `--only preview-trash-limit`. Screenshot:
   `runtime-preview-trash-limit`.
 - **Late preview trash limit.** Run `--only preview-trash-limit-late`.
-  `--putio-harness-trash-limit-late` holds the refusal for 5 seconds.
+  `--putio-harness-trash-limit-late` holds the refusal until the viewer closes.
   Screenshot: `runtime-preview-trash-limit-late`.
 - **Deep links.** Run `--only deep-links`. Screenshots:
   `runtime-deep-link-loading`, `runtime-deep-link-error`,
