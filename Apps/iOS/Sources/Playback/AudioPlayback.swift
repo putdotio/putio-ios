@@ -202,7 +202,7 @@ final class PutioAudioPlayerModel {
     self.schedulePositionReports = schedulePositionReports
     // Queued reports check the setting again when the pipeline sends them.
     self.reportPosition = { fileID, seconds in
-      guard remembersPlaybackPosition() else { return }
+      guard remembersPlaybackPosition() else { throw CancellationError() }
       try await reportPosition(fileID, seconds)
     }
     self.resolve = resolve
@@ -341,8 +341,10 @@ final class PutioAudioPlayerModel {
     durationSeconds = nil
     positionReporter?.cancel()
     positionReporter = nil
+    await positionPipeline.waitForPendingReports(fileID: track.id)
     do {
       try Task.checkCancellation()
+      guard requestGeneration == generation else { return }
       let source = try await resolve(track.id)
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }

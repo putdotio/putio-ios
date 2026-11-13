@@ -295,6 +295,22 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.reports.reports.map(\.1), [30])
   }
 
+  func testAPositionHeldBackWhileRememberingIsOffIsSavedOnceItTurnsOn() async {
+    let setting = SettingBox()
+    setting.remembers = false
+    let h = makeHarness(remembersPlaybackPosition: { setting.remembers })
+
+    await h.model.start()
+    h.engine.onPositionChanged?(20)
+    h.model.pause()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    setting.remembers = true
+    h.model.stop()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertEqual(h.reports.reports.map(\.1), [20])
+  }
+
   func testUnstartedViewModelDoesNotRegisterOrClearRemotePlayback() {
     let h = makeHarness()
 
