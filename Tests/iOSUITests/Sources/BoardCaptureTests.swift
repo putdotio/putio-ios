@@ -958,7 +958,7 @@ final class BoardCaptureTests: XCTestCase {
 
     openDetailMore(
       lacking: ["Play", "Download", "Share", "Select", "Mark as watched", "Mark as unwatched"])
-    element("files.detail.title").tap()
+    element("files.detail.fact.folder").tap()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
     element("files.detail.open").tap()
     XCTAssertTrue(element("preview.screen.406").appears(within: 10), "Open showed no preview")
