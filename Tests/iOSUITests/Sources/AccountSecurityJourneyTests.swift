@@ -12,68 +12,10 @@ final class AccountSecurityJourneyTests: XCTestCase {
     ]
   }
 
-  func testTwoFactorAppsLinkingClearDataAndDestroy() throws {
+  func testAppsLinkingAndClearData() throws {
     app.launch()
     signIn()
     app.buttons["Account"].tap()
-    tap("account.two-factor")
-
-    // Enrollment: secret, a rejected code that clears the field, then the
-    // accepted code and the recovery codes.
-    let twoFactor = app.switches["security.two-factor"]
-    XCTAssertTrue(twoFactor.appears(within: 5))
-    assertToggle(twoFactor, value: "0")
-    tapToggle(twoFactor)
-    let secret = element("security.two-factor-secret")
-    XCTAssertTrue(secret.appears(within: 10))
-    XCTAssertEqual(secret.value as? String, "HARNESSSECRETJBSWY3DP")
-    tap("security.two-factor-next")
-    let code = app.textFields["security.two-factor-code"]
-    XCTAssertTrue(code.appears(within: 5))
-    enter("000000", into: code)
-    tap("security.two-factor-submit")
-    XCTAssertTrue(element("security.two-factor-failure").appears(within: 10))
-    XCTAssertEqual(
-      code.value as? String, "Authenticator code", "a rejected code stayed in the field")
-    enter("246810", into: code)
-    tap("security.two-factor-submit")
-    let firstCode = element("security.recovery-code.0")
-    XCTAssertTrue(firstCode.appears(within: 10))
-    XCTAssertEqual(firstCode.value as? String, "code0-0")
-    XCTAssertEqual(element("security.recovery-code.3").label, "Used recovery code")
-    XCTAssertFalse(element("security.two-factor-cancel").exists, "recovery codes could be skipped")
-    screenshot("runtime-security-recovery-codes")
-    tap("security.two-factor-done")
-    XCTAssertTrue(firstCode.disappears(within: 5))
-    assertToggle(twoFactor, value: "1")
-
-    // Recovery codes regenerate after a transient failure.
-    tap("security.recovery-codes")
-    XCTAssertTrue(firstCode.appears(within: 10))
-    XCTAssertEqual(firstCode.value as? String, "code0-0")
-    tap("security.recovery-regenerate")
-    let regenerateConfirm = app.buttons["security.recovery-regenerate-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(regenerateConfirm))
-    regenerateConfirm.tap()
-    tap("security.recovery-retry")
-    XCTAssertTrue(waitForValue(firstCode, "code1-0", timeout: 10))
-    XCTAssertNotEqual(element("security.recovery-code.3").label, "Used recovery code")
-    // Download hands the codes to the system exporter under put.io's web name.
-    tap("security.recovery-download")
-    let filename = app.textFields["DOCPicker.filenameTextField"]
-    XCTAssertTrue(filename.appears(within: 10), "the exporter never appeared")
-    let exportedName = filename.value as? String ?? ""
-    XCTAssertTrue(
-      exportedName.hasPrefix("putio-two-factor-recovery-codes_"), "exported as \(exportedName)")
-    XCTAssertFalse(exportedName.contains(".txt.txt"), "exported as \(exportedName)")
-    screenshot("runtime-security-recovery-download")
-    app.buttons["DOCPicker.actionButton"].tap()
-    XCTAssertTrue(filename.disappears(within: 10), "the exporter did not finish")
-    XCTAssertTrue(waitUntilHittable(element("security.recovery-download")))
-    XCTAssertFalse(
-      element("security.recovery-download-failure").exists, "the saved export reported a failure")
-    back()
-    back()
 
     tap("security.apps")
     XCTAssertTrue(app.navigationBars["Logged-in apps"].appears(within: 5))
@@ -127,18 +69,6 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(element("security.app.77").appears(within: 10))
     back()
 
-    // Disabling asks for the current code only.
-    tap("account.two-factor")
-    tapToggle(twoFactor)
-    XCTAssertTrue(code.appears(within: 5))
-    XCTAssertFalse(secret.exists)
-    enter("246810", into: code)
-    tap("security.two-factor-submit")
-    XCTAssertTrue(code.disappears(within: 10))
-    assertToggle(twoFactor, value: "0")
-    XCTAssertFalse(element("security.recovery-codes").exists)
-    back()
-
     // Clear Data retries a transient failure before confirming.
     tap("account.clear-data")
     let history = app.switches["danger.clear.history"]
@@ -160,24 +90,63 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(reveal("danger.clear-success"), "clearing reported no success")
     assertToggle(history, value: "0")
     screenshot("runtime-danger-clear-data")
-    back()
+  }
 
-    // Destroy Account rejects the wrong password, then ends the session.
+  func testTwoFactorAndDestroyOpenTheBrowserAndRefreshOnReturn() throws {
+    app.launchArguments += [
+      "--putio-harness-rating-link", "--putio-harness-two-factor-flips-in-background",
+    ]
+    app.launch()
+    signIn()
+    app.buttons["Account"].tap()
+    let requests = element("account.rating-link-requests")
+    XCTAssertTrue(requests.appears(within: 5))
+
+    let twoFactor = app.revealed("account.two-factor")
+    XCTAssertTrue(
+      waitForLabel(twoFactor, "Two-factor authentication, Off"), "label: \(twoFactor.label)")
+    tap("account.two-factor")
+    XCTAssertTrue(
+      waitForValue(requests, "1|https://app.put.io/account/security", timeout: 5),
+      "requests: \(requests.value ?? "nil")")
+    XCTAssertTrue(app.navigationBars["Account"].exists, "the two-factor row opened a screen")
+    assertNoCodeOrPasswordField()
+
+    sendToBackgroundAndReturn()
+    XCTAssertTrue(
+      waitForLabel(twoFactor, "Two-factor authentication, On"),
+      "the value did not refresh on return: \(twoFactor.label)")
+
+    tap("account.destroy-account")
+    XCTAssertTrue(app.navigationBars["Destroy your account"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Opens put.io in your browser to finish."].exists)
+    assertNoCodeOrPasswordField()
+    tap("danger.destroy")
+    XCTAssertTrue(
+      waitForValue(requests, "2|https://app.put.io/account/danger-zone", timeout: 5),
+      "requests: \(requests.value ?? "nil")")
+    XCTAssertFalse(app.alerts.firstMatch.exists, "Destroy account asked for anything in the app")
+    XCTAssertTrue(app.navigationBars["Destroy your account"].exists)
+    XCTAssertFalse(element("auth.sign-in").exists, "the app signed out before put.io answered")
+  }
+
+  func testAccountDestroyedInTheBrowserSignsOutOnReturn() throws {
+    app.launchArguments += [
+      "--putio-harness-rating-link", "--putio-harness-account-destroyed-in-background",
+    ]
+    app.launch()
+    signIn()
+    app.buttons["Account"].tap()
     tap("account.destroy-account")
     tap("danger.destroy")
-    let destroyAlert = app.alerts["One last step"]
-    XCTAssertTrue(destroyAlert.appears(within: 5))
-    let password = destroyAlert.secureTextFields.firstMatch
-    password.tap()
-    password.typeText("wrong")
-    destroyAlert.buttons["danger.destroy-confirm"].firstMatch.tap()
-    XCTAssertTrue(element("danger.destroy-failure").appears(within: 10))
-    tap("danger.destroy")
-    XCTAssertTrue(destroyAlert.appears(within: 5))
-    password.tap()
-    password.typeText("harness-pass")
-    destroyAlert.buttons["danger.destroy-confirm"].firstMatch.tap()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(
+        element("account.rating-link-requests"), "1|https://app.put.io/account/danger-zone",
+        timeout: 5))
+    sendToBackgroundAndReturn()
+    XCTAssertTrue(
+      element("auth.sign-in").appears(within: 10), "a destroyed account stayed signed in")
+    XCTAssertFalse(app.tabBars.firstMatch.exists, "the signed-in shell outlived the account")
   }
 
   func testSignOutOfAllOtherAppsAsksFirstAndKeepsFailedApps() throws {
@@ -268,6 +237,19 @@ final class AccountSecurityJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
   }
 
+  private func sendToBackgroundAndReturn() {
+    XCUIDevice.shared.press(.home)
+    XCTAssertTrue(
+      app.wait(for: .runningBackground, timeout: 10), "the app never left the foreground")
+    app.activate()
+    XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "the app never returned")
+  }
+
+  private func assertNoCodeOrPasswordField(file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertEqual(app.secureTextFields.count, 0, "a password field exists", file: file, line: line)
+    XCTAssertEqual(app.textFields.count, 0, "a code field exists", file: file, line: line)
+  }
+
   /// Waits for an outcome row that may sit below the fold after a relayout.
   private func reveal(_ identifier: String) -> Bool {
     let target = element(identifier)
@@ -314,6 +296,12 @@ final class AccountSecurityJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "exists == true AND hittable == true"), object: target)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func waitForLabel(_ target: XCUIElement, _ label: String) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", label), object: target)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
   }
 
   private func waitForValue(_ target: XCUIElement, _ value: String, timeout: TimeInterval)

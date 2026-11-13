@@ -226,19 +226,26 @@ public struct PutioValueRow: View {
 public struct PutioLinkRow: View {
   private let title: String
   private let icon: PutioIcon?
+  private let value: String?
   private let action: () -> Void
 
-  public init(_ title: String, icon: PutioIcon? = nil, action: @escaping () -> Void) {
+  public init(
+    _ title: String, icon: PutioIcon? = nil, value: String? = nil,
+    action: @escaping () -> Void
+  ) {
     self.title = title
     self.icon = icon
+    self.value = value
     self.action = action
   }
 
   public var body: some View {
     Button(action: action) {
       HStack(spacing: PutioTheme.Spacing.space2) {
-        PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
-        Spacer(minLength: PutioTheme.Spacing.space2)
+        PutioSettingsValueLayout(
+          title: title, subtitle: nil, icon: icon, value: value, valueStyle: .text
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
         PutioIconView(.arrowSquareOut, size: PutioSettingsLayout.accessorySize)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityHidden(true)

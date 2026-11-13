@@ -14,8 +14,10 @@ from a sign-out that did not finish.
 - `session-restore-storage` and `session-restore-check` restore through an
   unreadable credential and an offline session check: retry restores, a failed
   reset keeps the screen, and the secondary action lands on the fresh welcome.
-- `security` shows recovery codes, links a device by code, lists apps, clears
-  data, and destroys the account.
+- `security` links a device by code, lists apps, and clears data.
+- `browser-handoffs` opens Two-factor authentication and Destroy account in
+  the browser and refreshes the two-factor value on return;
+  `destroyed-account` lands on the welcome when the account is gone on return.
 - `file-preferences` recovers a failed save, resets, keeps settings across
   relaunch, and hides History when it is off.
 - `history` pages, opens items, deletes, and follows the History setting.
@@ -64,8 +66,14 @@ Preconditions:
   the progress screens. Screenshots: `runtime-session-storage`,
   `runtime-session-restoring`, `runtime-session-check-failed`.
 - **Security.** Run `--only account-security`. Screenshots:
-  `runtime-security-recovery-codes`, `runtime-security-apps`,
-  `runtime-danger-clear-data`.
+  `runtime-security-apps`, `runtime-danger-clear-data`.
+- **Browser handoffs.** Run `--only browser-handoffs,destroyed-account`.
+  `--putio-harness-rating-link` records opened URLs.
+  `--putio-harness-two-factor-on` seeds two-factor on;
+  `--putio-harness-two-factor-flips-in-background` flips it;
+  `--putio-harness-account-destroyed-in-background` rejects the token after
+  the app leaves the foreground. Boards: `rd-ios-acc-17-destroy`,
+  `rd-ios-acc-22-account-security`, `rd-ios-acc-43-two-factor-off`.
 - **Link a device.** `--only account-security` links a seeded code and
   `--only link-device-cancel` leaves mid-link.
   `--putio-harness-link-device <hold|accept>` holds or accepts the board code
@@ -81,7 +89,8 @@ Preconditions:
 - **History.** Run `--only history`. Screenshots: `runtime-history-loaded`,
   `runtime-history-error`, `runtime-history-empty`.
 - **Rows.** Run `--only account-rows`. Every navigation row opens its screen
-  and goes back; Privacy policy records its URL.
+  and goes back; Two-factor authentication and Privacy policy record their
+  URLs.
 - **Settings states.** Run `--only account-settings-loading,account-settings-states`.
   `--putio-harness-account-settings slow-load` holds the settings load;
   `fail-load` fails it once. Under either, autoplay's first save fails and its

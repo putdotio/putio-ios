@@ -361,11 +361,12 @@ struct AccountView: View {
         .accessibilityIdentifier("security.apps")
       row(String(localized: "Link a device"), icon: .plugs, opens: .linkDevice)
         .accessibilityIdentifier("security.link-device")
-      row(
+      PutioLinkRow(
         String(localized: "Two-factor authentication"), icon: .lockKey,
-        value: account.twoFactorEnabled ? String(localized: "On") : String(localized: "Off"),
-        opens: .twoFactor
-      )
+        value: account.twoFactorEnabled ? String(localized: "On") : String(localized: "Off")
+      ) {
+        openURL(PutioAccountWeb.securityURL)
+      }
       .accessibilityIdentifier("account.two-factor")
     }
   }

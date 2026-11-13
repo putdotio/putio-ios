@@ -6,7 +6,7 @@ enum AccountDestination: Hashable {
   case playbackMethod, proxy, chromecast
   case downloads
   case privacy
-  case loggedInApps, linkDevice, twoFactor
+  case loggedInApps, linkDevice
   case appInfo, licenses
   case clearData, destroyAccount
 }
@@ -22,7 +22,6 @@ struct AccountScreen: View {
   let linkDeviceCode: String?
   let downloads: PutioOfflineQueue
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
-  let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var preferences: PutioAccountPreferencesModel
   @State private var destination: AccountDestination?
@@ -38,8 +37,7 @@ struct AccountScreen: View {
     showsLinkDevice: Binding<Bool>,
     linkDeviceCode: String?,
     downloads: PutioOfflineQueue,
-    onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void,
-    onAccountDestroyed: @escaping @MainActor () -> Void
+    onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   ) {
     self.runtime = runtime
     self.account = account
@@ -51,7 +49,6 @@ struct AccountScreen: View {
     self.linkDeviceCode = linkDeviceCode
     self.downloads = downloads
     self.onDataCleared = onDataCleared
-    self.onAccountDestroyed = onAccountDestroyed
     _preferences = State(
       initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
   }
@@ -146,8 +143,6 @@ struct AccountScreen: View {
     case .linkDevice:
       LinkDeviceView(
         actions: .init(runtime: runtime), code: showsLinkDevice ? linkDeviceCode : nil)
-    case .twoFactor:
-      TwoFactorSettingsView(runtime: runtime)
     case .appInfo:
       AppInfoView()
     case .licenses:
@@ -155,7 +150,7 @@ struct AccountScreen: View {
     case .clearData:
       ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
     case .destroyAccount:
-      DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
+      DestroyAccountView()
     }
   }
 }

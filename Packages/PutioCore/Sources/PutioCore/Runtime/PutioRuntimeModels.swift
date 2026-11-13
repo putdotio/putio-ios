@@ -492,9 +492,7 @@ public struct PutioPlaybackRouteUnavailable: Error, Equatable, Sendable {
 /// An input put.io rejected outright. Unlike `PutioRuntimeError`, these keep
 /// the user on the form with what they typed.
 public enum PutioAccountSecurityError: Error, Equatable, Sendable {
-  case invalidTwoFactorCode
   case invalidDeviceCode
-  case invalidPassword
 }
 
 /// An OAuth grant the account has issued: another app, a TV, or this app.
@@ -516,16 +514,6 @@ public struct PutioAuthorizedApp: Equatable, Hashable, Identifiable, Sendable {
     self.lastUsedAt = lastUsedAt
     self.hasIcon = hasIcon
     self.isCurrentClient = isCurrentClient
-  }
-}
-
-public struct PutioTwoFactorRecoveryCode: Equatable, Hashable, Sendable {
-  public let code: String
-  public let isUsed: Bool
-
-  public init(code: String, isUsed: Bool) {
-    self.code = code
-    self.isUsed = isUsed
   }
 }
 

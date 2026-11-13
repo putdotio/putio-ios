@@ -896,17 +896,6 @@
         }
       }
     },
-    "Enter your password to confirm." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter your password to confirm."
-          }
-        }
-      }
-    },
     "Expires in %@" : {
       "comment" : "android: mobile_public_links_expires_in",
       "localizations" : {
@@ -1437,17 +1426,6 @@
         }
       }
     },
-    "Regenerating could not be completed. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerating could not be completed. Try again."
-          }
-        }
-      }
-    },
     "Removing from this iPhone…" : {
       "comment" : "android: mobile_downloads_status_removing | differs: iOS board wording",
       "localizations" : {
@@ -1635,17 +1613,6 @@
         }
       }
     },
-    "That code is not valid. Check your authenticator app and try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That code is not valid. Check your authenticator app and try again."
-          }
-        }
-      }
-    },
     "That device code was not found. Check the code on the device and try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
       "localizations" : {
@@ -1657,17 +1624,6 @@
         }
       }
     },
-    "That password does not match our records. Check it and try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That password does not match our records. Check it and try again."
-          }
-        }
-      }
-    },
     "That proxy isn’t available for your account. Choose another one." : {
       "comment" : "android: mobile_settings_tunnel_route_unavailable",
       "localizations" : {
@@ -1675,17 +1631,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That proxy isn’t available for your account. Choose another one."
-          }
-        }
-      }
-    },
-    "The change could not be confirmed. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The change could not be confirmed. Try again."
           }
         }
       }
@@ -2160,17 +2105,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Your recovery codes could not be loaded. Try again." : {
-      "comment" : "ios-only: no Android string for the shared account security errors",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your recovery codes could not be loaded. Try again."
           }
         }
       }
