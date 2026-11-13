@@ -17,7 +17,7 @@ final class SubtitlesJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
   }
 
-  func testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences() throws {
+  func testPlayerMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences() throws {
     app.launch()
     let signIn = element("auth.sign-in")
     XCTAssertTrue(signIn.appears(within: 10))
@@ -35,19 +35,17 @@ final class SubtitlesJourneyTests: XCTestCase {
     pausePlayback()
 
     // A non-default audio pick survives every subtitle change.
-    openPlayerMenu("Audio Track")
+    openPlayerMenu("Audio")
     XCTAssertTrue(app.buttons["English"].appears(within: 5))
     app.buttons["Turkish"].tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(keepsValue(subtitle, "en"), "changing the audio changed the subtitle")
 
     openPlayerMenu("Subtitles")
-    XCTAssertTrue(app.buttons["AVSubtitlesOnAction"].appears(within: 5))
-    XCTAssertTrue(app.buttons["AVSubtitlesOffAction"].exists)
-    app.buttons["AVLanguagesMenu"].tap()
     let turkishSubtitle = app.buttons["Turkish"]
     XCTAssertTrue(turkishSubtitle.appears(within: 5))
     XCTAssertTrue(app.buttons["English"].exists)
+    XCTAssertTrue(app.buttons["Off"].exists)
     screenshot("runtime-subtitles-menu")
     turkishSubtitle.tap()
     XCTAssertTrue(waitForValue(subtitle, "tr"), "subtitle: \(subtitle.value ?? "")")
@@ -56,8 +54,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     // exposed to accessibility; the screenshot records the rendered cue.
     let position = element("video.current-position")
     let pausedAt = position.value as? String ?? ""
-    let playPause = app.buttons["Play/Pause"]
-    showControls(revealing: playPause)
+    let playPause = element("video.play-pause")
+    app.revealVideoControls(showing: playPause)
     playPause.tap()
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value != %@", pausedAt), position, timeout: 10),
@@ -67,7 +65,6 @@ final class SubtitlesJourneyTests: XCTestCase {
 
     // Subtitles in a language other than the audio's leave the audio alone.
     openPlayerMenu("Subtitles")
-    app.buttons["AVLanguagesMenu"].tap()
     let englishSubtitle = app.buttons["English"]
     XCTAssertTrue(englishSubtitle.appears(within: 5))
     englishSubtitle.tap()
@@ -75,26 +72,26 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(keepsValue(audio, "tr"), "English subtitles changed the audio track")
 
     openPlayerMenu("Subtitles")
-    let off = app.buttons["AVSubtitlesOffAction"]
+    let off = app.buttons["Off"]
     XCTAssertTrue(off.appears(within: 5))
     off.tap()
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
-    element("video.done").tap()
+    app.closeVideo()
 
     // "Pick matching subtitles" off: the tracks stay offered, none is on.
     setPlaybackToggle("playback-settings.subtitle-selection", to: "0", retryingSeededFailure: true)
     openVideo(retryingSeededFailure: false)
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
-    element("video.done").tap()
+    app.closeVideo()
 
     // Hidden subtitles: put.io serves no subtitle renditions.
     setPlaybackToggle("playback-settings.subtitles", to: "0", retryingSeededFailure: false)
     openVideo(retryingSeededFailure: false)
     XCTAssertTrue(waitForValue(subtitle, "unavailable"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
-    element("video.done").tap()
+    app.closeVideo()
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -128,8 +125,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 10), .completed)
-    let playPause = app.buttons["Play/Pause"]
-    showControls(revealing: playPause)
+    let playPause = element("video.play-pause")
+    app.revealVideoControls(showing: playPause)
     if playPause.label == "Pause" { playPause.tap() }
     XCTAssertTrue(
       waitFor(NSPredicate(format: "label == 'Play'"), playPause, timeout: 5),
@@ -137,21 +134,12 @@ final class SubtitlesJourneyTests: XCTestCase {
   }
 
   private func openPlayerMenu(_ entry: String) {
-    let more = app.buttons["Overflow Menu"]
-    showControls(revealing: more)
-    more.tap()
-    let item = app.buttons[entry]
+    let options = element("video.options")
+    app.revealVideoControls(showing: options)
+    options.tap()
+    let item = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", entry)).firstMatch
     XCTAssertTrue(item.appears(within: 5), "\(entry) is missing from the player menu")
     item.tap()
-  }
-
-  /// Player controls hide on their own; a tap on the video brings them back.
-  private func showControls(revealing control: XCUIElement) {
-    if control.exists, control.isHittable { return }
-    element("video.system-player").tap()
-    XCTAssertTrue(
-      waitFor(NSPredicate(format: "hittable == true"), control, timeout: 5),
-      "player controls did not appear")
   }
 
   /// The playback-preferences fixture fails the first account save once.

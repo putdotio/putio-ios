@@ -1,5 +1,4 @@
 import AVFoundation
-import AVKit
 import Observation
 import PutioCore
 import SwiftUI
@@ -19,7 +18,9 @@ struct PutioVideoPlaybackView: View {
   @State private var playbackReachedEnd = false
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
+  @State private var transport = PutioVideoTransport()
   private let fileID: PutioFileID
+  private let title: String
   private let onDismiss: @MainActor @Sendable () -> Void
   private let onDurationKnown: @MainActor @Sendable (Double) -> Void
   private let preferredAudioLanguages: [String]
@@ -57,6 +58,7 @@ struct PutioVideoPlaybackView: View {
     self.castButton = castButton
     self.onCast = onCast
     self.fileID = route.id
+    self.title = route.title
     self.onDismiss = onDismiss
     self.onDurationKnown = onDurationKnown
     self.preferredAudioLanguages = preferredAudioLanguages
@@ -109,26 +111,21 @@ struct PutioVideoPlaybackView: View {
   }
 
   var body: some View {
-    ZStack(alignment: .topTrailing) {
+    ZStack {
       content
-      HStack(spacing: PutioTheme.Spacing.space2) {
-        if let castButton {
-          castButton
-            .padding(PutioTheme.Spacing.space2)
-            .background(.black.opacity(0.55), in: Circle())
+      if case .ready = model.state {
+        PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
+          castControls
         }
-        if let onCast {
-          PutioButton(String(localized: "Cast"), tier: .secondary, presentation: .floating) {
-            onCast()
-          }
-          .accessibilityIdentifier("video.cast")
+      } else {
+        VStack {
+          PutioVideoTopBar(
+            title: title, showsTrailing: castButton != nil || onCast != nil, onClose: onDismiss
+          ) { castControls }
+          Spacer()
         }
-        PutioButton(String(localized: "Done"), tier: .primary, presentation: .floating) {
-          onDismiss()
-        }
-        .accessibilityIdentifier("video.done")
+        .padding(PutioTheme.Spacing.space3)
       }
-      .padding(PutioTheme.Spacing.space4)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
@@ -155,6 +152,7 @@ struct PutioVideoPlaybackView: View {
     }
     .overlay(alignment: .bottom) {
       nextVideoOverlay
+        .padding(.bottom, isReady ? PutioTheme.Spacing.space5 : 0)
     }
     .overlay {
       if showsHarnessReadiness {
@@ -227,6 +225,25 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
+  private var isReady: Bool {
+    if case .ready = model.state { return true }
+    return false
+  }
+
+  @ViewBuilder
+  private var castControls: some View {
+    if let castButton {
+      castButton
+        .frame(minWidth: 44, minHeight: 44)
+    }
+    if let onCast {
+      PutioButton(String(localized: "Cast"), tier: .secondary, size: .small) {
+        onCast()
+      }
+      .accessibilityIdentifier("video.cast")
+    }
+  }
+
   @ViewBuilder
   private var nextVideoOverlay: some View {
     switch nextVideoModel.state {
@@ -283,9 +300,10 @@ struct PutioVideoPlaybackView: View {
       PutioLoadingStateView(title: String(localized: "Preparing video"))
         .accessibilityIdentifier("video.loading")
     case .ready(let source):
-      PutioSystemVideoPlayer(
+      PutioVideoPlayerView(
         fileID: fileID,
         source: source,
+        transport: transport,
         preferredAudioLanguages: preferredAudioLanguages,
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
@@ -448,9 +466,10 @@ private struct PutioNextVideoSurface: ViewModifier {
   }
 }
 
-private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
+private struct PutioVideoPlayerView: UIViewRepresentable {
   let fileID: PutioFileID
   let source: PutioPlaybackSource
+  let transport: PutioVideoTransport
   let preferredAudioLanguages: [String]
   let remembersPlaybackPosition: Bool
   let positionPipeline: PutioPlaybackPositionPipeline
@@ -473,27 +492,27 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
     }
   #endif
 
-  func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
-    PutioSystemVideoPlayerCoordinator(positionPipeline: positionPipeline)
+  func makeCoordinator() -> PutioVideoPlayerCoordinator {
+    PutioVideoPlayerCoordinator(positionPipeline: positionPipeline)
   }
 
-  func makeUIViewController(context: Context) -> AVPlayerViewController {
-    let controller = AVPlayerViewController()
-    controller.allowsPictureInPicturePlayback = true
-    controller.entersFullScreenWhenPlaybackBegins = false
-    controller.exitsFullScreenWhenPlaybackEnds = false
+  func makeUIView(context: Context) -> PutioVideoSurfaceView {
+    let surface = PutioVideoSurfaceView()
+    let transport = transport
+    surface.onPlayerChange = { player in transport.attach(player) }
+    surface.onPlaybackControlsChange = { shown in transport.setControlsEnabled(shown) }
     #if DEBUG
       if let subtitleSelected {
         context.coordinator.onSubtitleSelected = { subtitle in subtitleSelected(subtitle) }
       }
     #endif
-    if context.coordinator.start(
+    context.coordinator.start(
       fileID: fileID,
       source: source,
       preferredAudioLanguages: preferredAudioLanguages,
       remembersPlaybackPosition: remembersPlaybackPosition,
       reportPosition: { try await reportPosition($0, $1) },
-      in: controller,
+      in: surface,
       onReady: onReady,
       onDurationKnown: { onDurationKnown($0) },
       observesPlaybackState: observesPlaybackState,
@@ -502,19 +521,17 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       onPlaybackEnded: { onPlaybackEnded() },
       onPlaybackRestarted: { onPlaybackRestarted() },
       onFailure: onFailure
-    ) {
-      controller.view.accessibilityIdentifier = "video.system-player"
-    }
-    return controller
+    )
+    return surface
   }
 
-  func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {}
+  func updateUIView(_ surface: PutioVideoSurfaceView, context: Context) {}
 
-  static func dismantleUIViewController(
-    _ controller: AVPlayerViewController,
-    coordinator: PutioSystemVideoPlayerCoordinator
+  static func dismantleUIView(
+    _ surface: PutioVideoSurfaceView,
+    coordinator: PutioVideoPlayerCoordinator
   ) {
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
   }
 }
 
@@ -535,7 +552,7 @@ protocol PutioVideoPlayerDriving: AnyObject {
 }
 
 @MainActor
-private final class PutioSystemVideoPlayerDriver: PutioVideoPlayerDriving {
+private final class PutioVideoPlayerDriver: PutioVideoPlayerDriving {
   let player: AVPlayer
 
   var currentTime: CMTime {
@@ -611,7 +628,7 @@ protocol PutioPlayerItemStatusObservation: AnyObject {
 extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 
 @MainActor
-final class PutioSystemVideoPlayerCoordinator {
+final class PutioVideoPlayerCoordinator {
   typealias DefaultSubtitleApplier = @MainActor (AVPlayerItem) async -> Void
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
   typealias DurationLoader = @MainActor (AVPlayerItem) async -> Double?
@@ -659,10 +676,17 @@ final class PutioSystemVideoPlayerCoordinator {
   private var failureReported = false
   private var fileID: PutioFileID?
   private var audioSessionIsActive = false
+  private var pendingControlGates: Set<ControlGate> = []
+  private weak var surface: PutioVideoSurfaceView?
+
+  private enum ControlGate {
+    case defaultSubtitle
+    case position
+  }
 
   convenience init() {
     self.init(
-      makeDriver: { PutioSystemVideoPlayerDriver(item: $0) },
+      makeDriver: { PutioVideoPlayerDriver(item: $0) },
       audioSession: PutioPlaybackAudioSession(),
       notificationCenter: .default,
       positionPipeline: PutioPlaybackPositionPipeline()
@@ -671,7 +695,7 @@ final class PutioSystemVideoPlayerCoordinator {
 
   convenience init(positionPipeline: PutioPlaybackPositionPipeline) {
     self.init(
-      makeDriver: { PutioSystemVideoPlayerDriver(item: $0) },
+      makeDriver: { PutioVideoPlayerDriver(item: $0) },
       audioSession: PutioPlaybackAudioSession(),
       notificationCenter: .default,
       positionPipeline: positionPipeline
@@ -690,16 +714,16 @@ final class PutioSystemVideoPlayerCoordinator {
     notificationCenter: NotificationCenter,
     positionPipeline: PutioPlaybackPositionPipeline,
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
-      await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
+      await PutioVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
     },
     applyDefaultSubtitle: @escaping DefaultSubtitleApplier = {
-      await PutioSystemVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
+      await PutioVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
     },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     },
     loadDuration: @escaping DurationLoader = {
-      await PutioSystemVideoPlayerCoordinator.duration(of: $0)
+      await PutioVideoPlayerCoordinator.duration(of: $0)
     }
   ) {
     self.makeItem = makeItem
@@ -721,7 +745,7 @@ final class PutioSystemVideoPlayerCoordinator {
     preferredAudioLanguages: [String] = [],
     remembersPlaybackPosition: Bool = true,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
-    in controller: AVPlayerViewController,
+    in surface: PutioVideoSurfaceView,
     onReady: @escaping @MainActor () -> Void = {},
     onDurationKnown: @escaping @MainActor (Double) -> Void = { _ in },
     observesPlaybackState: Bool = false,
@@ -736,6 +760,8 @@ final class PutioSystemVideoPlayerCoordinator {
     readyReported = false
     defaultSubtitleRequested = false
     failureReported = false
+    pendingControlGates = [.defaultSubtitle, .position]
+    self.surface = surface
     positionReporter?.cancel()
     self.observesPlaybackState = observesPlaybackState
     self.fileID = fileID
@@ -748,12 +774,11 @@ final class PutioSystemVideoPlayerCoordinator {
     self.onFailure = onFailure
 
     let item = makeItem(source.url)
-    statusObservation = observeItemStatus(item) { [weak self, weak controller] status in
-      Task { @MainActor [weak self, weak controller] in
+    statusObservation = observeItemStatus(item) { [weak self] status in
+      Task { @MainActor [weak self] in
         switch status {
         case .readyToPlay:
-          self?.applyDefaultSubtitleOnce(
-            to: item, revealingControlsOf: controller, generation: playbackGeneration)
+          self?.applyDefaultSubtitleOnce(to: item, generation: playbackGeneration)
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
@@ -806,13 +831,11 @@ final class PutioSystemVideoPlayerCoordinator {
       }
     }
 
-    // Controls stay hidden until the default subtitle is applied, so no
-    // subtitle choice can be made before it and then overridden.
-    controller.showsPlaybackControls = false
+    surface.showsPlaybackControls = false
 
     let driver = makeDriver(item)
     self.driver = driver
-    controller.player = driver.player
+    surface.player = driver.player
     let positionReporter = PutioVideoPositionReporter(
       fileID: fileID,
       remembersPosition: remembersPlaybackPosition,
@@ -878,6 +901,7 @@ final class PutioSystemVideoPlayerCoordinator {
 
     guard remembersPlaybackPosition, source.startFromSeconds > 0 else {
       positionReporter.positionEstablished()
+      settleControls(.position, generation: playbackGeneration)
       driver.play()
       return true
     }
@@ -916,6 +940,7 @@ final class PutioSystemVideoPlayerCoordinator {
         }
         positionReporter.positionEstablished()
         positionReporter.startReporting()
+        settleControls(.position, generation: playbackGeneration)
         driver.play()
       }
     }
@@ -933,7 +958,7 @@ final class PutioSystemVideoPlayerCoordinator {
     positionReporter?.savePosition()
   }
 
-  func stop(controller: AVPlayerViewController) {
+  func stop(surface: PutioVideoSurfaceView) {
     let stoppedDriver = driver
     positionReporter?.stop()
     positionReporter = nil
@@ -971,7 +996,8 @@ final class PutioSystemVideoPlayerCoordinator {
     onFailure = nil
     stoppedDriver?.stop()
     driver = nil
-    controller.player = nil
+    surface.player = nil
+    self.surface = nil
     if audioSessionIsActive {
       audioSession.deactivate()
       audioSessionIsActive = false
@@ -1003,24 +1029,26 @@ final class PutioSystemVideoPlayerCoordinator {
     item.select(option, in: group)
   }
 
-  /// AVPlayerViewController replaces the subtitle selection with its own
-  /// automatic choice when the item becomes ready, so the default is applied
-  /// only after readiness. Later readiness never re-applies it over the
-  /// user's choice.
   private func applyDefaultSubtitleOnce(
     to item: AVPlayerItem,
-    revealingControlsOf controller: AVPlayerViewController?,
     generation playbackGeneration: UInt64
   ) {
     guard generation == playbackGeneration, !defaultSubtitleRequested else { return }
     defaultSubtitleRequested = true
     let applyDefaultSubtitle = applyDefaultSubtitle
-    Task { @MainActor [weak self, weak controller] in
+    Task { @MainActor [weak self] in
       await applyDefaultSubtitle(item)
       guard let self, generation == playbackGeneration else { return }
-      controller?.showsPlaybackControls = true
+      settleControls(.defaultSubtitle, generation: playbackGeneration)
       reportMediaSelection(for: item, generation: playbackGeneration)
     }
+  }
+
+  private func settleControls(_ gate: ControlGate, generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration else { return }
+    pendingControlGates.remove(gate)
+    guard pendingControlGates.isEmpty else { return }
+    surface?.showsPlaybackControls = true
   }
 
   /// put.io marks the first subtitle `DEFAULT` unless the account disables

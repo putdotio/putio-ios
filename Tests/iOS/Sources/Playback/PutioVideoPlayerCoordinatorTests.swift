@@ -1,5 +1,4 @@
 import AVFoundation
-import AVKit
 import Foundation
 import PutioCore
 import UIKit
@@ -218,7 +217,7 @@ private final class DefaultSubtitleGate {
 }
 
 @MainActor
-final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
+final class PutioVideoPlayerCoordinatorTests: XCTestCase {
   func testDefaultSubtitleIsOnBeforeControlsAppearAndAppliedOnce() async throws {
     let playlist = try XCTUnwrap(
       Bundle.main.url(
@@ -227,18 +226,18 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let server = try LoopbackMediaServer(directory: playlist.deletingLastPathComponent())
     let base = try await server.start()
     defer { server.stop() }
-    // A playable item attached to AVPlayerViewController: the controller
-    // applies its own automatic subtitle choice, Off for this fixture, when
-    // the item becomes ready, replacing any selection made before.
+    // AVPlayer's automatic media selection picks its own subtitle, Off for
+    // this fixture, when the item becomes ready, replacing any selection
+    // made before.
     let item = AVPlayerItem(url: base.appending(path: "multi-subtitles.m3u8"))
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let defaultApplied = expectation(description: "default subtitle applied")
     let defaultReapplied = expectation(description: "default subtitle applied again")
     defaultReapplied.isInverted = true
     defaultReapplied.assertForOverFulfill = false
     var defaultApplications = 0
     var statusChanged: (@Sendable (AVPlayerItem.Status) -> Void)?
-    let coordinator = PutioSystemVideoPlayerCoordinator(
+    let coordinator = PutioVideoPlayerCoordinator(
       makeItem: { _ in item },
       makeDriver: { VideoPlayerDriverSpy(item: $0) },
       observeItemStatus: { item, changed in
@@ -252,30 +251,30 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       positionPipeline: PutioPlaybackPositionPipeline(),
       applyDefaultSubtitle: {
         defaultApplications += 1
-        await PutioSystemVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
+        await PutioVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
         if defaultApplications == 1 {
-          XCTAssertFalse(controller.showsPlaybackControls, "controls appeared before the default")
+          XCTAssertFalse(surface.showsPlaybackControls, "controls appeared before the default")
           defaultApplied.fulfill()
         } else {
           defaultReapplied.fulfill()
         }
       }
     )
-    defer { coordinator.stop(controller: controller) }
+    defer { coordinator.stop(surface: surface) }
     let ready = expectation(description: "readiness handled")
     coordinator.start(
-      source: source(startFromSeconds: 0), in: controller, onReady: { ready.fulfill() },
+      source: source(startFromSeconds: 0), in: surface, onReady: { ready.fulfill() },
       onFailure: {})
-    XCTAssertFalse(controller.showsPlaybackControls, "controls appeared before the default")
+    XCTAssertFalse(surface.showsPlaybackControls, "controls appeared before the default")
 
     await fulfillment(of: [defaultApplied, ready], timeout: 30)
     XCTAssertEqual(item.status, .readyToPlay)
-    XCTAssertTrue(controller.showsPlaybackControls)
+    XCTAssertTrue(surface.showsPlaybackControls)
     let legible = try await item.asset.loadMediaSelectionGroup(for: .legible)
     let group = try XCTUnwrap(legible)
     XCTAssertEqual(
       item.currentMediaSelection.selectedMediaOption(in: group)?.extendedLanguageTag, "en",
-      "the controller replaced the default subtitle")
+      "automatic selection replaced the default subtitle")
 
     // The user turns subtitles off; later readiness never turns them back on.
     // A ready item reports a new selection only after the pipeline switches.
@@ -303,16 +302,16 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
       notificationCenter: notifications, selectedAudioLanguage: { _ in language },
       applyDefaultSubtitle: { _ in await gate.wait() })
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     defer {
-      coordinator.stop(controller: controller)
+      coordinator.stop(surface: surface)
       gate.release()
     }
     let initial = expectation(description: "initial language")
     let changed = expectation(description: "changed language")
     var selections: [String] = []
     coordinator.start(
-      source: source(startFromSeconds: 0), in: controller,
+      source: source(startFromSeconds: 0), in: surface,
       observesPlaybackState: true,
       onAudioSelected: { value in
         selections.append(value)
@@ -389,17 +388,17 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: PlaybackAudioSessionSpy(),
       statusObservation: productionStatus
     )
-    let productionController = AVPlayerViewController()
+    let productionSurface = PutioVideoSurfaceView()
     productionCoordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 0),
-      in: productionController,
+      in: productionSurface,
       onFailure: {}
     )
     let productionDriver = try XCTUnwrap(productionCapture.driver)
 
     XCTAssertTrue(productionDriver.positionObservationIntervals.isEmpty)
-    productionCoordinator.stop(controller: productionController)
+    productionCoordinator.stop(surface: productionSurface)
     XCTAssertEqual(productionDriver.positionObservationRemovalCount, 0)
 
     let harnessStatus = PlayerItemStatusObservationSpy()
@@ -407,12 +406,12 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: PlaybackAudioSessionSpy(),
       statusObservation: harnessStatus
     )
-    let harnessController = AVPlayerViewController()
+    let harnessSurface = PutioVideoSurfaceView()
     var positions: [Int] = []
     harnessCoordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 0),
-      in: harnessController,
+      in: harnessSurface,
       observesPlaybackState: true,
       onPositionChanged: { positions.append($0) },
       onFailure: {}
@@ -435,42 +434,65 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { positions == [91] }
     XCTAssertEqual(positions, [91])
 
-    harnessCoordinator.stop(controller: harnessController)
+    harnessCoordinator.stop(surface: harnessSurface)
     XCTAssertEqual(harnessDriver.positionObservationRemovalCount, 1)
     harnessDriver.emitPosition(CMTime(seconds: 92, preferredTimescale: 600))
     await Task.yield()
     XCTAssertEqual(positions, [91])
   }
 
+  func testControlsWaitForTheResumeSeekSoASkipCannotBeOverridden() async throws {
+    let statusObservation = PlayerItemStatusObservationSpy()
+    var defaultSubtitleApplied = false
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), statusObservation: statusObservation,
+      applyDefaultSubtitle: { _ in defaultSubtitleApplied = true })
+    let surface = PutioVideoSurfaceView()
+    var controls: [Bool] = []
+    surface.onPlaybackControlsChange = { controls.append($0) }
+
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) {}
+    let driver = try XCTUnwrap(capture.driver)
+    statusObservation.emit(.readyToPlay)
+    await waitUntil { defaultSubtitleApplied }
+    await Task.yield()
+    XCTAssertEqual(controls, [], "controls appeared while the resume seek was in flight")
+
+    driver.completeSeek(true)
+    await waitUntil { controls == [true] }
+    XCTAssertTrue(surface.showsPlaybackControls)
+    coordinator.stop(surface: surface)
+  }
+
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
 
-    coordinator.start(source: source(startFromSeconds: 90), in: controller) {}
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) {}
     let driver = try XCTUnwrap(capture.driver)
     await waitUntil { driver.events == ["seek"] }
 
     XCTAssertEqual(audioSession.events, ["activate"])
     XCTAssertEqual(driver.events, ["seek"])
     XCTAssertEqual(CMTimeGetSeconds(try XCTUnwrap(driver.seekTime)), 90)
-    XCTAssertTrue(controller.player === driver.player)
+    XCTAssertTrue(surface.player === driver.player)
 
     driver.completeSeek(true)
     await waitUntil { driver.events == ["seek", "play"] }
 
     XCTAssertEqual(driver.events, ["seek", "play"])
     XCTAssertEqual(capture.positionReportSchedule?.interval, .seconds(10))
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
   }
 
   func testInterruptedCurrentResumeSeekReportsRecoverableFailure() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) {
       failures += 1
     }
     let driver = try XCTUnwrap(capture.driver)
@@ -481,23 +503,23 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(driver.events, ["seek"])
     XCTAssertEqual(failures, 1)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
   }
 
   func testStoppedResumeSeekCannotRestartDetachedPlayer() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) {
       failures += 1
     }
     let driver = try XCTUnwrap(capture.driver)
     await waitUntil { driver.events == ["seek"] }
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
 
-    XCTAssertNil(controller.player)
+    XCTAssertNil(surface.player)
     XCTAssertNil(driver.player.currentItem)
     XCTAssertEqual(driver.events, ["seek", "stop"])
     XCTAssertEqual(audioSession.events, ["activate", "deactivate"])
@@ -516,10 +538,10 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) {
       failures += 1
     }
     let driver = try XCTUnwrap(capture.driver)
@@ -532,7 +554,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(failures, 1)
     XCTAssertEqual(driver.events, ["seek"])
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
   }
 
   func testFailedToEndReportsOnceForExactItemAndStopsObservingOnTeardown() async throws {
@@ -542,10 +564,10 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 0), in: surface) {
       failures += 1
     }
     let driver = try XCTUnwrap(capture.driver)
@@ -564,7 +586,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     notificationCenter.post(name: AVPlayerItem.failedToPlayToEndTimeNotification, object: item)
     await Task.yield()
     XCTAssertEqual(failures, 1)
@@ -577,10 +599,10 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 0), in: surface) {
       failures += 1
     }
     _ = try XCTUnwrap(capture.driver)
@@ -595,7 +617,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     XCTAssertEqual(statusObservation.invalidationCount, 1)
   }
 
@@ -606,12 +628,12 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var ready = 0
 
     coordinator.start(
       source: source(startFromSeconds: 0),
-      in: controller,
+      in: surface,
       onReady: { ready += 1 },
       onFailure: {}
     )
@@ -621,7 +643,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(ready, 1)
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     statusObservation.emit(.readyToPlay)
     await Task.yield()
 
@@ -635,13 +657,13 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 0), in: surface) {
       failures += 1
     }
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     statusObservation.emit(.failed)
     await Task.yield()
 
@@ -653,10 +675,10 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let audioSession = PlaybackAudioSessionSpy()
     audioSession.activationError = PlaybackAudioSessionSpy.Failure.activation
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 0), in: surface) {
       failures += 1
     }
     let driver = try XCTUnwrap(capture.driver)
@@ -665,7 +687,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
     XCTAssertTrue(driver.events.isEmpty)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     XCTAssertEqual(audioSession.events, ["activate"])
   }
 
@@ -673,17 +695,17 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let audioSession = PlaybackAudioSessionSpy()
     audioSession.activationError = PlaybackAudioSessionSpy.Failure.activation
     let (coordinator, _) = makeCoordinator(audioSession: audioSession)
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+    coordinator.start(source: source(startFromSeconds: 0), in: surface) {
       failures += 1
     }
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await Task.yield()
 
     XCTAssertEqual(failures, 0)
-    XCTAssertNil(controller.player)
+    XCTAssertNil(surface.player)
     XCTAssertEqual(audioSession.events, ["activate"])
   }
 
@@ -694,7 +716,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
@@ -702,7 +724,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 90),
       remembersPlaybackPosition: false,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -710,7 +732,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await Task.yield()
     driver.currentTime = CMTime(seconds: 42, preferredTimescale: 600)
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(driver.events, ["play", "stop"])
@@ -726,7 +748,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     var completionCount = 0
 
@@ -735,7 +757,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 0),
       remembersPlaybackPosition: false,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onPlaybackEnded: { completionCount += 1 },
       onFailure: {}
     )
@@ -745,7 +767,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(completionCount, 1)
@@ -759,7 +781,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
@@ -767,7 +789,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 0),
       remembersPlaybackPosition: true,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -790,7 +812,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await coordinator.waitForPendingPositionReports()
     XCTAssertEqual(reports.completed.map(\.1), [10, 300])
     driver.currentTime = .invalid
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
   }
 
@@ -802,7 +824,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     var failures = 0
 
@@ -810,7 +832,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: { failures += 1 }
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -832,7 +854,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { failures == 1 }
     driver.currentTime = CMTime(seconds: 270, preferredTimescale: 600)
     capture.positionReportSchedule?.tick()
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.completed.map(\.1), [21, 240, 252, 263])
@@ -846,7 +868,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       loadDuration: { _ in 590 }
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     var isReady = false
 
@@ -854,7 +876,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 567),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onReady: { isReady = true },
       onFailure: {}
     )
@@ -864,7 +886,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { isReady }
     driver.currentTime = CMTime(seconds: 10, preferredTimescale: 600)
     try XCTUnwrap(capture.positionReportSchedule).tick()
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertNil(driver.seekTime)
@@ -874,14 +896,14 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
   func testAPartlyWatchedVideoResumesAtItsSavedPosition() async throws {
     let (coordinator, capture) = makeCoordinator(
       audioSession: PlaybackAudioSessionSpy(), loadDuration: { _ in 590 })
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
 
-    coordinator.start(source: source(startFromSeconds: 560), in: controller) {}
+    coordinator.start(source: source(startFromSeconds: 560), in: surface) {}
     let driver = try XCTUnwrap(capture.driver)
     await waitUntil { driver.events == ["seek"] }
 
     XCTAssertEqual(CMTimeGetSeconds(try XCTUnwrap(driver.seekTime)), 560)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
   }
 
   func testInvalidPeriodicPositionsAreIgnored() async throws {
@@ -891,7 +913,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
@@ -899,7 +921,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 0),
       remembersPlaybackPosition: true,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     statusObservation.emit(.readyToPlay)
@@ -917,7 +939,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     XCTAssertTrue(reports.started.isEmpty)
     driver.currentTime = .invalid
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
     XCTAssertTrue(reports.started.isEmpty)
   }
@@ -929,7 +951,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
@@ -937,7 +959,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 90),
       remembersPlaybackPosition: true,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -945,7 +967,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await Task.yield()
     driver.currentTime = .zero
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertTrue(reports.started.isEmpty)
@@ -958,7 +980,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
@@ -966,7 +988,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 0),
       remembersPlaybackPosition: true,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -975,8 +997,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 44.8, preferredTimescale: 600)
 
-    coordinator.stop(controller: controller)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
+    coordinator.stop(surface: surface)
     driver.currentTime = CMTime(seconds: 60, preferredTimescale: 600)
     schedule.tick()
     await coordinator.waitForPendingPositionReports()
@@ -994,14 +1016,14 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
 
     coordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -1012,7 +1034,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
     notificationCenter.post(name: AVPlayer.rateDidChangeNotification, object: driver.player)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.completed.map(\.1), [120])
@@ -1026,7 +1048,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     reports.blocksFirstReport = true
     var restartCount = 0
@@ -1035,7 +1057,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onPlaybackRestarted: { restartCount += 1 },
       onFailure: {}
     )
@@ -1056,7 +1078,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
     driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
 
@@ -1072,7 +1094,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     var restartCount = 0
 
@@ -1080,7 +1102,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onPlaybackRestarted: { restartCount += 1 },
       onFailure: {}
     )
@@ -1095,7 +1117,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     // An end-of-item discontinuity jumps to the duration, not back into the video.
     driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(restartCount, 0)
@@ -1110,7 +1132,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: statusObservation,
       notificationCenter: notificationCenter
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     reports.blocksFirstReport = true
     reports.firstReportError = PutioRuntimeError.transient
@@ -1119,7 +1141,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -1134,7 +1156,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     guard !reports.started.isEmpty else { return }
     driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
 
@@ -1149,7 +1171,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     reports.blocksFirstReport = true
     reports.failsFirstReport = true
@@ -1160,7 +1182,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       source: source(startFromSeconds: 0),
       remembersPlaybackPosition: true,
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: { playbackFailures += 1 }
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -1172,7 +1194,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
     schedule.tick()
     driver.currentTime = CMTime(seconds: 37, preferredTimescale: 600)
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
 
     defer { reports.releaseFirstReport() }
     await fulfillment(of: [reports.firstReportStarted], timeout: 2)
@@ -1192,7 +1214,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: PlaybackAudioSessionSpy(),
       statusObservation: statusObservation
     )
-    let controller = AVPlayerViewController()
+    let surface = PutioVideoSurfaceView()
     let reports = PlaybackPositionReportSpy()
     reports.firstReportError = PutioRuntimeError.transient
 
@@ -1200,7 +1222,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
+      in: surface,
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -1208,7 +1230,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await Task.yield()
     driver.currentTime = CMTime(seconds: 44, preferredTimescale: 600)
 
-    coordinator.stop(controller: controller)
+    coordinator.stop(surface: surface)
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.started.map(\.1), [44, 44])
@@ -1226,18 +1248,18 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: firstStatus,
       positionPipeline: pipeline
     )
-    let firstController = AVPlayerViewController()
+    let firstSurface = PutioVideoSurfaceView()
     firstCoordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: firstController,
+      in: firstSurface,
       onFailure: {}
     )
     firstStatus.emit(.readyToPlay)
     await Task.yield()
     firstCapture.driver?.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
-    firstCoordinator.stop(controller: firstController)
+    firstCoordinator.stop(surface: firstSurface)
 
     defer { reports.releaseFirstReport() }
     await fulfillment(of: [reports.firstReportStarted], timeout: 2)
@@ -1261,12 +1283,12 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       statusObservation: secondStatus,
       positionPipeline: pipeline
     )
-    let secondController = AVPlayerViewController()
+    let secondSurface = PutioVideoSurfaceView()
     secondCoordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 30),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: secondController,
+      in: secondSurface,
       onFailure: {}
     )
     await waitUntil { secondCapture.driver?.events == ["seek"] }
@@ -1275,7 +1297,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     secondStatus.emit(.readyToPlay)
     await Task.yield()
     secondCapture.driver?.currentTime = CMTime(seconds: 45, preferredTimescale: 600)
-    secondCoordinator.stop(controller: secondController)
+    secondCoordinator.stop(surface: secondSurface)
     await secondCoordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.completed.map(\.1), [30, 45])
@@ -1287,16 +1309,16 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     notificationCenter: NotificationCenter = NotificationCenter(),
     positionPipeline: PutioPlaybackPositionPipeline? = nil,
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
-      await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
+      await PutioVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
     },
     makeItem: @escaping @MainActor (URL) -> AVPlayerItem = { AVPlayerItem(url: $0) },
-    applyDefaultSubtitle: @escaping PutioSystemVideoPlayerCoordinator.DefaultSubtitleApplier = {
+    applyDefaultSubtitle: @escaping PutioVideoPlayerCoordinator.DefaultSubtitleApplier = {
       _ in
     },
-    loadDuration: @escaping PutioSystemVideoPlayerCoordinator.DurationLoader = { _ in nil }
-  ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
+    loadDuration: @escaping PutioVideoPlayerCoordinator.DurationLoader = { _ in nil }
+  ) -> (PutioVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
-    let coordinator = PutioSystemVideoPlayerCoordinator(
+    let coordinator = PutioVideoPlayerCoordinator(
       makeItem: makeItem,
       makeDriver: { item in
         let driver = VideoPlayerDriverSpy(item: item)

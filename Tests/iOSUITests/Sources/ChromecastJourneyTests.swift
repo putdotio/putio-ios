@@ -127,7 +127,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(videoRetry.appears(within: 20))
     videoRetry.tap()
     XCTAssertTrue(element("video.ready").appears(within: 20))
-    element("video.done").tap()
+    app.closeVideo()
 
     // Sign-out must stop the receiver, not just remove its controls with the shell.
     castButton.tap()

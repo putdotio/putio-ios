@@ -734,6 +734,31 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-24-ipad-selection")
   }
 
+  func testVideoPlayer() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let retry = app.buttons["Try again"]
+    if retry.appears(within: 10) { retry.tap() }
+    XCTAssertTrue(element("video.ready").appears(within: 15), "the episode never played")
+    XCTAssertEqual(
+      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+    let position = element("video.current-position")
+    XCTAssertTrue(
+      position.appears(within: 10) && position.value as? String != "0",
+      "the episode is not playing")
+    let playPause = element("video.play-pause")
+    app.revealVideoControls(showing: playPause)
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      playPause.tap()
+      XCTAssertTrue(playPause.becomesHittable(within: 2))
+    }
+    try captureBoard("rd-ios-pb-02-video")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()

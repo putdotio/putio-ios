@@ -70,7 +70,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.error").appears(within: 10))
     app.buttons["Try again"].tap()
     XCTAssertTrue(element("video.ready").appears(within: 15))
-    element("video.done").tap()
+    app.closeVideo()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     XCTAssertFalse(app.navigationBars.buttons["BackButton"].exists)
     // Outwait the seeded restoration response to detect a late path overwrite.
