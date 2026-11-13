@@ -256,8 +256,9 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
       PutioTrashErrorPresentation(
         title: String(localized: "Could not load Trash", bundle: .module), error: error)
     #else
-      guard let failure = PutioTrashErrorPresentation(
-        title: PutioScreenErrorKind.failed.title, error: error)
+      guard
+        let failure = PutioTrashErrorPresentation(
+          title: PutioScreenErrorKind.failed.title, error: error)
       else { return nil }
       guard failure.isOffline else { return failure }
       return PutioTrashErrorPresentation(
