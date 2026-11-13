@@ -16,7 +16,6 @@ typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async 
 final class PutioOfflineQueue {
   static let defaultConcurrencyLimit = 3
   static let concurrencyLimits = [1, 2, 3, 4]
-  /// A single download may not exceed this many bytes.
   static let maximumDownloadBytes: Int64 = 8 * 1024 * 1024 * 1024
 
   private(set) var items: [PutioOfflineItem] = []
@@ -713,6 +712,7 @@ final class PutioOfflineQueue {
   private func process(fileID: PutioFileID) async {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     let item = items[index]
+    streamEstimated.remove(fileID)
     do {
       try checkActiveWork()
       var resolution = try await resolve(fileID, item.kind)
@@ -791,7 +791,6 @@ final class PutioOfflineQueue {
     return false
   }
 
-  /// Free space the device must keep after a download.
   static let minimumFreeBytes: Int64 = 200 * 1024 * 1024
 
   static func fits(estimatedBytes: Int64, freeBytes: Int64) -> Bool {

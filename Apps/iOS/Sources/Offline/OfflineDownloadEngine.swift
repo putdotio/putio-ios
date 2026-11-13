@@ -16,8 +16,6 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   /// A write the engine could not make; the queue reports it with its own.
   var onPersistenceFailure: ((Error) -> Void)? { get set }
 
-  /// The bytes a download of every rendition takes, read from the asset
-  /// without downloading it.
   func estimatedBytes(url: URL) async throws -> Int64
   func start(fileID: PutioFileID, url: URL, title: String) async throws
   func pause(fileID: PutioFileID)
@@ -139,8 +137,6 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     try await estimate(url)
   }
 
-  /// Every property load must succeed; a failure here fails the download
-  /// instead of admitting it on a guess.
   static func streamEstimate(url: URL) async throws -> Int64 {
     let asset = AVURLAsset(url: url)
     let (duration, variants) = try await asset.load(.duration, .variants)
@@ -180,8 +176,6 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     task.resume()
   }
 
-  /// Every combination of audio and subtitle renditions is attached to the
-  /// primary content configuration, so the stored asset keeps all of them.
   static func prepareConfiguration(url: URL, title: String) async throws
     -> AVAssetDownloadConfiguration
   {
