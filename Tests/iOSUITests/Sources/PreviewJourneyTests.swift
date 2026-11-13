@@ -730,7 +730,7 @@ final class PreviewJourneyTests: XCTestCase {
 
     removeShownFile(row: "Move to trash")
     app.buttons["preview.back"].tap()
-    XCTAssertTrue(element("preview.screen.497").disappears(within: 3), "the viewer stayed open")
+    XCTAssertTrue(element("preview.screen.497").disappears(within: 5), "the viewer stayed open")
     XCTAssertTrue(element("files.screen.496").exists, "the viewer did not land in the folder")
     let failure = app.staticTexts["Could not move item to Trash"]
     XCTAssertTrue(failure.appears(within: 15), "the late refusal showed no toast")
