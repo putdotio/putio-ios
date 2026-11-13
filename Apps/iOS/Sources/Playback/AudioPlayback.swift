@@ -380,6 +380,9 @@ final class PutioAudioPlayerModel {
     let requestGeneration = generation
     await positionPipeline.waitForPendingReports(fileID: completed.id)
     guard requestGeneration == generation, !Task.isCancelled else { return }
+    positionReporter?.stop()
+    await positionPipeline.waitForPendingReports(fileID: completed.id)
+    guard requestGeneration == generation, !Task.isCancelled else { return }
     do {
       let next = try await loadNext(completed.id)
       guard requestGeneration == generation, !Task.isCancelled else { return }
@@ -429,7 +432,6 @@ final class PutioAudioPlayerModel {
       guard let self, case .playing(let track) = state else { return }
       if let durationSeconds { elapsedSeconds = durationSeconds }
       _ = positionReporter?.playbackEnded()
-      positionReporter?.stop()
       beginTransition()
       elapsedSeconds = 0
       publishNowPlaying()
