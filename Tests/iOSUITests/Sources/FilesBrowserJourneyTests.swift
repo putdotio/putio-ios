@@ -1031,7 +1031,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     // warning must stay visible with its own retry, alongside the empty state.
     let staleStorage = app.staticTexts["Storage totals are out of date"]
     XCTAssertTrue(staleStorage.appears(within: 5), app.debugDescription)
-    XCTAssertTrue(app.staticTexts["Your trash is empty"].exists, "empty state hidden behind the error")
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].exists, "empty state hidden behind the error")
     let updateStorage = app.buttons["Update storage"]
     XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
     updateStorage.tap()
