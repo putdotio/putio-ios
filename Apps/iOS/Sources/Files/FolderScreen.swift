@@ -428,11 +428,11 @@ struct PutioFolderScreen: View {
     }
     .onGeometryChange(for: CGFloat.self, of: \.size.width) { listWidth = $0 }
     .scrollPosition($scrollPosition)
-    .onScrollGeometryChange(for: CGFloat.self) { geometry in
-      geometry.contentOffset.y + geometry.contentInsets.top
-    } action: { _, offset in
-      guard restoredScroll else { return }
-      scrollAnchors?.save(offset, for: route.id)
+    .onScrollPhaseChange { oldPhase, newPhase, context in
+      guard restoredScroll, oldPhase != .idle, newPhase == .idle else { return }
+      let geometry = context.geometry
+      scrollAnchors?.save(
+        geometry.contentOffset.y + geometry.contentInsets.top, for: route.id)
     }
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
   }

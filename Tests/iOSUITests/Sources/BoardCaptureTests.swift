@@ -15,6 +15,7 @@ final class BoardCaptureTests: XCTestCase {
 
   override func tearDown() {
     orient(.portrait)
+    restoreDuoPosture()
     super.tearDown()
   }
 
@@ -883,6 +884,14 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(10) { window.exists && window.frame.size == Self.openDuoSize },
       "the iPhone Duo never unfolded: window is \(window.frame.size) pt")
+  }
+
+  private func restoreDuoPosture() {
+    switch ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] {
+    case "duo-folded": try? setHinge(degrees: 0)
+    case "duo-open": try? setHinge(degrees: 180)
+    default: break
+    }
   }
 
   private func setHinge(degrees: Int) throws {
@@ -2628,8 +2637,9 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func navigationBack() -> XCUIElement {
-    let back = app.descendants(matching: .any).matching(identifier: "BackButton").firstMatch
-    return back.exists ? back : app.navigationBars.buttons.firstMatch
+    let backs = app.descendants(matching: .any).matching(identifier: "BackButton")
+    let hittable = backs.allElementsBoundByIndex.last(where: \.isHittable)
+    return hittable ?? app.navigationBars.buttons.firstMatch
   }
 
   private func tabButton(_ label: String) -> XCUIElement {
