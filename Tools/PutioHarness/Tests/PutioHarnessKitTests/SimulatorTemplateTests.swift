@@ -14,7 +14,7 @@ private let runtime = try! JSONDecoder().decode(
     """#.utf8))
 
 private func withFakeTemplateSimctl(
-  existing: String?, _ body: (SimulatorHarness) throws -> String?
+  existing: String?, failing: String? = nil, _ body: (SimulatorHarness) throws -> String?
 ) throws -> (template: String?, calls: [String]) {
   let root = FileManager.default.temporaryDirectory.appending(
     path: "putio-simulator-template-\(UUID().uuidString.lowercased())")
@@ -31,6 +31,7 @@ private func withFakeTemplateSimctl(
     case "$2" in
       list) echo '{"devices":{"\(runtime.identifier)":[\(listed)]}}';;
       create) echo NEW-TEMPLATE;;
+      \(failing ?? "-") ) exit 1;;
     esac
     """
   let xcrun = bin.appending(path: "xcrun")
@@ -40,7 +41,13 @@ private func withFakeTemplateSimctl(
   let harness = SimulatorHarness(
     context: RepositoryContext(root: root),
     runner: ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]))
-  let template = try body(harness)
+  let template: String?
+  do {
+    template = try body(harness)
+  } catch {
+    guard failing != nil else { throw error }
+    template = nil
+  }
   let calls =
     (try? String(contentsOf: log, encoding: .utf8))?.split(separator: "\n").map(String.init) ?? []
   return (template, calls)
@@ -59,30 +66,70 @@ struct SimulatorTemplateTests {
     #expect(run.calls == ["simctl list devices -j"])
   }
 
-  @Test func missingTemplateIsCreatedBootedOnceAndShutDown() throws {
+  @Test(arguments: [["PUTIO_SIMULATOR_TEMPLATES": "1"], [:], ["CI": "false"]])
+  func missingTemplateIsMadeUnderATemporaryNameThenRenamed(environment: [String: String])
+    throws
+  {
     let run = try withFakeTemplateSimctl(existing: nil) { harness in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
+        environment: environment)
+    }
+    let name = "putio-template-iOS-26-5-iPhone-17-Pro"
+    #expect(run.template == "NEW-TEMPLATE")
+    #expect(run.calls.count == 7)
+    #expect(run.calls.first == "simctl list devices -j")
+    let create = run.calls.dropFirst().first ?? ""
+    #expect(create.hasPrefix("simctl create putio-pending-\(name)-"))
+    #expect(
+      create.hasSuffix(
+        " com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
+          + " com.apple.CoreSimulator.SimRuntime.iOS-26-5"))
+    #expect(
+      Array(run.calls.dropFirst(2)) == [
+        "simctl boot NEW-TEMPLATE",
+        "simctl bootstatus NEW-TEMPLATE -b -d",
+        "simctl shutdown NEW-TEMPLATE",
+        "simctl list devices -j",
+        "simctl rename NEW-TEMPLATE \(name)",
+      ])
+  }
+
+  @Test func failedFirstBootDeletesThePendingDevice() throws {
+    let run = try withFakeTemplateSimctl(existing: nil, failing: "bootstatus") { harness in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
         environment: enabled)
     }
-    #expect(run.template == "NEW-TEMPLATE")
+    #expect(run.template == nil)
     #expect(
-      run.calls == [
-        "simctl list devices -j",
-        "simctl create putio-template-iOS-26-5-iPhone-17-Pro"
-          + " com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
-          + " com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      Array(run.calls.dropFirst(2)) == [
         "simctl boot NEW-TEMPLATE",
         "simctl bootstatus NEW-TEMPLATE -b -d",
         "simctl shutdown NEW-TEMPLATE",
+        "simctl delete NEW-TEMPLATE",
+        "simctl list devices -j",
       ])
+    #expect(!run.calls.contains { $0.hasPrefix("simctl rename") })
+  }
+
+  @Test func localRunsReuseTheTemplateByDefault() throws {
+    let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
+        environment: [:])
+    }
+    #expect(run.template == "CACHED-TEMPLATE")
+    #expect(run.calls == ["simctl list devices -j"])
   }
 
   @Test(arguments: [
-    (HarnessPlatform.ios, [String: String]()),
+    (HarnessPlatform.ios, ["CI": "true"]),
+    (HarnessPlatform.ios, ["CI": "1"]),
+    (HarnessPlatform.ios, ["PUTIO_SIMULATOR_TEMPLATES": "0"]),
     (HarnessPlatform.tvos, ["PUTIO_SIMULATOR_TEMPLATES": "1"]),
   ])
-  func templatesStayOffOutsideCIAndForOtherPlatforms(
+  func templatesStayOffWhenCIHasNoneOptedOutOrOtherPlatforms(
     platform: HarnessPlatform, environment: [String: String]
   ) throws {
     let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness in

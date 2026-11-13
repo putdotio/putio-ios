@@ -391,7 +391,8 @@ let unusedSimulatorJobs = [
   "com.apple.WebBookmarks.webbookmarksd",
 ]
 
-/// CI caches devices with this prefix; the harness never deletes them.
+/// Finished template devices keep this prefix; CI caches them and local runs
+/// reuse them. One still being made has another name until its first boot ends.
 let simulatorTemplatePrefix = "putio-template-"
 
 func simulatorTemplateName(runtime: String, deviceType: String) -> String {
@@ -2181,30 +2182,56 @@ public struct SimulatorHarness {
     }
   }
 
-  /// CI restores an iOS device that has already booted once. Its clones skip
-  /// first-boot data migration, which takes one to several minutes on hosted
-  /// runners. A missing template is created here and kept for CI to cache.
+  /// Clones of an iOS device that has already booted once skip first-boot data
+  /// migration, which takes one to several minutes and keeps every core busy.
+  /// Local runs use templates unless `PUTIO_SIMULATOR_TEMPLATES=0`; CI opts in
+  /// with `1` only when it restores or saves one. A missing template is created
+  /// here and kept.
   func simulatorTemplate(
     platform: HarnessPlatform,
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> String? {
-    guard platform == .ios, environment["PUTIO_SIMULATOR_TEMPLATES"] == "1" else { return nil }
+    let onCI = environment["CI"].map { $0 == "true" || $0 == "1" } ?? false
+    let enabled = environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 != "0" } ?? !onCI
+    guard platform == .ios, enabled else { return nil }
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
-    let output = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "find Simulator template")
-    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-    if let template = devices.devices[runtime.identifier]?.first(where: { $0.name == name }) {
-      return template.udid
+    if let template = try existingTemplate(named: name, runtime: runtime) {
+      return template
+    }
+    // The device takes the template's name only after its first boot, so no run
+    // clones a half-made one; a failed or interrupted one is deleted.
+    let pending = "putio-pending-\(name)-\(String(UUID().uuidString.prefix(8)).lowercased())"
+    try SimulatorLifecycle.shared.register { [runner] in
+      try cleanupSimulators(named: [pending], runner: runner)
     }
     let identifier = try createDevice(
-      name: name, type: deviceType.identifier, runtime: runtime.identifier)
-    try boot(identifier, label: "\(platform.rawValue) template")
-    _ = try runner.checked(
-      "xcrun", ["simctl", "shutdown", identifier],
-      context: "shut down \(platform.rawValue) Simulator template")
+      name: pending, type: deviceType.identifier, runtime: runtime.identifier)
+    do {
+      try boot(identifier, label: "\(platform.rawValue) template")
+      _ = try runner.checked(
+        "xcrun", ["simctl", "shutdown", identifier],
+        context: "shut down \(platform.rawValue) Simulator template")
+      if let template = try existingTemplate(named: name, runtime: runtime) {
+        try cleanupSimulatorIdentifiers([identifier], runner: runner)
+        return template
+      }
+      _ = try runner.checked(
+        "xcrun", ["simctl", "rename", identifier, name],
+        context: "name \(platform.rawValue) Simulator template")
+    } catch {
+      try? cleanupSimulatorIdentifiers([identifier], runner: runner)
+      throw error
+    }
     return identifier
+  }
+
+  private func existingTemplate(named name: String, runtime: RuntimeRecord) throws -> String? {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "list Simulator templates")
+    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    return devices.devices[runtime.identifier]?.first(where: { $0.name == name })?.udid
   }
 
   private func cloneDevice(_ template: String, name: String) throws -> String {
