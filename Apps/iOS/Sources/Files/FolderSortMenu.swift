@@ -49,16 +49,21 @@ struct PutioFolderSortMenu: View {
   private func row(
     _ title: String, isChecked: Bool, sort: @escaping @MainActor () -> PutioFolderSort
   ) -> some View {
-    Toggle(
-      title,
-      isOn: Binding(
-        get: { isChecked },
-        set: { _ in
-          let choice = sort()
-          guard choice != current else { return }
-          onSelect(choice)
-        }
-      )
-    )
+    Button {
+      let choice = sort()
+      guard choice != current else { return }
+      onSelect(choice)
+    } label: {
+      Label {
+        Text(title)
+      } icon: {
+        Image(uiImage: isChecked ? Self.checkmark : Self.uncheckedSpace)
+      }
+    }
   }
+
+  private static let checkmark =
+    UIImage(systemName: "checkmark")?
+    .withTintColor(UIColor(PutioTheme.Colors.accent), renderingMode: .alwaysOriginal) ?? UIImage()
+  private static let uncheckedSpace = UIGraphicsImageRenderer(size: checkmark.size).image { _ in }
 }

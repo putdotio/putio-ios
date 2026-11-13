@@ -95,7 +95,7 @@ struct MainTabView: View {
     TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
       } label: {
         Label {
           Text("Files")
@@ -105,7 +105,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
       } label: {
         Label {
           Text("Downloads")
@@ -123,7 +123,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
           .id(historyRevision)
         } label: {
           Label {
@@ -153,7 +153,7 @@ struct MainTabView: View {
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
           }
         )
-        .putioToast(shellToast)
+        .shellTabContent(shellToast)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -175,7 +175,7 @@ struct MainTabView: View {
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
-        .putioToast(shellToast)
+        .shellTabContent(shellToast)
       }
       if !pins.sectionItems.isEmpty {
         TabSection {
@@ -198,6 +198,7 @@ struct MainTabView: View {
         }
       }
     }
+    .tint(PutioTheme.Colors.accent)
     .tabViewStyle(.sidebarAdaptable)
     .defaultAdaptableTabBarPlacement(.tabBar)
     .tabViewSidebarBottomBar {
@@ -968,4 +969,10 @@ private final class PutioOfflineQueueHolder {
 
   /// Stops only a queue that was built; teardown must not build one.
   func stop() { built?.stop() }
+}
+
+extension View {
+  fileprivate func shellTabContent(_ toast: Binding<PutioToast?>) -> some View {
+    putioToast(toast).tint(PutioTheme.Colors.textPrimary)
+  }
 }

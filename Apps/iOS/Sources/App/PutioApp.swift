@@ -46,7 +46,7 @@ struct PutioApp: App {
               && ProcessInfo.processInfo.arguments.contains("--putio-harness-rating-link")))
       #endif
       .preferredColorScheme(.dark)
-      .tint(PutioTheme.Colors.accent)
+      .tint(PutioTheme.Colors.textPrimary)
       .background { ContentSizeCap().frame(width: 0, height: 0) }
     }
   }

@@ -2273,7 +2273,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func isChecked(_ choice: XCUIElement) -> Bool {
-    choice.isSelected || choice.value as? String == "1"
+    choice.isSelected || choice.value as? String == "1" || choice.images["selected"].exists
   }
 
   private func assertChecked(

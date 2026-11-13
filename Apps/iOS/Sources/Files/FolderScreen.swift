@@ -487,6 +487,7 @@ struct PutioFolderScreen: View {
           HStack(spacing: PutioTheme.Spacing.space2) {
             ProgressView()
               .controlSize(.small)
+              .tint(PutioTheme.Colors.textSecondary)
             Text("Updating file order")
               .putioFont(PutioTheme.Typography.body)
           }
