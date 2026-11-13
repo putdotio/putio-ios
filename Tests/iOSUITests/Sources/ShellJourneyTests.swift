@@ -38,6 +38,8 @@ final class ShellJourneyTests: XCTestCase {
       search.frame.minX, tabButton("Account").frame.maxX + 8,
       "Search sits inside the tab bar instead of beside it")
     search.tap()
+    XCTAssertTrue(app.searchFields.firstMatch.appears(within: 5), "Search opened no field")
+    tabButton("Account").tap()
     tabButton("Files").tap()
     XCTAssertTrue(
       element("files.screen.410").appears(within: 5), "switching tabs reset the Files path")
