@@ -279,6 +279,7 @@ private struct PutioFileDetailColumn: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
     if let select {
       content
+        .toolbar(removing: .sidebarToggle)
         .environment(\.putioFileDetailSelect, select)
         .environment(\.putioFileDetailClear, clear)
         .putioListDetailOpenRow(selection?.route.id)

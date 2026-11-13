@@ -47,6 +47,7 @@ struct PutioFileDetailView: View {
     }
     .putioContentBackground()
     .toolbar(.hidden, for: .navigationBar)
+    .toolbar(removing: .sidebarToggle)
     .background {
       if let file = share.presented(for: item.id) {
         PutioShareSheetAnchor(file: file, name: item.name, model: share)
@@ -207,6 +208,8 @@ struct PutioFileDetailView: View {
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .frame(minWidth: PutioFileDetailLayout.factLabelWidth, alignment: .leading)
+        .accessibilityLabel(Text(verbatim: "\(label), \(value)"))
+        .accessibilityIdentifier("files.detail.fact.\(id)")
       Group {
         if numeric {
           Text(value).putioFont(PutioTheme.Typography.numeric)
@@ -216,9 +219,8 @@ struct PutioFileDetailView: View {
       }
       .foregroundStyle(PutioTheme.Colors.textPrimary)
       .fixedSize(horizontal: false, vertical: true)
+      .accessibilityHidden(true)
     }
-    .accessibilityElement(children: .combine)
-    .accessibilityIdentifier("files.detail.fact.\(id)")
   }
 
   private var folderText: String? {
