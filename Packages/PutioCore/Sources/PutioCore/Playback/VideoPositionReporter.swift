@@ -35,6 +35,7 @@ public final class PutioVideoPositionReporter {
   private var activeSchedule: (any PutioPositionReportSchedule)?
   private var isStopped = false
   private var requestedPosition: Int?
+  private var finalPosition: Int?
 
   public init(
     fileID: PutioFileID,
@@ -81,9 +82,9 @@ public final class PutioVideoPositionReporter {
   }
 
   public func savePosition() {
-    guard !isStopped, isReady, isPositionEstablished, !hasReportedFinalPosition,
-      let position = currentPosition()
-    else { return }
+    guard !isStopped, isReady, isPositionEstablished else { return }
+    guard !hasReportedFinalPosition else { return resendUnsavedFinalPosition() }
+    guard let position = currentPosition() else { return }
     enqueue(position)
   }
 
@@ -102,11 +103,12 @@ public final class PutioVideoPositionReporter {
     guard remembersPosition else { return true }
     switch endOfPlayback {
     case .resetsPosition:
-      enqueue(0, preservesOrdering: true)
+      finalPosition = 0
     case .keepsPosition:
-      if let position = currentPosition() {
-        enqueue(position, preservesOrdering: true)
-      }
+      finalPosition = currentPosition()
+    }
+    if let finalPosition {
+      enqueue(finalPosition, preservesOrdering: true)
     }
     return true
   }
@@ -116,6 +118,7 @@ public final class PutioVideoPositionReporter {
   public func playbackRestarted() -> Bool {
     guard !isStopped, hasReportedFinalPosition else { return false }
     hasReportedFinalPosition = false
+    finalPosition = nil
     return true
   }
 
@@ -123,9 +126,9 @@ public final class PutioVideoPositionReporter {
   /// lets go of its item.
   public func stop() {
     guard !isStopped else { return }
-    if !hasReportedFinalPosition, isReady, isPositionEstablished,
-      let position = currentPosition()
-    {
+    if hasReportedFinalPosition {
+      resendUnsavedFinalPosition()
+    } else if isReady, isPositionEstablished, let position = currentPosition() {
       hasReportedFinalPosition = true
       enqueue(position)
     }
@@ -137,6 +140,11 @@ public final class PutioVideoPositionReporter {
     isStopped = true
     activeSchedule?.invalidate()
     activeSchedule = nil
+  }
+
+  private func resendUnsavedFinalPosition() {
+    guard let finalPosition, requestedPosition == nil else { return }
+    enqueue(finalPosition, preservesOrdering: true)
   }
 
   private func enqueue(_ position: Int, preservesOrdering: Bool = false) {

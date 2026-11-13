@@ -231,6 +231,26 @@ final class PutioVideoPositionReporterTests: XCTestCase {
     XCTAssertEqual(harness.reported, [590])
   }
 
+  func testAFailedEndSaveIsSentAgainOnTheNextTick() async throws {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter(endOfPlayback: .keepsPosition)
+    reporter.positionEstablished()
+    reporter.ready()
+    let schedule = try XCTUnwrap(harness.schedules.first)
+
+    harness.failingSaves = 1
+    harness.position = 590
+    XCTAssertTrue(reporter.playbackEnded())
+    await harness.drain()
+    XCTAssertEqual(harness.reported, [])
+    schedule.tick()
+    schedule.tick()
+    reporter.stop()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [590, 590])
+    XCTAssertEqual(harness.reported, [590])
+  }
+
   func testNoCadenceBeforeThePositionIsEstablished() {
     let harness = ReporterHarness()
     let reporter = harness.reporter()
