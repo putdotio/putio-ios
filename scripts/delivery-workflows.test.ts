@@ -555,7 +555,7 @@ test("release builds fail without well-formed Intercom keys", async () => {
 
 test("the dSYM upload sends the kept symbols to Sentry project ios and fails loudly without them", async (t) => {
   const dir = await tempDir(t);
-  await writeFile(join(dir, "sentry-cli"), '#!/bin/bash\necho "$*" >> "$SENTRY_LOG"\nexit "${FAKE_SENTRY_STATUS:-0}"\n');
+  await writeFile(join(dir, "sentry-cli"), '#!/bin/bash\necho "${SENTRY_ORG-unset} $*" >> "$SENTRY_LOG"\nexit "${FAKE_SENTRY_STATUS:-0}"\n');
   await chmod(join(dir, "sentry-cli"), 0o755);
   const dsyms = join(dir, "dsyms");
   await mkdir(join(dsyms, "Putio.app.dSYM/Contents/Resources/DWARF"), { recursive: true });
@@ -571,8 +571,11 @@ test("the dSYM upload sends the kept symbols to Sentry project ios and fails lou
 
   const uploaded = await upload({});
   assert.equal(uploaded.status, 0, uploaded.stdout);
-  assert.deepEqual(uploaded.calls, [`debug-files upload --project ios --wait-for 600 ${dsyms}`]);
-  assert.deepEqual((await upload({ SENTRY_ORG: "example" })).calls, [`debug-files upload --project ios --wait-for 600 --org example ${dsyms}`]);
+  assert.deepEqual(uploaded.calls, [`unset debug-files upload --project ios --wait-for 600 ${dsyms}`]);
+  const emptyOrg = await upload({ SENTRY_ORG: "" });
+  assert.equal(emptyOrg.status, 0, emptyOrg.stdout);
+  assert.deepEqual(emptyOrg.calls, [`unset debug-files upload --project ios --wait-for 600 ${dsyms}`], "an unset repository variable reaches the step as an empty SENTRY_ORG");
+  assert.deepEqual((await upload({ SENTRY_ORG: "example" })).calls, [`example debug-files upload --project ios --wait-for 600 --org example ${dsyms}`]);
 
   const refusals: [string, Record<string, string>, string, RegExp][] = [
     ["an empty token", { SENTRY_AUTH_TOKEN: "" }, dsyms, /SENTRY_AUTH_TOKEN is empty/],
@@ -612,6 +615,7 @@ test("Beta and Release keep the archive's dSYMs and upload them without holding 
     assert.equal(recordAt(steps[keep] ?? {}, "with", name)["retention-days"], 90, `${name} keeps the dSYMs for the longest retention`);
     const env = recordAt(steps[sentry] ?? {}, "env", name);
     assert.equal(env.SENTRY_AUTH_TOKEN, "${{ secrets.SENTRY_AUTH_TOKEN }}");
+    assert.equal(env.SENTRY_ORG, "${{ vars.SENTRY_ORG }}");
     assert.match(String(steps[sentry]?.run), /^mise install sentry-cli$/m);
     assert.match(String(steps[sentry]?.run), new RegExp(`mise exec sentry-cli -- \\./scripts/upload-dsyms\\.sh "\\$${dsymPath}"`));
   }
