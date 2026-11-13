@@ -187,7 +187,11 @@ struct ClearDataView: View {
 }
 
 struct DestroyAccountView: View {
+  let runtime: PutioRuntime
+  let onDestroyed: @MainActor () -> Void
   @Environment(\.openURL) private var openURL
+  @Environment(\.scenePhase) private var scenePhase
+  @State private var handedOff = false
 
   var body: some View {
     List {
@@ -199,6 +203,7 @@ struct DestroyAccountView: View {
         footer: String(localized: "Opens put.io in your browser to finish.")
       ) {
         PutioDestructiveRow(String(localized: "Destroy account"), alignment: .center) {
+          handedOff = true
           openURL(PutioAccountWeb.dangerZoneURL)
         }
         .accessibilityAddTraits(.isLink)
@@ -210,5 +215,14 @@ struct DestroyAccountView: View {
     .navigationBarTitleDisplayMode(.inline)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
+    .onChange(of: scenePhase) { _, phase in
+      guard phase == .active, handedOff else { return }
+      Task { await purgeIfDestroyed() }
+    }
+  }
+
+  private func purgeIfDestroyed() async {
+    _ = await runtime.refreshAccount()
+    if case .signedOut(.sessionExpired) = runtime.session.state { onDestroyed() }
   }
 }

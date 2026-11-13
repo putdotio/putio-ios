@@ -22,6 +22,7 @@ struct AccountScreen: View {
   let linkDeviceCode: String?
   let downloads: PutioOfflineQueue
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
+  let onAccountDestroyed: @MainActor () -> Void
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @State private var preferences: PutioAccountPreferencesModel
   @State private var destination: AccountDestination?
@@ -37,7 +38,8 @@ struct AccountScreen: View {
     showsLinkDevice: Binding<Bool>,
     linkDeviceCode: String?,
     downloads: PutioOfflineQueue,
-    onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
+    onDataCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void,
+    onAccountDestroyed: @escaping @MainActor () -> Void
   ) {
     self.runtime = runtime
     self.account = account
@@ -49,6 +51,7 @@ struct AccountScreen: View {
     self.linkDeviceCode = linkDeviceCode
     self.downloads = downloads
     self.onDataCleared = onDataCleared
+    self.onAccountDestroyed = onAccountDestroyed
     _preferences = State(
       initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
   }
@@ -150,7 +153,7 @@ struct AccountScreen: View {
     case .clearData:
       ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
     case .destroyAccount:
-      DestroyAccountView()
+      DestroyAccountView(runtime: runtime, onDestroyed: onAccountDestroyed)
     }
   }
 }
