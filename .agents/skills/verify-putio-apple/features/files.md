@@ -112,6 +112,9 @@ Preconditions:
   and rolls back, Try again on the toast applies it, and bulk Trash fails once,
   then moves both items on retry. Screenshots: `runtime-rename-failed-toast`,
   `runtime-file-actions`.
+- **New folder failure.** `--putio-harness-create-folder-fails-once` fails the
+  first create-folder request; Try again creates the same name. Board:
+  `rd-ios-81-new-folder-failed-toast`.
 - **Move sheet.** Run `--only move-sheet`. Moving `Blue.Lights.S04E01.en.srt`
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.

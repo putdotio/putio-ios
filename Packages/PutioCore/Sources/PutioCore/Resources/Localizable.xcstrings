@@ -278,17 +278,6 @@
         }
       }
     },
-    "Could not create folder" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not create folder"
-          }
-        }
-      }
-    },
     "Could not delete item" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -582,6 +571,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t create a link. %@"
+          }
+        }
+      }
+    },
+    "Couldn’t create folder." : {
+      "comment" : "ios-only: the New folder failure toast is drawn on an iOS board; Android has no key for it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t create folder."
           }
         }
       }

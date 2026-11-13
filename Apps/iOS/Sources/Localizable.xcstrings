@@ -917,17 +917,6 @@
         }
       }
     },
-    "Could not create folder" : {
-      "comment" : "ios-only: no New folder failure line on a board or in Android yet",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not create folder"
-          }
-        }
-      }
-    },
     "Could not delete original" : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -1122,6 +1111,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t check your session"
+          }
+        }
+      }
+    },
+    "Couldn’t create folder." : {
+      "comment" : "ios-only: the New folder failure toast is drawn on an iOS board; Android has no key for it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t create folder."
           }
         }
       }

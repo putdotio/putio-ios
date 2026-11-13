@@ -341,7 +341,7 @@ private struct PutioMoveLevel: View {
       message: String(localized: "In \(route.title)"),
       initialText: "",
       submitTitle: String(localized: "Create"),
-      failureText: String(localized: "Could not create folder")
+      failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
       guard let outcome = model.actionOutcome, case .createFolder = outcome.action else {

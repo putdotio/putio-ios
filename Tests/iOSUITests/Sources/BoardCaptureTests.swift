@@ -500,6 +500,30 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-77-rename-failed-toast")
   }
 
+  func testNewFolderFailedToast() throws {
+    orient(.portrait)
+    app.launchArguments.append("--putio-harness-create-folder-fails-once")
+    app.launch()
+    openSeasonFolder()
+    openMoreMenu()
+    app.buttons["New folder"].tap()
+    let alert = app.putioAlert("New folder")
+    XCTAssertTrue(alert.appears(within: 5), "New folder never opened")
+    XCTAssertTrue(app.keyboards.firstMatch.appears(within: 5), "the name field never took focus")
+    app.typeText("Season 5")
+    alert.buttons["Create"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5), "the alert stayed open after Create")
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t create folder."].appears(within: 10), "no failure toast")
+    let retry = app.buttons["Try again"]
+    XCTAssertTrue(retry.exists, "the failure toast offers no Try again")
+    XCTAssertFalse(app.staticTexts["Season 5"].exists, "the failed folder appeared")
+    try captureBoard("rd-ios-81-new-folder-failed-toast")
+    retry.tap()
+    XCTAssertTrue(
+      app.staticTexts["Season 5"].appears(within: 10), "Try again did not create the same name")
+  }
+
   func testSortMenu() throws {
     XCUIDevice.shared.orientation = .portrait
     app.launch()
