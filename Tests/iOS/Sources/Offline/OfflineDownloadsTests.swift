@@ -1183,11 +1183,11 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertNotEqual(queue.item(for: PutioFileID(rawValue: 61))?.stage, .completed)
   }
 
-  func testStartGateReservesResolvingWorkersToo() async {
+  func testStartGateIgnoresTheOriginalSizeOfAVideoStillResolving() async {
     let gate = makeGate()
     let queue = PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
-      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      sleep: { _ in }, availableStorage: { 5_000_000_000 },
       resolve: { fileID, _ in
         if fileID.rawValue == 1 { await gate.wait() }
         return .ready(
@@ -1196,19 +1196,18 @@ final class OfflineDownloadsTests: XCTestCase {
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
       reportPosition: { _, _ in }, deleteOriginal: { _ in })
-    engine.estimates = [1: 600_000_000, 2: 600_000_000]
+    engine.estimates = [1: 1_000_000_000, 2: 1_000_000_000]
     queue.enqueue(
       fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
-      estimatedBytes: 600_000_000)
+      estimatedBytes: 10_000_000_000)
     queue.enqueue(
       fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video,
-      estimatedBytes: 600_000_000)
+      estimatedBytes: 10_000_000_000)
     await settle()
-    // Item 2 resolved while item 1 was still resolving; item 1's estimate is reserved.
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [2])
     await gate.open()
     await settle()
-    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [2, 1])
   }
 
   func testReQueueDropsThePreviousPartialPackage() async throws {
