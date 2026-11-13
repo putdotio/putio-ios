@@ -59,8 +59,8 @@ images and documents, and opens put.io links into the same screens.
 - `preview-trash-limit` asks before deleting the shown file permanently when
   Trash refuses it.
 - `deep-links` opens links cold, warm, and signed out.
-- `large-text` keeps long names, selection, and the download picker usable at
-  the largest text size.
+- `large-text` keeps long names, selection, and Downloads usable at the
+  largest text size.
 
 ## How to get to it (user POV)
 
@@ -186,7 +186,7 @@ Preconditions:
   [deep-link behavior](../../../../docs/deep-links.md).
 - **Large text.** Run `--only accessibility-files`. Screenshots:
   `runtime-accessibility-files`, `runtime-accessibility-selection`,
-  `runtime-accessibility-downloads`, `runtime-accessibility-download-picker`.
+  `runtime-accessibility-downloads`.
 
 ## Gotchas
 

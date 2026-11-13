@@ -56,6 +56,34 @@ struct OfflineDownloadEngineTests {
     func close() { session.invalidateAndCancel() }
   }
 
+  @Test func theMultiAudioFixtureStoresEveryAudioAndSubtitleRendition() async throws {
+    let playlist = try #require(
+      Bundle.main.url(
+        forResource: "multi-subtitles", withExtension: "m3u8",
+        subdirectory: "HarnessMedia/multi-audio"))
+    let server = try LoopbackMediaServer(directory: playlist.deletingLastPathComponent())
+    let base = try await server.start()
+    defer { server.stop() }
+    let asset = AVURLAsset(url: base.appending(path: "multi-subtitles.m3u8"))
+    let audible = try #require(try await asset.loadMediaSelectionGroup(for: .audible))
+    let legible = try #require(try await asset.loadMediaSelectionGroup(for: .legible))
+
+    let configuration = try await PutioSystemOfflineDownloadEngine.prepareConfiguration(
+      url: asset.url, title: "multi")
+
+    let selections = configuration.primaryContentConfiguration.mediaSelections
+    func languages(in group: AVMediaSelectionGroup) -> Set<String> {
+      Set(
+        selections.compactMap { selection in
+          selection.selectedMediaOption(in: group).map {
+            PutioOfflineQueue.track($0).languageCode
+          }
+        })
+    }
+    #expect(languages(in: audible) == ["en", "tr"])
+    #expect(languages(in: legible) == ["en", "tr"])
+  }
+
   @Test(arguments: [true, false])
   func supersededStartCannotDisplaceItsReplacement(replacementFinishesFirst: Bool) async throws {
     let gate = Gate()
@@ -65,7 +93,7 @@ struct OfflineDownloadEngineTests {
     let replacement = AVAssetDownloadConfiguration(asset: AVURLAsset(url: url), title: "new")
     let engine = PutioSystemOfflineDownloadEngine(
       accountID: 1,
-      prepareConfiguration: { _, title, _ in
+      prepareConfiguration: { _, title in
         if title == "old" {
           await gate.wait()
           return oldConfiguration
@@ -80,12 +108,12 @@ struct OfflineDownloadEngineTests {
       tasks.close()
     }
     let old = Task {
-      try await engine.start(fileID: fileID, url: url, title: "old", audioLanguages: ["en"])
+      try await engine.start(fileID: fileID, url: url, title: "old")
     }
     defer { old.cancel() }
     try await gate.waitUntilEntered()
     let newer = Task {
-      try await engine.start(fileID: fileID, url: url, title: "new", audioLanguages: [])
+      try await engine.start(fileID: fileID, url: url, title: "new")
     }
     defer { newer.cancel() }
     try await replacementGate.waitUntilEntered()
@@ -113,7 +141,7 @@ struct OfflineDownloadEngineTests {
     let configuration = AVAssetDownloadConfiguration(asset: AVURLAsset(url: url), title: "video")
     let engine = PutioSystemOfflineDownloadEngine(
       accountID: 1,
-      prepareConfiguration: { _, _, _ in
+      prepareConfiguration: { _, _ in
         await gate.wait()
         return configuration
       },
@@ -124,7 +152,7 @@ struct OfflineDownloadEngineTests {
       tasks.close()
     }
     let start = Task {
-      try await engine.start(fileID: fileID, url: url, title: "video", audioLanguages: ["en"])
+      try await engine.start(fileID: fileID, url: url, title: "video")
     }
     defer { start.cancel() }
     try await gate.waitUntilEntered()
@@ -148,7 +176,7 @@ struct OfflineDownloadEngineTests {
     let relay = PutioOfflineDownloadRelay(dispatch: { work in MainActor.assumeIsolated { work() } })
     let engine = PutioSystemOfflineDownloadEngine(
       accountID: 1,
-      prepareConfiguration: { _, _, _ in
+      prepareConfiguration: { _, _ in
         await gate.wait()
         return configuration
       },
@@ -186,7 +214,7 @@ struct OfflineDownloadEngineTests {
     let configuration = AVAssetDownloadConfiguration(asset: AVURLAsset(url: url), title: "video")
     let engine = PutioSystemOfflineDownloadEngine(
       accountID: 1,
-      prepareConfiguration: { _, _, _ in
+      prepareConfiguration: { _, _ in
         await gate.wait()
         return configuration
       },
@@ -197,7 +225,7 @@ struct OfflineDownloadEngineTests {
       tasks.close()
     }
     let start = Task {
-      try await engine.start(fileID: fileID, url: url, title: "video", audioLanguages: ["en"])
+      try await engine.start(fileID: fileID, url: url, title: "video")
     }
     defer { start.cancel() }
     try await gate.waitUntilEntered()

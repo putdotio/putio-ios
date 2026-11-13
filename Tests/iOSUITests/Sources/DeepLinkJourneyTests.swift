@@ -97,14 +97,8 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(app.textFields["security.link-code"].appears(within: 10))
 
     try open("putio:///files/0")
-    let downloadRow = element("files.item.412")
-    XCTAssertTrue(downloadRow.appears(within: 10))
-    downloadRow.press(forDuration: 1)
-    app.buttons["Download"].tap()
-    let trackPicker = app.buttons["downloads.picker.confirm"]
-    XCTAssertTrue(trackPicker.appears(within: 20))
+    XCTAssertTrue(element("files.item.412").appears(within: 10))
     try open("putio:///link")
-    XCTAssertTrue(trackPicker.disappears(within: 5))
     XCTAssertTrue(app.textFields["security.link-code"].appears(within: 10))
     XCTAssertTrue(app.textFields["security.link-code"].becomesHittable(within: 5))
     app.navigationBars.buttons["BackButton"].tap()

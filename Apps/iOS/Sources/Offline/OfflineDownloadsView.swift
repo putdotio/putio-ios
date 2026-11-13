@@ -348,6 +348,7 @@ struct PutioOfflineDetailView: View {
           }
           ForEach(item.storedSubtitleTracks, id: \.self) { track in
             LabeledContent(track.displayName, value: track.languageCode)
+              .accessibilityIdentifier("downloads.detail.subtitle.\(track.languageCode)")
           }
         }
       }
@@ -372,110 +373,6 @@ struct PutioOfflineDetailView: View {
     case .completed: String(localized: "Downloaded")
     case .failed(let failure): failure.message
     }
-  }
-}
-
-/// The pre-download sheet: language inventory, bounded multi-select, and the
-/// storage estimate. Audio files and single-track videos skip it.
-struct PutioOfflineTrackPickerView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  let name: String
-  let inventory: PutioOfflineInventory
-  let availableBytes: Int64
-  let onConfirm: @MainActor ([String]) -> Void
-  let onCancel: @MainActor () -> Void
-
-  @State private var selected: [String]
-
-  init(
-    name: String, inventory: PutioOfflineInventory, availableBytes: Int64,
-    preferredLanguages: [String] = Locale.preferredLanguages,
-    onConfirm: @escaping @MainActor ([String]) -> Void, onCancel: @escaping @MainActor () -> Void
-  ) {
-    self.name = name
-    self.inventory = inventory
-    self.availableBytes = availableBytes
-    self.onConfirm = onConfirm
-    self.onCancel = onCancel
-    let stored = inventory.audioOptions.map {
-      PutioOfflineTrack(languageCode: $0.languageCode, displayName: $0.displayName)
-    }
-    let preferred = PutioOfflineLanguage.preferred(
-      from: stored, preferredLanguages: preferredLanguages)
-    _selected = State(initialValue: preferred.map { [$0.languageCode] } ?? [])
-  }
-
-  private var estimate: Int64 { inventory.estimatedBytes(selecting: selected) }
-  private var overBudget: Bool {
-    !PutioOfflineQueue.fits(estimatedBytes: estimate, freeBytes: availableBytes)
-  }
-
-  var body: some View {
-    NavigationStack {
-      List {
-        Section {
-          ForEach(inventory.audioOptions) { option in
-            Toggle(isOn: binding(option.languageCode)) {
-              if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading) {
-                  Text(option.displayName)
-                  Text(PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-              } else {
-                LabeledContent(
-                  option.displayName,
-                  value: PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
-              }
-            }
-            .accessibilityIdentifier("downloads.track.\(option.languageCode)")
-          }
-        } header: {
-          Text("Audio languages")
-        } footer: {
-          Text("Every selected language is stored and can be switched while offline.")
-        }
-        Section {
-          LabeledContent(
-            "Estimated size", value: PutioFileRowModel.sizeText(bytes: estimate)
-          )
-          .accessibilityIdentifier("downloads.estimate")
-          LabeledContent(
-            "Free on device", value: PutioFileRowModel.sizeText(bytes: availableBytes))
-          if overBudget {
-            Text("This selection does not fit. Deselect a language or free up space.")
-              .foregroundStyle(PutioTheme.Colors.destructive)
-              .accessibilityIdentifier("downloads.over-budget")
-          }
-        }
-      }
-      .putioContentBackground()
-      .navigationTitle(name)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { onCancel() }.accessibilityIdentifier("downloads.picker.cancel")
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Download") { onConfirm(selected) }
-            .disabled(selected.isEmpty || overBudget)
-            .accessibilityIdentifier("downloads.picker.confirm")
-        }
-      }
-    }
-  }
-
-  private func binding(_ code: String) -> Binding<Bool> {
-    Binding(
-      get: { selected.contains(code) },
-      set: { on in
-        if on {
-          if !selected.contains(code) { selected.append(code) }
-        } else {
-          selected.removeAll { $0 == code }
-        }
-      })
   }
 }
 

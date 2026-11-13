@@ -235,17 +235,6 @@
         }
       }
     },
-    "A selected audio language is no longer available." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A selected audio language is no longer available."
-          }
-        }
-      }
-    },
     "About" : {
       "comment" : "android: mobile_settings_section_about",
       "localizations" : {
@@ -374,17 +363,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio"
-          }
-        }
-      }
-    },
-    "Audio languages" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio languages"
           }
         }
       }
@@ -1005,17 +983,6 @@
         }
       }
     },
-    "Could not start download" : {
-      "comment" : "android: mobile_downloads_meta_failed_unexpected | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not start download"
-          }
-        }
-      }
-    },
     "Couldn’t check your session" : {
       "comment" : "android: mobile_auth_unavailable_title",
       "localizations" : {
@@ -1624,6 +1591,17 @@
         }
       }
     },
+    "Download with Direct play" : {
+      "comment" : "android: mobile_files_download_with_direct_play",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download with Direct play"
+          }
+        }
+      }
+    },
     "Downloaded" : {
       "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
       "localizations" : {
@@ -1789,17 +1767,6 @@
         }
       }
     },
-    "Estimated size" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimated size"
-          }
-        }
-      }
-    },
     "Every event will be removed from your history. Your files will stay in place." : {
       "comment" : "android: mobile_history_clear_message | differs: iOS board wording",
       "localizations" : {
@@ -1829,17 +1796,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every item in Trash will be deleted and cannot be restored."
-          }
-        }
-      }
-    },
-    "Every selected language is stored and can be switched while offline." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every selected language is stored and can be switched while offline."
           }
         }
       }
@@ -4806,17 +4762,6 @@
         }
       }
     },
-    "The file could not be inspected. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS tab shell",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The file could not be inspected. Try again."
-          }
-        }
-      }
-    },
     "The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -4901,17 +4846,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This link cannot be opened in this app yet."
-          }
-        }
-      }
-    },
-    "This selection does not fit. Deselect a language or free up space." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This selection does not fit. Deselect a language or free up space."
           }
         }
       }

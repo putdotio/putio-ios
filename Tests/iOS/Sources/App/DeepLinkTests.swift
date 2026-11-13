@@ -375,7 +375,7 @@ final class DeepLinkTests: XCTestCase {
     PutioOfflineItem(
       id: PutioFileID(rawValue: id), parentID: .root, name: "Download \(id)", kind: .video,
       createdAt: .now, stage: stage, localPath: localPath, storedBytes: 0,
-      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      storedAudioTracks: [], storedSubtitleTracks: [],
       resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
   }
 

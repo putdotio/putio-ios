@@ -16,9 +16,10 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   /// A write the engine could not make; the queue reports it with its own.
   var onPersistenceFailure: ((Error) -> Void)? { get set }
 
-  /// Inspects the asset without downloading it.
-  func inventory(url: URL) async throws -> PutioOfflineInventory
-  func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
+  /// The bytes a download of every rendition takes, read from the asset
+  /// without downloading it.
+  func estimatedBytes(url: URL) async throws -> Int64
+  func start(fileID: PutioFileID, url: URL, title: String) async throws
   func pause(fileID: PutioFileID)
   func resume(fileID: PutioFileID)
   func cancel(fileID: PutioFileID)
@@ -42,7 +43,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   let accountID: Int
 
   private let prepareConfiguration:
-    @MainActor (URL, String, [String]) async throws -> AVAssetDownloadConfiguration
+    @MainActor (URL, String) async throws -> AVAssetDownloadConfiguration
   private let makeTask: @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask
   private let relay: PutioOfflineDownloadRelay
   private let allTasks: @MainActor () async -> [URLSessionTask]
@@ -50,7 +51,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   init(
     accountID: Int,
     prepareConfiguration:
-      @escaping @MainActor (URL, String, [String]) async throws -> AVAssetDownloadConfiguration =
+      @escaping @MainActor (URL, String) async throws -> AVAssetDownloadConfiguration =
       PutioSystemOfflineDownloadEngine.prepareConfiguration,
     makeTask: @escaping @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask = {
       PutioSystemOfflineDownloadEngine.sharedSession.makeAssetDownloadTask(
@@ -130,35 +131,27 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     relay.engine = self
   }
 
-  /// Every property load must succeed; a failure here is a real inventory
-  /// failure and the picker surfaces it instead of guessing.
-  func inventory(url: URL) async throws -> PutioOfflineInventory {
+  /// Every property load must succeed; a failure here fails the download
+  /// instead of admitting it on a guess.
+  func estimatedBytes(url: URL) async throws -> Int64 {
     let asset = AVURLAsset(url: url)
     let (duration, variants) = try await asset.load(.duration, .variants)
     let audible = try await asset.loadMediaSelectionGroup(for: .audible)
-    let legible = try await asset.loadMediaSelectionGroup(for: .legible)
-    let seconds = duration.seconds.isFinite ? duration.seconds : 0
-    let options = (audible?.options ?? []).map { option in
-      let track = PutioOfflineQueue.track(option)
-      return PutioOfflineAudioOption(
-        languageCode: track.languageCode, displayName: track.displayName,
-        estimatedBytes: Self.estimateAudioBytes(duration: seconds))
-    }
-    let subtitles = (legible?.options ?? []).map(PutioOfflineQueue.track)
+    let seconds = duration.seconds.isFinite ? max(duration.seconds, 0) : 0
     let variantBitrate = variants.compactMap(\.averageBitRate).max() ?? 0
-    let videoBytes = Int64(max(variantBitrate, 1_500_000) / 8 * seconds)
-    return PutioOfflineInventory(
-      videoBytes: videoBytes, audioOptions: options, subtitleTracks: subtitles)
-  }
-  /// A conservative 128 kbps per audio rendition.
-  static func estimateAudioBytes(duration: Double) -> Int64 {
-    Int64(128_000 / 8 * max(duration, 0))
+    return Self.estimatedBytes(
+      seconds: seconds, videoBitrate: variantBitrate, audioRenditions: audible?.options.count ?? 0)
   }
 
-  /// Every selected language is attached as its own media selection on the
-  /// primary content configuration, so the stored asset keeps all of them.
-  /// An empty selection keeps the asset default.
-  func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws {
+  /// The best video variant, at least 1.5 Mbps, plus a conservative 128 kbps
+  /// per audio rendition. Subtitles are too small to count.
+  static func estimatedBytes(seconds: Double, videoBitrate: Double, audioRenditions: Int) -> Int64 {
+    let video = max(videoBitrate, 1_500_000) / 8 * seconds
+    let audio = 128_000 / 8 * seconds * Double(audioRenditions)
+    return Int64(video + audio)
+  }
+
+  func start(fileID: PutioFileID, url: URL, title: String) async throws {
     try Task.checkCancellation()
     let request = UUID()
     pendingStarts[fileID] = request
@@ -170,7 +163,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       stopProgress(fileID)
       tasks[fileID] = nil
     }
-    let configuration = try await prepareConfiguration(url, title, audioLanguages)
+    let configuration = try await prepareConfiguration(url, title)
     try Task.checkCancellation()
     guard pendingStarts[fileID] == request else { throw CancellationError() }
     claimRelay()
@@ -181,32 +174,15 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     task.resume()
   }
 
-  private static func prepareConfiguration(
-    url: URL, title: String, audioLanguages: [String]
-  ) async throws -> AVAssetDownloadConfiguration {
+  /// Every combination of audio and subtitle renditions is attached to the
+  /// primary content configuration, so the stored asset keeps all of them.
+  static func prepareConfiguration(url: URL, title: String) async throws
+    -> AVAssetDownloadConfiguration
+  {
     let asset = AVURLAsset(url: url)
     let configuration = AVAssetDownloadConfiguration(asset: asset, title: title)
-    if !audioLanguages.isEmpty {
-      // A selection the asset cannot honour must fail rather than store a
-      // default-only package the queue believes is multi-language.
-      guard let group = try await asset.loadMediaSelectionGroup(for: .audible) else {
-        throw PutioOfflineEngineError.missingLanguages
-      }
-      let selections: [AVMediaSelection] = audioLanguages.compactMap { language in
-        guard
-          let option = group.options.first(where: {
-            PutioOfflineQueue.track($0).languageCode == PutioOfflineLanguage.normalize(language)
-          })
-        else { return nil }
-        guard
-          let selection = asset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection
-        else { return nil }
-        selection.select(option, in: group)
-        return selection
-      }
-      guard selections.count == audioLanguages.count else {
-        throw PutioOfflineEngineError.missingLanguages
-      }
+    let selections = try await asset.load(.allMediaSelections)
+    if !selections.isEmpty {
       configuration.primaryContentConfiguration.mediaSelections = selections
     }
     return configuration
@@ -356,10 +332,6 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       handleCompletion(fileID, task: task, error)
     }
   }
-}
-
-enum PutioOfflineEngineError: Error {
-  case missingLanguages
 }
 
 /// Passes a task's progress only when it reaches a new, higher whole percent.

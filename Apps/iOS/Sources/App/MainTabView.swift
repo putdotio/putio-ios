@@ -76,8 +76,6 @@ struct MainTabView: View {
   @State private var appConfig: PutioAppConfigModel
   @State private var pins: PutioPinnedFilesModel
   @State private var analyticsPrompt: PutioProductAnalyticsPromptModel?
-  @State private var trackPicker: PutioOfflineTrackPickerRequest?
-  @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
 
   private var shellToast: Binding<PutioToast?> {
@@ -164,7 +162,7 @@ struct MainTabView: View {
           pins: pins,
           onFileSelected: { route in selectFile(route) },
           onExternalPlayback: vlcAction,
-          onDownload: { route in Task { await requestDownload(route) } }
+          onDownload: { route in requestDownload(route) }
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
@@ -268,30 +266,7 @@ struct MainTabView: View {
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
-    .sheet(item: $trackPicker) { request in
-      PutioOfflineTrackPickerView(
-        name: request.route.item.name, inventory: request.inventory,
-        availableBytes: offlineQueue.unreservedBytes,
-        preferredLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
-        onConfirm: { languages in
-          trackPicker = nil
-          enqueueDownload(
-            request.route, audioLanguages: languages,
-            estimatedBytes: request.inventory.estimatedBytes(selecting: languages))
-        },
-        onCancel: { trackPicker = nil }
-      )
-      .preferredColorScheme(.dark)
-    }
     .modifier(PutioOfflinePersistenceFailureAlert(queue: offlineQueue))
-    .alert(
-      "Could not start download",
-      isPresented: Binding(get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } })
-    ) {
-      Button("OK", role: .cancel) { offlineFailure = nil }
-    } message: {
-      Text(offlineFailure?.message ?? "")
-    }
     .onChange(of: scenePhase) { _, phase in
       guard phase == .active else { return }
       externalPlayback.refreshInstallation()
@@ -323,7 +298,6 @@ struct MainTabView: View {
       dismissPresentedVideo()
       audioPlayback.isPresented = false
       presentedPreview = nil
-      trackPicker = nil
       switch destination {
       case .files(let path, let file):
         filesNavigation = PutioFilesNavigationRequest(path: path)
@@ -436,59 +410,16 @@ struct MainTabView: View {
     }
   }
 
-  private func requestDownloads(_ routes: [PutioFileRoute]) async {
-    for route in routes {
-      await requestDownload(route, picksLanguages: false)
-    }
+  private func requestDownloads(_ routes: [PutioFileRoute]) {
+    for route in routes { requestDownload(route) }
   }
 
-  /// Multi-audio videos go through the picker unless `picksLanguages` is off,
-  /// which keeps every language; everything else queues directly.
-  private func requestDownload(_ route: PutioFileRoute, picksLanguages: Bool = true) async {
-    let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
-    offlineQueue.refreshStorage()
-    var estimate: Int64 = route.item.sizeBytes
-    var awaitsLanguages = false
-    var audioLanguages: [String] = []
-    do {
-      switch try await offlineQueue.inventory(fileID: route.id, kind: kind) {
-      case .ready(let inventory):
-        let languages = inventory.audioOptions.map(\.languageCode)
-        if languages.count > 1 {
-          guard !picksLanguages else {
-            trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
-            return
-          }
-          audioLanguages = languages
-        }
-        estimate = inventory.estimatedBytes(selecting: languages)
-      case .needsConversion:
-        // No stream to inspect yet; every language is kept after conversion.
-        awaitsLanguages = true
-      case .notApplicable:
-        break
-      }
-    } catch {
-      offlineFailure =
-        PutioOfflineFailure.resolving(error)
-        ?? PutioOfflineFailure(
-          kind: .resolution,
-          message: String(localized: "The file could not be inspected. Try again."))
-      return
-    }
-    enqueueDownload(
-      route, audioLanguages: audioLanguages, estimatedBytes: estimate,
-      awaitsLanguageSelection: awaitsLanguages)
-  }
-
-  private func enqueueDownload(
-    _ route: PutioFileRoute, audioLanguages: [String], estimatedBytes: Int64,
-    awaitsLanguageSelection: Bool = false
-  ) {
+  /// Queues at once; the queue sizes and stores every audio and subtitle
+  /// rendition when the download starts.
+  private func requestDownload(_ route: PutioFileRoute) {
     offlineQueue.enqueue(
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
-      kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages,
-      estimatedBytes: estimatedBytes, awaitsLanguageSelection: awaitsLanguageSelection)
+      kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes)
     selectedTab = .downloads
     // The seeded journey proves the queue, not the system prompt; the prompt
     // would cover the row in its screenshot.
@@ -648,8 +579,8 @@ struct MainTabView: View {
       tracksWatched: account.rememberVideoTime,
       onFileSelected: { route in selectFile(route) },
       onExternalPlayback: vlcAction,
-      onDownload: { route in Task { await requestDownload(route) } },
-      onBulkDownload: { routes in Task { await requestDownloads(routes) } },
+      onDownload: { route in requestDownload(route) },
+      onBulkDownload: { routes in requestDownloads(routes) },
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
       castButton: { AnyView(PutioCastButton(model: cast)) },
@@ -899,13 +830,6 @@ private struct PutioSelectedVideoCover<Content: View>: View {
         .id(route.id)
     }
   }
-}
-
-struct PutioOfflineTrackPickerRequest: Identifiable {
-  let route: PutioFileRoute
-  let inventory: PutioOfflineInventory
-
-  var id: PutioFileID { route.id }
 }
 
 /// SwiftUI runs `MainTabView.init` on every session update but keeps only the
