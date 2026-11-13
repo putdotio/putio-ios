@@ -1434,10 +1434,12 @@ final class BoardCaptureTests: XCTestCase {
   private func launchInactiveAccount() throws {
     let account = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_INACTIVE_ACCOUNT"])
     app.launchArguments += ["--putio-harness-account-inactive", account]
-    app.launch()
-    reachFilesRoot()
-    XCTAssertTrue(
-      element("account.inactive-notice").appears(within: 10), "the \(account) notice never showed")
+    try reachContinueWatching()
+    let notice = element("account.inactive-notice")
+    XCTAssertTrue(notice.appears(within: 10), "the \(account) notice never showed")
+    XCTAssertLessThanOrEqual(
+      notice.frame.maxY, element("files.continue-watching.item.442").frame.minY,
+      "the \(account) notice is not above Continue watching")
   }
 
   private func openLongPreview() {
