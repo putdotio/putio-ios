@@ -1117,10 +1117,10 @@ enum BrowserJourneyContract {
   static let preflights = [
     JourneyPreflight(
       "accessibility-files",
-      "AccessibilityJourneyTests/testLongNamesSelectionAndDownloadPickerAtLargestTextSize",
+      "AccessibilityJourneyTests/testLongNamesSelectionAndDownloadsAtLargestTextSize",
       attachmentNames: [
         "runtime-accessibility-files", "runtime-accessibility-selection",
-        "runtime-accessibility-downloads", "runtime-accessibility-download-picker",
+        "runtime-accessibility-downloads",
       ],
       timeAllowance: 180),
     JourneyPreflight(
@@ -1240,8 +1240,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [
-        "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
-        "runtime-downloads-selection", "runtime-downloads-remove",
+        "runtime-downloads-queue", "runtime-downloads-detail", "runtime-downloads-selection",
+        "runtime-downloads-remove",
       ],
       timeAllowance: 180),
     JourneyPreflight(

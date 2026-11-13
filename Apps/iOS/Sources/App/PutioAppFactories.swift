@@ -99,7 +99,7 @@ enum PutioOfflineQueueFactory {
         let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
         baseURL.host == "127.0.0.1"
       else { return source }
-      let path = kind == .audio ? "runtime-proof-audio.m4a" : "multi-audio/runtime-proof-multi.m3u8"
+      let path = kind == .audio ? "runtime-proof-audio.m4a" : "multi-audio/multi-subtitles.m3u8"
       return PutioPlaybackSource(
         url: baseURL.appending(path: path), startFromSeconds: source.startFromSeconds)
     #else

@@ -27,8 +27,6 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   /// Relative path under the app's home; AVFoundation picks the final location.
   var localPath: String?
   var storedBytes: Int64
-  /// Audio tracks the user asked for, by language code, in selection order.
-  var selectedAudioLanguages: [String]
   /// Tracks actually present in the stored asset, disclosed in details.
   var storedAudioTracks: [PutioOfflineTrack]
   var storedSubtitleTracks: [PutioOfflineTrack]
@@ -63,11 +61,9 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     return PutioFileRowModel.sizeText(bytes: storedBytes)
   }
 
-  /// The picker's estimate at enqueue time, enforced again before start.
+  /// The bytes the download is expected to take: the file size at enqueue,
+  /// replaced by the stream's estimate before a video starts.
   var estimatedBytes: Int64
-  /// Set when the item was queued before its asset could be inspected; the
-  /// queue selects every language once conversion finishes.
-  var awaitsLanguageSelection: Bool = false
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {
@@ -122,28 +118,6 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
         kind: .resolution,
         message: String(localized: "put.io could not prepare this file. Try again."))
     }
-  }
-}
-
-/// An audio language the asset offers, with the bytes it adds to the download.
-struct PutioOfflineAudioOption: Identifiable, Equatable, Sendable {
-  let languageCode: String
-  let displayName: String
-  let estimatedBytes: Int64
-
-  var id: String { languageCode }
-}
-
-struct PutioOfflineInventory: Equatable, Sendable {
-  let videoBytes: Int64
-  let audioOptions: [PutioOfflineAudioOption]
-  let subtitleTracks: [PutioOfflineTrack]
-
-  /// The bytes the download will take with the given languages selected.
-  func estimatedBytes(selecting languages: [String]) -> Int64 {
-    videoBytes
-      + audioOptions.filter { languages.contains($0.languageCode) }.map(\.estimatedBytes).reduce(
-        0, +)
   }
 }
 

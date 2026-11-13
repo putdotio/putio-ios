@@ -216,9 +216,9 @@ Preconditions:
   searching. Boards:
   `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
 - **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
-  Screenshots: `runtime-downloads-picker`, `runtime-downloads-queue`,
-  `runtime-downloads-detail`, `runtime-downloads-selection`,
-  `runtime-downloads-remove`, `runtime-downloads-start-failed`.
+  Screenshots: `runtime-downloads-queue`, `runtime-downloads-detail`,
+  `runtime-downloads-selection`, `runtime-downloads-remove`,
+  `runtime-downloads-start-failed`.
 - **Large text.** Run `--only accessibility-audio`. Screenshots:
   `runtime-accessibility-audio-portrait`, `runtime-accessibility-audio-landscape`,
   and their `-controls` variants.

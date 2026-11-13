@@ -1492,9 +1492,6 @@ final class BoardCaptureTests: XCTestCase {
     selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
     assertFact("folder", "Folder, Files")
     element("files.detail.download").tap()
-    let confirm = app.buttons["downloads.picker.confirm"]
-    XCTAssertTrue(confirm.appears(within: 20), "the track picker never appeared")
-    confirm.tap()
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     tabButton("Files").tap()
     let onDevice = element("files.detail.on-device")
