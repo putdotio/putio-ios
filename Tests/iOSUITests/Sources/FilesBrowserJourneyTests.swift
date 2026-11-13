@@ -198,7 +198,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: unwatched),
       [
-        "Play", "Play with Direct play", "Download", "Select", "Mark as watched", "Rename", "Move",
+        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Select", "Mark as watched", "Rename", "Move",
         "Exclusive link",
         "Move to trash",
       ])
@@ -211,7 +212,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: watched),
       [
-        "Play", "Play with Direct play", "Download", "Select", "Mark as unwatched", "Rename",
+        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Select", "Mark as unwatched", "Rename",
         "Move", "Exclusive link",
         "Move to trash",
       ])
@@ -244,7 +246,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       menuLabels(),
       [
-        "Play", "Play with Direct play", "Download", "Select", "Mark as watched", "Rename", "Move",
+        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Select", "Mark as watched", "Rename", "Move",
         "Exclusive link",
         "Move to trash",
       ])
@@ -278,7 +281,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: element(identifier: "files.item.444")),
       [
-        "Play", "Play with Direct play", "Download", "Open in VLC", "Select", "Mark as watched",
+        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Open in VLC", "Select", "Mark as watched",
         "Rename", "Move",
         "Exclusive link",
         "Move to trash",
@@ -304,7 +308,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private static let itemMenuLabels = [
-    "Play", "Play with Direct play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched",
+    "Play", "Play with Direct play", "Download", "Download with Direct play",
+    "Open in VLC", "Cast", "Select", "Mark as watched",
     "Mark as unwatched",
     "Rename", "Move", "Exclusive link", "Move to trash",
   ]
