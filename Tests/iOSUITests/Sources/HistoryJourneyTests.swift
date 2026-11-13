@@ -44,9 +44,11 @@ final class HistoryJourneyTests: XCTestCase {
     let failedTransfer = element("history.item.806")
     reveal(failedTransfer)
     XCTAssertTrue(failedTransfer.label.contains("Transfer failed"))
+    XCTAssertFalse(app.buttons["history.item.806"].exists, "a transfer event is a button")
     failedTransfer.tap()
     XCTAssertTrue(failedTransfer.exists, "tapping a transfer event left History")
-    XCTAssertFalse(app.staticTexts[navigationBlocked].exists, "a transfer event tried to open")
+    XCTAssertFalse(
+      app.staticTexts[navigationBlocked].appears(within: 3), "a transfer event tried to open")
     XCTAssertFalse(moreRetry.exists)
     scrollToTop()
     addScreenshot(named: "runtime-history-loaded")
