@@ -6,14 +6,17 @@ extension EnvironmentValues {
   /// The account's default folder sort, which folders without their own
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
-  @Entry var putioFileDetailSelect: PutioFileSelection? = nil
+  @Entry var putioFileDetailSelect: PutioFileDetailSelect? = nil
   @Entry var putioFileDetailClear: PutioFileDetailClear? = nil
   @Entry var putioFileDetailReconcile: PutioFileDetailReconcile? = nil
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
+typealias PutioFileDetailSelect =
+  @MainActor @Sendable (PutioFileRoute, PutioFileDetailOrigin?) -> Void
 typealias PutioFileDetailClear = @MainActor @Sendable (Set<PutioFileID>?) -> Void
-typealias PutioFileDetailReconcile = @MainActor @Sendable ([PutioFileItem]) -> Void
+typealias PutioFileDetailReconcile =
+  @MainActor @Sendable ([PutioFileItem], PutioFileDetailOrigin?) -> Void
 typealias PutioBulkFileSelection = @MainActor @Sendable ([PutioFileRoute]) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
@@ -139,6 +142,11 @@ struct FilesBrowserView: View {
       if !oldPath.isEmpty, newPath.isEmpty {
         onReturnToRoot()
       }
+      if let open = selectedFile, let origin = open.origin, origin.folderID != .root,
+        !newPath.contains(where: { $0.id == origin.folderID })
+      {
+        selectedFile = open.with(origin: nil)
+      }
     }
     .disabled(!didRestoreNavigation)
     .task(id: navigationRequest?.id) {
@@ -178,12 +186,14 @@ struct FilesBrowserView: View {
     PutioFileDetailView(
       route: selection.route,
       folderTitles: selection.folderTitles,
+      previewSource: selection.origin?.previewSource,
+      menu: detailMenu(selection),
       offlineStatus: offlineFiles?.status(selection.route.id) ?? .remote,
       reloadKey: refreshRequests.revision,
       loadDetails: loadVideoDetails,
       loadFolderName: loadFolderName,
       showsNavigationBar: pushed,
-      onPlay: onFileSelected,
+      onOpen: onFileSelected,
       onDownload: onDownload,
       onExternalPlayback: onExternalPlayback
     )
@@ -223,12 +233,22 @@ struct FilesBrowserView: View {
       })
   }
 
-  private var detailSelect: PutioFileSelection {
+  private var detailSelect: PutioFileDetailSelect {
     let selection = $selectedFile
     let path = path
-    return { route in
-      selection.wrappedValue = PutioFileDetailSelection(route: route, in: path)
+    return { route, origin in
+      selection.wrappedValue = PutioFileDetailSelection(route: route, in: path, origin: origin)
     }
+  }
+
+  private func detailMenu(_ selection: PutioFileDetailSelection) -> (
+    @MainActor () -> PutioItemMenu
+  )? {
+    guard let origin = selection.origin, origin.folderID == (path.last?.id ?? .root) else {
+      return nil
+    }
+    let item = selection.route.item
+    return { origin.menu(item) }
   }
 
   private var detailClear: PutioFileDetailClear {
@@ -242,17 +262,23 @@ struct FilesBrowserView: View {
 
   private var detailReconcile: PutioFileDetailReconcile {
     let selection = $selectedFile
-    return { items in
+    return { items, origin in
       guard let open = selection.wrappedValue,
-        let item = items.first(where: { $0.id == open.route.id }), item != open.route.item
+        let item = items.first(where: { $0.id == open.route.id })
       else { return }
+      let adopted = origin.flatMap { $0.folderID == item.parentID ? $0 : nil }
+      guard item != open.route.item else {
+        if let adopted { selection.wrappedValue = open.with(origin: adopted) }
+        return
+      }
       selection.wrappedValue =
         item.parentID == open.route.item.parentID
         ? PutioFileDetailSelection(
           route: PutioFileRoute(item: item), folderTitles: open.folderTitles,
-          ancestorIDs: open.ancestorIDs)
+          ancestorIDs: open.ancestorIDs, origin: adopted ?? open.origin)
         : PutioFileDetailSelection(
-          route: PutioFileRoute(item: item), folderTitles: nil, ancestorIDs: [item.parentID])
+          route: PutioFileRoute(item: item), folderTitles: nil, ancestorIDs: [item.parentID],
+          origin: adopted)
     }
   }
 
@@ -336,7 +362,7 @@ struct FilesBrowserView: View {
 
 private struct PutioFileDetailColumn: ViewModifier {
   let selection: PutioFileDetailSelection?
-  let select: PutioFileSelection?
+  let select: PutioFileDetailSelect?
   let clear: PutioFileDetailClear
   let reconcile: PutioFileDetailReconcile
 
@@ -357,18 +383,37 @@ private struct PutioFileDetailColumn: ViewModifier {
   }
 }
 
+extension PutioFileRoute {
+  var opensInDetail: Bool {
+    if case .audio = openAction { return false }
+    return true
+  }
+}
+
+struct PutioFileDetailOrigin {
+  let folderID: PutioFileID
+  let previewSource: PutioPreviewSource?
+  let menu: @MainActor (PutioFileItem) -> PutioItemMenu
+}
+
 struct PutioFileDetailSelection {
   let route: PutioFileRoute
   let folderTitles: [String]?
   let ancestorIDs: Set<PutioFileID>
+  let origin: PutioFileDetailOrigin?
 
-  init(route: PutioFileRoute, folderTitles: [String]?, ancestorIDs: Set<PutioFileID>) {
+  init(
+    route: PutioFileRoute, folderTitles: [String]?, ancestorIDs: Set<PutioFileID>,
+    origin: PutioFileDetailOrigin?
+  ) {
     self.route = route
     self.folderTitles = folderTitles
     self.ancestorIDs = ancestorIDs
+    self.origin = origin
   }
 
-  init(route: PutioFileRoute, in path: [PutioFolderRoute]) {
+  init(route: PutioFileRoute, in path: [PutioFolderRoute], origin: PutioFileDetailOrigin?) {
+    self.origin = origin
     let parentID = route.item.parentID
     let folders = path.lastIndex(where: { $0.id == parentID }).map { index in
       path[...index].filter { $0 != .pinnedList }
@@ -380,6 +425,11 @@ struct PutioFileDetailSelection {
       folderTitles = folders?.map(\.title)
     }
     ancestorIDs = Set(folders?.map(\.id) ?? []).union([parentID])
+  }
+
+  func with(origin: PutioFileDetailOrigin?) -> PutioFileDetailSelection {
+    PutioFileDetailSelection(
+      route: route, folderTitles: folderTitles, ancestorIDs: ancestorIDs, origin: origin)
   }
 }
 

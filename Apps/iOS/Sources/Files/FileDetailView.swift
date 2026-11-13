@@ -1,6 +1,7 @@
 import Foundation
 import PutioCore
 import SwiftUI
+import UIKit
 
 typealias PutioVideoDetailsLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoDetails
@@ -9,25 +10,30 @@ typealias PutioFolderNameLoad = @MainActor @Sendable (PutioFileID) async throws 
 struct PutioFileDetailView: View {
   let route: PutioFileRoute
   let folderTitles: [String]?
+  let previewSource: PutioPreviewSource?
+  let menu: (@MainActor () -> PutioItemMenu)?
   let offlineStatus: PutioOfflineFileStatus
   let reloadKey: UInt64
   let loadDetails: PutioVideoDetailsLoad
   let loadFolderName: PutioFolderNameLoad
   var showsNavigationBar = false
-  let onPlay: PutioFileSelection
+  let onOpen: PutioFileSelection
   let onDownload: PutioFileSelection?
   let onExternalPlayback: PutioFileSelection?
 
   @Environment(\.locale) private var locale
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioPinnedFiles) private var pinned
+  @Environment(\.putioPreviewOpen) private var previewOpen
   @State private var details: PutioVideoDetails?
+  @State private var previewImage: PreviewImage?
   @State private var loadedFolder: String?
   @State private var share = PutioFileShareModel()
   @State private var toast: PutioToast?
   @State private var preparingToast: PutioToast.ID?
 
   private var item: PutioFileItem { route.item }
+  private var isVideo: Bool { route.videoPlaybackRoute != nil }
 
   var body: some View {
     ScrollView {
@@ -59,6 +65,7 @@ struct PutioFileDetailView: View {
     .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
     .putioToast($toast)
     .task(id: LoadKey(id: item.id, parentID: item.parentID, reload: reloadKey)) { await load() }
+    .task(id: item.id) { await loadPreviewImage() }
     .onChange(of: share.state) { _, state in
       if case .fetching = state { return }
       if toast?.id == preparingToast { toast = nil }
@@ -67,13 +74,48 @@ struct PutioFileDetailView: View {
     .onDisappear { share.leave() }
   }
 
+  @ViewBuilder
   private var preview: some View {
+    if isVideo {
+      videoPreview
+    } else {
+      filePreview
+    }
+  }
+
+  private var filePreview: some View {
+    let image = previewImage?.id == item.id ? previewImage?.image : nil
+    return RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius)
+      .fill(PutioTheme.Colors.surface)
+      .aspectRatio(PutioFileDetailLayout.previewAspectRatio, contentMode: .fit)
+      .overlay {
+        if let image {
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+        } else {
+          PutioIconView(
+            PutioBrowserItemPresentation.rowKind(for: item.kind).icon,
+            size: PutioFileDetailLayout.kindGlyph
+          )
+          .foregroundStyle(PutioTheme.Components.FileRow.icon)
+        }
+      }
+      .clipShape(RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius))
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(Text(verbatim: item.name))
+      .accessibilityAddTraits(image == nil ? [] : .isImage)
+      .accessibilityIdentifier(
+        image == nil ? "files.detail.preview-glyph" : "files.detail.preview-image")
+  }
+
+  private var videoPreview: some View {
     RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius)
       .fill(PutioTheme.Colors.surface)
       .aspectRatio(PutioFileDetailLayout.previewAspectRatio, contentMode: .fit)
       .overlay {
         Button {
-          onPlay(route)
+          onOpen(route)
         } label: {
           PutioIconView(.playFill, size: PutioFileDetailLayout.playGlyph)
             .foregroundStyle(PutioTheme.Colors.textPrimary)
@@ -91,11 +133,20 @@ struct PutioFileDetailView: View {
 
   private var actionRow: some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
-      PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .medium) {
-        onPlay(route)
+      if isVideo {
+        PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .medium) {
+          onOpen(route)
+        }
+        .lineLimit(1)
+        .accessibilityIdentifier("files.detail.play")
+      } else {
+        PutioButton(String(localized: "Open"), icon: .arrowSquareOut, tier: .primary, size: .medium)
+        {
+          open()
+        }
+        .lineLimit(1)
+        .accessibilityIdentifier("files.detail.open")
       }
-      .lineLimit(1)
-      .accessibilityIdentifier("files.detail.play")
       if offlineStatus == .onDevice {
         iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded")) {}
           .disabled(true)
@@ -112,9 +163,9 @@ struct PutioFileDetailView: View {
           .disabled(shareSource == nil || isFetchingShare)
           .accessibilityIdentifier("files.detail.share")
       }
-      if !moreActions.isEmpty {
+      if let more = moreMenu {
         Menu {
-          PutioItemMenuContent(PutioItemMenu([moreActions]))
+          PutioItemMenuContent(more)
         } label: {
           iconLabel(.dotsThree)
         }
@@ -147,6 +198,19 @@ struct PutioFileDetailView: View {
 
   private func iconLabel(_ icon: PutioIcon) -> some View {
     PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
+  }
+
+  private var moreMenu: PutioItemMenu? {
+    let more = menu?() ?? PutioItemMenu([moreActions])
+    return more.sections.isEmpty ? nil : more
+  }
+
+  private func open() {
+    if let previewOpen, let previewSource, route.previewKind != nil {
+      previewOpen(route, in: previewSource)
+    } else {
+      onOpen(route)
+    }
   }
 
   private var moreActions: [PutioItemAction] {
@@ -185,12 +249,12 @@ struct PutioFileDetailView: View {
         "added", label: String(localized: "Added"),
         value: item.createdAt.formatted(
           .dateTime.month(.abbreviated).day().year().locale(locale)))
-      if let seconds = details?.durationSeconds {
+      if isVideo, let seconds = details?.durationSeconds {
         fact(
           "length", label: String(localized: "Length"),
           value: PutioFileDetailText.clock(seconds: seconds), numeric: true)
       }
-      if let subtitles = details?.subtitles, !subtitles.isEmpty {
+      if isVideo, let subtitles = details?.subtitles, !subtitles.isEmpty {
         fact(
           "subtitles", label: String(localized: "Subtitles"),
           value: subtitles.formatted(.list(type: .and, width: .narrow).locale(locale)))
@@ -231,7 +295,9 @@ struct PutioFileDetailView: View {
   }
 
   private func load() async {
-    async let videoDetails = try? loadDetails(item.id)
+    let id = item.id
+    let loadsDetails = isVideo
+    async let videoDetails: PutioVideoDetails? = loadsDetails ? try? loadDetails(id) : nil
     if folderTitles == nil {
       let name = try? await loadFolderName(item.parentID)
       if !Task.isCancelled { loadedFolder = name }
@@ -239,6 +305,24 @@ struct PutioFileDetailView: View {
     let loaded = await videoDetails
     guard !Task.isCancelled, let loaded else { return }
     details = loaded
+  }
+
+  private func loadPreviewImage() async {
+    let id = item.id
+    guard let fileShare, case .preview(let preview)? = PutioViewerRoute(opening: route.openAction),
+      preview.kind == .image
+    else { return }
+    guard let data = try? await fileShare.fetch(preview, .preview),
+      let image = try? await PutioPreviewModel.decodeImage(
+        data, maximumPixels: PutioFileDetailLayout.previewPixels),
+      !Task.isCancelled
+    else { return }
+    previewImage = PreviewImage(id: id, image: image)
+  }
+
+  private struct PreviewImage {
+    let id: PutioFileID
+    let image: UIImage
   }
 
   private struct LoadKey: Equatable {
@@ -292,4 +376,6 @@ private enum PutioFileDetailLayout {
   static let actionGlyph = PutioMetricRole(
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1, relativeTo: .body)
   static let factLabelWidth = PutioTheme.Spacing.space6
+  static let kindGlyph = PutioMetricRole(value: PutioTheme.Spacing.space4, relativeTo: .largeTitle)
+  static let previewPixels = 2_048
 }

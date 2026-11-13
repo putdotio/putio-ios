@@ -802,6 +802,7 @@ import Foundation
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
     nonisolated(unsafe) private static var movedSubtitleParents: [Int: Int] = [:]
+    nonisolated(unsafe) private static var renamedSeasonSubtitles: [Int: String] = [:]
     private static var holdsMoveFolders: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
@@ -1002,6 +1003,7 @@ import Foundation
       ambiguousMoveFailureDelivered = false
       partialMoveFailureDelivered = false
       movedSubtitleParents = [:]
+      renamedSeasonSubtitles = [:]
       trashDeleteFailureDelivered = false
       removedSeasonFileIDs = []
       trashedSeasonFileIDs = []
@@ -2301,10 +2303,10 @@ import Foundation
             "start_from":\(playbackPosition(fileID: episode.id))}
             """)
       }
-      let (movedAway, folderRows, sortBy) = fileActionsLock.withLock {
+      let (movedAway, folderRows, sortBy, renamed) = fileActionsLock.withLock {
         (
           Set(movedSubtitleParents.keys), childFolderRowsLocked(of: seasonFolderID),
-          folderSorts[seasonFolderID]
+          folderSorts[seasonFolderID], renamedSeasonSubtitles
         )
       }
       let subtitleRows = seasonSubtitles.keys.sorted().filter {
@@ -2312,9 +2314,10 @@ import Foundation
       }.compactMap {
         id in
         seasonSubtitles[id].map {
-          SeasonRow(
-            id: id, name: $0.name, type: "TEXT", size: $0.size, day: 13, watched: false,
-            json: subtitleRow(id: id, name: $0.name, size: $0.size, parentID: seasonFolderID))
+          let name = renamed[id] ?? $0.name
+          return SeasonRow(
+            id: id, name: name, type: "TEXT", size: $0.size, day: 13, watched: false,
+            json: subtitleRow(id: id, name: name, size: $0.size, parentID: seasonFolderID))
         }
       }
       let rows = folderRows + SeasonRow.ordered(videoRows + subtitleRows, by: sortBy).map(\.json)
@@ -2826,7 +2829,9 @@ import Foundation
         fileActionsLock.unlock()
         return (200, #"{"status":"OK"}"#)
       }
-      guard actionFolders[fileID] != nil else {
+      let renamesSubtitle =
+        seasonSubtitles[fileID] != nil && movedSubtitleParents[fileID] == nil
+      guard actionFolders[fileID] != nil || renamesSubtitle else {
         fileActionsLock.unlock()
         return (
           404,
@@ -2839,7 +2844,9 @@ import Foundation
       }
       renameAttempts += 1
       let attempt = renameAttempts
-      if attempt > 1 {
+      if attempt > 1, renamesSubtitle {
+        renamedSeasonSubtitles[fileID] = name
+      } else if attempt > 1 {
         actionFolders[fileID]?.name = name
       }
       fileActionsLock.unlock()

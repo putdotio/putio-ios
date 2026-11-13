@@ -304,8 +304,8 @@ struct PutioFolderScreen: View {
       guard !pending, let pins = pinned?.model, !pins.items.isEmpty else { return }
       Task { await pins.load() }
     }
-    .onChange(of: currentItems) { _, items in
-      detailReconcile?(items)
+    .onChange(of: currentItems, initial: true) { _, items in
+      detailReconcile?(items, detailSelect == nil ? nil : detailOrigin)
     }
     .onChange(of: isEditing) { _, editing in
       guard editing else { return }
@@ -564,11 +564,7 @@ struct PutioFolderScreen: View {
         for: presentation.item,
         preview: sharedPreview(presentation),
         content: Button {
-          if let previewOpen, fileRoute.previewKind != nil {
-            previewOpen(fileRoute, in: model.previewSource)
-          } else {
-            openRow(fileRoute)
-          }
+          openRow(fileRoute)
         } label: {
           PutioFileRow(presentation.row)
             .contentShape(Rectangle())
@@ -582,20 +578,31 @@ struct PutioFolderScreen: View {
   }
 
   private func openRow(_ route: PutioFileRoute) {
-    if let detailSelect, case .video = route.openAction {
-      detailSelect(route)
+    if let detailSelect, route.opensInDetail {
+      detailSelect(route, detailOrigin)
+    } else if let previewOpen, route.previewKind != nil {
+      previewOpen(route, in: model.previewSource)
     } else {
       onFileSelected(route)
     }
   }
 
-  @ViewBuilder
-  private func fileActions<Content: View>(
-    for item: PutioFileItem,
-    preview: AnyView? = nil,
-    content: Content
-  ) -> some View {
-    let menu = PutioFileMenu(
+  private var detailOrigin: PutioFileDetailOrigin {
+    PutioFileDetailOrigin(
+      folderID: route.id, previewSource: model.previewSource, menu: { detailMenu(for: $0) })
+  }
+
+  private func detailMenu(for item: PutioFileItem) -> PutioItemMenu {
+    let actionRow: Set<PutioFileMenuRow> = [.play, .download, .share, .select]
+    let menu = fileMenu(for: item)
+    return PutioItemMenu(
+      menu.sections.map { section in
+        section.filter { !actionRow.contains($0) }.map { itemAction($0, for: item) }
+      })
+  }
+
+  private func fileMenu(for item: PutioFileItem) -> PutioFileMenu {
+    PutioFileMenu(
       item: item,
       capabilities: .init(
         canEdit: model.supportsActions,
@@ -608,6 +615,15 @@ struct PutioFolderScreen: View {
         pinned: pinned.map { $0.model.isPinned(item.id) }),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
+  }
+
+  @ViewBuilder
+  private func fileActions<Content: View>(
+    for item: PutioFileItem,
+    preview: AnyView? = nil,
+    content: Content
+  ) -> some View {
+    let menu = fileMenu(for: item)
     let row = content.frame(maxWidth: .infinity, alignment: .leading)
       .putioListDetailRow(item.id)
       .background {

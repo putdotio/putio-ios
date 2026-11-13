@@ -926,7 +926,125 @@ final class BoardCaptureTests: XCTestCase {
     return true
   }
 
-  private func selectVideo(_ row: XCUIElement, id: Int, primary: String) {
+  func testIPadDetailMore() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    selectVideo(element("files.item.441"), id: 441, primary: nil)
+    openDetailMore(lacking: ["Play", "Download", "Share", "Select"])
+    XCTAssertTrue(
+      app.buttons["Mark as watched"].exists || app.buttons["Mark as unwatched"].exists,
+      "More has no Mark as watched or unwatched")
+    try captureBoard("rd-ios-29-ipad-detail-more")
+  }
+
+  func testIPadDetailImage() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    reachFilesRoot()
+    selectFile(element("files.item.406"), id: 406)
+    XCTAssertTrue(
+      element("files.detail.preview-image").appears(within: 15), "the image never showed")
+    assertFactShown("size")
+    assertFact("added", "Added, Aug 28, 2026")
+    assertFact("folder", "Folder, Files")
+    XCTAssertFalse(element("files.detail.fact.length").exists, "an image lists a length")
+    XCTAssertFalse(element("files.detail.fact.subtitles").exists, "an image lists subtitles")
+    XCTAssertFalse(element("files.detail.download").exists, "an image offers Download")
+    XCTAssertTrue(element("files.detail.share").exists, "the image detail offers no Share")
+    try captureBoard("rd-ios-30-ipad-detail-image")
+
+    openDetailMore(
+      lacking: ["Play", "Download", "Share", "Select", "Mark as watched", "Mark as unwatched"])
+    element("files.detail.title").tap()
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
+    element("files.detail.open").tap()
+    XCTAssertTrue(element("preview.screen.406").appears(within: 10), "Open showed no preview")
+  }
+
+  func testIPadDetailText() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    selectFile(element("files.item.445"), id: 445)
+    XCTAssertTrue(
+      element("files.detail.preview-glyph").appears(within: 5), "the text file shows no glyph")
+    assertFactShown("size")
+    assertFact("added", "Added, Oct 13, 2026")
+    assertFact("folder", "Folder, Harness Folder / Blue Lights")
+    XCTAssertFalse(element("files.detail.fact.length").exists, "a text file lists a length")
+    try captureBoard("rd-ios-31-ipad-detail-text")
+
+    let renamed = "Blue.Lights.S04E01.de.srt"
+    openDetailMore(lacking: ["Share", "Select"])
+    app.buttons["Rename"].firstMatch.tap()
+    let alert = app.putioAlert("Rename")
+    XCTAssertTrue(alert.appears(within: 5), "Rename never opened from the detail")
+    app.typeText("Blue.Lights.S04E01.de")
+    alert.buttons["Rename"].firstMatch.tap()
+    let retry = app.buttons["Try again"]
+    XCTAssertTrue(retry.appears(within: 10), "the seeded first rename did not fail")
+    retry.tap()
+    let title = element("files.detail.title")
+    let titled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", renamed), object: title)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [titled], timeout: 10), .completed, "the detail kept the old name")
+    XCTAssertTrue(element("files.detail.445").exists, "renaming emptied the detail")
+
+    openDetailMore(lacking: [])
+    app.buttons["Move to trash"].firstMatch.tap()
+    XCTAssertTrue(element("files.detail.445").disappears(within: 10), "trash kept the detail")
+    XCTAssertTrue(app.staticTexts["No file selected"].exists, "trash left a file open")
+    XCTAssertTrue(element("files.item.445").disappears(within: 5), "the trashed row stayed")
+  }
+
+  private func selectFile(_ row: XCUIElement, id: Int) {
+    XCTAssertTrue(row.appears(within: 10), "the row for \(id) never appeared")
+    row.tap()
+    XCTAssertTrue(
+      element("files.detail.\(id)").appears(within: 10), "selecting \(id) showed no detail")
+    XCTAssertTrue(row.isSelected, "the selected row is not marked open")
+    XCTAssertFalse(element("preview.screen.\(id)").exists, "selecting \(id) opened the preview")
+    let open = element("files.detail.open")
+    XCTAssertTrue(open.appears(within: 5), "the detail has no Open")
+    XCTAssertEqual(open.label, "Open")
+    XCTAssertFalse(element("files.detail.play").exists, "a file that is not a video offers Play")
+  }
+
+  private func openFileRow(_ row: XCUIElement, id: Int) {
+    row.tap()
+    let detail = element("files.detail.\(id)")
+    let preview = element("preview.screen.\(id)")
+    let opened = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in detail.exists || preview.exists }, object: nil)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [opened], timeout: 10), .completed,
+      "tapping \(id) showed neither the detail nor the preview")
+    if detail.exists { element("files.detail.open").tap() }
+  }
+
+  private func openDetailMore(lacking absent: [String]) {
+    let before = absent.map { labelledButtons($0).count }
+    let more = element("files.detail.more")
+    XCTAssertTrue(more.appears(within: 5), "the detail has no More")
+    more.tap()
+    XCTAssertTrue(app.buttons["Rename"].appears(within: 5), "the detail More never opened")
+    for label in ["Move", "Exclusive link", "Move to trash"] {
+      XCTAssertTrue(app.buttons[label].exists, "the detail More lacks \(label)")
+    }
+    XCTAssertTrue(
+      app.buttons["Pin"].exists || app.buttons["Unpin"].exists, "the detail More has no Pin")
+    for (label, count) in zip(absent, before) {
+      XCTAssertEqual(labelledButtons(label).count, count, "the detail More repeats \(label)")
+    }
+  }
+
+  private func labelledButtons(_ label: String) -> XCUIElementQuery {
+    app.buttons.matching(NSPredicate(format: "label == %@", label))
+  }
+
+  private func selectVideo(_ row: XCUIElement, id: Int, primary: String?) {
     XCTAssertTrue(row.appears(within: 10), "the row for \(id) never appeared")
     row.tap()
     XCTAssertTrue(
@@ -934,7 +1052,12 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.isSelected, "the selected row is not marked open")
     let play = element("files.detail.play")
     XCTAssertTrue(play.appears(within: 5), "the detail has no primary button")
-    XCTAssertEqual(play.label, primary)
+    if let primary { XCTAssertEqual(play.label, primary) }
+  }
+
+  private func assertFactShown(_ id: String) {
+    XCTAssertTrue(
+      element("files.detail.fact.\(id)").appears(within: 10), "the detail lists no \(id)")
   }
 
   private func assertFact(_ id: String, _ label: String) {
@@ -1506,7 +1629,7 @@ final class BoardCaptureTests: XCTestCase {
     reachFilesRoot()
     let row = app.revealed("files.item.413")
     XCTAssertTrue(row.exists, "the document row never appeared")
-    row.tap()
+    openFileRow(row, id: 413)
     XCTAssertTrue(
       app.staticTexts["put.io harness page 1"].appears(within: 10), "the document never loaded")
     let pill = element("preview.page")
@@ -1651,7 +1774,7 @@ final class BoardCaptureTests: XCTestCase {
     reachFilesRoot()
     let row = app.revealed("files.item.406")
     XCTAssertTrue(row.exists, "the image row never appeared")
-    row.tap()
+    openFileRow(row, id: 406)
     XCTAssertTrue(element("preview.image").appears(within: 10), "the image never loaded")
     XCTAssertTrue(
       app.images["Harness Poster.png"].appears(within: 5), "the image did not settle")
@@ -1685,7 +1808,7 @@ final class BoardCaptureTests: XCTestCase {
     reachFilesRoot()
     let row = element("files.item.428")
     XCTAssertTrue(row.appears(within: 10), "the long-named image row never appeared")
-    row.tap()
+    openFileRow(row, id: 428)
     XCTAssertTrue(
       element("preview.screen.428").appears(within: 10), "the preview did not open")
   }
