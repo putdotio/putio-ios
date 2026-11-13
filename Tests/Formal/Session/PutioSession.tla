@@ -27,6 +27,7 @@ VARIABLES
   keychain,       \* PutioTokenStore contents
   sdkTok,         \* sdk.config.token
   intent,         \* PutioSignOutIntentStore: a sign-out has not finished its cleanup
+  mark,           \* PutioTokenStore.markSignOutPending(): the same intent on the saved credential
   oauthGen,       \* pendingOAuthGeneration
   device,         \* deviceCodeSignIn
   live,           \* grants put.io accepts
@@ -35,7 +36,7 @@ VARIABLES
   flows,          \* one record per suspended `await`
   launched        \* the launch restore() has run in this process
 
-vars == <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+vars == <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
           live, issued, excused, flows, launched>>
 
 Flow(k, g, t) == [k |-> k, g |-> g, t |-> t]
@@ -46,6 +47,7 @@ Init ==
   /\ keychain = None
   /\ sdkTok = None
   /\ intent = FALSE
+  /\ mark = FALSE
   /\ oauthGen = None
   /\ device = "none"
   /\ live = {}
@@ -73,7 +75,8 @@ AbandonAndAdvance == AdvanceWithDevice("none")
 EndSession ==
   /\ AbandonAndAdvance
   /\ sdkTok' = None
-  /\ keychain' \in {None, keychain}
+  /\ \/ keychain' = None /\ mark' = FALSE
+     \/ UNCHANGED <<keychain, mark>>
   /\ state' = "signedOut"
 
 \* storeSignInToken(token, generation), entered with the flow set `rest`.
@@ -83,9 +86,10 @@ StoreToken(t, g, rest) ==
   /\ sdkTok' = t
   /\ \/ /\ keychain' = t
         /\ intent' = FALSE
+        /\ mark' = FALSE
         /\ flows' = rest \cup {Flow("bootstrap", g, t)}
-        /\ excused' = excused \cup (IF intent THEN {keychain} \ {None, t} ELSE {})
-     \/ /\ UNCHANGED <<keychain, intent>>
+        /\ excused' = excused \cup (IF intent \/ mark THEN {keychain} \ {None, t} ELSE {})
+     \/ /\ UNCHANGED <<keychain, intent, mark>>
         \* Best effort: `_ = try? await sdk.logout()`.
         /\ flows' = rest \cup {Flow("revokeNew", g, t)}
         /\ excused' = excused \cup {t}
@@ -93,8 +97,8 @@ StoreToken(t, g, rest) ==
 -----------------------------------------------------------------------------
 (* restore(): at launch (state .unknown) and from the restore-failed       *)
 (* screen's "Try again". The state does not change while it validates.     *)
-(* With the sign-out intent set it runs finishSignOut(token:generation:)   *)
-(* on the saved credential instead.                                        *)
+(* With the sign-out intent set, or the saved credential marked, it runs   *)
+(* finishSignOut(token:generation:) on the saved credential instead.       *)
 RestoreStart ==
   /\ \/ state = "unknown" /\ ~launched
      \/ state \in RestoreFailed
@@ -103,28 +107,36 @@ RestoreStart ==
   /\ IF intent /\ Variant # "restoreIgnoresSignOutIntent"
      THEN \/ /\ sdkTok' = None                 \* tokenStore.read() throws
              /\ state' = "signedOut"
+             /\ mark' \in IF keychain # None THEN {TRUE, mark} ELSE {mark}
              /\ UNCHANGED <<keychain, intent, flows>>
           \/ /\ keychain # None                \* revoke the saved credential
              /\ sdkTok' = keychain
+             /\ mark' \in {TRUE, mark}          \* `try? tokenStore.markSignOutPending()`
              /\ flows' = flows \cup {Flow("logout", gen + 1, keychain)}
              /\ UNCHANGED <<state, keychain, intent>>
           \/ /\ keychain = None                \* nothing to revoke: tokenStore.clear()
              /\ sdkTok' = None
              /\ state' = "signedOut"
              /\ intent' \in {FALSE, TRUE}
-             /\ UNCHANGED <<keychain, flows>>
-     ELSE /\ UNCHANGED <<keychain, intent>>
-          /\ \/ /\ sdkTok' = None                \* tokenStore.read() throws
-                /\ state' = "restoreStorage"
-                /\ UNCHANGED flows
-             \/ /\ keychain = None
-                /\ sdkTok' = None
-                /\ state' = "signedOut"
-                /\ UNCHANGED flows
-             \/ /\ keychain # None
-                /\ sdkTok' = keychain
-                /\ flows' = flows \cup {Flow("validate", gen + 1, keychain)}
-                /\ UNCHANGED state
+             /\ UNCHANGED <<keychain, mark, flows>>
+     ELSE \/ /\ sdkTok' = None                   \* tokenStore.read() throws
+             /\ state' = "restoreStorage"
+             /\ UNCHANGED <<keychain, intent, mark, flows>>
+          \/ /\ keychain = None
+             /\ sdkTok' = None
+             /\ state' = "signedOut"
+             /\ UNCHANGED <<keychain, intent, mark, flows>>
+          \/ /\ keychain # None                   \* marked: finishSignOut on the saved credential
+             /\ mark /\ Variant # "restoreIgnoresKeychainIntent"
+             /\ intent' = TRUE
+             /\ sdkTok' = keychain
+             /\ flows' = flows \cup {Flow("logout", gen + 1, keychain)}
+             /\ UNCHANGED <<state, keychain, mark>>
+          \/ /\ keychain # None
+             /\ ~mark \/ Variant = "restoreIgnoresKeychainIntent"
+             /\ sdkTok' = keychain
+             /\ flows' = flows \cup {Flow("validate", gen + 1, keychain)}
+             /\ UNCHANGED <<state, keychain, intent, mark>>
   /\ UNCHANGED <<live, issued, excused>>
 
 ValidateAnswer(f) ==
@@ -132,11 +144,11 @@ ValidateAnswer(f) ==
   /\ LET rest == flows \ {f} IN
      IF f.g # gen
      THEN /\ flows' = rest
-          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                          live, issued, excused, launched>>
      ELSE \/ /\ f.t \in live                     \* valid: bootstrap
              /\ flows' = rest \cup {Flow("bootstrap", f.g, f.t)}
-             /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+             /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                             live, issued, excused, launched>>
           \/ /\ f.t \notin live                  \* invalid or rejected: expireSession()
              /\ EndSession
@@ -145,7 +157,7 @@ ValidateAnswer(f) ==
           \/ /\ flows' = rest                    \* transient failure keeps the token
              /\ sdkTok' = None
              /\ state' = "restoreCheck"
-             /\ UNCHANGED <<gen, keychain, intent, oauthGen, device,
+             /\ UNCHANGED <<gen, keychain, intent, mark, oauthGen, device,
                             live, issued, excused, launched>>
 
 (* bootstrap(failure:generation:) *)
@@ -157,21 +169,21 @@ BootstrapAnswer(f) ==
         /\ IF f.g = gen \/ Variant = "noBootstrapGenerationGuard"
            THEN state' = "signedIn"
            ELSE UNCHANGED state
-        /\ UNCHANGED <<gen, keychain, sdkTok, intent, oauthGen, device,
+        /\ UNCHANGED <<gen, keychain, sdkTok, intent, mark, oauthGen, device,
                        live, issued, excused, launched>>
      \/ /\ f.t \notin live                       \* rejected: expireSession()
         /\ flows' = rest
         /\ IF f.g = gen
            THEN /\ EndSession
                 /\ UNCHANGED intent
-           ELSE UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device>>
+           ELSE UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device>>
         /\ UNCHANGED <<live, issued, excused, launched>>
      \/ /\ flows' = rest                         \* transient failure: restore recovery keeps the saved token
         /\ IF f.g = gen
            THEN /\ sdkTok' = None
                 /\ state' = "restoreCheck"
            ELSE UNCHANGED <<sdkTok, state>>
-        /\ UNCHANGED <<gen, keychain, intent, oauthGen, device,
+        /\ UNCHANGED <<gen, keychain, intent, mark, oauthGen, device,
                        live, issued, excused, launched>>
 
 (* discardUnrestoredCredential(): "Sign in again" on the restore-failed    *)
@@ -181,9 +193,10 @@ Discard ==
   /\ AbandonAndAdvance
   /\ sdkTok' = None
   /\ \/ /\ keychain' = None
+        /\ mark' = FALSE
         /\ excused' = excused \cup ({keychain} \ {None})
         /\ state' = "signedOut"
-     \/ /\ UNCHANGED <<keychain, excused>>   \* tokenStore.clear() throws
+     \/ /\ UNCHANGED <<keychain, mark, excused>>   \* tokenStore.clear() throws
         /\ state' = "restoreStorage"
   /\ UNCHANGED <<intent, live, issued, flows, launched>>
 
@@ -196,7 +209,7 @@ BeginSignIn ==
   /\ gen' = gen + 1
   /\ oauthGen' = gen + 1
   /\ state' = "authenticating"
-  /\ UNCHANGED <<keychain, sdkTok, intent, device, live, issued, excused, flows, launched>>
+  /\ UNCHANGED <<keychain, sdkTok, intent, mark, device, live, issued, excused, flows, launched>>
 
 WebSignInPending == state = "authenticating" /\ oauthGen = gen /\ oauthGen # None
 
@@ -207,7 +220,7 @@ CancelOrFailSignIn ==
         /\ UNCHANGED sdkTok
      \/ /\ state' = "authFailed"              \* failSignIn(_:)
         /\ sdkTok' = None
-  /\ UNCHANGED <<keychain, intent, live, issued, excused, flows, launched>>
+  /\ UNCHANGED <<keychain, intent, mark, live, issued, excused, flows, launched>>
 
 \* failSignIn(_:) after beginSignIn() threw before the web sign-in opened.
 FailBeforeSignIn ==
@@ -215,14 +228,14 @@ FailBeforeSignIn ==
   /\ AbandonAndAdvance
   /\ sdkTok' = None
   /\ state' = "authFailed"
-  /\ UNCHANGED <<keychain, intent, live, issued, excused, flows, launched>>
+  /\ UNCHANGED <<keychain, intent, mark, live, issued, excused, flows, launched>>
 
 CompleteSignIn ==
   /\ WebSignInPending
   /\ oauthGen' = None
   /\ \/ /\ sdkTok' = None                     \* callback rejected
         /\ state' = "authFailed"
-        /\ UNCHANGED <<keychain, intent, live, issued, excused, flows>>
+        /\ UNCHANGED <<keychain, intent, mark, live, issued, excused, flows>>
      \/ /\ CanIssue                           \* put.io granted a token
         /\ LET t == NewGrant IN
            /\ issued' = issued \cup {t}
@@ -240,14 +253,14 @@ DeviceStart ==
   /\ AdvanceWithDevice("fetching")
   /\ state' = "authenticating"
   /\ flows' = flows \cup {Flow("code", gen + 1, None)}
-  /\ UNCHANGED <<keychain, sdkTok, intent, live, issued, excused, launched>>
+  /\ UNCHANGED <<keychain, sdkTok, intent, mark, live, issued, excused, launched>>
 
 CodeAnswer(f) ==
   /\ f.k = "code"
   /\ LET rest == flows \ {f} IN
      IF f.g # gen
      THEN /\ flows' = rest
-          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                          live, issued, excused, launched>>
      ELSE \/ /\ device' = "awaiting"
              /\ flows' = rest \cup {Flow("approval", f.g, None)}
@@ -256,7 +269,7 @@ CodeAnswer(f) ==
              /\ flows' = rest
              /\ sdkTok' = None
              /\ state' = "authFailed"
-  /\ UNCHANGED <<gen, keychain, intent, oauthGen, live, issued, excused, launched>>
+  /\ UNCHANGED <<gen, keychain, intent, mark, oauthGen, live, issued, excused, launched>>
 
 \* A cancelled flow gets no grant here: put.io issuing a token to an
 \* abandoned device code is out of scope.
@@ -265,16 +278,16 @@ ApprovalAnswer(f) ==
   /\ LET rest == flows \ {f} IN
      IF f.g # gen
      THEN /\ flows' = rest
-          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+          /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                          live, issued, excused, launched>>
      ELSE \/ /\ device' = "expired"
              /\ flows' = rest
-             /\ UNCHANGED <<state, keychain, intent, sdkTok, live, issued, excused>>
+             /\ UNCHANGED <<state, keychain, intent, mark, sdkTok, live, issued, excused>>
           \/ /\ device' = "none"
              /\ flows' = rest
              /\ sdkTok' = None
              /\ state' = "authFailed"
-             /\ UNCHANGED <<keychain, intent, live, issued, excused>>
+             /\ UNCHANGED <<keychain, intent, mark, live, issued, excused>>
           \/ /\ CanIssue
              /\ device' = "none"
              /\ LET t == NewGrant IN
@@ -290,19 +303,22 @@ RevokeNewAnswer(f) ==
   /\ live' \in {live \ {f.t}, live}           \* logout succeeds or fails
   /\ sdkTok' = IF sdkTok = f.t THEN None ELSE sdkTok
   /\ state' = IF f.g = gen THEN "authFailed" ELSE state
-  /\ UNCHANGED <<gen, keychain, intent, oauthGen, device, issued, excused, launched>>
+  /\ UNCHANGED <<gen, keychain, intent, mark, oauthGen, device, issued, excused, launched>>
 
 -----------------------------------------------------------------------------
 (* signOut(): from Account while signed in. The intent persists before     *)
-(* cleanup starts; finishSignOut(token:generation:) revokes, then removes  *)
-(* the credential, and both answers land on the welcome.                   *)
+(* cleanup starts, in defaults and best effort on the saved credential;    *)
+(* finishSignOut(token:generation:) revokes, then removes the credential,  *)
+(* and both answers land on the welcome.                                   *)
 SignOutStart ==
   /\ state = "signedIn"
   /\ sdkTok # None                               \* SignedInIsSaved
   /\ AbandonAndAdvance
   /\ intent' = TRUE
   /\ state' = "signingOut"
-  /\ keychain' = IF Variant = "removeBeforeRevoking" THEN None ELSE keychain
+  /\ IF Variant = "removeBeforeRevoking"
+     THEN keychain' = None /\ mark' = FALSE
+     ELSE keychain' = keychain /\ mark' \in {TRUE, mark}
   /\ flows' = flows \cup {Flow("logout", gen + 1, sdkTok)}
   /\ UNCHANGED <<sdkTok, live, issued, excused, launched>>
 
@@ -313,14 +329,15 @@ LogoutAnswer(f) ==
        \* put.io revokes a live grant, rejects a dead one, or fails transiently.
        /\ live' = IF revoked THEN live \ {f.t} ELSE live
        /\ IF f.g # gen
-          THEN UNCHANGED <<state, sdkTok, keychain, intent>>
+          THEN UNCHANGED <<state, sdkTok, keychain, intent, mark>>
           ELSE /\ sdkTok' = None
                /\ state' = "signedOut"
                /\ IF revoked
                   THEN \/ /\ keychain' = None
+                          /\ mark' = FALSE
                           /\ intent' = FALSE
-                       \/ UNCHANGED <<keychain, intent>>   \* tokenStore.clear() throws
-                  ELSE UNCHANGED <<keychain, intent>>
+                       \/ UNCHANGED <<keychain, intent, mark>>   \* tokenStore.clear() throws
+                  ELSE UNCHANGED <<keychain, intent, mark>>
   /\ UNCHANGED <<gen, oauthGen, device, issued, excused, launched>>
 
 -----------------------------------------------------------------------------
@@ -329,7 +346,7 @@ LogoutAnswer(f) ==
 \* The user revokes a grant on put.io, or changes their password.
 ServerRevokes ==
   /\ \E t \in live : live' = live \ {t}
-  /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+  /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                  issued, excused, flows, launched>>
 
 \* PutioRuntime.performAuthenticatedOperation or refreshAccount() sees the
@@ -344,7 +361,7 @@ AuthenticatedRequestRejected ==
 AccountDestroyed ==
   /\ live # {}
   /\ live' = {}
-  /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+  /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, mark, oauthGen, device,
                  issued, excused, flows, launched>>
 
 \* The process ends. The keychain and the sign-out intent persist.
@@ -355,7 +372,19 @@ Relaunch ==
   /\ device' = "none"
   /\ flows' = {}
   /\ launched' = FALSE
-  /\ UNCHANGED <<gen, keychain, intent, live, issued, excused>>
+  /\ UNCHANGED <<gen, keychain, intent, mark, live, issued, excused>>
+
+\* The app is deleted and installed again: UserDefaults and the sign-out
+\* intent there are gone, the keychain item and its mark survive.
+Reinstall ==
+  /\ state' = "unknown"
+  /\ sdkTok' = None
+  /\ oauthGen' = None
+  /\ device' = "none"
+  /\ flows' = {}
+  /\ launched' = FALSE
+  /\ intent' = FALSE
+  /\ UNCHANGED <<gen, keychain, mark, live, issued, excused>>
 
 \* One named step per kind of answer, so a counterexample names it.
 ValidateDone == \E f \in flows : ValidateAnswer(f)
@@ -378,6 +407,7 @@ Next ==
   \/ AuthenticatedRequestRejected
   \/ AccountDestroyed
   \/ Relaunch
+  \/ Reinstall
   \/ ValidateDone
   \/ BootstrapDone
   \/ CodeDone
@@ -406,8 +436,9 @@ NoOrphanGrant == live \subseteq Held \cup excused
 \* restores the same session.
 SignedInIsSaved == state = "signedIn" => (sdkTok # None /\ keychain = sdkTok)
 
-\* A sign-out that did not finish never brings the account back.
-PendingSignOutNeverSignedIn == intent => state # "signedIn"
+\* A sign-out that did not finish never brings the account back, even
+\* after a reinstall wipes the intent in defaults.
+PendingSignOutNeverSignedIn == (intent \/ mark) => state # "signedIn"
 
 \* Session-check recovery keeps the credential that "Try again" restores.
 SessionCheckKeepsCredential == state = "restoreCheck" => keychain # None
@@ -419,6 +450,8 @@ TypeOK ==
   /\ keychain \in Grants \cup {None}
   /\ sdkTok \in Grants \cup {None}
   /\ intent \in BOOLEAN
+  /\ mark \in BOOLEAN
+  /\ mark => keychain # None
   /\ device \in {"none", "fetching", "awaiting", "expired"}
   /\ live \subseteq issued
 =============================================================================

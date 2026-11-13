@@ -8,7 +8,9 @@ public enum PutioTokenStoreError: Error, Equatable {
 
 public protocol PutioTokenStore: Sendable {
   func read() throws -> String?
+  func readSignOutPending() throws -> Bool
   func write(_ token: String) throws
+  func markSignOutPending() throws
   func clear() throws
 }
 
@@ -18,6 +20,8 @@ public protocol PutioTokenStore: Sendable {
 public struct PutioKeychainTokenStore: PutioTokenStore {
   private let service: String
   private let account = "putio-oauth-token"
+  private static let savedMark = Data("saved".utf8)
+  private static let signOutPendingMark = Data("sign-out-pending".utf8)
 
   public init(service: String? = nil) {
     self.service = service ?? Bundle.main.bundleIdentifier ?? "io.put.dev"
@@ -45,10 +49,29 @@ public struct PutioKeychainTokenStore: PutioTokenStore {
     }
   }
 
+  public func readSignOutPending() throws -> Bool {
+    var query = baseQuery
+    query[kSecReturnAttributes as String] = true
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+
+    var result: CFTypeRef?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    switch status {
+    case errSecSuccess:
+      let attributes = result as? [String: Any]
+      return attributes?[kSecAttrGeneric as String] as? Data == Self.signOutPendingMark
+    case errSecItemNotFound:
+      return false
+    default:
+      throw PutioTokenStoreError.keychainFailure(status)
+    }
+  }
+
   public func write(_ token: String) throws {
     let data = Data(token.utf8)
     var update = [String: Any]()
     update[kSecValueData as String] = data
+    update[kSecAttrGeneric as String] = Self.savedMark
     // Items written before this policy keep their old class unless reapplied.
     update[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
@@ -62,10 +85,19 @@ public struct PutioKeychainTokenStore: PutioTokenStore {
 
     var add = baseQuery
     add[kSecValueData as String] = data
+    add[kSecAttrGeneric as String] = Self.savedMark
     add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
     let addStatus = SecItemAdd(add as CFDictionary, nil)
     guard addStatus == errSecSuccess else {
       throw PutioTokenStoreError.keychainFailure(addStatus)
+    }
+  }
+
+  public func markSignOutPending() throws {
+    let update = [kSecAttrGeneric as String: Self.signOutPendingMark]
+    let status = SecItemUpdate(baseQuery as CFDictionary, update as CFDictionary)
+    guard status == errSecSuccess || status == errSecItemNotFound else {
+      throw PutioTokenStoreError.keychainFailure(status)
     }
   }
 
@@ -86,21 +118,34 @@ public struct PutioKeychainTokenStore: PutioTokenStore {
 }
 
 public final class PutioInMemoryTokenStore: PutioTokenStore {
-  private let token: Mutex<String?>
+  private struct Credential {
+    var token: String?
+    var signOutPending = false
+  }
+
+  private let credential: Mutex<Credential>
 
   public init(token: String? = nil) {
-    self.token = Mutex(token)
+    credential = Mutex(Credential(token: token))
   }
 
   public func read() throws -> String? {
-    token.withLock { $0 }
+    credential.withLock { $0.token }
+  }
+
+  public func readSignOutPending() throws -> Bool {
+    credential.withLock { $0.token != nil && $0.signOutPending }
   }
 
   public func write(_ token: String) throws {
-    self.token.withLock { $0 = token }
+    credential.withLock { $0 = Credential(token: token) }
+  }
+
+  public func markSignOutPending() throws {
+    credential.withLock { $0.signOutPending = $0.token != nil }
   }
 
   public func clear() throws {
-    token.withLock { $0 = nil }
+    credential.withLock { $0 = Credential() }
   }
 }

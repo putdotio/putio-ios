@@ -33,12 +33,13 @@ const variants = [
   "shipped",
   "noBootstrapGenerationGuard",
   "restoreIgnoresSignOutIntent",
+  "restoreIgnoresKeychainIntent",
   "removeBeforeRevoking",
 ] as const;
 
 // Model actions in the code's words, for counterexamples.
 const steps: Readonly<Record<string, string>> = {
-  RestoreStart: "restore() reads the keychain, or finishes a pending sign-out",
+  RestoreStart: "restore() reads the keychain, or finishes a pending or marked sign-out",
   ValidateDone: "restore() gets the validateToken answer",
   BootstrapDone: "bootstrap() gets the account answer",
   Discard: "discardUnrestoredCredential() (Sign in again)",
@@ -50,12 +51,13 @@ const steps: Readonly<Record<string, string>> = {
   CodeDone: "runDeviceCodeSignIn() gets the activation code",
   ApprovalDone: "runDeviceCodeSignIn() gets the approval and calls storeSignInToken()",
   RevokeNewDone: "storeSignInToken() gets the best-effort logout answer",
-  SignOutStart: "signOut() saves its intent and calls logout",
+  SignOutStart: "signOut() saves its intent, marks the credential, and calls logout",
   LogoutDone: "finishSignOut() gets the logout answer and clears the keychain",
   ServerRevokes: "the user revokes a grant on put.io",
   AuthenticatedRequestRejected: "a request is rejected and expireSession() runs",
   AccountDestroyed: "the user destroys the account on put.io",
   Relaunch: "the app quits and relaunches",
+  Reinstall: "the app is deleted and reinstalled: defaults wiped, keychain kept",
 };
 
 const { values } = parseArgs({

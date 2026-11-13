@@ -136,13 +136,20 @@ public final class PutioSessionStore {
       return
     }
     let storedToken: String?
+    let signOutPending: Bool
     do {
       storedToken = try tokenStore.read()
+      signOutPending = try tokenStore.readSignOutPending()
     } catch {
       // An unreadable credential is not a missing one: keep it for a retry
       // instead of offering a fresh sign-in over a possibly valid session.
       sdk.clearToken()
       state = .signedOut(.restoreFailed(.secureStorage, message: message(for: error)))
+      return
+    }
+    if signOutPending {
+      setSignOutCleanupPending(true)
+      await finishSignOut(token: storedToken, generation: generation)
       return
     }
     guard let token = storedToken, !token.isEmpty else {
@@ -379,6 +386,7 @@ public final class PutioSessionStore {
   }
 
   private func setSignOutCleanupPending(_ pending: Bool) {
+    if pending { try? tokenStore.markSignOutPending() }
     signOutIntentStore.setPending(pending)
     isSignOutCleanupPending = pending
   }

@@ -41,8 +41,11 @@ left behind fails validation on the next restore, which removes it again.
 
 ## Sign-out recovery
 
-Sign-out saves its intent outside the keychain, revokes the server session,
-then removes the saved credential. A failed revocation keeps the credential so
+Sign-out saves its intent in `UserDefaults` and marks the saved credential in
+the keychain, then revokes the server session and removes the credential. The
+mark survives a reinstall that wipes `UserDefaults`, so restore treats a marked
+credential as a pending sign-out. If the mark cannot be written, a reinstall
+can still restore that credential. A failed revocation keeps the credential so
 a later launch can still revoke it. The intent clears only when both steps
 succeed; put.io rejecting the token counts as revoked.
 

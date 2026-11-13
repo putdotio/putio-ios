@@ -58,7 +58,11 @@
       return try pending.read()
     }
 
+    func readSignOutPending() throws -> Bool { try active.readSignOutPending() }
+
     func write(_ token: String) throws { try active.write(token) }
+
+    func markSignOutPending() throws { try active.markSignOutPending() }
 
     func clear() throws {
       if let token = try active.read(), !token.isEmpty { try pending.write(token) }
