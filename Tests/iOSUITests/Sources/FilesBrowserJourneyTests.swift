@@ -703,6 +703,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func signOutFromAccount() {
     let account = app.buttons["Account"]
+    let closeSearch = app.buttons["Close"]
+    if closeSearch.exists { closeSearch.tap() }
     if !account.exists { app.buttons["Files"].tap() }
     XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
     account.tap()
