@@ -65,6 +65,7 @@ struct MainTabView: View {
   @State private var selectedVideoRoute: PutioVideoRoute?
   @State private var harnessPlaybackAttempt = 0
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
+  @State private var harnessAudioSaves: [(fileID: PutioFileID, seconds: Int)] = []
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var folderRefreshRequests: PutioFolderRefreshRequests
   @State private var trashReconciliation = PutioTrashReconciliation()
@@ -653,6 +654,11 @@ struct MainTabView: View {
           } else {
             try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
           }
+          #if DEBUG
+            if scenario == .filesBrowser {
+              harnessAudioSaves.append((fileID, seconds))
+            }
+          #endif
         },
         resolve: { fileID in
           if let local = offlineQueue.localSource(for: fileID) { return local }
@@ -817,6 +823,7 @@ struct MainTabView: View {
             seconds: harnessReportedPosition.seconds
           )
         }
+        HarnessAudioSavesProbe(saves: harnessAudioSaves)
         HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
         HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
         HarnessPasteboardProbe()

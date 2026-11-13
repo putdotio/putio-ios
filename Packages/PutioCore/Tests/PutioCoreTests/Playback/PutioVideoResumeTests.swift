@@ -25,16 +25,24 @@ private final class ReporterHarness {
   var position: Int? = 0
   private(set) var schedules: [ManualSchedule] = []
   private(set) var reported: [Int] = []
+  private(set) var attempted: [Int] = []
+  var failingSaves = 0
   let pipeline = PutioPlaybackPositionPipeline()
   let fileID = PutioFileID(rawValue: 7)
 
-  func reporter(remembersPosition: Bool = true) -> PutioVideoPositionReporter {
+  func reporter(
+    remembersPosition: Bool = true,
+    savedPosition: Int? = nil,
+    endOfPlayback: PutioVideoPositionReporter.EndOfPlayback = .resetsPosition
+  ) -> PutioVideoPositionReporter {
     PutioVideoPositionReporter(
       fileID: fileID,
       remembersPosition: remembersPosition,
       pipeline: pipeline,
-      report: { [weak self] _, seconds in self?.reported.append(seconds) },
+      report: { [weak self] _, seconds in try self?.save(seconds) },
       currentPosition: { [weak self] in self?.position },
+      savedPosition: savedPosition,
+      endOfPlayback: endOfPlayback,
       schedule: { [weak self] interval, callback in
         let schedule = ManualSchedule(interval: interval, callback: callback)
         self?.schedules.append(schedule)
@@ -45,6 +53,15 @@ private final class ReporterHarness {
 
   func drain() async {
     await pipeline.waitForPendingReports(fileID: fileID)
+  }
+
+  private func save(_ seconds: Int) throws {
+    attempted.append(seconds)
+    if failingSaves > 0 {
+      failingSaves -= 1
+      throw PutioRuntimeError.invalidResponse
+    }
+    reported.append(seconds)
   }
 }
 
@@ -97,13 +114,13 @@ final class PutioVideoResumePromptTests: XCTestCase {
 
 @MainActor
 final class PutioVideoPositionReporterTests: XCTestCase {
-  func testSamplesOnTheFifteenSecondCadenceOnlyOnceReady() async throws {
+  func testSamplesOnTheTenSecondCadenceOnlyOnceReady() async throws {
     let harness = ReporterHarness()
     let reporter = harness.reporter()
     reporter.positionEstablished()
     reporter.startReporting()
     let schedule = try XCTUnwrap(harness.schedules.first)
-    XCTAssertEqual(schedule.interval, .seconds(15))
+    XCTAssertEqual(schedule.interval, .seconds(10))
 
     harness.position = 4
     schedule.tick()
@@ -112,13 +129,87 @@ final class PutioVideoPositionReporterTests: XCTestCase {
 
     reporter.ready()
     XCTAssertEqual(harness.schedules.count, 1, "readiness keeps the running cadence")
-    harness.position = 15
+    harness.position = 10
     schedule.tick()
     await harness.drain()
-    harness.position = 30
+    harness.position = 20
     schedule.tick()
     await harness.drain()
-    XCTAssertEqual(harness.reported, [15, 30])
+    XCTAssertEqual(harness.reported, [10, 20])
+  }
+
+  func testPauseSeekAndBackgroundSaveAtOnceAndAHeldPositionIsNotSentAgain() async throws {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter(savedPosition: 90)
+    reporter.positionEstablished()
+    reporter.ready()
+    let schedule = try XCTUnwrap(harness.schedules.first)
+
+    harness.position = 90
+    reporter.savePosition()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [], "the server already holds the start position")
+
+    harness.position = 94
+    reporter.savePosition()
+    await harness.drain()
+    schedule.tick()
+    reporter.savePosition()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [94], "a paused player saves once")
+
+    harness.position = 300
+    reporter.savePosition()
+    await harness.drain()
+    reporter.stop()
+    await harness.drain()
+    XCTAssertEqual(harness.reported, [94, 300])
+  }
+
+  func testAFailedSaveIsSentAgainOnTheNextTick() async throws {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter()
+    reporter.positionEstablished()
+    reporter.ready()
+    let schedule = try XCTUnwrap(harness.schedules.first)
+
+    harness.failingSaves = 1
+    harness.position = 40
+    reporter.savePosition()
+    await harness.drain()
+    XCTAssertEqual(harness.reported, [])
+    schedule.tick()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [40, 40])
+    XCTAssertEqual(harness.reported, [40])
+  }
+
+  func testPlaybackFailureSavesThePositionAndEndsTheCadence() async throws {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter()
+    reporter.positionEstablished()
+    reporter.ready()
+    let schedule = try XCTUnwrap(harness.schedules.first)
+    harness.position = 61
+    reporter.playbackFailed()
+    XCTAssertTrue(schedule.invalidated)
+    harness.position = 70
+    schedule.tick()
+    reporter.stop()
+    await harness.drain()
+    XCTAssertEqual(harness.reported, [61])
+  }
+
+  func testAnEndThatKeepsItsPositionSavesTheWatchedMarkOnce() async {
+    let harness = ReporterHarness()
+    let reporter = harness.reporter(endOfPlayback: .keepsPosition)
+    reporter.positionEstablished()
+    reporter.ready()
+    harness.position = 590
+    XCTAssertTrue(reporter.playbackEnded())
+    reporter.stop()
+    await harness.drain()
+    XCTAssertEqual(harness.reported, [590])
   }
 
   func testNoCadenceBeforeThePositionIsEstablished() {
@@ -216,6 +307,20 @@ final class PutioVideoPositionReporterTests: XCTestCase {
     XCTAssertTrue(PutioVideoPositionReporter.isAtEnd(positionSeconds: 589.5, durationSeconds: 590))
     XCTAssertFalse(PutioVideoPositionReporter.isAtEnd(positionSeconds: 12, durationSeconds: 590))
     XCTAssertFalse(PutioVideoPositionReporter.isAtEnd(positionSeconds: 12, durationSeconds: .nan))
+  }
+}
+
+final class PutioPlaybackProgressTests: XCTestCase {
+  func testNinetyFivePercentOfTheLengthMarksWatchedAndPlaysFromTheStart() {
+    XCTAssertFalse(PutioPlaybackProgress.isWatched(positionSeconds: 560, durationSeconds: 590))
+    XCTAssertTrue(PutioPlaybackProgress.isWatched(positionSeconds: 561, durationSeconds: 590))
+    XCTAssertTrue(PutioPlaybackProgress.isWatched(positionSeconds: 590, durationSeconds: 590))
+    XCTAssertFalse(PutioPlaybackProgress.isWatched(positionSeconds: 589, durationSeconds: nil))
+    XCTAssertFalse(PutioPlaybackProgress.isWatched(positionSeconds: 589, durationSeconds: .nan))
+    XCTAssertEqual(PutioPlaybackProgress.startSeconds(savedSeconds: 560, durationSeconds: 590), 560)
+    XCTAssertEqual(PutioPlaybackProgress.startSeconds(savedSeconds: 567, durationSeconds: 590), 0)
+    XCTAssertEqual(PutioPlaybackProgress.startSeconds(savedSeconds: 567, durationSeconds: nil), 567)
+    XCTAssertEqual(PutioPlaybackProgress.startSeconds(savedSeconds: 0, durationSeconds: 590), 0)
   }
 }
 

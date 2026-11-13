@@ -72,7 +72,7 @@ final class ChromecastJourneyTests: XCTestCase {
     pick(subtitles, "Turkish · Turkish.srt", expecting: "Turkish")
     pick(subtitles, "Off", expecting: "Off")
 
-    // Transport and the throttled position report (seeded start-from is 589).
+    // Transport and the throttled position report (seeded start-from is 560).
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Play" })
     let reported = element("cast.position-reported")
@@ -80,7 +80,7 @@ final class ChromecastJourneyTests: XCTestCase {
     let firstReport = reported.value as? String ?? ""
     let firstSeconds = Int(firstReport.split(separator: "=").last ?? "") ?? 0
     XCTAssertTrue(firstReport.hasPrefix("id=412;seconds="), firstReport)
-    XCTAssertGreaterThan(firstSeconds, 589, "report never advanced past the seeded start")
+    XCTAssertGreaterThan(firstSeconds, 560, "report never advanced past the seeded start")
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Pause" })
     app.buttons["cast.forward"].tap()

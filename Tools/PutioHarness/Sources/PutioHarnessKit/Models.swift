@@ -1432,7 +1432,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(
-      "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
+      "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen",
+      timeAllowance: 150),
     JourneyPreflight(
       "continue-watching",
       "ContinueWatchingJourneyTests/testStartedVideoIsListedRemovedFinishedAndTrashed",

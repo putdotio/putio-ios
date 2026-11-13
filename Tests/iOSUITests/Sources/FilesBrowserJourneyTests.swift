@@ -31,7 +31,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let rootVideo = element(identifier: "files.item.412")
     let done = element(identifier: "video.done")
-    XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 589))")
+    XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
     XCTAssertTrue(rootVideo.isHittable, "root video row is not tappable")
     let presentedRoute = element(identifier: "video.presented-route")
     rootVideo.tap()
@@ -58,7 +58,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "root video never became ready near EOF"
     )
     let nextTitle = element(identifier: "video.next-title")
-    XCTAssertTrue(nextTitle.appears(within: 15), "next-video suggestion never appeared")
+    XCTAssertTrue(nextTitle.appears(within: 45), "next-video suggestion never appeared")
     XCTAssertFalse(
       rootVideo.isHittable,
       "root browser remained interactive while the next-video player was presented"
@@ -79,10 +79,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "root video never reached EOF"
     )
     let reportedPosition = element(identifier: "video.position-reported")
-    XCTAssertEqual(
-      reportedPosition.value as? String,
-      "id=412;seconds=0",
-      "next-video suggestion appeared before the completed position reset drained"
+    let endSeconds = reportedSeconds(of: 412, from: reportedPosition.value as? String)
+    XCTAssertGreaterThanOrEqual(
+      endSeconds ?? -1, 589,
+      "next-video suggestion appeared before the watched end position drained"
     )
     let successorRoute = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", "id=414"),
@@ -106,14 +106,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     done.tap()
 
     XCTAssertTrue(root.appears(within: 5), "successor video did not return to root")
-    let unwatchedRow = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", "Not watched"),
+    let watchedRow = XCTNSPredicateExpectation(
+      predicate: NSPredicate(
+        format: "value == %@", "Watched, resume at \(resumeText(seconds: endSeconds ?? -1))"),
       object: rootVideo
     )
     XCTAssertEqual(
-      XCTWaiter.wait(for: [unwatchedRow], timeout: 5),
+      XCTWaiter.wait(for: [watchedRow], timeout: 5),
       .completed,
-      "root row did not refresh after the EOF reset"
+      "root row did not show the watched mark after EOF"
     )
 
     let account = app.buttons["Account"]
@@ -1854,6 +1855,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.screen.0").appears(within: 5),
       "root browser did not return"
     )
+    assertPlayingToTheEndMarksWatchedAndReopensFromTheStart()
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -1861,6 +1863,56 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  private func assertPlayingToTheEndMarksWatchedAndReopensFromTheStart() {
+    let rootVideo = element(identifier: "files.item.412")
+    let done = element(identifier: "video.done")
+    let ready = element(identifier: "video.ready")
+    XCTAssertTrue(rootVideo.appears(within: 5), "root video row never appeared")
+    XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
+    rootVideo.tap()
+    if !ready.appears(within: 10), element(identifier: "video.error").exists {
+      app.buttons["Try again"].tap()
+    }
+    XCTAssertTrue(ready.appears(within: 10), "root video never became ready")
+    XCTAssertEqual(element(identifier: "video.resume-position").value as? String, "560")
+    let cancelNext = element(identifier: "video.cancel-next")
+    XCTAssertTrue(cancelNext.appears(within: 45), "root video never played to its end")
+    cancelNext.tap()
+    let endSeconds = reportedSeconds(
+      of: 412, from: element(identifier: "video.position-reported").value as? String)
+    XCTAssertGreaterThanOrEqual(endSeconds ?? -1, 567, "the save did not reach 96% of 590 s")
+    done.tap()
+
+    let watchedRow = XCTNSPredicateExpectation(
+      predicate: NSPredicate(
+        format: "value == %@", "Watched, resume at \(resumeText(seconds: endSeconds ?? -1))"),
+      object: rootVideo
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [watchedRow], timeout: 5), .completed,
+      "the folder did not show the watched mark after playing to the end")
+
+    rootVideo.tap()
+    XCTAssertTrue(ready.appears(within: 10), "the watched video never became ready")
+    XCTAssertEqual(
+      element(identifier: "video.resume-position").value as? String, endSeconds.map(String.init))
+    let currentPosition = element(identifier: "video.current-position")
+    let fromTheStart = XCTNSPredicateExpectation(
+      predicate: NSPredicate { object, _ in
+        guard let value = (object as? XCUIElement)?.value as? String, let seconds = Int(value)
+        else { return false }
+        return seconds > 0 && seconds < 30
+      },
+      object: currentPosition
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [fromTheStart], timeout: 10), .completed,
+      "the watched video did not open from the start: \(currentPosition.value ?? "none")")
+    XCTAssertFalse(element(identifier: "video.ended").exists, "the watched video opened at its end")
+    done.tap()
+    XCTAssertTrue(rootVideo.appears(within: 5), "the watched video did not return to the root")
   }
 
   func testFileActionsCreateRenameRollbackRetryAndTrash() {
@@ -2372,7 +2424,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func reportedPlaybackSeconds(from value: String?) -> Int? {
-    let prefix = "id=411;seconds="
+    reportedSeconds(of: 411, from: value)
+  }
+
+  private func reportedSeconds(of fileID: Int, from value: String?) -> Int? {
+    let prefix = "id=\(fileID);seconds="
     guard let value, value.hasPrefix(prefix) else {
       return nil
     }

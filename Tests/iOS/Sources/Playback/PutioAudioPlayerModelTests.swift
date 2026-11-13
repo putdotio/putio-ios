@@ -2,13 +2,14 @@ import AVFoundation
 import Foundation
 import MediaPlayer
 import PutioCore
+import UIKit
 import XCTest
 
 @testable import Putio
 
 @MainActor
 private final class AudioEngineSpy: PutioAudioEngine {
-  var onReady: (@MainActor () -> Void)?
+  var onReady: (@MainActor (_ startSeconds: Int) -> Void)?
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
@@ -65,8 +66,44 @@ private final class SettingBox {
 @MainActor
 private final class ReportRecorder {
   private(set) var reports: [(PutioFileID, Int)] = []
+  var failingReports = 0
   func report(_ fileID: PutioFileID, _ seconds: Int) async throws {
+    if failingReports > 0 {
+      failingReports -= 1
+      throw PutioRuntimeError.transient
+    }
     reports.append((fileID, seconds))
+  }
+}
+
+@MainActor
+private final class ReportClock {
+  private(set) var intervals: [Duration] = []
+  private var callbacks: [@MainActor @Sendable () -> Void] = []
+  private var invalidated: Set<Int> = []
+
+  func schedule(
+    _ interval: Duration, _ callback: @escaping @MainActor @Sendable () -> Void
+  ) -> any PutioPositionReportSchedule {
+    intervals.append(interval)
+    callbacks.append(callback)
+    return Schedule(clock: self, index: callbacks.count - 1)
+  }
+
+  func tick() {
+    for (index, callback) in callbacks.enumerated() where !invalidated.contains(index) {
+      callback()
+    }
+  }
+
+  private final class Schedule: PutioPositionReportSchedule {
+    let clock: ReportClock
+    let index: Int
+    init(clock: ReportClock, index: Int) {
+      self.clock = clock
+      self.index = index
+    }
+    func invalidate() { clock.invalidated.insert(index) }
   }
 }
 
@@ -99,6 +136,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     let reports: ReportRecorder
     let center: NotificationCenter
     let pipeline: PutioPlaybackPositionPipeline
+    let clock: ReportClock
   }
 
   private func makeHarness(
@@ -117,6 +155,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     let reports = ReportRecorder()
     let center = NotificationCenter()
     let pipeline = PutioPlaybackPositionPipeline()
+    let clock = ReportClock()
     let successor = successor
     let model = PutioAudioPlayerModel(
       track: track,
@@ -127,13 +166,14 @@ final class PutioAudioPlayerModelTests: XCTestCase {
       positionPipeline: pipeline,
       remembersPlaybackPosition: remembersPlaybackPosition,
       notificationCenter: center,
+      schedulePositionReports: { clock.schedule($0, $1) },
       reportPosition: { try await reports.report($0, $1) },
       resolve: resolve,
       loadNext: loadNext ?? { id in id.rawValue == 430 ? successor : nil }
     )
     return Harness(
       model: model, engine: engine, nowPlaying: nowPlaying, session: session,
-      reports: reports, center: center, pipeline: pipeline)
+      reports: reports, center: center, pipeline: pipeline, clock: clock)
   }
 
   func testMinimizingAndReopeningKeepsTheSamePlaybackAndRemoteCommands() async {
@@ -222,6 +262,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events, ["load:430.m4a@12", "play:1.0"])
     h.engine.onPositionChanged?(12)
     h.engine.onPositionChanged?(30)
+    h.clock.tick()
     // Turned off after the 30 s report was queued but before it was sent.
     setting.remembers = false
     h.engine.onPositionChanged?(50)
@@ -385,19 +426,71 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertFalse(center.skipForwardCommand.isEnabled)
   }
 
-  func testPositionReportsFollowTheCadenceWhilePlaying() async {
+  func testPositionSavesEveryTenSecondsOfTheClockWhilePlaying() async {
+    let h = makeHarness()
+    await h.model.start()
+    XCTAssertEqual(h.clock.intervals, [.seconds(10)])
+    h.engine.onPositionChanged?(12)
+    h.clock.tick()
+    for seconds in [13, 20, 22] {
+      h.engine.onPositionChanged?(seconds)
+    }
+    h.clock.tick()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    h.engine.onPositionChanged?(32)
+    h.clock.tick()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertEqual(h.reports.reports.map(\.1), [22, 32])
+  }
+
+  func testBackgroundSavesThePositionAndAFailedSaveIsRetriedOnTheNextTick() async {
     let h = makeHarness()
     await h.model.start()
     h.engine.onPositionChanged?(12)
-    for seconds in [13, 20, 27, 28, 44, 45] {
-      h.engine.onPositionChanged?(seconds)
-    }
-    await h.pipeline.waitForPendingReports(fileID: track.id)
+    h.engine.onPositionChanged?(47)
+    h.reports.failingReports = 2
 
-    XCTAssertEqual(h.reports.reports.map(\.1), [27, 44])
+    h.center.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+    await waitUntil { h.reports.failingReports == 0 }
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    XCTAssertTrue(h.reports.reports.isEmpty)
+    XCTAssertTrue(h.model.isPlaying, "a failed save never interrupts playback")
+
+    h.clock.tick()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    XCTAssertEqual(h.reports.reports.map(\.1), [47])
   }
 
-  func testEndOfTrackResetsPositionThenAdvancesToTheSuccessor() async {
+  func testEngineFailureSavesThePositionItFailedAt() async {
+    let h = makeHarness()
+    await h.model.start()
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(73)
+
+    h.engine.onFailed?()
+    h.clock.tick()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertEqual(h.model.state, .failed(track, .playback))
+    XCTAssertEqual(h.reports.reports.map(\.1), [73])
+  }
+
+  func testAWatchedTrackStartsFromTheBeginning() async {
+    let h = makeHarness(resolve: { id in
+      PutioPlaybackSource(
+        url: URL(string: "https://media.example.test/\(id.rawValue).m4a")!, startFromSeconds: 235)
+    })
+    await h.model.start()
+    XCTAssertEqual(h.model.elapsedSeconds, 235)
+
+    h.engine.onReady?(0)
+    XCTAssertEqual(h.model.elapsedSeconds, 0)
+    h.engine.onPositionChanged?(1)
+    XCTAssertEqual(h.model.elapsedSeconds, 1, "samples from the start count once it starts there")
+  }
+
+  func testEndOfTrackSavesTheWatchedMarkThenAdvancesToTheSuccessor() async {
     let h = makeHarness()
     await h.model.start()
     h.engine.onPositionChanged?(12)
@@ -405,13 +498,13 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
     h.engine.onEnded?()
     XCTAssertEqual(h.nowPlaying.published.last?.elapsedSeconds, 0)
-    // A terminal-time sample after the end must not undo the reset.
     h.engine.onPositionChanged?(240)
+    h.clock.tick()
     let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
     await waitUntil { h.model.state == .playing(next) }
     await h.pipeline.waitForPendingReports(fileID: track.id)
 
-    XCTAssertEqual(h.reports.reports.map(\.1), [200, 0])
+    XCTAssertEqual(h.reports.reports.map(\.1), [240])
     XCTAssertEqual(h.engine.events.filter { $0 == "pause" }.count, 1)
     XCTAssertEqual(h.engine.events.suffix(2), ["load:431.m4a@12", "play:1.0"])
     XCTAssertNil(h.model.advancingTo)
