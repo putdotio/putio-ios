@@ -61,8 +61,6 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     return PutioFileRowModel.sizeText(bytes: storedBytes)
   }
 
-  /// The bytes the download is expected to take: the file size at enqueue,
-  /// replaced by the stream's estimate before a video starts.
   var estimatedBytes: Int64
 }
 
