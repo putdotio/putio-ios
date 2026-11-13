@@ -446,6 +446,13 @@ final class SentryTelemetryTests: XCTestCase {
         }
     }
 
+    func testAppHangTrackingKeepsNonFullyBlockingHangsOnAtTheSDKDefaultTimeout() {
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertTrue(options.enableAppHangTracking)
+        XCTAssertTrue(options.enableReportNonFullyBlockingAppHangs)
+        XCTAssertEqual(options.appHangTimeoutInterval, 2)
+    }
+
     func testMetricKitHangsLeaveWithTheirMechanism() throws {
         let options = SentryTelemetry.options(dsn: dsn)
         XCTAssertTrue(options.enableMetricKit)
