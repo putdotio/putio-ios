@@ -2034,9 +2034,24 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
     XCTAssertTrue(
-      app.buttons["Undo"].disappears(within: 10), "the Undo toast never timed out")
+      waitUntilHittable(app.buttons["Undo"], timeout: 5), "the Trash toast offers no Undo")
 
-    let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
+    openBrowseMenu()
+    let newFolderUnderToast = app.buttons["New folder"]
+    XCTAssertTrue(
+      waitUntilHittable(newFolderUnderToast, timeout: 5),
+      "new-folder action is unavailable while the Undo toast shows")
+    newFolderUnderToast.tap()
+    let alertOverToast = nameAlert("New folder")
+    XCTAssertTrue(
+      app.staticTexts["Moved to trash"].disappears(within: 10),
+      "the Undo toast never timed out under the alert")
+    XCTAssertTrue(alertOverToast.exists, "the alert closed before the toast timed out")
+    submitName("Bulk Retry", in: alertOverToast, as: "Create")
+    let bulkRetryFolder = element(identifier: "files.item.416")
+    XCTAssertTrue(
+      bulkRetryFolder.appears(within: 5),
+      "a folder created after a toast timed out under its alert did not appear")
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
     openBrowseMenu()
     let select = app.buttons["Select"]
