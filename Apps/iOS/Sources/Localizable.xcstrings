@@ -1238,6 +1238,17 @@
         }
       }
     },
+    "Couldn’t update recent searches" : {
+      "comment" : "android: mobile_search_recent_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t update recent searches"
+          }
+        }
+      }
+    },
     "Create" : {
       "comment" : "android: mobile_files_new_folder_create",
       "localizations" : {
@@ -1877,6 +1888,17 @@
         }
       }
     },
+    "Enter a name or keyword to search your put.io account." : {
+      "comment" : "android: mobile_search_start_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name or keyword to search your put.io account."
+          }
+        }
+      }
+    },
     "Enter the code shown on your device to link it to your put.io account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2075,13 +2097,13 @@
         }
       }
     },
-    "Find files by their stored name." : {
-      "comment" : "android: mobile_search_start_message | differs: iOS board wording",
+    "Find your files" : {
+      "comment" : "android: mobile_search_start_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Find files by their stored name."
+            "value" : "Find your files"
           }
         }
       }
@@ -3783,6 +3805,28 @@
         }
       }
     },
+    "Recent searches" : {
+      "comment" : "android: mobile_search_recent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent searches"
+          }
+        }
+      }
+    },
+    "Remove %@ from recent searches" : {
+      "comment" : "android: mobile_search_remove_named",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@ from recent searches"
+          }
+        }
+      }
+    },
     "Revoke this link?" : {
       "comment" : "android: mobile_public_links_revoke_title",
       "localizations" : {
@@ -4549,17 +4593,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search"
-          }
-        }
-      }
-    },
-    "Search in Files" : {
-      "comment" : "android: mobile_files_search_in | differs: iOS always searches Files",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search in Files"
           }
         }
       }

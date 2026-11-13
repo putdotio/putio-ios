@@ -730,6 +730,27 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-71-search-long-query")
   }
 
+  func testSearchRecent() throws {
+    orientForBoardDevice()
+    app.launchArguments += ["--putio-harness-search-history", "recent"]
+    app.launch()
+    reachFilesRoot()
+    tabButton("Search").tap()
+    XCTAssertTrue(app.staticTexts["Recent searches"].appears(within: 10), "no recent searches")
+    XCTAssertTrue(
+      app.buttons["files.search-recent.tree rings"].exists, "a recent search is missing")
+    try captureBoard("rd-ios-27-search-recent")
+  }
+
+  func testSearchStart() throws {
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    tabButton("Search").tap()
+    XCTAssertTrue(app.staticTexts["Find your files"].appears(within: 10), "no first-use state")
+    try captureBoard("rd-ios-45-search-start")
+  }
+
   private func typeSearch(_ query: String) {
     tabButton("Search").tap()
     let field = app.searchFields.firstMatch

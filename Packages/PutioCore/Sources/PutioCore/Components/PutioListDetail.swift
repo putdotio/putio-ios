@@ -53,7 +53,7 @@
           }
           .id(selection)
         } else if let emptyState {
-          PutioEmptyStateView.detailPlaceholder(
+          PutioEmptyStateView.textOnly(
             title: emptyState.title, message: emptyState.message
           )
           .putioContentBackground()
