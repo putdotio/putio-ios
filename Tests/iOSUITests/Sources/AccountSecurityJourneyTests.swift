@@ -147,6 +147,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     back()
     XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
 
+    app.showTabBar()
     app.buttons["History"].tap()
     XCTAssertTrue(
       app.staticTexts["No history"].appears(within: 15), "the clear did not finish after leaving")
