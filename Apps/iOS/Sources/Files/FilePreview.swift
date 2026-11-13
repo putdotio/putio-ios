@@ -926,7 +926,7 @@ struct PutioPreviewView: View {
       if showsDocument(state), let page = documentPages[pager.current.id], page.showsPill {
         PutioPDFPagePill(position: page)
       }
-      if let position = pager.position, showsBars(state) {
+      if let position = pager.position, showsBars(state), !showsDocument(state) {
         PutioPreviewPositionLabel(position: position)
           .transition(.opacity)
       }

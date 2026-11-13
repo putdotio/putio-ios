@@ -1739,7 +1739,8 @@ public struct SimulatorHarness {
   }
 
   func captureBoards(
-    _ boards: [BoardCapture], xxl: Bool = false, runID: String, sourceRevision: String
+    _ boards: [BoardCapture], xxl: Bool = false, command: String, runID: String,
+    sourceRevision: String
   ) throws -> SurfaceRun {
     let platform = HarnessPlatform.ios
     try requireCleanSource()
@@ -1783,7 +1784,7 @@ public struct SimulatorHarness {
                   board, session: session, mediaBaseURL: mediaBaseURL,
                   environment: postureEnvironment, directory: deviceDirectory))
             } catch {
-              failures.append((board.id, error))
+              failures.append((board.captureName, error))
             }
           }
           guard xxl else { return }
@@ -1795,7 +1796,7 @@ public struct SimulatorHarness {
                     board, textSize: .xxl, session: session, mediaBaseURL: mediaBaseURL,
                     environment: postureEnvironment, directory: deviceDirectory))
               } catch {
-                failures.append(("\(board.id)-xxl", error))
+                failures.append(("\(board.captureName)-xxl", error))
               }
             }
           }
@@ -1816,8 +1817,7 @@ public struct SimulatorHarness {
       runID: runID,
       commit: sourceRevision,
       createdAt: ISO8601DateFormatter().string(from: Date()),
-      command: "journey --boards \(boards.map(\.id).joined(separator: ","))"
-        + (xxl ? " --xxl" : ""),
+      command: command,
       runtime: runtimeName,
       fixtureSet: BoardCaptureContract.fixtureSet,
       boards: captured
@@ -1850,7 +1850,7 @@ public struct SimulatorHarness {
     _ board: BoardCapture, textSize: BoardTextSize = .standard, session: SimulatorSession,
     mediaBaseURL: URL, environment: [String: String], directory: URL
   ) throws -> BoardArtifact {
-    let name = textSize == .xxl ? "\(board.id)-xxl" : board.id
+    let name = textSize == .xxl ? "\(board.captureName)-xxl" : board.captureName
     let staging = directory.appending(path: ".\(name)")
     try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: staging) }
@@ -1876,19 +1876,20 @@ public struct SimulatorHarness {
     guard files.count == 2 else {
       throw HarnessFailure("board \(name) exported \(files.count) attachments, expected 2")
     }
-    let screenshot = directory.appending(path: "\(name).png")
-    try fileManager.moveItem(at: files[0], to: screenshot)
-    let layoutURL = files[1]
     let pixels = try requireMeaningfulScreenshot(
-      screenshot, context: "board \(name)", wholeFrame: true)
-    let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: layoutURL))
+      files[0], context: "board \(name)", wholeFrame: true)
+    let layout = try JSONDecoder().decode(BoardLayout.self, from: Data(contentsOf: files[1]))
     try requireBoardScreenshot(
       pixelWidth: pixels.width, pixelHeight: pixels.height, matches: layout, board: name)
+    try requireBoardOrientation(layout, held: board.orientation, board: name)
+    let screenshot = directory.appending(path: "\(name).png")
+    try fileManager.moveItem(at: files[0], to: screenshot)
     try? fileManager.removeItem(at: resultBundle)
     let artifact = try artifact(for: screenshot)
     return BoardArtifact(
       board: board.id,
       device: board.device,
+      orientation: board.orientation,
       textSize: textSize,
       deviceType: session.deviceType.name,
       pointWidth: layout.width,
@@ -2287,6 +2288,7 @@ public struct SimulatorHarness {
 
   private func boot(_ identifier: String, label: String) throws {
     try pinLocale(ofSimulator: identifier)
+    try pinFullScreenApps(ofSimulator: identifier)
     _ = try runner.checked(
       "xcrun", ["simctl", "boot", identifier], context: "boot \(label) Simulator")
     let started = ContinuousClock.now
@@ -2318,6 +2320,21 @@ public struct SimulatorHarness {
       as? [String: Any] ?? [:]
     values["AppleLocale"] = simulatorLocale
     values["AppleLanguages"] = simulatorLanguages
+    try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
+      .write(to: file, options: .atomic)
+  }
+
+  private func pinFullScreenApps(ofSimulator identifier: String) throws {
+    let preferences = fileManager.homeDirectoryForCurrentUser
+      .appending(path: "Library/Developer/CoreSimulator/Devices")
+      .appending(path: identifier)
+      .appending(path: "data/Library/Preferences")
+    guard fileManager.fileExists(atPath: preferences.path) else { return }
+    let file = preferences.appending(path: "com.apple.springboard.plist")
+    var values =
+      (try? PropertyListSerialization.propertyList(from: Data(contentsOf: file), format: nil))
+      as? [String: Any] ?? [:]
+    values.merge(fullScreenAppsSpringBoardDefaults) { _, pinned in pinned }
     try PropertyListSerialization.data(fromPropertyList: values, format: .binary, options: 0)
       .write(to: file, options: .atomic)
   }
@@ -2926,6 +2943,22 @@ func requireBoardScreenshot(
         + "\(layout.width)x\(layout.height) pt at \(layout.scale)x")
   }
 }
+
+func requireBoardOrientation(
+  _ layout: BoardLayout, held orientation: BoardOrientation?, board: String
+) throws {
+  guard let orientation else { return }
+  guard (layout.height > layout.width) == (orientation == .portrait) else {
+    throw HarnessFailure(
+      "board \(board) was held \(orientation.rawValue), but the app window measured "
+        + "\(layout.width)x\(layout.height) pt: its test sets its own orientation")
+  }
+}
+
+let fullScreenAppsSpringBoardDefaults: [String: Bool] = [
+  "SBMedusaMultitaskingEnabled": false,
+  "SBChamoisWindowingEnabled": false,
+]
 
 let simulatorLocale = "en_US"
 let simulatorLanguages = ["en"]

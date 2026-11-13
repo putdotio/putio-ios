@@ -183,8 +183,8 @@ public enum HarnessInvocation: Equatable, Sendable {
     output: OutputFormat
   )
   case boards(
-    ids: [String], xxl: Bool = false, device: BoardDevice? = nil, runID: String?,
-    output: OutputFormat)
+    ids: [String], xxl: Bool = false, device: BoardDevice? = nil,
+    orientation: BoardOrientation? = nil, runID: String?, output: OutputFormat)
   case authStatus(output: OutputFormat)
   case liveFixture(output: OutputFormat)
 }
@@ -527,9 +527,15 @@ public enum BoardDevice: String, CaseIterable, Codable, Sendable {
   }
 }
 
+public enum BoardOrientation: String, CaseIterable, Codable, Sendable {
+  case portrait
+  case landscape
+}
+
 struct BoardCapture: Equatable, Sendable {
   let id: String
   private(set) var device: BoardDevice
+  private(set) var orientation: BoardOrientation?
   let testIdentifier: String
   let isScreenBase: Bool
   let environment: [String: String]
@@ -554,15 +560,23 @@ struct BoardCapture: Equatable, Sendable {
 
   var layoutAttachmentName: String { "\(id)-layout" }
 
+  var captureName: String { orientation.map { "\(id)-\($0.rawValue)" } ?? id }
+
   var testEnvironment: [String: String] {
-    environment.merging(
-      ["PUTIO_BOARD_ID": id, "PUTIO_BOARD_DEVICE": device.rawValue]
-    ) { declared, _ in declared }
+    var posture = ["PUTIO_BOARD_ID": id, "PUTIO_BOARD_DEVICE": device.rawValue]
+    posture["PUTIO_BOARD_ORIENTATION"] = orientation?.rawValue
+    return environment.merging(posture) { declared, _ in declared }
   }
 
   func on(_ device: BoardDevice) -> BoardCapture {
     var capture = self
     capture.device = device
+    return capture
+  }
+
+  func held(_ orientation: BoardOrientation) -> BoardCapture {
+    var capture = self
+    capture.orientation = orientation
     return capture
   }
 }
@@ -842,7 +856,20 @@ enum BoardCaptureContract {
     "confirm-alert", "selection-none", "selection-some", "selection-all", "split",
   ]
 
-  static func resolve(_ ids: [String], device: BoardDevice? = nil) throws -> [BoardCapture] {
+  static func command(
+    ids: [String], device: BoardDevice?, orientation: BoardOrientation?, xxl: Bool
+  ) -> String {
+    [
+      "journey --boards \(ids.joined(separator: ","))",
+      device.map { "--device \($0.rawValue)" },
+      orientation.map { "--orientation \($0.rawValue)" },
+      xxl ? "--xxl" : nil,
+    ].compactMap { $0 }.joined(separator: " ")
+  }
+
+  static func resolve(
+    _ ids: [String], device: BoardDevice? = nil, orientation: BoardOrientation? = nil
+  ) throws -> [BoardCapture] {
     guard !ids.isEmpty else { throw HarnessFailure("--boards needs at least one board id") }
     let unknown = ids.filter { id in !boards.contains { $0.id == id } }
     guard unknown.isEmpty else {
@@ -853,9 +880,22 @@ enum BoardCaptureContract {
     guard Set(ids).count == ids.count else {
       throw HarnessFailure("--boards lists a board id twice")
     }
-    return ids.compactMap { id in boards.first { $0.id == id } }.map { capture in
+    let resolved = ids.compactMap { id in boards.first { $0.id == id } }.map { capture in
       device.map(capture.on) ?? capture
     }
+    guard let orientation else { return resolved }
+    if let open = resolved.first(where: { $0.device == .duoOpen }) {
+      throw HarnessFailure(
+        "--orientation cannot pose \(open.id): the open iPhone Duo is never rotated")
+    }
+    if orientation == .landscape,
+      let folded = resolved.first(where: { $0.device == .duoFolded })
+    {
+      throw HarnessFailure(
+        "--orientation landscape cannot pose \(folded.id): "
+          + "the folded iPhone Duo needs a compact width")
+    }
+    return resolved.map { $0.held(orientation) }
   }
 }
 
@@ -880,6 +920,7 @@ public enum BoardTextSize: String, Codable, Sendable {
 public struct BoardArtifact: Codable, Equatable, Sendable {
   public let board: String
   public let device: BoardDevice
+  public let orientation: BoardOrientation?
   public let textSize: BoardTextSize
   public let deviceType: String
   public let pointWidth: Double

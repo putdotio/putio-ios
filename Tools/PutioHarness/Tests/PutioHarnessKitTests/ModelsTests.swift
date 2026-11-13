@@ -287,6 +287,46 @@ import Testing
     board: "rd-ios-duo-01-folded-folder")
 }
 
+@Test func orientedBoardPosesTheTestAndNamesTheCaptureByOrientation() throws {
+  let portrait = try #require(
+    BoardCaptureContract.resolve(["rd-ios-pv-15-ipad-pdf"], orientation: .portrait).first)
+  #expect(portrait.device == .ipad)
+  #expect(portrait.testIdentifier == "PutioUITests/BoardCaptureTests/testIPadPreviewDocument")
+  #expect(portrait.testEnvironment["PUTIO_BOARD_ORIENTATION"] == "portrait")
+  #expect(portrait.testEnvironment["PUTIO_BOARD_ID"] == "rd-ios-pv-15-ipad-pdf")
+  #expect(portrait.captureName == "rd-ios-pv-15-ipad-pdf-portrait")
+  let posed = try #require(BoardCaptureContract.resolve(["rd-ios-pv-15-ipad-pdf"]).first)
+  #expect(posed.testEnvironment["PUTIO_BOARD_ORIENTATION"] == nil)
+  #expect(posed.captureName == "rd-ios-pv-15-ipad-pdf")
+}
+
+@Test func boardManifestCommandReplaysEveryOverride() throws {
+  #expect(
+    BoardCaptureContract.command(
+      ids: ["rd-ios-02-folder", "rd-ios-04-sort"], device: .ipad, orientation: .portrait,
+      xxl: true)
+      == "journey --boards rd-ios-02-folder,rd-ios-04-sort --device ipad --orientation portrait --xxl"
+  )
+  #expect(
+    BoardCaptureContract.command(
+      ids: ["rd-ios-02-folder"], device: nil, orientation: nil, xxl: false)
+      == "journey --boards rd-ios-02-folder")
+}
+
+@Test func heldOrientationRejectsAWindowInTheOtherPose() throws {
+  let tall = BoardLayout(width: 3, height: 4, scale: 2)
+  let wide = BoardLayout(width: 4, height: 3, scale: 2)
+  try requireBoardOrientation(tall, held: .portrait, board: "tall")
+  try requireBoardOrientation(wide, held: .landscape, board: "wide")
+  try requireBoardOrientation(wide, held: nil, board: "posed")
+  #expect(throws: HarnessFailure.self) {
+    try requireBoardOrientation(wide, held: .portrait, board: "wide")
+  }
+  #expect(throws: HarnessFailure.self) {
+    try requireBoardOrientation(tall, held: .landscape, board: "tall")
+  }
+}
+
 @Test func duoOpenBoardMapsToTheFolderTestOnTheOpenPosture() throws {
   let board = try #require(BoardCaptureContract.resolve(["rd-ios-duo-02-open-folder"]).first)
   #expect(board.device == .duoOpen)

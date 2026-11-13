@@ -12,6 +12,9 @@ final class BoardCaptureTests: XCTestCase {
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"]
     )
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_ORIENTATION"] != nil {
+      orient(.portrait)
+    }
   }
 
   override func tearDown() {
@@ -604,7 +607,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testSortMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     reachFilesRoot()
     let sort = app.buttons["files.sort"]
@@ -616,7 +619,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testSortingUpdate() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launch()
     openSeasonFolder()
     let sort = app.buttons["files.sort"]
@@ -1488,7 +1491,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewMoreMenu() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     openPosterPreview()
     openPreviewMore()
     XCTAssertTrue(app.buttons["Exclusive link"].firstMatch.exists, "More has no Exclusive link")
@@ -1496,7 +1499,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewRename() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     openPosterPreview()
     openPreviewMore()
     app.buttons["Rename"].firstMatch.tap()
@@ -1508,7 +1511,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewTrashed() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     openGalleryThird()
     let position = element("preview.position")
     let deadline = Date.now.addingTimeInterval(10)
@@ -1528,7 +1531,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewMoreTrashOff() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-trash-disabled")
     openAlbumCover()
     openPreviewMore()
@@ -1539,7 +1542,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testPreviewDeleteConfirm() throws {
-    XCUIDevice.shared.orientation = .portrait
+    orient(.portrait)
     app.launchArguments.append("--putio-harness-trash-disabled")
     openAlbumCover()
     openPreviewMore()
@@ -1587,7 +1590,7 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewLandscapeImage() throws {
     orient(.portrait)
     openPosterPreview()
-    orient(.landscapeLeft)
+    rotate(.landscapeLeft)
     let window = app.windows.firstMatch
     let deadline = Date.now.addingTimeInterval(10)
     while window.frame.width < window.frame.height, Date.now < deadline {
@@ -1610,7 +1613,7 @@ final class BoardCaptureTests: XCTestCase {
     openPosterPreview()
     assertPreviewFillsWindow(fileID: 406)
     try captureBoard("rd-ios-pv-14-ipad-image")
-    assertPreviewKeepsFileAcrossRotation(fileID: 406, board: "rd-ios-pv-14-ipad-image") {
+    assertPreviewKeepsFileAcrossRotation(fileID: 406) {
       app.images["Harness Poster.png"]
     }
     assertBackReturnsToRow("files.item.406", fileID: 406)
@@ -1621,7 +1624,7 @@ final class BoardCaptureTests: XCTestCase {
     openDocumentOnSecondPage()
     assertPreviewFillsWindow(fileID: 413)
     try captureBoard("rd-ios-pv-15-ipad-pdf")
-    assertPreviewKeepsFileAcrossRotation(fileID: 413, board: "rd-ios-pv-15-ipad-pdf") {
+    assertPreviewKeepsFileAcrossRotation(fileID: 413) {
       element("preview.page")
     }
     assertBackReturnsToRow("files.item.413", fileID: 413)
@@ -1646,6 +1649,7 @@ final class BoardCaptureTests: XCTestCase {
       drags += 1
     }
     XCTAssertEqual(pill.label, "Page 2 of 12", "the document did not reach page 2")
+    RunLoop.current.run(until: Date.now.addingTimeInterval(2))
   }
 
   private func assertPreviewFillsWindow(fileID: Int) {
@@ -1658,7 +1662,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func assertPreviewKeepsFileAcrossRotation(
-    fileID: Int, board: String, content: () -> XCUIElement
+    fileID: Int, content: () -> XCUIElement
   ) {
     let window = app.windows.firstMatch
     for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
@@ -1672,12 +1676,6 @@ final class BoardCaptureTests: XCTestCase {
         window.frame.width < window.frame.height, portrait, "the viewer did not rotate")
       XCTAssertTrue(content().appears(within: 10), "rotating lost the open file")
       assertPreviewFillsWindow(fileID: fileID)
-      if portrait {
-        let capture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        capture.name = "\(board)-portrait"
-        capture.lifetime = .keepAlways
-        add(capture)
-      }
     }
   }
 
@@ -3029,8 +3027,13 @@ final class BoardCaptureTests: XCTestCase {
   private static let openDuoSize = CGSize(width: 951, height: 669)
 
   private func orient(_ orientation: UIDeviceOrientation) {
-    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
-    XCUIDevice.shared.orientation = orientation
+    let environment = ProcessInfo.processInfo.environment
+    guard environment["PUTIO_BOARD_DEVICE"] != "duo-open" else { return }
+    switch environment["PUTIO_BOARD_ORIENTATION"] {
+    case "portrait": XCUIDevice.shared.orientation = .portrait
+    case "landscape": XCUIDevice.shared.orientation = .landscapeLeft
+    default: XCUIDevice.shared.orientation = orientation
+    }
   }
 
   private func rotate(_ orientation: UIDeviceOrientation) {
