@@ -8,8 +8,9 @@ cannot change a newer session. Keep that check after every suspension before
 applying a session-sensitive result.
 
 On iOS, leaving the signed-in session stops Chromecast playback and disconnects
-the receiver. This includes sign-out attempts that fail, session expiry, and
-account destruction. The session root owns this cleanup so it still runs when
+the receiver. This includes sign-out attempts that fail and session expiry,
+which is also how an account destroyed on put.io ends. The session root owns
+this cleanup so it still runs when
 the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
 
 ## Saved credential failures
@@ -35,9 +36,8 @@ non-authentication reason, the store enters the same recovery with the
 accepts.
 
 If a new sign-in cannot save its token, the store revokes the new grant on a best-effort basis
-and fails sign-in. Expiry and account destruction remove the saved token on a
-best-effort basis. A copy left behind fails validation on the next restore,
-which removes it again.
+and fails sign-in. Expiry removes the saved token on a best-effort basis. A copy
+left behind fails validation on the next restore, which removes it again.
 
 ## Sign-out recovery
 

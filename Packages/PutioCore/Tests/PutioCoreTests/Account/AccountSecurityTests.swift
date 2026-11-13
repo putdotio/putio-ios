@@ -5,222 +5,6 @@ import XCTest
 
 @MainActor
 final class AccountSecurityTests: XCTestCase {
-  func testEnrollmentClearsARejectedCodeAndEndsOnRecoveryCodes() async {
-    var submitted: [(Bool, String)] = []
-    let model = PutioTwoFactorChangeModel(
-      enabling: true,
-      actions: PutioAccountSecurityActions(
-        generateSecret: { " JBSWY3DP " },
-        setTwoFactor: { enable, code in
-          submitted.append((enable, code))
-          if code == "000000" { throw PutioAccountSecurityError.invalidTwoFactorCode }
-          return .init(accountRefreshed: true)
-        },
-        recoveryCodes: { [PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false)] }))
-    XCTAssertEqual(model.step, .loadingSecret)
-    await model.loadSecret()
-    XCTAssertEqual(model.step, .secret(" JBSWY3DP "))
-    XCTAssertFalse(model.canSubmit)
-    model.continueToCode()
-    XCTAssertEqual(model.step, .code)
-    model.code = "000000"
-    await model.submit()
-    XCTAssertEqual(model.code, "", "the rejected code stayed in the field")
-    XCTAssertNotNil(model.codeFailure)
-    XCTAssertEqual(model.step, .code)
-    model.code = " 246810 "
-    await model.submit()
-    XCTAssertNil(model.codeFailure)
-    XCTAssertEqual(
-      model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false)]))
-    XCTAssertEqual(submitted.map(\.0), [true, true])
-    XCTAssertEqual(submitted.map(\.1), ["000000", " 246810 "])
-    model.finish()
-    XCTAssertEqual(model.step, .finished(accountRefreshed: true))
-  }
-
-  func testTransientFailureKeepsTheCodeAndDisablingSkipsRecoveryCodes() async {
-    var attempts = 0
-    let model = PutioTwoFactorChangeModel(
-      enabling: false,
-      actions: PutioAccountSecurityActions(
-        setTwoFactor: { _, _ in
-          attempts += 1
-          if attempts == 1 { throw PutioRuntimeError.transient }
-          return .init(accountRefreshed: false)
-        },
-        recoveryCodes: {
-          XCTFail("disabling loaded recovery codes")
-          return []
-        }))
-    XCTAssertEqual(model.step, .code)
-    await model.loadSecret()
-    XCTAssertEqual(model.step, .code, "disabling generated a secret")
-    model.code = "246810"
-    await model.submit()
-    XCTAssertEqual(model.code, "246810")
-    XCTAssertNotNil(model.codeFailure)
-    await model.submit()
-    XCTAssertEqual(model.step, .finished(accountRefreshed: false))
-  }
-
-  func testEnabledWithFailedRecoveryCodesOffersAnotherLoad() async {
-    var loads = 0
-    var submits = 0
-    let model = PutioTwoFactorChangeModel(
-      enabling: true,
-      actions: PutioAccountSecurityActions(
-        generateSecret: { "S" },
-        setTwoFactor: { _, _ in
-          submits += 1
-          return .init(accountRefreshed: true)
-        },
-        recoveryCodes: {
-          loads += 1
-          if loads == 1 { throw PutioRuntimeError.transient }
-          return [PutioTwoFactorRecoveryCode(code: "b-2", isUsed: true)]
-        }))
-    await model.loadSecret()
-    model.continueToCode()
-    model.code = "1"
-    await model.submit()
-    XCTAssertEqual(model.step, .code)
-    XCTAssertNotNil(model.recoveryCodesFailure)
-    XCTAssertFalse(model.canSubmit, "Enable was offered again for an account with 2FA already on")
-    await model.submit()
-    XCTAssertEqual(submits, 1, "a second submit reached the server")
-    model.finish()
-    XCTAssertEqual(model.step, .code, "finish skipped the codes without an explicit exit")
-    await model.retryRecoveryCodes()
-    XCTAssertEqual(
-      model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "b-2", isUsed: true)]))
-    XCTAssertNil(model.recoveryCodesFailure)
-    XCTAssertEqual(loads, 2)
-  }
-
-  func testLeavingWithoutRecoveryCodesIsExplicitAndOnlyAfterEnrollment() async {
-    let model = PutioTwoFactorChangeModel(
-      enabling: true,
-      actions: PutioAccountSecurityActions(
-        generateSecret: { "S" },
-        setTwoFactor: { _, _ in .init(accountRefreshed: false) },
-        recoveryCodes: { throw PutioRuntimeError.transient }))
-    await model.loadSecret()
-    model.continueToCode()
-    model.finishWithoutRecoveryCodes()
-    XCTAssertEqual(model.step, .code, "left before the enrollment committed")
-    model.code = "1"
-    await model.submit()
-    XCTAssertNotNil(model.recoveryCodesFailure)
-    model.finishWithoutRecoveryCodes()
-    XCTAssertEqual(model.step, .finished(accountRefreshed: false))
-  }
-
-  func testEnrollmentFinishCarriesAFailedAccountReload() async {
-    let model = PutioTwoFactorChangeModel(
-      enabling: true,
-      actions: PutioAccountSecurityActions(
-        generateSecret: { "S" },
-        setTwoFactor: { _, _ in .init(accountRefreshed: false) },
-        recoveryCodes: { [PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false)] }))
-    await model.loadSecret()
-    model.continueToCode()
-    model.code = "1"
-    await model.submit()
-    model.finish()
-    XCTAssertEqual(
-      model.step, .finished(accountRefreshed: false), "a stale account was reported as refreshed")
-  }
-
-  func testRecoveryCodesRegenerateFailureKeepsCurrentCodesAndCopiesUnusedOnly() async {
-    var regenerations = 0
-    var loads = 0
-    let model = PutioRecoveryCodesModel(
-      actions: PutioAccountSecurityActions(
-        recoveryCodes: {
-          loads += 1
-          return [
-            PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false),
-            PutioTwoFactorRecoveryCode(code: "a-2", isUsed: true),
-          ]
-        },
-        regenerateRecoveryCodes: {
-          regenerations += 1
-          if regenerations == 1 { throw PutioRuntimeError.transient }
-          return [PutioTwoFactorRecoveryCode(code: "z-9", isUsed: false)]
-        }))
-    await model.load()
-    XCTAssertEqual(model.copyableText, "a-1")
-    await model.regenerate()
-    XCTAssertEqual(model.codes?.map(\.code), ["a-1", "a-2"], "codes were not reconfirmed")
-    XCTAssertEqual(loads, 2, "a failed regeneration did not reload the authoritative codes")
-    XCTAssertTrue(model.canRetryRegenerate)
-    await model.regenerate()
-    XCTAssertEqual(model.codes?.map(\.code), ["z-9"])
-    XCTAssertNil(model.failure)
-    XCTAssertFalse(model.canRetryRegenerate)
-  }
-
-  func testCancelledRegenerationStillReconcilesTheCodes() async {
-    var loads = 0
-    let model = PutioRecoveryCodesModel(
-      actions: PutioAccountSecurityActions(
-        recoveryCodes: {
-          loads += 1
-          return [PutioTwoFactorRecoveryCode(code: "same", isUsed: false)]
-        },
-        regenerateRecoveryCodes: { throw CancellationError() }))
-    await model.load()
-    await model.regenerate()
-    XCTAssertEqual(loads, 2, "a cancelled regeneration skipped the reconcile")
-    XCTAssertNotNil(model.failure)
-    XCTAssertTrue(model.canRetryRegenerate)
-  }
-
-  func testUnknownReloadOutcomeKeepsTheCodesAndOffersRetry() async {
-    var loads = 0
-    let model = PutioRecoveryCodesModel(
-      actions: PutioAccountSecurityActions(
-        recoveryCodes: {
-          loads += 1
-          if loads == 2 { throw CancellationError() }
-          return [PutioTwoFactorRecoveryCode(code: "kept", isUsed: false)]
-        },
-        regenerateRecoveryCodes: { throw PutioRuntimeError.transient }))
-    await model.load()
-    await model.regenerate()
-    XCTAssertEqual(model.codes?.map(\.code), ["kept"], "the shown codes were dropped")
-    XCTAssertNotNil(model.failure, "an unknown outcome left an endless spinner")
-    XCTAssertTrue(model.canRetryRegenerate)
-  }
-
-  func testCancelledTwoFactorSaveReportsARetryableFailureAndKeepsTheCode() async {
-    let model = PutioTwoFactorChangeModel(
-      enabling: false,
-      actions: PutioAccountSecurityActions(setTwoFactor: { _, _ in throw CancellationError() }))
-    model.code = "246810"
-    await model.submit()
-    XCTAssertEqual(model.step, .code)
-    XCTAssertEqual(model.code, "246810")
-    XCTAssertNotNil(model.codeFailure, "a cancelled save re-armed submit silently")
-  }
-
-  func testLostRegenerationThatCommittedShowsTheNewCodesWithoutRetry() async {
-    var loads = 0
-    let model = PutioRecoveryCodesModel(
-      actions: PutioAccountSecurityActions(
-        recoveryCodes: {
-          loads += 1
-          return [PutioTwoFactorRecoveryCode(code: loads == 1 ? "old-1" : "new-1", isUsed: false)]
-        },
-        regenerateRecoveryCodes: { throw PutioRuntimeError.transient }))
-    await model.load()
-    await model.regenerate()
-    XCTAssertEqual(model.codes?.map(\.code), ["new-1"])
-    XCTAssertNil(model.failure, "a committed rotation was reported as a failure")
-    XCTAssertFalse(model.canRetryRegenerate, "a retry could rotate codes the user just saw")
-  }
-
   func testRevokeFailureKeepsTheAppAndTheCurrentClientIsNeverRevoked() async {
     var revoked: [Int] = []
     let apps = [
@@ -394,28 +178,6 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertTrue(model.apps.isEmpty, "a stale list restored the revoked app")
   }
 
-  func testCancelledRecoveryCodeLoadKeepsEnrollmentRetryable() async {
-    var loads = 0
-    let model = PutioTwoFactorChangeModel(
-      enabling: true,
-      actions: PutioAccountSecurityActions(
-        generateSecret: { "S" },
-        recoveryCodes: {
-          loads += 1
-          if loads == 1 { throw CancellationError() }
-          return [PutioTwoFactorRecoveryCode(code: "c-3", isUsed: false)]
-        }))
-    await model.loadSecret()
-    model.continueToCode()
-    model.code = "1"
-    await model.submit()
-    XCTAssertEqual(model.step, .code, "a cancelled code load finished enrollment")
-    XCTAssertNotNil(model.recoveryCodesFailure)
-    await model.retryRecoveryCodes()
-    XCTAssertEqual(
-      model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "c-3", isUsed: false)]))
-  }
-
   func testAppsLoadFailureIsRetryableAndSessionEndingsStaySilent() async {
     var loads = 0
     let apps = [PutioAuthorizedApp(id: 42, name: "TV", isCurrentClient: false)]
@@ -519,18 +281,6 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(PutioLinkDeviceModel(actions: PutioAccountSecurityActions()).code, "")
   }
 
-  func testRecoveryCodeExportUsesTheWebFilenameAndOnlyUnusedCodes() {
-    XCTAssertEqual(
-      PutioRecoveryCodesModel.exportFilename(at: Date(timeIntervalSince1970: 1_700_000_000.5)),
-      "putio-two-factor-recovery-codes_1700000000500.txt")
-    XCTAssertEqual(
-      PutioRecoveryCodesModel.unusedText([
-        PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false),
-        PutioTwoFactorRecoveryCode(code: "a-2", isUsed: true),
-        PutioTwoFactorRecoveryCode(code: "a-3", isUsed: false),
-      ]), "a-1\na-3")
-  }
-
   func testClearDataNeedsASelectionAndReportsAFailedRefresh() async {
     var cleared: [Set<PutioAccountDataCategory>] = []
     var notified: [Set<PutioAccountDataCategory>] = []
@@ -572,40 +322,12 @@ final class AccountSecurityTests: XCTestCase {
       "the shell must reconcile after every attempt and purge only after a confirmed clear")
   }
 
-  func testDestroyAccountRejectionKeepsTheScreenAndNeverRetainsThePassword() async {
-    var passwords: [String] = []
-    var destroyed = 0
-    let model = PutioDestroyAccountModel(
-      actions: PutioAccountSecurityActions(destroyAccount: { password in
-        passwords.append(password)
-        if password == "wrong" { throw PutioAccountSecurityError.invalidPassword }
-      }),
-      onDestroyed: { destroyed += 1 })
-    XCTAssertFalse(model.canDestroy)
-    model.password = "  "
-    XCTAssertFalse(model.canDestroy)
-    await model.destroy()
-    XCTAssertEqual(model.failure, "Enter your password to confirm.")
-    XCTAssertEqual(model.password, "")
-    XCTAssertTrue(passwords.isEmpty)
-    model.password = "wrong"
-    await model.destroy()
-    XCTAssertEqual(model.password, "")
-    XCTAssertNotNil(model.failure)
-    XCTAssertEqual(destroyed, 0)
-    model.password = "right"
-    await model.destroy()
-    XCTAssertNil(model.failure)
-    XCTAssertEqual(passwords, ["wrong", "right"])
-    XCTAssertEqual(destroyed, 1)
-  }
-
   func testPresentationMapsRejectionsAndHidesSessionEndings() {
     XCTAssertNil(PutioAccountSecurityPresentation.message(for: PutioRuntimeError.sessionExpired))
     XCTAssertNil(PutioAccountSecurityPresentation.message(for: CancellationError()))
     XCTAssertEqual(
-      PutioAccountSecurityPresentation.message(for: PutioAccountSecurityError.invalidPassword),
-      "That password does not match our records. Check it and try again.")
+      PutioAccountSecurityPresentation.message(for: PutioAccountSecurityError.invalidDeviceCode),
+      "That device code was not found. Check the code on the device and try again.")
     XCTAssertEqual(
       PutioAccountSecurityPresentation.message(for: PutioRuntimeError.transient),
       "Check your connection and try again.")

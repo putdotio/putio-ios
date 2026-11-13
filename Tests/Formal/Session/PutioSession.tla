@@ -68,7 +68,7 @@ AdvanceWithDevice(next) ==
 
 AbandonAndAdvance == AdvanceWithDevice("none")
 
-\* endSession(reason), behind expireSession() and endDestroyedSession().
+\* expireSession().
 \* `try? tokenStore.clear()` may fail and leave the saved token behind.
 EndSession ==
   /\ AbandonAndAdvance
@@ -340,12 +340,12 @@ AuthenticatedRequestRejected ==
   /\ EndSession
   /\ UNCHANGED <<intent, live, issued, excused, flows, launched>>
 
-\* destroyAccount(): every grant dies, then endDestroyedSession().
+\* The user destroys the account on put.io: every grant dies.
 AccountDestroyed ==
-  /\ state = "signedIn"
+  /\ live # {}
   /\ live' = {}
-  /\ EndSession
-  /\ UNCHANGED <<intent, issued, excused, flows, launched>>
+  /\ UNCHANGED <<state, gen, keychain, sdkTok, intent, oauthGen, device,
+                 issued, excused, flows, launched>>
 
 \* The process ends. The keychain and the sign-out intent persist.
 Relaunch ==

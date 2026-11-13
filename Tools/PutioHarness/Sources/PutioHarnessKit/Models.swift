@@ -701,7 +701,11 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-03-account-middle", .iphone, "testAccountPlayback", screenBase: false),
       BoardCapture(
-        "rd-ios-acc-22-account-security", .iphone, "testAccountSecurity", screenBase: false),
+        "rd-ios-acc-22-account-security", .iphone, "testAccountSecurityTwoFactorOn",
+        screenBase: false),
+      BoardCapture(
+        "rd-ios-acc-43-two-factor-off", .iphone, "testAccountSecurity", screenBase: false),
+      BoardCapture("rd-ios-acc-17-destroy", .iphone, "testAccountDestroy"),
       BoardCapture("rd-ios-acc-04-account-end", .iphone, "testAccountEnd", screenBase: false),
       BoardCapture("rd-ios-ses-10-analytics", .iphone, "testAnalyticsPrompt"),
       BoardCapture(
@@ -792,7 +796,7 @@ enum BoardCaptureContract {
     "public-links": "account.public-links", "trash": "account.trash",
     "playback-method": "playback-settings.method", "chromecast": "account.chromecast",
     "downloads": "account.downloads", "logged-in-apps": "security.apps",
-    "link-device": "security.link-device", "two-factor": "account.two-factor",
+    "link-device": "security.link-device",
     "app-info": "account.about", "licenses": "account.licenses",
     "destroy-account": "account.destroy-account",
   ]
@@ -1287,11 +1291,17 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
       timeAllowance: 240),
     JourneyPreflight(
-      "account-security", "AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy",
-      attachmentNames: [
-        "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
-      ],
+      "account-security", "AccountSecurityJourneyTests/testAppsLinkingAndClearData",
+      attachmentNames: ["runtime-security-apps", "runtime-danger-clear-data"],
       timeAllowance: 240),
+    JourneyPreflight(
+      "browser-handoffs",
+      "AccountSecurityJourneyTests/testTwoFactorAndDestroyOpenTheBrowserAndRefreshOnReturn",
+      timeAllowance: 120),
+    JourneyPreflight(
+      "destroyed-account",
+      "AccountSecurityJourneyTests/testAccountDestroyedInTheBrowserSignsOutOnReturn",
+      timeAllowance: 90),
     JourneyPreflight(
       "link-device-cancel", "AccountSecurityJourneyTests/testLeavingMidLinkCancelsCleanly",
       timeAllowance: 90),

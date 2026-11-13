@@ -279,17 +279,6 @@
         }
       }
     },
-    "Add this secret to your authenticator app, then enter the code it shows." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add this secret to your authenticator app, then enter the code it shows."
-          }
-        }
-      }
-    },
     "All" : {
       "comment" : "android: mobile_search_filter_all",
       "localizations" : {
@@ -429,17 +418,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio player state"
-          }
-        }
-      }
-    },
-    "Authenticator code" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Authenticator code"
           }
         }
       }
@@ -741,17 +719,6 @@
         }
       }
     },
-    "Confirm" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Confirm"
-          }
-        }
-      }
-    },
     "Connected" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -880,17 +847,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy link"
-          }
-        }
-      }
-    },
-    "Copy secret" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Copy secret"
           }
         }
       }
@@ -1547,13 +1503,13 @@
         }
       }
     },
-    "Destroying your account deletes your files, transfers, and history and cancels your subscription. There is no way back." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+    "Destroying your account deletes your files and history and cancels your subscription. There is no way back." : {
+      "comment" : "ios-only: Android has no Destroy your account screen; the iOS board's consequence text",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Destroying your account deletes your files, transfers, and history and cancels your subscription. There is no way back."
+            "value" : "Destroying your account deletes your files and history and cancels your subscription. There is no way back."
           }
         }
       }
@@ -1598,28 +1554,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Direct play"
-          }
-        }
-      }
-    },
-    "Disable" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable"
-          }
-        }
-      }
-    },
-    "Disable two-factor" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disable two-factor"
           }
         }
       }
@@ -1822,17 +1756,6 @@
         }
       }
     },
-    "Each unused code signs you in once if you lose your authenticator app." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Each unused code signs you in once if you lose your authenticator app."
-          }
-        }
-      }
-    },
     "Empty Trash" : {
       "comment" : "android: mobile_trash_empty_action | differs: iOS uses title case",
       "localizations" : {
@@ -1851,28 +1774,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Empty Trash permanently?"
-          }
-        }
-      }
-    },
-    "Enable" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable"
-          }
-        }
-      }
-    },
-    "Enable two-factor" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enable two-factor"
           }
         }
       }
@@ -1906,39 +1807,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter the code shown on your device to link it to your put.io account."
-          }
-        }
-      }
-    },
-    "Enter the current code from your authenticator app to turn two-factor authentication off." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter the current code from your authenticator app to turn two-factor authentication off."
-          }
-        }
-      }
-    },
-    "Enter the six-digit code your authenticator app shows for put.io." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter the six-digit code your authenticator app shows for put.io."
-          }
-        }
-      }
-    },
-    "Enter your password to confirm." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter your password to confirm."
           }
         }
       }
@@ -2263,17 +2131,6 @@
         }
       }
     },
-    "I have saved my recovery codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I have saved my recovery codes"
-          }
-        }
-      }
-    },
     "Image" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
       "localizations" : {
@@ -2494,17 +2351,6 @@
         }
       }
     },
-    "Load recovery codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Load recovery codes"
-          }
-        }
-      }
-    },
     "Loading" : {
       "comment" : "android: mobile_state_loading",
       "localizations" : {
@@ -2655,17 +2501,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading proxies…"
-          }
-        }
-      }
-    },
-    "Loading recovery codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading recovery codes"
           }
         }
       }
@@ -2943,17 +2778,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New folder"
-          }
-        }
-      }
-    },
-    "Next" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next"
           }
         }
       }
@@ -3266,17 +3090,6 @@
         }
       }
     },
-    "One last step" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "One last step"
-          }
-        }
-      }
-    },
     "Open in VLC" : {
       "comment" : "android: mobile_files_open_in_vlc",
       "localizations" : {
@@ -3343,6 +3156,17 @@
         }
       }
     },
+    "Opens put.io in your browser to finish." : {
+      "comment" : "ios-only: Android has no Destroy your account screen; iOS finishes it in the browser",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens put.io in your browser to finish."
+          }
+        }
+      }
+    },
     "Or keep it offline." : {
       "comment" : "android: mobile_welcome_caption_offline",
       "localizations" : {
@@ -3361,17 +3185,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Order"
-          }
-        }
-      }
-    },
-    "Password" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Password"
           }
         }
       }
@@ -3728,17 +3541,6 @@
         }
       }
     },
-    "Preparing your secret" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing your secret"
-          }
-        }
-      }
-    },
     "Preparing…" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -3768,17 +3570,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privacy policy"
-          }
-        }
-      }
-    },
-    "Protect your account with a code from an authenticator app at sign-in." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Protect your account with a code from an authenticator app at sign-in."
           }
         }
       }
@@ -4146,28 +3937,6 @@
         }
       }
     },
-    "Recovery code" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recovery code"
-          }
-        }
-      }
-    },
-    "Recovery codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recovery codes"
-          }
-        }
-      }
-    },
     "Refresh account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -4186,61 +3955,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refreshing…"
-          }
-        }
-      }
-    },
-    "Regenerate" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerate"
-          }
-        }
-      }
-    },
-    "Regenerate codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerate codes"
-          }
-        }
-      }
-    },
-    "Regenerate recovery codes?" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerate recovery codes?"
-          }
-        }
-      }
-    },
-    "Regenerating codes" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerating codes"
-          }
-        }
-      }
-    },
-    "Regenerating replaces every code above, including unused ones." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Regenerating replaces every code above, including unused ones."
           }
         }
       }
@@ -4619,17 +4333,6 @@
         }
       }
     },
-    "Secret" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Secret"
-          }
-        }
-      }
-    },
     "Secure storage is unavailable" : {
       "comment" : "android: mobile_auth_storage_title",
       "localizations" : {
@@ -4839,17 +4542,6 @@
         }
       }
     },
-    "Sign-in" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign-in"
-          }
-        }
-      }
-    },
     "Sign-in didn’t finish" : {
       "comment" : "android: mobile_welcome_failed_title",
       "localizations" : {
@@ -4857,17 +4549,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in didn’t finish"
-          }
-        }
-      }
-    },
-    "Signing in asks for a code from your authenticator app. Recovery codes get you in without it." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Signing in asks for a code from your authenticator app. Recovery codes get you in without it."
           }
         }
       }
@@ -4967,39 +4648,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Status"
-          }
-        }
-      }
-    },
-    "Step 1 of 3" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Step 1 of 3"
-          }
-        }
-      }
-    },
-    "Step 2 of 3" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Step 2 of 3"
-          }
-        }
-      }
-    },
-    "Step 3 of 3" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Step 3 of 3"
           }
         }
       }
@@ -5433,28 +5081,6 @@
         }
       }
     },
-    "Two-factor authentication is on. %@ They also stay available under Security." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Two-factor authentication is on. %@ They also stay available under Security."
-          }
-        }
-      }
-    },
-    "Two-factor authentication is on. Keep these codes somewhere safe; each one signs you in once if you lose your authenticator." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Two-factor authentication is on. Keep these codes somewhere safe; each one signs you in once if you lose your authenticator."
-          }
-        }
-      }
-    },
     "Type, A to Z" : {
       "comment" : "android: mobile_files_sort_type_ascending",
       "localizations" : {
@@ -5605,28 +5231,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uploaded · %@"
-          }
-        }
-      }
-    },
-    "Used" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used"
-          }
-        }
-      }
-    },
-    "Used recovery code" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Used recovery code"
           }
         }
       }
@@ -5840,17 +5444,6 @@
         }
       }
     },
-    "Your current codes stop working." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your current codes stop working."
-          }
-        }
-      }
-    },
     "Your put.io files, streaming and offline on this iPad." : {
       "comment" : "android: mobile_welcome_lede | differs: names the iPad instead of the phone",
       "localizations" : {
@@ -5869,17 +5462,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your put.io files, streaming and offline on this iPhone."
-          }
-        }
-      }
-    },
-    "Your recovery codes were not saved. Try downloading them again." : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your recovery codes were not saved. Try downloading them again."
           }
         }
       }

@@ -54,7 +54,7 @@ const steps: Readonly<Record<string, string>> = {
   LogoutDone: "finishSignOut() gets the logout answer and clears the keychain",
   ServerRevokes: "the user revokes a grant on put.io",
   AuthenticatedRequestRejected: "a request is rejected and expireSession() runs",
-  AccountDestroyed: "destroyAccount() succeeds and endDestroyedSession() runs",
+  AccountDestroyed: "the user destroys the account on put.io",
   Relaunch: "the app quits and relaunches",
 };
 

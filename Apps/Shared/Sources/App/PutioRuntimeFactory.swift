@@ -45,7 +45,7 @@ enum PutioRuntimeFactory {
           "--putio-harness-trash-disabled"
         )
         HarnessSeededAPI.isEnabled = true
-        HarnessSeededAPI.observeAccountRenewal()
+        HarnessSeededAPI.observeBackgroundChanges()
         let failSignOut = usesSignOutFailureFixture(scenario: scenario)
         HarnessSeededAPI.configureSignOutFailure(failSignOut)
         let configuration = URLSessionConfiguration.ephemeral

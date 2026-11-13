@@ -383,25 +383,15 @@ public final class PutioSessionStore {
     isSignOutCleanupPending = pending
   }
 
+  // Removal is best effort: a session only ends here once put.io rejected its
+  // credential, so a copy left behind fails validation on the next restore,
+  // which removes it again.
   func expireSession() {
-    endSession(reason: .sessionExpired)
-  }
-
-  /// The account no longer exists, so there is no token left to revoke; only
-  /// the local credential and state are cleared.
-  func endDestroyedSession() {
-    endSession(reason: .userSignedOut)
-  }
-
-  // Removal is best effort: a session only ends here once put.io rejected or
-  // destroyed its credential, so a copy left behind fails validation on the
-  // next restore, which removes it again.
-  private func endSession(reason: PutioSignedOutReason) {
     abandonPendingSignIn()
     _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     try? tokenStore.clear()
-    state = .signedOut(reason)
+    state = .signedOut(.sessionExpired)
   }
 
   // MARK: - Account bootstrap
@@ -435,7 +425,7 @@ public final class PutioSessionStore {
   func applyAcknowledgedPreferences(
     defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil,
     routeName: String? = nil, rememberVideoTime: Bool? = nil, hideSubtitles: Bool? = nil,
-    dontAutoSelectSubtitles: Bool? = nil, twoFactorEnabled: Bool? = nil,
+    dontAutoSelectSubtitles: Bool? = nil,
     diagnosticsEnabled: Bool? = nil, productAnalyticsEnabled: Bool? = nil
   ) {
     guard case .signedIn(let account) = state else { return }
@@ -450,7 +440,7 @@ public final class PutioSessionStore {
         routeName: routeName ?? account.routeName,
         hideSubtitles: hideSubtitles ?? account.hideSubtitles,
         dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles,
-        twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled,
+        twoFactorEnabled: account.twoFactorEnabled,
         diagnosticsEnabled: diagnosticsEnabled ?? account.diagnosticsEnabled,
         productAnalyticsEnabled: productAnalyticsEnabled ?? account.productAnalyticsEnabled,
         avatarURL: account.avatarURL, trashSizeBytes: account.trashSizeBytes,

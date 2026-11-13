@@ -80,12 +80,11 @@ below, and prints the new digest.
 
 ## Coverage
 
-Sync digest: `f15b70252b115e4a4631507440ed2bbbc4830d1b384fa00a0fecb54aacb54190`
+Sync digest: `b92e033e35d153e23f5df150707e2d4cc8bc21480257f3774fd4e75f756cd76d`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
-- `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime+AccountSecurity.swift` (`endDestroyedSession` callers)
 - `Apps/iOS/Sources/Session/WelcomeScreen.swift` (web sign-in, restore retry, discard)
 - `Apps/iOS/Sources/App/SessionRootView.swift` (launch restore)
 - `Apps/iOS/Sources/Account/AccountView.swift` (sign-out)

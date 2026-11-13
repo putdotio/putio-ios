@@ -84,24 +84,28 @@ final class AccountJourneyTests: XCTestCase {
       ("account.privacy", "Privacy controls"),
       ("security.apps", "Logged-in apps"),
       ("security.link-device", "Link a device"),
-      ("account.two-factor", "Two-factor authentication"),
+      ("account.two-factor", "https://app.put.io/account/security"),
       ("account.about", "App info"),
-      ("account.privacy-policy", ""),
+      ("account.privacy-policy", "https://put.io/privacy-policy/"),
       ("account.licenses", "Open source licenses"),
       ("account.clear-data", "Clear your data"),
       ("account.destroy-account", "Destroy your account"),
     ]
+    var opened = 0
     for row in rows {
       let element = app.revealed(row.identifier)
       app.bringIntoView(element)
       XCTAssertTrue(
         element.becomesHittable(within: 10), "\(row.identifier) never became tappable")
       element.tap()
-      if row.title.isEmpty {
-        let opened = XCTNSPredicateExpectation(
-          predicate: NSPredicate(format: "value == %@", "1|https://put.io/privacy-policy/"),
+      if row.title.hasPrefix("https://") {
+        opened += 1
+        let request = XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "value == %@", "\(opened)|\(row.title)"),
           object: requests)
-        XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
+        XCTAssertEqual(
+          XCTWaiter.wait(for: [request], timeout: 5), .completed, "\(row.identifier) opened nothing"
+        )
         continue
       }
       let destination = app.navigationBars[row.title]

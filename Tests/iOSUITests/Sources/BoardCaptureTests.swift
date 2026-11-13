@@ -1372,7 +1372,27 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountSecurity() throws {
     openAccount()
     scrollAccount(untilNearTop: "playback-settings.subtitles")
+    XCTAssertEqual(element("account.two-factor").label, "Two-factor authentication, Off")
+    try captureBoard("rd-ios-acc-43-two-factor-off")
+  }
+
+  func testAccountSecurityTwoFactorOn() throws {
+    app.launchArguments.append("--putio-harness-two-factor-on")
+    openAccount()
+    scrollAccount(untilNearTop: "playback-settings.subtitles")
+    XCTAssertEqual(element("account.two-factor").label, "Two-factor authentication, On")
     try captureBoard("rd-ios-acc-22-account-security")
+  }
+
+  func testAccountDestroy() throws {
+    openAccount()
+    let destroy = app.revealed("account.destroy-account", maximumSwipes: 8)
+    app.bringIntoView(destroy)
+    destroy.tap()
+    XCTAssertTrue(
+      app.navigationBars["Destroy your account"].appears(within: 5), "Destroy never opened")
+    XCTAssertTrue(element("danger.destroy").exists, "Destroy has no Destroy account row")
+    try captureBoard("rd-ios-acc-17-destroy")
   }
 
   func testAccountEnd() throws {
