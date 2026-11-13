@@ -2181,16 +2181,20 @@ public struct SimulatorHarness {
     }
   }
 
-  /// CI restores an iOS device that has already booted once. Its clones skip
-  /// first-boot data migration, which takes one to several minutes on hosted
-  /// runners. A missing template is created here and kept for CI to cache.
+  /// Clones of an iOS device that has already booted once skip first-boot data
+  /// migration, which takes one to several minutes and keeps every core busy.
+  /// Local runs use templates unless `PUTIO_SIMULATOR_TEMPLATES=0`; CI opts in
+  /// with `1` only when it restores or saves one. A missing template is created
+  /// here and kept.
   func simulatorTemplate(
     platform: HarnessPlatform,
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
     environment: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> String? {
-    guard platform == .ios, environment["PUTIO_SIMULATOR_TEMPLATES"] == "1" else { return nil }
+    let enabled =
+      environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 == "1" } ?? (environment["CI"] == nil)
+    guard platform == .ios, enabled else { return nil }
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
     let output = try runner.checked(
       "xcrun", ["simctl", "list", "devices", "-j"], context: "find Simulator template")

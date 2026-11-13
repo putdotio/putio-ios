@@ -78,11 +78,21 @@ struct SimulatorTemplateTests {
       ])
   }
 
+  @Test func localRunsReuseTheTemplateByDefault() throws {
+    let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
+        environment: [:])
+    }
+    #expect(run.template == "CACHED-TEMPLATE")
+  }
+
   @Test(arguments: [
-    (HarnessPlatform.ios, [String: String]()),
+    (HarnessPlatform.ios, ["CI": "true"]),
+    (HarnessPlatform.ios, ["PUTIO_SIMULATOR_TEMPLATES": "0"]),
     (HarnessPlatform.tvos, ["PUTIO_SIMULATOR_TEMPLATES": "1"]),
   ])
-  func templatesStayOffOutsideCIAndForOtherPlatforms(
+  func templatesStayOffWhenCIHasNoneOptedOutOrOtherPlatforms(
     platform: HarnessPlatform, environment: [String: String]
   ) throws {
     let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness in
