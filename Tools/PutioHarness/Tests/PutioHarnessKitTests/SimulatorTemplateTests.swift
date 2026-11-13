@@ -44,7 +44,8 @@ private func withFakeTemplateSimctl(
   let template: String?
   do {
     template = try body(harness)
-  } catch where failing != nil {
+  } catch {
+    guard failing != nil else { throw error }
     template = nil
   }
   let calls =
