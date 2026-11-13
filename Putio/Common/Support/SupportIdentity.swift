@@ -7,6 +7,7 @@ protocol SupportMessenger {
     func setUserHash(_ hash: String)
     func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void)
     func logout()
+    func present()
 }
 
 struct IntercomMessenger: SupportMessenger {
@@ -30,6 +31,10 @@ struct IntercomMessenger: SupportMessenger {
 
     func logout() {
         Intercom.logout()
+    }
+
+    func present() {
+        Intercom.present()
     }
 }
 
