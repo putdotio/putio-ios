@@ -169,6 +169,7 @@ final class PutioAudioPlayerModel {
   /// Observer ticks are ignored until the engine confirms this position, so a
   /// stale sample cannot undo a seek, a start position, or the end-of-track reset.
   @ObservationIgnored private var awaitedSeconds: Int?
+  @ObservationIgnored private var loadStartSeconds: Int?
   /// True between end or skip and the next load; the finished track no longer
   /// accepts positions.
   @ObservationIgnored private var isTransitioning = false
@@ -341,6 +342,7 @@ final class PutioAudioPlayerModel {
     durationSeconds = nil
     positionReporter?.cancel()
     positionReporter = nil
+    loadStartSeconds = nil
     await positionPipeline.waitForPendingReports(fileID: track.id)
     do {
       try Task.checkCancellation()
@@ -358,6 +360,7 @@ final class PutioAudioPlayerModel {
       let startFrom = override ?? (remembers ? source.startFromSeconds : 0)
       elapsedSeconds = startFrom
       awaitedSeconds = startFrom > 0 ? startFrom : nil
+      loadStartSeconds = awaitedSeconds
       engine.load(url: source.url, startFromSeconds: startFrom)
       durationSeconds = engine.durationSeconds
       engine.play(rate: speed.rawValue)
@@ -403,10 +406,13 @@ final class PutioAudioPlayerModel {
     engine.onReady = { [weak self] startSeconds in
       guard let self else { return }
       durationSeconds = engine.durationSeconds
-      if let awaited = awaitedSeconds, awaited != startSeconds, !isTransitioning {
+      if let requested = loadStartSeconds, awaitedSeconds == requested,
+        requested != startSeconds, !isTransitioning
+      {
         awaitedSeconds = startSeconds > 0 ? startSeconds : nil
         elapsedSeconds = startSeconds
       }
+      loadStartSeconds = nil
       publishNowPlaying()
     }
     engine.onPositionChanged = { [weak self] seconds in
