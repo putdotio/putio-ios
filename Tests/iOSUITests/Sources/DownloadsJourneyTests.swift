@@ -117,7 +117,7 @@ final class DownloadsJourneyTests: XCTestCase {
     // reported without claiming success, and retry moves the original.
     removeOriginal.tap()
     XCTAssertTrue(item.disappears(within: 10))
-    let failure = app.alerts["Could not move original to Trash"]
+    let failure = app.putioAlert("Could not move original to Trash")
     XCTAssertTrue(failure.appears(within: 10))
     XCTAssertTrue(
       failure.staticTexts.element(
@@ -127,7 +127,7 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["downloads.remove-original-retry"].firstMatch.tap()
     XCTAssertTrue(failure.disappears(within: 10))
     XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
-    XCTAssertFalse(app.alerts.firstMatch.exists, "retry must not report a second failure")
+    XCTAssertFalse(app.putioAlerts.firstMatch.exists, "retry must not report a second failure")
 
     // The loaded root reconciles with the moved original.
     app.buttons["Files"].tap()
@@ -151,7 +151,7 @@ final class DownloadsJourneyTests: XCTestCase {
     signIn()
 
     // Restore's write fails at launch and is reported over Files.
-    let unsaved = app.alerts["Could not save downloads"]
+    let unsaved = app.putioAlert("Could not save downloads")
     XCTAssertTrue(unsaved.appears(within: 10))
 
     // Nothing else writes yet, so only the retry's own failure can bring the
@@ -180,6 +180,33 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     XCTAssertFalse(unsaved.exists)
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  func testADownloadThatCannotStartIsReported() throws {
+    app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
+    app.launch()
+    signIn()
+
+    let row = element("files.item.412")
+    XCTAssertTrue(row.appears(within: 10))
+    row.press(forDuration: 1)
+    let download = app.buttons["Download"]
+    XCTAssertTrue(download.appears(within: 5))
+    download.tap()
+    let failure = app.putioAlert("Could not start download")
+    XCTAssertTrue(failure.appears(within: 10), "the refused download was not reported")
+    screenshot("runtime-downloads-start-failed")
+    app.buttons["putio-alert.neutral"].tap()
+    XCTAssertTrue(failure.disappears(within: 5))
+    XCTAssertFalse(element("downloads.track.tr").exists, "the refused download asked for tracks")
+
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))

@@ -1548,9 +1548,9 @@ final class BoardCaptureTests: XCTestCase {
     openPreviewMore()
     app.buttons["Delete permanently"].firstMatch.tap()
     XCTAssertTrue(
-      app.alerts["Delete 1 item permanently?"].appears(within: 5), "the delete never confirmed")
+      app.putioAlert("Delete 1 item permanently?").appears(within: 5), "the delete never confirmed")
     try captureBoard("rd-ios-pv-19-delete-confirm")
-    app.alerts.buttons["Cancel"].firstMatch.tap()
+    app.buttons["putio-alert.cancel"].tap()
     leaveAlbum()
   }
 
@@ -2101,7 +2101,7 @@ final class BoardCaptureTests: XCTestCase {
     app.bringIntoView(history)
     history.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     XCTAssertTrue(
-      app.alerts["Turn off history?"].appears(within: 5), "the history alert never showed")
+      app.putioAlert("Turn off history?").appears(within: 5), "the history alert never showed")
     try captureBoard("rd-ios-acc-25-history-off")
   }
 
@@ -2409,7 +2409,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(row.becomesHittable(within: 10), "the sign-out row is missing")
     row.tap()
     XCTAssertTrue(
-      app.alerts["Sign out of all other apps?"].appears(within: 5), "the alert never showed")
+      app.putioAlert("Sign out of all other apps?").appears(within: 5), "the alert never showed")
     try captureBoard("rd-ios-acc-13b-apps-confirm")
   }
 

@@ -16,12 +16,32 @@ struct PutioOfflineDownloadsView: View {
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
   @State private var detailItem: PutioOfflineItem?
+  @State private var shownOriginalFailure: PutioOfflineOriginalOutcome?
 
   /// Worded for the mode the presented targets captured, so a preference
   /// refresh while the dialog is up cannot make the text disagree with the
   /// action.
   private var copy: PutioOfflineRemovalCopy {
     PutioOfflineRemovalCopy(trashEnabled: pendingRemoval?.first?.movesToTrash ?? trashEnabled)
+  }
+
+  private var originalFailureActions: [PutioAlertAction] {
+    guard let outcome = shownOriginalFailure else { return [] }
+    var actions = [
+      PutioAlertAction(String(localized: "OK"), tier: .cancel) { [queue] in
+        queue.dismissOriginalFailure(shown: outcome)
+      }
+    ]
+    if !outcome.retryableTargets.isEmpty {
+      actions.append(
+        PutioAlertAction(
+          String(localized: "Try again"), tier: .primary, id: "downloads.remove-original-retry"
+        ) { [queue] in
+          let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
+          Task { _ = await queue.deleteOriginals(targets) }
+        })
+    }
+    return actions
   }
 
   var body: some View {
@@ -69,24 +89,17 @@ struct PutioOfflineDownloadsView: View {
     } message: { targets in
       Text(copy.message(count: targets.count))
     }
-    .alert(
-      copy.failureTitle(outcome: queue.originalFailure ?? PutioOfflineOriginalOutcome()),
-      // Each action clears the report itself; an inert setter keeps SwiftUI's
-      // dismissal order from turning a retry into a give-up.
-      isPresented: Binding(get: { queue.originalFailure != nil }, set: { _ in }),
-      presenting: queue.originalFailure
-    ) { outcome in
-      if !outcome.retryableTargets.isEmpty {
-        Button("Try again") {
-          let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
-          Task { _ = await queue.deleteOriginals(targets) }
-        }
-        .accessibilityIdentifier("downloads.remove-original-retry")
-      }
-      Button("OK", role: .cancel) { queue.dismissOriginalFailure(shown: outcome) }
-    } message: { outcome in
-      Text(copy.failureMessage(outcome: outcome))
+    .onChange(of: queue.originalFailure, initial: true) {
+      shownOriginalFailure = queue.originalFailure
     }
+    .putioAlert(
+      copy.failureTitle(outcome: shownOriginalFailure ?? PutioOfflineOriginalOutcome()),
+      isPresented: Binding(
+        get: { shownOriginalFailure != nil && queue.originalFailure != nil },
+        set: { if !$0 { shownOriginalFailure = nil } }),
+      message: shownOriginalFailure.map { copy.failureMessage(outcome: $0) },
+      actions: originalFailureActions
+    )
     .sheet(item: $detailItem) { item in
       PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
         .preferredColorScheme(.dark)
@@ -293,29 +306,37 @@ struct PutioOfflinePersistenceFailureAlert: ViewModifier {
       .onChange(of: queue.persistenceFailureReports, initial: true) {
         shown = queue.persistenceFailure
       }
-      .alert(
+      .putioAlert(
         shown?.title ?? "",
         isPresented: Binding(
           get: { shown != nil && queue.persistenceFailure != nil },
           set: { if !$0 { shown = nil } }),
-        presenting: shown
-      ) { failure in
-        if failure.canRetry {
-          Button("Try again") {
-            // UIKit drops an alert presented while the tapped one is still
-            // dismissing, so a retry that fails again reports after it.
-            Task {
-              try? await Task.sleep(for: .milliseconds(500))
-              queue.retryPersisting()
-            }
-          }
-          .accessibilityIdentifier("downloads.save-retry")
-        }
-        Button("OK", role: .cancel) { queue.dismissPersistenceFailure() }
-          .accessibilityIdentifier("downloads.save-dismiss")
-      } message: { failure in
-        Text(failure.message)
+        message: shown?.message,
+        actions: actions
+      )
+  }
+
+  private var actions: [PutioAlertAction] {
+    guard let failure = shown else { return [] }
+    var actions = [
+      PutioAlertAction(
+        String(localized: "OK"), tier: .cancel, id: "downloads.save-dismiss"
+      ) { [queue] in
+        queue.dismissPersistenceFailure()
       }
+    ]
+    if failure.canRetry {
+      actions.append(
+        PutioAlertAction(
+          String(localized: "Try again"), tier: .primary, id: "downloads.save-retry"
+        ) { [queue] in
+          Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            queue.retryPersisting()
+          }
+        })
+    }
+    return actions
   }
 }
 

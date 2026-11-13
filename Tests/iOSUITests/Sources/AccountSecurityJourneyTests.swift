@@ -194,7 +194,8 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForValue(requests, "2|https://app.put.io/account/danger-zone", timeout: 5),
       "requests: \(requests.value ?? "nil")")
-    XCTAssertFalse(app.alerts.firstMatch.exists, "Destroy account asked for anything in the app")
+    XCTAssertFalse(
+      app.putioAlerts.firstMatch.exists, "Destroy account asked for anything in the app")
     XCTAssertTrue(app.navigationBars["Destroy your account"].exists)
     XCTAssertFalse(element("auth.sign-in").exists, "the app signed out before put.io answered")
   }
@@ -231,7 +232,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     let infuse = element("security.app.44")
 
     tap("security.apps.sign-out-others")
-    let alert = app.alerts["Sign out of all other apps?"]
+    let alert = app.putioAlert("Sign out of all other apps?")
     XCTAssertTrue(alert.appears(within: 5))
     XCTAssertTrue(
       alert.staticTexts[

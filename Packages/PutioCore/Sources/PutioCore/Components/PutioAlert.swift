@@ -125,7 +125,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
 
     var body: some View {
       ZStack {
-        PutioTheme.Components.Sheet.scrim
+        PutioAlertMetrics.scrim
           .ignoresSafeArea()
           .opacity(appeared ? 1 : 0)
           .accessibilityHidden(true)
@@ -142,6 +142,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
     @ViewBuilder private var container: some View {
       if field == nil {
         ViewThatFits(in: .vertical) {
+          card.padding(.bottom, PutioAlertMetrics.lift * 2)
           card
           ScrollView { card }
             .scrollBounceBehavior(.basedOnSize)
@@ -173,7 +174,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
             .accessibilityAddTraits(.isHeader)
           if let message {
             Text(message)
-              .putioFont(PutioTheme.Typography.caption)
+              .putioFont(PutioAlertMetrics.message)
               .foregroundStyle(PutioTheme.Colors.textSecondary)
           }
         }
@@ -205,7 +206,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
           }
         }
       }
-      .padding(.top, PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1)
+      .padding(.top, PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2)
       .padding([.horizontal, .bottom], PutioTheme.Spacing.space3)
       .background(
         PutioTheme.Colors.surfaceActive,
@@ -266,13 +267,27 @@ public struct PutioAlertAction: Identifiable, Sendable {
     static let neutralFill = PutioTheme.Colors.textPrimary.opacity(0.1)
     static let disabledOpacity = 0.4
     static let cornerRadius = PutioTheme.Spacing.space4
+    static let lift = PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3
+    static let scrim = Color(.sRGB, white: 0.047, opacity: 0.795)
     static let title = PutioFontRole(
       fontName: PutioTheme.Typography.heading.fontName,
-      size: PutioTheme.Typography.sizeMd,
-      lineHeight: PutioTheme.Typography.subheading.lineHeight,
+      size: 17,
+      lineHeight: 22.0 / 17.0,
       textStyle: .headline
     )
+    static let message = PutioFontRole(
+      fontName: PutioTheme.Typography.body.fontName,
+      size: 15,
+      lineHeight: 20.0 / 15.0,
+      textStyle: .subheadline
+    )
     static let label = PutioFontRole(
+      fontName: PutioTheme.Components.Button.label.fontName,
+      size: PutioTheme.Typography.sizeBase,
+      lineHeight: PutioTheme.Components.Button.label.lineHeight,
+      textStyle: .body
+    )
+    static let neutralLabel = PutioFontRole(
       fontName: PutioTheme.Typography.heading.fontName,
       size: PutioTheme.Typography.sizeBase,
       lineHeight: PutioTheme.Components.Button.label.lineHeight,
@@ -291,7 +306,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
 
     func makeBody(configuration: Configuration) -> some View {
       configuration.label
-        .putioFont(PutioAlertMetrics.label)
+        .putioFont(tier == .neutral ? PutioAlertMetrics.neutralLabel : PutioAlertMetrics.label)
         .multilineTextAlignment(.center)
         .foregroundStyle(foreground)
         .padding(.horizontal, PutioTheme.Spacing.space3)

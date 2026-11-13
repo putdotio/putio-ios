@@ -1164,6 +1164,9 @@ enum BrowserJourneyContract {
       "DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads",
       timeAllowance: 90),
     JourneyPreflight(
+      "download-start-failed", "DownloadsJourneyTests/testADownloadThatCannotStartIsReported",
+      attachmentNames: ["runtime-downloads-start-failed"], timeAllowance: 90),
+    JourneyPreflight(
       "cast", "ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync",
       attachmentNames: [
         "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",

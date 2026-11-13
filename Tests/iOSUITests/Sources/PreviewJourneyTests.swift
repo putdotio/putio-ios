@@ -685,7 +685,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["Move to trash"].exists, "trash off still offers Move to trash")
     screenshot("runtime-preview-more-trash-off")
     delete.tap()
-    let alert = app.alerts["Delete 1 item permanently?"]
+    let alert = app.putioAlert("Delete 1 item permanently?")
     XCTAssertTrue(alert.appears(within: 5), "the delete did not ask first")
     XCTAssertTrue(
       alert.staticTexts["Trash is off for this account, so this can’t be undone."].exists)
@@ -717,7 +717,7 @@ final class PreviewJourneyTests: XCTestCase {
     let cover = openAlbumCover()
 
     removeShownFile(row: "Move to trash")
-    let limit = app.alerts["We couldn’t send these files to trash"]
+    let limit = app.putioAlert("We couldn’t send these files to trash")
     XCTAssertTrue(limit.appears(within: 10), "the refused Trash move did not ask")
     XCTAssertTrue(
       limit.staticTexts["This folder contains too many files. Delete it permanently?"].exists)

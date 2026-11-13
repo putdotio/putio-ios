@@ -93,7 +93,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let history = app.switches["settings.history"]
     let trashAlert = app.putioAlert("Turn off trash?")
     let trashConfirm = trashAlert.buttons["Turn off"].firstMatch
-    let historyAlert = app.alerts["Turn off history?"]
+    let historyAlert = app.putioAlert("Turn off history?")
     let historyConfirm = historyAlert.buttons["Turn off"].firstMatch
     XCTAssertTrue(waitUntilHittable(trash))
     tapToggle(trash)
