@@ -732,7 +732,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("files.detail.442").appears(within: 5), "rotating lost the selection")
     XCTAssertTrue(row.isSelected, "rotating lost the selected row")
 
-    app.navigationBars.buttons.firstMatch.tap()
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
     XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
     XCTAssertTrue(element("files.detail.442").exists, "going back emptied the detail")
     assertFact("folder", "Folder, Harness Folder / Blue Lights")
@@ -776,6 +776,8 @@ final class BoardCaptureTests: XCTestCase {
     let confirm = app.buttons["downloads.picker.confirm"]
     XCTAssertTrue(confirm.appears(within: 20), "the track picker never appeared")
     confirm.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+    tabButton("Files").tap()
     let onDevice = element("files.detail.on-device")
     XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
     XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")

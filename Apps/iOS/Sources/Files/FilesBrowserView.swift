@@ -157,6 +157,7 @@ struct FilesBrowserView: View {
       emptyMessage: String(localized: "Tap a file to see it here.")
     ) { _ in
       stack(showsDetail: true)
+        .environment(\.horizontalSizeClass, .regular)
     } detail: { _ in
       if let selectedFile {
         PutioFileDetailView(
