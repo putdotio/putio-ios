@@ -1649,6 +1649,7 @@ final class BoardCaptureTests: XCTestCase {
       drags += 1
     }
     XCTAssertEqual(pill.label, "Page 2 of 12", "the document did not reach page 2")
+    RunLoop.current.run(until: Date.now.addingTimeInterval(2))
   }
 
   private func assertPreviewFillsWindow(fileID: Int) {
