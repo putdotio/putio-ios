@@ -290,6 +290,17 @@
         }
       }
     },
+    "Added" : {
+      "comment" : "android: mobile_files_detail_added",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        }
+      }
+    },
     "All" : {
       "comment" : "android: mobile_search_filter_all",
       "localizations" : {
@@ -2009,6 +2020,17 @@
         }
       }
     },
+    "Folder" : {
+      "comment" : "android: mobile_files_detail_folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder"
+          }
+        }
+      }
+    },
     "Folders" : {
       "comment" : "android: mobile_search_filter_folders",
       "localizations" : {
@@ -2281,6 +2303,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep account history"
+          }
+        }
+      }
+    },
+    "Length" : {
+      "comment" : "android: mobile_files_detail_length",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Length"
           }
         }
       }
@@ -2833,6 +2866,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No exclusive links"
+          }
+        }
+      }
+    },
+    "No file selected" : {
+      "comment" : "android: mobile_files_detail_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No file selected"
           }
         }
       }
@@ -3651,6 +3695,17 @@
         }
       }
     },
+    "Resume from %@" : {
+      "comment" : "android: mobile_files_detail_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume from %@"
+          }
+        }
+      }
+    },
     "Revoke this link?" : {
       "comment" : "android: mobile_public_links_revoke_title",
       "localizations" : {
@@ -3735,6 +3790,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Source code"
+          }
+        }
+      }
+    },
+    "Tap a file to see it here." : {
+      "comment" : "android: mobile_files_detail_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a file to see it here."
           }
         }
       }

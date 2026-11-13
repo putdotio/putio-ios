@@ -1869,6 +1869,10 @@ import Foundation
           castPlaybackType = value
           return (200, #"{"status":"OK"}"#)
         }
+      case "GET /v2/files/441/subtitles", "GET /v2/files/442/subtitles",
+        "GET /v2/files/443/subtitles", "GET /v2/files/444/subtitles":
+        return seasonEpisodeSubtitles(
+          id: Int(url.deletingLastPathComponent().lastPathComponent) ?? 0)
       case "GET /v2/files/412/subtitles":
         return (
           200,
@@ -1999,7 +2003,7 @@ import Foundation
           {"file":{"id":441,"name":"\(seasonEpisodes[0].name)","file_type":"VIDEO",
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
-          "start_from":0}}
+          "start_from":0,"video_metadata":\(seasonEpisodeMetadata)}}
           """
         )
       case "GET /v2/files/413":
@@ -2264,8 +2268,29 @@ import Foundation
         "parent_id":\(seasonFolderID),"size":\(episode?.size ?? 0),
         "created_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
         "updated_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
-        "start_from":\(playbackPosition(fileID: id))}}
+        "start_from":\(playbackPosition(fileID: id)),"video_metadata":\(seasonEpisodeMetadata)}}
         """
+    }
+
+    private static let seasonEpisodeMetadata =
+      #"{"duration":2989,"codec":"h264","width":1920,"height":1080}"#
+
+    private static func seasonEpisodeSubtitles(id: Int) -> (Int, String) {
+      guard seasonEpisodes.contains(where: { $0.id == id }) else {
+        return (
+          404,
+          fixtureError(statusCode: 404, type: "FILE_NOT_FOUND", message: "No such episode")
+        )
+      }
+      return (
+        200,
+        """
+        {"default":"en","subtitles":[
+          {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"folder","url":"https://api.put.io/v2/files/\(id)/subtitles/en"},
+          {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/\(id)/subtitles/tr"}
+        ]}
+        """
+      )
     }
 
     private static var seasonFiles: String {

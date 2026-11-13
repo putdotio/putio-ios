@@ -36,6 +36,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioAccountStorage) private var accountStorage
   @Environment(\.putioPreviewOpen) private var previewOpen
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.putioFilesShowsColumns) private var showsColumns
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @State private var linkItem: PutioFileItem?
@@ -145,7 +146,9 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(folderTitle)
-    .navigationBarTitleDisplayMode(route.id == .root && !isEditing ? .large : .inline)
+    .navigationBarTitleDisplayMode(
+      route.id == .root && !isEditing && !showsColumns ? .large : .inline
+    )
     .navigationBarBackButtonHidden(navigationLocked || isEditing)
     .putioContentBackground()
     .toolbar {
@@ -553,7 +556,7 @@ struct PutioFolderScreen: View {
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
     let row = content.frame(maxWidth: .infinity, alignment: .leading)
-      .listRowBackground(PutioTheme.Colors.background)
+      .putioListDetailRow(item.id)
       .background {
         if let file = share.presented(for: item.id) {
           PutioShareSheetAnchor(file: file, name: item.name, model: share)

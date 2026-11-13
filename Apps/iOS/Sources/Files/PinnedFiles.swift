@@ -99,7 +99,7 @@ struct PutioPinnedRows: View {
       row(pin)
         .frame(maxWidth: .infinity, alignment: .leading)
         .putioItemActions(menu(for: pin.item))
-        .listRowBackground(PutioTheme.Colors.background)
+        .putioListDetailRow(pin.id)
         .selectionDisabled()
     }
   }

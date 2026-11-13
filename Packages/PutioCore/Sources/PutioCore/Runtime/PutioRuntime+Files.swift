@@ -235,6 +235,33 @@ extension PutioRuntime {
     return snapshot(file)
   }
 
+  /// The length and subtitle languages a video's detail shows. A subtitle
+  /// lookup that fails leaves `subtitles` nil and keeps the length.
+  public func videoDetails(fileID: PutioFileID) async throws -> PutioVideoDetails {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let file = try await performAuthenticatedOperation {
+      try await sdk.getFile(
+        fileID: fileID.rawValue,
+        query: PutioFileDetailsQuery(
+          mp4Size: false, startFrom: false, streamURL: false, mp4StreamURL: false))
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    let duration = file.metaData.map { Int($0.duration.rounded()) }.flatMap { $0 > 0 ? $0 : nil }
+    let subtitles: [String]?
+    do {
+      let response = try await performAuthenticatedOperation {
+        try await sdk.getSubtitles(fileID: fileID.rawValue)
+      }
+      subtitles = PutioFileDetailText.subtitleLanguages(
+        response.subtitles.map { (language: $0.language, name: $0.name) })
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      subtitles = nil
+    }
+    return PutioVideoDetails(durationSeconds: duration, subtitles: subtitles)
+  }
+
   /// Resolves the download-token URL for previews and external players.
   /// Folders have no download representation and resolve as invalid.
   public func resolveFileDownloadSource(fileID: PutioFileID) async throws

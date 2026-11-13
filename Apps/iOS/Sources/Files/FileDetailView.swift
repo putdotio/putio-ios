@@ -1,0 +1,282 @@
+import Foundation
+import PutioCore
+import SwiftUI
+
+typealias PutioVideoDetailsLoad =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioVideoDetails
+typealias PutioFolderNameLoad = @MainActor @Sendable (PutioFileID) async throws -> String
+
+struct PutioFileDetailView: View {
+  let route: PutioFileRoute
+  let folderTitles: [String]?
+  let isOnDevice: Bool
+  let loadDetails: PutioVideoDetailsLoad
+  let loadFolderName: PutioFolderNameLoad
+  let onPlay: PutioFileSelection
+  let onDownload: PutioFileSelection?
+  let onExternalPlayback: PutioFileSelection?
+
+  @Environment(\.locale) private var locale
+  @Environment(\.putioFileShare) private var fileShare
+  @Environment(\.putioPinnedFiles) private var pinned
+  @State private var details: PutioVideoDetails?
+  @State private var loadedFolder: String?
+  @State private var share = PutioFileShareModel()
+  @State private var toast: PutioToast?
+  @State private var preparingToast: PutioToast.ID?
+
+  private var item: PutioFileItem { route.item }
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: PutioFileDetailLayout.sectionGap) {
+        preview
+        Text(PutioFileDetailText.wrappableName(item.name))
+          .putioFont(PutioTheme.Typography.subheading)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityLabel(Text(verbatim: item.name))
+          .accessibilityIdentifier("files.detail.title")
+        actionRow
+        facts
+      }
+      .frame(maxWidth: PutioFileDetailLayout.readableWidth, alignment: .leading)
+      .padding(PutioTheme.Spacing.space4)
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .putioContentBackground()
+    .toolbar(.hidden, for: .navigationBar)
+    .background {
+      if let file = share.presented(for: item.id) {
+        PutioShareSheetAnchor(file: file, name: item.name, model: share)
+      }
+    }
+    .putioToast($toast)
+    .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
+    .task(id: item.id) { await load() }
+    .onChange(of: share.state) { _, state in
+      if case .fetching = state { return }
+      if toast?.id == preparingToast { toast = nil }
+      preparingToast = nil
+    }
+    .onDisappear { share.leave() }
+  }
+
+  private var preview: some View {
+    RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius)
+      .fill(PutioTheme.Colors.surface)
+      .aspectRatio(PutioFileDetailLayout.previewAspectRatio, contentMode: .fit)
+      .overlay {
+        Button {
+          onPlay(route)
+        } label: {
+          PutioIconView(.playFill, size: PutioFileDetailLayout.playGlyph)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .frame(
+              width: PutioFileDetailLayout.playControl, height: PutioFileDetailLayout.playControl
+            )
+            .background(PutioTheme.Colors.surfaceActive, in: Circle())
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Play"))
+        .accessibilityIdentifier("files.detail.preview-play")
+      }
+  }
+
+  private var actionRow: some View {
+    HStack(spacing: PutioTheme.Spacing.space2) {
+      PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .medium) {
+        onPlay(route)
+      }
+      .lineLimit(1)
+      .accessibilityIdentifier("files.detail.play")
+      if isOnDevice {
+        iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded")) {}
+          .disabled(true)
+          .accessibilityIdentifier("files.detail.on-device")
+      } else if let onDownload, route.supportsOfflineDownload {
+        iconButton(.arrowCircleDown, label: String(localized: "Download")) {
+          onDownload(route)
+        }
+        .accessibilityIdentifier("files.detail.download")
+      }
+      if fileShare != nil {
+        iconButton(.export, label: String(localized: "Share")) { startShare() }
+          .disabled(shareSource == nil || isFetchingShare)
+          .accessibilityIdentifier("files.detail.share")
+      }
+      if !moreActions.isEmpty {
+        Menu {
+          PutioItemMenuContent(PutioItemMenu([moreActions]))
+        } label: {
+          iconLabel(.dotsThree)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .tint(PutioTheme.Colors.textPrimary)
+        .accessibilityLabel(Text("More"))
+        .accessibilityIdentifier("files.detail.more")
+      }
+    }
+    .fixedSize(horizontal: true, vertical: false)
+  }
+
+  private var primaryTitle: String {
+    guard item.resumePositionSeconds > 0 else { return String(localized: "Play") }
+    let time = PutioFileDetailText.clock(seconds: item.resumePositionSeconds)
+    return String(localized: "Resume from \(time)")
+  }
+
+  private func iconButton(
+    _ icon: PutioIcon, label: String, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) { iconLabel(icon) }
+      .buttonStyle(.bordered)
+      .buttonBorderShape(.circle)
+      .tint(PutioTheme.Colors.textPrimary)
+      .accessibilityLabel(Text(label))
+  }
+
+  private func iconLabel(_ icon: PutioIcon) -> some View {
+    PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
+  }
+
+  private var moreActions: [PutioItemAction] {
+    var actions: [PutioItemAction] = []
+    if let onExternalPlayback, route.supportsExternalPlayback {
+      actions.append(
+        PutioItemAction(
+          id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone
+        ) { onExternalPlayback(route) })
+    }
+    if let pins = pinned?.model, !item.isShared || pins.isPinned(item.id) {
+      let item = item
+      let location = folderTitles?.last ?? PutioFolderRoute.root.title
+      actions.append(
+        pins.isPinned(item.id)
+          ? PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
+            Task { await pins.unpin(item) }
+          }
+          : PutioItemAction(id: "pin", title: String(localized: "Pin"), icon: .pushPin) {
+            Task { await pins.pin(item, in: location) }
+          })
+    }
+    return actions
+  }
+
+  private var facts: some View {
+    Grid(
+      alignment: .leading,
+      horizontalSpacing: PutioTheme.Spacing.space3,
+      verticalSpacing: PutioTheme.Spacing.space2
+    ) {
+      fact(
+        "size", label: String(localized: "Size"),
+        value: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale), numeric: true)
+      fact(
+        "added", label: String(localized: "Added"),
+        value: item.createdAt.formatted(
+          .dateTime.month(.abbreviated).day().year().locale(locale)))
+      if let seconds = details?.durationSeconds {
+        fact(
+          "length", label: String(localized: "Length"),
+          value: PutioFileDetailText.clock(seconds: seconds), numeric: true)
+      }
+      if let subtitles = details?.subtitles, !subtitles.isEmpty {
+        fact(
+          "subtitles", label: String(localized: "Subtitles"),
+          value: subtitles.formatted(.list(type: .and, width: .narrow).locale(locale)))
+      }
+      if let folder = folderText {
+        fact("folder", label: String(localized: "Folder"), value: folder)
+      }
+    }
+  }
+
+  @ViewBuilder
+  private func fact(_ id: String, label: String, value: String, numeric: Bool = false)
+    -> some View
+  {
+    GridRow(alignment: .firstTextBaseline) {
+      Text(label)
+        .putioFont(PutioTheme.Typography.body)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .frame(minWidth: PutioFileDetailLayout.factLabelWidth, alignment: .leading)
+      Group {
+        if numeric {
+          Text(value).putioFont(PutioTheme.Typography.numeric)
+        } else {
+          Text(value).putioFont(PutioTheme.Typography.body)
+        }
+      }
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .fixedSize(horizontal: false, vertical: true)
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("files.detail.fact.\(id)")
+  }
+
+  private var folderText: String? {
+    if let folderTitles { return PutioFileDetailText.folderPath(folderTitles) }
+    return loadedFolder
+  }
+
+  private func load() async {
+    details = nil
+    loadedFolder = nil
+    async let videoDetails = try? loadDetails(item.id)
+    if folderTitles == nil {
+      loadedFolder = try? await loadFolderName(item.parentID)
+    }
+    let loaded = await videoDetails
+    guard !Task.isCancelled else { return }
+    details = loaded
+  }
+
+  private var shareSource: PutioFileShareSource? {
+    guard let fileShare else { return nil }
+    return PutioFileShareSource(
+      item: item, isDownloaded: share.isDownloaded(item, using: fileShare))
+  }
+
+  private var isFetchingShare: Bool {
+    if case .fetching = share.state { return true }
+    return false
+  }
+
+  private func startShare() {
+    guard let fileShare else { return }
+    let item = item
+    let fetching = share.share(item, using: fileShare) { failure in
+      switch failure {
+      case .retryable:
+        toast = PutioToast(
+          PutioScreenErrorKind.failed.title,
+          action: PutioToast.Action(String(localized: "Try again")) { startShare() })
+      case .final:
+        toast = PutioToast(PutioScreenErrorKind.failed.title)
+      }
+    }
+    guard fetching else { return }
+    let preparing = PutioToast(
+      String(localized: "Preparing…"),
+      action: PutioToast.Action(String(localized: "Cancel")) { share.cancel() },
+      staysUntilDismissed: true)
+    toast = preparing
+    preparingToast = preparing.id
+  }
+}
+
+private enum PutioFileDetailLayout {
+  static let readableWidth = PutioTheme.Spacing.space8 + PutioTheme.Spacing.space6
+  static let sectionGap = PutioTheme.Spacing.space3
+  static let previewAspectRatio: CGFloat = 16 / 9
+  static let previewRadius = PutioTheme.Radius.large
+  static let playControl = PutioTheme.Spacing.space5
+  static let playGlyph = PutioMetricRole(
+    value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2, relativeTo: .title)
+  static let actionGlyph = PutioMetricRole(
+    value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1, relativeTo: .body)
+  static let factLabelWidth = PutioTheme.Spacing.space6
+}

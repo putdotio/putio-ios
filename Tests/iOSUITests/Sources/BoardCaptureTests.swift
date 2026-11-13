@@ -710,8 +710,88 @@ final class BoardCaptureTests: XCTestCase {
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()
-    openHarnessFolder()
+    openSeasonFolder()
+    let row = element("files.item.442")
+    selectVideo(row, id: 442, primary: "Resume from 21:00")
+    XCTAssertFalse(element("video.ready").exists, "selecting a video started playback")
+    assertFact("length", "Length, 49:49")
+    assertFact("subtitles", "Subtitles, English, Turkish")
+    assertFact("folder", "Folder, Harness Folder / Blue Lights")
+    XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
+    XCTAssertTrue(element("files.detail.more").exists, "the detail offers no More")
     try captureBoard("rd-ios-12-ipad-split")
+
+    rotate(.portrait)
+    XCTAssertTrue(element("files.screen.440").appears(within: 5), "rotating reset the Files path")
+    XCTAssertTrue(element("files.detail.442").disappears(within: 5), "portrait kept the detail")
+    rotate(.landscapeLeft)
+    XCTAssertTrue(element("files.detail.442").appears(within: 5), "rotating lost the selection")
+    XCTAssertTrue(row.isSelected, "rotating lost the selected row")
+
+    app.navigationBars.buttons.firstMatch.tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 5), "Back never left the folder")
+    XCTAssertTrue(element("files.detail.442").exists, "going back emptied the detail")
+    let folder = element("files.item.440")
+    XCTAssertTrue(folder.appears(within: 5), "the season folder row is missing")
+    folder.tap()
+    XCTAssertTrue(element("files.header.440").appears(within: 10), "the folder never pushed")
+    XCTAssertTrue(element("files.detail.442").exists, "opening a folder emptied the detail")
+    XCTAssertTrue(row.appears(within: 5) && row.isSelected, "the reopened folder lost the tint")
+
+    element("files.detail.play").tap()
+    let selection = element("files.selection")
+    XCTAssertTrue(selection.appears(within: 10), "Play never opened the video")
+    XCTAssertEqual(selection.value as? String, "id=442;parent=440;kind=video")
+  }
+
+  func testIPadDetailNotDownloaded() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    selectVideo(element("files.item.443"), id: 443, primary: "Play")
+    XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
+    XCTAssertFalse(element("files.detail.on-device").exists, "a remote file shows on device")
+    assertFact("size", "Size, 3.1 GB")
+    assertFact("added", "Added, Oct 20, 2026")
+    try captureBoard("rd-ios-33-ipad-detail-not-downloaded")
+
+    reachFilesRoot()
+    let signIn = element("auth.sign-in")
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    addTeardownBlock { @MainActor [self] in
+      if !signIn.exists {
+        openSignOut()
+        if remove.appears(within: 5) { remove.tap() }
+      }
+      _ = signIn.appears(within: 15)
+    }
+    selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
+    assertFact("folder", "Folder, Files")
+    element("files.detail.download").tap()
+    let confirm = app.buttons["downloads.picker.confirm"]
+    XCTAssertTrue(confirm.appears(within: 20), "the track picker never appeared")
+    confirm.tap()
+    let onDevice = element("files.detail.on-device")
+    XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
+    XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")
+    XCTAssertFalse(element("files.detail.download").exists, "Download stayed beside on device")
+  }
+
+  private func selectVideo(_ row: XCUIElement, id: Int, primary: String) {
+    XCTAssertTrue(row.appears(within: 10), "the row for \(id) never appeared")
+    row.tap()
+    XCTAssertTrue(
+      element("files.detail.\(id)").appears(within: 10), "selecting \(id) showed no detail")
+    XCTAssertTrue(row.isSelected, "the selected row is not marked open")
+    let play = element("files.detail.play")
+    XCTAssertTrue(play.appears(within: 5), "the detail has no primary button")
+    XCTAssertEqual(play.label, primary)
+  }
+
+  private func assertFact(_ id: String, _ label: String) {
+    let fact = element("files.detail.fact.\(id)")
+    XCTAssertTrue(fact.appears(within: 10), "the detail lists no \(id)")
+    XCTAssertEqual(fact.label, label)
   }
 
   func testSearch() throws {
@@ -852,6 +932,9 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments += ["--putio-harness-pins", "three"]
     try reachContinueWatching()
     XCTAssertTrue(element("files.pinned.item.440").appears(within: 10), "the pins never loaded")
+    XCTAssertTrue(
+      app.staticTexts["No file selected"].exists, "the empty detail is missing beside the root")
+    XCTAssertTrue(app.staticTexts["Tap a file to see it here."].exists)
     try captureBoard("rd-ios-26-ipad-root")
   }
 

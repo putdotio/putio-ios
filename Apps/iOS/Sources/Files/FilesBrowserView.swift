@@ -6,6 +6,7 @@ extension EnvironmentValues {
   /// The account's default folder sort, which folders without their own
   /// sort inherit.
   @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
+  @Entry var putioFilesShowsColumns = false
 }
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
@@ -38,6 +39,11 @@ struct FilesBrowserView: View {
   private let pins: PutioPinnedFilesModel
   @State private var pinToast: PutioToast?
   private let createLink: PutioPublicLinkCreate
+  private let loadVideoDetails: PutioVideoDetailsLoad
+  private let loadFolderName: PutioFolderNameLoad
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @State private var isLandscape = false
+  @State private var selectedFile: PutioFileRoute?
 
   init(
     runtime: PutioRuntime,
@@ -70,6 +76,8 @@ struct FilesBrowserView: View {
     actions = PutioFileActions(runtime: runtime)
     self.pins = pins
     createLink = { try await runtime.createPublicLink(fileID: $0) }
+    loadVideoDetails = { try await runtime.videoDetails(fileID: $0) }
+    loadFolderName = { try await runtime.getFile(fileID: $0).name }
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -83,39 +91,19 @@ struct FilesBrowserView: View {
   }
 
   var body: some View {
-    NavigationStack(path: $path) {
-      PutioFolderScreen(
-        route: .root,
-        load: load,
-        continueLoad: continueLoad,
-        actions: actions,
-        trashEnabled: trashEnabled,
-        tracksWatched: tracksWatched,
-        onLoaded: onRootLoaded,
-        refreshRequests: refreshRequests,
-        onFileSelected: onFileSelected,
-        onExternalPlayback: onExternalPlayback,
-        onDownload: onDownload,
-        onBulkDownload: onBulkDownload,
-        castButton: castButton,
-        accountNotice: accountNotice,
-        offlineFiles: offlineFiles
-      )
-      .navigationDestination(for: PutioFolderRoute.self) { route in
-        if route == .pinnedList {
-          PutioPinnedListScreen(
-            model: pins,
-            actions: actions,
-            load: load,
-            continueLoad: continueLoad,
-            trashEnabled: trashEnabled,
-            refreshRequests: refreshRequests,
-            onFileSelected: onFileSelected
-          )
-        } else {
-          folderScreen(route)
-        }
+    Group {
+      if showsColumns {
+        columns
+      } else {
+        stack
       }
+    }
+    .onGeometryChange(for: Bool.self) { geometry in
+      let insets = geometry.safeAreaInsets
+      return geometry.size.width + insets.leading + insets.trailing
+        > geometry.size.height + insets.top + insets.bottom
+    } action: { landscape in
+      isLandscape = landscape
     }
     .environment(\.putioExclusiveLink, createLink)
     .environment(
@@ -156,6 +144,103 @@ struct FilesBrowserView: View {
     }
   }
 
+  private var showsColumns: Bool {
+    horizontalSizeClass == .regular && isLandscape
+  }
+
+  private var columns: some View {
+    PutioListDetail(
+      selection: detailSelection,
+      emptyTitle: String(localized: "No file selected"),
+      emptyMessage: String(localized: "Tap a file to see it here.")
+    ) { _ in
+      stack
+        .environment(\.putioFilesShowsColumns, true)
+    } detail: { _ in
+      if let selectedFile {
+        PutioFileDetailView(
+          route: selectedFile,
+          folderTitles: folderTitles(for: selectedFile.item),
+          isOnDevice: isOnDevice(selectedFile.item),
+          loadDetails: loadVideoDetails,
+          loadFolderName: loadFolderName,
+          onPlay: onFileSelected,
+          onDownload: onDownload,
+          onExternalPlayback: onExternalPlayback
+        )
+      }
+    }
+  }
+
+  private var detailSelection: Binding<PutioFileID?> {
+    let selection = $selectedFile
+    return Binding(
+      get: { selection.wrappedValue?.id },
+      set: { id in
+        if id == nil { selection.wrappedValue = nil }
+      })
+  }
+
+  private var openFile: PutioFileSelection {
+    let open = onFileSelected
+    guard showsColumns else { return open }
+    let selection = $selectedFile
+    return { route in
+      guard case .video = route.openAction else {
+        open(route)
+        return
+      }
+      selection.wrappedValue = route
+    }
+  }
+
+  private func folderTitles(for item: PutioFileItem) -> [String]? {
+    if item.parentID == .root { return [PutioFolderRoute.root.title] }
+    guard let index = path.lastIndex(where: { $0.id == item.parentID }) else { return nil }
+    return path[...index].filter { $0 != .pinnedList }.map(\.title)
+  }
+
+  private func isOnDevice(_ item: PutioFileItem) -> Bool {
+    offlineFiles?.items(item.parentID).contains { $0.id == item.id } ?? false
+  }
+
+  private var stack: some View {
+    NavigationStack(path: $path) {
+      PutioFolderScreen(
+        route: .root,
+        load: load,
+        continueLoad: continueLoad,
+        actions: actions,
+        trashEnabled: trashEnabled,
+        tracksWatched: tracksWatched,
+        onLoaded: onRootLoaded,
+        refreshRequests: refreshRequests,
+        onFileSelected: openFile,
+        onExternalPlayback: onExternalPlayback,
+        onDownload: onDownload,
+        onBulkDownload: onBulkDownload,
+        castButton: castButton,
+        accountNotice: accountNotice,
+        offlineFiles: offlineFiles
+      )
+      .navigationDestination(for: PutioFolderRoute.self) { route in
+        if route == .pinnedList {
+          PutioPinnedListScreen(
+            model: pins,
+            actions: actions,
+            load: load,
+            continueLoad: continueLoad,
+            trashEnabled: trashEnabled,
+            refreshRequests: refreshRequests,
+            onFileSelected: openFile
+          )
+        } else {
+          folderScreen(route)
+        }
+      }
+    }
+  }
+
   private func folderScreen(_ route: PutioFolderRoute) -> some View {
     PutioFolderScreen(
       route: route,
@@ -165,7 +250,7 @@ struct FilesBrowserView: View {
       trashEnabled: trashEnabled,
       tracksWatched: tracksWatched,
       refreshRequests: refreshRequests,
-      onFileSelected: onFileSelected,
+      onFileSelected: openFile,
       onExternalPlayback: onExternalPlayback,
       onDownload: onDownload,
       onBulkDownload: onBulkDownload,
