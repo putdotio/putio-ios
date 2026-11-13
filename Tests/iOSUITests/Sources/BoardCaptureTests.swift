@@ -118,14 +118,14 @@ final class BoardCaptureTests: XCTestCase {
     if rows.isEmpty {
       XCTAssertTrue(element("downloads.empty").appears(within: 5), "the empty fixture has rows")
     }
-    for _ in 0..<2 {
+    for pass in 0..<2 where !rows.isEmpty {
+      if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
       for (id, state) in rows {
         let row = app.revealed("downloads.item.\(id)")
         XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
-        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id)")
+        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
       }
       if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
-      RunLoop.current.run(until: .now.addingTimeInterval(3))
     }
     try captureBoard("rd-ios-dl-01-list")
     guard fixture == "offline" else { return }

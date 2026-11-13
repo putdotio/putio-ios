@@ -25,6 +25,12 @@
       HarnessLaunch.arguments.contains(notificationsDeniedArgument)
     }
 
+    var concurrencyLimit: Int {
+      self == .downloadingStates
+        ? PutioOfflineQueue.concurrencyLimits.max() ?? PutioOfflineQueue.defaultConcurrencyLimit
+        : PutioOfflineQueue.defaultConcurrencyLimit
+    }
+
     func freeBytes(isPad: Bool) -> Int64 {
       switch self {
       case .downloadingStates: 3_100_000_000
@@ -35,18 +41,13 @@
     func seed(now: Date, mediaBaseURL: URL?) -> PutioOfflineQueueSeed {
       PutioOfflineQueueSeed(
         loaded: PutioOfflineStore.Loaded(
-          items: items(now: now), concurrencyLimit: PutioOfflineQueue.defaultConcurrencyLimit,
-          pendingOriginals: []),
+          items: items(now: now), concurrencyLimit: concurrencyLimit, pendingOriginals: []),
         playbackURL: { localPath in
           guard let mediaBaseURL, localPath.hasPrefix(Self.mediaPrefix) else {
             return PutioOfflineQueue.localURL(for: localPath)
           }
           return mediaBaseURL.appending(path: String(localPath.dropFirst(Self.mediaPrefix.count)))
         })
-    }
-
-    static func isPlayable(_ url: URL) -> Bool {
-      url.path.contains(mediaPrefix) && !url.path.hasSuffix(missingPackage)
     }
 
     func items(now: Date) -> [PutioOfflineItem] {
@@ -161,12 +162,32 @@
     private static func latestOctober24(onOrBefore date: Date) -> Date {
       let calendar = Calendar.current
       let year = calendar.component(.year, from: date)
-      let thisYear = calendar.date(from: DateComponents(year: year, month: 10, day: 24, hour: 12))
+      let thisYear = calendar.date(from: DateComponents(year: year, month: 10, day: 24))
       guard let thisYear, thisYear <= date else {
-        return calendar.date(from: DateComponents(year: year - 1, month: 10, day: 24, hour: 12))
-          ?? date
+        return calendar.date(from: DateComponents(year: year - 1, month: 10, day: 24)) ?? date
       }
       return thisYear
     }
+  }
+
+  @MainActor
+  final class HarnessFrozenOfflineEngine: PutioOfflineDownloadEngine {
+    var onProgress: ((PutioFileID, Double) -> Void)?
+    var onLocation: ((PutioFileID, URL) -> Void)?
+    var onFinished: ((PutioFileID, Error?) -> Void)?
+    var onCancelled: ((PutioFileID) -> Void)?
+    var onPersistenceFailure: ((Error) -> Void)?
+
+    func inventory(url: URL) async throws -> PutioOfflineInventory {
+      PutioOfflineInventory(videoBytes: 0, audioOptions: [], subtitleTracks: [])
+    }
+    func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
+    {}
+    func pause(fileID: PutioFileID) {}
+    func resume(fileID: PutioFileID) {}
+    func cancel(fileID: PutioFileID) { onCancelled?(fileID) }
+    func restoreTasks() async -> [PutioFileID] { [] }
+    func stop() {}
+    func retryPersisting() throws {}
   }
 #endif
