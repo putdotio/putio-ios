@@ -163,11 +163,12 @@
     func updateUIViewController(_ controller: Controller, context: Context) {}
 
     final class Controller: UIViewController {
+      private weak var configuredSplit: UISplitViewController?
+
       override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
-        guard let split = splitViewController,
-          split.preferredPrimaryColumnWidth != PutioListDetailLayout.listIdealWidth
-        else { return }
+        guard let split = splitViewController, split !== configuredSplit else { return }
+        configuredSplit = split
         split.minimumPrimaryColumnWidth = PutioListDetailLayout.listMinimumWidth
         split.preferredPrimaryColumnWidth = PutioListDetailLayout.listIdealWidth
       }
