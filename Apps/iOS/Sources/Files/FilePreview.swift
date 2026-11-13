@@ -1014,10 +1014,7 @@ struct PutioPreviewView: View {
         })
     }
     if rows.contains(.exclusiveLink) {
-      actions.append(
-        PutioItemAction(
-          id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link
-        ) { linkItem = item })
+      actions.append(.exclusiveLink { linkItem = item })
     }
     if rows.contains(.trash) {
       actions.append(

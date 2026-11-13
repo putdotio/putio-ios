@@ -156,10 +156,7 @@ struct PutioPinnedRows: View {
               isDisabled: isDisabled
             ) { onMove(item) }
           case .exclusiveLink:
-            PutioItemAction(
-              id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
-              isDisabled: isDisabled
-            ) { onLink?(item) }
+            .exclusiveLink(isDisabled: isDisabled) { onLink?(item) }
           default:
             nil
           }

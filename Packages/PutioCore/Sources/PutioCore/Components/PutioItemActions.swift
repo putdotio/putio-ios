@@ -136,19 +136,29 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
 
   private struct PutioItemActionLabel: View {
     let action: PutioItemAction
+    @PutioScaledMetric(PutioMetricRole(value: 22, relativeTo: .body)) private var iconSide: CGFloat
 
     var body: some View {
       if let subtitle = action.subtitle {
         Text(action.title)
         Text(subtitle)
-        Image(putioIcon: action.icon)
+        icon
       } else {
         Label {
           Text(action.title)
         } icon: {
-          Image(putioIcon: action.icon)
+          icon
         }
       }
+    }
+
+    private var icon: Image {
+      guard let source = UIImage(named: action.icon.rawValue, in: .module, with: nil) else {
+        return Image(putioIcon: action.icon)
+      }
+      let bounds = CGRect(x: 0, y: 0, width: iconSide.rounded(), height: iconSide.rounded())
+      let image = UIGraphicsImageRenderer(bounds: bounds).image { _ in source.draw(in: bounds) }
+      return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
     }
   }
 

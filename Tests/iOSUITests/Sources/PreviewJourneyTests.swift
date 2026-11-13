@@ -593,6 +593,9 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["Exclusive link"].firstMatch.tap()
     let create = app.buttons["files.exclusive-link.create"]
     XCTAssertTrue(create.appears(within: 5), "Exclusive link never opened over the viewer")
+    XCTAssertTrue(
+      element("files.exclusive-link.body").label.contains("Gallery One.png"),
+      "Exclusive link opened for another file")
     create.tap()
     XCTAssertTrue(
       element("files.exclusive-link.created").appears(within: 10), "the link was never created")

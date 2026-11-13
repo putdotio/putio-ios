@@ -730,10 +730,7 @@ struct PutioFolderScreen: View {
         isDisabled: editingBlocked
       ) { pendingMove = MoveSelection(items: [item], isBulk: false) }
     case .exclusiveLink:
-      return PutioItemAction(
-        id: "exclusive-link", title: String(localized: "Exclusive link"), icon: .link,
-        isDisabled: fileActionPending
-      ) { linkItem = item }
+      return .exclusiveLink(isDisabled: fileActionPending) { linkItem = item }
     case .makeCopy:
       return PutioItemAction(
         id: "make-copy", title: String(localized: "Make a copy"), icon: .copy,
