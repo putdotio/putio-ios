@@ -736,6 +736,9 @@ final class BoardCaptureTests: XCTestCase {
 
   func testVideoPlayer() throws {
     orient(.landscapeLeft)
+    app.launchArguments += [
+      "--putio-harness-subtitled-stream", "--putio-harness-picture-in-picture",
+    ]
     app.launch()
     openSeasonFolder()
     let episode = element("files.item.441")
@@ -755,7 +758,21 @@ final class BoardCaptureTests: XCTestCase {
       XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "the episode is not playing")
     let playPause = element("video.play-pause")
     let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
-    app.setVideoPlaying(!auditsText, with: playPause)
+    app.setVideoPlaying(false, with: playPause)
+    for (chip, label) in [
+      ("audio", "Audio: English"), ("subtitles", "Subtitles: English"),
+      ("speed", "Playback speed 1×"),
+    ] {
+      let control = element("video.chip.\(chip)")
+      app.revealVideoControls(showing: control)
+      XCTAssertEqual(control.label, label)
+    }
+    let speed = element("video.chip.speed")
+    XCTAssertLessThanOrEqual(
+      speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
+    XCTAssertGreaterThanOrEqual(
+      speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
+    if !auditsText { app.setVideoPlaying(true, with: playPause) }
     try captureBoard("rd-ios-pb-02-video")
   }
 
@@ -831,7 +848,7 @@ final class BoardCaptureTests: XCTestCase {
     let onDevice = element("files.detail.on-device")
     XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
     XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")
-    let window = app.windows.firstMatch.frame.size
+    let window = app.mainWindow.frame.size
     let onDeviceCapture = XCTAttachment(
       image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
     onDeviceCapture.name = "ipad-detail-on-device"
@@ -913,7 +930,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func fold() throws {
     try setHinge(degrees: 0)
-    let window = app.windows.firstMatch
+    let window = app.mainWindow
     XCTAssertTrue(
       waitUntil(10) { window.exists && window.frame.width < Self.regularWidthThreshold },
       "the iPhone Duo never folded: window is \(window.frame.size) pt")
@@ -921,7 +938,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func unfold() throws {
     try setHinge(degrees: 180)
-    let window = app.windows.firstMatch
+    let window = app.mainWindow
     XCTAssertTrue(
       waitUntil(10) { window.exists && window.frame.size == Self.openDuoSize },
       "the iPhone Duo never unfolded: window is \(window.frame.size) pt")
@@ -1327,7 +1344,7 @@ final class BoardCaptureTests: XCTestCase {
       openSeasonFolder()
       let row = element("files.item.442")
       selectVideo(row, id: 442, primary: nil)
-      let window = app.windows.firstMatch.frame
+      let window = app.mainWindow.frame
       let tabBar = tabButton("Files").frame
       XCTAssertLessThanOrEqual(
         app.buttons["audio.mini.stop"].frame.maxX, row.frame.maxX,
@@ -1685,11 +1702,11 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-16-duo-image")
 
     let position = element("preview.position")
-    app.windows.firstMatch.swipeLeft(velocity: .fast)
+    app.mainWindow.swipeLeft(velocity: .fast)
     XCTAssertTrue(
       waitUntil(5) { position.label == "2 of 3" },
       "one swipe did not move one file: \(position.label)")
-    app.windows.firstMatch.swipeRight(velocity: .fast)
+    app.mainWindow.swipeRight(velocity: .fast)
     XCTAssertTrue(
       waitUntil(5) { position.label == "1 of 3" }, "one swipe did not move back: \(position.label)")
     XCTAssertTrue(app.images["Harness Poster.png"].appears(within: 5), "the poster did not return")
@@ -1715,9 +1732,9 @@ final class BoardCaptureTests: XCTestCase {
   private func assertPreviewFillsWindowWithRail() {
     let boardSizes = [CGSize(width: 466, height: 678), Self.openDuoSize]
     XCTAssertTrue(
-      waitUntil(10) { boardSizes.contains(app.windows.firstMatch.frame.size) },
-      "the window never settled on a Duo board size: \(app.windows.firstMatch.frame.size)")
-    let window = app.windows.firstMatch.frame
+      waitUntil(10) { boardSizes.contains(app.mainWindow.frame.size) },
+      "the window never settled on a Duo board size: \(app.mainWindow.frame.size)")
+    let window = app.mainWindow.frame
     let image = element("preview.image").images.firstMatch
     XCTAssertTrue(
       waitUntil(5) { image.exists && image.frame.insetBy(dx: -1, dy: -1).contains(window) },
@@ -1841,7 +1858,7 @@ final class BoardCaptureTests: XCTestCase {
     orient(.portrait)
     openPosterPreview()
     rotate(.landscapeLeft)
-    let window = app.windows.firstMatch
+    let window = app.mainWindow
     let deadline = Date.now.addingTimeInterval(10)
     while window.frame.width < window.frame.height, Date.now < deadline {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
@@ -1961,13 +1978,13 @@ final class BoardCaptureTests: XCTestCase {
     let screen = element("preview.screen.\(fileID)")
     XCTAssertTrue(screen.appears(within: 10), "the viewer never opened")
     XCTAssertEqual(
-      screen.frame, app.windows.firstMatch.frame, "the viewer does not fill the window")
+      screen.frame, app.mainWindow.frame, "the viewer does not fill the window")
     XCTAssertFalse(tabButton("Downloads").isHittable, "the tab bar shows over the viewer")
     XCTAssertFalse(element("files.screen.0").isHittable, "the list shows beside the viewer")
   }
 
   private func assertWindowSettles(portrait: Bool) {
-    let window = app.windows.firstMatch
+    let window = app.mainWindow
     let deadline = Date.now.addingTimeInterval(10)
     while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
       RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
@@ -2642,7 +2659,7 @@ final class BoardCaptureTests: XCTestCase {
     } else {
       XCTFail("no closed Account row is in view to compare with after \(step)")
     }
-    let window = app.windows.firstMatch.frame
+    let window = app.mainWindow.frame
     XCTAssertLessThan(
       row.frame.maxX, window.midX, "the Account list is not the left column after \(step)")
   }
@@ -2657,7 +2674,7 @@ final class BoardCaptureTests: XCTestCase {
   ]
 
   private func isClearOfListEdges(_ row: XCUIElement) -> Bool {
-    let window = app.windows.firstMatch.frame
+    let window = app.mainWindow.frame
     return row.frame.minY > window.minY + window.height * 0.25
       && row.frame.maxY < window.maxY - window.height * 0.08
   }
@@ -3059,7 +3076,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func scrollAccount(untilNearTop identifier: String) {
     let target = element(identifier)
-    let window = app.windows.firstMatch.frame
+    let window = app.mainWindow.frame
     let ceiling = window.minY + window.height * 0.24
     var steps = 0
     while !(target.exists && target.frame.minY < ceiling), steps < 60 {
@@ -3298,7 +3315,7 @@ final class BoardCaptureTests: XCTestCase {
   private func captureBoard(_ defaultBoard: String) throws {
     let board = ProcessInfo.processInfo.environment["PUTIO_BOARD_ID"] ?? defaultBoard
     try requireBoardDevicePosture()
-    let window = app.windows.firstMatch.frame
+    let window = app.mainWindow.frame
     let screen = Self.screenshot(showing: window.size)
     let capture = Self.oriented(screen, toMatch: window.size)
     let image = XCTAttachment(image: capture)
@@ -3331,7 +3348,7 @@ final class BoardCaptureTests: XCTestCase {
   private func requireBoardDevicePosture() throws {
     let device = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"]
     guard device == "duo-folded" || device == "duo-open" else { return }
-    let window = app.windows.firstMatch
+    let window = app.mainWindow
     XCTAssertTrue(window.appears(within: 10), "app window never appeared")
     if device == "duo-folded" {
       XCTAssertLessThan(

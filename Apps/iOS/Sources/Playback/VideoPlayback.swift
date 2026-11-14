@@ -114,7 +114,10 @@ struct PutioVideoPlaybackView: View {
     ZStack {
       content
       if isReady {
-        PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
+        PutioVideoControls(
+          title: title, transport: transport, showsCast: castButton != nil || onCast != nil,
+          onClose: onDismiss
+        ) {
           castControls
         }
       } else {
@@ -499,6 +502,7 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   func makeUIView(context: Context) -> PutioVideoSurfaceView {
     let surface = PutioVideoSurfaceView()
     let transport = transport
+    surface.pictureInPicture = transport.pictureInPicture
     surface.onPlayerChange = { old, new in transport.playerChanged(from: old, to: new) }
     surface.onPlaybackControlsChange = { [weak surface] shown in
       transport.setControlsEnabled(shown, for: surface?.player)

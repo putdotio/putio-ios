@@ -18,8 +18,10 @@ offline playback.
   the sleep timer runs out. The mini player stays across tabs and folders, keeps
   the last row above it, and Stop playback saves the position, removes it, and
   cancels the sleep timer.
-- `subtitles` picks subtitles from the player menu without changing audio, and
+- `subtitles` picks subtitles from the player chips without changing audio, and
   follows the preferences.
+- `video-chips` shows each chip's choice, keeps the controls up while a chip
+  menu is open, and puts Picture in Picture first in the route group.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
   failed save, and keeps them across relaunch.
 - `resume-setting` asks before turning resume off, reverts a failed save, and
@@ -42,7 +44,8 @@ offline playback.
 - Files tab: tap a video or audio row.
 - Long-press a video row and choose Download; the Downloads tab lists it.
 - Account: playback preferences and Cast settings.
-- The player menu for audio, subtitles, and speed.
+- The player chips for audio, subtitles, and speed; Picture in Picture in the
+  top bar.
 
 ## Driving it with the harness
 
@@ -76,6 +79,10 @@ Preconditions:
   `rd-ios-pb-05-mini`, `rd-ios-pb-41-ipad-mini`.
 - **Subtitles.** Run `--only subtitles`. Screenshots: `runtime-subtitles-menu`,
   `runtime-subtitles-selected`.
+- **Chips and Picture in Picture.** Run `--only video-chips`. Screenshots:
+  `runtime-video-chips`, `runtime-video-chips-changed`. Boards:
+  `rd-ios-pb-02-video`, `rd-ios-pb-13-ipad-video`, which stream the multi-audio
+  fixture.
 - **Preferences.** Run `--only playback-preferences`. Screenshot:
   `runtime-playback-preferences`.
 - **Resume setting.** Run `--only resume-setting`. Screenshot:
@@ -101,6 +108,9 @@ Preconditions:
 ## Gotchas
 
 - Cast uses a stub receiver. It cannot prove a physical Chromecast.
+- The Simulator does not support Picture in Picture.
+  `--putio-harness-picture-in-picture` shows its button for layout only;
+  starting and restoring it needs a device.
 - Slider dragging does not prove VoiceOver gestures or spoken output.
 - A failed audio preflight saves audio error codes in `.audio.audio.log` beside
   its bundle.

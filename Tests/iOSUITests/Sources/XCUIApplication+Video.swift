@@ -1,6 +1,10 @@
 import XCTest
 
 extension XCUIApplication {
+  var mainWindow: XCUIElement {
+    windows.allElementsBoundByIndex.first { !$0.frame.isEmpty } ?? windows.firstMatch
+  }
+
   var videoClose: XCUIElement {
     descendants(matching: .any)["video.close"]
   }
@@ -10,7 +14,7 @@ extension XCUIApplication {
   ) {
     for _ in 0..<3 {
       if control.exists, control.isHittable { return }
-      coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
+      mainWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
       if control.waitForExistence(timeout: 2), control.isHittable { return }
     }
     XCTFail("the player controls never showed \(control)", file: file, line: line)

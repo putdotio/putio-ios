@@ -1,4 +1,5 @@
 import AVFoundation
+import AVKit
 import Observation
 import PutioCore
 import SwiftUI
@@ -10,12 +11,21 @@ final class PutioVideoSurfaceView: UIView {
 
   override class var layerClass: AnyClass { AVPlayerLayer.self }
 
+  var pictureInPicture: PutioVideoPictureInPicture?
+
   var player: AVPlayer? {
     get { playerLayer?.player }
     set {
       let old = playerLayer?.player
       guard old !== newValue else { return }
       playerLayer?.player = newValue
+      if let playerLayer {
+        if newValue == nil {
+          pictureInPicture?.detach(from: playerLayer)
+        } else {
+          pictureInPicture?.attach(to: playerLayer)
+        }
+      }
       onPlayerChange?(old, newValue)
     }
   }
@@ -40,6 +50,80 @@ final class PutioVideoSurfaceView: UIView {
 
 @MainActor
 @Observable
+final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
+  let isSupported: Bool = {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-picture-in-picture") {
+        return true
+      }
+    #endif
+    return AVPictureInPictureController.isPictureInPictureSupported()
+  }()
+  private(set) var isPossible = false
+  private(set) var isActive = false
+
+  @ObservationIgnored private var controller: AVPictureInPictureController?
+  @ObservationIgnored private var observations: [NSKeyValueObservation] = []
+
+  func attach(to layer: AVPlayerLayer) {
+    guard isSupported, controller?.playerLayer !== layer else { return }
+    release()
+    guard let controller = AVPictureInPictureController(playerLayer: layer) else { return }
+    controller.delegate = self
+    self.controller = controller
+    observations = [
+      controller.observe(\.isPictureInPicturePossible, options: [.initial, .new]) {
+        [weak self] _, _ in
+        Task { @MainActor [weak self] in self?.refresh() }
+      },
+      controller.observe(\.isPictureInPictureActive, options: [.initial, .new]) {
+        [weak self] _, _ in
+        Task { @MainActor [weak self] in self?.refresh() }
+      },
+    ]
+  }
+
+  func detach(from layer: AVPlayerLayer) {
+    guard controller?.playerLayer === layer else { return }
+    release()
+  }
+
+  func toggle() {
+    guard let controller else { return }
+    if controller.isPictureInPictureActive {
+      controller.stopPictureInPicture()
+    } else if controller.isPictureInPicturePossible {
+      controller.startPictureInPicture()
+    }
+  }
+
+  nonisolated func pictureInPictureController(
+    _ pictureInPictureController: AVPictureInPictureController,
+    restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler:
+      @escaping (Bool) -> Void
+  ) {
+    completionHandler(true)
+  }
+
+  private func refresh() {
+    isPossible = controller?.isPictureInPicturePossible ?? false
+    isActive = controller?.isPictureInPictureActive ?? false
+  }
+
+  private func release() {
+    for observation in observations { observation.invalidate() }
+    observations = []
+    if let controller {
+      if controller.isPictureInPictureActive { controller.stopPictureInPicture() }
+      controller.delegate = nil
+    }
+    controller = nil
+    refresh()
+  }
+}
+
+@MainActor
+@Observable
 final class PutioVideoTransport {
   struct Track: Identifiable, Equatable {
     let id: Int
@@ -54,6 +138,7 @@ final class PutioVideoTransport {
   private(set) var selectedAudio: Int?
   private(set) var subtitles: [Track] = []
   private(set) var selectedSubtitle: Int?
+  let pictureInPicture = PutioVideoPictureInPicture()
 
   @ObservationIgnored private var player: AVPlayer?
   @ObservationIgnored private var attachment: UInt64 = 0
@@ -68,8 +153,9 @@ final class PutioVideoTransport {
 
   var timeline: PutioVideoTimeline { playhead.timeline }
 
-  var selectedAudioTitle: String? {
+  var selectedAudioTitle: String {
     selectedAudio.flatMap { index in audioTracks.first { $0.id == index }?.title }
+      ?? String(localized: "Audio")
   }
 
   var selectedSubtitleTitle: String {
@@ -239,6 +325,7 @@ final class PutioVideoTransport {
 struct PutioVideoControls<Trailing: View>: View {
   let title: String
   let transport: PutioVideoTransport
+  var showsCast = false
   let onClose: () -> Void
   @ViewBuilder let trailing: Trailing
 
@@ -256,11 +343,21 @@ struct PutioVideoControls<Trailing: View>: View {
       if visibility.isVisible {
         ZStack {
           VStack(spacing: 0) {
-            PutioVideoTopBar(title: title, onClose: onClose) {
+            PutioVideoTopBar(
+              title: title,
+              showsTrailing: transport.pictureInPicture.isSupported || showsCast,
+              onClose: onClose
+            ) {
+              PutioVideoPictureInPictureButton(transport: transport) { visibility.interacted() }
               trailing
-              PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
             }
             Spacer(minLength: PutioTheme.Spacing.space3)
+            PutioVideoChipRow(transport: transport) {
+              visibility.interacted()
+            } onMenu: {
+              visibility.set(.menu, $0)
+            }
+            .padding(.bottom, PutioVideoMetrics.chipGap)
             PutioVideoScrubber(transport: transport) {
               visibility.interacted()
             } onScrubbing: {
@@ -426,74 +523,234 @@ struct PutioVideoTopBar<Trailing: View>: View {
   }
 }
 
-struct PutioVideoOptionsMenu: View {
+private struct PutioVideoPictureInPictureButton: View {
   let transport: PutioVideoTransport
-  let onChange: () -> Void
+  let onToggle: () -> Void
 
   var body: some View {
-    Menu {
-      if transport.audioTracks.count > 1 {
-        Menu {
-          ForEach(transport.audioTracks) { track in
-            choice(track.title, selected: transport.selectedAudio == track.id) {
-              transport.selectAudio(track.id)
-            }
-          }
-        } label: {
-          Text("Audio")
-          if let title = transport.selectedAudioTitle { Text(title) }
-        }
-      }
-      if !transport.subtitles.isEmpty {
-        Menu {
-          choice(String(localized: "Off"), selected: transport.selectedSubtitle == nil) {
-            transport.selectSubtitle(nil)
-          }
-          ForEach(transport.subtitles) { track in
-            choice(track.title, selected: transport.selectedSubtitle == track.id) {
-              transport.selectSubtitle(track.id)
-            }
-          }
-        } label: {
-          Text("Subtitles")
-          Text(transport.selectedSubtitleTitle)
-        }
-      }
-      Menu {
-        ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
-          choice(speed.title, selected: transport.speed == speed) {
-            transport.setSpeed(speed)
-          }
-        }
+    let pictureInPicture = transport.pictureInPicture
+    if pictureInPicture.isSupported {
+      Button {
+        pictureInPicture.toggle()
+        onToggle()
       } label: {
-        Text("Playback speed")
-        Text(transport.speed.title)
+        PutioVideoRouteLabel(icon: .pictureInPicture)
       }
-    } label: {
-      Image(putioIcon: .dotsThree)
-        .resizable()
-        .scaledToFit()
-        .frame(width: 22, height: 22)
-        .foregroundStyle(.white)
-        .frame(width: 44, height: 44)
-        .contentShape(Rectangle())
+      .buttonStyle(.plain)
+      .disabled(!transport.controlsEnabled || !pictureInPicture.isPossible)
+      .accessibilityLabel(String(localized: "Picture in Picture"))
+      .accessibilityAddTraits(pictureInPicture.isActive ? .isSelected : [])
+      .accessibilityIdentifier("video.picture-in-picture")
     }
-    .disabled(!transport.controlsEnabled)
-    .accessibilityLabel(String(localized: "More"))
-    .accessibilityIdentifier("video.options")
+  }
+}
+
+private struct PutioVideoRouteLabel: View {
+  let icon: PutioIcon
+
+  var body: some View {
+    Image(putioIcon: icon)
+      .resizable()
+      .scaledToFit()
+      .frame(width: PutioVideoMetrics.routeIcon, height: PutioVideoMetrics.routeIcon)
+      .foregroundStyle(.white)
+      .frame(width: PutioVideoMetrics.close, height: PutioVideoMetrics.close)
+      .contentShape(Rectangle())
+  }
+}
+
+private struct PutioVideoChipRow: View {
+  let transport: PutioVideoTransport
+  let onChange: () -> Void
+  let onMenu: (Bool) -> Void
+
+  @State private var openMenus: Set<ObjectIdentifier> = []
+
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      chips(iconOnly: false)
+      chips(iconOnly: true)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .onChange(of: openMenus.isEmpty) { _, closed in onMenu(!closed) }
   }
 
-  private func choice(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
-    Button {
-      action()
-      onChange()
-    } label: {
-      if selected {
-        Label(title, systemImage: "checkmark")
-      } else {
+  private func menuPresented(_ button: ObjectIdentifier, _ presented: Bool) {
+    if presented {
+      openMenus.insert(button)
+    } else {
+      openMenus.remove(button)
+    }
+  }
+
+  private func chips(iconOnly: Bool) -> some View {
+    HStack(spacing: PutioTheme.Spacing.space2) {
+      if !transport.audioTracks.isEmpty {
+        let title = transport.selectedAudioTitle
+        chip(
+          icon: .speakerHigh, title: title, iconOnly: iconOnly,
+          label: String(localized: "Audio: \(title)"), identifier: "video.chip.audio",
+          choices: transport.audioTracks.map { track in
+            PutioVideoChipChoice(
+              title: track.title, identifier: "video.audio.\(track.id)",
+              selected: transport.selectedAudio == track.id
+            ) { transport.selectAudio(track.id) }
+          })
+      }
+      if !transport.subtitles.isEmpty {
+        let title = transport.selectedSubtitleTitle
+        chip(
+          icon: .closedCaptioning, title: title, iconOnly: iconOnly,
+          label: String(localized: "Subtitles: \(title)"), identifier: "video.chip.subtitles",
+          choices: [
+            PutioVideoChipChoice(
+              title: String(localized: "Off"), identifier: "video.subtitles.off",
+              selected: transport.selectedSubtitle == nil
+            ) { transport.selectSubtitle(nil) }
+          ]
+            + transport.subtitles.map { track in
+              PutioVideoChipChoice(
+                title: track.title, identifier: "video.subtitles.\(track.id)",
+                selected: transport.selectedSubtitle == track.id
+              ) { transport.selectSubtitle(track.id) }
+            })
+      }
+      let speed = transport.speed.title
+      chip(
+        icon: .gauge, title: speed, iconOnly: iconOnly,
+        label: String(localized: "Playback speed \(speed)"), identifier: "video.chip.speed",
+        choices: PutioAudioSpeed.allCases.map { option in
+          PutioVideoChipChoice(
+            title: option.title, identifier: "video.speed.\(option.identifier)",
+            selected: transport.speed == option
+          ) { transport.setSpeed(option) }
+        })
+    }
+  }
+
+  private func chip(
+    icon: PutioIcon, title: String, iconOnly: Bool, label: String, identifier: String,
+    choices: [PutioVideoChipChoice]
+  ) -> some View {
+    PutioVideoChipLabel(icon: icon, title: title, iconOnly: iconOnly)
+      .opacity(transport.controlsEnabled ? 1 : 0.5)
+      .accessibilityHidden(true)
+      .overlay {
+        PutioVideoChipMenu(
+          choices: choices, label: label, identifier: identifier,
+          enabled: transport.controlsEnabled, onChange: onChange,
+          onPresentation: menuPresented)
+      }
+  }
+}
+
+private struct PutioVideoChipLabel: View {
+  let icon: PutioIcon
+  let title: String
+  let iconOnly: Bool
+
+  var body: some View {
+    HStack(spacing: PutioTheme.Spacing.space2) {
+      PutioIconView(icon, size: PutioVideoMetrics.chipIcon)
+      if !iconOnly {
         Text(title)
+          .lineLimit(1)
+          .fixedSize()
       }
     }
+    .putioFont(PutioTheme.Components.Button.label)
+    .foregroundStyle(.white)
+    .padding(.horizontal, iconOnly ? 0 : PutioVideoMetrics.chipPadding)
+    .frame(minWidth: PutioVideoMetrics.chipHeight, minHeight: PutioVideoMetrics.chipHeight)
+    .background(Color.black.opacity(0.75), in: Capsule())
+    .overlay {
+      Capsule().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
+    }
+  }
+}
+
+private struct PutioVideoChipChoice: Equatable {
+  let title: String
+  let identifier: String
+  let selected: Bool
+  let select: @MainActor () -> Void
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.title == rhs.title && lhs.identifier == rhs.identifier && lhs.selected == rhs.selected
+  }
+}
+
+private struct PutioVideoChipMenu: UIViewRepresentable {
+  let choices: [PutioVideoChipChoice]
+  let label: String
+  let identifier: String
+  let enabled: Bool
+  let onChange: () -> Void
+  let onPresentation: (ObjectIdentifier, Bool) -> Void
+
+  func makeUIView(context: Context) -> PutioVideoMenuButton {
+    let button = PutioVideoMenuButton(type: .custom)
+    button.showsMenuAsPrimaryAction = true
+    return button
+  }
+
+  func sizeThatFits(
+    _ proposal: ProposedViewSize, uiView: PutioVideoMenuButton, context: Context
+  ) -> CGSize? {
+    proposal.replacingUnspecifiedDimensions()
+  }
+
+  func updateUIView(_ button: PutioVideoMenuButton, context: Context) {
+    button.onPresentation = onPresentation
+    button.isEnabled = enabled
+    button.accessibilityLabel = label
+    button.accessibilityIdentifier = identifier
+    guard button.choices != choices else { return }
+    button.choices = choices
+    let onChange = onChange
+    button.menu = UIMenu(
+      options: .singleSelection,
+      children: choices.map { choice in
+        let action = UIAction(title: choice.title, state: choice.selected ? .on : .off) { _ in
+          choice.select()
+          onChange()
+        }
+        action.accessibilityIdentifier = choice.identifier
+        return action
+      })
+  }
+
+  static func dismantleUIView(_ button: PutioVideoMenuButton, coordinator: ()) {
+    guard button.isPresentingMenu, let onPresentation = button.onPresentation else { return }
+    let id = ObjectIdentifier(button)
+    Task { @MainActor in onPresentation(id, false) }
+  }
+}
+
+private final class PutioVideoMenuButton: UIButton {
+  var onPresentation: ((ObjectIdentifier, Bool) -> Void)?
+  var choices: [PutioVideoChipChoice] = []
+  private(set) var isPresentingMenu = false
+
+  override func contextMenuInteraction(
+    _ interaction: UIContextMenuInteraction,
+    willDisplayMenuFor configuration: UIContextMenuConfiguration,
+    animator: (any UIContextMenuInteractionAnimating)?
+  ) {
+    super.contextMenuInteraction(
+      interaction, willDisplayMenuFor: configuration, animator: animator)
+    isPresentingMenu = true
+    onPresentation?(ObjectIdentifier(self), true)
+  }
+
+  override func contextMenuInteraction(
+    _ interaction: UIContextMenuInteraction,
+    willEndFor configuration: UIContextMenuConfiguration,
+    animator: (any UIContextMenuInteractionAnimating)?
+  ) {
+    super.contextMenuInteraction(interaction, willEndFor: configuration, animator: animator)
+    isPresentingMenu = false
+    onPresentation?(ObjectIdentifier(self), false)
   }
 }
 
@@ -521,6 +778,11 @@ private struct PutioVideoSkipButton: View {
 
 private enum PutioVideoMetrics {
   static let close: CGFloat = 44
+  static let routeIcon: CGFloat = 20
+  static let chipHeight: CGFloat = 34
+  static let chipPadding: CGFloat = 14
+  static let chipGap: CGFloat = 12
+  static let chipIcon = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .caption)
   static let skip: CGFloat = 56
   static let playPause: CGFloat = 72
   static let titleFont = PutioFontRole(

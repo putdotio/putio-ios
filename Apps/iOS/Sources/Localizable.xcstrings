@@ -501,6 +501,17 @@
         }
       }
     },
+    "Audio: %@" : {
+      "comment" : "android: playback_audio_chip",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio: %@"
+          }
+        }
+      }
+    },
     "Autoplay next video" : {
       "comment" : "android: mobile_settings_autoplay_next",
       "localizations" : {
@@ -3302,6 +3313,17 @@
         }
       }
     },
+    "Picture in Picture" : {
+      "comment" : "android: mobile_playback_picture_in_picture | differs: Apple writes Picture in Picture in title case",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Picture in Picture"
+          }
+        }
+      }
+    },
     "Pin" : {
       "comment" : "android: mobile_files_pin",
       "localizations" : {
@@ -3408,6 +3430,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback speed"
+          }
+        }
+      }
+    },
+    "Playback speed %@" : {
+      "comment" : "android: playback_speed_chip",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback speed %@"
           }
         }
       }
@@ -3771,6 +3804,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop playback"
+          }
+        }
+      }
+    },
+    "Subtitles: %@" : {
+      "comment" : "android: playback_subtitles_chip",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtitles: %@"
           }
         }
       }
