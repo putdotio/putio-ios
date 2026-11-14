@@ -261,4 +261,23 @@ import SwiftUI
     }
   }
 
+  enum HarnessDirectPlay {
+    static func source(for source: PutioPlaybackSource) throws -> PutioPlaybackSource {
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1", let original = source.original
+      else { throw HarnessPlaybackFixtureError.missingResource }
+      let subtitles = original.subtitles.map { subtitle in
+        PutioCastSubtitle(
+          key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
+          name: subtitle.name, url: baseURL.appending(path: "runtime-proof-subtitles.srt"))
+      }
+      return PutioPlaybackSource(
+        url: baseURL.appending(path: "runtime-proof-direct.mkv"),
+        startFromSeconds: source.startFromSeconds,
+        original: original.subtitles(subtitles, defaultKey: original.defaultSubtitleKey))
+    }
+  }
+
 #endif

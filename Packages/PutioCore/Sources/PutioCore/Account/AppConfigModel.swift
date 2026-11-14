@@ -107,6 +107,13 @@ public final class PutioAppConfigModel {
     return autoplayNextVideo
   }
 
+  /// The method a video plays with: a document still loading is awaited, so a
+  /// Direct play account never starts on Standard while the app launches.
+  public func resolvePlaybackMethod() async -> PutioPlaybackMethod {
+    if config == nil { await loadIfNeeded() }
+    return playbackMethod
+  }
+
   @discardableResult
   public func setAutoplayNextVideo(_ enabled: Bool) async -> PutioSettingSaveOutcome {
     guard enabled != autoplayNextVideo else { return .skipped }

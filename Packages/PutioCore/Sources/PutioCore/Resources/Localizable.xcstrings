@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (track %lld)" : {
+      "comment" : "android: playback_track_disambiguated",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (track %lld)"
+          }
+        }
+      }
+    },
     "%@ of %@" : {
       "comment" : "android: account_storage_full_value",
       "localizations" : {
@@ -19,6 +30,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ of %@ used"
+          }
+        }
+      }
+    },
+    "%lld channels" : {
+      "comment" : "android: playback_audio_channels",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld channel"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld channels"
+                }
+              }
+            }
           }
         }
       }
@@ -186,6 +220,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ascending"
+          }
+        }
+      }
+    },
+    "Audio track %lld" : {
+      "comment" : "android: playback_audio_track_number",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio track %lld"
           }
         }
       }
@@ -1149,6 +1194,17 @@
         }
       }
     },
+    "mono" : {
+      "comment" : "android: playback_audio_mono",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "mono"
+          }
+        }
+      }
+    },
     "More" : {
       "comment" : "android: mobile_action_more_options | differs: one-word iOS label for the action bar overflow",
       "localizations" : {
@@ -1657,6 +1713,17 @@
         }
       }
     },
+    "stereo" : {
+      "comment" : "android: playback_audio_stereo",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "stereo"
+          }
+        }
+      }
+    },
     "Storage totals are out of date" : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -1675,6 +1742,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Strictly necessary"
+          }
+        }
+      }
+    },
+    "Subtitle %lld" : {
+      "comment" : "android: playback_subtitle_number",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtitle %lld"
           }
         }
       }

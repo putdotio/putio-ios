@@ -121,6 +121,9 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack {
       content
+      if !transport.subtitleCues.isEmpty {
+        PutioVideoSubtitleOverlay(cues: transport.subtitleCues)
+      }
       if isReady, !transport.wait.state.hidesControls {
         PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
           castControls
@@ -185,6 +188,15 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.ready")
               .allowsHitTesting(false)
           }
+          if case .ready(let source) = model.state {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Video source")
+              .accessibilityValue(Self.harnessSourceName(source))
+              .accessibilityIdentifier("video.source")
+              .allowsHitTesting(false)
+          }
           if let selectedAudioLanguage {
             Color.clear
               .frame(width: 1, height: 1)
@@ -242,6 +254,14 @@ struct PutioVideoPlaybackView: View {
           }
         }
       }
+    }
+  }
+
+  private static func harnessSourceName(_ source: PutioPlaybackSource) -> String {
+    switch source.original?.player {
+    case .engine?: "original-engine"
+    case .avPlayer?: "original-avplayer"
+    case nil: "stream"
     }
   }
 
@@ -325,6 +345,45 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
+  private var playerCallbacks: PutioVideoPlayerCallbacks {
+    var callbacks = PutioVideoPlayerCallbacks(
+      onReady: {
+        playerIsReady = true
+        model.playerReady()
+      },
+      onDurationKnown: onDurationKnown,
+      observesPlaybackState: showsHarnessReadiness,
+      onAudioSelected: { selectedAudioLanguage = $0 },
+      onPositionChanged: { observedPlaybackPosition = $0 },
+      onPlaybackEnded: {
+        playbackReachedEnd = true
+        nextVideoTransitionTask?.cancel()
+        nextVideoTransitionTask = Task { @MainActor in
+          await nextVideoModel.playbackEnded(completedFileID: fileID)
+        }
+      },
+      onPlaybackRestarted: {
+        playbackReachedEnd = false
+        nextVideoTransitionTask?.cancel()
+        nextVideoTransitionTask = nil
+        nextVideoModel.cancel()
+      },
+      onFailure: { failure in
+        playerIsReady = false
+        guard reportsPlayerFailures else { return }
+        reportedFaults.append(failure.fault)
+        reportFailure(failure.fault)
+        playerFailureTask?.cancel()
+        playerFailureTask = Task {
+          await model.playerFailed(failure.fault, heldSeconds: failure.heldSeconds)
+        }
+      })
+    #if DEBUG
+      callbacks.onSubtitleSelected = { selectedSubtitle = $0 }
+    #endif
+    return callbacks
+  }
+
   private func recordConversionState(_ state: PutioVideoPlaybackState) {
     let phase: String
     switch state {
@@ -348,48 +407,41 @@ struct PutioVideoPlaybackView: View {
       PutioLoadingStateView(title: String(localized: "Preparing video"))
         .accessibilityIdentifier("video.loading")
     case .ready(let source):
-      PutioVideoPlayerView(
-        fileID: fileID,
-        source: source,
-        transport: transport,
-        preferredAudioLanguages: preferredAudioLanguages,
-        remembersPlaybackPosition: remembersPlaybackPosition,
-        positionPipeline: positionPipeline,
-        reportPosition: reportPosition,
-        onReady: {
-          playerIsReady = true
-          model.playerReady()
-        },
-        onDurationKnown: onDurationKnown,
-        observesPlaybackState: showsHarnessReadiness,
-        onAudioSelected: { selectedAudioLanguage = $0 },
-        onPositionChanged: { observedPlaybackPosition = $0 },
-        onPlaybackEnded: {
-          playbackReachedEnd = true
-          nextVideoTransitionTask?.cancel()
-          nextVideoTransitionTask = Task { @MainActor in
-            await nextVideoModel.playbackEnded(completedFileID: fileID)
-          }
-        },
-        onPlaybackRestarted: {
-          playbackReachedEnd = false
-          nextVideoTransitionTask?.cancel()
-          nextVideoTransitionTask = nil
-          nextVideoModel.cancel()
-        }
-      ) { failure in
-        playerIsReady = false
-        guard reportsPlayerFailures else { return }
-        reportedFaults.append(failure.fault)
-        reportFailure(failure.fault)
-        playerFailureTask?.cancel()
-        playerFailureTask = Task {
-          await model.playerFailed(failure.fault, heldSeconds: failure.heldSeconds)
+      let callbacks = playerCallbacks
+      Group {
+        if source.original?.player == .engine {
+          PutioDirectPlayerView(
+            fileID: fileID,
+            source: source,
+            transport: transport,
+            remembersPlaybackPosition: remembersPlaybackPosition,
+            positionPipeline: positionPipeline,
+            reportPosition: reportPosition,
+            callbacks: callbacks
+          )
+        } else {
+          PutioVideoPlayerView(
+            fileID: fileID,
+            source: source,
+            transport: transport,
+            preferredAudioLanguages: preferredAudioLanguages,
+            remembersPlaybackPosition: remembersPlaybackPosition,
+            positionPipeline: positionPipeline,
+            reportPosition: reportPosition,
+            onReady: callbacks.onReady,
+            onDurationKnown: callbacks.onDurationKnown,
+            observesPlaybackState: callbacks.observesPlaybackState,
+            onAudioSelected: callbacks.onAudioSelected,
+            onPositionChanged: callbacks.onPositionChanged,
+            onPlaybackEnded: callbacks.onPlaybackEnded,
+            onPlaybackRestarted: callbacks.onPlaybackRestarted,
+            onFailure: callbacks.onFailure
+          )
+          #if DEBUG
+            .onSubtitleSelected(callbacks.onSubtitleSelected)
+          #endif
         }
       }
-      #if DEBUG
-        .onSubtitleSelected { selectedSubtitle = $0 }
-      #endif
       .ignoresSafeArea()
       .id(model.playerAttempt)
     case .conversionRequired:
@@ -585,6 +637,7 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   func makeUIView(context: Context) -> PutioVideoSurfaceView {
     let surface = PutioVideoSurfaceView()
     let transport = transport
+    transport.originalAudioStreams = source.original?.audioStreams ?? []
     surface.pictureInPicture = transport.pictureInPicture
     surface.onPlayerChange = { old, new in transport.playerChanged(from: old, to: new) }
     surface.onPlaybackControlsChange = { [weak surface] shown in

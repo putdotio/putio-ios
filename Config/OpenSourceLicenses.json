@@ -32,6 +32,34 @@
       "license": "Intercom SDK license",
       "copyright": "Copyright © Intercom, Inc.",
       "licenseText": "https://github.com/intercom/intercom-ios-sp/blob/master/LICENSE"
+    },
+    "aetherengine": {
+      "name": "AetherEngine",
+      "license": "LGPL-3.0 with the App Store / DRM exception",
+      "copyright": "Copyright © 2026 Vincent Herbst. Anime4K kernels: Copyright © 2019-2021 bloc97, MIT",
+      "source": "https://github.com/superuser404notfound/AetherEngine/tree/7.65.0",
+      "licenseText": "https://github.com/superuser404notfound/AetherEngine/blob/7.65.0/LICENSE"
+    },
+    "ffmpegbuild": {
+      "name": "FFmpeg",
+      "license": "LGPL-2.1-or-later; dav1d BSD-2-Clause, zimg WTFPL, libzvbi LGPL-2.0-or-later",
+      "copyright": "Copyright © the FFmpeg, dav1d, zimg and libzvbi developers",
+      "source": "https://github.com/superuser404notfound/FFmpegBuild/tree/3.15.0",
+      "licenseText": "https://github.com/superuser404notfound/FFmpegBuild/tree/3.15.0/LICENSES"
+    },
+    "libdovi": {
+      "name": "libdovi",
+      "license": "MIT",
+      "copyright": "Copyright © quietvoid and contributors",
+      "source": "https://github.com/superuser404notfound/LibDovi/tree/2.2.0",
+      "licenseText": "https://github.com/superuser404notfound/LibDovi/blob/2.2.0/LICENSE"
+    },
+    "smbclient": {
+      "name": "SMBClient",
+      "license": "MIT",
+      "copyright": "Copyright © Kishikawa Katsumi",
+      "source": "https://github.com/kishikawakatsumi/SMBClient",
+      "licenseText": "https://github.com/kishikawakatsumi/SMBClient/blob/main/LICENSE"
     }
   },
   "testOnly": ["swift-custom-dump", "swift-issue-reporting", "swift-snapshot-testing", "swift-syntax"]

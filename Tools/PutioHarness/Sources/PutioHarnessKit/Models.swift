@@ -866,6 +866,11 @@ enum BoardCaptureContract {
         "rd-ios-pb-29-conversion-status-failed", .iphone, "testConversionStatusFailed"),
       BoardCapture("rd-ios-pb-30-cannot-convert", .iphone, "testCannotConvert"),
       BoardCapture("rd-ios-pb-42-ipad-converting", .ipad, "testConversionConverting"),
+      BoardCapture("direct-play-video", .iphone, "testDirectPlayVideo"),
+      BoardCapture("direct-play-video-ipad", .ipad, "testDirectPlayVideo"),
+      BoardCapture("direct-play-audio", .iphone, "testDirectPlayAudioMenu", screenBase: false),
+      BoardCapture(
+        "direct-play-audio-ipad", .ipad, "testDirectPlayAudioMenu", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1432,6 +1437,13 @@ enum BrowserJourneyContract {
       "SubtitlesJourneyTests/testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture",
       attachmentNames: ["runtime-video-chips", "runtime-video-chips-changed"],
       timeAllowance: 180),
+    JourneyPreflight(
+      "direct-play",
+      "DirectPlayJourneyTests/testDirectPlayPlaysTheOriginalSeeksSwitchesAudioAndResumes",
+      attachmentNames: [
+        "runtime-direct-play-menu", "runtime-direct-play-controls", "runtime-direct-play-audio",
+      ],
+      timeAllowance: 300),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
       attachmentNames: ["runtime-security-apps"], timeAllowance: 180),

@@ -866,6 +866,10 @@ public struct SimulatorHarness {
           mediaDirectory.appending(path: "multi-audio/multi-subtitle-English.vtt"),
           context: "runtime-proof WebVTT subtitle"
         )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-direct.mkv"),
+          context: "runtime-proof Direct play original"
+        )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
