@@ -1009,6 +1009,7 @@ struct MainTabView: View {
       let fixtureURL: URL
       let probesInvalidFixture =
         heldPath == nil && fileID.rawValue != 411 && harnessPlaybackAttempt == 1
+        && !HarnessSeededAPI.seedsEpisodeConversion
       if probesInvalidFixture {
         guard
           let invalidFixture = Bundle.main.url(

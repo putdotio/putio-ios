@@ -1009,6 +1009,8 @@ import Foundation
       return conversionLock.withLock { !episodeConversionCompleted }
     }
 
+    static var seedsEpisodeConversion: Bool { episodeConversion != nil }
+
     static func episodeConversionReadCount() -> Int {
       conversionLock.withLock { episodeConversionReads }
     }
