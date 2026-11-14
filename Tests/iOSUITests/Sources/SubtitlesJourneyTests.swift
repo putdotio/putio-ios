@@ -54,9 +54,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     // exposed to accessibility; the screenshot records the rendered cue.
     let position = element("video.current-position")
     let pausedAt = position.value as? String ?? ""
-    let playPause = element("video.play-pause")
-    app.revealVideoControls(showing: playPause)
-    playPause.tap()
+    app.setVideoPlaying(true, with: element("video.play-pause"))
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value != %@", pausedAt), position, timeout: 10),
       "playback did not resume")
