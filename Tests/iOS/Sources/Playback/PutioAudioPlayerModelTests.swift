@@ -815,13 +815,16 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load") }.count, 1)
   }
 
-  func testUpNextPlaysATappedFileAndTheMarkFollowsTheFolderToItsEnd() async {
-    let queue = [429, 430, 431, 432].map {
-      PutioQueuedAudio(id: PutioFileID(rawValue: $0), parentID: .root, name: "\($0).m4a")
-    }
+  private func folder(_ ids: [Int]) -> [PutioQueuedAudio] {
+    ids.map { PutioQueuedAudio(id: PutioFileID(rawValue: $0), parentID: .root, name: "\($0).m4a") }
+  }
+
+  func testUpNextPlaysATappedFileAndTheMarkFollowsTheFolderWhenItCannotBeReadAgain() async {
+    let queue = folder([429, 430, 431, 432])
     var reads = 0
     let h = makeHarness(loadNeighbours: { track in
       reads += 1
+      if reads > 1 { throw PutioRuntimeError.transient }
       return PutioAudioNeighbours(of: track.id, in: queue, folderName: "Music")
     })
     defer { h.model.stop() }
@@ -830,65 +833,98 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
     h.model.play(queue[2])
     let third = PutioAudioTrack(id: queue[2].id, parentID: .root, title: queue[2].name)
-    await waitUntil { h.model.state == .playing(third) }
+    await waitUntil { h.model.state == .playing(third) && reads == 2 }
     XCTAssertEqual(h.model.queue, queue, "the list stays while the tapped file loads")
     XCTAssertEqual(h.model.neighbours?.next, queue[3])
 
     h.engine.onPositionChanged?(12)
     h.engine.onEnded?()
     let fourth = PutioAudioTrack(id: queue[3].id, parentID: .root, title: queue[3].name)
-    await waitUntil { h.model.state == .playing(fourth) }
-    XCTAssertEqual(h.model.track.id, queue[3].id)
+    await waitUntil { h.model.state == .playing(fourth) && reads == 3 }
     XCTAssertEqual(h.model.queue, queue)
+    XCTAssertEqual(h.model.neighbours?.previous, queue[2])
     XCTAssertFalse(h.model.canSkipToNext)
     XCTAssertTrue(h.nowPlaying.trackCommands == (true, false))
-    XCTAssertEqual(reads, 1, "the folder is read once for the whole list")
     XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load") }.count, 3)
   }
 
-  func testUpNextTapOnThePausedFileResumesItInsteadOfReloading() async {
-    let queue = [430, 431].map {
-      PutioQueuedAudio(id: PutioFileID(rawValue: $0), parentID: .root, name: "\($0).m4a")
-    }
+  func testUpNextTakesTheFolderAsReadAgainForEachFile() async {
+    var queue = folder([430, 431])
     let h = makeHarness(loadNeighbours: { track in
       PutioAudioNeighbours(of: track.id, in: queue, folderName: "Music")
     })
     defer { h.model.stop() }
     await h.model.start()
     await waitUntil { h.model.queue == queue }
+    queue = folder([430, 431, 433])
+
+    h.model.play(queue[1])
+
+    await waitUntil { h.model.queue == queue }
+    XCTAssertEqual(h.model.neighbours?.next, queue[2])
+  }
+
+  func testUpNextTapOnThePausedFileResumesItAndOnAFailedFileRetriesIt() async {
+    let queue = folder([430, 431])
+    var failsNext = false
+    let h = makeHarness(
+      resolve: { id in
+        if failsNext {
+          failsNext = false
+          throw PutioRuntimeError.transient
+        }
+        return PutioPlaybackSource(
+          url: URL(string: "https://media.example.test/\(id.rawValue).m4a")!, startFromSeconds: 0)
+      },
+      loadNeighbours: { track in
+        PutioAudioNeighbours(of: track.id, in: queue, folderName: "Music")
+      })
+    defer { h.model.stop() }
+    await h.model.start()
+    await waitUntil { h.model.queue == queue }
     h.model.pause()
 
     h.model.play(queue[0])
-
     XCTAssertEqual(h.model.state, .playing(track))
     XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load") }.count, 1)
+
+    failsNext = true
+    h.model.play(queue[1])
+    let second = PutioAudioTrack(id: queue[1].id, parentID: .root, title: queue[1].name)
+    await waitUntil {
+      if case .failed(second, _) = h.model.state { return true }
+      return false
+    }
+    h.model.play(queue[1])
+    await waitUntil { h.model.state == .playing(second) }
   }
 
-  func testStoredAudioListsTheFolderDownloadsByNameWhenPutioCannotListIt() {
-    func item(
-      _ id: Int, _ name: String, kind: PutioOfflineItem.Kind = .audio, parent: Int = 7,
-      stage: PutioOfflineItem.Stage = .completed
-    ) -> PutioOfflineItem {
-      PutioOfflineItem(
+  func testStoredAudioListsTheFolderDownloadsAndThePlayingFileWhenPutioCannotListIt() {
+    func file(_ id: Int, _ name: String, kind: PutioFileKind = .audio, parent: Int = 7)
+      -> PutioFileItem
+    {
+      PutioFileItem(
         id: PutioFileID(rawValue: id), parentID: PutioFileID(rawValue: parent), name: name,
-        kind: kind, createdAt: .now, stage: stage, localPath: "\(id).m4a", storedBytes: 1,
-        selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
-        resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 1)
+        kind: kind, sizeBytes: 1, createdAt: .now, updatedAt: .now, resumePositionSeconds: 0)
     }
-    let items = [
-      item(4, "Track 10.mp3"), item(5, "Clip.mp4", kind: .video), item(6, "Track 1.mp3"),
-      item(7, "Elsewhere.mp3", parent: 8), item(8, "Track 3.mp3", stage: .queued),
-      item(9, "Track 2.mp3"),
+    let downloads = [
+      file(6, "Track 1.mp3"), file(5, "Clip.mp4", kind: .video), file(4, "Track 10.mp3"),
+      file(7, "Elsewhere.mp3", parent: 8),
     ]
-    let playing = PutioAudioTrack(
+    let streamed = PutioAudioTrack(
       id: PutioFileID(rawValue: 9), parentID: PutioFileID(rawValue: 7), title: "Track 2.mp3")
+    let downloaded = PutioAudioTrack(
+      id: PutioFileID(rawValue: 6), parentID: PutioFileID(rawValue: 7), title: "Track 1.mp3")
 
-    let stored = PutioAudioNeighbours.stored(items, around: playing)
+    let aroundStreamed = PutioAudioNeighbours.stored(downloads, around: streamed)
+    let aroundDownloaded = PutioAudioNeighbours.stored(downloads, around: downloaded)
 
-    XCTAssertEqual(stored?.queue.map(\.id.rawValue), [6, 9, 4])
-    XCTAssertEqual(stored?.previous?.id.rawValue, 6)
-    XCTAssertEqual(stored?.next?.id.rawValue, 4)
-    XCTAssertNil(PutioAudioNeighbours.stored([items[1], items[3]], around: playing))
+    XCTAssertEqual(aroundStreamed?.queue.map(\.id.rawValue), [6, 9, 4])
+    XCTAssertEqual(aroundStreamed?.previous?.id.rawValue, 6)
+    XCTAssertEqual(aroundStreamed?.next?.id.rawValue, 4)
+    XCTAssertEqual(aroundDownloaded?.queue.map(\.id.rawValue), [6, 4])
+    XCTAssertEqual(aroundDownloaded?.next?.id.rawValue, 4)
+    XCTAssertNil(PutioAudioNeighbours.stored([downloads[1], downloads[3]], around: streamed))
   }
 
   func testAudioFailuresSayPutioIsUnavailableUnlessRateLimited() {

@@ -2,17 +2,18 @@ import PutioCore
 import SwiftUI
 
 extension PutioAudioNeighbours {
-  /// The downloaded audio files of `track`'s folder in name order, for a
-  /// folder put.io cannot list right now; `nil` when none is stored.
-  static func stored(_ items: [PutioOfflineItem], around track: PutioAudioTrack)
+  static func stored(_ files: [PutioFileItem], around track: PutioAudioTrack)
     -> PutioAudioNeighbours?
   {
-    let queue =
-      items
-      .filter { $0.kind == .audio && $0.parentID == track.parentID && $0.isPlayable }
-      .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    var queue =
+      files
+      .filter { $0.kind == .audio && $0.parentID == track.parentID }
       .map { PutioQueuedAudio(id: $0.id, parentID: $0.parentID, name: $0.name) }
     guard !queue.isEmpty else { return nil }
+    if !queue.contains(where: { $0.id == track.id }) {
+      queue.append(PutioQueuedAudio(id: track.id, parentID: track.parentID, name: track.title))
+      queue.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
     return PutioAudioNeighbours(of: track.id, in: queue, folderName: nil)
   }
 }

@@ -24,6 +24,9 @@ struct PutioAudioPlayerView: View {
     .sheet(isPresented: upNextPresentation(regular: false)) {
       PutioAudioUpNextSheet(model: model)
     }
+    .onChange(of: hasFailed) { _, failed in
+      if failed { showsUpNext = false }
+    }
     .presentationDragIndicator(horizontalSizeClass == .regular ? .visible : .hidden)
     .presentationSizing(.form)
     .overlay { harnessProbes }
@@ -47,6 +50,11 @@ struct PutioAudioPlayerView: View {
     case .playing, .paused, .interrupted, .ended:
       PutioNowPlayingDetails(model: model) { showsUpNext = true }
     }
+  }
+
+  private var hasFailed: Bool {
+    if case .failed = model.state { return true }
+    return false
   }
 
   private func upNextPresentation(regular: Bool) -> Binding<Bool> {

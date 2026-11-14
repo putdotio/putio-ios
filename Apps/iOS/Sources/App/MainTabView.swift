@@ -668,10 +668,12 @@ struct MainTabView: View {
         loadNeighbours: { track in
           do {
             return try await runtime.audioNeighbours(of: track.id, in: track.parentID)
-          } catch {
-            guard !(error is CancellationError),
-              let stored = PutioAudioNeighbours.stored(offlineQueue.items, around: track)
-            else { throw error }
+          } catch PutioRuntimeError.transient {
+            let files = PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
+              .items(track.parentID)
+            guard let stored = PutioAudioNeighbours.stored(files, around: track) else {
+              throw PutioRuntimeError.transient
+            }
             return stored
           }
         }

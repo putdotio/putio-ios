@@ -5,7 +5,7 @@ import Foundation
     static let musicFolderID = 3_101
     static let musicFirstTrackID = 3_102
     static let musicTrackID = 3_103
-    static let musicLastTrackID = 3_104
+    static let musicThirdTrackID = 3_104
     static let singlesFolderID = 3_105
     static let singleMusicFolderID = 3_106
     static let singleTrackID = 3_107
@@ -13,7 +13,7 @@ import Foundation
 
     private static let musicLock = NSLock()
     nonisolated(unsafe) private static var musicPositions: [Int: Int] =
-      musicArguments.contains("--putio-harness-audio-near-end") ? [musicLastTrackID: 50] : [:]
+      musicArguments.contains("--putio-harness-audio-near-end") ? [musicThirdTrackID: 50] : [:]
     nonisolated(unsafe) private static var musicFailuresLeft =
       musicArguments.contains(
         "--putio-harness-audio-fails-once") ? 1 : 0
@@ -41,7 +41,7 @@ import Foundation
         id: musicTrackID, name: "FFTT Tree Rings Open Air Session, October 13, 2026.mp3",
         parentID: musicFolderID, durationSeconds: 2_977),
       MusicTrack(
-        id: musicLastTrackID, name: "FFTT Tree Rings October 20, 2026.mp3",
+        id: musicThirdTrackID, name: "FFTT Tree Rings October 20, 2026.mp3",
         parentID: musicFolderID, durationSeconds: 3_062),
       MusicTrack(
         id: musicFourthTrackID, name: "FFTT Tree Rings October 27, 2026.mp3",

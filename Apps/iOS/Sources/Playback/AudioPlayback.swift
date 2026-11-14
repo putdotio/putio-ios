@@ -303,14 +303,16 @@ final class PutioAudioPlayerModel {
     switchTo(next)
   }
 
-  /// The folder's audio files in its order, for the Up next list.
   var queue: [PutioQueuedAudio] { neighbours?.queue ?? [] }
 
-  /// Plays a file from the Up next list; the playing file resumes or replays.
   func play(_ queued: PutioQueuedAudio) {
     guard !isTransitioning else { return }
     guard queued.id != track.id else {
-      if !isPlaying { togglePlayPause() }
+      switch state {
+      case .failed: Task { await retry() }
+      case .paused, .interrupted, .ended: togglePlayPause()
+      case .loading, .playing: break
+      }
       return
     }
     guard queue.contains(where: { $0.id == queued.id }) else { return }
@@ -404,22 +406,15 @@ final class PutioAudioPlayerModel {
 
   private func readNeighbours(of track: PutioAudioTrack) {
     if neighboursTrackID == track.id, neighbours != nil { return }
-    if let moved = neighbours?.moved(to: track.id) {
-      neighboursTask?.cancel()
-      neighboursTask = nil
-      neighboursTrackID = track.id
-      neighbours = moved
-      publishTrackCommands()
-      return
-    }
     neighboursTask?.cancel()
     neighboursTrackID = track.id
-    neighbours = nil
+    neighbours = neighbours?.moved(to: track.id)
     publishTrackCommands()
     let load = loadNeighbours
     neighboursTask = Task { [weak self] in
       let found = try? await load(track)
       guard let self, !Task.isCancelled, neighboursTrackID == track.id else { return nil }
+      guard let found else { return neighbours }
       neighbours = found
       publishTrackCommands()
       return found
