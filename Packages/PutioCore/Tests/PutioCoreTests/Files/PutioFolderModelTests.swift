@@ -1249,13 +1249,15 @@ final class PutioFolderModelTests: XCTestCase {
     let creation = Task { await model.createFolder(name: "Season 2") }
     try await waitUntilCreationWaits(model)
     await model.createFolder(name: "Season 3")
+    let requestsWhileWaiting = await loader.requestCount()
     await loader.succeed(request: 0, with: listing)
     let viewLoaded = await viewLoad.value
+    guard viewLoaded, requestsWhileWaiting == 1 else {
+      await loader.cancelPending()
+      return XCTFail("creation replaced the view's listing request")
+    }
     await creation.value
 
-    XCTAssertTrue(viewLoaded)
-    let requests = await loader.requestCount()
-    XCTAssertEqual(requests, 1)
     XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
   }
 
@@ -1279,12 +1281,15 @@ final class PutioFolderModelTests: XCTestCase {
     try await loader.waitForRequestCount(1)
     let creation = Task { await model.createFolder(name: "Season 2") }
     try await waitUntilCreationWaits(model)
+    let requestsWhileWaiting = await loader.requestCount()
     await loader.fail(request: 0, with: PutioRuntimeError.transient)
     _ = await viewLoad.value
+    guard requestsWhileWaiting == 1, case .failed = model.state else {
+      await loader.cancelPending()
+      return XCTFail("creation replaced the view's listing request")
+    }
     await creation.value
 
-    let requests = await loader.requestCount()
-    XCTAssertEqual(requests, 1)
     XCTAssertNil(model.actionOutcome)
     XCTAssertFalse(model.canCreateFolder)
   }
