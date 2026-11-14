@@ -10,11 +10,12 @@ offline playback.
   the next episode at its saved position, and signs out. This is the recorded
   walk.
 - `resume` asks Resume or Start over for a partly watched video, before the
-  player or after a conversion, and keeps the position across reopening a file.
+  player or after a conversion, skips, pauses, scrubs, hides and shows the
+  controls, and keeps the position across Close and reopening a file.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
   and plays from the Up next list while its mark follows playback.
-- `subtitles` picks subtitles from the system menu without changing audio, and
+- `subtitles` picks subtitles from the player menu without changing audio, and
   follows the preferences.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
   failed save, and keeps them across relaunch.
@@ -38,7 +39,7 @@ offline playback.
 - Files tab: tap a video or audio row.
 - Long-press a video row and choose Download; the Downloads tab lists it.
 - Account: playback preferences and Cast settings.
-- The player's system menus for subtitles and audio.
+- The player menu for audio, subtitles, and speed.
 
 ## Driving it with the harness
 
@@ -51,9 +52,10 @@ Preconditions:
 - **Walk.** Run the full journey without `--only`. Screenshots:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus
   `runtime-proof-walk.mp4`.
-- **Resume.** Run `--only resume-persistence`. Screenshot: `runtime-resume-prompt`.
-  `--only resume-setting` covers a video with no saved position and resume off.
-  Board: `rd-ios-pb-01-resume`.
+- **Resume and transport.** Run `--only resume-persistence`. Screenshots:
+  `runtime-resume-prompt`, `runtime-video-controls`,
+  `runtime-video-controls-hidden`. `--only resume-setting` covers a video with
+  no saved position and resume off. Board: `rd-ios-pb-01-resume`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
   `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`.
   `--putio-harness-music` seeds a Music folder of four tracks and a one-file

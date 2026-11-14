@@ -30,7 +30,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
 
     let rootVideo = element(identifier: "files.item.412")
-    let done = element(identifier: "video.done")
+    let done = element(identifier: "video.close")
     XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
     XCTAssertTrue(rootVideo.isHittable, "root video row is not tappable")
     let presentedRoute = element(identifier: "video.presented-route")
@@ -46,6 +46,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "root video tap did not select route 412"
     )
     XCTAssertTrue(done.appears(within: 5), "root video screen never appeared")
+    XCTAssertEqual(element(identifier: "video.title").label, "Root Movie.mkv")
     let playbackError = element(identifier: "video.error")
     XCTAssertTrue(
       playbackError.appears(within: 5),
@@ -103,8 +104,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       .completed,
       "autoplay did not open the successor at its saved position"
     )
-    XCTAssertTrue(done.isHittable, "successor video Done button is not tappable")
-    done.tap()
+    app.closeVideo()
 
     XCTAssertTrue(root.appears(within: 5), "successor video did not return to root")
     let watchedRow = XCTNSPredicateExpectation(
@@ -1244,7 +1244,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Try again"].tap()
     app.answerResumePrompt()
     XCTAssertTrue(element(identifier: "video.ready").appears(within: 15))
-    element(identifier: "video.done").tap()
+    app.closeVideo()
     XCTAssertTrue(folderResult.appears(within: 10))
     folderResult.tap()
     XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 10))
@@ -1773,7 +1773,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(nestedFile.appears(within: 5), "seeded nested file never appeared")
     nestedFile.tap()
 
-    let done = element(identifier: "video.done")
+    let done = element(identifier: "video.close")
     XCTAssertTrue(done.appears(within: 5), "video screen never appeared")
     let conversionError = element(identifier: "video.error")
     XCTAssertTrue(
@@ -1801,20 +1801,54 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
     XCTAssertEqual(resumePosition.value as? String, "90")
     let currentPosition = element(identifier: "video.current-position")
-    let advancedPlayback = XCTNSPredicateExpectation(
-      predicate: NSPredicate { object, _ in
-        guard let element = object as? XCUIElement else { return false }
-        return Int(element.value as? String ?? "") ?? -1 > 90
-      },
-      object: currentPosition
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [advancedPlayback], timeout: 10),
-      .completed,
-      "playback did not advance beyond the seeded resume position"
-    )
-    XCTAssertTrue(done.isHittable, "video Done button is not tappable")
-    done.tap()
+    XCTAssertTrue(
+      waitForPosition(currentPosition, beyond: 90), "playback did not advance beyond the resume")
+    XCTAssertEqual(element(identifier: "video.title").label, "Nested Movie.mkv")
+
+    let skipForward = element(identifier: "video.skip-forward")
+    XCTAssertTrue(skipForward.appears(within: 5), "the player shows no transport")
+    XCTAssertTrue(
+      skipForward.becomesUnhittable(within: 8), "controls stayed on screen while playing")
+    addScreenshot(named: "runtime-video-controls-hidden")
+    app.revealVideoControls(showing: skipForward)
+    addScreenshot(named: "runtime-video-controls")
+    XCTAssertEqual(skipForward.label, "Forward 10 seconds")
+    XCTAssertEqual(element(identifier: "video.skip-back").label, "Back 10 seconds")
+    let scrubber = element(identifier: "video.scrubber")
+    XCTAssertEqual(scrubber.label, "Playback position")
+
+    let beforeForward = playbackSeconds(currentPosition)
+    skipForward.tap()
+    XCTAssertTrue(
+      waitForPosition(currentPosition, beyond: beforeForward + 9),
+      "Forward 10 seconds did not move playback ahead")
+
+    let playPause = element(identifier: "video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    let paused = playbackSeconds(currentPosition)
+    XCTAssertFalse(
+      skipForward.becomesUnhittable(within: 5), "controls hid while paused")
+    XCTAssertEqual(playbackSeconds(currentPosition), paused, "playback moved while paused")
+
+    element(identifier: "video.skip-back").tap()
+    XCTAssertTrue(
+      waitForPosition(currentPosition, atMost: paused - 9),
+      "Back 10 seconds did not move playback back")
+
+    scrubber.adjust(toNormalizedSliderPosition: 0.5)
+    XCTAssertTrue(
+      waitForPosition(currentPosition, within: 280...310),
+      "scrubbing to the middle did not seek: \(currentPosition.value ?? "")")
+    let remaining = element(identifier: "video.remaining")
+    XCTAssertTrue(
+      (remaining.label).hasPrefix("-4:") || (remaining.label).hasPrefix("-5:"),
+      "remaining time does not follow the scrub: \(remaining.label)")
+
+    app.setVideoPlaying(true, with: playPause)
+    let resumedAt = playbackSeconds(currentPosition)
+    XCTAssertTrue(
+      waitForPosition(currentPosition, beyond: resumedAt), "playback did not resume")
+    app.closeVideo()
 
     XCTAssertTrue(nested.appears(within: 5), "video did not return to folder")
     let reportedPosition = element(identifier: "video.position-reported")
@@ -1824,10 +1858,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     let persistedSeconds = reportedPlaybackSeconds(from: reportedPosition.value as? String)
     XCTAssertNotNil(persistedSeconds, "reported playback position has an unexpected format")
-    XCTAssertGreaterThan(
+    XCTAssertGreaterThanOrEqual(
       persistedSeconds ?? -1,
-      90,
-      "reported playback position did not advance beyond the seeded row value"
+      resumedAt,
+      "Close did not save the scrubbed position"
     )
     let refreshedRowValue = persistedSeconds.map {
       "Watched, resume at \(resumeText(seconds: $0))"
@@ -1857,8 +1891,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertLessThan(
       Int(currentPosition.value as? String ?? "") ?? .max, persistedSeconds ?? 0,
       "Start over did not play from the beginning")
-    XCTAssertTrue(done.isHittable, "reopened video Done button is not tappable")
-    done.tap()
+    app.closeVideo()
 
     XCTAssertTrue(nested.appears(within: 5), "reopened video did not return to folder")
     let navigationBar = app.navigationBars["Harness Folder"]
@@ -1882,7 +1915,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func assertPlayingToTheEndMarksWatchedAndReopensFromTheStart() {
     let rootVideo = element(identifier: "files.item.412")
-    let done = element(identifier: "video.done")
     let ready = element(identifier: "video.ready")
     XCTAssertTrue(rootVideo.appears(within: 5), "root video row never appeared")
     XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
@@ -1901,7 +1933,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let endSeconds = reportedSeconds(
       of: 412, from: element(identifier: "video.position-reported").value as? String)
     XCTAssertGreaterThanOrEqual(endSeconds ?? -1, 567, "the save did not reach 96% of 590 s")
-    done.tap()
+    app.closeVideo()
 
     let watchedRow = XCTNSPredicateExpectation(
       predicate: NSPredicate(
@@ -1930,7 +1962,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       XCTWaiter.wait(for: [fromTheStart], timeout: 10), .completed,
       "the watched video did not open from the start: \(currentPosition.value ?? "none")")
     XCTAssertFalse(element(identifier: "video.ended").exists, "the watched video opened at its end")
-    done.tap()
+    app.closeVideo()
     XCTAssertTrue(rootVideo.appears(within: 5), "the watched video did not return to the root")
   }
 
@@ -2440,6 +2472,37 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "folder created in the move picker did not reach the browser"
     )
     XCTAssertTrue(row.exists, "cancelling the move removed its source")
+  }
+
+  private func playbackSeconds(_ position: XCUIElement) -> Int {
+    Int(position.value as? String ?? "") ?? -1
+  }
+
+  private func waitForPosition(_ position: XCUIElement, beyond seconds: Int) -> Bool {
+    waitForPosition(position) { $0 > seconds }
+  }
+
+  private func waitForPosition(_ position: XCUIElement, atMost seconds: Int) -> Bool {
+    waitForPosition(position) { $0 <= seconds }
+  }
+
+  private func waitForPosition(_ position: XCUIElement, within range: ClosedRange<Int>) -> Bool {
+    waitForPosition(position) { range.contains($0) }
+  }
+
+  private func waitForPosition(_ position: XCUIElement, matching test: @escaping (Int) -> Bool)
+    -> Bool
+  {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate { object, _ in
+        guard let element = object as? XCUIElement,
+          let seconds = Int(element.value as? String ?? "")
+        else { return false }
+        return test(seconds)
+      },
+      object: position
+    )
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
   }
 
   private func reportedPlaybackSeconds(from value: String?) -> Int? {

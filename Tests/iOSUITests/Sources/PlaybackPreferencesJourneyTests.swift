@@ -167,7 +167,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(
       XCTWaiter.wait(for: [landscape], timeout: 3), .timedOut,
       "the video rotated with Rotate off")
-    app.descendants(matching: .any)["video.done"].tap()
+    app.closeVideo()
 
     app.buttons["Account"].tap()
     XCTAssertTrue(app.revealed("playback-settings.resume").appears(within: 10))
@@ -183,7 +183,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertFalse(app.resumePrompt.exists, "a video with no saved position asked where to start")
     XCTAssertEqual(
       app.descendants(matching: .any)["video.resume-position"].value as? String, "0")
-    app.descendants(matching: .any)["video.done"].tap()
+    app.closeVideo()
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
@@ -371,7 +371,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(
       XCTWaiter.wait(for: [resumePosition], timeout: 10), .completed,
       "manual play-next did not open the successor at its saved position")
-    app.descendants(matching: .any)["video.done"].tap()
+    app.closeVideo()
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
   }
 

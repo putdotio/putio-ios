@@ -74,7 +74,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
-    element("video.done").tap()
+    app.closeVideo()
     let pending = element("downloads.pending-positions")
     XCTAssertTrue(pending.appears(within: 10))
     XCTAssertEqual(pending.value as? String, "1")

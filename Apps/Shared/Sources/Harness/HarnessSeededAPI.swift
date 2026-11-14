@@ -2031,7 +2031,7 @@ import Foundation
           {"file":{"id":441,"name":"\(seasonEpisodes[0].name)","file_type":"VIDEO",
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
-          "start_from":0,"video_metadata":\(seasonEpisodeMetadata)}}
+          "need_convert":false,"start_from":0,"video_metadata":\(seasonEpisodeMetadata)}}
           """
         )
       case "GET /v2/files/413":
@@ -2289,7 +2289,8 @@ import Foundation
         "parent_id":\(seasonFolderID),"size":\(episode?.size ?? 0),
         "created_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
         "updated_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
-        "start_from":\(playbackPosition(fileID: id)),"video_metadata":\(seasonEpisodeMetadata)}}
+        "need_convert":false,"start_from":\(playbackPosition(fileID: id)),
+        "video_metadata":\(seasonEpisodeMetadata)}}
         """
     }
 

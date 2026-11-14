@@ -841,6 +841,8 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-acc-30-inactive-family", .iphone, "testAccountInactive", screenBase: false,
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
+      BoardCapture("rd-ios-pb-02-video", .iphone, "testVideoPlayer"),
+      BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1393,7 +1395,7 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-resume-off-confirm"], timeAllowance: 180),
     JourneyPreflight(
       "subtitles",
-      "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
+      "SubtitlesJourneyTests/testPlayerMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
       timeAllowance: 240),
     JourneyPreflight(
@@ -1444,7 +1446,10 @@ enum BrowserJourneyContract {
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen",
-      attachmentNames: ["runtime-resume-prompt"], timeAllowance: 150),
+      attachmentNames: [
+        "runtime-resume-prompt", "runtime-video-controls", "runtime-video-controls-hidden",
+      ],
+      timeAllowance: 150),
     JourneyPreflight(
       "continue-watching",
       "ContinueWatchingJourneyTests/testStartedVideoIsListedRemovedFinishedAndTrashed",

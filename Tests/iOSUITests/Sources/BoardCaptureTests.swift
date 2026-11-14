@@ -734,6 +734,31 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-24-ipad-selection")
   }
 
+  func testVideoPlayer() throws {
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    let retry = app.buttons["Try again"]
+    if retry.appears(within: 10) { retry.tap() }
+    XCTAssertTrue(element("video.ready").appears(within: 15), "the episode never played")
+    XCTAssertEqual(
+      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+    let position = element("video.current-position")
+    let advanced = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != '0'"), object: position)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "the episode is not playing")
+    let playPause = element("video.play-pause")
+    let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
+    app.setVideoPlaying(!auditsText, with: playPause)
+    try captureBoard("rd-ios-pb-02-video")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()
@@ -2350,7 +2375,7 @@ final class BoardCaptureTests: XCTestCase {
       "the episode never asked where to start")
     XCTAssertTrue(app.buttons["video.resume.start-over"].exists, "the prompt has no Start over")
     XCTAssertTrue(app.buttons["video.resume.resume"].exists, "the prompt has no Resume")
-    XCTAssertFalse(element("video.done").exists, "the player opened before the answer")
+    XCTAssertFalse(element("video.close").exists, "the player opened before the answer")
     try captureBoard("rd-ios-pb-01-resume")
   }
 
