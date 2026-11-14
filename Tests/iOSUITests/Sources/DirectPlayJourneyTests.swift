@@ -66,6 +66,9 @@ final class DirectPlayJourneyTests: XCTestCase {
     app.setVideoPlaying(false, with: playPause)
     let audioChip = element("video.chip.audio")
     XCTAssertTrue(waitForLabel(audioChip, "Audio: English"), audioChip.label)
+    XCTAssertTrue(app.videoClose.exists)
+    XCTAssertFalse(
+      element("video.airplay").exists, "AirPlay shows on the engine's software route")
     screenshot("runtime-direct-play-controls")
 
     let before = Int(position.value as? String ?? "") ?? 0
