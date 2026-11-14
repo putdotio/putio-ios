@@ -461,6 +461,79 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     coordinator.stop(surface: surface)
   }
 
+  func testTryAgainReloadsTheStalledVideoAtItsCurrentPosition() async throws {
+    let (coordinator, capture) = makeCoordinator(audioSession: PlaybackAudioSessionSpy())
+    let surface = PutioVideoSurfaceView()
+    coordinator.start(
+      source: source(startFromSeconds: 0), remembersPlaybackPosition: false, in: surface
+    ) { _ in }
+    let stalled = try XCTUnwrap(capture.driver)
+    await waitUntil { stalled.events == ["play"] }
+    stalled.currentTime = CMTime(seconds: 42.6, preferredTimescale: 600)
+
+    coordinator.reload()
+    let reloaded = try XCTUnwrap(capture.driver)
+    XCTAssertFalse(reloaded === stalled, "Try again kept the stalled player")
+    XCTAssertEqual(stalled.events, ["play", "stop"])
+    XCTAssertTrue(surface.player === reloaded.player)
+    await waitUntil { reloaded.events == ["seek"] }
+    XCTAssertEqual(CMTimeGetSeconds(try XCTUnwrap(reloaded.seekTime)), 42)
+    coordinator.stop(surface: surface)
+  }
+
+  func testTryAgainKeepsTheViewersTracksInsteadOfTheDefaults() async throws {
+    let statusObservation = PlayerItemStatusObservationSpy()
+    var defaults = 0
+    var restored: [PutioVideoTrackSelection] = []
+    let capture = VideoPlayerDriverCapture()
+    let coordinator = PutioVideoPlayerCoordinator(
+      makeDriver: { item in
+        let driver = VideoPlayerDriverSpy(item: item)
+        capture.driver = driver
+        return driver
+      },
+      observeItemStatus: { _, statusChanged in
+        statusObservation.statusChanged = statusChanged
+        return statusObservation
+      },
+      audioSession: PlaybackAudioSessionSpy(),
+      notificationCenter: NotificationCenter(),
+      positionPipeline: PutioPlaybackPositionPipeline(),
+      applyDefaultSubtitle: { _ in defaults += 1 },
+      restoreTracks: { tracks, _ in restored.append(tracks) }
+    )
+    let surface = PutioVideoSurfaceView()
+    coordinator.start(
+      source: source(startFromSeconds: 0), remembersPlaybackPosition: false, in: surface
+    ) { _ in }
+    statusObservation.emit(.readyToPlay)
+    await waitUntil { defaults == 1 }
+    try XCTUnwrap(capture.driver).currentTime = CMTime(seconds: 20, preferredTimescale: 600)
+
+    let viewerChoice = PutioVideoTrackSelection(audio: 1, subtitle: nil)
+    coordinator.reload(restoring: viewerChoice)
+    statusObservation.emit(.readyToPlay)
+    await waitUntil { restored == [viewerChoice] }
+    XCTAssertEqual(defaults, 1, "the reload reapplied the default subtitle")
+    coordinator.stop(surface: surface)
+  }
+
+  func testTryAgainWithoutAPlayerClockKeepsTheSavedPosition() async throws {
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), loadDuration: { _ in 590 })
+    let surface = PutioVideoSurfaceView()
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) { _ in }
+    let stalled = try XCTUnwrap(capture.driver)
+    await waitUntil { stalled.events == ["seek"] }
+    stalled.currentTime = .invalid
+
+    coordinator.reload()
+    let reloaded = try XCTUnwrap(capture.driver)
+    await waitUntil { reloaded.events == ["seek"] }
+    XCTAssertEqual(CMTimeGetSeconds(try XCTUnwrap(reloaded.seekTime)), 90)
+    coordinator.stop(surface: surface)
+  }
+
   func testANewPlayerStartsWithTheTransportLocked() {
     let transport = PutioVideoTransport()
     let first = AVPlayer()

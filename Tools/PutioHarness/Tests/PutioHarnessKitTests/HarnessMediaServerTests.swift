@@ -178,3 +178,68 @@ private final class StopCounter: @unchecked Sendable {
   }
   #expect(Date().timeIntervalSince(started) < 4)
 }
+
+private final class Completion: @unchecked Sendable {
+  private let lock = NSLock()
+  private var data: Data?
+
+  func finish(_ data: Data?) {
+    lock.lock()
+    self.data = data
+    lock.unlock()
+  }
+
+  func value() -> Data? {
+    lock.lock()
+    defer { lock.unlock() }
+    return data
+  }
+}
+
+@Test func harnessMediaServerHoldsTheChosenSegmentUntilItsTokenIsReleased() async throws {
+  let directory = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-media-\(UUID().uuidString)"
+  )
+  let held = directory.appending(path: "held")
+  try FileManager.default.createDirectory(at: held, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: directory) }
+  let segment = Data((0..<1_000).map { UInt8($0 % 256) })
+  for index in 0..<10 {
+    try segment.write(to: held.appending(path: "held-00\(index).ts"))
+  }
+  let server = try HarnessMediaServer(
+    mediaDirectory: directory, holdTrickleInterval: .milliseconds(20))
+  let baseURL = try server.start()
+  defer { server.stop() }
+
+  let (served, _) = try await URLSession.shared.data(
+    from: baseURL.appending(path: "held/token-1/middle/held-004.ts"))
+  #expect(served == segment)
+
+  let completion = Completion()
+  let request = Task {
+    let (data, _) = try await URLSession.shared.data(
+      from: baseURL.appending(path: "held/token-1/middle/held-005.ts"))
+    completion.finish(data)
+  }
+  try await Task.sleep(for: .milliseconds(600))
+  #expect(completion.value() == nil, "the held segment finished before its release")
+
+  let (_, other) = try await URLSession.shared.data(
+    from: baseURL.appending(path: "release/token-2"))
+  #expect((other as? HTTPURLResponse)?.statusCode == 204)
+  try await Task.sleep(for: .milliseconds(300))
+  #expect(completion.value() == nil, "another token released the held segment")
+
+  let (_, released) = try await URLSession.shared.data(
+    from: baseURL.appending(path: "release/token-1"))
+  #expect((released as? HTTPURLResponse)?.statusCode == 204)
+  try await request.value
+  #expect(completion.value() == segment)
+
+  #expect(HarnessMediaServer.heldResource(path: "/held/t/later/held-000.ts") == nil)
+  #expect(HarnessMediaServer.heldResource(path: "/held/t/start/../queue.json") == nil)
+  #expect(HarnessMediaServer.heldResource(path: "/held/t/start/held-000.ts")?.holdToken == "t")
+  #expect(HarnessMediaServer.heldResource(path: "/held/t/start/held-005.ts")?.holdToken == nil)
+  #expect(HarnessMediaServer.heldResource(path: "/held/t/start/held-010.ts") == nil)
+}

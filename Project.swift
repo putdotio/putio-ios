@@ -183,6 +183,9 @@ let project = Project(
             mkdir -p "$destination/multi-audio"
             cp "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.m3u8 "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.ts \
               "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.vtt "$destination/multi-audio/"
+            mkdir -p "$destination/held"
+            cp "${SRCROOT}"/Tests/HarnessMedia/held/*.m3u8 "${SRCROOT}"/Tests/HarnessMedia/held/*.ts \
+              "$destination/held/"
             """,
           name: "Bundle runtime-proof media fixtures",
           basedOnDependencyAnalysis: false

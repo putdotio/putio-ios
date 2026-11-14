@@ -849,6 +849,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
+      BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
+      BoardCapture("rd-ios-pb-10-buffering", .iphone, "testBuffering"),
+      BoardCapture("rd-ios-pb-26-buffering-long", .iphone, "testBufferingLong", screenBase: false),
+      BoardCapture("rd-ios-pb-27-stalled", .iphone, "testStalled"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1455,6 +1459,14 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-storage-full"]),
     JourneyPreflight(
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
+    JourneyPreflight(
+      "video-wait",
+      "VideoWaitJourneyTests/testPlayerSaysWhatItWaitsForAndRecovers",
+      attachmentNames: [
+        "runtime-video-preparing", "runtime-video-buffering", "runtime-video-buffering-long",
+        "runtime-video-stalled", "runtime-video-stall-retried",
+      ],
+      timeAllowance: 420),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen",
       attachmentNames: [

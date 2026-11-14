@@ -806,6 +806,59 @@ final class BoardCaptureTests: XCTestCase {
       element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
   }
 
+  func testPreparingVideo() throws {
+    openHeldVideo(.start)
+    XCTAssertTrue(element("video.preparing").appears(within: 15), "the player never said it waits")
+    XCTAssertTrue(app.staticTexts["Preparing video"].exists, "the wait has no label")
+    XCTAssertTrue(app.videoClose.exists, "the wait offers no Close")
+    XCTAssertFalse(element("video.play-pause").exists, "the wait shows the transport")
+    try captureBoard("rd-ios-pb-24-preparing-video")
+  }
+
+  func testBuffering() throws {
+    openHeldVideo(.middle)
+    let spinner = element("video.buffering-spinner")
+    XCTAssertTrue(spinner.appears(within: 50), "playback never buffered")
+    XCTAssertFalse(element("video.buffering").exists, "the label showed before 10 seconds")
+    XCTAssertTrue(element("video.skip-back").exists, "buffering hid the other controls")
+    XCTAssertTrue(element("video.scrubber").exists, "buffering hid the scrubber")
+    try captureBoard("rd-ios-pb-10-buffering")
+  }
+
+  func testBufferingLong() throws {
+    openHeldVideo(.middle)
+    XCTAssertTrue(element("video.buffering").appears(within: 60), "the label never showed")
+    XCTAssertTrue(app.staticTexts["Buffering…"].exists, "the label reads differently")
+    XCTAssertTrue(element("video.buffering-spinner").exists, "the label replaced the spinner")
+    try captureBoard("rd-ios-pb-26-buffering-long")
+  }
+
+  func testStalled() throws {
+    openHeldVideo(.middle)
+    XCTAssertTrue(element("video.stalled").appears(within: 80), "playback never stalled")
+    XCTAssertTrue(app.staticTexts["Playback stalled"].exists, "the stall has no title")
+    XCTAssertEqual(app.buttons["video.stalled.back"].label, "Back")
+    XCTAssertEqual(app.buttons["video.stalled.retry"].label, "Try again")
+    XCTAssertTrue(app.videoClose.exists, "the stall offers no Close")
+    XCTAssertFalse(element("video.play-pause").exists, "the stall shows the transport")
+    try captureBoard("rd-ios-pb-27-stalled")
+  }
+
+  private func openHeldVideo(_ hold: HeldStream.Hold) {
+    let stream = HeldStream()
+    app.launchEnvironment["PUTIO_HARNESS_HELD_STREAM"] = stream.environment(hold)
+    addTeardownBlock { stream.release() }
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    XCTAssertTrue(app.videoClose.appears(within: 10), "the player never opened")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()

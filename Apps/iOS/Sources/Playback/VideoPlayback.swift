@@ -118,7 +118,7 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack {
       content
-      if isReady {
+      if isReady, !transport.wait.state.hidesControls {
         PutioVideoControls(
           title: title, transport: transport, showsCast: castButton != nil || onCast != nil,
           onClose: onDismiss
@@ -126,9 +126,10 @@ struct PutioVideoPlaybackView: View {
           castControls
         }
       } else {
+        if isReady { waitState }
         VStack {
           PutioVideoTopBar(
-            title: title, showsTrailing: castButton != nil || onCast != nil, onClose: onDismiss
+            title: title, showsTrailing: showsCastWhileWaiting, onClose: onDismiss
           ) { castControls }
           Spacer()
         }
@@ -247,6 +248,35 @@ struct PutioVideoPlaybackView: View {
   private var isReady: Bool {
     if case .ready = model.state { return true }
     return false
+  }
+
+  private var showsCastWhileWaiting: Bool {
+    guard castButton != nil || onCast != nil else { return false }
+    if case .loading = model.state { return false }
+    return !isReady
+  }
+
+  @ViewBuilder
+  private var waitState: some View {
+    switch transport.wait.state {
+    case .preparing:
+      PutioLoadingStateView(title: String(localized: "Preparing video"))
+        .accessibilityIdentifier("video.preparing")
+    case .stalled:
+      PutioErrorStateView(
+        icon: .warningCircle, title: String(localized: "Playback stalled"), message: nil,
+        retryIdentifier: "video.stalled.retry"
+      ) {
+        transport.reload()
+      }
+      .secondaryAction(
+        String(localized: "Back"), identifier: "video.stalled.back", perform: onDismiss
+      )
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("video.stalled")
+    case .clear, .buffering, .bufferingLong:
+      EmptyView()
+    }
   }
 
   @ViewBuilder
@@ -552,6 +582,8 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
     surface.onPlaybackControlsChange = { [weak surface] shown in
       transport.setControlsEnabled(shown, for: surface?.player)
     }
+    let coordinator = context.coordinator
+    transport.onReload = { [weak coordinator] tracks in coordinator?.reload(restoring: tracks) }
     #if DEBUG
       if let subtitleSelected {
         context.coordinator.onSubtitleSelected = { subtitle in subtitleSelected(subtitle) }
@@ -681,6 +713,7 @@ extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 @MainActor
 final class PutioVideoPlayerCoordinator {
   typealias DefaultSubtitleApplier = @MainActor (AVPlayerItem) async -> Void
+  typealias TrackRestorer = @MainActor (PutioVideoTrackSelection, AVPlayerItem) async -> Void
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
   typealias DurationLoader = @MainActor (AVPlayerItem) async -> Double?
   typealias PositionReportScheduler = PutioVideoPositionReporter.Scheduler
@@ -695,6 +728,7 @@ final class PutioVideoPlayerCoordinator {
   private let observeItemStatus: StatusObserverFactory
   private let selectedAudioLanguage: @MainActor (AVPlayerItem) async -> String?
   private let applyDefaultSubtitle: DefaultSubtitleApplier
+  private let restoreTracks: TrackRestorer
   private let audioSession: any PutioPlaybackAudioSessioning
   private let notificationCenter: NotificationCenter
   private let positionPipeline: PutioPlaybackPositionPipeline
@@ -731,6 +765,7 @@ final class PutioVideoPlayerCoordinator {
   private var audioSessionIsActive = false
   private var pendingControlGates: Set<ControlGate> = []
   private weak var surface: PutioVideoSurfaceView?
+  private var reloadAt: (@MainActor (Int?, PutioVideoTrackSelection?) -> Void)?
 
   private enum ControlGate {
     case audio
@@ -773,6 +808,9 @@ final class PutioVideoPlayerCoordinator {
     applyDefaultSubtitle: @escaping DefaultSubtitleApplier = {
       await PutioVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
     },
+    restoreTracks: @escaping TrackRestorer = {
+      await PutioVideoPlayerCoordinator.restore($0, in: $1)
+    },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     },
@@ -785,6 +823,7 @@ final class PutioVideoPlayerCoordinator {
     self.observeItemStatus = observeItemStatus
     self.selectedAudioLanguage = selectedAudioLanguage
     self.applyDefaultSubtitle = applyDefaultSubtitle
+    self.restoreTracks = restoreTracks
     self.audioSession = audioSession
     self.notificationCenter = notificationCenter
     self.positionPipeline = positionPipeline
@@ -807,8 +846,22 @@ final class PutioVideoPlayerCoordinator {
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
     onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
     onPlaybackRestarted: @escaping @MainActor @Sendable () -> Void = {},
+    reloadingAt reloadSeconds: Int? = nil,
+    restoringTracks restoredTracks: PutioVideoTrackSelection? = nil,
     onFailure: @escaping @MainActor (PutioVideoPlayerFailure) -> Void
   ) -> Bool {
+    reloadAt = { [weak self, weak surface] seconds, tracks in
+      guard let self, let surface else { return }
+      stop(surface: surface)
+      start(
+        fileID: fileID, source: source, preferredAudioLanguages: preferredAudioLanguages,
+        remembersPlaybackPosition: remembersPlaybackPosition, reportPosition: reportPosition,
+        in: surface, onReady: onReady, onDurationKnown: onDurationKnown,
+        observesPlaybackState: observesPlaybackState, onAudioSelected: onAudioSelected,
+        onPositionChanged: onPositionChanged, onPlaybackEnded: onPlaybackEnded,
+        onPlaybackRestarted: onPlaybackRestarted, reloadingAt: seconds,
+        restoringTracks: tracks, onFailure: onFailure)
+    }
     generation &+= 1
     let playbackGeneration = generation
     readyReported = false
@@ -834,9 +887,13 @@ final class PutioVideoPlayerCoordinator {
       Task { @MainActor [weak self] in
         switch status {
         case .readyToPlay:
-          self?.applyDefaultSubtitleOnce(to: item, generation: playbackGeneration)
-          if !preferredAudioLanguages.isEmpty {
-            await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
+          if let restoredTracks {
+            await self?.restoreTracksOnce(restoredTracks, to: item, generation: playbackGeneration)
+          } else {
+            self?.applyDefaultSubtitleOnce(to: item, generation: playbackGeneration)
+            if !preferredAudioLanguages.isEmpty {
+              await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
+            }
           }
           self?.settleControls(.audio, generation: playbackGeneration)
           self?.reportMediaSelection(for: item, generation: playbackGeneration)
@@ -906,7 +963,7 @@ final class PutioVideoPlayerCoordinator {
         return PutioVideoPositionReporter.normalizedPosition(
           seconds: CMTimeGetSeconds(driver.currentTime))
       },
-      savedPosition: remembersPlaybackPosition ? source.startFromSeconds : nil,
+      savedPosition: remembersPlaybackPosition ? reloadSeconds ?? source.startFromSeconds : nil,
       endOfPlayback: .keepsPosition,
       schedule: schedulePositionReports
     )
@@ -950,7 +1007,8 @@ final class PutioVideoPlayerCoordinator {
     }
 
     let seeksToStart = remembersPlaybackPosition || source.resumesAfterFailure
-    recoveredStartSeconds = source.resumesAfterFailure ? source.startFromSeconds : nil
+    recoveredStartSeconds =
+      reloadSeconds ?? (source.resumesAfterFailure ? source.startFromSeconds : nil)
 
     do {
       try audioSession.activate()
@@ -962,7 +1020,8 @@ final class PutioVideoPlayerCoordinator {
       return false
     }
 
-    guard seeksToStart, source.startFromSeconds > 0 else {
+    let requestedStart = reloadSeconds ?? (seeksToStart ? source.startFromSeconds : 0)
+    guard requestedStart > 0 else {
       positionEstablished = true
       positionReporter.positionEstablished()
       settleControls(.position, generation: playbackGeneration)
@@ -977,10 +1036,11 @@ final class PutioVideoPlayerCoordinator {
         !failureReported
       else { return }
       let startSeconds =
-        source.resumesAfterFailure
-        ? source.startFromSeconds
-        : PutioPlaybackProgress.startSeconds(
-          savedSeconds: source.startFromSeconds, durationSeconds: duration)
+        reloadSeconds
+        ?? (source.resumesAfterFailure
+          ? source.startFromSeconds
+          : PutioPlaybackProgress.startSeconds(
+            savedSeconds: source.startFromSeconds, durationSeconds: duration))
       guard startSeconds > 0 else {
         positionEstablished = true
         positionReporter.positionEstablished()
@@ -1028,6 +1088,44 @@ final class PutioVideoPlayerCoordinator {
   private func savePosition(generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration else { return }
     positionReporter?.savePosition()
+  }
+
+  func reload(restoring tracks: PutioVideoTrackSelection? = nil) {
+    guard let driver, let reloadAt else { return }
+    let seconds = PutioVideoPositionReporter.normalizedPosition(
+      seconds: CMTimeGetSeconds(driver.currentTime))
+    reloadAt(seconds, tracks)
+  }
+
+  private func restoreTracksOnce(
+    _ tracks: PutioVideoTrackSelection, to item: AVPlayerItem,
+    generation playbackGeneration: UInt64
+  ) async {
+    guard generation == playbackGeneration, !defaultSubtitleRequested else { return }
+    defaultSubtitleRequested = true
+    await restoreTracks(tracks, item)
+    settleControls(.defaultSubtitle, generation: playbackGeneration)
+  }
+
+  static func restore(_ tracks: PutioVideoTrackSelection, in item: AVPlayerItem) async {
+    if let index = tracks.audio,
+      let audible = try? await item.asset.loadMediaSelectionGroup(for: .audible),
+      audible.options.indices.contains(index)
+    {
+      item.select(audible.options[index], in: audible)
+    }
+    guard let legible = try? await item.asset.loadMediaSelectionGroup(for: .legible) else {
+      return
+    }
+    let options = legible.options.filter {
+      !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles)
+    }
+    if let index = tracks.subtitle {
+      guard options.indices.contains(index) else { return }
+      item.select(options[index], in: legible)
+    } else {
+      item.select(nil, in: legible)
+    }
   }
 
   func stop(surface: PutioVideoSurfaceView) {

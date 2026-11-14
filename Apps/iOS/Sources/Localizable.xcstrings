@@ -568,6 +568,17 @@
         }
       }
     },
+    "Buffering…" : {
+      "comment" : "android: mobile_playback_buffering",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buffering…"
+          }
+        }
+      }
+    },
     "Buffering on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -3430,6 +3441,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback reached end"
+          }
+        }
+      }
+    },
+    "Playback stalled" : {
+      "comment" : "android: mobile_playback_stalled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback stalled"
           }
         }
       }

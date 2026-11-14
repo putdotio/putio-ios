@@ -172,6 +172,7 @@ public struct PutioErrorStateView: View {
   private let title: String
   private let message: String?
   private let retry: PutioScreenStateAction?
+  private var secondary: PutioScreenStateAction?
 
   public init(
     title: String,
@@ -194,7 +195,7 @@ public struct PutioErrorStateView: View {
   public init(
     icon: PutioIcon,
     title: String,
-    message: String,
+    message: String?,
     retryIdentifier: String? = nil,
     retry: @escaping () -> Void
   ) {
@@ -224,9 +225,19 @@ public struct PutioErrorStateView: View {
     )
   }
 
+  public func secondaryAction(
+    _ title: String, identifier: String? = nil, perform: @escaping () -> Void
+  ) -> Self {
+    var view = self
+    view.secondary = PutioScreenStateAction(
+      title: title, icon: nil, identifier: identifier, perform: perform)
+    return view
+  }
+
   public var body: some View {
     PutioScreenStateContent(
       title: title, message: message.map(AttributedString.init), action: retry,
+      secondary: secondary,
       titleFont: icon == nil
         ? PutioScreenStateLayout.titleFont : PutioScreenStateLayout.errorTitleFont,
       messageFont: icon == nil
@@ -391,9 +402,19 @@ private struct PutioScreenStateContent<Glyph: View>: View {
   let title: String
   let message: AttributedString?
   let action: PutioScreenStateAction?
+  var secondary: PutioScreenStateAction?
   var titleFont = PutioScreenStateLayout.titleFont
   var messageFont = PutioScreenStateLayout.messageFont
   @ViewBuilder let glyph: Glyph
+
+  private var secondarySize: PutioButtonSize {
+    #if os(tvOS)
+      PutioScreenStateLayout.actionSize
+    #else
+      action?.prominent == true
+        ? PutioScreenStateLayout.prominentActionSize : PutioScreenStateLayout.actionSize
+    #endif
+  }
 
   var body: some View {
     ContentUnavailableView {
@@ -413,8 +434,13 @@ private struct PutioScreenStateContent<Glyph: View>: View {
           .putioScreenStateForeground(PutioTheme.Colors.textSecondary)
       }
     } actions: {
-      if let action {
-        PutioScreenStateButton(action: action, size: PutioScreenStateLayout.actionSize)
+      HStack(spacing: PutioScreenStateLayout.contentGap) {
+        if let secondary {
+          PutioScreenStateButton(action: secondary, size: secondarySize)
+        }
+        if let action {
+          PutioScreenStateButton(action: action, size: PutioScreenStateLayout.actionSize)
+        }
       }
     }
   }
