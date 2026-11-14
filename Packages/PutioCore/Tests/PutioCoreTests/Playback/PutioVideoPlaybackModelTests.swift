@@ -522,11 +522,11 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       try await resolver.resolve($0)
     }
 
-    await model.playerFailed()
+    model.playerFailed()
     XCTAssertEqual(model.state, .loading)
 
     await model.loadIfNeeded()
-    await model.playerFailed()
+    model.playerFailed()
 
     XCTAssertEqual(model.state, .failed(.playback))
   }
@@ -644,12 +644,12 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(asked, [true])
     XCTAssertEqual(model.state, .ready(restarted))
 
-    await model.playerFailed()
+    model.playerFailed()
     await model.retry()
     XCTAssertEqual(asked, [true], "a retry must not ask again")
     XCTAssertEqual(model.state, .ready(restarted), "a retry dropped Start over")
 
-    await model.playerFailed()
+    model.playerFailed()
     await model.retry()
     XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
   }

@@ -210,9 +210,13 @@ public final class PutioVideoPlaybackModel {
     }
   }
 
-  public func playerFailed(_ fault: PutioVideoPlayerFault = .playback, heldSeconds: Int? = nil)
-    async
-  {
+  public func playerFailed() {
+    guard case .ready = state else { return }
+    generation &+= 1
+    state = .failed(.playback)
+  }
+
+  public func playerFailed(_ fault: PutioVideoPlayerFault, heldSeconds: Int?) async {
     guard case .ready = state else { return }
     if let heldSeconds { self.heldSeconds = heldSeconds }
     recovery = .resolve
