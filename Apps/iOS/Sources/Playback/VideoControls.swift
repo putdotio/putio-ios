@@ -352,7 +352,6 @@ final class PutioVideoTransport {
       } else {
         engine.play()
       }
-      isPlaying.toggle()
       return
     }
     guard let player else { return }
