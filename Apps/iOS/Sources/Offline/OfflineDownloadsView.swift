@@ -146,6 +146,7 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .tint(PutioTheme.Colors.accent)
   }
 
   @ViewBuilder

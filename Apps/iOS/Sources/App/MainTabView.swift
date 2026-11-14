@@ -180,9 +180,7 @@ struct MainTabView: View {
         Label {
           Text("Search")
         } icon: {
-          selectedTab == .search
-            ? Image(systemName: "magnifyingglass")
-            : Image(systemName: "magnifyingglass", fixed: PutioTheme.Colors.textPrimary)
+          tabIcon(systemName: "magnifyingglass", for: .search)
         }
       }
       if !pins.sectionItems.isEmpty {
@@ -407,6 +405,12 @@ struct MainTabView: View {
   private func tabIcon(_ icon: PutioIcon, for tab: SelectedTab) -> Image {
     selectedTab == tab
       ? Image(putioIcon: icon) : Image(putioIcon: icon, fixed: PutioTheme.Colors.textPrimary)
+  }
+
+  private func tabIcon(systemName: String, for tab: SelectedTab) -> Image {
+    selectedTab == tab
+      ? Image(systemName: systemName)
+      : Image(systemName: systemName, fixed: PutioTheme.Colors.textPrimary)
   }
 
   private var tabSelection: Binding<SelectedTab> {

@@ -296,6 +296,7 @@ struct TrashManagementView: View {
         }
       }
       .refreshable { await model.refresh() }
+      .tint(PutioTheme.Colors.accent)
       .accessibilityIdentifier("trash.list")
     }
   }
