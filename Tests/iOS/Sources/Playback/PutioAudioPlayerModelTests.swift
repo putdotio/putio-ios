@@ -865,7 +865,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
   }
 
   func testStoredAudioListsTheFolderDownloadsByNameWhenPutioCannotListIt() {
-    func item(_ id: Int, _ name: String, kind: PutioOfflineItem.Kind = .audio, parent: Int = 7,
+    func item(
+      _ id: Int, _ name: String, kind: PutioOfflineItem.Kind = .audio, parent: Int = 7,
       stage: PutioOfflineItem.Stage = .completed
     ) -> PutioOfflineItem {
       PutioOfflineItem(
