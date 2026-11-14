@@ -500,6 +500,16 @@ struct MainTabView: View {
     }
   }
 
+  /// Plays one video once with `method`; the account setting stays as it is.
+  /// Cast sends HLS whatever the method.
+  private func playVideo(_ route: PutioFileRoute, with method: PutioPlaybackMethod) {
+    cancelVideoStart()
+    selectedFileRoute = route
+    guard case .video(let video) = route.openAction else { return }
+    playVideo(
+      PutioVideoRoute(id: video.id, parentID: video.parentID, title: video.title, method: method))
+  }
+
   private func playVideo(_ route: PutioVideoRoute) {
     stopAudio()
     if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
@@ -804,6 +814,13 @@ struct MainTabView: View {
       PutioPreviewOpenAction { route, source in selectFile(route, in: source) }
     )
     .environment(\.putioFileShare, fileShare)
+    .environment(
+      \.putioPlayWithOtherMethod,
+      appConfig.config.map { config in
+        PutioPlayWithOtherMethod(method: config.playbackMethod.other) { route, method in
+          playVideo(route, with: method)
+        }
+      })
   }
 
   private var fileShare: PutioFileShareAction {
@@ -862,7 +879,7 @@ struct MainTabView: View {
             try await resolveSuccessorSource(
               fileID: fileID,
               localSource: { offlineQueue.localSource(for: $0) },
-              resolve: { try await resolvePlaybackSource(fileID: $0) }
+              resolve: { try await resolvePlaybackSource(fileID: $0, method: nil) }
             )
           }
         )
@@ -881,7 +898,7 @@ struct MainTabView: View {
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
       resolve: { fileID in
-        try await resolvePlaybackSource(fileID: fileID)
+        try await resolvePlaybackSource(fileID: fileID, method: route.method)
       }
     )
   }
@@ -977,13 +994,26 @@ struct MainTabView: View {
     #endif
   }
 
-  private func resolvePlaybackSource(fileID: PutioFileID) async throws
-    -> PutioPlaybackResolution
+  /// `method` is a file menu's one-off choice; `nil` plays with the
+  /// account's Playback method.
+  private func resolvePlaybackSource(fileID: PutioFileID, method: PutioPlaybackMethod?)
+    async throws -> PutioPlaybackResolution
   {
-    let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+    let playbackMethod: PutioPlaybackMethod
+    if let method {
+      playbackMethod = method
+    } else {
+      playbackMethod = await appConfig.resolvePlaybackMethod()
+    }
+    let resolution = try await runtime.resolveVideoPlayback(
+      fileID: fileID, method: playbackMethod,
+      isPlayableInAVPlayer: { PutioDirectPlayback.isPlayableInAVPlayer($0) })
     #if DEBUG
       guard scenario == .filesBrowser, case .ready(let source) = resolution else {
         return resolution
+      }
+      if source.original != nil {
+        return .ready(try HarnessDirectPlay.source(for: source))
       }
       if let fault = HarnessVideoFaults.next() {
         guard

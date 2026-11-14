@@ -172,6 +172,8 @@ final class HarnessMediaServer: @unchecked Sendable {
       resource = ("runtime-proof-subtitles.srt", "application/x-subrip")
     case "/runtime-proof-long.srt":
       resource = ("runtime-proof-long.srt", "application/x-subrip")
+    case "/runtime-proof-direct.mkv":
+      resource = ("runtime-proof-direct.mkv", "video/x-matroska")
     default:
       // The multi-audio HLS asset is a directory of playlists and segments
       // that reference each other by relative name.

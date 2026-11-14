@@ -97,11 +97,14 @@ private final class StopCounter: @unchecked Sendable {
   let subtitles = Data("1\n00:00:02,000 --> 00:00:05,000\n".utf8)
   try subtitles.write(to: directory.appending(path: "runtime-proof-subtitles.srt"))
   try subtitles.write(to: directory.appending(path: "runtime-proof-long.srt"))
+  let original = Data([0x1A, 0x45, 0xDF, 0xA3])
+  try original.write(to: directory.appending(path: "runtime-proof-direct.mkv"))
   for (name, contentType, expected) in [
     ("runtime-proof-image.png", "image/png", image),
     ("runtime-proof-document.pdf", "application/pdf", document),
     ("runtime-proof-subtitles.srt", "application/x-subrip", subtitles),
     ("runtime-proof-long.srt", "application/x-subrip", subtitles),
+    ("runtime-proof-direct.mkv", "video/x-matroska", original),
   ] {
     let (data, response) = try await URLSession.shared.data(from: baseURL.appending(path: name))
     #expect(data == expected)

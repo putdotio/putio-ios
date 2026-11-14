@@ -186,7 +186,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: unwatched),
       [
-        "Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
+        "Play", "Play with Direct play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
         "Move to trash",
       ])
     app.buttons["Mark as watched"].tap()
@@ -198,7 +198,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: watched),
       [
-        "Play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Exclusive link",
+        "Play", "Play with Direct play", "Download", "Select", "Mark as unwatched", "Rename", "Move", "Exclusive link",
         "Move to trash",
       ])
     app.buttons["Mark as unwatched"].tap()
@@ -230,7 +230,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       menuLabels(),
       [
-        "Play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
+        "Play", "Play with Direct play", "Download", "Select", "Mark as watched", "Rename", "Move", "Exclusive link",
         "Move to trash",
       ])
     dismissMenu()
@@ -263,7 +263,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: element(identifier: "files.item.444")),
       [
-        "Play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move",
+        "Play", "Play with Direct play", "Download", "Open in VLC", "Select", "Mark as watched", "Rename", "Move",
         "Exclusive link",
         "Move to trash",
       ])
@@ -288,7 +288,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private static let itemMenuLabels = [
-    "Play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched", "Mark as unwatched",
+    "Play", "Play with Direct play", "Download", "Open in VLC", "Cast", "Select", "Mark as watched", "Mark as unwatched",
     "Rename", "Move", "Exclusive link", "Move to trash",
   ]
 

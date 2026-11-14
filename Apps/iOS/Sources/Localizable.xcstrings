@@ -3390,6 +3390,28 @@
         }
       }
     },
+    "Play with Direct play" : {
+      "comment" : "android: mobile_files_play_with_direct_play",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play with Direct play"
+          }
+        }
+      }
+    },
+    "Play with Standard" : {
+      "comment" : "android: mobile_files_play_with_standard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play with Standard"
+          }
+        }
+      }
+    },
     "Playback" : {
       "comment" : "android: mobile_settings_section_playback",
       "localizations" : {
@@ -4002,6 +4024,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version, build, and device details for support."
+          }
+        }
+      }
+    },
+    "Video source" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video source"
           }
         }
       }

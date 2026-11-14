@@ -25,6 +25,9 @@ offline playback.
   follows the preferences.
 - `video-chips` shows each chip's choice, keeps the controls up while a chip
   menu is open, and puts Picture in Picture first in the route group.
+- `direct-play` plays a Matroska original in the Direct play engine from the
+  file menu on Standard, keeps a plain tap on HLS, follows the setting, then
+  seeks, switches to the E-AC-3 track and resumes on Direct play.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
   failed save, and keeps them across relaunch.
 - `resume-setting` asks before turning resume off, reverts a failed save, and
@@ -93,6 +96,13 @@ Preconditions:
   `runtime-video-chips`, `runtime-video-chips-changed`. Boards:
   `rd-ios-pb-02-video`, `rd-ios-pb-13-ipad-video`, which stream the multi-audio
   fixture.
+- **Direct play.** Run `--only direct-play`. Screenshots:
+  `runtime-direct-play-menu`, `runtime-direct-play-controls`,
+  `runtime-direct-play-audio`. It streams
+  [`runtime-proof-direct.mkv`](../../../../Tests/HarnessMedia/direct-play/attribution.md)
+  and serves put.io's subtitle files as the loopback SubRip file. Captures
+  compare with `rd-ios-pb-02-video`, `rd-ios-pb-06-audio` and
+  `rd-ios-pb-13-ipad-video`.
 - **Preferences.** Run `--only playback-preferences`. Screenshot:
   `runtime-playback-preferences`.
 - **Resume setting.** Run `--only resume-setting`. Screenshot:

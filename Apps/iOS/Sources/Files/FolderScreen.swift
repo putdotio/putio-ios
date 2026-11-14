@@ -41,6 +41,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioFileDetailReconcile) private var detailReconcile
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
+  @Environment(\.putioPlayWithOtherMethod) private var playWithOtherMethod
   @State private var linkItem: PutioFileItem?
   @State private var share = PutioFileShareModel()
   @State private var preparingToast: PutioToast.ID?
@@ -598,7 +599,7 @@ struct PutioFolderScreen: View {
     let menu = fileMenu(for: item)
     return PutioItemMenu(
       menu.sections.map { section in
-        section.filter { !actionRow.contains($0) }.map { itemAction($0, for: item) }
+        section.filter { !actionRow.contains($0) }.compactMap { itemAction($0, for: item) }
       })
   }
 
@@ -613,7 +614,8 @@ struct PutioFolderScreen: View {
         canShare: fileShare != nil,
         canLink: exclusiveLink != nil,
         canCopy: copyModel != nil,
-        pinned: pinned.map { $0.model.isPinned(item.id) }),
+        pinned: pinned.map { $0.model.isPinned(item.id) },
+        otherPlaybackMethod: playWithOtherMethod?.method),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
   }
@@ -637,7 +639,9 @@ struct PutioFolderScreen: View {
       row
     } else {
       let actions = Dictionary(
-        uniqueKeysWithValues: menu.sections.joined().map { ($0, itemAction($0, for: item)) })
+        uniqueKeysWithValues: menu.sections.joined().compactMap { row in
+          itemAction(row, for: item).map { (row, $0) }
+        })
       row.putioItemActions(
         PutioItemMenu(menu.sections.map { $0.compactMap { actions[$0] } }),
         leading: menu.leadingSwipe.compactMap { actions[$0] },
@@ -669,7 +673,7 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.shared-by.\(presentation.id.rawValue)"))
   }
 
-  private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction {
+  private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction? {
     let route = PutioFileRoute(item: item)
     let editingBlocked = !model.canStartAction || actionRequest != nil
     switch row {
@@ -678,6 +682,8 @@ struct PutioFolderScreen: View {
         id: "play", title: String(localized: "Play"), icon: .play,
         isDisabled: fileActionPending
       ) { onFileSelected(route) }
+    case .playWithOtherMethod:
+      return playWithOtherMethod?.action(for: route, isDisabled: fileActionPending)
     case .download:
       return PutioItemAction(
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown,

@@ -15,11 +15,18 @@ test("every bundled package in the resolved graph gets one notice with its resol
   const manifest = buildManifest(config(), resolved);
   const sdk = JSON.parse(await readFile(join(root, "Packages/PutioCore/Package.resolved"), "utf8"));
   const sentry = await readFile(join(root, "Packages/SentrySDK/Package.swift"), "utf8");
+  const tuist = JSON.parse(await readFile(join(root, "Tuist/Package.resolved"), "utf8"));
+  const pinned = (identity: string) =>
+    tuist.pins.find((pin: { identity: string }) => pin.identity === identity)?.state.version;
   assert.deepEqual(
     manifest.packages.map((notice) => `${notice.name} ${notice.version}`).sort(),
     [
+      `AetherEngine ${/AetherEngine", exact: "([^"]+)"/.exec(await readFile(join(root, "Tuist/Package.swift"), "utf8"))?.[1]}`,
+      `FFmpeg ${pinned("ffmpegbuild")}`,
       `Google Cast SDK ${/ios-(\d+\.\d+\.\d+)_/.exec(await readFile(join(root, "Packages/GoogleCastSDK/Package.swift"), "utf8"))?.[1]}`,
-      `Intercom ${/exact: "([^"]+)"/.exec(await readFile(join(root, "Tuist/Package.swift"), "utf8"))?.[1]}`,
+      `Intercom ${/intercom-ios-sp", exact: "([^"]+)"/.exec(await readFile(join(root, "Tuist/Package.swift"), "utf8"))?.[1]}`,
+      `SMBClient ${pinned("smbclient")}`,
+      `libdovi ${pinned("libdovi")}`,
       `Sentry ${/download\/([^/]+)\//.exec(sentry)?.[1]}`,
       `putio-sdk-swift ${sdk.pins[0].state.version}`,
     ].sort(),

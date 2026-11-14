@@ -86,7 +86,7 @@ public enum PutioVideoStart {
   ) -> PutioPlaybackSource {
     switch choice {
     case .resume: source
-    case .startOver: PutioPlaybackSource(url: source.url, startFromSeconds: 0)
+    case .startOver: source.starting(at: 0)
     }
   }
 }

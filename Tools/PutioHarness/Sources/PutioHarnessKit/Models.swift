@@ -849,6 +849,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
+      BoardCapture("direct-play-video", .iphone, "testDirectPlayVideo"),
+      BoardCapture("direct-play-video-ipad", .ipad, "testDirectPlayVideo"),
+      BoardCapture("direct-play-audio", .iphone, "testDirectPlayAudioMenu", screenBase: false),
+      BoardCapture(
+        "direct-play-audio-ipad", .ipad, "testDirectPlayAudioMenu", screenBase: false),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1409,6 +1414,13 @@ enum BrowserJourneyContract {
       "SubtitlesJourneyTests/testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture",
       attachmentNames: ["runtime-video-chips", "runtime-video-chips-changed"],
       timeAllowance: 180),
+    JourneyPreflight(
+      "direct-play",
+      "DirectPlayJourneyTests/testDirectPlayPlaysTheOriginalSeeksSwitchesAudioAndResumes",
+      attachmentNames: [
+        "runtime-direct-play-menu", "runtime-direct-play-controls", "runtime-direct-play-audio",
+      ],
+      timeAllowance: 300),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
       attachmentNames: ["runtime-security-apps"], timeAllowance: 180),

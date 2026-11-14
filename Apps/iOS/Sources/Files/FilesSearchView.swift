@@ -25,6 +25,7 @@ struct FilesSearchView: View {
   @State private var toast: PutioToast?
   @State private var preparingToast: PutioToast.ID?
   @Environment(\.putioFileShare) private var fileShare
+  @Environment(\.putioPlayWithOtherMethod) private var playWithOtherMethod
   @Environment(\.locale) private var locale
 
   init(
@@ -372,7 +373,8 @@ struct FilesSearchView: View {
         vlcInstalled: onExternalPlayback != nil,
         tracksWatched: tracksWatched,
         canShare: fileShare != nil,
-        pinned: pins.isPinned(item.id)),
+        pinned: pins.isPinned(item.id),
+        otherPlaybackMethod: playWithOtherMethod?.method),
       isDownloaded: PutioFileShareSource.dependsOnDownload(item)
         && fileShare.map { share.isDownloaded(item, using: $0) } ?? false)
     if menu.sections.isEmpty {
@@ -397,6 +399,8 @@ struct FilesSearchView: View {
       return PutioItemAction(id: "play", title: String(localized: "Play"), icon: .play) {
         onFileSelected(route)
       }
+    case .playWithOtherMethod:
+      return playWithOtherMethod?.action(for: route)
     case .download:
       return PutioItemAction(
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown

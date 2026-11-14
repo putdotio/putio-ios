@@ -806,6 +806,51 @@ final class BoardCaptureTests: XCTestCase {
       element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
   }
 
+  /// The Direct play engine playing the Matroska original, from the file
+  /// menu's "Play with Direct play"; compared with the video player boards.
+  func testDirectPlayVideo() throws {
+    try openDirectPlay()
+    try captureBoard("direct-play-video")
+  }
+
+  /// The Audio menu lists the original's tracks with codec and layout.
+  func testDirectPlayAudioMenu() throws {
+    try openDirectPlay()
+    let audio = element("video.chip.audio")
+    app.revealVideoControls(showing: audio)
+    audio.tap()
+    XCTAssertTrue(app.buttons["video.audio.2"].appears(within: 5), "the Audio menu never opened")
+    try captureBoard("direct-play-audio")
+  }
+
+  private func openDirectPlay() throws {
+    orient(.landscapeLeft)
+    app.launchArguments.append("--putio-harness-picture-in-picture")
+    app.launch()
+    openRoot()
+    let row = element("files.item.412")
+    XCTAssertTrue(row.appears(within: 10), "the root video never appeared")
+    row.press(forDuration: 1)
+    let playWith = app.buttons["Play with Direct play"].firstMatch
+    XCTAssertTrue(playWith.appears(within: 5), "the menu has no Play with Direct play")
+    playWith.tap()
+    let startOver = app.buttons["video.resume.start-over"].firstMatch
+    if startOver.waitForExistence(timeout: 5) { startOver.tap() }
+    XCTAssertTrue(element("video.ready").appears(within: 30), "the original never played")
+    let source = element("video.source")
+    XCTAssertEqual(source.value as? String, "original-engine")
+    let position = element("video.current-position")
+    let advanced = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value.intValue >= 2"), object: position)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advanced], timeout: 15), .completed, "the original is not playing")
+    let playPause = element("video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    let audio = element("video.chip.audio")
+    app.revealVideoControls(showing: audio)
+    XCTAssertEqual(audio.label, "Audio: English")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()

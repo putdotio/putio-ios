@@ -180,6 +180,7 @@ let project = Project(
             cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-document.pdf" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-subtitles.srt" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-long.srt" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-play/runtime-proof-direct.mkv" "$destination/"
             mkdir -p "$destination/multi-audio"
             cp "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.m3u8 "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.ts \
               "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.vtt "$destination/multi-audio/"
@@ -193,6 +194,7 @@ let project = Project(
         .external(name: "GoogleCast"),
         .external(name: "Sentry"),
         .external(name: "Intercom"),
+        .external(name: "AetherEngine"),
         .target(name: "PutioWatch"),
       ],
       settings: .settings(
@@ -248,6 +250,7 @@ let project = Project(
         .external(name: "GoogleCast"),
         .external(name: "Sentry"),
         .external(name: "Intercom"),
+        .external(name: "AetherEngine"),
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }

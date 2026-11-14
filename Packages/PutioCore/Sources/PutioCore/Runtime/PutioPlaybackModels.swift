@@ -18,15 +18,30 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
   public let url: URL
   public let startFromSeconds: Int
   public let resumesAfterFailure: Bool
+  /// Set when Direct play opens the original file; `nil` for HLS, a
+  /// converted copy and downloads.
+  public let original: PutioOriginalPlayback?
 
-  public init(url: URL, startFromSeconds: Int, resumesAfterFailure: Bool = false) {
+  public init(
+    url: URL, startFromSeconds: Int, resumesAfterFailure: Bool = false,
+    original: PutioOriginalPlayback? = nil
+  ) {
     self.url = url
     self.startFromSeconds = startFromSeconds
     self.resumesAfterFailure = resumesAfterFailure
+    self.original = original
+  }
+
+  public func starting(at seconds: Int) -> PutioPlaybackSource {
+    PutioPlaybackSource(
+      url: url, startFromSeconds: seconds, resumesAfterFailure: resumesAfterFailure,
+      original: original)
   }
 
   public var description: String {
-    "PutioPlaybackSource(url: <redacted>, startFromSeconds: \(startFromSeconds), resumesAfterFailure: \(resumesAfterFailure))"
+    "PutioPlaybackSource(url: <redacted>, startFromSeconds: \(startFromSeconds), "
+      + "resumesAfterFailure: \(resumesAfterFailure), "
+      + "original: \(original.map { "\($0.player)" } ?? "nil"))"
   }
 
   public var debugDescription: String {
@@ -40,9 +55,64 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
         "url": "<redacted>",
         "startFromSeconds": startFromSeconds,
         "resumesAfterFailure": resumesAfterFailure,
+        "original": original as Any,
       ],
       displayStyle: .struct
     )
+  }
+}
+
+/// An original file under Direct play: the player that opens it, its audio
+/// streams in file order, and put.io's subtitle files for it.
+public struct PutioOriginalPlayback: Equatable, Sendable {
+  public enum Player: Equatable, Sendable {
+    /// MP4 and MOV originals AVPlayer decodes itself.
+    case avPlayer
+    /// Everything else, through the Direct play engine.
+    case engine
+  }
+
+  public let player: Player
+  public let audioStreams: [PutioOriginalAudioStream]
+  public let subtitles: [PutioCastSubtitle]
+  public let defaultSubtitleKey: String?
+
+  public init(
+    player: Player, audioStreams: [PutioOriginalAudioStream] = [],
+    subtitles: [PutioCastSubtitle] = [], defaultSubtitleKey: String? = nil
+  ) {
+    self.player = player
+    self.audioStreams = audioStreams
+    self.subtitles = subtitles
+    self.defaultSubtitleKey = defaultSubtitleKey
+  }
+
+  public func subtitles(_ subtitles: [PutioCastSubtitle], defaultKey: String?)
+    -> PutioOriginalPlayback
+  {
+    PutioOriginalPlayback(
+      player: player, audioStreams: audioStreams, subtitles: subtitles,
+      defaultSubtitleKey: defaultKey)
+  }
+}
+
+public struct PutioOriginalAudioStream: Equatable, Sendable {
+  public let codec: String?
+  public let profile: String?
+  public let channels: Int?
+
+  public init(codec: String?, profile: String? = nil, channels: Int?) {
+    self.codec = codec
+    self.profile = profile
+    self.channels = channels
+  }
+}
+
+public struct PutioPlaybackUnplayable: Error, Equatable, Sendable {
+  public let reason: String
+
+  public init(reason: String) {
+    self.reason = reason
   }
 }
 
@@ -119,6 +189,13 @@ public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Send
 public enum PutioPlaybackMethod: String, CaseIterable, Hashable, Codable, Sendable {
   case standard = "hls"
   case directPlay = "file"
+
+  public var other: PutioPlaybackMethod {
+    switch self {
+    case .standard: .directPlay
+    case .directPlay: .standard
+    }
+  }
 }
 
 /// The keys this app stores in the account's `/config` document. put.io keeps

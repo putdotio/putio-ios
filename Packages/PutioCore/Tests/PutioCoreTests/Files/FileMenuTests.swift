@@ -35,6 +35,24 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(folder.sections, [[.unpin], [.move]])
   }
 
+  func testPlayWithTheOtherMethodSitsAfterPlayForVideosOnly() {
+    var capabilities = everything
+    capabilities.otherPlaybackMethod = .directPlay
+    XCTAssertEqual(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities).sections.first,
+      [.play, .playWithOtherMethod, .download, .openInVLC])
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.audio, resume: 0), capabilities: capabilities)
+        .contains(.playWithOtherMethod))
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: everything)
+        .contains(.playWithOtherMethod))
+    XCTAssertEqual(
+      PutioFileMenu.searchResult(item: item(.video, resume: 0), capabilities: capabilities)
+        .sections.first,
+      [.play, .playWithOtherMethod, .download, .openInVLC])
+  }
+
   func testWatchedVideoOffersUnwatched() {
     let menu = PutioFileMenu(item: item(.video, resume: 1_260), capabilities: everything)
     XCTAssertTrue(menu.contains(.markUnwatched))

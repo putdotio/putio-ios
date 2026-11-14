@@ -390,11 +390,12 @@ public final class PutioVideoPlaybackModel {
   {
     if let heldSeconds {
       return PutioPlaybackSource(
-        url: source.url, startFromSeconds: heldSeconds, resumesAfterFailure: true)
+        url: source.url, startFromSeconds: heldSeconds, resumesAfterFailure: true,
+        original: source.original)
     }
     if let chosenStart {
       guard source.startFromSeconds == chosenStart.saved else { return source }
-      return PutioPlaybackSource(url: source.url, startFromSeconds: chosenStart.start)
+      return source.starting(at: chosenStart.start)
     }
     let start = await chooseStart(source, afterConversion)
     if !Task.isCancelled {
