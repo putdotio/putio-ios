@@ -122,6 +122,20 @@ import SwiftUI
     }
   }
 
+  struct HarnessConversionReadsProbe: View {
+    var body: some View {
+      TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+        Color.clear
+          .frame(width: 1, height: 1)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Conversion status reads")
+          .accessibilityValue("\(HarnessSeededAPI.episodeConversionReadCount())")
+          .accessibilityIdentifier("video.conversion-reads")
+          .allowsHitTesting(false)
+      }
+    }
+  }
+
   struct HarnessSearchRequestsProbe: View {
     var body: some View {
       TimelineView(.periodic(from: .now, by: 0.25)) { _ in

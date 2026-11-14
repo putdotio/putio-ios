@@ -240,8 +240,10 @@ extension PutioRuntime {
       try await sdk.getMp4ConversionStatus(fileID: fileID.rawValue)
     }
     switch conversion.status {
-    case .error, .notAvailable:
+    case .error:
       return .failed
+    case .notAvailable:
+      return .unavailable
     case .completed:
       return .completed
     case .queued:

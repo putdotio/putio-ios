@@ -876,6 +876,17 @@
         }
       }
     },
+    "Convert again" : {
+      "comment" : "android: mobile_playback_convert_again",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert again"
+          }
+        }
+      }
+    },
     "Converting" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -894,6 +905,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converting %@"
+          }
+        }
+      }
+    },
+    "Converting to MP4" : {
+      "comment" : "android: mobile_playback_conversion_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converting to MP4"
           }
         }
       }
@@ -2030,17 +2052,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Finding the next video"
-          }
-        }
-      }
-    },
-    "Finishing conversion" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finishing conversion"
           }
         }
       }
@@ -3962,6 +3973,17 @@
         }
       }
     },
+    "This video can’t play in its original format, so put.io started a conversion. It keeps going if you leave." : {
+      "comment" : "android: mobile_playback_conversion_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video can’t play in its original format, so put.io started a conversion. It keeps going if you leave."
+          }
+        }
+      }
+    },
     "Unpin" : {
       "comment" : "android: mobile_files_unpin",
       "localizations" : {
@@ -5437,7 +5459,7 @@
       }
     },
     "Waiting to convert" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
+      "comment" : "android: mobile_playback_conversion_queued | differs: the board title drops the ellipsis",
       "localizations" : {
         "en" : {
           "stringUnit" : {

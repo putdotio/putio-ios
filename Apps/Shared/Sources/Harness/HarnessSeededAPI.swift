@@ -702,6 +702,8 @@ import Foundation
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
+    nonisolated(unsafe) private static var episodeConversionReads = 0
+    nonisolated(unsafe) private static var episodeConversionCompleted = false
     nonisolated(unsafe) private static var harnessFolderDeleted = false
     nonisolated(unsafe) private static var harnessFolderName = "Harness Folder"
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
@@ -978,7 +980,73 @@ import Foundation
       conversionCompleted = false
       conversionStartAttempts = 0
       conversionStatusLoads = 0
+      episodeConversionReads = 0
+      episodeConversionCompleted = false
       conversionLock.unlock()
+    }
+
+    enum EpisodeConversion: String {
+      case queued
+      case converting
+      case failed
+      case offline
+      case unavailable
+      case completes
+    }
+
+    static let episodeConversionFileID = 441
+
+    private static var episodeConversion: EpisodeConversion? {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: "--putio-harness-episode-conversion"),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return EpisodeConversion(rawValue: arguments[flag + 1])
+    }
+
+    private static var episodeNeedsConversion: Bool {
+      guard episodeConversion != nil else { return false }
+      return conversionLock.withLock { !episodeConversionCompleted }
+    }
+
+    static func episodeConversionReadCount() -> Int {
+      conversionLock.withLock { episodeConversionReads }
+    }
+
+    private static func consumeOfflineEpisodeConversionRead(_ request: URLRequest) -> Bool {
+      guard episodeConversion == .offline, request.httpMethod == "GET",
+        request.url?.path == "/v2/files/\(episodeConversionFileID)/mp4"
+      else { return false }
+      conversionLock.withLock { episodeConversionReads += 1 }
+      return true
+    }
+
+    private static func episodeConversionStatus() -> (Int, String) {
+      let response: (status: String, percentDone: Int) = conversionLock.withLock {
+        episodeConversionReads += 1
+        switch episodeConversion {
+        case .queued, .offline, nil:
+          return ("IN_QUEUE", 0)
+        case .converting:
+          return episodeConversionReads == 1 ? ("IN_QUEUE", 0) : ("CONVERTING", 62)
+        case .failed:
+          return ("ERROR", 0)
+        case .unavailable:
+          return ("NOT_AVAILABLE", 0)
+        case .completes:
+          switch episodeConversionReads {
+          case 1: return ("IN_QUEUE", 0)
+          case 2: return ("CONVERTING", 62)
+          default:
+            episodeConversionCompleted = true
+            return ("COMPLETED", 100)
+          }
+        }
+      }
+      return (
+        200,
+        #"{"mp4":{"percent_done":\#(response.percentDone),"status":"\#(response.status)"}}"#
+      )
     }
 
     static func resetFileActions() {
@@ -1106,6 +1174,12 @@ import Foundation
         return
       case nil:
         break
+      }
+      if Self.consumeOfflineEpisodeConversionRead(replayableRequest) {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
       }
       if Self.searchesOffline, url.path == "/v2/files/search" {
         deliveryGate.deliver(generation: generation) {
@@ -2031,9 +2105,14 @@ import Foundation
           {"file":{"id":441,"name":"\(seasonEpisodes[0].name)","file_type":"VIDEO",
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
-          "need_convert":false,"start_from":0,"video_metadata":\(seasonEpisodeMetadata)}}
+          "need_convert":\(episodeNeedsConversion),"start_from":0,
+          "video_metadata":\(seasonEpisodeMetadata)}}
           """
         )
+      case "POST /v2/files/\(episodeConversionFileID)/mp4" where episodeConversion != nil:
+        return (200, #"{"status":"OK"}"#)
+      case "GET /v2/files/\(episodeConversionFileID)/mp4" where episodeConversion != nil:
+        return episodeConversionStatus()
       case "GET /v2/files/413":
         return (
           200,

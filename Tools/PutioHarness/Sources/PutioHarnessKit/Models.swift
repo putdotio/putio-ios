@@ -853,6 +853,13 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-10-buffering", .iphone, "testBuffering"),
       BoardCapture("rd-ios-pb-26-buffering-long", .iphone, "testBufferingLong", screenBase: false),
       BoardCapture("rd-ios-pb-27-stalled", .iphone, "testStalled"),
+      BoardCapture("rd-ios-pb-28-conversion-queued", .iphone, "testConversionQueued"),
+      BoardCapture("rd-ios-pb-15-converting", .iphone, "testConversionConverting"),
+      BoardCapture("rd-ios-pb-16-conversion-failed", .iphone, "testConversionFailed"),
+      BoardCapture(
+        "rd-ios-pb-29-conversion-status-failed", .iphone, "testConversionStatusFailed"),
+      BoardCapture("rd-ios-pb-30-cannot-convert", .iphone, "testCannotConvert"),
+      BoardCapture("rd-ios-pb-42-ipad-converting", .ipad, "testConversionConverting"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1480,6 +1487,25 @@ enum BrowserJourneyContract {
         "runtime-video-access-expired", "runtime-video-connection-lost", "runtime-video-recovered",
       ],
       timeAllowance: 150),
+    JourneyPreflight(
+      "conversion-gate",
+      "ConversionGateJourneyTests/testCancelLeavesTheConversionRunningAndReopeningShowsWhereItStands",
+      attachmentNames: ["runtime-conversion-converting", "runtime-conversion-reopened"],
+      timeAllowance: 120),
+    JourneyPreflight(
+      "conversion-completed",
+      "ConversionGateJourneyTests/testCompletedConversionPlaysWithoutATap",
+      attachmentNames: ["runtime-conversion-completed"], timeAllowance: 90),
+    JourneyPreflight(
+      "conversion-failed", "ConversionGateJourneyTests/testFailedConversionConvertsAgain",
+      attachmentNames: ["runtime-conversion-failed"], timeAllowance: 90),
+    JourneyPreflight(
+      "conversion-unavailable", "ConversionGateJourneyTests/testCannotConvertOffersOnlyVLC",
+      timeAllowance: 90),
+    JourneyPreflight(
+      "conversion-status",
+      "ConversionGateJourneyTests/testLostStatusCheckNeverReadsAsFailedAndRetries",
+      timeAllowance: 90),
     JourneyPreflight(
       "continue-watching",
       "ContinueWatchingJourneyTests/testStartedVideoIsListedRemovedFinishedAndTrashed",

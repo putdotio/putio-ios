@@ -36,6 +36,15 @@ enum PutioVLCHandoff {
   }
 }
 
+extension PutioFileRoute {
+  init(video route: PutioVideoRoute) {
+    self.init(
+      item: PutioFileItem(
+        id: route.id, parentID: route.parentID, name: route.title, kind: .video, sizeBytes: 0,
+        createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: 0))
+  }
+}
+
 protocol PutioExternalURLOpening: Sendable {
   @MainActor func canOpen(_ url: URL) -> Bool
   @MainActor func open(_ url: URL) async -> Bool

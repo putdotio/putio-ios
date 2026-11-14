@@ -387,7 +387,7 @@ final class PutioCastModel {
         activity = .converting(fileID, progress: progress)
       case .completed:
         return
-      case .failed:
+      case .failed, .unavailable:
         throw PutioCastControllerError(failure: .conversion)
       }
     }

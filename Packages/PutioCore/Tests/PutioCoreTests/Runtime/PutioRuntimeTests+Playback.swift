@@ -306,7 +306,7 @@ extension PutioRuntimeTests {
       ("CONVERTING", 35, .converting(progress: 0.35)),
       ("COMPLETED", 100, .completed),
       ("ERROR", 0, .failed),
-      ("NOT_AVAILABLE", 0, .failed),
+      ("NOT_AVAILABLE", 0, .unavailable),
     ]
 
     for (status, percentDone, expected) in cases {
@@ -344,7 +344,7 @@ extension PutioRuntimeTests {
   func testVideoConversionTerminalRowsIgnoreProgress() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     for (status, expected) in [
-      ("ERROR", PutioVideoConversionStatus.failed), ("NOT_AVAILABLE", .failed),
+      ("ERROR", PutioVideoConversionStatus.failed), ("NOT_AVAILABLE", .unavailable),
       ("COMPLETED", .completed), ("IN_QUEUE", .queued),
     ] {
       fixtures.setFixture(

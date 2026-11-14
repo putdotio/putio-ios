@@ -43,6 +43,8 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     case accessExpired
     case connectionLost
     case conversion
+    case conversionStatus
+    case conversionUnavailable
     case unknown
   }
 
@@ -116,11 +118,27 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     }
   }
 
-  static let conversion = PutioVideoPlaybackFailure(
+  public static let conversion = PutioVideoPlaybackFailure(
     kind: .conversion,
-    title: String(localized: "Could not convert video", bundle: .module),
-    message: String(localized: "The conversion did not finish. Try again.", bundle: .module)
+    title: String(localized: "Conversion failed", bundle: .module),
+    message: String(localized: "Try again later.", bundle: .module)
   )
+
+  public static let conversionUnavailable = PutioVideoPlaybackFailure(
+    kind: .conversionUnavailable,
+    title: String(localized: "Can’t play this file", bundle: .module),
+    message: String(localized: "This video cannot be converted.", bundle: .module)
+  )
+
+  static func checkingConversion(_ error: Error) -> PutioVideoPlaybackFailure? {
+    guard let failure = resolving(error) else { return nil }
+    guard failure.kind != .notFound else { return failure }
+    return PutioVideoPlaybackFailure(
+      kind: .conversionStatus,
+      title: String(localized: "Can’t check conversion status", bundle: .module),
+      message: failure.message
+    )
+  }
 
   static func converting(_ error: Error) -> PutioVideoPlaybackFailure? {
     guard let failure = resolving(error) else { return nil }
@@ -164,7 +182,7 @@ public final class PutioVideoPlaybackModel {
   public init(
     fileID: PutioFileID,
     initialResolution: PutioPlaybackResolution? = nil,
-    conversionPollInterval: Duration = .seconds(3),
+    conversionPollInterval: Duration = PutioVideoPlaybackModel.conversionPollInterval,
     startConversion: @escaping PutioVideoConversionStart = { _ in
       throw PutioRuntimeError.unknown
     },
@@ -288,15 +306,18 @@ public final class PutioVideoPlaybackModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
       state = .conversionQueued
-      await pollConversion(generation: requestGeneration)
+      await pollConversion(generation: requestGeneration, afterStart: true)
     } catch {
       handleConversionError(error, generation: requestGeneration, recovery: recovery)
     }
   }
 
-  private func pollConversion(generation existingGeneration: UInt64? = nil) async {
+  private func pollConversion(
+    generation existingGeneration: UInt64? = nil, afterStart: Bool = false
+  ) async {
     let requestGeneration = existingGeneration ?? nextGeneration()
     recovery = .pollConversion
+    var startMayBePending = afterStart
 
     do {
       while requestGeneration == generation {
@@ -318,11 +339,20 @@ public final class PutioVideoPlaybackModel {
           recovery = .startConversion
           state = .failed(.conversion)
           return
+        case .unavailable where startMayBePending:
+          state = .conversionQueued
+        case .unavailable:
+          recovery = .startConversion
+          state = .failed(.conversionUnavailable)
+          return
         }
+        startMayBePending = false
         try await sleep(conversionPollInterval)
       }
     } catch {
-      handleConversionError(error, generation: requestGeneration, recovery: .pollConversion)
+      handleConversionError(
+        error, generation: requestGeneration, recovery: .pollConversion,
+        failure: PutioVideoPlaybackFailure.checkingConversion)
     }
   }
 
@@ -368,6 +398,10 @@ public final class PutioVideoPlaybackModel {
             recovery = .startConversion
             state = .failed(.conversion)
             return
+          case .unavailable:
+            recovery = .startConversion
+            state = .failed(.conversionUnavailable)
+            return
           }
         }
       }
@@ -403,6 +437,8 @@ public final class PutioVideoPlaybackModel {
     return start
   }
 
+  public static let conversionPollInterval: Duration = .seconds(5)
+
   /// Resolution attempts after a completed conversion before giving up.
   static let maximumConvertedSourceAttempts = 10
 
@@ -414,14 +450,15 @@ public final class PutioVideoPlaybackModel {
   private func handleConversionError(
     _ error: Error,
     generation requestGeneration: UInt64,
-    recovery: Recovery
+    recovery: Recovery,
+    failure classify: (Error) -> PutioVideoPlaybackFailure? = PutioVideoPlaybackFailure.converting
   ) {
     guard requestGeneration == generation else { return }
     if Task.isCancelled {
       attemptedLoad = false
       return
     }
-    guard let failure = PutioVideoPlaybackFailure.converting(error) else {
+    guard let failure = classify(error) else {
       attemptedLoad = false
       return
     }

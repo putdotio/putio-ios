@@ -271,6 +271,7 @@ struct MainTabView: View {
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         videoPlayer(for: route)
+          .putioToast($externalPlayback.toast)
       }
     }
     // Keyed on the cover, not the route, so the next video keeps the lock.
@@ -828,7 +829,8 @@ struct MainTabView: View {
       autoplayNextVideo: { await appConfig.resolveAutoplayNextVideo() },
       reportFailure: { SentryTelemetry.report($0) },
       showsHarnessReadiness: scenario == .filesBrowser,
-      conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
+      conversionPollInterval: scenario == .filesBrowser
+        ? .milliseconds(1_200) : PutioVideoPlaybackModel.conversionPollInterval,
       nextVideoAutoplayDelay: .seconds(5),
       positionPipeline: playbackPositionPipeline,
       reportPosition: { fileID, seconds in
@@ -880,6 +882,7 @@ struct MainTabView: View {
       },
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
+      onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
       resolve: { fileID in
         try await resolvePlaybackSource(fileID: fileID)
       }
@@ -903,6 +906,7 @@ struct MainTabView: View {
         HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
         HarnessPasteboardProbe()
         HarnessSearchRequestsProbe()
+        HarnessConversionReadsProbe()
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }

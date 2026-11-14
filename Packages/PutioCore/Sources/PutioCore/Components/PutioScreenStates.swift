@@ -212,6 +212,25 @@ public struct PutioErrorStateView: View {
   }
 
   public init(
+    icon: PutioIcon,
+    title: String,
+    message: String,
+    actionTitle: String,
+    actionIdentifier: String? = nil,
+    prominent: Bool,
+    action: (() -> Void)?
+  ) {
+    self.icon = icon
+    self.title = title
+    self.message = message
+    self.retry = action.map {
+      PutioScreenStateAction(
+        title: actionTitle, icon: nil, identifier: actionIdentifier, prominent: prominent,
+        perform: $0)
+    }
+  }
+
+  public init(
     kind: PutioScreenErrorKind,
     retryIdentifier: String? = nil,
     retry: @escaping () -> Void
@@ -241,7 +260,9 @@ public struct PutioErrorStateView: View {
       titleFont: icon == nil
         ? PutioScreenStateLayout.titleFont : PutioScreenStateLayout.errorTitleFont,
       messageFont: icon == nil
-        ? PutioScreenStateLayout.messageFont : PutioScreenStateLayout.errorMessageFont
+        ? PutioScreenStateLayout.messageFont : PutioScreenStateLayout.errorMessageFont,
+      actionSize: icon == nil
+        ? PutioScreenStateLayout.actionSize : PutioScreenStateLayout.prominentActionSize
     ) {
       if let icon {
         PutioScreenStateIcon(
@@ -405,6 +426,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
   var secondary: PutioScreenStateAction?
   var titleFont = PutioScreenStateLayout.titleFont
   var messageFont = PutioScreenStateLayout.messageFont
+  var actionSize = PutioScreenStateLayout.actionSize
   @ViewBuilder let glyph: Glyph
 
   private var secondarySize: PutioButtonSize {
@@ -439,7 +461,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
           PutioScreenStateButton(action: secondary, size: secondarySize)
         }
         if let action {
-          PutioScreenStateButton(action: action, size: PutioScreenStateLayout.actionSize)
+          PutioScreenStateButton(action: action, size: actionSize)
         }
       }
     }
@@ -579,6 +601,7 @@ enum PutioScreenStateLayout {
     static let contentGap = PutioTheme.TV.Spacing.medium
     static let spinnerTint = PutioTheme.Colors.accent
     static let actionSize = PutioButtonSize.medium
+    static let prominentActionSize = actionSize
     static let kaomojiFont = PutioTheme.TV.Typography.heading
     static let iconSize = PutioMetricRole(
       value: PutioTheme.TV.Typography.heading.size,

@@ -35,6 +35,7 @@ struct PutioVideoPlaybackView: View {
   private let onPlayNext: @MainActor @Sendable (PutioPlayableNextVideo) -> Void
   private let castButton: AnyView?
   private let onCast: (@MainActor @Sendable () -> Void)?
+  private let onOpenInVLC: (() -> Void)?
 
   init(
     route: PutioVideoRoute,
@@ -47,7 +48,7 @@ struct PutioVideoPlaybackView: View {
     reportsPlayerFailures: Bool = true,
     reportFailure: @escaping @MainActor @Sendable (PutioVideoPlayerFault) -> Void,
     showsHarnessReadiness: Bool = false,
-    conversionPollInterval: Duration = .seconds(3),
+    conversionPollInterval: Duration = PutioVideoPlaybackModel.conversionPollInterval,
     nextVideoAutoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
     positionPipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
@@ -57,10 +58,12 @@ struct PutioVideoPlaybackView: View {
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
+    onOpenInVLC: (() -> Void)? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.castButton = castButton
     self.onCast = onCast
+    self.onOpenInVLC = onOpenInVLC
     self.fileID = route.id
     self.title = route.title
     self.onDismiss = onDismiss
@@ -394,37 +397,26 @@ struct PutioVideoPlaybackView: View {
       .ignoresSafeArea()
       .id(model.playerAttempt)
     case .conversionRequired:
-      PutioConversionStatusView {
-        PutioLoadingStateView(title: String(localized: "Starting conversion"))
-          .accessibilityIdentifier("video.conversion-required")
-      }
+      conversionGate(.waiting)
+        .accessibilityIdentifier("video.conversion-required")
     case .conversionQueued:
-      PutioConversionStatusView {
-        PutioLoadingStateView(title: String(localized: "Waiting to convert"))
-          .accessibilityIdentifier("video.conversion-queued")
-      }
+      conversionGate(.waiting)
+        .accessibilityIdentifier("video.conversion-queued")
     case .converting(let progress):
-      PutioConversionStatusView {
-        VStack(spacing: PutioTheme.Spacing.space3) {
-          ProgressView(value: progress)
-            .tint(PutioTheme.Colors.accent)
-            .accessibilityLabel("Video conversion progress")
-            .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
-            .accessibilityIdentifier("video.conversion-progress")
-          Text("Converting video")
-            .putioFont(PutioTheme.Typography.body)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-        }
-      }
+      conversionGate(.converting(progress: progress))
+        .accessibilityIdentifier("video.conversion-converting")
     case .conversionCompleted:
-      PutioConversionStatusView {
-        PutioLoadingStateView(title: String(localized: "Finishing conversion"))
-          .accessibilityIdentifier("video.conversion-completed")
-      }
+      conversionGate(.converting(progress: 1))
+        .accessibilityIdentifier("video.conversion-completed")
     case .failed(let failure):
       failureView(failure)
         .accessibilityIdentifier("video.error")
     }
+  }
+
+  private func conversionGate(_ phase: PutioVideoConversionGate.Phase) -> some View {
+    PutioVideoConversionGate(phase: phase, onCancel: onDismiss, onOpenInVLC: onOpenInVLC)
+      .accessibilityElement(children: .contain)
   }
 
   @ViewBuilder
@@ -438,7 +430,27 @@ struct PutioVideoPlaybackView: View {
       ) {
         retrySequence &+= 1
       }
-    case .notFound, .rateLimited, .transient, .invalidResponse, .playback, .conversion, .unknown:
+    case .conversion:
+      PutioErrorStateView(
+        icon: .warningCircle, title: failure.title, message: failure.message,
+        actionTitle: String(localized: "Convert again"),
+        actionIdentifier: "video.conversion.convert-again", prominent: true
+      ) {
+        retrySequence &+= 1
+      }
+    case .conversionStatus:
+      PutioErrorStateView(
+        icon: .wifiSlash, title: failure.title, message: failure.message,
+        retryIdentifier: "video.conversion.check-again"
+      ) {
+        retrySequence &+= 1
+      }
+    case .conversionUnavailable:
+      PutioErrorStateView(
+        icon: .warningCircle, title: failure.title, message: failure.message,
+        actionTitle: String(localized: "Open in VLC"),
+        actionIdentifier: "video.conversion.vlc", prominent: false, action: onOpenInVLC)
+    case .notFound, .rateLimited, .transient, .invalidResponse, .playback, .unknown:
       PutioErrorStateView(
         title: failure.title,
         message: failure.message,
@@ -743,7 +755,7 @@ final class PutioVideoPlayerCoordinator {
   private var mediaSelectionObservation: NSObjectProtocol?
   private var positionSaveObservations: [NSObjectProtocol] = []
   private var driver: (any PutioVideoPlayerDriving)?
-  private var onReady: (@MainActor () -> Void)?
+  private var onReady: (() -> Void)?
   private var onDurationKnown: (@MainActor (Double) -> Void)?
   private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
   #if DEBUG

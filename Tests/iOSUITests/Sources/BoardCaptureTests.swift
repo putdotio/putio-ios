@@ -790,6 +790,69 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-19-connection-lost")
   }
 
+  func testConversionQueued() throws {
+    openConvertingEpisode("queued", showing: "video.conversion-waiting")
+    XCTAssertTrue(app.staticTexts["Waiting to convert"].exists)
+    assertConversionActions()
+    try captureBoard("rd-ios-pb-28-conversion-queued")
+  }
+
+  func testConversionConverting() throws {
+    openConvertingEpisode("converting", showing: "video.conversion-progress")
+    XCTAssertTrue(app.staticTexts["Converting to MP4"].exists)
+    XCTAssertEqual(element("video.conversion-progress").value as? String, "62%")
+    assertConversionActions()
+    try captureBoard("rd-ios-pb-15-converting")
+  }
+
+  func testConversionFailed() throws {
+    openConvertingEpisode("failed", showing: "video.error")
+    XCTAssertTrue(app.staticTexts["Conversion failed"].exists)
+    XCTAssertTrue(app.staticTexts["Try again later."].exists)
+    XCTAssertTrue(app.buttons["Convert again"].exists, "the failure offers no Convert again")
+    try captureBoard("rd-ios-pb-16-conversion-failed")
+  }
+
+  func testConversionStatusFailed() throws {
+    openConvertingEpisode("offline", showing: "video.error")
+    XCTAssertTrue(app.staticTexts["Can’t check conversion status"].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    XCTAssertTrue(app.buttons["Try again"].exists, "the status failure offers no Try again")
+    XCTAssertFalse(app.staticTexts["Conversion failed"].exists)
+    try captureBoard("rd-ios-pb-29-conversion-status-failed")
+  }
+
+  func testCannotConvert() throws {
+    openConvertingEpisode("unavailable", showing: "video.error")
+    XCTAssertTrue(app.staticTexts["Can’t play this file"].exists)
+    XCTAssertTrue(app.staticTexts["This video cannot be converted."].exists)
+    XCTAssertTrue(app.buttons["Open in VLC"].exists, "Can’t play this file offers no VLC")
+    try captureBoard("rd-ios-pb-30-cannot-convert")
+  }
+
+  private func openConvertingEpisode(_ conversion: String, showing state: String) {
+    app.launchArguments += [
+      "--putio-harness-episode-conversion", conversion, "--putio-harness-vlc-installed",
+    ]
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    XCTAssertTrue(element(state).appears(within: 15), "the gate never showed \(state)")
+    XCTAssertEqual(
+      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+  }
+
+  private func assertConversionActions() {
+    XCTAssertTrue(element("conversion.explanation").exists, "the gate has no explanation")
+    XCTAssertTrue(app.buttons["Cancel"].exists, "the gate offers no Cancel")
+    XCTAssertTrue(app.buttons["Open in VLC"].exists, "the gate offers no Open in VLC")
+  }
+
   private func openFailingEpisode(faults: String) {
     app.launchArguments += ["--putio-harness-video-faults", faults]
     orient(.landscapeLeft)
