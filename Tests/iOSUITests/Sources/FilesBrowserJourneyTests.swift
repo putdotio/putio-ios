@@ -2277,7 +2277,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func isChecked(_ choice: XCUIElement) -> Bool {
-    choice.isSelected
+    choice.images["selected"].exists
   }
 
   private func imageColumn(of title: String) -> CGRect {

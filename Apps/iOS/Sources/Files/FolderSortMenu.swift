@@ -60,11 +60,9 @@ struct PutioFolderSortMenu: View {
         Image(uiImage: isChecked ? Self.checkmark : Self.uncheckedSpace)
       }
     }
-    .accessibilityAddTraits(isChecked ? .isSelected : [])
   }
 
   private static let checkmark =
     UIImage(systemName: "checkmark")?.fixed(PutioTheme.Colors.accent) ?? UIImage()
-  private static let uncheckedSpace =
-    UIImage(systemName: "checkmark")?.fixed(.clear) ?? UIImage()
+  private static let uncheckedSpace = UIGraphicsImageRenderer(size: checkmark.size).image { _ in }
 }
