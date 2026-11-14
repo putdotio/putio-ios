@@ -303,6 +303,22 @@ final class PutioAudioPlayerModel {
     switchTo(next)
   }
 
+  var queue: [PutioQueuedAudio] { neighbours?.queue ?? [] }
+
+  func play(_ queued: PutioQueuedAudio) {
+    guard !isTransitioning else { return }
+    guard queued.id != track.id else {
+      switch state {
+      case .failed: Task { await retry() }
+      case .paused, .interrupted, .ended: togglePlayPause()
+      case .loading, .playing: break
+      }
+      return
+    }
+    guard queue.contains(where: { $0.id == queued.id }) else { return }
+    switchTo(queued)
+  }
+
   func skipToPrevious() {
     guard canSkipToPrevious, let previous = neighbours?.previous else { return }
     switchTo(previous)
@@ -392,12 +408,13 @@ final class PutioAudioPlayerModel {
     if neighboursTrackID == track.id, neighbours != nil { return }
     neighboursTask?.cancel()
     neighboursTrackID = track.id
-    neighbours = nil
+    neighbours = neighbours?.moved(to: track.id)
     publishTrackCommands()
     let load = loadNeighbours
     neighboursTask = Task { [weak self] in
       let found = try? await load(track)
       guard let self, !Task.isCancelled, neighboursTrackID == track.id else { return nil }
+      guard let found else { return neighbours }
       neighbours = found
       publishTrackCommands()
       return found

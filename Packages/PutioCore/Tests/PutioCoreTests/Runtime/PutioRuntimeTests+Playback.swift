@@ -214,39 +214,48 @@ extension PutioRuntimeTests {
     }
   }
 
-  private static func audioRow(_ id: Int, _ name: String, type: String = "AUDIO", parent: Int = 7)
-    -> String
-  {
-    #"{"id":\#(id),"name":"\#(name)","file_type":"\#(type)","parent_id":\#(parent),"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}"#
+  private static func audioRow(
+    _ id: Int, _ name: String, type: String = "AUDIO", parent: Int = 7, duration: Double? = nil
+  ) -> String {
+    let metadata = duration.map { #","video_metadata":{"duration":\#($0)}"# } ?? ""
+    return
+      #"{"id":\#(id),"name":"\#(name)","file_type":"\#(type)","parent_id":\#(parent),"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"\#(metadata)}"#
   }
 
-  func testAudioNeighboursWalkTheFolderByNameAcrossPages() async throws {
+  private static func queued(_ id: Int, _ name: String, duration: Int? = nil) -> PutioQueuedAudio {
+    PutioQueuedAudio(
+      id: PutioFileID(rawValue: id), parentID: PutioFileID(rawValue: 7), name: name,
+      durationSeconds: duration)
+  }
+
+  func testAudioNeighboursListTheFolderInItsOwnOrderWithLengthsAcrossPages() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let folder = Self.audioRow(7, "Music", type: "FOLDER", parent: 0)
     fixtures.setFixture(
-      #"{"parent":\#(folder),"cursor":"audio-2","files":[\#(Self.audioRow(429, "A.mp3")),\#(Self.audioRow(430, "B.mp3"))]}"#,
+      #"{"parent":\#(folder),"cursor":"audio-2","files":[\#(Self.audioRow(432, "D.mp3", duration: 3254.4)),\#(Self.audioRow(430, "B.mp3", duration: 0))]}"#,
       for: "GET /v2/files/list")
     fixtures.setFixture(
-      #"{"cursor":"","files":[\#(Self.audioRow(500, "Elsewhere.mp3", parent: 8)),\#(Self.audioRow(431, "C.mp3")),\#(Self.audioRow(432, "D.mp3"))]}"#,
+      #"{"cursor":"","files":[\#(Self.audioRow(500, "Elsewhere.mp3", parent: 8)),\#(Self.audioRow(431, "C.mp3", duration: 61.6)),\#(Self.audioRow(429, "A.mp3"))]}"#,
       for: "POST /v2/files/list/continue")
 
     let neighbours = try await runtime.audioNeighbours(
       of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
 
+    let queue = [
+      Self.queued(432, "D.mp3", duration: 3254), Self.queued(430, "B.mp3"),
+      Self.queued(431, "C.mp3", duration: 62), Self.queued(429, "A.mp3"),
+    ]
     XCTAssertEqual(
       neighbours,
       PutioAudioNeighbours(
-        previous: PutioQueuedAudio(
-          id: PutioFileID(rawValue: 429), parentID: PutioFileID(rawValue: 7), name: "A.mp3"),
-        next: PutioQueuedAudio(
-          id: PutioFileID(rawValue: 431), parentID: PutioFileID(rawValue: 7), name: "C.mp3"),
-        folderName: "Music"))
+        previous: queue[0], next: queue[2], folderName: "Music", queue: queue))
     let list = try XCTUnwrap(
       fixtures.capturedRequests().first { $0.url?.path == "/v2/files/list" })
-    let query = Set(
-      URLComponents(url: try XCTUnwrap(list.url), resolvingAgainstBaseURL: false)?.queryItems?
-        .map { "\($0.name)=\($0.value ?? "")" } ?? [])
-    XCTAssertTrue(query.isSuperset(of: ["parent_id=7", "file_type=AUDIO", "sort_by=NAME_ASC"]))
+    let items =
+      URLComponents(url: try XCTUnwrap(list.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
+    let query = Set(items.map { "\($0.name)=\($0.value ?? "")" })
+    XCTAssertTrue(query.isSuperset(of: ["parent_id=7", "file_type=AUDIO", "video_metadata=1"]))
+    XCTAssertFalse(items.contains { $0.name == "sort_by" }, "the folder's own sort applies")
   }
 
   func testAudioNeighboursOfTheOnlyFileInAFolderAreEmpty() async throws {
@@ -259,7 +268,8 @@ extension PutioRuntimeTests {
     let neighbours = try await runtime.audioNeighbours(
       of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
 
-    XCTAssertEqual(neighbours, PutioAudioNeighbours(folderName: "Music"))
+    XCTAssertEqual(
+      neighbours, PutioAudioNeighbours(folderName: "Music", queue: [Self.queued(430, "B.mp3")]))
   }
 
   func testAudioNeighboursOfAFileTheFolderNoLongerHoldsAreEmpty() async throws {
@@ -271,7 +281,9 @@ extension PutioRuntimeTests {
     let neighbours = try await runtime.audioNeighbours(
       of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
 
-    XCTAssertEqual(neighbours, PutioAudioNeighbours())
+    XCTAssertNil(neighbours.previous)
+    XCTAssertNil(neighbours.next)
+    XCTAssertEqual(neighbours.queue.map(\.id.rawValue), [429, 431])
   }
 
   func testAudioNeighboursRejectARepeatedCursor() async {

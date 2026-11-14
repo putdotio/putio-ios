@@ -42,8 +42,9 @@ extension PutioRuntime {
     return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
   }
 
-  /// The audio files beside `fileID` in name order, as Android's queue reads
-  /// them. The next-file endpoint can leave the folder, so this lists it.
+  /// Every audio file in `parentID`, in the folder's own sort as the Files
+  /// browser shows it, around `fileID`. The next-file endpoint can leave the
+  /// folder, so this lists it.
   public func audioNeighbours(of fileID: PutioFileID, in parentID: PutioFileID) async throws
     -> PutioAudioNeighbours
   {
@@ -51,11 +52,10 @@ extension PutioRuntime {
       try await sdk.getFiles(
         parentID: parentID.rawValue,
         query: PutioFilesListQuery(
-          perPage: Self.audioQueuePageSize, fileType: .audio, sortBy: "NAME_ASC"))
+          perPage: Self.audioQueuePageSize, fileType: .audio, videoMetadata: true))
     }
     let folderName = page.parent.flatMap { $0.id == parentID.rawValue ? $0.name : nil }
-    var previous: PutioQueuedAudio?
-    var foundCurrent = false
+    var queue: [PutioQueuedAudio] = []
     var seen = Set<Int>()
     var cursors = Set<String>()
     while true {
@@ -63,21 +63,17 @@ extension PutioRuntime {
       where file.type == .audio && file.parentID == parentID.rawValue
         && seen.insert(file.id).inserted
       {
-        let entry = PutioQueuedAudio(
-          id: PutioFileID(rawValue: file.id), parentID: parentID, name: file.name)
-        if entry.id == fileID {
-          foundCurrent = true
-        } else if foundCurrent {
-          return PutioAudioNeighbours(previous: previous, next: entry, folderName: folderName)
-        } else {
-          previous = entry
-        }
+        let duration = file.metaData.map { Int($0.duration.rounded()) }
+        queue.append(
+          PutioQueuedAudio(
+            id: PutioFileID(rawValue: file.id), parentID: parentID, name: file.name,
+            durationSeconds: duration.flatMap { $0 > 0 ? $0 : nil }))
       }
       guard let cursor = page.cursor, !cursor.isEmpty else { break }
       guard cursors.insert(cursor).inserted else { throw PutioRuntimeError.invalidResponse }
       page = try await performAuthenticatedOperation { try await sdk.continueFiles(cursor: cursor) }
     }
-    return PutioAudioNeighbours(previous: foundCurrent ? previous : nil, folderName: folderName)
+    return PutioAudioNeighbours(of: fileID, in: queue, folderName: folderName)
   }
 
   static let audioQueuePageSize = 100

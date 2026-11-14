@@ -7,12 +7,19 @@ struct PutioAudioPlayerView: View {
   var castButton: AnyView?
   let onDismiss: @MainActor () -> Void
   var showsHarnessReadiness = false
+  @State private var showsUpNext = false
 
   var body: some View {
     NavigationStack {
       content
         .putioContentBackground()
         .toolbar { toolbar }
+    }
+    .sheet(isPresented: $showsUpNext) {
+      PutioAudioUpNextSheet(model: model)
+    }
+    .onChange(of: hasFailed) { _, failed in
+      if failed { showsUpNext = false }
     }
     .presentationDragIndicator(horizontalSizeClass == .regular ? .visible : .hidden)
     .presentationSizing(.form)
@@ -35,8 +42,13 @@ struct PutioAudioPlayerView: View {
         Task { await model.retry() }
       }
     case .playing, .paused, .interrupted, .ended:
-      PutioNowPlayingDetails(model: model)
+      PutioNowPlayingDetails(model: model) { showsUpNext = true }
     }
+  }
+
+  private var hasFailed: Bool {
+    if case .failed = model.state { return true }
+    return false
   }
 
   @ToolbarContentBuilder
@@ -96,6 +108,7 @@ struct PutioAudioPlayerView: View {
 
 private struct PutioNowPlayingDetails: View {
   let model: PutioAudioPlayerModel
+  let showUpNext: () -> Void
   @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
   @State private var scrubSeconds: Double?
 
@@ -319,12 +332,11 @@ private struct PutioNowPlayingDetails: View {
     .putioNowPlayingChip()
     .disabled(true)
     .accessibilityIdentifier("audio.sleep-timer")
-    Button {
-    } label: {
+    Button(action: showUpNext) {
       PutioNowPlayingChipLabel(icon: .list, title: String(localized: "Up next"))
     }
     .putioNowPlayingChip()
-    .disabled(true)
+    .disabled(model.queue.count < 2)
     .accessibilityIdentifier("audio.up-next")
   }
 }
