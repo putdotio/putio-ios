@@ -8,6 +8,7 @@ import SwiftUI
 struct PutioVideoPlaybackView: View {
   @State private var model: PutioVideoPlaybackModel
   @State private var nextVideoModel: PutioNextVideoModel
+  @State private var resumePrompter: PutioVideoResumePrompter
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
   @State private var observedPlaybackPosition: Int?
@@ -65,13 +66,30 @@ struct PutioVideoPlaybackView: View {
     self.positionPipeline = positionPipeline
     self.reportPosition = reportPosition
     self.onPlayNext = onPlayNext
+    let resumePrompter = PutioVideoResumePrompter()
+    _resumePrompter = State(initialValue: resumePrompter)
+    let startsOver = route.startsOver
     _model = State(
       initialValue: PutioVideoPlaybackModel(
         fileID: route.id,
         initialResolution: route.initialResolution,
         conversionPollInterval: conversionPollInterval,
         startConversion: startConversion,
-        loadConversionStatus: loadConversionStatus
+        loadConversionStatus: loadConversionStatus,
+        chooseStart: { source, afterConversion in
+          if startsOver { return PutioVideoStart.source(source, startingWith: .startOver) }
+          guard afterConversion, remembersPlaybackPosition, source.startFromSeconds > 0 else {
+            return source
+          }
+          let duration = await PutioVideoLength.seconds(of: source.url)
+          guard
+            PutioVideoStart.asksWhereToStart(
+              savedSeconds: source.startFromSeconds, durationSeconds: duration,
+              remembersPosition: true)
+          else { return source }
+          let choice = await resumePrompter.ask(positionSeconds: source.startFromSeconds)
+          return PutioVideoStart.source(source, startingWith: choice ?? .resume)
+        }
       ) { fileID in
         await positionPipeline.waitForPendingReports(fileID: fileID)
         return try await resolve(fileID)
@@ -114,6 +132,7 @@ struct PutioVideoPlaybackView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
+    .putioVideoResumeAlert(resumePrompter)
     .task {
       await model.loadIfNeeded()
     }

@@ -531,6 +531,61 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .failed(.playback))
   }
 
+  func testTheStartIsChosenOnceAndARetryKeepsItUntilTheServerMoves() async {
+    let saved = playbackSource()
+    let moved = PutioPlaybackSource(url: saved.url, startFromSeconds: 12)
+    let restarted = PutioPlaybackSource(url: saved.url, startFromSeconds: 0)
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired), .success(.ready(saved)), .success(.ready(saved)),
+      .success(.ready(moved)),
+    ])
+    let conversion = VideoConversionStub(statusResults: [.success(.completed)])
+    var asked: [Bool] = []
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      conversionPollInterval: .milliseconds(10),
+      startConversion: { try await conversion.start($0) },
+      loadConversionStatus: { try await conversion.status($0) },
+      sleep: { try await conversion.sleep(for: $0) },
+      chooseStart: { source, afterConversion in
+        asked.append(afterConversion)
+        return PutioVideoStart.source(source, startingWith: .startOver)
+      },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(asked, [true])
+    XCTAssertEqual(model.state, .ready(restarted))
+
+    model.playerFailed()
+    await model.retry()
+    XCTAssertEqual(asked, [true], "a retry must not ask again")
+    XCTAssertEqual(model.state, .ready(restarted), "a retry dropped Start over")
+
+    model.playerFailed()
+    await model.retry()
+    XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
+  }
+
+  func testAReadySourceOffersItsStartWithoutConversion() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub([.success(.ready(saved))])
+    var asked: [Bool] = []
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      chooseStart: { source, afterConversion in
+        asked.append(afterConversion)
+        return source
+      },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(asked, [false])
+    XCTAssertEqual(model.state, .ready(saved))
+  }
+
   func testSessionFailuresRemainOwnedByTheSessionRoot() {
     XCTAssertNil(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.authenticationRequired))
     XCTAssertNil(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.sessionExpired))

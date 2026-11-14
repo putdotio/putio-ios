@@ -9,7 +9,8 @@ offline playback.
 - `walk` signs in, recovers a failed video load, plays to the end, autoplays
   the next episode at its saved position, and signs out. This is the recorded
   walk.
-- `resume` keeps the playback position across reopening a file.
+- `resume` asks Resume or Start over for a partly watched video, before the
+  player or after a conversion, and keeps the position across reopening a file.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
   and plays from the Up next list while its mark follows playback.
@@ -50,7 +51,9 @@ Preconditions:
 - **Walk.** Run the full journey without `--only`. Screenshots:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus
   `runtime-proof-walk.mp4`.
-- **Resume.** Run `--only resume-persistence`.
+- **Resume.** Run `--only resume-persistence`. Screenshot: `runtime-resume-prompt`.
+  `--only resume-setting` covers a video with no saved position and resume off.
+  Board: `rd-ios-pb-01-resume`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
   `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`.
   `--putio-harness-music` seeds a Music folder of four tracks and a one-file

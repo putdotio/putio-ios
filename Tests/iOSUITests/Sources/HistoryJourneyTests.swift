@@ -73,6 +73,7 @@ final class HistoryJourneyTests: XCTestCase {
     videoEvent.tap()
     XCTAssertTrue(element("video.error").appears(within: 10))
     app.buttons["Try again"].tap()
+    app.answerResumePrompt()
     XCTAssertTrue(element("video.ready").appears(within: 15))
     element("video.done").tap()
     XCTAssertTrue(folderEvent.appears(within: 5))

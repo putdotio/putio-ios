@@ -112,6 +112,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
     video.tap()
+    app.answerResumePrompt()
     if retryingSeededFailure {
       XCTAssertTrue(element("video.error").appears(within: 10))
       app.buttons["Try again"].tap()

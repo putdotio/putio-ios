@@ -45,6 +45,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     let rootVideo = element("files.item.412")
     XCTAssertTrue(rootVideo.becomesHittable(within: 5), "the root video is not tappable")
     rootVideo.tap()
+    app.answerResumePrompt()
     XCTAssertTrue(element("video.ready").appears(within: 15), "the root video never played")
     XCTAssertTrue(element("video.ended").appears(within: 45), "the root video never finished")
     let done = element("video.done")
@@ -78,10 +79,12 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     let video = element("files.item.411")
     XCTAssertTrue(video.appears(within: 10), "the nested video never appeared")
     video.tap()
+    if !convertsFirst { app.answerResumePrompt() }
     XCTAssertTrue(element("video.done").appears(within: 10), "the player never opened")
     if convertsFirst {
       XCTAssertTrue(element("video.error").appears(within: 10), "the conversion never failed")
       app.buttons["Try again"].tap()
+      app.answerResumePrompt()
     }
     XCTAssertTrue(element("video.ready").appears(within: 20), "the nested video never played")
     let position = element("video.current-position")

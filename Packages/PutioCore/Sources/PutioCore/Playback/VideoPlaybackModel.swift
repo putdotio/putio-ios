@@ -11,6 +11,8 @@ public typealias PutioVideoConversionStatusLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 public typealias PutioVideoConversionSleep =
   @MainActor @Sendable (Duration) async throws -> Void
+public typealias PutioVideoStartChoice =
+  @MainActor @Sendable (PutioPlaybackSource, _ afterConversion: Bool) async -> PutioPlaybackSource
 
 public enum PutioVideoPlaybackState: Equatable {
   case loading
@@ -127,6 +129,8 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
+  @ObservationIgnored private let chooseStart: PutioVideoStartChoice
+  @ObservationIgnored private var chosenStart: (saved: Int, start: Int)?
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
@@ -143,6 +147,7 @@ public final class PutioVideoPlaybackModel {
       throw PutioRuntimeError.unknown
     },
     sleep: @escaping PutioVideoConversionSleep = { try await Task.sleep(for: $0) },
+    chooseStart: @escaping PutioVideoStartChoice = { source, _ in source },
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = fileID
@@ -151,6 +156,7 @@ public final class PutioVideoPlaybackModel {
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
     self.sleep = sleep
+    self.chooseStart = chooseStart
     self.resolve = resolve
   }
 
@@ -204,7 +210,10 @@ public final class PutioVideoPlaybackModel {
 
       switch resolution {
       case .ready(let source):
-        state = .ready(source)
+        let start = await startSource(source, afterConversion: false)
+        try Task.checkCancellation()
+        guard requestGeneration == generation else { return }
+        state = .ready(start)
       case .conversionRequired:
         state = .conversionRequired
         await beginConversion(generation: requestGeneration)
@@ -292,7 +301,10 @@ public final class PutioVideoPlaybackModel {
         guard requestGeneration == generation else { return }
         switch resolution {
         case .ready(let source):
-          state = .ready(source)
+          let start = await startSource(source, afterConversion: true)
+          try Task.checkCancellation()
+          guard requestGeneration == generation else { return }
+          state = .ready(start)
           return
         case .conversionRequired:
           attempts += 1
@@ -324,6 +336,20 @@ public final class PutioVideoPlaybackModel {
         recovery: .resolveConvertedSource
       )
     }
+  }
+
+  private func startSource(_ source: PutioPlaybackSource, afterConversion: Bool) async
+    -> PutioPlaybackSource
+  {
+    if let chosenStart {
+      guard source.startFromSeconds == chosenStart.saved else { return source }
+      return PutioPlaybackSource(url: source.url, startFromSeconds: chosenStart.start)
+    }
+    let start = await chooseStart(source, afterConversion)
+    if !Task.isCancelled {
+      chosenStart = (source.startFromSeconds, start.startFromSeconds)
+    }
+    return start
   }
 
   /// Resolution attempts after a completed conversion before giving up.

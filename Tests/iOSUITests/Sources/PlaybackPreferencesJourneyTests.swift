@@ -155,6 +155,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let ready = app.descendants(matching: .any)["video.ready"]
     if !ready.appears(within: 10), error.exists { app.buttons["Try again"].tap() }
     XCTAssertTrue(ready.appears(within: 10))
+    XCTAssertFalse(app.resumePrompt.exists, "resume off still asked where to start")
     XCTAssertEqual(
       app.descendants(matching: .any)["video.resume-position"].value as? String, "0",
       "a saved position survived turning resume off")
@@ -173,6 +174,17 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     tapToggle(resume)
     assertToggle(resume, value: "1")
     XCTAssertFalse(alert.exists, "turning resume on asked for confirmation")
+
+    app.showTabBar()
+    app.buttons["Files"].tap()
+    XCTAssertTrue(video.appears(within: 10))
+    video.tap()
+    XCTAssertTrue(ready.appears(within: 15), "a video with no saved position never played")
+    XCTAssertFalse(app.resumePrompt.exists, "a video with no saved position asked where to start")
+    XCTAssertEqual(
+      app.descendants(matching: .any)["video.resume-position"].value as? String, "0")
+    app.descendants(matching: .any)["video.done"].tap()
+    app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
@@ -317,6 +329,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let rootVideo = app.descendants(matching: .any)["files.item.412"]
     XCTAssertTrue(rootVideo.appears(within: 10))
     rootVideo.tap()
+    app.answerResumePrompt()
     // The seeded scenario fails the first playback attempt for retry proof.
     XCTAssertTrue(app.descendants(matching: .any)["video.error"].appears(within: 10))
     app.buttons["Try again"].tap()
