@@ -50,6 +50,7 @@ struct PutioAudioUpNextList: View {
         }
         .buttonStyle(.plain)
         .listRowBackground(rowBackground(isCurrent: isCurrent))
+        .listRowSeparator(item.id == model.queue.first?.id ? .hidden : .automatic, edges: .top)
         .listRowSeparator(item.id == model.queue.last?.id ? .hidden : .automatic, edges: .bottom)
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
         .accessibilityHint(Text("Play"))
