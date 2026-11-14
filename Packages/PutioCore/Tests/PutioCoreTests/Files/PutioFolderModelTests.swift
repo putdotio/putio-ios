@@ -213,6 +213,16 @@ final class PutioFolderModelTests: XCTestCase {
     }
   }
 
+  private func waitUntilCreationWaits(_ model: PutioFolderModel) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while model.canCreateFolder {
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(description: "Folder creation never waited for the listing")
+      }
+      try await Task.sleep(for: .milliseconds(1))
+    }
+  }
+
   func testMovePickerOffersFoldersFromLaterPages() async {
     // The first page holds no folders, so only its continuation can offer one.
     let video = BrowserTestFixtures.item(id: 1, kind: .video)
@@ -1217,7 +1227,7 @@ final class PutioFolderModelTests: XCTestCase {
     try await waitForState(model, .loaded(reconciled))
   }
 
-  func testCreateFolderWhileLoadingCreatesOnceTheListingArrives() async throws {
+  func testCreateFolderWhileLoadingJoinsTheListingInFlight() async throws {
     let created = BrowserTestFixtures.item(id: 91, parentID: 42, name: "Season 2", kind: .folder)
     let listing = BrowserTestFixtures.contents(folderID: 42, items: [])
     let loader = ControlledFolderLoader()
@@ -1232,18 +1242,51 @@ final class PutioFolderModelTests: XCTestCase {
       )
     )
 
+    let viewLoad = Task { await model.loadIfNeeded() }
+    try await loader.waitForRequestCount(1)
     XCTAssertTrue(model.canCreateFolder)
     XCTAssertFalse(model.canStartAction)
     let creation = Task { await model.createFolder(name: "Season 2") }
-    try await loader.waitForRequestCount(1)
-    XCTAssertFalse(model.canCreateFolder)
+    try await waitUntilCreationWaits(model)
     await model.createFolder(name: "Season 3")
-    let requestsWhileWaiting = await loader.requestCount()
-    XCTAssertEqual(requestsWhileWaiting, 1)
     await loader.succeed(request: 0, with: listing)
+    let viewLoaded = await viewLoad.value
     await creation.value
 
+    XCTAssertTrue(viewLoaded)
+    let requests = await loader.requestCount()
+    XCTAssertEqual(requests, 1)
     XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
+  }
+
+  func testCreateFolderWhileLoadingLeavesAFailedListingToTheFolder() async throws {
+    let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in
+          XCTFail("create should not run")
+          throw PutioRuntimeError.unknown
+        },
+        renameFile: { _, _ in XCTFail("rename should not run") },
+        deleteFile: { _ in XCTFail("delete should not run") }
+      )
+    )
+
+    let viewLoad = Task { await model.loadIfNeeded() }
+    try await loader.waitForRequestCount(1)
+    let creation = Task { await model.createFolder(name: "Season 2") }
+    try await waitUntilCreationWaits(model)
+    await loader.fail(request: 0, with: PutioRuntimeError.transient)
+    _ = await viewLoad.value
+    await creation.value
+
+    let requests = await loader.requestCount()
+    XCTAssertEqual(requests, 1)
+    XCTAssertNil(model.actionOutcome)
+    XCTAssertFalse(model.canCreateFolder)
   }
 
   func testCreateFolderIsUnavailableWhenTheListingFailed() async {

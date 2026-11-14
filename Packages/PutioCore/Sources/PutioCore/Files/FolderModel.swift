@@ -50,6 +50,7 @@ public final class PutioFolderModel {
   // Kept apart from `actionOutcome`, which screens clear once they show it.
   @ObservationIgnored private var lastCommittedAction: PutioFileAction?
   @ObservationIgnored private var trashedPositions: [PutioFileID: Int] = [:]
+  @ObservationIgnored private var listingWaiters: [CheckedContinuation<Void, Never>] = []
 
   public init(
     folderID: PutioFileID,
@@ -238,7 +239,7 @@ public final class PutioFolderModel {
     if case .loading = state {
       guard !isAwaitingListingForCreation else { return }
       isAwaitingListingForCreation = true
-      await loadIfNeeded()
+      await awaitListing()
       isAwaitingListingForCreation = false
     }
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
@@ -687,6 +688,22 @@ public final class PutioFolderModel {
     }
   }
 
+  private func awaitListing() async {
+    while case .loading = state {
+      guard inFlightLoadGeneration != nil else {
+        _ = await performLoad(mode: .replace)
+        return
+      }
+      await withCheckedContinuation { listingWaiters.append($0) }
+    }
+  }
+
+  private func resumeListingWaiters() {
+    let waiters = listingWaiters
+    listingWaiters.removeAll()
+    for waiter in waiters { waiter.resume() }
+  }
+
   private func performLoad(mode: LoadMode) async -> Bool {
     let previousState = state
     let previousRefreshFailure = refreshFailure
@@ -702,6 +719,7 @@ public final class PutioFolderModel {
       if requestGeneration == generation {
         continuationEpoch &+= 1
       }
+      resumeListingWaiters()
     }
 
     isLoadingMore = false
