@@ -1357,13 +1357,13 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "file-preferences",
       "FilePreferencesJourneyTests/testFilePreferencesFailureRecoveryResetAndPersistence",
-      attachmentNames: [
-        "runtime-file-preferences", "runtime-file-preferences-refresh", "runtime-privacy-controls",
-      ],
+      attachmentNames: ["runtime-file-preferences", "runtime-file-preferences-refresh"],
       timeAllowance: 240),
     JourneyPreflight(
-      "privacy-save-failed", "FilePreferencesJourneyTests/testFailedPrivacySaveRevertsWithToast",
-      attachmentNames: ["runtime-privacy-save-failed"], timeAllowance: 120),
+      "privacy-controls",
+      "FilePreferencesJourneyTests/testPrivacyControlsRevertAFailedSaveAndPersist",
+      attachmentNames: ["runtime-privacy-save-failed", "runtime-privacy-controls"],
+      timeAllowance: 120),
     JourneyPreflight(
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
