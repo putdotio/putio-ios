@@ -136,7 +136,7 @@ struct AccountView: View {
         set: { if !$0 { signOutDownloadedBytes = nil } }),
       titleVisibility: .visible,
       presenting: signOutDownloadedBytes
-    ) { bytes in
+    ) { _ in
       Button(String(localized: "Sign out"), role: .destructive) {
         signOut(removingDownloads: false)
       }
@@ -144,7 +144,7 @@ struct AccountView: View {
       Button(role: .destructive) {
         signOut(removingDownloads: true)
       } label: {
-        PutioSignOutPrompt.removeDownloadsLabel(downloadedBytes: bytes)
+        Text(PutioSignOutPrompt.removeDownloadsTitle(downloadedBytes: downloads.storedBytes))
       }
       .accessibilityIdentifier("auth.sign-out-remove-downloads")
       Button("Cancel", role: .cancel) {}
@@ -651,9 +651,9 @@ private enum PutioSignOutPrompt {
       : String(localized: "Downloads stay on this iPhone and come back when you sign in again.")
   }
 
-  static func removeDownloadsLabel(downloadedBytes bytes: Int64) -> Text {
+  static func removeDownloadsTitle(downloadedBytes bytes: Int64) -> String {
     let size = PutioFileRowModel.sizeText(bytes: bytes)
-    return Text("Sign out and remove downloads") + Text(verbatim: " ") + Text("(\(size))")
+    return String(localized: "Sign out and remove downloads (\(size))")
   }
 }
 

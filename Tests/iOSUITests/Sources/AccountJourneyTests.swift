@@ -151,11 +151,9 @@ final class AccountJourneyTests: XCTestCase {
         "Downloads stay on this \(deviceNoun) and come back when you sign in again."
       ].exists, "the dialog does not say downloads stay")
     XCTAssertTrue(
-      remove.label.hasPrefix("Sign out and remove downloads ("),
-      "the remove action does not show the downloads' size: \(remove.label)")
-    XCTAssertFalse(
-      remove.label.hasSuffix("(0 B)"),
-      "the remove action shows no downloaded bytes: \(remove.label)")
+      remove.label.range(
+        of: #"^Sign out and remove downloads \([^)]*[1-9][^)]*\)$"#, options: .regularExpression)
+        != nil, "the remove action does not show the downloads' size: \(remove.label)")
     attach(app, "runtime-sign-out-downloads")
     dismissSignOutDialog(in: app)
     XCTAssertTrue(remove.disappears(within: 5), "the dialog stayed open")

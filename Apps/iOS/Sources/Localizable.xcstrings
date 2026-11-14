@@ -224,17 +224,6 @@
         }
       }
     },
-    "(%@)" : {
-      "comment" : "android: mobile_account_sign_out_downloads_size",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "(%@)"
-          }
-        }
-      }
-    },
     "A file or folder named “%@” already exists there. Choose another folder." : {
       "comment" : "android: mobile_files_move_collision",
       "localizations" : {
@@ -4652,13 +4641,13 @@
         }
       }
     },
-    "Sign out and remove downloads" : {
-      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox",
+    "Sign out and remove downloads (%@)" : {
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox and carries its size",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign out and remove downloads"
+            "value" : "Sign out and remove downloads (%@)"
           }
         }
       }
