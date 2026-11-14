@@ -421,7 +421,7 @@ struct PutioVideoControls<Trailing: View>: View {
         .ignoresSafeArea()
         .accessibilityHidden(true)
       if let airPlay = transport.airPlay {
-        airPlayCentre(showing: true, transport: false, airPlay: airPlay)
+        airPlayCentre(airPlay, placeholderLayer: true)
           .allowsHitTesting(false)
       }
       if visibility.isVisible {
@@ -449,7 +449,7 @@ struct PutioVideoControls<Trailing: View>: View {
           }
           .padding(PutioTheme.Spacing.space3)
           if let airPlay = transport.airPlay {
-            airPlayCentre(showing: false, transport: true, airPlay: airPlay)
+            airPlayCentre(airPlay, placeholderLayer: false)
           } else {
             centre
           }
@@ -490,18 +490,14 @@ struct PutioVideoControls<Trailing: View>: View {
     }
   }
 
-  private func airPlayCentre(
-    showing placeholder: Bool, transport shown: Bool, airPlay: PutioVideoAirPlay
-  )
-    -> some View
-  {
+  private func airPlayCentre(_ airPlay: PutioVideoAirPlay, placeholderLayer: Bool) -> some View {
     VStack(spacing: PutioTheme.Spacing.space5) {
       PutioVideoAirPlayPlaceholder(airPlay: airPlay)
-        .opacity(placeholder ? 1 : 0)
-        .accessibilityHidden(!placeholder)
+        .opacity(placeholderLayer ? 1 : 0)
+        .accessibilityHidden(!placeholderLayer)
       transportRow(circled: false)
-        .opacity(shown ? 1 : 0)
-        .accessibilityHidden(!shown)
+        .opacity(placeholderLayer ? 0 : 1)
+        .accessibilityHidden(placeholderLayer)
     }
     .padding(.horizontal, PutioTheme.Spacing.space4)
   }

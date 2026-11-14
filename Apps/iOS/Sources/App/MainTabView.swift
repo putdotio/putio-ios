@@ -311,7 +311,8 @@ struct MainTabView: View {
       offlineQueueHolder.stop()
       PutioVideoOrientationLock.setLocked(false)
     }
-    .onChange(of: selectedVideoRoute != nil || audioPlayback.isPresented) { _, playing in
+    .onChange(of: selectedVideoRoute != nil || audioPlayback.isPresented, initial: true) {
+      _, playing in
       if playing { cast.startDiscovery() }
     }
     .putioCastLocalNetworkAlert(cast, isActive: !audioPlayback.isPresented)

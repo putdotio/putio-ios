@@ -37,7 +37,6 @@ final class ChromecastJourneyTests: XCTestCase {
     screenshot("runtime-cast-settings")
     app.navigationBars.buttons["BackButton"].tap()
 
-    // Files has no Cast button; the player's route group connects.
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let castButton = app.buttons["cast.button"]
@@ -115,7 +114,6 @@ final class ChromecastJourneyTests: XCTestCase {
     tapAction("cast.disconnect")
     XCTAssertTrue(bar.disappears(within: 5))
 
-    // Disconnected: the row opens the local player again.
     openLocally(row)
     app.revealVideoControls(showing: castButton)
     XCTAssertEqual(castButton.label, "Cast")
@@ -148,7 +146,8 @@ final class ChromecastJourneyTests: XCTestCase {
 
     launchSignedIn()
     openLocally(row)
-    XCTAssertEqual(routeGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    XCTAssertEqual(
+      app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
     screenshot("runtime-cast-routes")
     app.closeVideo()
 
@@ -156,7 +155,7 @@ final class ChromecastJourneyTests: XCTestCase {
     app.launchArguments.append("--putio-harness-cast-no-device")
     launchSignedIn()
     openLocally(row)
-    XCTAssertEqual(routeGroup(), ["video.picture-in-picture", "video.airplay"])
+    XCTAssertEqual(app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay"])
     XCTAssertFalse(castButton.exists, "Cast showed with no device")
     screenshot("runtime-cast-routes-no-device")
     app.closeVideo()
@@ -166,7 +165,8 @@ final class ChromecastJourneyTests: XCTestCase {
     app.launchArguments.append("--putio-harness-cast-local-network-denied")
     launchSignedIn()
     openLocally(row)
-    XCTAssertEqual(routeGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    XCTAssertEqual(
+      app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
     castButton.tap()
     XCTAssertTrue(
       app.staticTexts["Local network access is off"].appears(within: 5),
@@ -187,17 +187,6 @@ final class ChromecastJourneyTests: XCTestCase {
     let signIn = element("auth.sign-in")
     if signIn.appears(within: 10) { signIn.tap() }
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
-  }
-
-  private func routeGroup() -> [String] {
-    let pictureInPicture = element("video.picture-in-picture")
-    app.revealVideoControls(showing: pictureInPicture)
-    let row = pictureInPicture.frame.midY
-    return ["video.picture-in-picture", "video.airplay", "cast.button"]
-      .map { element($0) }
-      .filter { $0.exists && abs($0.frame.midY - row) < 4 }
-      .sorted { $0.frame.minX < $1.frame.minX }
-      .map(\.identifier)
   }
 
   private func openLocally(_ row: XCUIElement) {

@@ -36,6 +36,17 @@ extension XCUIApplication {
     XCTFail("the player never showed \(target)", file: file, line: line)
   }
 
+  func videoRouteGroup(file: StaticString = #filePath, line: UInt = #line) -> [String] {
+    let routes = ["video.picture-in-picture", "video.airplay", "cast.button"].map {
+      descendants(matching: .any)[$0]
+    }
+    revealVideoControls(showing: routes[1], file: file, line: line)
+    let row = routes[1].frame.midY
+    return routes.filter { $0.exists && abs($0.frame.midY - row) < 4 }
+      .sorted { $0.frame.minX < $1.frame.minX }
+      .map(\.identifier)
+  }
+
   func closeVideo(file: StaticString = #filePath, line: UInt = #line) {
     for _ in 0..<3 {
       revealVideoControls(showing: videoClose, file: file, line: line)

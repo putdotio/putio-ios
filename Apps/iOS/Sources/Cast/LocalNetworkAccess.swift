@@ -10,7 +10,7 @@ final class PutioLocalNetworkProbe {
     guard browser == nil else { return }
     let browser = NWBrowser(
       for: .bonjour(type: "_googlecast._tcp", domain: nil), using: NWParameters())
-    browser.stateUpdateHandler = { state in
+    browser.stateUpdateHandler = { [weak self] state in
       let denied: Bool? =
         switch state {
         case .waiting(let error), .failed(let error): Self.isPolicyDenied(error)
@@ -18,11 +18,18 @@ final class PutioLocalNetworkProbe {
         case .setup, .cancelled: nil
         @unknown default: nil
         }
-      guard let denied else { return }
-      MainActor.assumeIsolated { onChange(denied) }
+      MainActor.assumeIsolated {
+        if case .failed = state { self?.reset() }
+        if let denied { onChange(denied) }
+      }
     }
     browser.start(queue: .main)
     self.browser = browser
+  }
+
+  private func reset() {
+    browser?.cancel()
+    browser = nil
   }
 
   isolated deinit {
