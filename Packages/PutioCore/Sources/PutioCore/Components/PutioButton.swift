@@ -216,22 +216,8 @@ enum PutioDisabledRole {
     }
 
     public var body: some View {
-      if isEnabled || isBusy {
-        button
-          .buttonStyle(.borderedProminent)
-          .buttonBorderShape(.capsule)
-          .controlSize(.large)
-          .tint(PutioTheme.Colors.accent)
-          .disabled(isBusy)
-      } else {
-        button
-          .buttonStyle(PutioDimmedBlockButtonStyle())
-          .disabled(true)
-      }
-    }
-
-    private var button: some View {
       Button {
+        guard isEnabled else { return }
         action()
       } label: {
         ZStack {
@@ -246,21 +232,19 @@ enum PutioDisabledRole {
         .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
         .frame(maxWidth: .infinity)
       }
-      .accessibilityLabel(title)
-    }
-  }
-
-  struct PutioDimmedBlockButtonStyle: ButtonStyle {
-    static let opacity = PutioDisabledRole.opacity
-
-    @PutioScaledMetric(PutioMetricRole(value: 50, relativeTo: .body)) private var height: CGFloat
-
-    func makeBody(configuration: Configuration) -> some View {
-      configuration.label
-        .padding(.horizontal, PutioTheme.Spacing.space3)
-        .frame(maxWidth: .infinity, minHeight: height)
-        .background(PutioTheme.Colors.accent, in: Capsule())
-        .opacity(Self.opacity)
+      .buttonStyle(.borderedProminent)
+      .buttonBorderShape(.capsule)
+      .controlSize(.large)
+      .tint(PutioTheme.Colors.accent)
+      .disabled(isBusy)
+      .opacity(isEnabled || isBusy ? 1 : PutioDisabledRole.opacity)
+      .allowsHitTesting(isEnabled)
+      .accessibilityRepresentation {
+        Button(title) {
+          action()
+        }
+        .disabled(!isEnabled || isBusy)
+      }
     }
   }
 #endif
