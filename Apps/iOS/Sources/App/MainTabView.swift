@@ -703,8 +703,17 @@ struct MainTabView: View {
   }
 
   private func openVideo(_ route: PutioVideoRoute) async {
+    guard account.rememberVideoTime else {
+      showVideo(route)
+      return
+    }
+    await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
     let start = await videoStartPoint(for: route)
     guard !Task.isCancelled else { return }
+    if route.initialResolution == nil, cast.isConnected {
+      cast.cast(route)
+      return
+    }
     guard let start, !start.needsConversion,
       PutioVideoStart.asksWhereToStart(
         savedSeconds: start.savedSeconds, durationSeconds: start.durationSeconds,
@@ -721,6 +730,7 @@ struct MainTabView: View {
 
   private func videoStartPoint(for route: PutioVideoRoute) async -> PutioVideoStartPoint? {
     if case .ready(let source) = route.initialResolution {
+      guard source.startFromSeconds > 0 else { return nil }
       return PutioVideoStartPoint(
         savedSeconds: source.startFromSeconds,
         durationSeconds: await PutioVideoLength.seconds(of: source.url), needsConversion: false)

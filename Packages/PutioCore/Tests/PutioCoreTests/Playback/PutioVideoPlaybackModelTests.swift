@@ -531,10 +531,13 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .failed(.playback))
   }
 
-  func testTheStartIsChosenOnceAfterConversionAndRetriesKeepTheSavedPosition() async {
+  func testTheStartIsChosenOnceAndARetryKeepsItUntilTheServerMoves() async {
     let saved = playbackSource()
+    let moved = PutioPlaybackSource(url: saved.url, startFromSeconds: 12)
+    let restarted = PutioPlaybackSource(url: saved.url, startFromSeconds: 0)
     let resolver = PlaybackResolverStub([
       .success(.conversionRequired), .success(.ready(saved)), .success(.ready(saved)),
+      .success(.ready(moved)),
     ])
     let conversion = VideoConversionStub(statusResults: [.success(.completed)])
     var asked: [Bool] = []
@@ -553,12 +556,16 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
     await model.loadIfNeeded()
     XCTAssertEqual(asked, [true])
-    XCTAssertEqual(model.state, .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 0)))
+    XCTAssertEqual(model.state, .ready(restarted))
 
     model.playerFailed()
     await model.retry()
     XCTAssertEqual(asked, [true], "a retry must not ask again")
-    XCTAssertEqual(model.state, .ready(saved))
+    XCTAssertEqual(model.state, .ready(restarted), "a retry dropped Start over")
+
+    model.playerFailed()
+    await model.retry()
+    XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
   }
 
   func testAReadySourceOffersItsStartWithoutConversion() async {

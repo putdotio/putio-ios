@@ -2495,11 +2495,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
   }
 
-  /// Mirrors the app's spoken resume position, such as "9 minutes, 49 seconds".
   private func clockText(seconds: Int) -> String {
-    "\(seconds / 60):" + (seconds % 60 < 10 ? "0" : "") + "\(seconds % 60)"
+    func twoDigits(_ value: Int) -> String { (value < 10 ? "0" : "") + "\(value)" }
+    guard seconds >= 3_600 else { return "\(seconds / 60):\(twoDigits(seconds % 60))" }
+    return "\(seconds / 3_600):\(twoDigits(seconds % 3_600 / 60)):\(twoDigits(seconds % 60))"
   }
 
+  /// Mirrors the app's spoken resume position, such as "9 minutes, 49 seconds".
   private func resumeText(seconds: Int) -> String {
     Duration.seconds(seconds).formatted(
       .units(allowed: [.hours, .minutes, .seconds], width: .wide))

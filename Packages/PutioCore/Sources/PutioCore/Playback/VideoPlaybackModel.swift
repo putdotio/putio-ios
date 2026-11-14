@@ -130,7 +130,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
-  @ObservationIgnored private var startChosen = false
+  @ObservationIgnored private var chosenStart: (saved: Int, start: Int)?
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
@@ -341,9 +341,14 @@ public final class PutioVideoPlaybackModel {
   private func startSource(_ source: PutioPlaybackSource, afterConversion: Bool) async
     -> PutioPlaybackSource
   {
-    guard !startChosen else { return source }
+    if let chosenStart {
+      guard source.startFromSeconds == chosenStart.saved else { return source }
+      return PutioPlaybackSource(url: source.url, startFromSeconds: chosenStart.start)
+    }
     let start = await chooseStart(source, afterConversion)
-    if !Task.isCancelled { startChosen = true }
+    if !Task.isCancelled {
+      chosenStart = (source.startFromSeconds, start.startFromSeconds)
+    }
     return start
   }
 
