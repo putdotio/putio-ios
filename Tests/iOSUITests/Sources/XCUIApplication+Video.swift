@@ -8,6 +8,7 @@ extension XCUIApplication {
   func revealVideoControls(
     showing control: XCUIElement, file: StaticString = #filePath, line: UInt = #line
   ) {
+    holdPlayerOrientation()
     for _ in 0..<3 {
       if control.exists { return }
       coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
@@ -36,8 +37,22 @@ extension XCUIApplication {
     for _ in 0..<3 {
       revealVideoControls(showing: videoClose, file: file, line: line)
       videoClose.tap()
-      if videoClose.disappears(within: 3) { return }
+      if videoClose.disappears(within: 3) {
+        if UIDevice.current.userInterfaceIdiom == .phone {
+          XCUIDevice.shared.orientation = .portrait
+        }
+        return
+      }
     }
     XCTFail("Close never dismissed the video", file: file, line: line)
+  }
+
+  private func holdPlayerOrientation() {
+    let window = windows.firstMatch
+    guard window.exists, window.frame.width > window.frame.height,
+      !XCUIDevice.shared.orientation.isLandscape
+    else { return }
+    XCUIDevice.shared.orientation = .landscapeLeft
+    _ = videoClose.waitForExistence(timeout: 2)
   }
 }
