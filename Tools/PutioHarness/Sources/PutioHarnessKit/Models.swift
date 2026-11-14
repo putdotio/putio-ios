@@ -1361,6 +1361,9 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 240),
     JourneyPreflight(
+      "privacy-save-failed", "FilePreferencesJourneyTests/testFailedPrivacySaveRevertsWithToast",
+      attachmentNames: ["runtime-privacy-save-failed"], timeAllowance: 120),
+    JourneyPreflight(
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
       attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
