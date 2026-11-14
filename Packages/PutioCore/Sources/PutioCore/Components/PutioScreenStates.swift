@@ -226,7 +226,11 @@ public struct PutioErrorStateView: View {
 
   public var body: some View {
     PutioScreenStateContent(
-      title: title, message: message.map(AttributedString.init), action: retry
+      title: title, message: message.map(AttributedString.init), action: retry,
+      titleFont: icon == nil
+        ? PutioScreenStateLayout.titleFont : PutioScreenStateLayout.errorTitleFont,
+      messageFont: icon == nil
+        ? PutioScreenStateLayout.messageFont : PutioScreenStateLayout.errorMessageFont
     ) {
       if let icon {
         PutioScreenStateIcon(
@@ -387,6 +391,8 @@ private struct PutioScreenStateContent<Glyph: View>: View {
   let title: String
   let message: AttributedString?
   let action: PutioScreenStateAction?
+  var titleFont = PutioScreenStateLayout.titleFont
+  var messageFont = PutioScreenStateLayout.messageFont
   @ViewBuilder let glyph: Glyph
 
   var body: some View {
@@ -394,7 +400,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
       VStack(spacing: PutioScreenStateLayout.contentGap) {
         glyph
         Text(title)
-          .putioFont(PutioScreenStateLayout.titleFont)
+          .putioFont(titleFont)
           .putioScreenStateForeground(PutioTheme.Colors.textPrimary)
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
@@ -403,7 +409,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
     } description: {
       if let message {
         Text(message)
-          .putioFont(PutioScreenStateLayout.messageFont)
+          .putioFont(messageFont)
           .putioScreenStateForeground(PutioTheme.Colors.textSecondary)
       }
     } actions: {
@@ -553,6 +559,8 @@ enum PutioScreenStateLayout {
       relativeTo: .title
     )
     static let errorIconSize = iconSize
+    static let errorTitleFont = titleFont
+    static let errorMessageFont = messageFont
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let messageFont = PutioTheme.Typography.body
@@ -572,6 +580,8 @@ enum PutioScreenStateLayout {
     static let prominentActionSize = PutioButtonSize.medium
     static let iconSize = PutioMetricRole(value: 52, relativeTo: .title)
     static let errorIconSize = PutioMetricRole(value: 28, relativeTo: .title)
+    static let errorTitleFont = PutioTheme.Typography.subheading
+    static let errorMessageFont = PutioTheme.Typography.caption
     static let bannerIconSize = PutioMetricRole(
       value: PutioTheme.Typography.sizeMd, relativeTo: .body)
     static let bannerVerticalPadding = PutioTheme.Spacing.space2 + PutioTheme.Spacing.space1
