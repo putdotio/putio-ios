@@ -770,14 +770,14 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     })
     defer { h.model.stop() }
     await h.model.start()
-    await waitUntil { h.model.canSkipToNext }
+    await waitUntil { h.model.neighbours != nil }
     h.model.stop()
     await h.model.start()
     h.engine.onPositionChanged?(12)
 
     h.engine.onEnded?()
     let successorTrack = PutioAudioTrack(id: next.id, parentID: .root, title: next.name)
-    await waitUntil { h.model.state == .playing(successorTrack) }
+    await waitUntil { h.model.state == .playing(successorTrack) && reads == 2 }
     XCTAssertEqual(reads, 2, "one read per track")
   }
 

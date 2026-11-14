@@ -77,7 +77,7 @@ struct PutioAudioPlayerView: View {
         .frame(width: 1, height: 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Audio player state")
-        .accessibilityValue("id=\(model.track.id.rawValue);state=\(stateName)")
+        .accessibilityValue(Text(verbatim: "id=\(model.track.id.rawValue);state=\(stateName)"))
         .accessibilityIdentifier("audio.state")
         .allowsHitTesting(false)
     }
