@@ -17,6 +17,10 @@ offline playback.
 - `video-errors` shows the expired-access and Connection lost states, keeps Close
   and the file name, and Try again plays at the saved position after one silent
   refetch of a 403.
+- `conversion-gate`, `conversion-completed`, `conversion-failed`,
+  `conversion-unavailable` and `conversion-status` walk the conversion gate:
+  Cancel and reopen, Open in VLC, play on completion, Convert again, Can’t play
+  this file, and a lost status check.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
   plays from the Up next list while its mark follows playback, and pauses when
@@ -82,6 +86,13 @@ Preconditions:
   [`HeldStream`](../../../../Tests/iOSUITests/Sources/HeldStream.swift) releases
   it. Boards: `rd-ios-pb-24-preparing-video`, `rd-ios-pb-10-buffering`,
   `rd-ios-pb-26-buffering-long`, `rd-ios-pb-27-stalled`.
+- **Conversion gate.** Run `--only conversion-gate,conversion-completed,conversion-failed,conversion-unavailable,conversion-status`.
+  `--putio-harness-episode-conversion queued|converting|failed|offline|unavailable|completes`
+  makes the first Blue Lights episode need conversion and seeds its status
+  reads; `video.conversion-reads` counts them. Boards:
+  `rd-ios-pb-28-conversion-queued`, `rd-ios-pb-15-converting`,
+  `rd-ios-pb-16-conversion-failed`, `rd-ios-pb-29-conversion-status-failed`,
+  `rd-ios-pb-30-cannot-convert`, `rd-ios-pb-42-ipad-converting`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
   `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`,
   `runtime-audio-sleep-menu`, `runtime-audio-sleep-running`.

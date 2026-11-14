@@ -859,7 +859,7 @@ final class PutioOfflineQueue {
         update(fileID) { $0.stage = .converting(progress: progress) }
       case .completed:
         return try await resolve(fileID, .video)
-      case .failed:
+      case .failed, .unavailable:
         throw PutioOfflineConversionError()
       }
       try await sleep(conversionPollInterval)

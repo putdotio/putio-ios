@@ -190,6 +190,28 @@
         }
       }
     },
+    "Can’t check conversion status" : {
+      "comment" : "android: mobile_playback_conversion_status_failed | differs: the board splits it into a title and the shared connection message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t check conversion status"
+          }
+        }
+      }
+    },
+    "Can’t play this file" : {
+      "comment" : "android: mobile_playback_unsupported_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t play this file"
+          }
+        }
+      }
+    },
     "Cancel" : {
       "comment" : "android: mobile_action_cancel",
       "localizations" : {
@@ -252,6 +274,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continue from %@"
+          }
+        }
+      }
+    },
+    "Conversion failed" : {
+      "comment" : "android: mobile_playback_conversion_failed | differs: the board splits it into a title and a message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversion failed"
           }
         }
       }
@@ -1668,17 +1701,6 @@
         }
       }
     },
-    "The conversion did not finish. Try again." : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The conversion did not finish. Try again."
-          }
-        }
-      }
-    },
     "The item is no longer in Trash. Refresh and try again." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -1778,6 +1800,17 @@
         }
       }
     },
+    "This video cannot be converted." : {
+      "comment" : "android: mobile_playback_conversion_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video cannot be converted."
+          }
+        }
+      }
+    },
     "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding." : {
       "comment" : "android: mobile_playback_conversion_message | differs: iOS board wording",
       "localizations" : {
@@ -1829,6 +1862,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Try again"
+          }
+        }
+      }
+    },
+    "Try again later." : {
+      "comment" : "android: mobile_playback_conversion_failed | differs: the board splits it into a title and a message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again later."
           }
         }
       }

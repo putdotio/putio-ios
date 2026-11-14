@@ -106,6 +106,7 @@ public enum PutioVideoConversionStatus: Equatable, Sendable {
   case converting(progress: Double)
   case completed
   case failed
+  case unavailable
 }
 
 /// The put.io `chromecast_playback_type` account config. HLS streams the
