@@ -49,6 +49,7 @@ struct FilesBrowserView: View {
   private let loadVideoDetails: PutioVideoDetailsLoad
   private let loadFolderName: PutioFolderNameLoad
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.putioPreviewOpen) private var previewOpen
   @State private var isLandscape: Bool?
   @State private var selectedFile: PutioFileDetailSelection?
   @State private var scrollAnchors = PutioFolderScrollAnchors()
@@ -236,7 +237,19 @@ struct FilesBrowserView: View {
   private var detailSelect: PutioFileDetailSelect {
     let selection = $selectedFile
     let path = path
+    let previewOpen = previewOpen
+    let onFileSelected = onFileSelected
     return { route, origin in
+      if let open = selection.wrappedValue, open.route.id == route.id,
+        open.origin?.folderID == origin?.folderID, route.videoPlaybackRoute == nil
+      {
+        if let previewOpen, let source = origin?.previewSource, route.previewKind != nil {
+          previewOpen(route, in: source)
+        } else {
+          onFileSelected(route)
+        }
+        return
+      }
       selection.wrappedValue = PutioFileDetailSelection(route: route, in: path, origin: origin)
     }
   }

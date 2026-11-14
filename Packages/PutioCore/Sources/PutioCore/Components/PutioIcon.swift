@@ -31,6 +31,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case fileAudio = "file-audio-regular"
   case fileAudioFill = "file-audio-fill"
   case fileFill = "file-fill"
+  case filePdfFill = "file-pdf-fill"
   case fileText = "file-text-regular"
   case fileVideo = "file-video-regular"
   case fileVideoFill = "file-video-fill"

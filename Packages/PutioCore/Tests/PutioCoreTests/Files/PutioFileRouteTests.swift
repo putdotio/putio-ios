@@ -101,7 +101,7 @@ final class PutioFileRouteTests: XCTestCase {
       (.video, .video),
       (.audio, .audio),
       (.image, .image),
-      (.pdf, .file),
+      (.pdf, .pdf),
       (.text, .file),
       (.other("ARCHIVE"), .file),
     ]

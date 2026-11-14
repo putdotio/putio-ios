@@ -381,20 +381,10 @@ struct TrashManagementView: View {
       Date.FormatStyle(locale: locale).month(.wide).day())
     return PutioFileRowModel(
       name: item.name,
-      kind: rowKind(for: item.kind),
+      kind: PutioBrowserItemPresentation.rowKind(for: item.kind),
       sizeText: String(localized: "\(size) · Deleted \(deleted)"),
       secondaryText: String(localized: "Expires on \(expires)")
     )
-  }
-
-  private static func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
-    switch kind {
-    case .folder: .folder
-    case .video: .video
-    case .audio: .audio
-    case .image: .image
-    case .pdf, .text, .other: .file
-    }
   }
 
   private func present(_ outcome: PutioTrashMutationOutcome?) {

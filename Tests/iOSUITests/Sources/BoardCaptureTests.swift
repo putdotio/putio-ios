@@ -802,6 +802,12 @@ final class BoardCaptureTests: XCTestCase {
     let onDevice = element("files.detail.on-device")
     XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
     XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")
+    let window = app.windows.firstMatch.frame.size
+    let onDeviceCapture = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
+    onDeviceCapture.name = "ipad-detail-on-device"
+    onDeviceCapture.lifetime = .keepAlways
+    add(onDeviceCapture)
     XCTAssertFalse(element("files.detail.download").exists, "Download stayed beside on device")
   }
 
@@ -963,8 +969,15 @@ final class BoardCaptureTests: XCTestCase {
       lacking: ["Play", "Download", "Share", "Select", "Mark as watched", "Mark as unwatched"])
     element("files.detail.fact.folder").tap()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
+    let row = element("files.item.406")
     element("files.detail.open").tap()
-    XCTAssertTrue(element("preview.screen.406").appears(within: 10), "Open showed no preview")
+    assertPreviewFillsWindow(fileID: 406)
+    assertPreviewKeepsFileAcrossRotation(fileID: 406) { element("preview.image") }
+    assertBackReturnsToDetail(row, fileID: 406)
+
+    row.tap()
+    assertPreviewFillsWindow(fileID: 406)
+    assertBackReturnsToDetail(row, fileID: 406)
   }
 
   func testIPadDetailText() throws {
@@ -1691,6 +1704,61 @@ final class BoardCaptureTests: XCTestCase {
     assertBackReturnsToRow("files.item.413", fileID: 413)
   }
 
+  func testIPadDetailDocument() throws {
+    orient(.landscapeLeft)
+    app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
+    app.launch()
+    reachFilesRoot()
+    let row = app.revealed("files.item.413")
+    XCTAssertTrue(row.exists, "the document row never appeared")
+    let portrait = ProcessInfo.processInfo.environment["PUTIO_BOARD_ORIENTATION"] == "portrait"
+    assertWindowSettles(portrait: portrait)
+    guard !portrait else {
+      row.tap()
+      assertPreviewFillsWindow(fileID: 413)
+      XCTAssertTrue(
+        app.staticTexts["put.io harness page 1"].appears(within: 10), "the document never loaded")
+      try captureBoard("rd-ios-pv-17-ipad-detail-pdf")
+      assertBackReturnsToRow("files.item.413", fileID: 413)
+      return
+    }
+    selectFile(row, id: 413)
+    XCTAssertTrue(
+      element("files.detail.preview-glyph").appears(within: 5), "the document shows no glyph")
+    XCTAssertEqual(element("files.detail.title").label, "document-scan-march-2026.pdf")
+    assertFact("size", "Size, 1.1 MB")
+    assertFact("added", "Added, Mar 18, 2026")
+    assertFact("folder", "Folder, Files")
+    XCTAssertFalse(element("files.detail.fact.length").exists, "a document lists a length")
+    XCTAssertFalse(element("files.detail.download").exists, "a document offers Download")
+    try captureBoard("rd-ios-pv-17-ipad-detail-pdf")
+
+    let share = element("files.detail.share")
+    let sheet = app.openShareSheet(from: share, sharing: "document-scan-march-2026.pdf")
+    app.dismissShareSheet(sheet)
+    XCTAssertTrue(row.isSelected, "sharing cleared the selection")
+
+    openDetailMore(lacking: ["Open", "Share", "Select", "Download"])
+    element("files.detail.fact.folder").tap()
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
+
+    element("files.detail.open").tap()
+    assertPreviewFillsWindow(fileID: 413)
+    assertPreviewKeepsFileAcrossRotation(fileID: 413) { element("preview.page") }
+    assertBackReturnsToDetail(row, fileID: 413)
+
+    row.tap()
+    assertPreviewFillsWindow(fileID: 413)
+    assertBackReturnsToDetail(row, fileID: 413)
+  }
+
+  private func assertBackReturnsToDetail(_ row: XCUIElement, fileID: Int) {
+    assertBackReturnsToRow(row.identifier, fileID: fileID)
+    XCTAssertTrue(
+      element("files.detail.\(fileID)").appears(within: 5), "Back did not keep the detail")
+    XCTAssertTrue(row.isSelected, "Back did not keep the row selected")
+  }
+
   private func openDocumentOnSecondPage() {
     app.launchArguments += ["--putio-harness-previews", "--putio-harness-board-document-name"]
     app.launch()
@@ -1722,19 +1790,22 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertFalse(element("files.screen.0").isHittable, "the list shows beside the viewer")
   }
 
+  private func assertWindowSettles(portrait: Bool) {
+    let window = app.windows.firstMatch
+    let deadline = Date.now.addingTimeInterval(10)
+    while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+    }
+    XCTAssertEqual(
+      window.frame.width < window.frame.height, portrait, "the window never settled")
+  }
+
   private func assertPreviewKeepsFileAcrossRotation(
     fileID: Int, content: () -> XCUIElement
   ) {
-    let window = app.windows.firstMatch
     for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
       rotate(orientation)
-      let portrait = orientation == .portrait
-      let deadline = Date.now.addingTimeInterval(10)
-      while (window.frame.width < window.frame.height) != portrait, Date.now < deadline {
-        RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
-      }
-      XCTAssertEqual(
-        window.frame.width < window.frame.height, portrait, "the viewer did not rotate")
+      assertWindowSettles(portrait: orientation == .portrait)
       XCTAssertTrue(content().appears(within: 10), "rotating lost the open file")
       assertPreviewFillsWindow(fileID: fileID)
     }

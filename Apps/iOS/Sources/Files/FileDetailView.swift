@@ -40,7 +40,7 @@ struct PutioFileDetailView: View {
       VStack(alignment: .leading, spacing: PutioFileDetailLayout.sectionGap) {
         preview
         Text(PutioFileDetailText.wrappableName(item.name))
-          .putioFont(PutioTheme.Typography.subheading)
+          .putioFont(PutioFileDetailLayout.title)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityLabel(Text(verbatim: item.name))
@@ -56,11 +56,6 @@ struct PutioFileDetailView: View {
     .toolbar(showsNavigationBar ? .visible : .hidden, for: .navigationBar)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar(removing: .sidebarToggle)
-    .background {
-      if let file = share.presented(for: item.id) {
-        PutioShareSheetAnchor(file: file, name: item.name, model: share)
-      }
-    }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("files.detail.\(item.id.rawValue)")
     .putioToast($toast)
@@ -162,6 +157,11 @@ struct PutioFileDetailView: View {
         iconButton(.export, label: String(localized: "Share")) { startShare() }
           .disabled(shareSource == nil || isFetchingShare)
           .accessibilityIdentifier("files.detail.share")
+          .background {
+            if let file = share.presented(for: item.id) {
+              PutioShareSheetAnchor(file: file, name: item.name, model: share)
+            }
+          }
       }
       if let more = moreMenu {
         Menu {
@@ -375,7 +375,14 @@ private enum PutioFileDetailLayout {
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2, relativeTo: .title)
   static let actionGlyph = PutioMetricRole(
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1, relativeTo: .body)
-  static let factLabelWidth = PutioTheme.Spacing.space6
+  static let factLabelWidth =
+    PutioTheme.Spacing.space6 - PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1
+  static let title = PutioFontRole(
+    fontName: PutioTheme.Typography.subheading.fontName,
+    size: PutioTheme.Typography.sizeLg - PutioTheme.Spacing.space1 / 2,
+    lineHeight: PutioTheme.Typography.subheading.lineHeight,
+    textStyle: .title2
+  )
   static let kindGlyph = PutioMetricRole(value: PutioTheme.Spacing.space4, relativeTo: .largeTitle)
   static let previewPixels = 2_048
 }

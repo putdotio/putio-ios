@@ -723,9 +723,18 @@ import Foundation
     private static var usesPreviews: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
     }
-    private static var documentName: String {
+    private static var usesBoardDocument: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-board-document-name")
-        ? "document-scan-march-2026.pdf" : "Document.pdf"
+    }
+    private static var documentName: String {
+      usesBoardDocument ? "document-scan-march-2026.pdf" : "Document.pdf"
+    }
+    private static var documentSize: Int { usesBoardDocument ? 1_100_000 : 1_048_576 }
+    private static var documentCreatedAt: String {
+      usesBoardDocument ? "2026-03-18T10:00:00Z" : "2026-08-28T10:00:00Z"
+    }
+    private static var documentUpdatedAt: String {
+      usesBoardDocument ? "2026-03-18T10:00:00Z" : "2026-08-29T10:00:00Z"
     }
     nonisolated(unsafe) private static var longPreviewLookups = 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
@@ -2024,8 +2033,8 @@ import Foundation
           200,
           """
           {"status":"OK","file":{"id":413,"parent_id":0,"name":\(jsonString(documentName)),
-          "file_type":"PDF","size":1024,"created_at":"2026-09-01T12:00:00Z",
-          "updated_at":"2026-09-01T12:00:00Z"}}
+          "file_type":"PDF","size":\(documentSize),"created_at":"\(documentCreatedAt)",
+          "updated_at":"\(documentUpdatedAt)"}}
           """
         )
       case "GET /v2/files/999":
@@ -3484,9 +3493,9 @@ import Foundation
             "name": \(jsonString(documentName)),
             "file_type": "PDF",
             "parent_id": 0,
-            "size": 1048576,
-            "created_at": "2026-08-28T10:00:00Z",
-            "updated_at": "2026-08-29T10:00:00Z"
+            "size": \(documentSize),
+            "created_at": "\(documentCreatedAt)",
+            "updated_at": "\(documentUpdatedAt)"
           }
           """,
         ] + mutableFolderRows

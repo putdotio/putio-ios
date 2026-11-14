@@ -49,7 +49,8 @@ public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     case .video: .video
     case .audio: .audio
     case .image: .image
-    case .pdf, .text, .other: .file
+    case .pdf: .pdf
+    case .text, .other: .file
     }
   }
 
