@@ -1325,10 +1325,13 @@ final class BoardCaptureTests: XCTestCase {
     openRoot()
     if isPad {
       openSeasonFolder()
-      selectVideo(element("files.item.442"), id: 442, primary: nil)
+      let row = element("files.item.442")
+      selectVideo(row, id: 442, primary: nil)
       let window = app.windows.firstMatch.frame
       let tabBar = tabButton("Files").frame
-      XCTAssertLessThan(mini.frame.minX, window.width / 3, "the mini player left the list column")
+      XCTAssertLessThanOrEqual(
+        app.buttons["audio.mini.stop"].frame.maxX, row.frame.maxX,
+        "the mini player reaches past the list column")
       XCTAssertGreaterThan(mini.frame.minY, tabBar.maxY, "the mini player covers the tab bar")
       XCTAssertLessThanOrEqual(mini.frame.maxY, window.maxY, "the mini player is cut off")
     }
