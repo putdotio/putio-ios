@@ -1087,8 +1087,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.swipeUp()
     openSortMenu()
     assertChecked(["Name", "A to Z"], unchecked: ["Z to A", "Unwatched first", "Watched first"])
-    XCTAssertTrue(app.showsAccent(in: imageColumn(of: "A to Z")), "the sort checkmark is not yellow")
-    XCTAssertFalse(app.showsAccent(in: imageColumn(of: "Z to A")), "an unchecked sort row is yellow")
+    XCTAssertTrue(
+      app.showsAccent(in: imageColumn(of: "A to Z")), "the sort checkmark is not yellow")
+    XCTAssertFalse(
+      app.showsAccent(in: imageColumn(of: "Z to A")), "an unchecked sort row is yellow")
     addScreenshot(named: "runtime-sort-menu-ascending")
     app.sortChoice("Z to A").tap()
     XCTAssertTrue(
