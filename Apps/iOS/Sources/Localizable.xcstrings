@@ -1757,7 +1757,7 @@
       }
     },
     "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1768,7 +1768,7 @@
       }
     },
     "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4664,12 +4664,23 @@
       }
     },
     "Sign out and remove downloads" : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox; at the largest text size the size moves to the message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out and remove downloads"
+          }
+        }
+      }
+    },
+    "Sign out and remove downloads (%@)" : {
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox and carries its size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out and remove downloads (%@)"
           }
         }
       }

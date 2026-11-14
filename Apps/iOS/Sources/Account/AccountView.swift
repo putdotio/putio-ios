@@ -10,6 +10,7 @@ struct AccountView: View {
   let openDestination: AccountDestination?
   @Environment(\.openURL) private var openURL
   @Environment(\.locale) private var locale
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var isRefreshingStorage = false
   @State private var signOutDownloadedBytes: Int64?
   @State private var confirmAlert: PutioConfirmAlert?
@@ -136,19 +137,25 @@ struct AccountView: View {
         set: { if !$0 { signOutDownloadedBytes = nil } }),
       titleVisibility: .visible,
       presenting: signOutDownloadedBytes
-    ) { bytes in
+    ) { _ in
       Button(String(localized: "Sign out"), role: .destructive) {
         signOut(removingDownloads: false)
       }
       .accessibilityIdentifier("auth.sign-out-confirm")
-      Button(String(localized: "Sign out and remove downloads"), role: .destructive) {
+      Button(role: .destructive) {
         signOut(removingDownloads: true)
+      } label: {
+        Text(signOutPrompt.removeDownloadsTitle(downloadedBytes: downloads.storedBytes))
       }
       .accessibilityIdentifier("auth.sign-out-remove-downloads")
       Button("Cancel", role: .cancel) {}
-    } message: { bytes in
-      Text(PutioSignOutPrompt.message(downloadedBytes: bytes))
+    } message: { _ in
+      Text(signOutPrompt.message(downloadedBytes: downloads.storedBytes))
     }
+  }
+
+  private var signOutPrompt: PutioSignOutPrompt {
+    PutioSignOutPrompt(sizeInMessage: dynamicTypeSize >= .xxLarge)
   }
 
   private func askToSignOut() {
@@ -640,7 +647,7 @@ private struct AccountProfileHeader: View {
   }
 }
 
-private enum PutioSignOutPrompt {
+private struct PutioSignOutPrompt {
   static var title: String { String(localized: "Sign out of put.io?") }
 
   static var message: String {
@@ -649,7 +656,10 @@ private enum PutioSignOutPrompt {
       : String(localized: "Downloads stay on this iPhone and come back when you sign in again.")
   }
 
-  static func message(downloadedBytes bytes: Int64) -> String {
+  let sizeInMessage: Bool
+
+  func message(downloadedBytes bytes: Int64) -> String {
+    guard sizeInMessage, bytes > 0 else { return Self.message }
     let size = PutioFileRowModel.sizeText(bytes: bytes)
     return UIDevice.current.userInterfaceIdiom == .pad
       ? String(
@@ -658,6 +668,14 @@ private enum PutioSignOutPrompt {
       : String(
         localized:
           "Downloads use \(size) and stay on this iPhone. They come back when you sign in again.")
+  }
+
+  func removeDownloadsTitle(downloadedBytes bytes: Int64) -> String {
+    guard !sizeInMessage, bytes > 0 else {
+      return String(localized: "Sign out and remove downloads")
+    }
+    let size = PutioFileRowModel.sizeText(bytes: bytes)
+    return String(localized: "Sign out and remove downloads (\(size))")
   }
 }
 

@@ -1440,6 +1440,19 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(remove.appears(within: 5), "the dialog offers no download removal")
     XCTAssertTrue(
       app.buttons["auth.sign-out-confirm"].firstMatch.exists, "the dialog has no plain Sign out")
+    let sizedMessage = app.staticTexts.matching(
+      NSPredicate(format: "label BEGINSWITH %@", "Downloads use ")
+    ).firstMatch
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      XCTAssertEqual(remove.label, "Sign out and remove downloads")
+      XCTAssertTrue(sizedMessage.exists, "at XX Large the message does not carry the size")
+    } else {
+      XCTAssertTrue(
+        remove.label.range(
+          of: #"^Sign out and remove downloads \([^)]*[1-9][^)]*\)$"#, options: .regularExpression)
+          != nil, "the remove action does not show the downloads' size: \(remove.label)")
+      XCTAssertFalse(sizedMessage.exists, "the message repeats the size the action shows")
+    }
     try captureBoard("rd-ios-ses-08-sign-out")
     remove.tap()
     XCTAssertTrue(signIn.appears(within: 15), "sign-out never reached Welcome")
