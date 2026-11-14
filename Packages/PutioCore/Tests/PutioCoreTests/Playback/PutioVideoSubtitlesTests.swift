@@ -78,21 +78,20 @@ final class PutioVideoSubtitlesTests: XCTestCase {
         .startingTrack(in: [english, turkish], remembered: .language("de")))
   }
 
+  @MainActor
   func testMemoryKeepsTheLastLanguageOrOff() throws {
     let suite = "PutioVideoSubtitlesTests-\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
     defer { defaults.removePersistentDomain(forName: suite) }
+    let memory = PutioSubtitleMemory(defaults: defaults)
 
-    MainActor.assumeIsolated {
-      let memory = PutioSubtitleMemory(defaults: defaults)
-      XCTAssertNil(memory.remembered)
-      memory.remember(turkish)
-      XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .language("tr"))
-      memory.remember(PutioSubtitleTrack(id: 3, title: "Unknown", languageTag: "Unknown"))
-      XCTAssertEqual(memory.remembered, .language("tr"))
-      memory.remember(nil)
-      XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .off)
-    }
+    XCTAssertNil(memory.remembered)
+    memory.remember(turkish)
+    XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .language("tr"))
+    memory.remember(PutioSubtitleTrack(id: 3, title: "Unknown", languageTag: "Unknown"))
+    XCTAssertEqual(memory.remembered, .language("tr"))
+    memory.remember(nil)
+    XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .off)
   }
 
   func testRenditionURIsComeFromTheMasterPlaylistSubtitlesOnly() throws {
