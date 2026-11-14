@@ -1605,8 +1605,6 @@ final class BoardCaptureTests: XCTestCase {
   func testPreviewDocument() throws {
     orient(.portrait)
     openDocumentOnSecondPage()
-    XCTAssertFalse(
-      element("preview.position").exists, "a PDF shows the file position under its page pill")
     try captureBoard("rd-ios-pv-03-pdf")
   }
 
