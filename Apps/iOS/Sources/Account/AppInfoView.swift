@@ -109,7 +109,7 @@ struct AppInfoView: View {
         Section {
           Button {
             UIPasteboard.general.string = info.supportText
-            toast = PutioToast(String(localized: "Copied to clipboard"))
+            toast = PutioToast(String(localized: "Copied to clipboard"), width: .fit)
           } label: {
             Text(String(localized: "Copy for support"))
               .putioFont(PutioTheme.Typography.body)

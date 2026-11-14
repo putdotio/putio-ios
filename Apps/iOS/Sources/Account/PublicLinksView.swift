@@ -70,7 +70,7 @@ struct PublicLinksView: View {
 
   private func refresh() async {
     guard await model.load() else {
-      toast = PutioToast(PutioScreenErrorKind.failed.title, icon: .warning)
+      toast = PutioToast(PutioScreenErrorKind.failed.title, icon: .warning, width: .fit)
       return
     }
   }
@@ -137,7 +137,7 @@ struct PublicLinksView: View {
 
   private func copy(_ link: PutioPublicLink) {
     UIPasteboard.general.string = link.url.absoluteString
-    toast = PutioToast(String(localized: "Copied to clipboard"))
+    toast = PutioToast(String(localized: "Copied to clipboard"), width: .fit)
   }
 
   private func askToRevoke(_ link: PutioPublicLink) {
@@ -149,7 +149,7 @@ struct PublicLinksView: View {
     ) {
       Task {
         if case .failed(let message) = await model.revoke(link) {
-          toast = PutioToast(message, icon: .warning)
+          toast = PutioToast(message, icon: .warning, width: .fit)
         }
       }
     }
