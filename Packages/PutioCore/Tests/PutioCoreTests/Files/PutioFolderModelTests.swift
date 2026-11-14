@@ -1236,6 +1236,10 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(model.canStartAction)
     let creation = Task { await model.createFolder(name: "Season 2") }
     try await loader.waitForRequestCount(1)
+    XCTAssertFalse(model.canCreateFolder)
+    await model.createFolder(name: "Season 3")
+    let requestsWhileWaiting = await loader.requestCount()
+    XCTAssertEqual(requestsWhileWaiting, 1)
     await loader.succeed(request: 0, with: listing)
     await creation.value
 

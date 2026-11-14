@@ -77,8 +77,12 @@ public final class PutioFolderModel {
 
   public var canDelete: Bool { canStartAction && trashSettingKnown }
 
+  private var isAwaitingListingForCreation = false
+
   public var canCreateFolder: Bool {
-    guard supportsActions, !mutationIsActive, !isFailed else { return false }
+    guard supportsActions, !mutationIsActive, !isAwaitingListingForCreation, !isFailed else {
+      return false
+    }
     return true
   }
 
@@ -231,7 +235,12 @@ public final class PutioFolderModel {
   }
 
   public func createFolder(name: String) async {
-    if case .loading = state { await loadIfNeeded() }
+    if case .loading = state {
+      guard !isAwaitingListingForCreation else { return }
+      isAwaitingListingForCreation = true
+      await loadIfNeeded()
+      isAwaitingListingForCreation = false
+    }
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !name.isEmpty else { return }
