@@ -29,10 +29,13 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["audio.up-next"].isEnabled)
 
     // Dragging down dismisses presentation, not the playback session.
-    element("audio.title").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    let collapse = app.buttons["audio.collapse"]
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0))
+      .withOffset(CGVector(dx: 0, dy: collapse.frame.midY))
       .press(
         forDuration: 0.1,
         thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+    XCTAssertTrue(element("audio.title").disappears(within: 5), "dragging down kept the sheet")
     let miniPlayer = app.buttons["audio.mini.open"]
     XCTAssertTrue(miniPlayer.appears(within: 5))
     let miniToggle = app.buttons["audio.mini.toggle"]
