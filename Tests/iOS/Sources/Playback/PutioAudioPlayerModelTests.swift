@@ -524,6 +524,20 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.elapsedSeconds, 1, "samples from the start count once it starts there")
   }
 
+  func testASeekBeforeTheTrackIsReadyKeepsTheSeekPosition() async {
+    let h = makeHarness()
+    await h.model.start()
+
+    h.model.seek(to: 100)
+    h.engine.onReady?(0)
+    XCTAssertEqual(h.model.elapsedSeconds, 100)
+    h.engine.onPositionChanged?(0)
+    XCTAssertEqual(h.model.elapsedSeconds, 100)
+    h.engine.onPositionChanged?(100)
+    h.engine.onPositionChanged?(101)
+    XCTAssertEqual(h.model.elapsedSeconds, 101)
+  }
+
   func testEndOfTrackSavesTheWatchedMarkThenAdvancesToTheSuccessor() async {
     let h = makeHarness()
     await h.model.start()
@@ -542,6 +556,21 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events.filter { $0 == "pause" }.count, 1)
     XCTAssertEqual(h.engine.events.suffix(2), ["load:431.m4a@12", "play:1.0"])
     XCTAssertNil(h.model.advancingTo)
+  }
+
+  func testAFailedEndOfTrackSaveIsSentAgainBeforeTheSuccessorLoads() async {
+    let h = makeHarness()
+    await h.model.start()
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(200)
+    h.reports.failingReports = 2
+
+    h.engine.onEnded?()
+    let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
+    await waitUntil { h.model.state == .playing(next) }
+
+    XCTAssertEqual(h.reports.reports.map(\.0), [track.id])
+    XCTAssertEqual(h.reports.reports.map(\.1), [240])
   }
 
   func testEndOfFolderEndsWithoutLoadingAnotherSource() async {
