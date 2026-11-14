@@ -143,7 +143,7 @@ struct PutioFileDetailView: View {
         .accessibilityIdentifier("files.detail.open")
       }
       if offlineStatus == .onDevice {
-        iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded")) {}
+        iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded"), dimmed: true) {}
           .disabled(true)
           .accessibilityIdentifier("files.detail.on-device")
       } else if let onDownload, route.supportsOfflineDownload {
@@ -185,9 +185,9 @@ struct PutioFileDetailView: View {
   }
 
   private func iconButton(
-    _ icon: PutioIcon, label: String, action: @escaping () -> Void
+    _ icon: PutioIcon, label: String, dimmed: Bool = false, action: @escaping () -> Void
   ) -> some View {
-    Button(action: action) { PutioFileDetailIconLabel(icon: icon) }
+    Button(action: action) { PutioFileDetailIconLabel(icon: icon, dimmed: dimmed) }
       .buttonStyle(.plain)
       .accessibilityLabel(Text(label))
   }
@@ -359,12 +359,13 @@ struct PutioFileDetailView: View {
 
 private struct PutioFileDetailIconLabel: View {
   let icon: PutioIcon
-  @Environment(\.isEnabled) private var isEnabled
+  var dimmed = false
+  @PutioScaledMetric(PutioFileDetailLayout.actionControl) private var diameter
 
   var body: some View {
     PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
-      .foregroundStyle(isEnabled ? PutioTheme.Colors.textPrimary : PutioTheme.Colors.textDisabled)
-      .padding(PutioTheme.Spacing.space2)
+      .foregroundStyle(dimmed ? PutioTheme.Colors.textDisabled : PutioTheme.Colors.textPrimary)
+      .frame(width: diameter, height: diameter)
       .background(PutioTheme.Colors.surfaceActive, in: Circle())
       .contentShape(Circle())
   }
@@ -380,6 +381,9 @@ private enum PutioFileDetailLayout {
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2, relativeTo: .title)
   static let actionGlyph = PutioMetricRole(
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1, relativeTo: .body)
+  static let actionControl = PutioMetricRole(
+    value: PutioTheme.Spacing.space4 + PutioTheme.Spacing.space1 + PutioTheme.Spacing.space1 / 2,
+    relativeTo: .body)
   static let factLabelWidth = PutioTheme.Spacing.space6
   static let kindGlyph = PutioMetricRole(value: PutioTheme.Spacing.space4, relativeTo: .largeTitle)
   static let previewPixels = 2_048
