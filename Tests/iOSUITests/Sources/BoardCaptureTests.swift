@@ -802,7 +802,9 @@ final class BoardCaptureTests: XCTestCase {
     let onDevice = element("files.detail.on-device")
     XCTAssertTrue(onDevice.appears(within: 90), "the finished download never showed on device")
     XCTAssertFalse(onDevice.isEnabled, "the on-device button is tappable")
-    let onDeviceCapture = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    let window = app.windows.firstMatch.frame.size
+    let onDeviceCapture = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
     onDeviceCapture.name = "ipad-detail-on-device"
     onDeviceCapture.lifetime = .keepAlways
     add(onDeviceCapture)
