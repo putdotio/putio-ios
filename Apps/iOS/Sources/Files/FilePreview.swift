@@ -481,7 +481,8 @@ final class PutioPreviewPager {
   }
 
   var position: PutioPreviewPosition? {
-    folderSet?.position(hasMore: (source?.hasMore() ?? false) && !reads.stopped)
+    guard kind != .pdf else { return nil }
+    return folderSet?.position(hasMore: (source?.hasMore() ?? false) && !reads.stopped)
   }
 
   var pagingKey: PutioPreviewPagingKey {
@@ -732,6 +733,7 @@ struct PutioPreviewView: View {
   @Binding private var toast: PutioToast?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var labelsHeight: CGFloat = 0
+  @State private var bottomInset: CGFloat = 0
   @State private var titleSpan = PutioPreviewTitleSpan()
   @State private var restoring: Set<PutioFileID> = []
   @State private var linkItem: PutioFileItem?
@@ -769,6 +771,7 @@ struct PutioPreviewView: View {
         .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).midX }) {
           titleSpan.centre = $0
         }
+        .onGeometryChange(for: CGFloat.self, of: \.safeAreaInsets.bottom) { bottomInset = $0 }
         .overlay(alignment: .top) { topFade(model.state) }
         .overlay(alignment: .bottom) {
           bottomLabels(model.state)
@@ -930,11 +933,12 @@ struct PutioPreviewView: View {
       if showsDocument(state), let page = documentPages[pager.current.id], page.showsPill {
         PutioPDFPagePill(position: page)
       }
-      if let position = pager.position, showsBars(state), !showsDocument(state) {
+      if let position = pager.position, showsBars(state) {
         PutioPreviewPositionLabel(position: position)
           .transition(.opacity)
       }
     }
+    .padding(.bottom, showsDocument(state) ? PutioPDFPagePill.screenGap - bottomInset : 0)
   }
 
   static let textLimitLabel = PutioFileRowModel.sizeText(
@@ -1723,6 +1727,8 @@ struct PutioPDFBarFade: View {
 }
 
 struct PutioPDFPagePill: View {
+  static let screenGap: CGFloat = 29
+
   let position: PutioPDFPagePosition
 
   var body: some View {

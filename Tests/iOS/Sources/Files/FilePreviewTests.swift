@@ -421,6 +421,20 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertFalse(pager.remove(images[1].id), "the only file left the viewer open")
   }
 
+  func testAPDFAmongOtherPDFsShowsNoFilePosition() throws {
+    let documents = (1...2).map {
+      BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).pdf", kind: .pdf)
+    }
+    let file = PutioFileRoute(item: documents[1])
+    let viewer = try XCTUnwrap(PutioViewerRoute(opening: file.openAction))
+    let source = PutioPreviewSource(items: { documents }, hasMore: { false }, loadMore: { false })
+    let pager = PutioPreviewPager(
+      opened: viewer, file: file, source: source, download: { _, _ in Data() })
+
+    XCTAssertEqual(pager.routes.count, 2)
+    XCTAssertNil(pager.position, "a PDF shows the file position under its page pill")
+  }
+
   func testRemovingAFileARefreshDroppedStillShowsTheNext() throws {
     let images = (1...3).map {
       BrowserTestFixtures.item(id: $0, parentID: 5, name: "\($0).png", kind: .image)
