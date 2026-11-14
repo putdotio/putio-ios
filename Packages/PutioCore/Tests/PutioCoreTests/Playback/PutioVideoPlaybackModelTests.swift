@@ -288,6 +288,22 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(conversion.statusRequests, [fileID, fileID])
   }
 
+  func testLostStatusReadAfterCompletionAsksToCheckAgain() async {
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.conversionRequired),
+    ])
+    let conversion = VideoConversionStub(statusResults: [
+      .success(.completed),
+      .failure(.transient),
+    ])
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(conversionFailure(from: model)?.kind, .conversionStatus)
+  }
+
   func testConversionStatusIsReadEveryFiveSecondsByDefault() async {
     let source = playbackSource()
     let resolver = PlaybackResolverStub([

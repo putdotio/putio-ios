@@ -996,13 +996,13 @@ import Foundation
 
     static let episodeConversionFileID = 441
 
-    private static var episodeConversion: EpisodeConversion? {
+    private static let episodeConversion: EpisodeConversion? = {
       let arguments = ProcessInfo.processInfo.arguments
       guard let flag = arguments.firstIndex(of: "--putio-harness-episode-conversion"),
         arguments.indices.contains(flag + 1)
       else { return nil }
       return EpisodeConversion(rawValue: arguments[flag + 1])
-    }
+    }()
 
     private static var episodeNeedsConversion: Bool {
       guard episodeConversion != nil else { return false }

@@ -755,7 +755,7 @@ final class PutioVideoPlayerCoordinator {
   private var mediaSelectionObservation: NSObjectProtocol?
   private var positionSaveObservations: [NSObjectProtocol] = []
   private var driver: (any PutioVideoPlayerDriving)?
-  private var onReady: (() -> Void)?
+  private var onReady: (@MainActor () -> Void)?
   private var onDurationKnown: (@MainActor (Double) -> Void)?
   private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
   #if DEBUG

@@ -222,7 +222,7 @@ public final class PutioVideoPlaybackModel {
     case .startConversion:
       await beginConversion()
     case .pollConversion:
-      await pollConversion()
+      await pollConversion(afterStart: true)
     case .resolveConvertedSource:
       await resolveConvertedSource()
     }
@@ -385,7 +385,15 @@ public final class PutioVideoPlaybackModel {
             state = .failed(.conversion)
             return
           }
-          let status = try await loadConversionStatus(fileID)
+          let status: PutioVideoConversionStatus
+          do {
+            status = try await loadConversionStatus(fileID)
+          } catch {
+            handleConversionError(
+              error, generation: requestGeneration, recovery: .resolveConvertedSource,
+              failure: PutioVideoPlaybackFailure.checkingConversion)
+            return
+          }
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }
           switch status {
