@@ -27,7 +27,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let sort = element("settings.default-sort")
     let initialSort = sort.label
     XCTAssertEqual(initialSort, "Default sort order, Name, A to Z")
-    let descending = app.buttons["Name, Z to A"].firstMatch
+    let descending = app.sortChoice("Z to A")
     sort.tap()
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
@@ -75,7 +75,16 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertFirstFile("Document.pdf")
     openPreferences()
     sort.tap()
-    let smallestFirst = app.buttons["Size, smallest first"].firstMatch
+    let size = app.sortChoice("Size")
+    XCTAssertTrue(waitUntilHittable(size))
+    size.tap()
+    XCTAssertTrue(
+      waitFor(
+        NSPredicate(
+          format: "label == %@ AND enabled == true", "Default sort order, Size, largest first"),
+        sort))
+    sort.tap()
+    let smallestFirst = app.sortChoice("Smallest first")
     XCTAssertTrue(waitUntilHittable(smallestFirst))
     smallestFirst.tap()
     XCTAssertTrue(
