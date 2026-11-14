@@ -164,7 +164,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForEnabled(chip, true), "a four-file folder offers Up next")
     chip.tap()
     XCTAssertTrue(app.staticTexts["Up next"].appears(within: 5))
-    let rows = [3102, 3103, 3104, 3108].map { app.buttons["audio.up-next.\($0)"] }
+    let rows = [3102, 3103, 3104, 3108].map { element("audio.up-next.\($0)") }
     XCTAssertTrue(rows[3].appears(within: 10), "the list never showed the folder")
     let tops = rows.map(\.frame.minY)
     XCTAssertEqual(tops, tops.sorted(), "rows follow the folder's order")

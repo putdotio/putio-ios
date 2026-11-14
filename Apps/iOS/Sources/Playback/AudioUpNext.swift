@@ -46,15 +46,11 @@ struct PutioAudioUpNextList: View {
         Button {
           model.play(item)
         } label: {
-          PutioFileRow(
-            PutioFileRowModel(
-              name: item.name,
-              kind: .audio,
-              secondaryText: item.durationSeconds.map(PutioAudioClock.text),
-              showsDisclosure: false))
+          PutioAudioUpNextRow(item: item)
         }
         .buttonStyle(.plain)
         .listRowBackground(rowBackground(isCurrent: isCurrent))
+        .listRowSeparator(item.id == model.queue.last?.id ? .hidden : .automatic, edges: .bottom)
         .accessibilityAddTraits(isCurrent ? .isSelected : [])
         .accessibilityHint(Text("Play"))
         .accessibilityIdentifier("audio.up-next.\(item.id.rawValue)")
@@ -79,5 +75,36 @@ struct PutioAudioUpNextList: View {
     } else {
       Color.clear
     }
+  }
+}
+
+private struct PutioAudioUpNextRow: View {
+  let item: PutioQueuedAudio
+  @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
+  @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var textGap
+
+  var body: some View {
+    HStack(spacing: contentGap) {
+      PutioIconView(
+        .fileAudioFill,
+        size: PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
+      )
+      .foregroundStyle(PutioTheme.Components.FileRow.icon)
+      .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: textGap) {
+        Text(item.name)
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+          .fixedSize(horizontal: false, vertical: true)
+        if let duration = item.durationSeconds {
+          Text(PutioAudioClock.text(duration))
+            .putioFont(PutioTheme.Typography.numeric)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
   }
 }

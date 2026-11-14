@@ -1272,9 +1272,9 @@ final class BoardCaptureTests: XCTestCase {
     let upNext = app.buttons["audio.up-next"]
     XCTAssertTrue(expectEnabled(upNext), "the four-file folder offers no Up next")
     upNext.tap()
-    let current = app.buttons["audio.up-next.3102"]
+    let current = element("audio.up-next.3102")
     XCTAssertTrue(current.appears(within: 10), "the Up next list never opened")
-    XCTAssertTrue(app.buttons["audio.up-next.3108"].exists, "the list stops short of the folder")
+    XCTAssertTrue(element("audio.up-next.3108").exists, "the list stops short of the folder")
     XCTAssertTrue(current.isSelected, "the playing file is not marked")
     XCTAssertTrue(labeled("56:20").exists, "the list shows no length")
     try captureBoard("rd-ios-pb-12-up-next")
