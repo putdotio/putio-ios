@@ -967,8 +967,15 @@ final class BoardCaptureTests: XCTestCase {
       lacking: ["Play", "Download", "Share", "Select", "Mark as watched", "Mark as unwatched"])
     element("files.detail.fact.folder").tap()
     XCTAssertTrue(app.buttons["Rename"].disappears(within: 5), "the detail More stayed open")
+    let row = element("files.item.406")
     element("files.detail.open").tap()
-    XCTAssertTrue(element("preview.screen.406").appears(within: 10), "Open showed no preview")
+    assertPreviewFillsWindow(fileID: 406)
+    assertPreviewKeepsFileAcrossRotation(fileID: 406) { element("preview.image") }
+    assertBackReturnsToDetail(row, fileID: 406)
+
+    row.tap()
+    assertPreviewFillsWindow(fileID: 406)
+    assertBackReturnsToDetail(row, fileID: 406)
   }
 
   func testIPadDetailText() throws {
