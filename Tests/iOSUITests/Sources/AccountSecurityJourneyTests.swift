@@ -347,8 +347,16 @@ final class AccountSecurityJourneyTests: XCTestCase {
   ) {
     let normalized: ([String]) -> [String] = { inAnyOrder ? $0.sorted() : $0 }
     let deadline = Date.now.addingTimeInterval(5)
+    var matchedSince: Date?
     var sent = sentRequests()
-    while normalized(sent) != normalized(expected), Date.now < deadline {
+    while Date.now < deadline {
+      if normalized(sent) == normalized(expected) {
+        let since = matchedSince ?? .now
+        matchedSince = since
+        if Date.now.timeIntervalSince(since) >= 1 { break }
+      } else {
+        matchedSince = nil
+      }
       _ = XCTWaiter.wait(for: [XCTestExpectation(description: "account requests")], timeout: 0.25)
       sent = sentRequests()
     }

@@ -17,7 +17,8 @@ import Observation
 
     nonisolated static func entry(for request: URLRequest) -> String? {
       guard let method = request.httpMethod, method != "GET", let path = request.url?.path,
-        path.hasPrefix("/v2/oauth/grants/") || path == "/v2/oauth2/oob/code"
+        (path.hasPrefix("/v2/oauth/grants/") && path.hasSuffix("/delete"))
+          || path == "/v2/oauth2/oob/code"
           || path == "/v2/account/clear"
       else { return nil }
       guard let body = HarnessSeededAPI.requestBodyData(request), !body.isEmpty else {
