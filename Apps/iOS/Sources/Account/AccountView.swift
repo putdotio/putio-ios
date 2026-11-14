@@ -659,7 +659,7 @@ private struct PutioSignOutPrompt {
   let sizeInMessage: Bool
 
   func message(downloadedBytes bytes: Int64) -> String {
-    guard sizeInMessage else { return Self.message }
+    guard sizeInMessage, bytes > 0 else { return Self.message }
     let size = PutioFileRowModel.sizeText(bytes: bytes)
     return UIDevice.current.userInterfaceIdiom == .pad
       ? String(
@@ -671,7 +671,9 @@ private struct PutioSignOutPrompt {
   }
 
   func removeDownloadsTitle(downloadedBytes bytes: Int64) -> String {
-    guard !sizeInMessage else { return String(localized: "Sign out and remove downloads") }
+    guard !sizeInMessage, bytes > 0 else {
+      return String(localized: "Sign out and remove downloads")
+    }
     let size = PutioFileRowModel.sizeText(bytes: bytes)
     return String(localized: "Sign out and remove downloads (\(size))")
   }
