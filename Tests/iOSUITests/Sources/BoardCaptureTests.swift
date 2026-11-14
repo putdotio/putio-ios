@@ -758,7 +758,7 @@ final class BoardCaptureTests: XCTestCase {
       XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "the episode is not playing")
     let playPause = element("video.play-pause")
     let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
-    app.setVideoPlaying(!auditsText, with: playPause)
+    app.setVideoPlaying(false, with: playPause)
     for (chip, label) in [
       ("audio", "Audio: English"), ("subtitles", "Subtitles: English"),
       ("speed", "Playback speed 1×"),
@@ -772,6 +772,7 @@ final class BoardCaptureTests: XCTestCase {
       speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
     XCTAssertGreaterThanOrEqual(
       speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
+    if !auditsText { app.setVideoPlaying(true, with: playPause) }
     try captureBoard("rd-ios-pb-02-video")
   }
 
