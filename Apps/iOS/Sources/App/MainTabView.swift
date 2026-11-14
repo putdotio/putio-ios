@@ -1000,9 +1000,12 @@ struct MainTabView: View {
             startFromSeconds: source.startFromSeconds))
       }
       harnessPlaybackAttempt += 1
+      let heldPath = HarnessHeldStream.path()
       let subtitledPath = HarnessSubtitledStream.path(for: account)
       let fixtureURL: URL
-      if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
+      let probesInvalidFixture =
+        heldPath == nil && fileID.rawValue != 411 && harnessPlaybackAttempt == 1
+      if probesInvalidFixture {
         guard
           let invalidFixture = Bundle.main.url(
             forResource: "runtime-proof-invalid",
@@ -1024,9 +1027,9 @@ struct MainTabView: View {
         else {
           throw HarnessPlaybackFixtureError.missingResource
         }
-        fixtureURL = baseURL.appending(path: subtitledPath ?? "runtime-proof.m3u8")
+        fixtureURL = baseURL.appending(path: heldPath ?? subtitledPath ?? "runtime-proof.m3u8")
       }
-      if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
+      if probesInvalidFixture {
         do {
           let tracks = try await AVURLAsset(url: fixtureURL).loadTracks(
             withMediaType: .video
@@ -1042,7 +1045,7 @@ struct MainTabView: View {
         PutioPlaybackSource(
           url: fixtureURL,
           // Seeded positions exceed the 20-second subtitled fixture.
-          startFromSeconds: subtitledPath == nil ? source.startFromSeconds : 0
+          startFromSeconds: subtitledPath == nil && heldPath == nil ? source.startFromSeconds : 0
         )
       )
     #else

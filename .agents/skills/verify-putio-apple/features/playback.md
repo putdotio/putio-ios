@@ -6,6 +6,8 @@ offline playback.
 
 ## Sub-features
 
+- `video-wait` shows Preparing video, buffering, the 10-second label and the
+  30-second stall, recovers on its own, and leaves or reloads from the stall.
 - `walk` signs in, recovers a failed video load, plays to the end, autoplays
   the next episode at its saved position, and signs out. This is the recorded
   walk.
@@ -72,6 +74,14 @@ Preconditions:
   `forbidden` gets a 403 from the media server and `refused` points at a closed
   loopback port. Boards: `rd-ios-pb-18-link-expired`,
   `rd-ios-pb-19-connection-lost`.
+- **Video waits.** Run `--only video-wait`. Screenshots:
+  `runtime-video-preparing`, `runtime-video-buffering`,
+  `runtime-video-buffering-long`, `runtime-video-stalled`,
+  `runtime-video-stall-retried`. `PUTIO_HARNESS_HELD_STREAM=<start|middle>:<token>`
+  streams the [held fixture](../../../../Tests/HarnessMedia/held/attribution.md);
+  [`HeldStream`](../../../../Tests/iOSUITests/Sources/HeldStream.swift) releases
+  it. Boards: `rd-ios-pb-24-preparing-video`, `rd-ios-pb-10-buffering`,
+  `rd-ios-pb-26-buffering-long`, `rd-ios-pb-27-stalled`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
   `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`,
   `runtime-audio-sleep-menu`, `runtime-audio-sleep-running`.

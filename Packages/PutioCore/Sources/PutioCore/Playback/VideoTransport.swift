@@ -80,6 +80,7 @@ public struct PutioVideoControlsVisibility: Equatable, Sendable {
     case voiceOver
     case scrubbing
     case menu
+    case buffering
   }
 
   public static let idleDelay = Duration.seconds(3)

@@ -5,6 +5,11 @@ import PutioCore
 import SwiftUI
 import UIKit
 
+struct PutioVideoTrackSelection: Equatable {
+  let audio: Int?
+  let subtitle: Int?
+}
+
 final class PutioVideoSurfaceView: UIView {
   var onPlayerChange: (@MainActor (_ old: AVPlayer?, _ new: AVPlayer?) -> Void)?
   var onPlaybackControlsChange: (@MainActor (Bool) -> Void)?
@@ -139,6 +144,7 @@ final class PutioVideoTransport {
   private(set) var subtitles: [Track] = []
   private(set) var selectedSubtitle: Int?
   let pictureInPicture = PutioVideoPictureInPicture()
+  let wait: PutioVideoWaitModel
 
   @ObservationIgnored private var player: AVPlayer?
   @ObservationIgnored private var attachment: UInt64 = 0
@@ -150,6 +156,11 @@ final class PutioVideoTransport {
   @ObservationIgnored private var legible:
     (group: AVMediaSelectionGroup, options: [AVMediaSelectionOption])?
   @ObservationIgnored private var trackLoad: Task<Void, Never>?
+  @ObservationIgnored var onReload: (@MainActor (PutioVideoTrackSelection?) -> Void)?
+
+  init() {
+    wait = PutioVideoWaitModel()
+  }
 
   var timeline: PutioVideoTimeline { playhead.timeline }
 
@@ -171,6 +182,7 @@ final class PutioVideoTransport {
   private func attach(_ player: AVPlayer?) {
     detach()
     attachment &+= 1
+    wait.restart()
     guard let player else { return }
     self.player = player
     player.defaultRate = speed.rawValue
@@ -202,6 +214,13 @@ final class PutioVideoTransport {
       player.play()
     }
     isPlaying.toggle()
+  }
+
+  func reload() {
+    let tracks =
+      audioTracks.isEmpty && subtitles.isEmpty
+      ? nil : PutioVideoTrackSelection(audio: selectedAudio, subtitle: selectedSubtitle)
+    onReload?(tracks)
   }
 
   func skip(by seconds: Double) {
@@ -272,6 +291,16 @@ final class PutioVideoTransport {
   private func refreshPlaying() {
     guard let player else { return }
     isPlaying = player.timeControlStatus != .paused
+    wait.activityChanged(Self.activity(player.timeControlStatus))
+  }
+
+  private static func activity(_ status: AVPlayer.TimeControlStatus) -> PutioVideoPlayerActivity {
+    switch status {
+    case .playing: .playing
+    case .waitingToPlayAtSpecifiedRate: .waiting
+    case .paused: .paused
+    @unknown default: .paused
+    }
   }
 
   private func update(time: CMTime) {
@@ -380,33 +409,68 @@ struct PutioVideoControls<Trailing: View>: View {
       animate { visibility.idleElapsed(generation: generation, isPlaying: transport.isPlaying) }
     }
     .onChange(of: transport.isPlaying) { _, _ in animate { visibility.interacted() } }
+    .onChange(of: transport.wait.state.showsSpinner, initial: true) { _, buffering in
+      animate { visibility.set(.buffering, buffering) }
+    }
     .onChange(of: voiceOverEnabled, initial: true) { _, enabled in
       visibility.set(.voiceOver, enabled)
     }
   }
 
   private var centre: some View {
+    VStack(spacing: PutioTheme.Spacing.space4) {
+      if transport.wait.state == .bufferingLong {
+        bufferingLabel
+          .hidden()
+          .accessibilityHidden(true)
+      }
+      transportRow
+      if transport.wait.state == .bufferingLong {
+        bufferingLabel
+          .accessibilityIdentifier("video.buffering")
+      }
+    }
+  }
+
+  private var bufferingLabel: some View {
+    Text(String(localized: "Buffering…"))
+      .putioFont(PutioTheme.Typography.body)
+      .foregroundStyle(.white.opacity(0.78))
+  }
+
+  private var transportRow: some View {
     HStack(spacing: PutioTheme.Spacing.space4) {
       PutioVideoSkipButton(seconds: -PutioVideoTimeline.skipInterval) {
         transport.skip(by: -PutioVideoTimeline.skipInterval)
         visibility.interacted()
       }
-      Button {
-        transport.togglePlayPause()
-        visibility.interacted()
-      } label: {
+      if transport.wait.state.showsSpinner {
         PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause) {
-          Image(putioIcon: transport.isPlaying ? .pauseFill : .playFill)
-            .resizable()
-            .scaledToFit()
-            .frame(width: 30, height: 30)
+          ProgressView()
+            .controlSize(.large)
+            .tint(.white.opacity(0.78))
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(String(localized: "Buffering…"))
+        .accessibilityIdentifier("video.buffering-spinner")
+      } else {
+        Button {
+          transport.togglePlayPause()
+          visibility.interacted()
+        } label: {
+          PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause) {
+            Image(putioIcon: transport.isPlaying ? .pauseFill : .playFill)
+              .resizable()
+              .scaledToFit()
+              .frame(width: 30, height: 30)
+          }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+          transport.isPlaying ? String(localized: "Pause") : String(localized: "Play")
+        )
+        .accessibilityIdentifier("video.play-pause")
       }
-      .buttonStyle(.plain)
-      .accessibilityLabel(
-        transport.isPlaying ? String(localized: "Pause") : String(localized: "Play")
-      )
-      .accessibilityIdentifier("video.play-pause")
       PutioVideoSkipButton(seconds: PutioVideoTimeline.skipInterval) {
         transport.skip(by: PutioVideoTimeline.skipInterval)
         visibility.interacted()
