@@ -653,9 +653,7 @@ private enum PutioSignOutPrompt {
 
   static func removeDownloadsLabel(downloadedBytes bytes: Int64) -> Text {
     let size = PutioFileRowModel.sizeText(bytes: bytes)
-    return Text("Sign out and remove downloads") + Text(verbatim: " ")
-      + Text("(\(size))")
-      .font(PutioTheme.Typography.mono.font)
+    return Text("Sign out and remove downloads") + Text(verbatim: " ") + Text("(\(size))")
   }
 }
 
