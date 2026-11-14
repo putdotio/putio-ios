@@ -129,13 +129,13 @@ struct PutioFileDetailView: View {
   private var actionRow: some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
       if isVideo {
-        PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .regular) {
+        PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .medium) {
           onOpen(route)
         }
         .lineLimit(1)
         .accessibilityIdentifier("files.detail.play")
       } else {
-        PutioButton(String(localized: "Open"), icon: .arrowSquareOut, tier: .primary, size: .regular)
+        PutioButton(String(localized: "Open"), icon: .arrowSquareOut, tier: .primary, size: .medium)
         {
           open()
         }
