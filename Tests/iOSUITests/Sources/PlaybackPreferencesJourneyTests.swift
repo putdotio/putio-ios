@@ -183,7 +183,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertFalse(app.resumePrompt.exists, "a video with no saved position asked where to start")
     XCTAssertEqual(
       app.descendants(matching: .any)["video.resume-position"].value as? String, "0")
-    app.descendants(matching: .any)["video.done"].tap()
+    app.closeVideo()
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))

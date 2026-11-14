@@ -2375,7 +2375,7 @@ final class BoardCaptureTests: XCTestCase {
       "the episode never asked where to start")
     XCTAssertTrue(app.buttons["video.resume.start-over"].exists, "the prompt has no Start over")
     XCTAssertTrue(app.buttons["video.resume.resume"].exists, "the prompt has no Resume")
-    XCTAssertFalse(element("video.done").exists, "the player opened before the answer")
+    XCTAssertFalse(element("video.close").exists, "the player opened before the answer")
     try captureBoard("rd-ios-pb-01-resume")
   }
 
