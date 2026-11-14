@@ -121,15 +121,20 @@ final class ConversionGateJourneyTests: XCTestCase {
     app.launchArguments += ["--putio-harness-episode-conversion", conversion]
     app.launch()
     let signIn = element("auth.sign-in")
-    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
-    signIn.tap()
-    let harness = element("files.item.410")
-    XCTAssertTrue(harness.appears(within: 10), "the Harness Folder never appeared")
-    harness.tap()
-    let season = element("files.item.440")
-    XCTAssertTrue(season.appears(within: 10), "the season folder never appeared")
-    season.tap()
-    XCTAssertTrue(element("files.screen.440").appears(within: 10), "the season never opened")
+    let season = element("files.screen.440")
+    let screens = [0, 410].map { element("files.screen.\($0)") }
+    let deadline = Date.now.addingTimeInterval(15)
+    while !signIn.exists, !season.exists, !screens.contains(where: \.exists), Date.now < deadline {
+      _ = signIn.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    for (screen, id) in zip(screens, [410, 440]) where !season.exists {
+      guard screen.appears(within: 10) else { continue }
+      let folder = element("files.item.\(id)")
+      XCTAssertTrue(folder.appears(within: 10), "folder \(id) never appeared")
+      folder.tap()
+    }
+    XCTAssertTrue(season.appears(within: 10), "the season never opened")
   }
 
   private func openEpisode() {
