@@ -24,10 +24,10 @@ final class PlaybackErrorsJourneyTests: XCTestCase {
     let error = element("video.error")
     let failures = element("video.reported-failures")
     XCTAssertTrue(error.appears(within: 15), "a second 403 did not show an error")
+    XCTAssertEqual(failures.value as? String, "accessExpired,accessExpired")
     XCTAssertTrue(app.staticTexts["Couldn’t play this video"].appears(within: 5))
     XCTAssertTrue(
       app.staticTexts["Playback access expired. Retry to refresh it."].appears(within: 5))
-    XCTAssertEqual(failures.value as? String, "accessExpired,accessExpired")
     assertKeepsCloseAndFileName()
     addScreenshot(named: "runtime-video-access-expired")
 

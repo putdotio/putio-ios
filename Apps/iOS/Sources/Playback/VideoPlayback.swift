@@ -1004,7 +1004,9 @@ final class PutioVideoPlayerCoordinator {
         guard let self, generation == playbackGeneration, self.driver === driver else { return }
         guard !failureReported else { return }
         guard finished else {
-          reportFailure(.playback, generation: playbackGeneration)
+          reportFailure(
+            PutioVideoPlayerFault(error: driver.player.currentItem?.error),
+            generation: playbackGeneration)
           return
         }
         positionEstablished = true
