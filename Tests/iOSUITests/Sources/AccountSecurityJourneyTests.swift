@@ -32,10 +32,12 @@ final class AccountSecurityJourneyTests: XCTestCase {
       app.staticTexts["Check your connection and try again."].appears(within: 10),
       "the failed revoke showed no reason")
     XCTAssertTrue(tv.exists, "the failed revoke dropped the row")
+    assertRequests([Self.revokeTV])
     tv.swipeLeft()
     tap("security.app.revoke.42")
     XCTAssertTrue(tv.disappears(within: 10))
     XCTAssertTrue(thisApp.exists)
+    assertRequests([Self.revokeTV, Self.revokeTV])
     screenshot("runtime-security-apps")
     back()
 
@@ -49,17 +51,20 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertEqual(linkCode.value as? String, "ZZZ", "the code was not uppercased as typed")
     tap("security.link-submit")
     XCTAssertTrue(app.staticTexts["Must be exactly 6 characters."].appears(within: 5))
+    assertRequests([Self.revokeTV, Self.revokeTV], "a short code reached put.io")
     enter("zzz", into: linkCode)
     tap("security.link-submit")
     XCTAssertTrue(
       app.staticTexts["That device code was not found. Check the code on the device and try again."]
         .appears(within: 10))
     XCTAssertEqual(linkCode.value as? String, "ZZZZZZ", "a rejected code was not kept for editing")
+    assertRequests([Self.revokeTV, Self.revokeTV, Self.link("ZZZZZZ")])
     enter(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6) + "harn42", into: linkCode)
     tap("security.link-submit")
     let connected = app.putioAlert("Connected")
     XCTAssertTrue(connected.appears(within: 10))
     XCTAssertTrue(app.staticTexts["Bedroom TV is now signed in with your account."].exists)
+    assertRequests([Self.revokeTV, Self.revokeTV, Self.link("ZZZZZZ"), Self.link("HARN42")])
     app.buttons["security.link-done"].firstMatch.tap()
     XCTAssertTrue(connected.disappears(within: 5))
     XCTAssertEqual(linkCode.value as? String ?? "", "", "OK did not clear the field")
@@ -100,6 +105,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     app.buttons["putio-alert.cancel"].firstMatch.tap()
     XCTAssertTrue(confirm.disappears(within: 5))
     assertSelected([files, history, trash])
+    assertRequests([], "Cancel sent a clear")
 
     tap(clear)
     XCTAssertTrue(confirm.appears(within: 5))
@@ -111,6 +117,8 @@ final class AccountSecurityJourneyTests: XCTestCase {
       element("danger.clear-failure").label, "Check your connection and try again.")
     assertSelected([files, history, trash])
     XCTAssertTrue(clear.isEnabled, "Clear was not offered again after a failure")
+    let clearFilesHistoryTrash = Self.clear(["files", "history", "trash"])
+    assertRequests([clearFilesHistoryTrash])
     screenshot("runtime-danger-clear-failed")
 
     tap(clear)
@@ -120,6 +128,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertFalse(element("danger.clear-failure").exists)
     XCTAssertFalse(files.isSelected || history.isSelected || trash.isSelected)
     XCTAssertFalse(clear.isEnabled, "Clear stayed enabled after the selection was cleared")
+    assertRequests([clearFilesHistoryTrash, clearFilesHistoryTrash])
     screenshot("runtime-danger-clear-data")
 
     tap(history)
@@ -144,6 +153,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(
       history.wait(for: \.isEnabled, toEqual: false, timeout: 5), "the rows stayed editable")
     XCTAssertFalse(clear.isEnabled, "Clear stayed tappable while clearing")
+    assertRequests([Self.clear(["history"])])
     back()
     XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
 
@@ -159,6 +169,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertFalse(element("danger.clear-failure").exists)
     XCTAssertFalse(element("danger.clear-success").exists)
     XCTAssertFalse(clear.isEnabled)
+    assertRequests([Self.clear(["history"])], "leaving and reopening sent another clear")
   }
 
   func testTwoFactorAndDestroyOpenTheBrowserAndRefreshOnReturn() throws {
@@ -198,6 +209,13 @@ final class AccountSecurityJourneyTests: XCTestCase {
       app.putioAlerts.firstMatch.exists, "Destroy account asked for anything in the app")
     XCTAssertTrue(app.navigationBars["Destroy your account"].exists)
     XCTAssertFalse(element("auth.sign-in").exists, "the app signed out before put.io answered")
+    assertRequests([], "a browser handoff changed the account from the app")
+
+    sendToBackgroundAndReturn()
+    XCTAssertTrue(
+      app.navigationBars["Destroy your account"].appears(within: 5),
+      "returning without destroying left the screen")
+    XCTAssertFalse(element("auth.sign-in").exists, "returning without destroying signed out")
   }
 
   func testAccountDestroyedInTheBrowserSignsOutOnReturn() throws {
@@ -241,6 +259,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     alert.buttons["Cancel"].tap()
     XCTAssertTrue(alert.disappears(within: 5))
     XCTAssertTrue(tv.exists && android.exists && infuse.exists, "Cancel revoked an app")
+    assertRequests([], "Cancel sent a revoke")
 
     tap("security.apps.sign-out-others")
     XCTAssertTrue(alert.appears(within: 5))
@@ -252,6 +271,8 @@ final class AccountSecurityJourneyTests: XCTestCase {
       "the failed app showed no reason")
     XCTAssertTrue(tv.exists, "the failed app left the list")
     XCTAssertTrue(signOutOthers.exists, "a partial failure hid the row")
+    let revokeOthers = [Self.revokeTV, Self.revoke(43), Self.revoke(44)]
+    assertRequests(revokeOthers, inAnyOrder: true)
     screenshot("runtime-security-sign-out-others-partial")
 
     tap("security.apps.sign-out-others")
@@ -260,6 +281,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(tv.disappears(within: 10))
     XCTAssertTrue(signOutOthers.disappears(within: 5), "the row stayed with only this app")
     XCTAssertTrue(thisApp.exists)
+    assertRequests(revokeOthers + [Self.revokeTV], inAnyOrder: true)
     screenshot("runtime-security-sign-out-others-done")
 
     app.terminate()
@@ -282,6 +304,7 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(
       linkCode.wait(for: \.isEnabled, toEqual: false, timeout: 5), "the field stayed editable")
     XCTAssertFalse(linkSubmit.isEnabled, "Link stayed tappable while linking")
+    assertRequests([Self.link("X7K2QM")])
     back()
     XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
     XCTAssertFalse(app.putioAlerts.firstMatch.appears(within: 3), "a cancelled link reported back")
@@ -289,7 +312,55 @@ final class AccountSecurityJourneyTests: XCTestCase {
     XCTAssertTrue(linkCode.appears(within: 5))
     XCTAssertTrue(linkCode.isEnabled, "the reopened field stayed locked")
     XCTAssertFalse(element("security.link-failure").exists, "a cancelled link showed a failure")
+    XCTAssertEqual(linkCode.value as? String ?? "", "", "the reopened field kept the old code")
+    enter("x7k2qm", into: linkCode)
     XCTAssertTrue(linkSubmit.isEnabled, "Link stayed busy after the cancelled attempt")
+    assertRequests([Self.link("X7K2QM")], "reopening Link a device sent the code again")
+  }
+
+  private static let revokeTV = revoke(42)
+
+  private static func revoke(_ grantID: Int) -> String {
+    "POST /v2/oauth/grants/\(grantID)/delete"
+  }
+
+  private static func link(_ code: String) -> String {
+    #"POST /v2/oauth2/oob/code {"code":"\#(code)"}"#
+  }
+
+  private static func clear(_ categories: Set<String>) -> String {
+    let flags = [
+      "active_transfers", "files", "finished_transfers", "friends", "history", "rss_feeds",
+      "rss_logs", "trash",
+    ].map { #""\#($0)":\#(categories.contains($0))"# }
+    return "POST /v2/account/clear {\(flags.joined(separator: ","))}"
+  }
+
+  private func sentRequests() -> [String] {
+    let value = element("harness.account-requests").value as? String ?? ""
+    return value.split(separator: "\n").map(String.init)
+  }
+
+  private func assertRequests(
+    _ expected: [String], _ message: String = "", inAnyOrder: Bool = false,
+    file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let normalized: ([String]) -> [String] = { inAnyOrder ? $0.sorted() : $0 }
+    let deadline = Date.now.addingTimeInterval(5)
+    var matchedSince: Date?
+    var sent = sentRequests()
+    while Date.now < deadline {
+      if normalized(sent) == normalized(expected) {
+        let since = matchedSince ?? .now
+        matchedSince = since
+        if Date.now.timeIntervalSince(since) >= 1 { break }
+      } else {
+        matchedSince = nil
+      }
+      _ = XCTWaiter.wait(for: [XCTestExpectation(description: "account requests")], timeout: 0.25)
+      sent = sentRequests()
+    }
+    XCTAssertEqual(normalized(sent), normalized(expected), message, file: file, line: line)
   }
 
   private func signIn() {
