@@ -130,29 +130,31 @@ private struct PutioConversionTrack: View {
 
 private struct PutioConversionWaitingBar: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var atEnd = false
 
   var body: some View {
-    TimelineView(.animation(paused: reduceMotion)) { timeline in
-      let width = PutioVideoConversionGateMetrics.trackWidth
-      let segment = width * PutioVideoConversionGateMetrics.waitingSegment
-      Capsule()
-        .fill(PutioVideoConversionGateMetrics.trackColor)
-        .overlay(alignment: .leading) {
-          Capsule()
-            .fill(PutioTheme.Colors.accent)
-            .frame(width: segment)
-            .offset(x: offset(at: timeline.date, travel: width - segment))
+    let width = PutioVideoConversionGateMetrics.trackWidth
+    let segment = width * PutioVideoConversionGateMetrics.waitingSegment
+    let travel = width - segment
+    Capsule()
+      .fill(PutioVideoConversionGateMetrics.trackColor)
+      .overlay(alignment: .leading) {
+        Capsule()
+          .fill(PutioTheme.Colors.accent)
+          .frame(width: segment)
+          .offset(x: reduceMotion ? travel / 2 : (atEnd ? travel : 0))
+      }
+      .clipShape(Capsule())
+      .frame(width: width, height: PutioVideoConversionGateMetrics.trackHeight)
+      .task(id: reduceMotion) {
+        guard !reduceMotion else { return }
+        withAnimation(
+          .easeInOut(duration: PutioVideoConversionGateMetrics.waitingPeriod / 2)
+            .repeatForever(autoreverses: true)
+        ) {
+          atEnd = true
         }
-        .clipShape(Capsule())
-        .frame(width: width, height: PutioVideoConversionGateMetrics.trackHeight)
-    }
-  }
-
-  private func offset(at date: Date, travel: CGFloat) -> CGFloat {
-    guard !reduceMotion else { return travel / 2 }
-    let period = PutioVideoConversionGateMetrics.waitingPeriod
-    let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
-    return travel * (1 - cos(phase * 2 * .pi)) / 2
+      }
   }
 }
 

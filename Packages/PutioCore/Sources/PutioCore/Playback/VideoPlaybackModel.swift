@@ -132,7 +132,7 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
 
   static func checkingConversion(_ error: Error) -> PutioVideoPlaybackFailure? {
     guard let failure = resolving(error) else { return nil }
-    guard failure.kind != .notFound else { return failure }
+    guard failure.kind == .transient else { return converting(error) }
     return PutioVideoPlaybackFailure(
       kind: .conversionStatus,
       title: String(localized: "Can’t check conversion status", bundle: .module),

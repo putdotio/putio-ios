@@ -288,6 +288,20 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(conversion.statusRequests, [fileID, fileID])
   }
 
+  func testRateLimitedStatusReadKeepsItsOwnReason() async {
+    let resolver = PlaybackResolverStub([.success(.conversionRequired)])
+    let conversion = VideoConversionStub(statusResults: [.failure(.rateLimited)])
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(
+      conversionFailure(from: model),
+      PutioVideoPlaybackFailure(
+        kind: .rateLimited, title: "Could not convert video",
+        message: "put.io is receiving too many requests. Try again shortly."))
+  }
+
   func testLostStatusReadAfterCompletionAsksToCheckAgain() async {
     let resolver = PlaybackResolverStub([
       .success(.conversionRequired),
