@@ -143,7 +143,6 @@ final class PutioAudioPlayerModel {
   private(set) var speed: PutioAudioSpeed
   private(set) var elapsedSeconds = 0
   private(set) var durationSeconds: Int?
-  /// The files beside the current track; `nil` until its folder is read.
   private(set) var neighbours: PutioAudioNeighbours?
 
   @ObservationIgnored private let engine: any PutioAudioEngine
@@ -414,7 +413,10 @@ final class PutioAudioPlayerModel {
     guard requestGeneration == generation, !Task.isCancelled else { return }
     var next = target
     if next == nil, neighboursTrackID == completed.id {
-      next = await neighboursTask?.value?.next
+      if neighbours == nil { neighbours = await neighboursTask?.value }
+      guard requestGeneration == generation, !Task.isCancelled else { return }
+      if neighbours == nil { neighbours = try? await loadNeighbours(completed) }
+      next = neighbours?.next
     }
     guard requestGeneration == generation, !Task.isCancelled else { return }
     guard let next else {

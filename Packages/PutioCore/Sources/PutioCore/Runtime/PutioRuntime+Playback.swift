@@ -42,9 +42,8 @@ extension PutioRuntime {
     return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
   }
 
-  /// Walks the folder's audio files by name, the order the file list shows,
-  /// and stops once the file after `fileID` is known. The next-file endpoint
-  /// can leave the folder, so the queue never asks it.
+  /// The audio files beside `fileID` in name order, as Android's queue reads
+  /// them. The next-file endpoint can leave the folder, so this lists it.
   public func audioNeighbours(of fileID: PutioFileID, in parentID: PutioFileID) async throws
     -> PutioAudioNeighbours
   {
