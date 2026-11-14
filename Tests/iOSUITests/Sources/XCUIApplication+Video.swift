@@ -8,7 +8,6 @@ extension XCUIApplication {
   func revealVideoControls(
     showing control: XCUIElement, file: StaticString = #filePath, line: UInt = #line
   ) {
-    holdPlayerOrientation()
     for _ in 0..<3 {
       if control.exists { return }
       coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3)).tap()
@@ -47,12 +46,15 @@ extension XCUIApplication {
     XCTFail("Close never dismissed the video", file: file, line: line)
   }
 
-  private func holdPlayerOrientation() {
-    let window = windows.firstMatch
-    guard window.exists, window.frame.width > window.frame.height,
-      !XCUIDevice.shared.orientation.isLandscape
-    else { return }
+  func holdLandscapeForPlayer() {
+    guard UIDevice.current.userInterfaceIdiom == .phone else { return }
     XCUIDevice.shared.orientation = .landscapeLeft
-    _ = videoClose.waitForExistence(timeout: 2)
+    let landscape = XCTNSPredicateExpectation(
+      predicate: NSPredicate { object, _ in
+        guard let app = object as? XCUIApplication else { return false }
+        return app.frame.width > app.frame.height
+      },
+      object: self)
+    _ = XCTWaiter.wait(for: [landscape], timeout: 5)
   }
 }

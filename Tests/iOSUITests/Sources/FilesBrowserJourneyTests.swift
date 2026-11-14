@@ -1771,6 +1771,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let nestedFile = element(identifier: "files.item.411")
     XCTAssertTrue(nested.appears(within: 10), "nested browser never appeared")
     XCTAssertTrue(nestedFile.appears(within: 5), "seeded nested file never appeared")
+    app.holdLandscapeForPlayer()
     nestedFile.tap()
 
     let done = element(identifier: "video.close")
