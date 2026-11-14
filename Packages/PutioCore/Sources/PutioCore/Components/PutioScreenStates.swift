@@ -168,6 +168,7 @@ public struct PutioEmptyStateView: View {
 }
 
 public struct PutioErrorStateView: View {
+  private let icon: PutioIcon?
   private let title: String
   private let message: String?
   private let retry: PutioScreenStateAction?
@@ -179,12 +180,32 @@ public struct PutioErrorStateView: View {
     retryIdentifier: String? = nil,
     retry: (() -> Void)? = nil
   ) {
+    self.icon = nil
     self.title = title
     self.message = message
     self.retry = PutioScreenStateAction.optional(
       title: retryTitle,
       icon: .arrowCounterClockwise,
       identifier: retryIdentifier,
+      perform: retry
+    )
+  }
+
+  public init(
+    icon: PutioIcon,
+    title: String,
+    message: String,
+    retryIdentifier: String? = nil,
+    retry: @escaping () -> Void
+  ) {
+    self.icon = icon
+    self.title = title
+    self.message = message
+    self.retry = PutioScreenStateAction(
+      title: PutioScreenStateLayout.retryTitle,
+      icon: nil,
+      identifier: retryIdentifier,
+      prominent: true,
       perform: retry
     )
   }
@@ -207,11 +228,17 @@ public struct PutioErrorStateView: View {
     PutioScreenStateContent(
       title: title, message: message.map(AttributedString.init), action: retry
     ) {
-      #if os(tvOS)
-        PutioScreenStateIcon(icon: .warningCircle, tint: PutioTheme.Colors.destructive)
-      #else
-        PutioScreenStateKaomoji(kaomoji: .knockedOut)
-      #endif
+      if let icon {
+        PutioScreenStateIcon(
+          icon: icon, tint: PutioTheme.Colors.textSecondary,
+          size: PutioScreenStateLayout.errorIconSize)
+      } else {
+        #if os(tvOS)
+          PutioScreenStateIcon(icon: .warningCircle, tint: PutioTheme.Colors.destructive)
+        #else
+          PutioScreenStateKaomoji(kaomoji: .knockedOut)
+        #endif
+      }
     }
   }
 }
@@ -334,12 +361,17 @@ private struct PutioScreenStateAction {
   let title: String
   let icon: PutioIcon?
   let identifier: String?
+  let prominent: Bool
   let perform: () -> Void
 
-  init(title: String, icon: PutioIcon?, identifier: String? = nil, perform: @escaping () -> Void) {
+  init(
+    title: String, icon: PutioIcon?, identifier: String? = nil, prominent: Bool = false,
+    perform: @escaping () -> Void
+  ) {
     self.title = title
     self.icon = icon
     self.identifier = identifier
+    self.prominent = prominent
     self.perform = perform
   }
 
@@ -388,10 +420,10 @@ private struct PutioScreenStateIcon: View {
 
   @PutioScaledMetric private var iconSize: CGFloat
 
-  init(icon: PutioIcon, tint: Color) {
+  init(icon: PutioIcon, tint: Color, size: PutioMetricRole = PutioScreenStateLayout.iconSize) {
     self.icon = icon
     self.tint = tint
-    _iconSize = PutioScaledMetric(PutioScreenStateLayout.iconSize)
+    _iconSize = PutioScaledMetric(size)
   }
 
   var body: some View {
@@ -434,11 +466,29 @@ private struct PutioScreenStateButton: View {
 
   var body: some View {
     #if os(tvOS)
-      PutioButton(action.title, icon: action.icon, tier: .secondary, size: size) {
+      PutioButton(
+        action.title, icon: action.icon, tier: action.prominent ? .primary : .secondary, size: size
+      ) {
         action.perform()
       }
       .accessibilityIdentifier(action.identifier ?? "")
     #else
+      if action.prominent {
+        PutioButton(
+          action.title, icon: action.icon, tier: .primary,
+          size: PutioScreenStateLayout.prominentActionSize
+        ) {
+          action.perform()
+        }
+        .accessibilityIdentifier(action.identifier ?? "")
+      } else {
+        borderedButton
+      }
+    #endif
+  }
+
+  #if !os(tvOS)
+    private var borderedButton: some View {
       Button(action: action.perform) {
         HStack(spacing: contentGap) {
           if let icon = action.icon {
@@ -457,8 +507,8 @@ private struct PutioScreenStateButton: View {
       .controlSize(size.controlSize)
       .tint(PutioTheme.Colors.textPrimary)
       .accessibilityIdentifier(action.identifier ?? "")
-    #endif
-  }
+    }
+  #endif
 }
 
 extension View {
@@ -502,6 +552,7 @@ enum PutioScreenStateLayout {
       value: PutioTheme.TV.Typography.heading.size,
       relativeTo: .title
     )
+    static let errorIconSize = iconSize
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let messageFont = PutioTheme.Typography.body
@@ -518,7 +569,9 @@ enum PutioScreenStateLayout {
     static let contentGap = PutioTheme.Spacing.space3
     static let spinnerTint = PutioTheme.Colors.textSecondary
     static let actionSize = PutioButtonSize.regular
+    static let prominentActionSize = PutioButtonSize.medium
     static let iconSize = PutioMetricRole(value: 52, relativeTo: .title)
+    static let errorIconSize = PutioMetricRole(value: 28, relativeTo: .title)
     static let bannerIconSize = PutioMetricRole(
       value: PutioTheme.Typography.sizeMd, relativeTo: .body)
     static let bannerVerticalPadding = PutioTheme.Spacing.space2 + PutioTheme.Spacing.space1

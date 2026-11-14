@@ -1,4 +1,5 @@
 import Foundation
+import PutioCore
 import Sentry
 import os
 
@@ -44,6 +45,21 @@ enum SentryTelemetry {
     options.enableCaptureFailedRequests = false
     options.beforeSend = { isCapturing ? allowlisted($0) : nil }
     return options
+  }
+
+  static func report(_ fault: PutioVideoPlayerFault) {
+    guard isCapturing, SentrySDK.isEnabled else { return }
+    SentrySDK.capture(event: event(for: fault))
+  }
+
+  static func event(for fault: PutioVideoPlayerFault) -> Event {
+    let event = Event(level: .error)
+    let exception = Exception(value: nil, type: "VideoPlaybackFailure.\(fault.rawValue)")
+    let mechanism = Mechanism(type: "video-player")
+    mechanism.handled = true
+    exception.mechanism = mechanism
+    event.exceptions = [exception]
+    return event
   }
 
   /// Copies listed fields into a new event, so unlisted ones, including any a

@@ -776,6 +776,36 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-02-video")
   }
 
+  func testVideoAccessExpired() throws {
+    openFailingEpisode(faults: "forbidden,forbidden")
+    XCTAssertTrue(app.staticTexts["Couldn’t play this video"].exists)
+    XCTAssertTrue(app.staticTexts["Playback access expired. Retry to refresh it."].exists)
+    try captureBoard("rd-ios-pb-18-link-expired")
+  }
+
+  func testVideoConnectionLost() throws {
+    openFailingEpisode(faults: "refused")
+    XCTAssertTrue(app.staticTexts["Connection lost"].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    try captureBoard("rd-ios-pb-19-connection-lost")
+  }
+
+  private func openFailingEpisode(faults: String) {
+    app.launchArguments += ["--putio-harness-video-faults", faults]
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    XCTAssertTrue(element("video.error").appears(within: 15), "the episode never failed")
+    XCTAssertTrue(app.buttons["video.retry"].exists, "the error offers no Try again")
+    XCTAssertEqual(
+      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+  }
+
   func testIPadSplit() throws {
     orient(.landscapeLeft)
     app.launch()

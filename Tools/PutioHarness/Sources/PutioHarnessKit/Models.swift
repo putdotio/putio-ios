@@ -847,6 +847,8 @@ enum BoardCaptureContract {
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
       BoardCapture("rd-ios-pb-02-video", .iphone, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
+      BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
+      BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1457,6 +1459,13 @@ enum BrowserJourneyContract {
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen",
       attachmentNames: [
         "runtime-resume-prompt", "runtime-video-controls", "runtime-video-controls-hidden",
+      ],
+      timeAllowance: 150),
+    JourneyPreflight(
+      "video-errors",
+      "PlaybackErrorsJourneyTests/testExpiredAccessAndALostConnectionRecoverWithTryAgainAtTheSavedPosition",
+      attachmentNames: [
+        "runtime-video-access-expired", "runtime-video-connection-lost", "runtime-video-recovered",
       ],
       timeAllowance: 150),
     JourneyPreflight(

@@ -40,6 +40,8 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     case transient
     case invalidResponse
     case playback
+    case accessExpired
+    case connectionLost
     case conversion
     case unknown
   }
@@ -94,6 +96,26 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     message: String(localized: "The video could not be played. Try again.", bundle: .module)
   )
 
+  public static let accessExpired = PutioVideoPlaybackFailure(
+    kind: .accessExpired,
+    title: String(localized: "Couldn’t play this video", bundle: .module),
+    message: String(localized: "Playback access expired. Retry to refresh it.", bundle: .module)
+  )
+
+  public static let connectionLost = PutioVideoPlaybackFailure(
+    kind: .connectionLost,
+    title: String(localized: "Connection lost", bundle: .module),
+    message: String(localized: "Check your connection and try again.", bundle: .module)
+  )
+
+  static func player(_ fault: PutioVideoPlayerFault) -> PutioVideoPlaybackFailure {
+    switch fault {
+    case .accessExpired: accessExpired
+    case .connectionLost: connectionLost
+    case .playback: playback
+    }
+  }
+
   static let conversion = PutioVideoPlaybackFailure(
     kind: .conversion,
     title: String(localized: "Could not convert video", bundle: .module),
@@ -122,6 +144,7 @@ public final class PutioVideoPlaybackModel {
   }
 
   public private(set) var state: PutioVideoPlaybackState = .loading
+  public private(set) var playerAttempt: UInt64 = 0
 
   @ObservationIgnored private let fileID: PutioFileID
   @ObservationIgnored private let resolve: PutioPlaybackResolve
@@ -135,6 +158,8 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
   @ObservationIgnored private var recovery: Recovery = .resolve
+  @ObservationIgnored private var heldSeconds: Int?
+  @ObservationIgnored private var refreshedExpiredAccess = false
 
   public init(
     fileID: PutioFileID,
@@ -168,6 +193,7 @@ public final class PutioVideoPlaybackModel {
 
   public func retry() async {
     attemptedLoad = true
+    refreshedExpiredAccess = false
     await recover()
   }
 
@@ -184,17 +210,26 @@ public final class PutioVideoPlaybackModel {
     }
   }
 
-  public func playerFailed() {
+  public func playerFailed(_ fault: PutioVideoPlayerFault = .playback, heldSeconds: Int? = nil)
+    async
+  {
     guard case .ready = state else { return }
-    generation &+= 1
-    state = .failed(.playback)
+    if let heldSeconds { self.heldSeconds = heldSeconds }
+    recovery = .resolve
+    guard fault == .accessExpired, !refreshedExpiredAccess else {
+      generation &+= 1
+      state = .failed(.player(fault))
+      return
+    }
+    refreshedExpiredAccess = true
+    await resolveSource(showsLoading: false)
   }
 
-  private func resolveSource() async {
+  private func resolveSource(showsLoading: Bool = true) async {
     generation &+= 1
     let requestGeneration = generation
     recovery = .resolve
-    state = .loading
+    if showsLoading { state = .loading }
 
     do {
       try Task.checkCancellation()
@@ -213,7 +248,7 @@ public final class PutioVideoPlaybackModel {
         let start = await startSource(source, afterConversion: false)
         try Task.checkCancellation()
         guard requestGeneration == generation else { return }
-        state = .ready(start)
+        play(start)
       case .conversionRequired:
         state = .conversionRequired
         await beginConversion(generation: requestGeneration)
@@ -304,7 +339,7 @@ public final class PutioVideoPlaybackModel {
           let start = await startSource(source, afterConversion: true)
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }
-          state = .ready(start)
+          play(start)
           return
         case .conversionRequired:
           attempts += 1
@@ -338,9 +373,18 @@ public final class PutioVideoPlaybackModel {
     }
   }
 
+  private func play(_ source: PutioPlaybackSource) {
+    playerAttempt &+= 1
+    state = .ready(source)
+  }
+
   private func startSource(_ source: PutioPlaybackSource, afterConversion: Bool) async
     -> PutioPlaybackSource
   {
+    if let heldSeconds {
+      return PutioPlaybackSource(
+        url: source.url, startFromSeconds: heldSeconds, resumesAfterFailure: true)
+    }
     if let chosenStart {
       guard source.startFromSeconds == chosenStart.saved else { return source }
       return PutioPlaybackSource(url: source.url, startFromSeconds: chosenStart.start)

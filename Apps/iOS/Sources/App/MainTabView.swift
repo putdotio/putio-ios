@@ -826,6 +826,7 @@ struct MainTabView: View {
       remembersPlaybackPosition: account.rememberVideoTime,
       suggestsNextVideo: account.suggestNextVideo,
       autoplayNextVideo: { await appConfig.resolveAutoplayNextVideo() },
+      reportFailure: { SentryTelemetry.report($0) },
       showsHarnessReadiness: scenario == .filesBrowser,
       conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
       nextVideoAutoplayDelay: .seconds(5),
@@ -983,6 +984,18 @@ struct MainTabView: View {
     #if DEBUG
       guard scenario == .filesBrowser, case .ready(let source) = resolution else {
         return resolution
+      }
+      if let fault = HarnessVideoFaults.next() {
+        guard
+          let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+          let baseURL = URL(string: baseURLString)
+        else {
+          throw HarnessPlaybackFixtureError.missingResource
+        }
+        return .ready(
+          PutioPlaybackSource(
+            url: HarnessVideoFaults.url(for: fault, mediaBaseURL: baseURL),
+            startFromSeconds: source.startFromSeconds))
       }
       harnessPlaybackAttempt += 1
       let subtitledPath = HarnessSubtitledStream.path(for: account)

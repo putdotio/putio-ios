@@ -17,14 +17,16 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
 {
   public let url: URL
   public let startFromSeconds: Int
+  public let resumesAfterFailure: Bool
 
-  public init(url: URL, startFromSeconds: Int) {
+  public init(url: URL, startFromSeconds: Int, resumesAfterFailure: Bool = false) {
     self.url = url
     self.startFromSeconds = startFromSeconds
+    self.resumesAfterFailure = resumesAfterFailure
   }
 
   public var description: String {
-    "PutioPlaybackSource(url: <redacted>, startFromSeconds: \(startFromSeconds))"
+    "PutioPlaybackSource(url: <redacted>, startFromSeconds: \(startFromSeconds), resumesAfterFailure: \(resumesAfterFailure))"
   }
 
   public var debugDescription: String {
@@ -37,6 +39,7 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
       children: [
         "url": "<redacted>",
         "startFromSeconds": startFromSeconds,
+        "resumesAfterFailure": resumesAfterFailure,
       ],
       displayStyle: .struct
     )
