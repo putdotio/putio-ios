@@ -7,12 +7,22 @@ struct PutioAudioPlayerView: View {
   var castButton: AnyView?
   let onDismiss: @MainActor () -> Void
   var showsHarnessReadiness = false
+  @State private var showsUpNext = false
 
   var body: some View {
     NavigationStack {
       content
         .putioContentBackground()
         .toolbar { toolbar }
+        .navigationDestination(isPresented: upNextPresentation(regular: true)) {
+          PutioAudioUpNextList(model: model)
+            .putioContentBackground()
+            .navigationTitle(String(localized: "Up next"))
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+    .sheet(isPresented: upNextPresentation(regular: false)) {
+      PutioAudioUpNextSheet(model: model)
     }
     .presentationDragIndicator(horizontalSizeClass == .regular ? .visible : .hidden)
     .presentationSizing(.form)
@@ -35,8 +45,14 @@ struct PutioAudioPlayerView: View {
         Task { await model.retry() }
       }
     case .playing, .paused, .interrupted, .ended:
-      PutioNowPlayingDetails(model: model)
+      PutioNowPlayingDetails(model: model) { showsUpNext = true }
     }
+  }
+
+  private func upNextPresentation(regular: Bool) -> Binding<Bool> {
+    Binding(
+      get: { showsUpNext && (horizontalSizeClass == .regular) == regular },
+      set: { showsUpNext = $0 })
   }
 
   @ToolbarContentBuilder
@@ -96,11 +112,9 @@ struct PutioAudioPlayerView: View {
 
 private struct PutioNowPlayingDetails: View {
   let model: PutioAudioPlayerModel
-  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  let showUpNext: () -> Void
   @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
   @State private var scrubSeconds: Double?
-  @State private var showsUpNextSheet = false
-  @State private var showsUpNextPage = false
 
   var body: some View {
     GeometryReader { geometry in
@@ -126,23 +140,6 @@ private struct PutioNowPlayingDetails: View {
         .frame(maxWidth: .infinity)
       }
       .scrollBounceBehavior(.basedOnSize)
-    }
-    .sheet(isPresented: $showsUpNextSheet) {
-      PutioAudioUpNextSheet(model: model)
-    }
-    .navigationDestination(isPresented: $showsUpNextPage) {
-      PutioAudioUpNextList(model: model)
-        .putioContentBackground()
-        .navigationTitle(String(localized: "Up next"))
-        .navigationBarTitleDisplayMode(.inline)
-    }
-  }
-
-  private func showUpNext() {
-    if horizontalSizeClass == .regular {
-      showsUpNextPage = true
-    } else {
-      showsUpNextSheet = true
     }
   }
 
