@@ -394,7 +394,8 @@ private struct PutioSleepTimerChip: View {
       }
     } label: {
       PutioNowPlayingChipLabel(
-        icon: .moon, title: left ?? String(localized: "Sleep timer"), isNumeric: left != nil,
+        icon: left == nil ? .moon : .moonFill, title: left ?? String(localized: "Sleep timer"),
+        isNumeric: left != nil,
         iconColor: left == nil ? nil : PutioTheme.Colors.accent
       )
       .accessibilityElement(children: .ignore)

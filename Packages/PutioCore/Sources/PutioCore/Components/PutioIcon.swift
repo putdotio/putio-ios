@@ -53,6 +53,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case listChecks = "list-checks-regular"
   case lockKey = "lock-key-regular"
   case moon = "moon-regular"
+  case moonFill = "moon-fill"
   case pauseFill = "pause-fill"
   case pencilSimple = "pencil-simple-regular"
   case play = "play-regular"
