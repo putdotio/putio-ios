@@ -1756,6 +1756,28 @@
         }
       }
     },
+    "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPad. They come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPhone. They come back when you sign in again."
+          }
+        }
+      }
+    },
     "Empty Trash" : {
       "comment" : "android: mobile_trash_empty_action | differs: iOS uses title case",
       "localizations" : {
@@ -4637,6 +4659,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out"
+          }
+        }
+      }
+    },
+    "Sign out and remove downloads" : {
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox; at the largest text size the size moves to the message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out and remove downloads"
           }
         }
       }
