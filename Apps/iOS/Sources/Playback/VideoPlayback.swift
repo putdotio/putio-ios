@@ -154,7 +154,7 @@ struct PutioVideoPlaybackView: View {
       nextVideoOverlay
         .padding(.bottom, isReady ? PutioTheme.Spacing.space5 : 0)
     }
-    .overlay {
+    .overlay(alignment: .topLeading) {
       if showsHarnessReadiness {
         ZStack {
           if case .ready(let source) = model.state {

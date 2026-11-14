@@ -70,7 +70,7 @@ struct SessionRootView: View {
           session: runtime.session,
           tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
     #endif
-    .overlay {
+    .overlay(alignment: .topLeading) {
       #if DEBUG
         if scenario == .filesBrowser, let controller = cast.harnessController {
           Color.clear
