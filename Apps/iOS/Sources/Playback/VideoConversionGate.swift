@@ -152,7 +152,10 @@ private struct PutioConversionWaitingBar: View {
       .clipShape(Capsule())
       .frame(width: width, height: PutioVideoConversionGateMetrics.trackHeight)
       .task(id: reduceMotion) {
-        guard !reduceMotion else { return }
+        guard !reduceMotion else {
+          atEnd = false
+          return
+        }
         withAnimation(
           .easeInOut(duration: PutioVideoConversionGateMetrics.waitingPeriod / 2)
             .repeatForever(autoreverses: true)
