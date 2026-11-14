@@ -443,6 +443,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
       XCTAssertTrue(
         waitForWindow(app, landscape: orientation.isLandscape),
         "Rotate off did not follow the device to \(orientation.rawValue)")
+      RunLoop.current.run(until: .now.addingTimeInterval(1.5))
       XCTAssertTrue(ready.exists, "rotating reloaded the video")
       XCTAssertGreaterThanOrEqual(
         Int(position.value as? String ?? "") ?? 0, before, "rotating lost the position")
