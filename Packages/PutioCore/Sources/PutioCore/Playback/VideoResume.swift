@@ -97,24 +97,30 @@ public final class PutioVideoResumePrompter {
   public private(set) var isAsking = false
   public private(set) var positionSeconds = 0
   @ObservationIgnored private var pending:
-    CheckedContinuation<PutioVideoResumePrompt.Choice?, Never>?
+    (id: UInt64, continuation: CheckedContinuation<PutioVideoResumePrompt.Choice?, Never>)?
+  @ObservationIgnored private var asked: UInt64 = 0
 
   public init() {}
 
   public func ask(positionSeconds: Int) async -> PutioVideoResumePrompt.Choice? {
     answer(nil)
+    asked &+= 1
+    let id = asked
     return await withTaskCancellationHandler {
       await withCheckedContinuation { continuation in
         guard !Task.isCancelled else {
           continuation.resume(returning: nil)
           return
         }
-        pending = continuation
+        pending = (id, continuation)
         self.positionSeconds = positionSeconds
         isAsking = true
       }
     } onCancel: {
-      Task { @MainActor [weak self] in self?.answer(nil) }
+      Task { @MainActor [weak self] in
+        guard let self, pending?.id == id else { return }
+        answer(nil)
+      }
     }
   }
 
@@ -124,7 +130,7 @@ public final class PutioVideoResumePrompter {
 
   public func answer(_ choice: PutioVideoResumePrompt.Choice?) {
     isAsking = false
-    let continuation = pending
+    let continuation = pending?.continuation
     pending = nil
     continuation?.resume(returning: choice)
   }
