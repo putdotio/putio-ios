@@ -2033,8 +2033,8 @@ import Foundation
           200,
           """
           {"status":"OK","file":{"id":413,"parent_id":0,"name":\(jsonString(documentName)),
-          "file_type":"PDF","size":1024,"created_at":"2026-09-01T12:00:00Z",
-          "updated_at":"2026-09-01T12:00:00Z"}}
+          "file_type":"PDF","size":\(documentSize),"created_at":"\(documentCreatedAt)",
+          "updated_at":"\(documentUpdatedAt)"}}
           """
         )
       case "GET /v2/files/999":
