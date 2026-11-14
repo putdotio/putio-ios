@@ -474,6 +474,10 @@ final class BoardCaptureTests: XCTestCase {
     openMoveSheet(for: "files.item.445")
     openMoveLevel(410)
     XCTAssertTrue(app.staticTexts["Loading folders…"].appears(within: 5), "no loading state")
+    XCTAssertTrue(
+      app.buttons["files.move-new-folder"].isEnabled, "New folder is disabled while the level loads"
+    )
+    XCTAssertFalse(app.buttons["sheet.primary"].isEnabled, "a loading level is a target")
     try captureBoard("rd-ios-36-move-loading")
   }
 

@@ -158,8 +158,14 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       }
       let bounds = CGRect(x: 0, y: 0, width: iconSide.rounded(), height: iconSide.rounded())
       let image = UIGraphicsImageRenderer(bounds: bounds).image { _ in source.draw(in: bounds) }
-      return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
+      guard action.role == .destructive, action.isDisabled else {
+        return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
+      }
+      return Image(uiImage: image.fixed(Self.dimmedDestructive))
     }
+
+    private static let dimmedDestructive = PutioTheme.Colors.destructive
+      .opacity(PutioDisabledRole.opacity)
   }
 
   extension View {

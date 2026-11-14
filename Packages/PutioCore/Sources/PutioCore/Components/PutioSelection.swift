@@ -327,7 +327,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           .minimumScaleFactor(PutioSelectionLayout.barLabelMinimumScale)
       }
       .foregroundStyle(isDestructive ? Color.red : PutioTheme.Colors.textPrimary)
-      .opacity(isEnabled ? 1 : PutioSelectionLayout.disabledOpacity)
+      .opacity(isEnabled ? 1 : PutioDisabledRole.opacity)
       .frame(maxWidth: .infinity, minHeight: PutioSelectionLayout.barItemMinHeight)
       .contentShape(.rect)
     }
@@ -357,6 +357,5 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     static let barHorizontalPadding = PutioTheme.Spacing.space2
     static let barInset = PutioTheme.Spacing.space3
     static let barBottomInset = PutioTheme.Spacing.space2
-    static let disabledOpacity = 0.4
   }
 #endif

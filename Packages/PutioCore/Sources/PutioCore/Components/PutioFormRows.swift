@@ -496,7 +496,7 @@ public struct PutioCheckRow: View {
             .accessibilityHidden(true)
         }
       }
-      .opacity(isEnabled ? 1 : PutioSettingsLayout.disabledOpacity)
+      .opacity(isEnabled ? 1 : PutioDisabledRole.opacity)
       .contentShape(Rectangle())
     }
     .accessibilityAddTraits(isChecked ? .isSelected : [])
@@ -546,7 +546,7 @@ public struct PutioDestructiveRow: View {
         Text(title)
           .putioFont(PutioFormLayout.titleFont)
           .foregroundStyle(PutioTheme.Colors.destructive)
-          .opacity(isBusy ? 0 : isEnabled ? 1 : PutioSettingsLayout.disabledOpacity)
+          .opacity(isBusy ? 0 : isEnabled ? 1 : PutioDisabledRole.opacity)
         if isBusy {
           ProgressView()
             .tint(PutioTheme.Colors.textSecondary)
@@ -868,7 +868,6 @@ private struct PutioNeutralSwitchTint: ViewModifier {
 
 enum PutioSettingsLayout {
   static let iconGap = PutioTheme.Spacing.space3
-  static let disabledOpacity = 0.4
   #if os(tvOS)
     static let iconSize = PutioMetricRole(
       value: PutioTheme.TV.Typography.label.size,

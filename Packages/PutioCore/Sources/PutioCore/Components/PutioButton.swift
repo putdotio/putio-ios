@@ -192,6 +192,10 @@ extension PutioButtonSize {
   #endif
 }
 
+enum PutioDisabledRole {
+  static let opacity = 0.4
+}
+
 #if !os(tvOS)
   public struct PutioBlockButton: View {
     private let title: String
@@ -213,6 +217,7 @@ extension PutioButtonSize {
 
     public var body: some View {
       Button {
+        guard isEnabled else { return }
         action()
       } label: {
         ZStack {
@@ -230,9 +235,18 @@ extension PutioButtonSize {
       .buttonStyle(.borderedProminent)
       .buttonBorderShape(.capsule)
       .controlSize(.large)
-      .tint(PutioTheme.Colors.accent)
-      .disabled(!isEnabled || isBusy)
-      .accessibilityLabel(title)
+      .tint(
+        isEnabled || isBusy
+          ? PutioTheme.Colors.accent : PutioTheme.Colors.accent.opacity(PutioDisabledRole.opacity)
+      )
+      .disabled(isBusy)
+      .allowsHitTesting(isEnabled)
+      .accessibilityRepresentation {
+        Button(title) {
+          action()
+        }
+        .disabled(!isEnabled || isBusy)
+      }
     }
   }
 #endif

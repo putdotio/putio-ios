@@ -245,7 +245,7 @@ private struct PutioMoveLevel: View {
         }
         .labelStyle(.iconOnly)
         .tint(PutioTheme.Colors.textPrimary)
-        .disabled(!model.supportsActions || !model.canStartAction || !model.isLoaded || isMoving)
+        .disabled(!model.canCreateFolder || isMoving)
         .accessibilityIdentifier("files.move-new-folder")
       }
     }
@@ -384,6 +384,7 @@ private struct PutioMoveLevel: View {
       failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
+      if case .failed = model.state { return }
       guard let outcome = model.actionOutcome, case .createFolder = outcome.action else {
         throw PutioMoveFolderCreationFailure()
       }
