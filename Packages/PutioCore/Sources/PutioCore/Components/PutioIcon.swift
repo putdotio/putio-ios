@@ -73,6 +73,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case speakerHigh = "speaker-high-regular"
   case star = "star-regular"
   case stopFill = "stop-fill"
+  case textAa = "text-aa-regular"
   case trash = "trash-regular"
   case trafficCone = "traffic-cone-regular"
   case userCircle = "user-circle-regular"
@@ -113,6 +114,10 @@ extension Image {
   }
 
   extension UIImage {
+    public convenience init?(putioIcon: PutioIcon) {
+      self.init(named: putioIcon.rawValue, in: .module, with: nil)
+    }
+
     public func fixed(_ color: Color) -> UIImage {
       withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
     }

@@ -1195,6 +1195,17 @@
         }
       }
     },
+    "Couldn’t load subtitles" : {
+      "comment" : "ios-only: no Android string for a subtitle that fails to load (putio-android#642)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load subtitles"
+          }
+        }
+      }
+    },
     "Couldn’t play this audio" : {
       "comment" : "android: mobile_playback_error_title_audio",
       "localizations" : {
@@ -1814,6 +1825,17 @@
         }
       }
     },
+    "Embedded" : {
+      "comment" : "android: playback_subtitles_embedded",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Embedded"
+          }
+        }
+      }
+    },
     "Empty Trash" : {
       "comment" : "android: mobile_trash_empty_action | differs: iOS uses title case",
       "localizations" : {
@@ -2101,6 +2123,17 @@
         }
       }
     },
+    "Found by put.io" : {
+      "comment" : "android: playback_subtitles_found",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Found by put.io"
+          }
+        }
+      }
+    },
     "Free" : {
       "comment" : "android: mobile_downloads_free | differs: a row label beside the size",
       "localizations" : {
@@ -2218,6 +2251,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In %@"
+          }
+        }
+      }
+    },
+    "In this file" : {
+      "comment" : "android: playback_subtitles_in_file",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In this file"
+          }
+        }
+      }
+    },
+    "No captions available" : {
+      "comment" : "android: mobile_playback_no_captions",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No captions available"
+          }
+        }
+      }
+    },
+    "OpenSubtitles" : {
+      "comment" : "android: playback_subtitles_from_opensubtitles",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OpenSubtitles"
           }
         }
       }
@@ -3742,6 +3808,17 @@
         }
       }
     },
+    "Shown subtitle text" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shown subtitle text"
+          }
+        }
+      }
+    },
     "Sign out of all other apps" : {
       "comment" : "android: mobile_logged_in_apps_sign_out_others",
       "localizations" : {
@@ -3760,6 +3837,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out of all other apps?"
+          }
+        }
+      }
+    },
+    "Size and timing" : {
+      "comment" : "android: playback_size_and_timing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size and timing"
           }
         }
       }
@@ -3903,6 +3991,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
+          }
+        }
+      }
+    },
+    "This folder" : {
+      "comment" : "android: playback_subtitles_from_folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder"
           }
         }
       }

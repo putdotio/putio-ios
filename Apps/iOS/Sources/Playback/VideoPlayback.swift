@@ -14,13 +14,14 @@ struct PutioVideoPlaybackView: View {
   @State private var selectedAudioLanguage: String?
   #if DEBUG
     @State private var selectedSubtitle: String?
+    @State private var shownSubtitleText: String?
   #endif
   @State private var playbackReachedEnd = false
   @State private var reportedFaults: [PutioVideoPlayerFault] = []
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   @State private var playerFailureTask: Task<Void, Never>?
-  @State private var transport = PutioVideoTransport()
+  @State private var transport: PutioVideoTransport
   private let fileID: PutioFileID
   private let title: String
   private let onDismiss: @MainActor @Sendable () -> Void
@@ -35,6 +36,9 @@ struct PutioVideoPlaybackView: View {
   private let onPlayNext: @MainActor @Sendable (PutioPlayableNextVideo) -> Void
   private let castButton: AnyView?
   private let onCast: (@MainActor @Sendable () -> Void)?
+  private let subtitlePolicy: PutioSubtitleStartupPolicy
+  private let rememberedSubtitle: PutioRememberedSubtitle?
+  private let loadSubtitleListings: PutioSubtitleListingsLoad
 
   init(
     route: PutioVideoRoute,
@@ -57,9 +61,18 @@ struct PutioVideoPlaybackView: View {
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
+    subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
+    subtitleMemory: PutioSubtitleMemory? = nil,
+    loadSubtitleListings: @escaping PutioSubtitleListingsLoad = { _ in [] },
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.castButton = castButton
+    self.subtitlePolicy = subtitlePolicy
+    self.rememberedSubtitle = subtitleMemory?.remembered
+    self.loadSubtitleListings = loadSubtitleListings
+    let transport = PutioVideoTransport()
+    transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
+    _transport = State(initialValue: transport)
     self.onCast = onCast
     self.fileID = route.id
     self.title = route.title
@@ -142,6 +155,9 @@ struct PutioVideoPlaybackView: View {
     .task {
       await model.loadIfNeeded()
     }
+    .task {
+      transport.subtitleListings = (try? await loadSubtitleListings(fileID)) ?? []
+    }
     .task(id: retrySequence) {
       guard retrySequence > 0 else { return }
       playerIsReady = false
@@ -195,6 +211,15 @@ struct PutioVideoPlaybackView: View {
               .allowsHitTesting(false)
           }
           #if DEBUG
+            if let shownSubtitleText {
+              Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Shown subtitle text")
+                .accessibilityValue(shownSubtitleText)
+                .accessibilityIdentifier("video.subtitle-text")
+                .allowsHitTesting(false)
+            }
             if let selectedSubtitle {
               Color.clear
                 .frame(width: 1, height: 1)
@@ -354,6 +379,8 @@ struct PutioVideoPlaybackView: View {
         source: source,
         transport: transport,
         preferredAudioLanguages: preferredAudioLanguages,
+        subtitlePolicy: subtitlePolicy,
+        rememberedSubtitle: rememberedSubtitle,
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
@@ -390,6 +417,7 @@ struct PutioVideoPlaybackView: View {
       }
       #if DEBUG
         .onSubtitleSelected { selectedSubtitle = $0 }
+        .onSubtitleTextShown { shownSubtitleText = $0 }
       #endif
       .ignoresSafeArea()
       .id(model.playerAttempt)
@@ -549,6 +577,8 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   let source: PutioPlaybackSource
   let transport: PutioVideoTransport
   let preferredAudioLanguages: [String]
+  let subtitlePolicy: PutioSubtitleStartupPolicy
+  let rememberedSubtitle: PutioRememberedSubtitle?
   let remembersPlaybackPosition: Bool
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
@@ -563,15 +593,25 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   #if DEBUG
     var subtitleSelected: (@MainActor @Sendable (String) -> Void)?
 
+    var subtitleTextShown: (@MainActor @Sendable (String) -> Void)?
+
     func onSubtitleSelected(_ action: @escaping @MainActor @Sendable (String) -> Void) -> Self {
       var player = self
       player.subtitleSelected = action
       return player
     }
+
+    func onSubtitleTextShown(_ action: @escaping @MainActor @Sendable (String) -> Void) -> Self {
+      var player = self
+      player.subtitleTextShown = action
+      return player
+    }
   #endif
 
   func makeCoordinator() -> PutioVideoPlayerCoordinator {
-    PutioVideoPlayerCoordinator(positionPipeline: positionPipeline)
+    PutioVideoPlayerCoordinator(
+      positionPipeline: positionPipeline, subtitlePolicy: subtitlePolicy,
+      rememberedSubtitle: rememberedSubtitle)
   }
 
   func makeUIView(context: Context) -> PutioVideoSurfaceView {
@@ -587,6 +627,9 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
     #if DEBUG
       if let subtitleSelected {
         context.coordinator.onSubtitleSelected = { subtitle in subtitleSelected(subtitle) }
+      }
+      if let subtitleTextShown {
+        context.coordinator.onSubtitleTextShown = { text in subtitleTextShown(text) }
       }
     #endif
     context.coordinator.start(
@@ -749,6 +792,8 @@ final class PutioVideoPlayerCoordinator {
   #if DEBUG
     /// Harness probe; set before `start` and reported only while observing.
     var onSubtitleSelected: (@MainActor @Sendable (String) -> Void)?
+    var onSubtitleTextShown: (@MainActor @Sendable (String) -> Void)?
+    private var subtitleTextProbe: PutioSubtitleTextProbe?
   #endif
   private var observesPlaybackState = false
   private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
@@ -782,12 +827,20 @@ final class PutioVideoPlayerCoordinator {
     )
   }
 
-  convenience init(positionPipeline: PutioPlaybackPositionPipeline) {
+  convenience init(
+    positionPipeline: PutioPlaybackPositionPipeline,
+    subtitlePolicy: PutioSubtitleStartupPolicy,
+    rememberedSubtitle: PutioRememberedSubtitle?
+  ) {
     self.init(
       makeDriver: { PutioVideoPlayerDriver(item: $0) },
       audioSession: PutioPlaybackAudioSession(),
       notificationCenter: .default,
-      positionPipeline: positionPipeline
+      positionPipeline: positionPipeline,
+      applyDefaultSubtitle: {
+        await PutioVideoPlayerCoordinator.selectStartSubtitle(
+          in: $0, policy: subtitlePolicy, remembered: rememberedSubtitle)
+      }
     )
   }
 
@@ -908,6 +961,13 @@ final class PutioVideoPlayerCoordinator {
         }
       }
     }
+    #if DEBUG
+      if observesPlaybackState, let onSubtitleTextShown {
+        let probe = PutioSubtitleTextProbe(onText: onSubtitleTextShown)
+        probe.attach(to: item)
+        subtitleTextProbe = probe
+      }
+    #endif
     if observesPlaybackState {
       mediaSelectionObservation = notificationCenter.addObserver(
         forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
@@ -1159,6 +1219,9 @@ final class PutioVideoPlayerCoordinator {
       notificationCenter.removeObserver(observation)
     }
     positionSaveObservations = []
+    #if DEBUG
+      subtitleTextProbe = nil
+    #endif
     onReady = nil
     onPositionChanged = nil
     onPlaybackEnded = nil
@@ -1233,10 +1296,22 @@ final class PutioVideoPlayerCoordinator {
   /// automatic caption setting, so the player applies it before showing
   /// controls.
   static func selectDefaultSubtitle(in item: AVPlayerItem) async {
-    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
-      let option = group.defaultOption
-    else { return }
-    item.select(option, in: group)
+    await selectStartSubtitle(in: item, policy: .accountDefault, remembered: nil)
+  }
+
+  static func selectStartSubtitle(
+    in item: AVPlayerItem, policy: PutioSubtitleStartupPolicy,
+    remembered: PutioRememberedSubtitle?
+  ) async {
+    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible) else {
+      return
+    }
+    let options = group.options.filter {
+      !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles)
+    }
+    let tracks = PutioVideoTransport.subtitleTracks(options, defaultOption: group.defaultOption)
+    let start = policy.startingTrack(in: tracks, remembered: remembered)
+    item.select(start.map { options[$0.id] }, in: group)
   }
 
   /// Publishes the audible and legible options in effect so the journey can
@@ -1326,3 +1401,30 @@ final class PutioVideoPlayerCoordinator {
       positionSeconds: CMTimeGetSeconds(position), durationSeconds: CMTimeGetSeconds(duration))
   }
 }
+
+#if DEBUG
+  @MainActor
+  private final class PutioSubtitleTextProbe: NSObject, AVPlayerItemLegibleOutputPushDelegate {
+    private let output = AVPlayerItemLegibleOutput()
+    private let onText: @MainActor @Sendable (String) -> Void
+
+    init(onText: @escaping @MainActor @Sendable (String) -> Void) {
+      self.onText = onText
+      super.init()
+      output.setDelegate(self, queue: .main)
+    }
+
+    func attach(to item: AVPlayerItem) {
+      item.add(output)
+    }
+
+    nonisolated func legibleOutput(
+      _ output: AVPlayerItemLegibleOutput,
+      didOutputAttributedStrings strings: [NSAttributedString],
+      nativeSampleBuffers nativeSamples: [Any], forItemTime itemTime: CMTime
+    ) {
+      let text = strings.map(\.string).joined(separator: "\n")
+      MainActor.assumeIsolated { onText(text.isEmpty ? "none" : text) }
+    }
+  }
+#endif

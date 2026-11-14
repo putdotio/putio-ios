@@ -847,6 +847,10 @@ enum BoardCaptureContract {
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
       BoardCapture("rd-ios-pb-02-video", .iphone, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
+      BoardCapture("rd-ios-pb-03-subtitles", .iphone, "testSubtitlesMenu"),
+      BoardCapture("rd-ios-pb-14-ipad-subtitles", .ipad, "testSubtitlesMenu"),
+      BoardCapture("rd-ios-pb-20-no-subtitles", .iphone, "testNoSubtitles"),
+      BoardCapture("rd-ios-pb-38-subtitles-failed", .iphone, "testSubtitlesFailed"),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
       BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
@@ -1408,6 +1412,13 @@ enum BrowserJourneyContract {
       "SubtitlesJourneyTests/testPlayerMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
       timeAllowance: 240),
+    JourneyPreflight(
+      "subtitle-menu",
+      "SubtitlesJourneyTests/testMenuGroupsTracksBySourceRemembersTheLanguageAndTurnsAFailedTrackOff",
+      attachmentNames: [
+        "runtime-subtitles-sources", "runtime-subtitles-none", "runtime-subtitles-failed",
+      ],
+      timeAllowance: 420),
     JourneyPreflight(
       "video-chips",
       "SubtitlesJourneyTests/testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture",

@@ -776,6 +776,82 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-02-video")
   }
 
+  func testSubtitlesMenu() throws {
+    openSubtitledEpisode(tracks: "three")
+    openSubtitlesChip()
+    for text in ["In this file", "Found by put.io", "Size and timing"] {
+      XCTAssertTrue(menuShows(text), "the menu lacks \(text)")
+    }
+    for (row, source) in [(0, "Embedded"), (1, "This folder"), (2, "OpenSubtitles")] {
+      XCTAssertTrue(
+        app.buttons["video.subtitles.\(row)"].label.contains(source), "row \(row) lacks \(source)")
+    }
+    XCTAssertFalse(app.buttons["video.subtitles.size-and-timing"].isEnabled)
+    try captureBoard("rd-ios-pb-03-subtitles")
+  }
+
+  func testNoSubtitles() throws {
+    openSubtitledEpisode(tracks: "none")
+    XCTAssertEqual(element("video.chip.subtitles").label, "Subtitles: Off")
+    openSubtitlesChip()
+    let none = app.buttons["video.subtitles.none"]
+    XCTAssertTrue(none.appears(within: 5), "the menu does not say no captions are available")
+    XCTAssertFalse(none.isEnabled)
+    XCTAssertFalse(app.buttons["video.subtitles.size-and-timing"].exists)
+    try captureBoard("rd-ios-pb-20-no-subtitles")
+  }
+
+  func testSubtitlesFailed() throws {
+    openSubtitledEpisode(tracks: "failing")
+    openSubtitlesChip()
+    let turkish = app.buttons["video.subtitles.1"]
+    XCTAssertTrue(turkish.appears(within: 5), "the menu lacks the failing track")
+    turkish.tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load subtitles"].appears(within: 15), "no toast for the failure")
+    let chip = element("video.chip.subtitles")
+    XCTAssertTrue(holds(chip, "label == 'Subtitles: Off'"), chip.label)
+    try captureBoard("rd-ios-pb-38-subtitles-failed")
+  }
+
+  private func openSubtitledEpisode(tracks: String) {
+    orient(.landscapeLeft)
+    app.launchArguments += [
+      "--putio-harness-subtitle-tracks", tracks, "--putio-harness-picture-in-picture",
+    ]
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    let retry = app.buttons["Try again"]
+    if retry.appears(within: 10) { retry.tap() }
+    XCTAssertTrue(element("video.ready").appears(within: 15), "the episode never played")
+    let position = element("video.current-position")
+    XCTAssertTrue(holds(position, "value != '0'"), "the episode is not playing")
+    app.setVideoPlaying(false, with: element("video.play-pause"))
+  }
+
+  private func openSubtitlesChip() {
+    let chip = element("video.chip.subtitles")
+    app.revealVideoControls(showing: chip)
+    chip.tap()
+    XCTAssertTrue(app.buttons["video.subtitles.off"].appears(within: 5), "no subtitles menu")
+  }
+
+  private func holds(_ target: XCUIElement, _ format: String) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: format), object: target)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+  }
+
+  private func menuShows(_ text: String) -> Bool {
+    app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", text)).firstMatch
+      .exists
+  }
+
   func testVideoAccessExpired() throws {
     openFailingEpisode(faults: "forbidden,forbidden")
     XCTAssertTrue(app.staticTexts["Couldn’t play this video"].exists)

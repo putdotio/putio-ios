@@ -23,9 +23,10 @@ server serves every file in this directory; the downloads journey fetches the
 master playlist through `AVAssetDownloadURLSession`. The Tuist app target
 copies the directory only into Debug builds.
 
-The WebVTT subtitle renditions are hand-written text: one cue per language
-(`multi-subtitle-English.vtt`, `multi-subtitle-Turkish.vtt`) spanning the 20
-seconds, each in a one-segment playlist. `X-TIMESTAMP-MAP=MPEGTS:126000` matches
+The WebVTT subtitle renditions are hand-written text: one cue per rendition
+(`multi-subtitle-English.vtt`, `multi-subtitle-English-folder.vtt`,
+`multi-subtitle-Turkish.vtt`) spanning the 20 seconds, each in a one-segment
+playlist. `X-TIMESTAMP-MAP=MPEGTS:126000` matches
 the audio segments' first PTS. The `multi-subtitles*.m3u8` masters reuse the
 renditions above in the shapes put.io's HLS endpoint serves for
 `subtitle_key=all`:
@@ -38,6 +39,13 @@ renditions above in the shapes put.io's HLS endpoint serves for
 - `multi-subtitles-autoselect-audio.m3u8`: `multi-subtitles.m3u8` with both
   audio renditions `AUTOSELECT=YES`, so automatic selection may pick either by
   the viewer's language.
+- `multi-subtitles-one.m3u8`: English alone.
+- `multi-subtitles-three.m3u8`: English, a second English from the folder
+  subtitle, and Turkish.
+- `multi-subtitles-failing.m3u8`: English, and Turkish pointing at a playlist
+  the server does not have, so selecting it fails with a 404.
 
 These masters declare `CLOSED-CAPTIONS=NONE`, as put.io does. The subtitles
-journey streams them with `--putio-harness-subtitled-stream`.
+journey streams them with `--putio-harness-subtitled-stream`, and
+`--putio-harness-subtitle-tracks none|one|three|failing` picks the hidden, one,
+three or failing master.

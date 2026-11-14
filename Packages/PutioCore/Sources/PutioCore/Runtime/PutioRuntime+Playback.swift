@@ -222,6 +222,17 @@ extension PutioRuntime {
     }
   }
 
+  public func subtitleListings(fileID: PutioFileID) async throws -> [PutioSubtitleListing] {
+    guard try !signedInAccount().hideSubtitles else { return [] }
+    let response = try await performAuthenticatedOperation {
+      try await sdk.getSubtitles(fileID: fileID.rawValue)
+    }
+    return response.subtitles.map {
+      PutioSubtitleListing(
+        languageCode: $0.languageCode, source: PutioSubtitleSource(apiSource: $0.source))
+    }
+  }
+
   private func signedInAccount() throws -> PutioAccountSnapshot {
     guard case .signedIn(let account) = session.state else { throw currentSessionError }
     return account

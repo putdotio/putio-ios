@@ -1897,6 +1897,11 @@ import Foundation
           castPlaybackType = value
           return (200, #"{"status":"OK"}"#)
         }
+      case _
+      where HarnessSubtitledStream.tracks() != nil
+        && [412, 441, 442, 443, 444].map({ "GET /v2/files/\($0)/subtitles" }).contains(routeKey):
+        let fileID = Int(url.deletingLastPathComponent().lastPathComponent) ?? 0
+        return (200, HarnessSubtitledStream.listing(fileID: fileID) ?? "")
       case "GET /v2/files/441/subtitles", "GET /v2/files/442/subtitles",
         "GET /v2/files/443/subtitles", "GET /v2/files/444/subtitles":
         return seasonEpisodeSubtitles(

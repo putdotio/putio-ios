@@ -25,6 +25,9 @@ offline playback.
   cancels the sleep timer.
 - `subtitles` picks subtitles from the player chips without changing audio, and
   follows the preferences.
+- `subtitle-menu` groups the Subtitles menu by source for zero, one and three
+  tracks, remembers the last language, and turns a track that fails to load
+  off with a toast while playback continues.
 - `video-chips` shows each chip's choice, keeps the controls up while a chip
   menu is open, and puts Picture in Picture first in the route group.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
@@ -99,6 +102,15 @@ Preconditions:
   `rd-ios-pb-05-mini`, `rd-ios-pb-41-ipad-mini`.
 - **Subtitles.** Run `--only subtitles`. Screenshots: `runtime-subtitles-menu`,
   `runtime-subtitles-selected`.
+- **Subtitles menu.** Run `--only subtitle-menu`. Screenshots:
+  `runtime-subtitles-sources`, `runtime-subtitles-none`,
+  `runtime-subtitles-failed`. `--putio-harness-subtitle-tracks
+  none|one|three|failing` picks the
+  [fixture master](../../../../Tests/HarnessMedia/multi-audio/attribution.md)
+  and the subtitles list behind it; the `video.subtitle-text` probe reports the
+  cue on screen. Boards: `rd-ios-pb-03-subtitles`,
+  `rd-ios-pb-14-ipad-subtitles`, `rd-ios-pb-20-no-subtitles`,
+  `rd-ios-pb-38-subtitles-failed`.
 - **Chips and Picture in Picture.** Run `--only video-chips`. Screenshots:
   `runtime-video-chips`, `runtime-video-chips-changed`. Boards:
   `rd-ios-pb-02-video`, `rd-ios-pb-13-ipad-video`, which stream the multi-audio
