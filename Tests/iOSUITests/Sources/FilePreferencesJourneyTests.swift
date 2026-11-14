@@ -264,7 +264,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
   }
 
   private func assertFirstFile(_ name: String) {
-    let row = app.cells.firstMatch
+    let row = app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "files.item.")
+    ).firstMatch
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in row.staticTexts[name].exists }, object: row
     )
