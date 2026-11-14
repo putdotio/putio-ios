@@ -1080,6 +1080,7 @@ import Foundation
         return
       }
       let replayableRequest = Self.replayableRequest(request)
+      if Self.usesAccountSecurity { HarnessAccountRequests.record(replayableRequest) }
       switch Self.consumeFolderFault(for: replayableRequest) {
       case .offline:
         deliveryGate.deliver(generation: generation) {

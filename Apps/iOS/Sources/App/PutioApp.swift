@@ -43,7 +43,12 @@ struct PutioApp: App {
         .modifier(
           HarnessRatingLinkCapture(
             enabled: scenario == .filesBrowser
-              && ProcessInfo.processInfo.arguments.contains("--putio-harness-rating-link")))
+              && ProcessInfo.processInfo.arguments.contains("--putio-harness-rating-link"))
+        )
+        .modifier(
+          HarnessAccountRequestCapture(
+            enabled: scenario == .filesBrowser
+              && ProcessInfo.processInfo.arguments.contains("--putio-harness-account-security")))
       #endif
       .preferredColorScheme(.dark)
       .tint(PutioTheme.Colors.textPrimary)

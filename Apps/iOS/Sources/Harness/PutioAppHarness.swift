@@ -74,6 +74,32 @@ import SwiftUI
       }
     }
   }
+
+  struct HarnessAccountRequestCapture: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+      if enabled {
+        content.overlay { HarnessAccountRequestProbe() }
+      } else {
+        content
+      }
+    }
+  }
+
+  private struct HarnessAccountRequestProbe: View {
+    private let requests = HarnessAccountRequests.shared
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement()
+        .accessibilityLabel("Account requests")
+        .accessibilityValue(requests.entries.joined(separator: "\n"))
+        .accessibilityIdentifier("harness.account-requests")
+        .allowsHitTesting(false)
+    }
+  }
 #endif
 
 // The fixed harness exercise contract: relaunch into accessibility Dynamic
