@@ -492,12 +492,13 @@ struct PutioVideoControls<Trailing: View>: View {
 
   private func airPlayCentre(_ airPlay: PutioVideoAirPlay, placeholderLayer: Bool) -> some View {
     VStack(spacing: PutioTheme.Spacing.space5) {
-      PutioVideoAirPlayPlaceholder(airPlay: airPlay)
-        .opacity(placeholderLayer ? 1 : 0)
-        .accessibilityHidden(!placeholderLayer)
-      transportRow(circled: false)
-        .opacity(placeholderLayer ? 0 : 1)
-        .accessibilityHidden(placeholderLayer)
+      if placeholderLayer {
+        PutioVideoAirPlayPlaceholder(airPlay: airPlay)
+        transportRow(circled: false).hidden()
+      } else {
+        PutioVideoAirPlayPlaceholder(airPlay: airPlay).hidden()
+        transportRow(circled: false)
+      }
     }
     .padding(.horizontal, PutioTheme.Spacing.space4)
   }

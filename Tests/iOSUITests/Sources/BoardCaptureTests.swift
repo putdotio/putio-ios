@@ -30,8 +30,11 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertFalse(app.buttons["cast.button"].exists, "the folder toolbar draws Cast")
     let title = element("files.title")
     XCTAssertTrue(title.appears(within: 5), "the folder has no title")
-    XCTAssertEqual(
-      title.frame.midX, app.mainWindow.frame.midX, accuracy: 2, "the folder title is not centred")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      XCTAssertEqual(
+        title.frame.midX, app.mainWindow.frame.midX, accuracy: 2,
+        "the folder title is not centred")
+    }
     try captureBoard("rd-ios-02-folder")
   }
 
