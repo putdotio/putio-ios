@@ -2391,6 +2391,7 @@ final class BoardCaptureTests: XCTestCase {
     clear.tap()
     XCTAssertTrue(
       element("danger.clear.files").appears(within: 5), "Clear your data never opened")
+    selectClearCategories()
     assertIPadAccountOpen("account.clear-data", "opening Clear your data")
     try captureBoard("rd-ios-acc-58-ipad-danger")
   }
