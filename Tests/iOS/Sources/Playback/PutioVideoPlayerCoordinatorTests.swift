@@ -913,6 +913,7 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { driver.events == ["play"] }
     statusObservation.emit(.readyToPlay)
     await waitUntil { isReady }
+    await waitUntil { surface.showsPlaybackControls }
     driver.currentTime = CMTime(seconds: 10, preferredTimescale: 600)
     try XCTUnwrap(capture.positionReportSchedule).tick()
     coordinator.stop(surface: surface)
