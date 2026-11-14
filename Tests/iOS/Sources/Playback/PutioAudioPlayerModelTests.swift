@@ -761,6 +761,44 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events.suffix(2), ["load:430.m4a@12", "play:1.0"])
   }
 
+  func testARestartedPlayerStillAdvancesFromTheFolderItAlreadyRead() async {
+    var reads = 0
+    let next = successor
+    let h = makeHarness(loadNeighbours: { _ in
+      reads += 1
+      return PutioAudioNeighbours(next: next)
+    })
+    defer { h.model.stop() }
+    await h.model.start()
+    await waitUntil { h.model.canSkipToNext }
+    h.model.stop()
+    await h.model.start()
+    h.engine.onPositionChanged?(12)
+
+    h.engine.onEnded?()
+    let successorTrack = PutioAudioTrack(id: next.id, parentID: .root, title: next.name)
+    await waitUntil { h.model.state == .playing(successorTrack) }
+    XCTAssertEqual(reads, 2, "one read per track")
+  }
+
+  func testAFailedFolderReadIsRetriedBeforeTheFolderEnds() async {
+    var reads = 0
+    let next = successor
+    let h = makeHarness(loadNeighbours: { _ in
+      reads += 1
+      if reads == 1 { throw PutioRuntimeError.transient }
+      return PutioAudioNeighbours(next: next)
+    })
+    defer { h.model.stop() }
+    await h.model.start()
+    await waitUntil { reads == 1 }
+    h.engine.onPositionChanged?(12)
+
+    h.engine.onEnded?()
+    let successorTrack = PutioAudioTrack(id: next.id, parentID: .root, title: next.name)
+    await waitUntil { h.model.state == .playing(successorTrack) }
+  }
+
   func testTheOnlyFileInAFolderOffersNeitherPreviousNorNext() async {
     let h = makeHarness(loadNeighbours: { _ in PutioAudioNeighbours(folderName: "Music") })
     await h.model.start()
