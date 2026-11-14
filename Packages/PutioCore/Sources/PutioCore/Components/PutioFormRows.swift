@@ -432,23 +432,34 @@ public struct PutioPickerRow<Option: Hashable>: View {
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
-      HStack(spacing: PutioTheme.Spacing.space2) {
-        PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
-          .layoutPriority(1)
-        Spacer(minLength: PutioTheme.Spacing.space2)
-        HStack(spacing: PutioTheme.Spacing.space1) {
-          Text(value)
-            .putioFont(PutioFormLayout.valueFont)
-            .multilineTextAlignment(.trailing)
-          Image(systemName: "chevron.up.chevron.down")
-            .imageScale(.small)
-            .accessibilityHidden(true)
+      ViewThatFits(in: .horizontal) {
+        HStack(spacing: PutioTheme.Spacing.space2) {
+          PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+            .fixedSize()
+          Spacer(minLength: PutioTheme.Spacing.space2)
+          valueLabel
+            .fixedSize()
         }
-        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+          PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+          valueLabel
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
       }
       .opacity(isEnabled ? 1 : PutioDisabledRole.opacity)
       .contentShape(Rectangle())
       .accessibilityElement(children: .combine)
+    }
+
+    private var valueLabel: some View {
+      HStack(spacing: PutioTheme.Spacing.space1) {
+        Text(value)
+          .putioFont(PutioFormLayout.valueFont)
+        Image(systemName: "chevron.up.chevron.down")
+          .imageScale(.small)
+          .accessibilityHidden(true)
+      }
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
     }
   }
 #endif
