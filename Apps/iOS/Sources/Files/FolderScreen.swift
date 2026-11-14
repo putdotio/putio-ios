@@ -63,7 +63,6 @@ struct PutioFolderScreen: View {
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
   private let onBulkDownload: PutioBulkFileSelection?
-  private let castButton: AnyView?
   private let refreshRequests: PutioFolderRefreshRequests
   private let accountNotice: PutioInactiveAccountNotice?
   private let offlineFiles: PutioOfflineFolderFiles?
@@ -84,13 +83,11 @@ struct PutioFolderScreen: View {
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
     onBulkDownload: PutioBulkFileSelection? = nil,
-    castButton: AnyView? = nil,
     accountNotice: PutioInactiveAccountNotice? = nil,
     offlineFiles: PutioOfflineFolderFiles? = nil
   ) {
     self.accountNotice = accountNotice
     self.offlineFiles = offlineFiles
-    self.castButton = castButton
     self.route = route
     _model = State(
       initialValue: PutioFolderModel(
@@ -167,12 +164,6 @@ struct PutioFolderScreen: View {
             .truncationMode(.middle)
             .accessibilityAddTraits(.isHeader)
             .accessibilityIdentifier("files.title")
-        }
-      }
-      if !isEditing, let castButton {
-        ToolbarItem(placement: .primaryAction) { castButton }
-        if model.supportsActions {
-          ToolbarSpacer(.fixed, placement: .primaryAction)
         }
       }
       if !isEditing, model.supportsActions {

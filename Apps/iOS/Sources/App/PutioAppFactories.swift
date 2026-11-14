@@ -132,16 +132,27 @@ enum PutioCastControllerFactory {
     #endif
   }
 
+  #if DEBUG
+    private static func harnessCastConnection(_ arguments: [String]) -> PutioCastConnection {
+      if arguments.contains("--putio-harness-cast-no-device") { return .unavailable }
+      if arguments.contains("--putio-harness-cast-local-network-denied") {
+        return .localNetworkDenied
+      }
+      return .disconnected
+    }
+  #endif
+
   @MainActor
   static func makeModel(runtime: PutioRuntime, scenario: HarnessScenario) -> PutioCastModel {
     let controller: any PutioCastControlling
     #if DEBUG
       let harness = scenario == .filesBrowser
       if !usesGoogleCast(scenario: scenario) {
+        let arguments = ProcessInfo.processInfo.arguments
         controller = PutioHarnessCastController(
-          failLoadsBeforeSuccess: ProcessInfo.processInfo.arguments.contains(
-            "--putio-harness-cast-load-fails-once") ? 1 : 0,
-          hasReceiver: harness)
+          failLoadsBeforeSuccess: arguments.contains("--putio-harness-cast-load-fails-once")
+            ? 1 : 0,
+          connection: harness ? harnessCastConnection(arguments) : .unavailable)
       } else {
         controller = PutioGoogleCastController()
       }

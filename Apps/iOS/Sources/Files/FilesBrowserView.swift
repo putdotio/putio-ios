@@ -31,7 +31,6 @@ struct FilesBrowserView: View {
   private let onDownload: PutioFileSelection?
   private let onBulkDownload: PutioBulkFileSelection?
   private let tracksWatched: Bool
-  private let castButton: AnyView?
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
@@ -69,14 +68,12 @@ struct FilesBrowserView: View {
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil,
-    castButton: (() -> AnyView)? = nil,
     accountNotice: PutioInactiveAccountNotice? = nil,
     offlineFiles: PutioOfflineFolderFiles? = nil
   ) {
     self.tracksWatched = tracksWatched
     self.offlineFiles = offlineFiles
     self.accountNotice = accountNotice
-    self.castButton = castButton?()
     load = { folderID in
       try await runtime.listFiles(parentID: folderID, perPage: PutioRuntime.folderPageSize)
     }
@@ -310,7 +307,6 @@ struct FilesBrowserView: View {
         onExternalPlayback: onExternalPlayback,
         onDownload: onDownload,
         onBulkDownload: onBulkDownload,
-        castButton: castButton,
         accountNotice: accountNotice,
         offlineFiles: offlineFiles
       )
@@ -367,7 +363,6 @@ struct FilesBrowserView: View {
       onExternalPlayback: onExternalPlayback,
       onDownload: onDownload,
       onBulkDownload: onBulkDownload,
-      castButton: castButton,
       offlineFiles: offlineFiles
     )
   }

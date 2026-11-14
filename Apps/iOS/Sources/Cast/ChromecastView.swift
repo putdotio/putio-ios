@@ -1,28 +1,74 @@
 import PutioCore
 import SwiftUI
+import UIKit
 
-/// The Cast entry point for toolbars. Google's button owns discovery and the
-/// picker on device; the harness controller draws a plain button that opens
-/// its stub picker so journeys need no network.
 struct PutioCastButton: View {
   let model: PutioCastModel
 
   var body: some View {
     if model.showsCastButton {
-      if model.providesSystemCastButton {
-        PutioGoogleCastButton()
-          .frame(width: 24, height: 24)
-          .accessibilityLabel(model.isConnected ? "Cast, connected" : "Cast")
-      } else {
-        Button {
-          model.presentDevicePicker()
-        } label: {
-          Image(systemName: model.isConnected ? "tv.fill" : "tv")
-        }
-        .accessibilityLabel(model.isConnected ? "Cast, connected" : "Cast")
-        .accessibilityIdentifier("cast.button")
+      Button {
+        model.castButtonTapped()
+      } label: {
+        PutioRouteButtonLabel(icon: .screencast, isActive: model.isConnected)
       }
+      .buttonStyle(.plain)
+      .accessibilityLabel(
+        model.isConnected ? String(localized: "Cast, connected") : String(localized: "Cast")
+      )
+      .accessibilityIdentifier("cast.button")
     }
+  }
+}
+
+struct PutioRouteButtonLabel: View {
+  let icon: PutioIcon
+  var isActive = false
+
+  var body: some View {
+    Image(putioIcon: icon)
+      .resizable()
+      .scaledToFit()
+      .frame(width: PutioRouteButtonMetrics.icon, height: PutioRouteButtonMetrics.icon)
+      .foregroundStyle(isActive ? PutioTheme.Colors.accent : .white)
+      .frame(width: PutioRouteButtonMetrics.target, height: PutioRouteButtonMetrics.target)
+      .contentShape(Rectangle())
+  }
+}
+
+enum PutioRouteButtonMetrics {
+  static let icon: CGFloat = 20
+  static let target: CGFloat = 44
+}
+
+extension View {
+  func putioCastLocalNetworkAlert(_ model: PutioCastModel, isActive: Bool = true) -> some View {
+    modifier(PutioCastLocalNetworkAlert(model: model, isActive: isActive))
+  }
+}
+
+private struct PutioCastLocalNetworkAlert: ViewModifier {
+  let model: PutioCastModel
+  let isActive: Bool
+
+  func body(content: Content) -> some View {
+    content.putioAlert(
+      String(localized: "Local network access is off"),
+      isPresented: Binding(
+        get: { isActive && model.presentsLocalNetworkAlert },
+        set: { if !$0 { model.presentsLocalNetworkAlert = false } }),
+      message: String(localized: "Turn it on in Settings to find Cast devices."),
+      actions: [
+        PutioAlertAction(
+          String(localized: "Cancel"), tier: .cancel, id: "cast.local-network.cancel"),
+        PutioAlertAction(
+          String(localized: "Open Settings"), tier: .primary, id: "cast.local-network.settings"
+        ) {
+          if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+          }
+        },
+      ])
   }
 }
 

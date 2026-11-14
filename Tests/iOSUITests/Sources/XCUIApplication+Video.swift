@@ -29,11 +29,22 @@ extension XCUIApplication {
     for _ in 0..<3 {
       revealVideoControls(showing: playPause, file: file, line: line)
       if playPause.label == target { return }
-      playPause.tap()
+      playPause.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
       let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
       if XCTWaiter.wait(for: [expectation], timeout: 3) == .completed { return }
     }
     XCTFail("the player never showed \(target)", file: file, line: line)
+  }
+
+  func videoRouteGroup(file: StaticString = #filePath, line: UInt = #line) -> [String] {
+    let routes = ["video.picture-in-picture", "video.airplay", "cast.button"].map {
+      descendants(matching: .any)[$0]
+    }
+    revealVideoControls(showing: routes[1], file: file, line: line)
+    let row = routes[1].frame.midY
+    return routes.filter { $0.exists && abs($0.frame.midY - row) < 4 }
+      .sorted { $0.frame.minX < $1.frame.minX }
+      .map(\.identifier)
   }
 
   func closeVideo(file: StaticString = #filePath, line: UInt = #line) {
