@@ -912,6 +912,9 @@ struct MainTabView: View {
   }
 
   private func dismissPresentedVideo() {
+    videoStartTask?.cancel()
+    videoStartTask = nil
+    resumePrompter.answer(nil)
     guard let dismissedRoute = selectedVideoRoute else { return }
     selectedVideoRoute = nil
     presentedVideoRoute = nil
