@@ -1305,6 +1305,37 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-12-up-next")
   }
 
+  func testMiniPlayer() throws {
+    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103)
+    app.buttons["audio.collapse"].tap()
+    let mini = app.buttons["audio.mini.open"]
+    XCTAssertTrue(mini.appears(within: 5), "collapsing showed no mini player")
+    let toggle = app.buttons["audio.mini.toggle"]
+    XCTAssertEqual(toggle.label, "Pause")
+    toggle.tap()
+    XCTAssertEqual(toggle.label, "Play")
+    XCTAssertEqual(mini.label, "Open player")
+    let value = mini.value as? String ?? ""
+    XCTAssertTrue(
+      value.hasPrefix("FFTT Tree Rings Open Air Session, October 13, 2026.mp3, ")
+        && value.contains(" of "),
+      "the mini player reads \(value)")
+    XCTAssertEqual(app.buttons["audio.mini.stop"].label, "Stop playback")
+    openRoot()
+    if isPad {
+      openSeasonFolder()
+      selectVideo(element("files.item.442"), id: 442, primary: nil)
+      let window = app.windows.firstMatch.frame
+      let tabBar = tabButton("Files").frame
+      XCTAssertLessThan(mini.frame.minX, window.width / 3, "the mini player left the list column")
+      XCTAssertGreaterThan(mini.frame.minY, tabBar.maxY, "the mini player covers the tab bar")
+      XCTAssertLessThanOrEqual(mini.frame.maxY, window.maxY, "the mini player is cut off")
+    }
+    XCTAssertTrue(mini.isHittable, "the mini player left with the folder")
+    try captureBoard(isPad ? "rd-ios-pb-41-ipad-mini" : "rd-ios-pb-05-mini")
+  }
+
   private func playMusic(path: [String], track: Int, state: String = "playing") throws {
     orientForBoardDevice()
     app.launchArguments.append("--putio-harness-music")

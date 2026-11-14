@@ -107,6 +107,21 @@ test("a fully recorded catalog passes and lists ios-only strings", async () => {
   assert.match(result.stdout, /5 catalog keys: 3 mapped to Android \(1 intended differences\), 2 ios-only/);
 });
 
+test("keys that differ only in their format specifiers are both used", async () => {
+  const result = await run({
+    ios: {
+      ...baseIOS,
+      "%lld of %lld": { comment: "ios-only: a counter" },
+      "%@ of %@": { comment: "ios-only: a position" },
+    },
+    swift: baseSwift.replace(
+      "  var title",
+      '  var counter: String { String(localized: "\\(count) of \\(count)") }\n  var position: String { String(localized: "\\(device) of \\(device)") }\n  var title',
+    ),
+  });
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test("check fails on each broken rule", async (t) => {
   const cases: [string, Parameters<typeof run>[0], RegExp][] = [
     ["key without a record", { ios: { ...baseIOS, "Try again": {} } }, /"Try again" needs a comment/],

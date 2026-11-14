@@ -74,6 +74,7 @@ struct MainTabView: View {
   @State private var resumePrompter = PutioVideoResumePrompter()
   @State private var videoStartTask: Task<Void, Never>?
   @State private var audioPlayback = PutioAudioPlaybackSession()
+  @State private var miniPlayerPlacement = PutioAudioMiniPlayerPlacement()
   @State private var presentedPreview: PutioPreviewPresentation?
   @State private var previewToast: PutioToast?
   #if DEBUG
@@ -89,6 +90,11 @@ struct MainTabView: View {
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
+
+  private var miniPlayer: PutioAudioMiniPlayerSlot {
+    PutioAudioMiniPlayerSlot(
+      playback: audioPlayback, placement: miniPlayerPlacement, onStop: { stopAudio() })
+  }
 
   private var shellToast: Binding<PutioToast?> {
     presentedPreview == nil ? $previewToast : .constant(nil)
@@ -107,7 +113,7 @@ struct MainTabView: View {
     return TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .shellTabContent(shellToast, tabBar: tabBarVisibility)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Files")
@@ -117,7 +123,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
-          .shellTabContent(shellToast, tabBar: tabBarVisibility)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Downloads")
@@ -135,7 +141,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .shellTabContent(shellToast, tabBar: tabBarVisibility)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
           .id(historyRevision)
         } label: {
           Label {
@@ -165,7 +171,7 @@ struct MainTabView: View {
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
           }
         )
-        .shellTabContent(shellToast, tabBar: tabBarVisibility)
+        .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -187,7 +193,7 @@ struct MainTabView: View {
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
-        .shellTabContent(shellToast, tabBar: tabBarVisibility)
+        .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Search")
@@ -231,7 +237,7 @@ struct MainTabView: View {
       await appConfig.loadIfNeeded()
       askProductAnalyticsIfNeeded()
     }
-    .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
+    .modifier(PutioCastPresentation(model: cast, audio: miniPlayer))
     .putioVideoResumeAlert(resumePrompter)
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
@@ -1071,10 +1077,11 @@ private final class PutioOfflineQueueHolder {
 
 extension View {
   fileprivate func shellTabContent(
-    _ toast: Binding<PutioToast?>, tabBar: Visibility
+    _ toast: Binding<PutioToast?>, tabBar: Visibility, miniPlayer: PutioAudioMiniPlayerSlot
   ) -> some View {
     putioToast(toast)
       .tint(PutioTheme.Colors.textPrimary)
       .toolbarVisibility(tabBar, for: .tabBar)
+      .modifier(PutioAudioMiniPlayerInset(slot: miniPlayer))
   }
 }

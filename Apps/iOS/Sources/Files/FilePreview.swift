@@ -983,7 +983,7 @@ struct PutioPreviewView: View {
               isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty
             )
           }
-          .modifier(PutioPreviewToolbarGlass())
+          .modifier(PutioCapsuleGlass())
         }
         .frame(width: edge == .leading ? insets.leading : insets.trailing)
         .padding(.top, insets.top + PutioPreviewRail.top(horizontalSizeClass))
@@ -1051,7 +1051,7 @@ struct PutioPreviewView: View {
         )
       }
       .padding(.horizontal, PutioTheme.Spacing.space1 / 2)
-      .modifier(PutioPreviewToolbarGlass())
+      .modifier(PutioCapsuleGlass())
       .onGeometryChange(for: CGFloat.self, of: { $0.frame(in: .global).minX }) {
         titleSpan.trailing = $0
       }
@@ -1891,7 +1891,7 @@ struct PutioPreviewTitleSpan: Equatable {
   }
 }
 
-private struct PutioPreviewToolbarGlass: ViewModifier {
+struct PutioCapsuleGlass: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
     if HarnessRendering.usesRasterFallback {
       content.background(.regularMaterial, in: Capsule())

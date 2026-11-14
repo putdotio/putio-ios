@@ -5,11 +5,11 @@ import SwiftUI
 /// the expanded controls sheet, and the harness stub picker.
 struct PutioCastPresentation: ViewModifier {
   let model: PutioCastModel
-  var audioPlayback: PutioAudioPlaybackSession? = nil
+  var audio: PutioAudioMiniPlayerSlot? = nil
 
   func body(content: Content) -> some View {
     content
-      .modifier(PutioCastBarAccessory(model: model, audioPlayback: audioPlayback))
+      .modifier(PutioCastBarAccessory(model: model, audio: audio))
       .sheet(
         isPresented: Binding(
           get: { model.presentsControls }, set: { if !$0 { model.hideControls() } })
@@ -24,17 +24,24 @@ struct PutioCastPresentation: ViewModifier {
 }
 
 /// The accessory slot reserves its height whenever it is installed, so the
-/// bar is installed only while a receiver has something of ours.
+/// bar is installed only while a receiver or the audio player has something of
+/// ours.
 private struct PutioCastBarAccessory: ViewModifier {
   let model: PutioCastModel
-  let audioPlayback: PutioAudioPlaybackSession?
+  let audio: PutioAudioMiniPlayerSlot?
 
-  private var hasAccessory: Bool { model.hasSession || audioPlayback?.model != nil }
+  private var audioModel: PutioAudioPlayerModel? {
+    guard let audio, !audio.placement.tabBarOnTop else { return nil }
+    return audio.playback.model
+  }
+
+  private var hasAccessory: Bool { model.hasSession || audioModel != nil }
 
   @ViewBuilder
   private var accessory: some View {
-    if let audioPlayback, let audio = audioPlayback.model {
-      PutioAudioMiniPlayer(model: audio) { audioPlayback.isPresented = true }
+    if let audio, let audioModel {
+      PutioAudioMiniPlayer(
+        model: audioModel, onOpen: { audio.playback.isPresented = true }, onStop: audio.onStop)
     } else if model.hasSession {
       PutioCastBar(model: model)
     }
