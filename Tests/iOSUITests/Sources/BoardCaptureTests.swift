@@ -1490,6 +1490,44 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pv-01-image")
   }
 
+  func testDuoPreviewImage() throws {
+    openPosterPreview()
+    assertPreviewFillsWindowWithRail()
+    try captureBoard("rd-ios-pv-16-duo-image")
+
+    let image = element("preview.image").images.firstMatch
+    let resting = image.frame.width
+    element("preview.image").doubleTap()
+    XCTAssertTrue(
+      waitUntil(5) { image.frame.width > resting * 2.9 },
+      "double tap did not zoom 3x into the filled image: \(image.frame.width) from \(resting)")
+    element("preview.image").doubleTap()
+    XCTAssertTrue(
+      waitUntil(5) { abs(image.frame.width - resting) < 1 }, "double tap did not zoom back out")
+
+    try fold()
+    assertPreviewFillsWindowWithRail()
+    try unfold()
+    assertPreviewFillsWindowWithRail()
+    element("preview.back").tap()
+    XCTAssertTrue(element("preview.image").disappears(within: 5), "Back in the rail never closed")
+  }
+
+  private func assertPreviewFillsWindowWithRail() {
+    let window = app.windows.firstMatch.frame
+    let image = element("preview.image").images.firstMatch
+    XCTAssertTrue(
+      waitUntil(5) { image.exists && image.frame.insetBy(dx: -1, dy: -1).contains(window) },
+      "the image letterboxes: \(image.frame) in \(window)")
+    XCTAssertFalse(element("preview.title").exists, "the rail viewer shows a title")
+    XCTAssertFalse(app.navigationBars.staticTexts["Harness Poster.png"].exists)
+    XCTAssertTrue(element("preview.back").appears(within: 5), "the rail has no Back")
+    let back = element("preview.back").frame
+    let share = element("preview.share").frame
+    XCTAssertEqual(back.midX, share.midX, accuracy: 1, "Back and Share are not in one rail")
+    XCTAssertLessThan(back.maxY, share.minY, "Back does not sit above Share")
+  }
+
   func testPreviewMoreMenu() throws {
     orient(.portrait)
     openPosterPreview()

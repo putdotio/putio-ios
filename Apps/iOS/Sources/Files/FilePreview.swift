@@ -737,6 +737,7 @@ struct PutioPreviewView: View {
   @State private var titleSpan = PutioPreviewTitleSpan()
   @State private var restoring: Set<PutioFileID> = []
   @State private var linkItem: PutioFileItem?
+  @State private var railEdge: HorizontalEdge?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   private let fileActions: PutioPreviewFileActions
@@ -787,6 +788,7 @@ struct PutioPreviewView: View {
         .navigationTitle(model.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbar(model) }
+        .toolbar(removing: showsRail ? .title : nil)
         .toolbar(showsBars(model.state) ? .visible : .hidden, for: .navigationBar)
         .statusBarHidden(!showsBars(model.state))
         .modifier(
@@ -800,6 +802,11 @@ struct PutioPreviewView: View {
             refreshRequests: fileActions.refreshRequests
           )
         )
+    }
+    .background {
+      if #available(iOS 27.1, *) {
+        PutioPreviewRailReader(edge: $railEdge)
+      }
     }
     .environment(\.putioExclusiveLink, fileActions.createLink)
     .onChange(of: pager.name(for: pager.current.id)) { _, name in
@@ -829,6 +836,8 @@ struct PutioPreviewView: View {
     }
   }
 
+  private var showsRail: Bool { railEdge != nil }
+
   private func pageScroller(
     routes: [PutioViewerRoute], current: PutioFileID, insets: EdgeInsets
   ) -> some View {
@@ -839,6 +848,7 @@ struct PutioPreviewView: View {
             model: pager.model(for: route),
             isCurrent: route.id == current,
             insets: insets,
+            fillsWindow: showsRail,
             onSingleTap: toggleBars,
             onZoomChange: { zoomed in
               if zoomed {
@@ -915,7 +925,7 @@ struct PutioPreviewView: View {
       PutioPDFBarFade(style: .page)
     } else if showsText(state) {
       PutioPDFBarFade(style: .bar)
-    } else if showsImage(state), showsBars(state) {
+    } else if showsImage(state), showsBars(state), !showsRail {
       LinearGradient(
         colors: [Color.black.opacity(0.6), Color.black.opacity(0)],
         startPoint: .top, endPoint: .bottom
@@ -946,6 +956,47 @@ struct PutioPreviewView: View {
 
   @ToolbarContentBuilder
   private func toolbar(_ model: PutioPreviewModel) -> some ToolbarContent {
+    if #available(iOS 27.1, *), showsRail {
+      ToolbarItem(placement: .topBarLeading) {
+        Button {
+          onDismiss()
+        } label: {
+          Label(String(localized: "Back"), systemImage: "chevron.left")
+        }
+        .tint(PutioTheme.Colors.textPrimary)
+        .accessibilityIdentifier("preview.back")
+      }
+      ToolbarItemGroup(placement: .topBarTrailing) {
+        Group {
+          if let share = model.share {
+            ShareLink(item: share, preview: SharePreview(share.name)) { railShareLabel }
+          } else {
+            Button {
+            } label: {
+              railShareLabel
+            }
+            .disabled(true)
+          }
+        }
+        .tint(PutioTheme.Colors.textPrimary)
+        .accessibilityIdentifier("preview.share")
+        PutioPreviewMoreMenu(
+          menu: moreMenu(for: pager.item(for: model.route.id)),
+          isDisabled: !itemActions.canStartAction || itemAction != nil || !restoring.isEmpty,
+          style: .rail
+        )
+      }
+    } else {
+      barToolbar(model)
+    }
+  }
+
+  private var railShareLabel: some View {
+    Label(String(localized: "Share"), systemImage: "square.and.arrow.up")
+  }
+
+  @ToolbarContentBuilder
+  private func barToolbar(_ model: PutioPreviewModel) -> some ToolbarContent {
     ToolbarItem(placement: .topBarLeading) {
       Button {
         onDismiss()
@@ -1134,6 +1185,7 @@ struct PutioPreviewPage: View {
   let model: PutioPreviewModel
   let isCurrent: Bool
   let insets: EdgeInsets
+  let fillsWindow: Bool
   let onSingleTap: @MainActor () -> Void
   let onZoomChange: @MainActor (Bool) -> Void
   let onDocumentPage: @MainActor (PutioPDFPagePosition) -> Void
@@ -1159,7 +1211,7 @@ struct PutioPreviewPage: View {
         .accessibilityIdentifier("preview.loading")
     case .image(let image):
       PutioZoomableImageView(
-        image: image, title: model.title, onSingleTap: onSingleTap,
+        image: image, title: model.title, fills: fillsWindow, onSingleTap: onSingleTap,
         onZoomChange: onZoomChange
       )
       .ignoresSafeArea()
@@ -1233,11 +1285,13 @@ struct PutioPreviewPositionLabel: View {
 struct PutioZoomableImageView: UIViewRepresentable {
   let image: UIImage
   let title: String
+  var fills = false
   let onSingleTap: @MainActor () -> Void
   var onZoomChange: @MainActor (Bool) -> Void = { _ in }
 
   func makeUIView(context: Context) -> PutioZoomingScrollView {
     let scrollView = PutioZoomingScrollView(image: image, title: title)
+    scrollView.fills = fills
     scrollView.accessibilityLabel = title
     scrollView.onSingleTap = onSingleTap
     scrollView.onZoomChange = onZoomChange
@@ -1247,6 +1301,7 @@ struct PutioZoomableImageView: UIViewRepresentable {
   func updateUIView(_ scrollView: PutioZoomingScrollView, context: Context) {
     // SwiftUI re-runs this on unrelated invalidations; only a new image resets zoom.
     scrollView.update(image: image, title: title)
+    scrollView.fills = fills
     scrollView.onSingleTap = onSingleTap
     scrollView.onZoomChange = onZoomChange
   }
@@ -1258,6 +1313,13 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   var onSingleTap: (@MainActor () -> Void)?
   var onZoomChange: (@MainActor (Bool) -> Void)?
   private var reportedZoomed = false
+  var fills = false {
+    didSet {
+      guard fills != oldValue else { return }
+      fittedSize = .zero
+      setNeedsLayout()
+    }
+  }
 
   init(image: UIImage, title: String) {
     super.init(frame: .zero)
@@ -1305,9 +1367,11 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     zoomScale = 1
     reportZoom()
     let imageSize = imageView.image?.size ?? .zero
+    let widthScale = imageSize.width > 0 ? bounds.width / imageSize.width : 1
+    let heightScale = imageSize.height > 0 ? bounds.height / imageSize.height : 1
     let scale =
       imageSize.width > 0 && imageSize.height > 0
-      ? min(bounds.width / imageSize.width, bounds.height / imageSize.height) : 1
+      ? (fills ? max(widthScale, heightScale) : min(widthScale, heightScale)) : 1
     let fitted = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
     imageView.frame = CGRect(origin: .zero, size: fitted)
     contentSize = fitted
@@ -1345,8 +1409,9 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   }
 
   /// Zooms 3x into the tapped point of the fitted image. The rect is in the
-  /// image view's own coordinates: its unzoomed bounds divided by the target
-  /// scale, clamped to the picture so the focal point stays on the image.
+  /// image view's own coordinates: the visible part of its unzoomed bounds
+  /// divided by the target scale, clamped to the picture so the focal point
+  /// stays on the image.
   @objc private func toggleZoom(_ recognizer: UITapGestureRecognizer) {
     if zoomScale > minimumZoomScale {
       setZoomScale(minimumZoomScale, animated: true)
@@ -1355,7 +1420,9 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     let scale = min(maximumZoomScale, 3)
     let fitted = imageView.bounds.size
     guard fitted.width > 0, fitted.height > 0 else { return }
-    let size = CGSize(width: fitted.width / scale, height: fitted.height / scale)
+    let size = CGSize(
+      width: min(fitted.width, bounds.width) / scale,
+      height: min(fitted.height, bounds.height) / scale)
     let point = recognizer.location(in: imageView)
     let origin = CGPoint(
       x: min(max(0, point.x - size.width / 2), fitted.width - size.width),
@@ -1364,7 +1431,8 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   }
 
   private var restingOffset: CGPoint {
-    CGPoint(x: -contentInset.left, y: -contentInset.top)
+    CGPoint(
+      x: (contentSize.width - bounds.width) / 2, y: (contentSize.height - bounds.height) / 2)
   }
 
   private func center() {
@@ -1742,6 +1810,17 @@ struct PutioPDFPagePill: View {
       .accessibilityLabel(Text("Page \(position.number) of \(position.count)"))
       .accessibilityIdentifier("preview.page")
       .allowsHitTesting(false)
+  }
+}
+
+@available(iOS 27.1, *)
+private struct PutioPreviewRailReader: View {
+  @Environment(\.toolbarVerticalEdge) private var verticalEdge
+  @Binding var edge: HorizontalEdge?
+
+  var body: some View {
+    Color.clear
+      .onChange(of: verticalEdge, initial: true) { edge = verticalEdge }
   }
 }
 

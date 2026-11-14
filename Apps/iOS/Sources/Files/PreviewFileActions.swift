@@ -27,21 +27,40 @@ struct PutioPreviewFileActions {
 }
 
 struct PutioPreviewMoreMenu: View {
+  enum Style {
+    case bar
+    case rail
+  }
+
   let menu: PutioItemMenu
   let isDisabled: Bool
+  var style = Style.bar
 
   var body: some View {
-    Menu {
-      PutioItemMenuContent(menu)
-    } label: {
-      PutioPreviewToolbarIcon(icon: .dotsThree)
+    switch style {
+    case .bar:
+      Menu {
+        PutioItemMenuContent(menu)
+      } label: {
+        PutioPreviewToolbarIcon(icon: .dotsThree)
+      }
+      .accessibilityLabel(Text("More"))
+      .menuOrder(.fixed)
+      .menuStyle(.button)
+      .buttonStyle(.plain)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .disabled(isDisabled || menu.sections.isEmpty)
+      .accessibilityIdentifier("preview.more")
+    case .rail:
+      Menu {
+        PutioItemMenuContent(menu)
+      } label: {
+        Label(String(localized: "More"), systemImage: "ellipsis")
+      }
+      .menuOrder(.fixed)
+      .tint(PutioTheme.Colors.textPrimary)
+      .disabled(isDisabled || menu.sections.isEmpty)
+      .accessibilityIdentifier("preview.more")
     }
-    .accessibilityLabel(Text("More"))
-    .menuOrder(.fixed)
-    .menuStyle(.button)
-    .buttonStyle(.plain)
-    .foregroundStyle(PutioTheme.Colors.textPrimary)
-    .disabled(isDisabled || menu.sections.isEmpty)
-    .accessibilityIdentifier("preview.more")
   }
 }

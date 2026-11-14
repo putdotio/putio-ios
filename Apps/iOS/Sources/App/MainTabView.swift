@@ -91,11 +91,15 @@ struct MainTabView: View {
     presentedPreview == nil ? $previewToast : .constant(nil)
   }
 
+  private var tabBarVisibility: Visibility {
+    presentedPreview == nil ? .automatic : .hidden
+  }
+
   var body: some View {
     TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .shellTabContent(shellToast)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility)
       } label: {
         Label {
           Text("Files")
@@ -105,7 +109,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
-          .shellTabContent(shellToast)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility)
       } label: {
         Label {
           Text("Downloads")
@@ -123,7 +127,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .shellTabContent(shellToast)
+          .shellTabContent(shellToast, tabBar: tabBarVisibility)
           .id(historyRevision)
         } label: {
           Label {
@@ -153,7 +157,7 @@ struct MainTabView: View {
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
           }
         )
-        .shellTabContent(shellToast)
+        .shellTabContent(shellToast, tabBar: tabBarVisibility)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -175,7 +179,7 @@ struct MainTabView: View {
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
-        .shellTabContent(shellToast)
+        .shellTabContent(shellToast, tabBar: tabBarVisibility)
       } label: {
         Label {
           Text("Search")
@@ -989,7 +993,11 @@ private final class PutioOfflineQueueHolder {
 }
 
 extension View {
-  fileprivate func shellTabContent(_ toast: Binding<PutioToast?>) -> some View {
-    putioToast(toast).tint(PutioTheme.Colors.textPrimary)
+  fileprivate func shellTabContent(
+    _ toast: Binding<PutioToast?>, tabBar: Visibility
+  ) -> some View {
+    putioToast(toast)
+      .tint(PutioTheme.Colors.textPrimary)
+      .toolbarVisibility(tabBar, for: .tabBar)
   }
 }
