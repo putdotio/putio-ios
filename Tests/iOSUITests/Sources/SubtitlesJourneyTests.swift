@@ -108,7 +108,6 @@ final class SubtitlesJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
-    app.holdLandscapeForPlayer()
     video.tap()
     app.answerResumePrompt()
     if retryingSeededFailure {

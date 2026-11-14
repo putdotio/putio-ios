@@ -253,28 +253,25 @@ struct PutioVideoControls<Trailing: View>: View {
         .onTapGesture { animate { visibility.toggled() } }
         .ignoresSafeArea()
         .accessibilityHidden(true)
-      VStack(spacing: 0) {
-        PutioVideoTopBar(title: title, onClose: onClose) {
-          trailing
-          PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
+      ZStack {
+        VStack(spacing: 0) {
+          PutioVideoTopBar(title: title, onClose: onClose) {
+            trailing
+            PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
+          }
+          Spacer(minLength: PutioTheme.Spacing.space3)
+          PutioVideoScrubber(transport: transport) {
+            visibility.interacted()
+          } onScrubbing: {
+            visibility.set(.scrubbing, $0)
+          }
         }
-        Spacer(minLength: PutioTheme.Spacing.space3)
-        PutioVideoScrubber(transport: transport) {
-          visibility.interacted()
-        } onScrubbing: {
-          visibility.set(.scrubbing, $0)
-        }
+        .padding(PutioTheme.Spacing.space3)
+        centre
       }
-      .padding(PutioTheme.Spacing.space3)
-      centre
-    }
-    .background { PutioVideoScrim().allowsHitTesting(false) }
-    .opacity(visibility.isVisible ? 1 : 0)
-    .allowsHitTesting(visibility.isVisible)
-    .accessibilityHidden(!visibility.isVisible)
-    .statusBarHidden(!visibility.isVisible)
-    .persistentSystemOverlays(visibility.isVisible ? .automatic : .hidden)
-    .overlay {
+      .background { PutioVideoScrim().allowsHitTesting(false) }
+      .opacity(visibility.isVisible ? 1 : 0)
+      .accessibilityHidden(!visibility.isVisible)
       if !visibility.isVisible {
         Color.clear
           .contentShape(Rectangle())
@@ -283,6 +280,8 @@ struct PutioVideoControls<Trailing: View>: View {
           .accessibilityHidden(true)
       }
     }
+    .statusBarHidden(!visibility.isVisible)
+    .persistentSystemOverlays(visibility.isVisible ? .automatic : .hidden)
     .task(id: visibility.idleGeneration) {
       let generation = visibility.idleGeneration
       try? await Task.sleep(for: PutioVideoControlsVisibility.idleDelay)
