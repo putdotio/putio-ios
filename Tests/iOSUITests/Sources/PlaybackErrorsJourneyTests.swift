@@ -24,8 +24,9 @@ final class PlaybackErrorsJourneyTests: XCTestCase {
     let error = element("video.error")
     let failures = element("video.reported-failures")
     XCTAssertTrue(error.appears(within: 15), "a second 403 did not show an error")
-    XCTAssertTrue(app.staticTexts["Couldn’t play this video"].exists)
-    XCTAssertTrue(app.staticTexts["Playback access expired. Retry to refresh it."].exists)
+    XCTAssertTrue(app.staticTexts["Couldn’t play this video"].appears(within: 5))
+    XCTAssertTrue(
+      app.staticTexts["Playback access expired. Retry to refresh it."].appears(within: 5))
     XCTAssertEqual(failures.value as? String, "accessExpired,accessExpired")
     assertKeepsCloseAndFileName()
     addScreenshot(named: "runtime-video-access-expired")
@@ -34,7 +35,7 @@ final class PlaybackErrorsJourneyTests: XCTestCase {
     retry.tap()
     XCTAssertTrue(
       app.staticTexts["Connection lost"].appears(within: 15), "a refused stream did not say so")
-    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].appears(within: 5))
     XCTAssertTrue(waitForValue(failures, "accessExpired,accessExpired,connectionLost"))
     assertKeepsCloseAndFileName()
     addScreenshot(named: "runtime-video-connection-lost")
