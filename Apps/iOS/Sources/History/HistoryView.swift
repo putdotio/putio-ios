@@ -9,10 +9,12 @@ struct HistoryView: View {
   let onFileSelected: PutioFileSelection
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.locale) private var locale
   @State private var groupingDate = Date.now
   @State private var model: PutioHistoryModel
   @State private var path: [PutioFolderRoute] = []
   @State private var clearConfirmationPresented = false
+  @State private var toast: PutioToast?
 
   init(
     runtime: PutioRuntime,
@@ -72,6 +74,12 @@ struct HistoryView: View {
         .onChange(of: scenePhase) { _, phase in
           if phase == .active { groupingDate = .now }
         }
+        .onChange(of: model.openFailure) { _, failure in
+          guard failure?.isNotFound == true else { return }
+          model.cancelOpen()
+          toast = PutioToast(
+            String(localized: "This item cannot be opened right now. Check Files, then try again."))
+        }
         .onChange(of: model.openedFile) { _, file in
           guard let file else { return }
           model.clearOpenedFile()
@@ -83,6 +91,7 @@ struct HistoryView: View {
           }
         }
     }
+    .putioToast($toast)
   }
 
   private var isBusy: Bool { model.mutation != nil || model.openingEventID != nil }
@@ -101,7 +110,8 @@ struct HistoryView: View {
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextBefore == nil,
-        model.refreshFailure == nil, model.mutationFailure == nil, model.openFailure == nil
+        model.refreshFailure == nil, model.mutationFailure == nil,
+        model.openFailure.map(\.isNotFound) ?? true
       {
         GeometryReader { geometry in
           ScrollView {
@@ -130,7 +140,7 @@ struct HistoryView: View {
           await model.retryMutation()
         }
       }
-      if let failure = model.openFailure {
+      if let failure = model.openFailure, !failure.isNotFound {
         retryRow(failure.message, identifier: "history.open-retry") { await model.retryOpen() }
       }
       if model.mutation != nil {
@@ -138,12 +148,20 @@ struct HistoryView: View {
           .listRowBackground(PutioTheme.Colors.background)
           .accessibilityIdentifier("history.progress")
       }
-      ForEach(PutioHistorySection.group(page.items, now: groupingDate)) { section in
-        Section(section.title) {
-          ForEach(section.items) { event in
+      ForEach(PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)) { day in
+        Section {
+          ForEach(day.items) { event in
             eventRow(event)
+              .listRowInsets(.vertical, PutioTheme.Spacing.space2)
               .listRowBackground(PutioTheme.Colors.background)
           }
+        } header: {
+          Text(day.title)
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .accessibilityAddTraits(.isHeader)
+            .listRowInsets(.top, PutioTheme.Spacing.space3)
+            .listRowInsets(.bottom, PutioTheme.Spacing.space1)
         }
       }
       if let before = page.nextBefore, model.refreshFailure == nil {
@@ -187,14 +205,12 @@ struct HistoryView: View {
         Button {
           Task { await model.openFile(event: event) }
         } label: {
-          PutioHistoryRow(
-            event: event, now: groupingDate, isOpening: model.openingEventID == event.id
-          )
-          .contentShape(Rectangle())
+          PutioHistoryRow(event: event, isOpening: model.openingEventID == event.id)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
       } else {
-        PutioHistoryRow(event: event, now: groupingDate, isOpening: false)
+        PutioHistoryRow(event: event, isOpening: false)
       }
     }
     .accessibilityIdentifier("history.item.\(event.id)")
@@ -217,13 +233,16 @@ struct HistoryView: View {
 
 private struct PutioHistoryRow: View {
   let event: PutioHistoryEventItem
-  let now: Date
   let isOpening: Bool
 
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.locale) private var locale
   @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
   @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var textGap
+  @PutioScaledMetric(PutioMetricRole(value: 6, relativeTo: .caption)) private var separatorGap
 
   var body: some View {
+    let presentation = PutioHistoryEventPresentation(event)
     HStack(spacing: contentGap) {
       PutioIconView(
         presentation.icon,
@@ -232,15 +251,25 @@ private struct PutioHistoryRow: View {
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: textGap) {
-        Text(presentation.title)
+        Text(presentation.name)
           .putioFont(PutioTheme.Typography.body)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
-        Text(presentation.detail)
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Text(PutioBrowserItemPresentation.relativeDateText(for: event.createdAt, relativeTo: now))
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+          .truncationMode(.middle)
+        ViewThatFits(in: .horizontal) {
+          HStack(alignment: .firstTextBaseline, spacing: separatorGap) {
+            kindText(presentation).fixedSize()
+            Text(verbatim: "·")
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+              .accessibilityHidden(true)
+            timeText.fixedSize()
+          }
+          VStack(alignment: .leading, spacing: 0) {
+            kindText(presentation).fixedSize(horizontal: false, vertical: true)
+            timeText
+          }
+        }
       }
       Spacer(minLength: 0)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }
@@ -248,35 +277,19 @@ private struct PutioHistoryRow: View {
     .accessibilityElement(children: .combine)
   }
 
-  private var presentation: (title: String, detail: String, icon: PutioIcon) {
-    switch event.kind {
-    case .upload(let name, let size, _):
-      (name, String(localized: "Uploaded · \(PutioFileRowModel.sizeText(bytes: size))"), .file)
-    case .fileShared(let name, let user, _):
-      (name, String(localized: "Shared by \(user)"), .userCircle)
-    case .transferCompleted(let name, let size, _):
-      (
-        name, String(localized: "Transfer completed · \(PutioFileRowModel.sizeText(bytes: size))"),
-        .checkCircle
+  private func kindText(_ presentation: PutioHistoryEventPresentation) -> some View {
+    Text(presentation.kind)
+      .putioFont(PutioTheme.Typography.caption)
+      .foregroundStyle(
+        presentation.tone == .destructive
+          ? PutioTheme.Colors.destructive : PutioTheme.Colors.textSecondary
       )
-    case .transferError(let name):
-      (name, String(localized: "Transfer failed"), .xCircle)
-    case .fileFromRSSDeleted(let name, let size):
-      (
-        name,
-        String(
-          localized: "Deleted to make room for RSS · \(PutioFileRowModel.sizeText(bytes: size))"),
-        .warningCircle
-      )
-    case .rssFilterPaused(let title):
-      (
-        title, String(localized: "RSS paused because its source could not be reached"),
-        .warningCircle
-      )
-    case .transferFromRSSError(let name):
-      (name, String(localized: "Transfer from RSS failed"), .xCircle)
-    case .transferCallbackError(let name):
-      (name, String(localized: "Transfer callback failed"), .xCircle)
-    }
+  }
+
+  private var timeText: some View {
+    Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
+      .putioFont(PutioTheme.Typography.numeric)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .lineLimit(1)
   }
 }

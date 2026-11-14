@@ -1459,17 +1459,6 @@
         }
       }
     },
-    "Deleted to make room for RSS · %@" : {
-      "comment" : "android: mobile_history_kind_rss_file_deleted | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleted to make room for RSS · %@"
-          }
-        }
-      }
-    },
     "Deleting the original removes it from every device signed in to your account and cannot be undone." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -3904,6 +3893,17 @@
         }
       }
     },
+    "This item cannot be opened right now. Check Files, then try again." : {
+      "comment" : "android: mobile_navigation_blocked",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item cannot be opened right now. Check Files, then try again."
+          }
+        }
+      }
+    },
     "This permanently deletes %@ from your put.io account. It can’t be undone." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -4417,17 +4417,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Route streams and downloads through a put.io proxy closer to you."
-          }
-        }
-      }
-    },
-    "RSS paused because its source could not be reached" : {
-      "comment" : "android: mobile_history_kind_rss_filter_paused | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "RSS paused because its source could not be reached"
           }
         }
       }
@@ -5048,50 +5037,6 @@
         }
       }
     },
-    "Transfer callback failed" : {
-      "comment" : "android: mobile_history_kind_callback_failed | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transfer callback failed"
-          }
-        }
-      }
-    },
-    "Transfer completed · %@" : {
-      "comment" : "android: mobile_history_kind_transfer_completed | differs: iOS appends the size",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transfer completed · %@"
-          }
-        }
-      }
-    },
-    "Transfer failed" : {
-      "comment" : "android: mobile_history_kind_transfer_failed",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transfer failed"
-          }
-        }
-      }
-    },
-    "Transfer from RSS failed" : {
-      "comment" : "android: mobile_history_kind_rss_transfer_failed | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transfer from RSS failed"
-          }
-        }
-      }
-    },
     "Trash" : {
       "comment" : "android: mobile_trash_title",
       "localizations" : {
@@ -5352,17 +5297,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating…"
-          }
-        }
-      }
-    },
-    "Uploaded · %@" : {
-      "comment" : "android: mobile_history_kind_uploaded | differs: iOS appends the size",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Uploaded · %@"
           }
         }
       }
