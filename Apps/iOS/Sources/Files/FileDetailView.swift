@@ -143,7 +143,7 @@ struct PutioFileDetailView: View {
         .accessibilityIdentifier("files.detail.open")
       }
       if offlineStatus == .onDevice {
-        iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded"), dimmed: true) {}
+        iconButton(.arrowCircleDownFill, label: String(localized: "Downloaded")) {}
           .disabled(true)
           .accessibilityIdentifier("files.detail.on-device")
       } else if let onDownload, route.supportsOfflineDownload {
@@ -167,9 +167,11 @@ struct PutioFileDetailView: View {
         Menu {
           PutioItemMenuContent(more)
         } label: {
-          PutioFileDetailIconLabel(icon: .dotsThree)
+          iconLabel(.dotsThree)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .tint(PutioTheme.Colors.textPrimary)
         .accessibilityLabel(Text("More"))
         .accessibilityIdentifier("files.detail.more")
       }
@@ -185,11 +187,17 @@ struct PutioFileDetailView: View {
   }
 
   private func iconButton(
-    _ icon: PutioIcon, label: String, dimmed: Bool = false, action: @escaping () -> Void
+    _ icon: PutioIcon, label: String, action: @escaping () -> Void
   ) -> some View {
-    Button(action: action) { PutioFileDetailIconLabel(icon: icon, dimmed: dimmed) }
-      .buttonStyle(.plain)
+    Button(action: action) { iconLabel(icon) }
+      .buttonStyle(.bordered)
+      .buttonBorderShape(.circle)
+      .tint(PutioTheme.Colors.textPrimary)
       .accessibilityLabel(Text(label))
+  }
+
+  private func iconLabel(_ icon: PutioIcon) -> some View {
+    PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
   }
 
   private var moreMenu: PutioItemMenu? {
@@ -357,20 +365,6 @@ struct PutioFileDetailView: View {
   }
 }
 
-private struct PutioFileDetailIconLabel: View {
-  let icon: PutioIcon
-  var dimmed = false
-  @PutioScaledMetric(PutioFileDetailLayout.actionControl) private var diameter
-
-  var body: some View {
-    PutioIconView(icon, size: PutioFileDetailLayout.actionGlyph)
-      .foregroundStyle(dimmed ? PutioTheme.Colors.textDisabled : PutioTheme.Colors.textPrimary)
-      .frame(width: diameter, height: diameter)
-      .background(PutioTheme.Colors.surfaceActive, in: Circle())
-      .contentShape(Circle())
-  }
-}
-
 private enum PutioFileDetailLayout {
   static let readableWidth = PutioTheme.Spacing.space8 + PutioTheme.Spacing.space6
   static let sectionGap = PutioTheme.Spacing.space3
@@ -381,9 +375,6 @@ private enum PutioFileDetailLayout {
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2, relativeTo: .title)
   static let actionGlyph = PutioMetricRole(
     value: PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1, relativeTo: .body)
-  static let actionControl = PutioMetricRole(
-    value: PutioTheme.Spacing.space4 + PutioTheme.Spacing.space1 + PutioTheme.Spacing.space1 / 2,
-    relativeTo: .body)
   static let factLabelWidth =
     PutioTheme.Spacing.space6 - PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1
   static let title = PutioFontRole(
