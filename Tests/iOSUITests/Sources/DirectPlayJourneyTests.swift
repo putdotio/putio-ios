@@ -20,8 +20,7 @@ final class DirectPlayJourneyTests: XCTestCase {
   func testDirectPlayPlaysTheOriginalSeeksSwitchesAudioAndResumes() throws {
     app.launch()
     let signIn = element("auth.sign-in")
-    XCTAssertTrue(signIn.appears(within: 10))
-    signIn.tap()
+    if signIn.appears(within: 10) { signIn.tap() }
     XCTAssertTrue(app.buttons["Account"].appears(within: 10))
 
     // On Standard, the file menu plays this one video with Direct play.
@@ -105,6 +104,15 @@ final class DirectPlayJourneyTests: XCTestCase {
       waitFor(NSPredicate(format: "value.intValue >= %d", resumedAt), position, timeout: 10),
       "playback did not start at the saved position: \(position.value ?? "")")
     app.closeVideo()
+
+    app.showTabBar()
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   private func waitForOriginal() {
