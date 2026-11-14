@@ -162,7 +162,8 @@ final class AudioJourneyTests: XCTestCase {
     app.buttons["audio.retry"].tap()
     XCTAssertTrue(waitForValue(state, "id=3103;state=playing", timeout: 10))
     XCTAssertTrue(waitForLabel(element("audio.folder"), "Music"))
-    XCTAssertEqual(element("audio.title").label, "FFTT Tree Rings Open Air Session, October 13, 2026.mp3")
+    XCTAssertEqual(
+      element("audio.title").label, "FFTT Tree Rings Open Air Session, October 13, 2026.mp3")
     XCTAssertTrue(waitForEnabled(app.buttons["audio.previous"], true))
     XCTAssertTrue(app.buttons["audio.next"].isEnabled)
 
