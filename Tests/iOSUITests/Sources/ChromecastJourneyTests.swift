@@ -48,7 +48,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 5))
     openLocally(row)
     connectFromPlayer()
-    closePaused()
+    app.closeVideo()
 
     // Tapping a video while connected casts it; the first load fails on the
     // receiver and retry recovers into playing controls.
@@ -123,7 +123,7 @@ final class ChromecastJourneyTests: XCTestCase {
 
     // Sign-out must stop the receiver, not just remove its controls with the shell.
     connectFromPlayer()
-    closePaused()
+    app.closeVideo()
     row.tap()
     XCTAssertTrue(toggle.appears(within: 15))
     XCTAssertEqual(toggle.label, "Pause")
@@ -152,7 +152,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(
       app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
     screenshot("runtime-cast-routes")
-    closePaused()
+    app.closeVideo()
 
     app.terminate()
     app.launchArguments.append("--putio-harness-cast-no-device")
@@ -161,7 +161,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay"])
     XCTAssertFalse(castButton.exists, "Cast showed with no device")
     screenshot("runtime-cast-routes-no-device")
-    closePaused()
+    app.closeVideo()
 
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-cast-no-device" }
@@ -182,7 +182,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Local network access is off"].disappears(within: 5),
       "Cancel kept the alert")
-    closePaused()
+    app.closeVideo()
 
     app.showTabBar()
     app.buttons["Account"].tap()
@@ -192,11 +192,6 @@ final class ChromecastJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
-  }
-
-  private func closePaused() {
-    app.setVideoPlaying(false, with: element("video.play-pause"))
-    app.closeVideo()
   }
 
   private func launchSignedIn() {
@@ -212,6 +207,7 @@ final class ChromecastJourneyTests: XCTestCase {
     let videoRetry = app.buttons["video.error"]
     if videoRetry.appears(within: 10) { videoRetry.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 20), "the local player never played")
+    app.setVideoPlaying(false, with: element("video.play-pause"))
   }
 
   private func connectFromPlayer() {

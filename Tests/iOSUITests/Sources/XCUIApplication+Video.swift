@@ -29,7 +29,7 @@ extension XCUIApplication {
     for _ in 0..<3 {
       revealVideoControls(showing: playPause, file: file, line: line)
       if playPause.label == target { return }
-      playPause.tap()
+      playPause.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
       let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
       if XCTWaiter.wait(for: [expectation], timeout: 3) == .completed { return }
     }
