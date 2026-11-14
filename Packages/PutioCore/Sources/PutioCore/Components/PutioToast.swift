@@ -266,6 +266,6 @@ enum PutioToastLayout {
     static let cornerRadius: CGFloat = 26
     static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
 
-    static func fillsWidth(_ toast: PutioToast) -> Bool { toast.action != nil }
+    static func fillsWidth(_ toast: PutioToast) -> Bool { toast.icon == nil || toast.action != nil }
   #endif
 }
