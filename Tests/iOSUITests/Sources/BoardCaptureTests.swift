@@ -1495,6 +1495,16 @@ final class BoardCaptureTests: XCTestCase {
     assertPreviewFillsWindowWithRail()
     try captureBoard("rd-ios-pv-16-duo-image")
 
+    let position = element("preview.position")
+    app.windows.firstMatch.swipeLeft(velocity: .fast)
+    XCTAssertTrue(
+      waitUntil(5) { position.label == "2 of 3" },
+      "one swipe did not move one file: \(position.label)")
+    app.windows.firstMatch.swipeRight(velocity: .fast)
+    XCTAssertTrue(
+      waitUntil(5) { position.label == "1 of 3" }, "one swipe did not move back: \(position.label)")
+    XCTAssertTrue(app.images["Harness Poster.png"].appears(within: 5), "the poster did not return")
+
     let image = element("preview.image").images.firstMatch
     let resting = image.frame.width
     element("preview.image").doubleTap()
@@ -1514,6 +1524,10 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func assertPreviewFillsWindowWithRail() {
+    let boardSizes = [CGSize(width: 466, height: 678), Self.openDuoSize]
+    XCTAssertTrue(
+      waitUntil(10) { boardSizes.contains(app.windows.firstMatch.frame.size) },
+      "the window never settled on a Duo board size: \(app.windows.firstMatch.frame.size)")
     let window = app.windows.firstMatch.frame
     let image = element("preview.image").images.firstMatch
     XCTAssertTrue(
@@ -1524,8 +1538,17 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("preview.back").appears(within: 5), "the rail has no Back")
     let back = element("preview.back").frame
     let share = element("preview.share").frame
-    XCTAssertEqual(back.midX, share.midX, accuracy: 1, "Back and Share are not in one rail")
-    XCTAssertLessThan(back.maxY, share.minY, "Back does not sit above Share")
+    let more = element("preview.more").frame
+    let folded = window.width < window.height
+    XCTAssertEqual(back.midX, window.maxX - 42, accuracy: 2, "Back is off the rail column")
+    XCTAssertEqual(back.midY, folded ? 174 : 126, accuracy: 3, "Back is off its board height")
+    XCTAssertEqual(back.width, 44, accuracy: 1, "Back is not the board's 44 pt circle")
+    XCTAssertEqual(share.midX, back.midX, accuracy: 1, "Back and Share are not in one rail")
+    XCTAssertEqual(more.midX, back.midX, accuracy: 1, "Back and More are not in one rail")
+    XCTAssertEqual(share.midY, folded ? 228 : 180, accuracy: 3, "Share is off its board height")
+    XCTAssertEqual(more.midY, folded ? 272 : 224, accuracy: 3, "More is off its board height")
+    let position = element("preview.position").frame
+    XCTAssertEqual(position.midX, window.midX, accuracy: 1, "the position label is off centre")
   }
 
   func testPreviewMoreMenu() throws {

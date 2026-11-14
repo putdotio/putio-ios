@@ -91,12 +91,17 @@ struct MainTabView: View {
     presentedPreview == nil ? $previewToast : .constant(nil)
   }
 
-  private var tabBarVisibility: Visibility {
-    presentedPreview == nil ? .automatic : .hidden
+  var body: some View {
+    if #available(iOS 27.1, *) {
+      PutioRailEdgeReader { shell(railed: $0 != nil) }
+    } else {
+      shell(railed: false)
+    }
   }
 
-  var body: some View {
-    TabView(selection: tabSelection) {
+  private func shell(railed: Bool) -> some View {
+    let tabBarVisibility: Visibility = railed && presentedPreview != nil ? .hidden : .automatic
+    return TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
           .shellTabContent(shellToast, tabBar: tabBarVisibility)
