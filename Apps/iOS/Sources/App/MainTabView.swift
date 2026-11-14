@@ -457,6 +457,7 @@ struct MainTabView: View {
   }
 
   private func selectFile(_ route: PutioFileRoute, in source: PutioPreviewSource? = nil) {
+    cancelVideoStart()
     selectedFileRoute = route
     switch route.openAction {
     case .video(let videoRoute):
@@ -637,6 +638,7 @@ struct MainTabView: View {
   }
 
   private func presentAudio(_ route: PutioAudioRoute) {
+    cancelVideoStart()
     if cast.hasSession { cast.stopCasting() }
     if audioPlayback.model?.track.id == route.id {
       audioPlayback.isPresented = true
@@ -911,10 +913,14 @@ struct MainTabView: View {
     return { route in Task { await externalPlayback.open(route) } }
   }
 
-  private func dismissPresentedVideo() {
+  private func cancelVideoStart() {
     videoStartTask?.cancel()
     videoStartTask = nil
     resumePrompter.answer(nil)
+  }
+
+  private func dismissPresentedVideo() {
+    cancelVideoStart()
     guard let dismissedRoute = selectedVideoRoute else { return }
     selectedVideoRoute = nil
     presentedVideoRoute = nil
