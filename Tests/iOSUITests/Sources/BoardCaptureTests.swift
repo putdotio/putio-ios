@@ -2145,8 +2145,9 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountDefaultSort() throws {
     openAccountSettings()
     element("settings.default-sort").tap()
-    XCTAssertTrue(app.staticTexts["Sort by"].appears(within: 5), "the sort menu never opened")
-    XCTAssertTrue(app.staticTexts["Videos"].exists, "the sort menu has no Videos section")
+    XCTAssertTrue(app.sortChoice("Size").appears(within: 5), "the sort menu has no Size field")
+    XCTAssertTrue(app.sortChoice("Z to A").exists, "the sort menu has no Z to A order")
+    XCTAssertTrue(app.sortChoice("Watched first").exists, "the sort menu has no video order")
     try captureBoard("rd-ios-acc-05-default-sort")
   }
 
