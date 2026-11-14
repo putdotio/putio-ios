@@ -245,7 +245,7 @@ struct AccountView: View {
           try await commit(.defaultSort, .defaultSort(sort))
         },
         valueLabel: { sort in
-          sort?.accountValue ?? String(localized: "Current server setting")
+          sort?.menuLabel ?? String(localized: "Current server setting")
         }
       ) { selection in
         PutioFolderSortMenuItems(current: selection.wrappedValue) { selection.wrappedValue = $0 }
@@ -676,24 +676,5 @@ private struct PutioSignOutPrompt {
     }
     let size = PutioFileRowModel.sizeText(bytes: bytes)
     return String(localized: "Sign out and remove downloads (\(size))")
-  }
-}
-
-extension PutioFolderSort {
-  fileprivate var accountValue: String {
-    switch self {
-    case .nameAscending: String(localized: "Name, A to Z")
-    case .nameDescending: String(localized: "Name, Z to A")
-    case .sizeAscending: String(localized: "Size, smallest first")
-    case .sizeDescending: String(localized: "Size, largest first")
-    case .dateAddedAscending: String(localized: "Date added, oldest first")
-    case .dateAddedDescending: String(localized: "Date added, newest first")
-    case .dateModifiedAscending: String(localized: "Date modified, oldest first")
-    case .dateModifiedDescending: String(localized: "Date modified, newest first")
-    case .typeAscending: String(localized: "Type, A to Z")
-    case .typeDescending: String(localized: "Type, Z to A")
-    case .watchStatusAscending: String(localized: "Unwatched first")
-    case .watchStatusDescending: String(localized: "Watched first")
-    }
   }
 }
