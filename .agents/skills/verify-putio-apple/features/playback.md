@@ -10,7 +10,9 @@ offline playback.
   the next episode at its saved position, and signs out. This is the recorded
   walk.
 - `resume` keeps the playback position across reopening a file.
-- `audio` plays, pauses, changes speed, and advances to the next track.
+- `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
+  and next file in the folder, retries a failed load, and plays a one-file
+  folder.
 - `subtitles` picks subtitles from the system menu without changing audio, and
   follows the preferences.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
@@ -49,7 +51,13 @@ Preconditions:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus
   `runtime-proof-walk.mp4`.
 - **Resume.** Run `--only resume-persistence`.
-- **Audio.** Run `--only audio`. Screenshot: `runtime-audio-player`.
+- **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
+  `runtime-audio-error`, `runtime-audio-single`. `--putio-harness-music` seeds
+  a Music folder of three tracks and a one-file folder under Singles;
+  `--putio-harness-audio-fails-once` and `--putio-harness-audio-held` fail or
+  hold the middle track's first load. Boards: `rd-ios-pb-04-now-playing`,
+  `rd-ios-pb-25-preparing-audio`, `rd-ios-pb-37-audio-error`,
+  `rd-ios-pb-39-single-audio`, `rd-ios-pb-40-ipad-now-playing`.
 - **Subtitles.** Run `--only subtitles`. Screenshots: `runtime-subtitles-menu`,
   `runtime-subtitles-selected`.
 - **Preferences.** Run `--only playback-preferences`. Screenshot:

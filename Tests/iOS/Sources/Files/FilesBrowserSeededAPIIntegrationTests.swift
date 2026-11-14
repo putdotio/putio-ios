@@ -275,7 +275,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertNil(finalSuccessor)
   }
 
-  func testSeededAudioResolvesStreamAndSuccessorThroughTheSDK() async throws {
+  func testSeededAudioResolvesStreamAndFolderNeighboursThroughTheSDK() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
     let track = PutioFileID(rawValue: HarnessSeededAPI.audioTrackFileID)
@@ -284,12 +284,15 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertTrue(source.url.path.hasSuffix("/files/\(track.rawValue)/stream"))
     XCTAssertEqual(source.startFromSeconds, 0)
 
-    let loadedNext = try await runtime.findNextAudio(after: track)
-    let next = try XCTUnwrap(loadedNext)
+    let first = try await runtime.audioNeighbours(of: track, in: .root)
+    XCTAssertNil(first.previous)
+    let next = try XCTUnwrap(first.next)
     XCTAssertEqual(next.id, PutioFileID(rawValue: HarnessSeededAPI.audioSuccessorFileID))
     XCTAssertEqual(next.parentID, .root)
-    let finalSuccessor = try await runtime.findNextAudio(after: next.id)
-    XCTAssertNil(finalSuccessor)
+    XCTAssertEqual(first.folderName, "Your Files")
+    let last = try await runtime.audioNeighbours(of: next.id, in: .root)
+    XCTAssertEqual(last.previous?.id, track)
+    XCTAssertNil(last.next)
 
     do {
       _ = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 412))

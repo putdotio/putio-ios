@@ -8,8 +8,8 @@ import SwiftUI
 
 typealias PutioAudioResolve =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlaybackSource
-typealias PutioNextAudioLoad =
-  @MainActor @Sendable (PutioFileID) async throws -> PutioNextAudio?
+typealias PutioAudioNeighboursLoad =
+  @MainActor @Sendable (PutioAudioTrack) async throws -> PutioAudioNeighbours
 /// The account's current remember-position setting. Players outlive any one
 /// account snapshot, so they ask again at every load and report.
 typealias PutioPlaybackPositionSetting = @MainActor @Sendable () -> Bool
@@ -46,23 +46,20 @@ enum PutioAudioSpeed: Float, CaseIterable, Sendable {
   case normal = 1
   case faster = 1.25
   case fast = 1.5
-  case fastest = 2
+  case double = 2
+  case doubleAndHalf = 2.5
+  case triple = 3
+  case tripleAndHalf = 3.5
+  case quadruple = 4
 
   /// Locale-independent so the label, identifier, and persisted value agree.
   var title: String {
-    switch self {
-    case .quarter: "0.25×"
-    case .half: "0.5×"
-    case .slower: "0.75×"
-    case .normal: "1×"
-    case .faster: "1.25×"
-    case .fast: "1.5×"
-    case .fastest: "2×"
-    }
+    "\(identifier)×"
   }
 
   var identifier: String {
-    String(title.dropLast())
+    let value = Double(rawValue)
+    return value == value.rounded() ? String(Int(value)) : String(value)
   }
 }
 
@@ -97,6 +94,7 @@ enum PutioRemoteAudioCommand: Equatable, Sendable {
   case pause
   case toggle
   case next
+  case previous
   case seek(seconds: Int)
   case skip(seconds: Int)
 }
@@ -108,6 +106,7 @@ protocol PutioNowPlayingSurface: AnyObject {
   func publish(_ info: PutioNowPlayingInfo)
   func clear()
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void)
+  func setTrackCommands(previous: Bool, next: Bool)
   func detachCommands()
 }
 
@@ -138,15 +137,14 @@ protocol PutioAudioSessioning: AnyObject {
 @MainActor
 @Observable
 final class PutioAudioPlayerModel {
-  static let skipInterval = 15
+  static let skipInterval = 10
 
   private(set) var state: PutioAudioPlayerState
   private(set) var speed: PutioAudioSpeed
   private(set) var elapsedSeconds = 0
   private(set) var durationSeconds: Int?
-  /// The successor known to the model once the current track ended, so the
-  /// view can show the transition before the next source resolves.
-  private(set) var advancingTo: PutioNextAudio?
+  /// The files beside the current track; `nil` until its folder is read.
+  private(set) var neighbours: PutioAudioNeighbours?
 
   @ObservationIgnored private let engine: any PutioAudioEngine
   @ObservationIgnored private let nowPlaying: any PutioNowPlayingSurface
@@ -158,7 +156,9 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private let schedulePositionReports: PutioVideoPositionReporter.Scheduler
   @ObservationIgnored private var positionReporter: PutioVideoPositionReporter?
   @ObservationIgnored private let resolve: PutioAudioResolve
-  @ObservationIgnored private let loadNext: PutioNextAudioLoad
+  @ObservationIgnored private let loadNeighbours: PutioAudioNeighboursLoad
+  @ObservationIgnored private var neighboursTask: Task<PutioAudioNeighbours?, Never>?
+  @ObservationIgnored private var neighboursTrackID: PutioFileID?
   @ObservationIgnored private let notificationCenter: NotificationCenter
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -189,7 +189,7 @@ final class PutioAudioPlayerModel {
     },
     reportPosition: @escaping PutioPlaybackPositionReport,
     resolve: @escaping PutioAudioResolve,
-    loadNext: @escaping PutioNextAudioLoad
+    loadNeighbours: @escaping PutioAudioNeighboursLoad
   ) {
     self.state = .loading(track)
     self.speed = speedStore.load()
@@ -207,7 +207,7 @@ final class PutioAudioPlayerModel {
       try await reportPosition(fileID, seconds)
     }
     self.resolve = resolve
-    self.loadNext = loadNext
+    self.loadNeighbours = loadNeighbours
     bindEngine()
   }
 
@@ -296,11 +296,24 @@ final class PutioAudioPlayerModel {
     publishNowPlaying()
   }
 
+  var canSkipToPrevious: Bool { neighbours?.previous != nil && !isTransitioning }
+  var canSkipToNext: Bool { neighbours?.next != nil && !isTransitioning }
+
   func skipToNext() {
+    guard canSkipToNext, let next = neighbours?.next else { return }
+    switchTo(next)
+  }
+
+  func skipToPrevious() {
+    guard canSkipToPrevious, let previous = neighbours?.previous else { return }
+    switchTo(previous)
+  }
+
+  private func switchTo(_ target: PutioQueuedAudio) {
     let current = track
     positionReporter?.stop()
     beginTransition()
-    transitionTask = Task { [weak self] in await self?.advance(from: current) }
+    transitionTask = Task { [weak self] in await self?.advance(from: current, to: target) }
   }
 
   /// Freezes the current track: the engine stops, its generation is retired so
@@ -321,6 +334,8 @@ final class PutioAudioPlayerModel {
     generation &+= 1
     transitionTask?.cancel()
     transitionTask = nil
+    neighboursTask?.cancel()
+    neighboursTask = nil
     positionReporter?.stop()
     positionReporter = nil
     engine.stop()
@@ -343,6 +358,7 @@ final class PutioAudioPlayerModel {
     positionReporter?.cancel()
     positionReporter = nil
     loadStartSeconds = nil
+    readNeighbours(of: track)
     await positionPipeline.waitForPendingReports(fileID: track.id)
     do {
       try Task.checkCancellation()
@@ -351,7 +367,6 @@ final class PutioAudioPlayerModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
       guard activateSession() else {
-        advancingTo = nil
         state = .failed(track, .playback)
         publishNowPlaying()
         return
@@ -364,43 +379,53 @@ final class PutioAudioPlayerModel {
       engine.load(url: source.url, startFromSeconds: startFrom)
       durationSeconds = engine.durationSeconds
       engine.play(rate: speed.rawValue)
-      advancingTo = nil
       state = .playing(track)
       startReporting(track: track, remembers: remembers, savedSeconds: source.startFromSeconds)
       publishNowPlaying()
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
-      advancingTo = nil
       state = .failed(track, PutioVideoPlaybackFailure.resolving(error) ?? .playback)
       publishNowPlaying()
     }
   }
 
-  private func advance(from completed: PutioAudioTrack) async {
+  private func readNeighbours(of track: PutioAudioTrack) {
+    if neighboursTrackID == track.id, neighbours != nil { return }
+    neighboursTask?.cancel()
+    neighboursTrackID = track.id
+    neighbours = nil
+    publishTrackCommands()
+    let load = loadNeighbours
+    neighboursTask = Task { [weak self] in
+      let found = try? await load(track)
+      guard let self, !Task.isCancelled, neighboursTrackID == track.id else { return nil }
+      neighbours = found
+      publishTrackCommands()
+      return found
+    }
+  }
+
+  private func advance(from completed: PutioAudioTrack, to target: PutioQueuedAudio?) async {
     let requestGeneration = generation
     await positionPipeline.waitForPendingReports(fileID: completed.id)
     guard requestGeneration == generation, !Task.isCancelled else { return }
     positionReporter?.stop()
     await positionPipeline.waitForPendingReports(fileID: completed.id)
     guard requestGeneration == generation, !Task.isCancelled else { return }
-    do {
-      let next = try await loadNext(completed.id)
-      guard requestGeneration == generation, !Task.isCancelled else { return }
-      guard let next else {
-        isTransitioning = false
-        elapsedSeconds = 0
-        state = .ended(completed)
-        publishNowPlaying()
-        return
-      }
-      advancingTo = next
-      await load(track: PutioAudioTrack(id: next.id, parentID: next.parentID, title: next.name))
-    } catch {
-      guard requestGeneration == generation, !Task.isCancelled else { return }
+    var next = target
+    if next == nil, neighboursTrackID == completed.id {
+      next = await neighboursTask?.value?.next
+    }
+    guard requestGeneration == generation, !Task.isCancelled else { return }
+    guard let next else {
       isTransitioning = false
+      elapsedSeconds = 0
       state = .ended(completed)
       publishNowPlaying()
+      publishTrackCommands()
+      return
     }
+    await load(track: PutioAudioTrack(id: next.id, parentID: next.parentID, title: next.name))
   }
 
   // MARK: - Engine and system events
@@ -435,7 +460,7 @@ final class PutioAudioPlayerModel {
       beginTransition()
       elapsedSeconds = 0
       publishNowPlaying()
-      transitionTask = Task { [weak self] in await self?.advance(from: track) }
+      transitionTask = Task { [weak self] in await self?.advance(from: track, to: nil) }
     }
     engine.onFailed = { [weak self] in
       // A failure from the retired item during a transition is stale.
@@ -514,6 +539,7 @@ final class PutioAudioPlayerModel {
     case .pause: pause()
     case .toggle: togglePlayPause()
     case .next: skipToNext()
+    case .previous: skipToPrevious()
     case .seek(let seconds): seek(to: seconds)
     case .skip(let seconds): skip(by: seconds)
     }
@@ -560,6 +586,11 @@ final class PutioAudioPlayerModel {
     case .playing, .paused, .interrupted: return elapsedSeconds
     case .loading, .failed, .ended: return nil
     }
+  }
+
+  private func publishTrackCommands() {
+    nowPlaying.setTrackCommands(
+      previous: neighbours?.previous != nil, next: neighbours?.next != nil)
   }
 
   private func publishNowPlaying() {
@@ -794,6 +825,7 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
     register(center.pauseCommand) { _ in .pause }
     register(center.togglePlayPauseCommand) { _ in .toggle }
     register(center.nextTrackCommand) { _ in .next }
+    register(center.previousTrackCommand) { _ in .previous }
     let interval = PutioAudioPlayerModel.skipInterval
     center.skipBackwardCommand.preferredIntervals = [NSNumber(value: interval)]
     center.skipForwardCommand.preferredIntervals = [NSNumber(value: interval)]
@@ -803,7 +835,14 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
       guard let event = event as? MPChangePlaybackPositionCommandEvent else { return nil }
       return .seek(seconds: Int(event.positionTime.rounded(.down)))
     }
-    center.previousTrackCommand.isEnabled = false
+    setTrackCommands(previous: false, next: false)
+  }
+
+  func setTrackCommands(previous: Bool, next: Bool) {
+    guard handler != nil else { return }
+    let center = MPRemoteCommandCenter.shared()
+    center.previousTrackCommand.isEnabled = previous
+    center.nextTrackCommand.isEnabled = next
   }
 
   private func register(
@@ -835,259 +874,10 @@ final class PutioSystemAudioSession: PutioAudioSessioning {
   }
 }
 
-// MARK: - View
-
-struct PutioAudioPlayerView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  let model: PutioAudioPlayerModel
-  @State private var scrubbing = false
-  @State private var scrubSeconds: Double = 0
-  let onDismiss: @MainActor () -> Void
-  var showsHarnessReadiness = false
-
-  var body: some View {
-    NavigationStack {
-      GeometryReader { geometry in
-        ScrollView {
-          VStack(spacing: PutioTheme.Spacing.space6) {
-            Image(putioIcon: .fileAudio)
-              .resizable()
-              .scaledToFit()
-              .frame(width: 96, height: 96)
-              .foregroundStyle(PutioTheme.Components.FileRow.icon)
-              .accessibilityHidden(true)
-            Text(model.track.title)
-              .putioFont(PutioTheme.Typography.heading)
-              .foregroundStyle(PutioTheme.Colors.textPrimary)
-              .multilineTextAlignment(.center)
-              .lineLimit(2)
-              .fixedSize(horizontal: false, vertical: true)
-              .accessibilityIdentifier("audio.title")
-            content
-          }
-          .padding(PutioTheme.Spacing.space5)
-          .frame(width: geometry.size.width)
-          .frame(minHeight: geometry.size.height)
-        }
-      }
-      .putioContentBackground()
-      .navigationTitle("Now Playing")
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { onDismiss() }
-            .accessibilityIdentifier("audio.done")
-        }
-        ToolbarItem(placement: .topBarLeading) {
-          PutioAudioRoutePicker()
-            .frame(width: 32, height: 32)
-            .accessibilityLabel("Audio output")
-        }
-      }
-    }
-    .presentationDragIndicator(.visible)
-    .overlay { harnessProbes }
-  }
-
-  @ViewBuilder
-  private var content: some View {
-    switch model.state {
-    case .loading:
-      PutioLoadingStateView(
-        title: model.advancingTo == nil
-          ? String(localized: "Preparing audio") : String(localized: "Up next")
-      )
-      .accessibilityIdentifier("audio.loading")
-    case .failed(_, let failure):
-      PutioErrorStateView(
-        title: failure.audioTitle, message: failure.audioMessage,
-        retryTitle: String(localized: "Try again"),
-        retryIdentifier: "audio.retry"
-      ) {
-        Task { await model.retry() }
-      }
-      .accessibilityIdentifier("audio.error")
-    case .playing, .paused, .interrupted, .ended:
-      transport
-    }
-  }
-
-  private var transport: some View {
-    VStack(spacing: PutioTheme.Spacing.space4) {
-      Slider(
-        value: Binding(
-          get: { scrubbing ? scrubSeconds : Double(model.elapsedSeconds) },
-          set: { scrubSeconds = $0 }
-        ),
-        in: 0...Double(max(model.durationSeconds ?? 0, 1)),
-        onEditingChanged: { editing in
-          if editing { scrubSeconds = Double(model.elapsedSeconds) }
-          scrubbing = editing
-          if !editing { model.seek(to: Int(scrubSeconds.rounded(.down))) }
-        }
-      )
-      .tint(PutioTheme.Colors.accent)
-      .disabled(model.durationSeconds == nil)
-      .accessibilityLabel("Playback position")
-      .accessibilityIdentifier("audio.scrubber")
-      HStack {
-        Text(Self.clock(model.elapsedSeconds))
-          .accessibilityIdentifier("audio.elapsed")
-        Spacer()
-        Text(model.durationSeconds.map(Self.clock) ?? "--:--")
-          .accessibilityIdentifier("audio.duration")
-      }
-      .putioFont(PutioTheme.Typography.caption)
-      .foregroundStyle(PutioTheme.Colors.textSecondary)
-      .monospacedDigit()
-      transportLayout {
-        skipButton(by: -PutioAudioPlayerModel.skipInterval)
-        Button {
-          model.togglePlayPause()
-        } label: {
-          Image(systemName: playPauseSymbol)
-            .font(.system(size: 36))
-            .frame(width: 64, height: 64)
-            .foregroundStyle(PutioTheme.Colors.background)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(PutioTheme.Colors.textPrimary)
-        .clipShape(Circle())
-        .disabled(isTransportDisabled)
-        .accessibilityLabel(playPauseLabel)
-        .accessibilityIdentifier("audio.play-pause")
-        skipButton(by: PutioAudioPlayerModel.skipInterval)
-      }
-      transportLayout {
-        Menu {
-          ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
-            Button {
-              model.setSpeed(speed)
-            } label: {
-              if speed == model.speed {
-                Label(speed.title, systemImage: "checkmark")
-              } else {
-                Text(speed.title)
-              }
-            }
-            .accessibilityIdentifier("audio.speed.\(speed.identifier)")
-          }
-        } label: {
-          Text(model.speed.title)
-            .putioFont(PutioTheme.Typography.body)
-            .frame(minWidth: 56)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityLabel("Playback speed")
-        .accessibilityValue(model.speed.title)
-        .accessibilityIdentifier("audio.speed")
-        Button {
-          model.skipToNext()
-        } label: {
-          Image(systemName: "forward.end.fill")
-            .font(.system(size: 22))
-            .frame(width: 56, height: 44)
-        }
-        .buttonStyle(.bordered)
-        .disabled(isTransportDisabled)
-        .accessibilityLabel("Next track")
-        .accessibilityIdentifier("audio.next")
-      }
-      if case .interrupted = model.state {
-        Text("Paused by another app")
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .accessibilityIdentifier("audio.interrupted")
-      }
-      if case .ended = model.state {
-        Text("End of folder")
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .accessibilityIdentifier("audio.ended")
-      }
-    }
-    .frame(maxWidth: 480)
-  }
-
-  private func skipButton(by seconds: Int) -> some View {
-    let forward = seconds > 0
-    return Button {
-      model.skip(by: seconds)
-    } label: {
-      Image(systemName: forward ? "goforward.\(seconds)" : "gobackward.\(-seconds)")
-        .font(.system(size: 22))
-        .frame(width: 44, height: 44)
-    }
-    .buttonStyle(.bordered)
-    .disabled(isTransportDisabled || model.durationSeconds == nil)
-    .accessibilityLabel(forward ? "Forward \(seconds) seconds" : "Rewind \(-seconds) seconds")
-    .accessibilityIdentifier(forward ? "audio.skip-forward" : "audio.skip-back")
-  }
-
-  private var transportLayout: AnyLayout {
-    dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(spacing: PutioTheme.Spacing.space4))
-      : AnyLayout(HStackLayout(spacing: PutioTheme.Spacing.space5))
-  }
-
-  private var isTransportDisabled: Bool {
-    if case .loading = model.state { return true }
-    return false
-  }
-
-  private var playPauseSymbol: String {
-    switch model.state {
-    case .playing: "pause.fill"
-    case .ended: "arrow.counterclockwise"
-    default: "play.fill"
-    }
-  }
-
-  private var playPauseLabel: String {
-    switch model.state {
-    case .playing: String(localized: "Pause")
-    case .ended: String(localized: "Play again")
-    default: String(localized: "Play")
-    }
-  }
-
-  @ViewBuilder
-  private var harnessProbes: some View {
-    if showsHarnessReadiness {
-      ZStack {
-        Color.clear
-          .frame(width: 1, height: 1)
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel("Audio player state")
-          .accessibilityValue("id=\(model.track.id.rawValue);state=\(stateName)")
-          .accessibilityIdentifier("audio.state")
-          .allowsHitTesting(false)
-      }
-    }
-  }
-
-  private var stateName: String {
-    switch model.state {
-    case .loading: "loading"
-    case .playing: "playing"
-    case .paused: "paused"
-    case .interrupted: "interrupted"
-    case .failed: "failed"
-    case .ended: "ended"
-    }
-  }
-
-  private static func clock(_ seconds: Int) -> String {
-    let minutes = seconds / 60
-    let remainder = seconds % 60
-    return "\(minutes):\(remainder < 10 ? "0" : "")\(remainder)"
-  }
-}
-
-private struct PutioAudioRoutePicker: UIViewRepresentable {
+struct PutioAudioRoutePicker: UIViewRepresentable {
   func makeUIView(context: Context) -> AVRoutePickerView {
     let picker = AVRoutePickerView()
-    picker.tintColor = UIColor(PutioTheme.Colors.accent)
+    picker.tintColor = UIColor(PutioTheme.Colors.textPrimary)
     picker.activeTintColor = UIColor(PutioTheme.Colors.accent)
     return picker
   }
@@ -1096,20 +886,10 @@ private struct PutioAudioRoutePicker: UIViewRepresentable {
 }
 
 extension PutioVideoPlaybackFailure {
-  /// The shared failure kinds carry video wording; the audio sheet rewords them.
-  var audioTitle: String {
-    switch kind {
-    case .notFound: String(localized: "Audio not found")
-    case .playback: String(localized: "Could not play audio")
-    default: String(localized: "Could not open audio")
-    }
-  }
-
   var audioMessage: String {
     switch kind {
-    case .playback: String(localized: "The audio could not be played. Try again.")
-    case .unknown: String(localized: "put.io could not prepare this audio. Try again.")
-    default: message
+    case .rateLimited: message
+    default: String(localized: "put.io is temporarily unavailable. Try again.")
     }
   }
 }

@@ -128,8 +128,8 @@ final class AccessibilityJourneyTests: XCTestCase {
       // Top to bottom, so scrolling only moves down the stack: an element
       // scrolled under the navigation bar fails the hittability check.
       for identifier in [
-        "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.speed", "audio.next",
-        "audio.done",
+        "audio.skip-back", "audio.play-pause", "audio.next", "audio.skip-forward", "audio.speed",
+        "audio.collapse",
       ] {
         let control = reachable(app.buttons[identifier])
         XCTAssertTrue(control.isEnabled, "Disabled audio control: \(identifier)")
@@ -139,7 +139,7 @@ final class AccessibilityJourneyTests: XCTestCase {
       }
       screenshot(name + "-controls")
     }
-    app.buttons["audio.done"].tap()
+    app.buttons["audio.collapse"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     signOut()
   }

@@ -214,20 +214,77 @@ extension PutioRuntimeTests {
     }
   }
 
-  func testNextAudioUsesTheAudioFileTypeAndMapsTheSuccessor() async throws {
-    let (runtime, _) = await makeSignedInRuntime()
-    fixtures.setFixture(
-      #"{"next_file":{"id":431,"name":"Track 2.m4a","parent_id":7}}"#,
-      for: "GET /v2/files/430/next-file")
+  private static func audioRow(_ id: Int, _ name: String, type: String = "AUDIO", parent: Int = 7)
+    -> String
+  {
+    #"{"id":\#(id),"name":"\#(name)","file_type":"\#(type)","parent_id":\#(parent),"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}"#
+  }
 
-    let next = try await runtime.findNextAudio(after: PutioFileID(rawValue: 430))
+  func testAudioNeighboursWalkTheFolderByNameAcrossPages() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let folder = Self.audioRow(7, "Music", type: "FOLDER", parent: 0)
+    fixtures.setFixture(
+      #"{"parent":\#(folder),"cursor":"audio-2","files":[\#(Self.audioRow(429, "A.mp3")),\#(Self.audioRow(430, "B.mp3"))]}"#,
+      for: "GET /v2/files/list")
+    fixtures.setFixture(
+      #"{"cursor":"","files":[\#(Self.audioRow(500, "Elsewhere.mp3", parent: 8)),\#(Self.audioRow(431, "C.mp3")),\#(Self.audioRow(432, "D.mp3"))]}"#,
+      for: "POST /v2/files/list/continue")
+
+    let neighbours = try await runtime.audioNeighbours(
+      of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
 
     XCTAssertEqual(
-      next,
-      PutioNextAudio(
-        id: PutioFileID(rawValue: 431), parentID: PutioFileID(rawValue: 7), name: "Track 2.m4a"))
-    let request = try XCTUnwrap(fixtures.capturedRequests().last)
-    XCTAssertEqual(request.url?.query?.contains("file_type=AUDIO"), true)
+      neighbours,
+      PutioAudioNeighbours(
+        previous: PutioQueuedAudio(
+          id: PutioFileID(rawValue: 429), parentID: PutioFileID(rawValue: 7), name: "A.mp3"),
+        next: PutioQueuedAudio(
+          id: PutioFileID(rawValue: 431), parentID: PutioFileID(rawValue: 7), name: "C.mp3"),
+        folderName: "Music"))
+    let list = try XCTUnwrap(
+      fixtures.capturedRequests().first { $0.url?.path == "/v2/files/list" })
+    let query = Set(
+      URLComponents(url: try XCTUnwrap(list.url), resolvingAgainstBaseURL: false)?.queryItems?
+        .map { "\($0.name)=\($0.value ?? "")" } ?? [])
+    XCTAssertTrue(query.isSuperset(of: ["parent_id=7", "file_type=AUDIO", "sort_by=NAME_ASC"]))
+  }
+
+  func testAudioNeighboursOfTheOnlyFileInAFolderAreEmpty() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let folder = Self.audioRow(7, "Music", type: "FOLDER", parent: 0)
+    fixtures.setFixture(
+      #"{"parent":\#(folder),"cursor":"","files":[\#(Self.audioRow(430, "B.mp3"))]}"#,
+      for: "GET /v2/files/list")
+
+    let neighbours = try await runtime.audioNeighbours(
+      of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
+
+    XCTAssertEqual(neighbours, PutioAudioNeighbours(folderName: "Music"))
+  }
+
+  func testAudioNeighboursOfAFileTheFolderNoLongerHoldsAreEmpty() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"cursor":"","files":[\#(Self.audioRow(429, "A.mp3")),\#(Self.audioRow(431, "C.mp3"))]}"#,
+      for: "GET /v2/files/list")
+
+    let neighbours = try await runtime.audioNeighbours(
+      of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
+
+    XCTAssertEqual(neighbours, PutioAudioNeighbours())
+  }
+
+  func testAudioNeighboursRejectARepeatedCursor() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"cursor":"loop","files":[\#(Self.audioRow(429, "A.mp3"))]}"#, for: "GET /v2/files/list")
+    fixtures.setFixture(
+      #"{"cursor":"loop","files":[]}"#, for: "POST /v2/files/list/continue")
+
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.audioNeighbours(
+        of: PutioFileID(rawValue: 430), in: PutioFileID(rawValue: 7))
+    }
   }
 
   func testVideoConversionStatusMapsEveryKnownSDKState() async throws {

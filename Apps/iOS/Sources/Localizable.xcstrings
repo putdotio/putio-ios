@@ -422,17 +422,6 @@
         }
       }
     },
-    "Audio not found" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio not found"
-          }
-        }
-      }
-    },
     "Audio output" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
       "localizations" : {
@@ -473,6 +462,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back"
+          }
+        }
+      }
+    },
+    "Back %lld seconds" : {
+      "comment" : "android: mobile_playback_seek_back",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Back %lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Back %lld seconds"
+                }
+              }
+            }
           }
         }
       }
@@ -950,28 +962,6 @@
         }
       }
     },
-    "Could not open audio" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not open audio"
-          }
-        }
-      }
-    },
-    "Could not play audio" : {
-      "comment" : "android: mobile_playback_error_title_audio | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not play audio"
-          }
-        }
-      }
-    },
     "Could not refresh" : {
       "comment" : "android: mobile_files_refresh_error | differs: iOS spells out “Could not”",
       "localizations" : {
@@ -1122,6 +1112,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load proxies"
+          }
+        }
+      }
+    },
+    "Couldn’t play this audio" : {
+      "comment" : "android: mobile_playback_error_title_audio",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t play this audio"
           }
         }
       }
@@ -2760,13 +2761,13 @@
         }
       }
     },
-    "Next track" : {
-      "comment" : "android: mobile_now_playing_next | differs: iOS board wording",
+    "Next file" : {
+      "comment" : "android: mobile_now_playing_next",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Next track"
+            "value" : "Next file"
           }
         }
       }
@@ -2991,17 +2992,6 @@
         }
       }
     },
-    "Now Playing" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Now Playing"
-          }
-        }
-      }
-    },
     "Now Playing, %@, %@" : {
       "comment" : "ios-only: no Android string for the iOS audio mini player",
       "localizations" : {
@@ -3211,17 +3201,6 @@
         }
       }
     },
-    "Paused by another app" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paused by another app"
-          }
-        }
-      }
-    },
     "Paused on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -3306,17 +3285,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play"
-          }
-        }
-      }
-    },
-    "Play again" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play again"
           }
         }
       }
@@ -3552,6 +3520,17 @@
         }
       }
     },
+    "Previous file" : {
+      "comment" : "android: mobile_now_playing_previous",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous file"
+          }
+        }
+      }
+    },
     "Privacy" : {
       "comment" : "android: mobile_settings_section_privacy",
       "localizations" : {
@@ -3691,6 +3670,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign out of all other apps?"
+          }
+        }
+      }
+    },
+    "Sleep timer" : {
+      "comment" : "android: mobile_now_playing_sleep_timer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer"
           }
         }
       }
@@ -3944,17 +3934,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io could not convert this video for Chromecast. Try again."
-          }
-        }
-      }
-    },
-    "put.io could not prepare this audio. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not prepare this audio. Try again."
           }
         }
       }
@@ -4318,17 +4297,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Revoking"
-          }
-        }
-      }
-    },
-    "Rewind %lld seconds" : {
-      "comment" : "android: mobile_playback_seek_back | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rewind %lld seconds"
           }
         }
       }
@@ -4813,17 +4781,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That proxy isn’t available for your account."
-          }
-        }
-      }
-    },
-    "The audio could not be played. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The audio could not be played. Try again."
           }
         }
       }

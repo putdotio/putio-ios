@@ -85,7 +85,8 @@ struct PutioAudioMiniPlayer: View {
             Image(systemName: "forward.end.fill")
               .frame(minWidth: 44, minHeight: 44)
           }
-          .accessibilityLabel("Next track")
+          .disabled(!model.canSkipToNext)
+          .accessibilityLabel("Next file")
           .accessibilityIdentifier("audio.mini.next")
         }
       }
@@ -103,7 +104,7 @@ struct PutioAudioMiniPlayer: View {
     case .playing: String(localized: "Playing")
     case .paused: String(localized: "Paused")
     case .interrupted: String(localized: "Playback interrupted")
-    case .failed: String(localized: "Could not play audio")
+    case .failed: String(localized: "Couldn’t play this audio")
     case .ended: String(localized: "End of folder")
     }
   }

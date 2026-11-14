@@ -1,32 +1,38 @@
 import XCTest
 
 final class AudioJourneyTests: XCTestCase {
+  private var app: XCUIApplication!
+
   func testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack() throws {
     continueAfterFailure = false
-    let app = XCUIApplication()
+    app = XCUIApplication()
     app.launchArguments = ["--putio-harness-scenario", "files-browser"]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
     app.launch()
-    let signIn = app.descendants(matching: .any)["auth.sign-in"]
+    let signIn = element("auth.sign-in")
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    let track = app.descendants(matching: .any)["files.item.408"]
+    let track = element("files.item.408")
     XCTAssertTrue(track.appears(within: 10))
     track.tap()
 
-    let state = app.descendants(matching: .any)["audio.state"]
+    let state = element("audio.state")
     XCTAssertTrue(state.appears(within: 10))
     XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
-    assertOneSaveAfterTenSeconds(in: app)
-    XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
+    assertOneSaveAfterTenSeconds()
+    XCTAssertEqual(element("audio.title").label, "Harness Track.m4a")
+    XCTAssertTrue(waitForLabel(element("audio.folder"), "Your Files"))
+    XCTAssertFalse(app.buttons["audio.previous"].isEnabled, "the first file has no previous")
+    XCTAssertTrue(app.buttons["audio.next"].isEnabled)
+    XCTAssertFalse(app.buttons["audio.sleep-timer"].isEnabled)
+    XCTAssertFalse(app.buttons["audio.up-next"].isEnabled)
 
     // Dragging down dismisses presentation, not the playback session.
-    let navigationBar = app.navigationBars["Now Playing"]
-    navigationBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    element("audio.title").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
       .press(
         forDuration: 0.1,
-        thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+        thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
     let miniPlayer = app.buttons["audio.mini.open"]
     XCTAssertTrue(miniPlayer.appears(within: 5))
     let miniToggle = app.buttons["audio.mini.toggle"]
@@ -40,18 +46,18 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     app.buttons["audio.play-pause"].tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
-    assertPlaybackAdvances(in: app)
+    assertPlaybackAdvances()
 
     let playPause = app.buttons["audio.play-pause"]
     XCTAssertTrue(playPause.appears(within: 5))
     playPause.tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     for identifier in [
-      "audio.scrubber", "audio.speed", "audio.skip-back", "audio.play-pause",
-      "audio.skip-forward", "audio.next",
+      "audio.collapse", "audio.scrubber", "audio.skip-back", "audio.previous", "audio.play-pause",
+      "audio.next", "audio.skip-forward", "audio.speed", "audio.sleep-timer", "audio.up-next",
     ] {
-      let control = app.descendants(matching: .any)[identifier]
-      XCTAssertTrue(control.isHittable)
+      let control = element(identifier)
+      XCTAssertTrue(control.isHittable, identifier)
       XCTAssertGreaterThanOrEqual(control.frame.minX, 0, identifier)
       XCTAssertLessThanOrEqual(control.frame.maxX, app.frame.width, identifier)
     }
@@ -60,13 +66,14 @@ final class AudioJourneyTests: XCTestCase {
     attachment.lifetime = .keepAlways
     add(attachment)
 
-    // Skipping while paused moves exactly 15 s, clamped to the track, and
+    // Skipping while paused moves exactly 10 s, clamped to the track, and
     // does not start playback.
     let elapsedLabel = app.staticTexts["audio.elapsed"]
     let before = try XCTUnwrap(Self.seconds(elapsedLabel.label), elapsedLabel.label)
-    let durationLabel = app.staticTexts["audio.duration"].label
-    let duration = try XCTUnwrap(Self.seconds(durationLabel), durationLabel)
-    let expected = Self.clock(min(before + 15, duration))
+    let remainingLabel = app.staticTexts["audio.remaining"].label
+    let remaining = try XCTUnwrap(
+      Self.seconds(String(remainingLabel.dropFirst())), remainingLabel)
+    let expected = Self.clock(before + min(10, remaining))
     app.buttons["audio.skip-forward"].tap()
     let skip = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label == %@", expected), object: elapsedLabel)
@@ -74,12 +81,17 @@ final class AudioJourneyTests: XCTestCase {
       XCTWaiter.wait(for: [skip], timeout: 5), .completed,
       "skip forward from \(Self.clock(before)) showed \(elapsedLabel.label), not \(expected)")
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"), "skip forward resumed playback")
+    app.buttons["audio.skip-back"].tap()
+    let back = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", Self.clock(before)), object: elapsedLabel)
+    XCTAssertEqual(XCTWaiter.wait(for: [back], timeout: 5), .completed)
 
     let speed = app.buttons["audio.speed"]
     XCTAssertEqual(speed.value as? String, "1×")
     speed.tap()
+    XCTAssertTrue(app.buttons["audio.speed.0.25"].appears(within: 5))
+    XCTAssertTrue(app.buttons["audio.speed.4"].exists, "the speed list ends at 4×")
     let faster = app.buttons["audio.speed.1.5"]
-    XCTAssertTrue(faster.appears(within: 5))
     faster.tap()
     XCTAssertTrue(waitForValue(speed, "1.5×"))
 
@@ -89,11 +101,10 @@ final class AudioJourneyTests: XCTestCase {
     // (8 s at 1.5×) leave time to see this track resume before it hands over.
     let scrubber = app.sliders["audio.scrubber"]
     XCTAssertTrue(scrubber.appears(within: 5))
-    let elapsed = app.staticTexts["audio.elapsed"]
-    let pausedAt = elapsed.label
+    let pausedAt = elapsedLabel.label
     scrubber.adjust(toNormalizedSliderPosition: 0.8)
     let sought = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label != %@", pausedAt), object: elapsed)
+      predicate: NSPredicate(format: "label != %@", pausedAt), object: elapsedLabel)
     XCTAssertEqual(XCTWaiter.wait(for: [sought], timeout: 5), .completed)
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     playPause.tap()
@@ -101,20 +112,96 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(speed.value as? String, "1.5×")
     XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 20))
     XCTAssertEqual(speed.value as? String, "1.5×")
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.previous"], true))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.next"], false), "the last file has no next")
+
+    app.buttons["audio.previous"].tap()
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.next"], true))
+    app.buttons["audio.next"].tap()
+    XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 10))
     scrubber.adjust(toNormalizedSliderPosition: 0.95)
     XCTAssertTrue(waitForValue(state, "id=409;state=ended", timeout: 20))
-    XCTAssertTrue(app.descendants(matching: .any)["audio.ended"].exists)
 
-    app.buttons["audio.done"].tap()
+    app.buttons["audio.collapse"].tap()
     XCTAssertTrue(track.appears(within: 5))
     for _ in 0..<3 {
       track.tap()
       XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
-      assertPlaybackAdvances(in: app)
+      assertPlaybackAdvances()
       XCTAssertEqual(speed.value as? String, "1.5×")
-      app.buttons["audio.done"].tap()
+      app.buttons["audio.collapse"].tap()
     }
 
+    signOut()
+    XCTAssertFalse(miniPlayer.exists)
+
+    try folderQueueRetriesAFailureAndFollowsTheFolder()
+  }
+
+  private func folderQueueRetriesAFailureAndFollowsTheFolder() throws {
+    app.terminate()
+    app.launchArguments += ["--putio-harness-music", "--putio-harness-audio-fails-once"]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    app.revealed("files.item.3101").tap()
+    let track = app.revealed("files.item.3103")
+    XCTAssertTrue(track.appears(within: 10))
+    track.tap()
+
+    let state = element("audio.state")
+    XCTAssertTrue(waitForValue(state, "id=3103;state=failed", timeout: 10))
+    XCTAssertTrue(app.staticTexts["Couldn’t play this audio"].exists)
+    XCTAssertTrue(app.staticTexts["put.io is temporarily unavailable. Try again."].exists)
+    let failure = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    failure.name = "runtime-audio-error"
+    failure.lifetime = .keepAlways
+    add(failure)
+    app.buttons["audio.retry"].tap()
+    XCTAssertTrue(waitForValue(state, "id=3103;state=playing", timeout: 10))
+    XCTAssertTrue(waitForLabel(element("audio.folder"), "Music"))
+    XCTAssertEqual(element("audio.title").label, "FFTT Tree Rings October 13, 2026.mp3")
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.previous"], true))
+    XCTAssertTrue(app.buttons["audio.next"].isEnabled)
+
+    app.buttons["audio.next"].tap()
+    XCTAssertTrue(waitForValue(state, "id=3104;state=playing", timeout: 10))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.previous"], true))
+    app.buttons["audio.previous"].tap()
+    XCTAssertTrue(waitForValue(state, "id=3103;state=playing", timeout: 10))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.previous"], true))
+    app.buttons["audio.previous"].tap()
+    XCTAssertTrue(waitForValue(state, "id=3102;state=playing", timeout: 10))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.next"], true))
+    XCTAssertFalse(app.buttons["audio.previous"].isEnabled)
+
+    app.buttons["audio.collapse"].tap()
+    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    XCTAssertTrue(back.appears(within: 5))
+    back.tap()
+    app.revealed("files.item.3105").tap()
+    app.revealed("files.item.3106").tap()
+    app.revealed("files.item.3107").tap()
+    XCTAssertTrue(waitForValue(state, "id=3107;state=playing", timeout: 10))
+    XCTAssertTrue(waitForLabel(element("audio.folder"), "Music"))
+    XCTAssertFalse(app.buttons["audio.previous"].isEnabled, "a one-file folder has no previous")
+    XCTAssertFalse(app.buttons["audio.next"].isEnabled, "a one-file folder has no next")
+    XCTAssertFalse(app.buttons["audio.up-next"].isEnabled)
+    let single = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    single.name = "runtime-audio-single"
+    single.lifetime = .keepAlways
+    add(single)
+    app.buttons["audio.collapse"].tap()
+    signOut()
+  }
+
+  private func element(_ identifier: String) -> XCUIElement {
+    app.descendants(matching: .any)[identifier]
+  }
+
+  private func signOut() {
     let account = app.buttons["Account"]
     XCTAssertTrue(account.appears(within: 5))
     account.tap()
@@ -126,8 +213,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10))
-    XCTAssertFalse(miniPlayer.exists)
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   /// Reads the player's "m:ss" clock.
@@ -149,8 +235,20 @@ final class AudioJourneyTests: XCTestCase {
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
-  private func assertOneSaveAfterTenSeconds(in app: XCUIApplication) {
-    let saves = app.descendants(matching: .any)["audio.position-saves"]
+  private func waitForLabel(_ element: XCUIElement, _ label: String) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", label), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+  }
+
+  private func waitForEnabled(_ element: XCUIElement, _ enabled: Bool) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == %@", NSNumber(value: enabled)), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+  }
+
+  private func assertOneSaveAfterTenSeconds() {
+    let saves = element("audio.position-saves")
     let started = Date()
     let firstSave = XCTNSPredicateExpectation(
       predicate: NSPredicate { object, _ in
@@ -169,13 +267,13 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue((1...12).contains(seconds), "the save after 10 s was at \(seconds) s")
   }
 
-  private func assertPlaybackAdvances(in app: XCUIApplication) {
+  private func assertPlaybackAdvances() {
     let elapsed = app.staticTexts["audio.elapsed"]
     XCTAssertTrue(elapsed.appears(within: 10))
     let initial = elapsed.label
     let advances = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label != %@", initial), object: elapsed)
     XCTAssertEqual(XCTWaiter.wait(for: [advances], timeout: 10), .completed)
-    XCTAssertFalse(app.descendants(matching: .any)["audio.error"].exists)
+    XCTAssertFalse(element("audio.error").exists)
   }
 }
