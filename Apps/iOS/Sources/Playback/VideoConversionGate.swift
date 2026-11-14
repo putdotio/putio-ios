@@ -30,10 +30,15 @@ struct PutioVideoConversionGate: View {
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .accessibilityAddTraits(.isHeader)
           .accessibilityIdentifier("video.conversion.title")
-        Text(String(localized: "This video can’t play in its original format, so put.io started a conversion. It keeps going if you leave."))
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .accessibilityIdentifier("conversion.explanation")
+        Text(
+          String(
+            localized:
+              "This video can’t play in its original format, so put.io started a conversion. It keeps going if you leave."
+          )
+        )
+        .putioFont(PutioTheme.Typography.caption)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .accessibilityIdentifier("conversion.explanation")
       }
       .multilineTextAlignment(.center)
       .fixedSize(horizontal: false, vertical: true)
