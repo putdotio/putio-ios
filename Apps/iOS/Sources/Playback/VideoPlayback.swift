@@ -404,8 +404,7 @@ struct PutioVideoPlaybackView: View {
       PutioErrorStateView(
         icon: failure.kind == .connectionLost ? .wifiSlash : .warningCircle,
         title: failure.title,
-        message: failure.message,
-        retryIdentifier: "video.retry"
+        message: failure.message
       ) {
         retrySequence &+= 1
       }

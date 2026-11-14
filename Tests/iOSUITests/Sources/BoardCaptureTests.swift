@@ -801,7 +801,7 @@ final class BoardCaptureTests: XCTestCase {
     let detailPlay = element("files.detail.play")
     if detailPlay.appears(within: 3) { detailPlay.tap() }
     XCTAssertTrue(element("video.error").appears(within: 15), "the episode never failed")
-    XCTAssertTrue(app.buttons["video.retry"].exists, "the error offers no Try again")
+    XCTAssertTrue(app.buttons["Try again"].exists, "the error offers no Try again")
     XCTAssertEqual(
       element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
   }

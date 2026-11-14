@@ -30,8 +30,7 @@ final class PlaybackErrorsJourneyTests: XCTestCase {
     assertKeepsCloseAndFileName()
     addScreenshot(named: "runtime-video-access-expired")
 
-    let retry = app.buttons["video.retry"]
-    XCTAssertEqual(retry.label, "Try again")
+    let retry = app.buttons["Try again"]
     retry.tap()
     XCTAssertTrue(
       app.staticTexts["Connection lost"].appears(within: 15), "a refused stream did not say so")
