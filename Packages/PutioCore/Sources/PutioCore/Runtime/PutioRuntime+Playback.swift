@@ -34,8 +34,9 @@ extension PutioRuntime {
   }
 
   /// Resolves a video under a Playback method. Standard is the HLS source
-  /// above. Direct play asks the SDK's resolver for the original; an original
-  /// AVPlayer cannot open plays in the engine with put.io's subtitle files.
+  /// above. Direct play asks the SDK's resolver for the original. AVPlayer
+  /// keeps an MP4 or MOV original it decodes that has no put.io subtitle
+  /// files; every other original plays in the engine with those files.
   /// `isPlayableInAVPlayer` answers for an extended MP4 MIME type.
   public func resolveVideoPlayback(
     fileID: PutioFileID, method: PutioPlaybackMethod,
@@ -57,19 +58,19 @@ extension PutioRuntime {
       guard stream.kind == .original else {
         return .ready(PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom))
       }
+      let sidecars = try? await sidecarSubtitles(fileID: fileID, token: resolved.token)
+      let subtitles = sidecars?.subtitles ?? []
       let player =
-        stream.mediaInfo.map {
+        subtitles.isEmpty
+        ? stream.mediaInfo.map {
           PutioDirectPlayDecoders.player(for: $0, isPlayableInAVPlayer: isPlayableInAVPlayer)
-        } ?? .engine
-      var original = PutioOriginalPlayback(
-        player: player, audioStreams: PutioDirectPlayDecoders.audioStreams(of: stream.mediaInfo))
-      if player == .engine,
-        let sidecars = try? await sidecarSubtitles(fileID: fileID, token: resolved.token)
-      {
-        original = original.subtitles(sidecars.subtitles, defaultKey: sidecars.defaultKey)
-      }
+        } ?? .engine : .engine
+      let original = PutioOriginalPlayback(
+        player: player, audioStreams: PutioDirectPlayDecoders.audioStreams(of: stream.mediaInfo),
+        subtitles: subtitles, defaultSubtitleKey: sidecars?.defaultKey)
       return .ready(
-        PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom, original: original))
+        PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom, original: original)
+      )
     case .conversionRequired:
       return .conversionRequired
     case .unplayable(let reason):

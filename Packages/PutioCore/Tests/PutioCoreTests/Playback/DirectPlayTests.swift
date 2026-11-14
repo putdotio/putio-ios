@@ -10,16 +10,19 @@ final class DirectPlayTests: XCTestCase {
       PutioTrackLabel.audioDetail(codec: "aac", profile: "LC", channels: 2), "AAC · stereo")
     XCTAssertEqual(
       PutioTrackLabel.audioDetail(codec: "dts", profile: "DTS-HD MA", channels: 8), "DTS-HD · 7.1")
-    XCTAssertEqual(PutioTrackLabel.audioDetail(codec: "ac3", profile: nil, channels: 1), "AC3 · mono")
+    XCTAssertEqual(
+      PutioTrackLabel.audioDetail(codec: "ac3", profile: nil, channels: 1), "AC3 · mono")
     XCTAssertEqual(
       PutioTrackLabel.audioDetail(codec: "pcm_s24le", profile: nil, channels: 4),
       "PCM · 4 channels")
-    XCTAssertEqual(PutioTrackLabel.audioDetail(codec: "truehd", profile: nil, channels: nil), "TrueHD")
+    XCTAssertEqual(
+      PutioTrackLabel.audioDetail(codec: "truehd", profile: nil, channels: nil), "TrueHD")
     XCTAssertNil(PutioTrackLabel.audioDetail(codec: "weird", profile: nil, channels: 0))
   }
 
   func testTracksWithoutALanguageOrNameAreNumbered() {
-    XCTAssertEqual(PutioTrackLabel.audioTitle(language: "und", name: " ", index: 1), "Audio track 2")
+    XCTAssertEqual(
+      PutioTrackLabel.audioTitle(language: "und", name: " ", index: 1), "Audio track 2")
     XCTAssertEqual(PutioTrackLabel.subtitleTitle(language: nil, name: nil, index: 0), "Subtitle 1")
     XCTAssertEqual(
       PutioTrackLabel.audioTitle(language: nil, name: "Director's commentary", index: 0),

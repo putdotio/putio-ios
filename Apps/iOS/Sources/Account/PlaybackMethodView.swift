@@ -61,8 +61,6 @@ extension PutioPlaybackMethod {
   }
 }
 
-/// Plays one video once with the method that is not the account's, from a
-/// file menu's "Play with" row.
 struct PutioPlayWithOtherMethod {
   let method: PutioPlaybackMethod
   let play: @MainActor @Sendable (PutioFileRoute, PutioPlaybackMethod) -> Void

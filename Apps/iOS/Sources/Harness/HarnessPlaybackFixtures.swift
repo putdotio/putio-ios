@@ -247,8 +247,6 @@ import SwiftUI
     }
   }
 
-  /// Direct play streams the synthetic MKV, and put.io's subtitle files as
-  /// the loopback SubRip file, from the harness's media server.
   enum HarnessDirectPlay {
     static func source(for source: PutioPlaybackSource) throws -> PutioPlaybackSource {
       guard

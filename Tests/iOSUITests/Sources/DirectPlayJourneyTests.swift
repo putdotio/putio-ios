@@ -1,7 +1,5 @@
 import XCTest
 
-/// Plays `runtime-proof-direct.mkv` from the loopback server: a Matroska
-/// original AVPlayer cannot open, with AAC stereo and E-AC-3 5.1 audio.
 final class DirectPlayJourneyTests: XCTestCase {
   private var app: XCUIApplication!
 
@@ -23,7 +21,6 @@ final class DirectPlayJourneyTests: XCTestCase {
     if signIn.appears(within: 10) { signIn.tap() }
     XCTAssertTrue(app.buttons["Account"].appears(within: 10))
 
-    // On Standard, the file menu plays this one video with Direct play.
     openMenu()
     let playWith = app.buttons["Play with Direct play"].firstMatch
     XCTAssertTrue(playWith.appears(within: 5), "the menu has no Play with Direct play")
@@ -34,8 +31,6 @@ final class DirectPlayJourneyTests: XCTestCase {
     waitForOriginal()
     app.closeVideo()
 
-    // The setting stays Standard: a plain tap streams HLS. The seeded
-    // scenario fails the first stream once for retry proof.
     openVideo(startingOver: true, retryingSeededFailure: true)
     XCTAssertTrue(waitForValue(element("video.source"), "stream"), "a tap left Standard")
     app.closeVideo()
@@ -51,7 +46,6 @@ final class DirectPlayJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(element("video.source"), "stream"), "Play with Standard streamed")
     app.closeVideo()
 
-    // Direct play: play, seek, switch audio, close and resume.
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
     video.tap()
@@ -144,13 +138,11 @@ final class DirectPlayJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.ready").appears(within: 30))
   }
 
-  /// A video closed in its first second saved no position and asks nothing.
   private func startOverIfAsked() {
     let startOver = app.buttons["video.resume.start-over"].firstMatch
     if startOver.waitForExistence(timeout: 5) { startOver.tap() }
   }
 
-  /// The playback-preferences fixture fails the first method save once.
   private func setDirectPlay() {
     app.showTabBar()
     app.buttons["Account"].tap()

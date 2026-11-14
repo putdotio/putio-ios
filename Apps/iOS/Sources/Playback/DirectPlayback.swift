@@ -7,8 +7,6 @@ import UIKit
 import VideoToolbox
 
 enum PutioDirectPlayback {
-  /// AVPlayer's answer for an MP4 original's codecs; AV1 counts only with a
-  /// hardware decoder.
   nonisolated static func isPlayableInAVPlayer(_ type: String) -> Bool {
     guard AVURLAsset.isPlayableExtendedMIMEType(type) else { return false }
     guard type.contains("av01") else { return true }
@@ -16,8 +14,6 @@ enum PutioDirectPlayback {
   }
 }
 
-/// The app's one Direct play engine. The player that claimed it last owns it;
-/// a player that let go of it after a newer one claimed it leaves it playing.
 @MainActor
 final class PutioDirectPlayEngine {
   static let shared = PutioDirectPlayEngine()
@@ -35,15 +31,15 @@ final class PutioDirectPlayEngine {
     return engine
   }
 
-  func release(by owner: AnyObject) {
-    guard self.owner == ObjectIdentifier(owner) else { return }
+  @discardableResult
+  func release(by owner: AnyObject) -> Bool {
+    guard self.owner == ObjectIdentifier(owner) else { return false }
     self.owner = nil
     engine?.stop()
+    return true
   }
 }
 
-/// Plays an original in the Direct play engine behind the same controls,
-/// resume and position saving as AVPlayer.
 struct PutioDirectPlayerView: UIViewRepresentable {
   let fileID: PutioFileID
   let source: PutioPlaybackSource
@@ -74,7 +70,6 @@ struct PutioDirectPlayerView: UIViewRepresentable {
   }
 }
 
-/// What a player reports to the screen around it.
 struct PutioVideoPlayerCallbacks {
   var onReady: @MainActor @Sendable () -> Void = {}
   var onDurationKnown: @MainActor @Sendable (Double) -> Void = { _ in }
@@ -104,6 +99,7 @@ final class PutioDirectPlayCoordinator {
   private var audioSessionIsActive = false
   private var callbacks = PutioVideoPlayerCallbacks()
   private var source: PutioPlaybackSource?
+  private var options = LoadOptions()
 
   init(positionPipeline: PutioPlaybackPositionPipeline) {
     self.positionPipeline = positionPipeline
@@ -135,7 +131,7 @@ final class PutioDirectPlayCoordinator {
     self.engine = engine
     engine.bind(view: view)
     transport.engineChanged(to: engine)
-    transport.onEngineRestart = { [weak self] in self?.restart() }
+    transport.onEngineRestart = { [weak self] seconds in self?.restart(at: seconds) }
 
     let reporter = PutioVideoPositionReporter(
       fileID: fileID,
@@ -177,7 +173,9 @@ final class PutioDirectPlayCoordinator {
       .store(in: &observations)
     engine.seekEvents
       .sink { [weak self] event in
-        guard let self, generation == playbackGeneration, case .landed = event.outcome else { return }
+        guard let self, generation == playbackGeneration, case .landed = event.outcome else {
+          return
+        }
         positionReporter?.savePosition()
       }
       .store(in: &observations)
@@ -228,10 +226,11 @@ final class PutioDirectPlayCoordinator {
     options.autoplay = false
     options.externalSubtitles = (original?.subtitles ?? []).map { subtitle in
       ExternalSubtitleTrack(
-        url: subtitle.url, name: subtitle.language, language: subtitle.languageCode,
+        url: subtitle.url, name: subtitle.name, language: subtitle.languageCode,
         isDefault: subtitle.key == original?.defaultSubtitleKey,
         formatHint: subtitle.url.pathExtension.isEmpty ? "webvtt" : nil)
     }
+    self.options = options
     do {
       try await engine.load(url: source.url, options: options)
     } catch is CancellationError {
@@ -264,25 +263,23 @@ final class PutioDirectPlayCoordinator {
     engine.play()
   }
 
-  /// The engine numbers put.io's subtitle files after the file's own tracks,
-  /// in the order the load listed them.
   private func selectDefaultSubtitle(of original: PutioOriginalPlayback?, in engine: AetherEngine) {
     guard let original, let key = original.defaultSubtitleKey,
-      let index = original.subtitles.firstIndex(where: { $0.key == key })
+      let subtitle = original.subtitles.first(where: { $0.key == key }),
+      let track = engine.subtitleTracks.first(where: { $0.isExternal && $0.name == subtitle.name })
     else { return }
-    let external = engine.subtitleTracks.filter(\.isExternal)
-    guard external.indices.contains(index) else { return }
-    engine.selectSubtitleTrack(index: external[index].id)
+    engine.selectSubtitleTrack(index: track.id)
   }
 
-  /// A session that reached its end plays again from the start.
-  private func restart() {
+  private func restart(at seconds: Double) {
     guard let engine, let source, generation > 0 else { return }
     let playbackGeneration = generation
+    var options = options
+    options.autoplay = true
     loading?.cancel()
     loading = Task { @MainActor [weak self] in
       do {
-        try await engine.load(url: source.url, startPosition: 0)
+        try await engine.load(url: source.url, startPosition: seconds, options: options)
       } catch is CancellationError {
         return
       } catch {
@@ -307,13 +304,12 @@ final class PutioDirectPlayCoordinator {
       NotificationCenter.default.removeObserver(backgroundObservation)
       self.backgroundObservation = nil
     }
-    transport?.onEngineRestart = nil
-    transport?.engineChanged(to: nil)
+    let owned = PutioDirectPlayEngine.shared.release(by: self)
+    if let engine { transport?.engineReleased(engine) }
     transport = nil
-    PutioDirectPlayEngine.shared.release(by: self)
     engine = nil
     if audioSessionIsActive {
-      audioSession.deactivate()
+      if owned { audioSession.deactivate() }
       audioSessionIsActive = false
     }
   }
@@ -338,7 +334,6 @@ final class PutioDirectPlayCoordinator {
     callbacks.onFailure(PutioVideoPlayerFailure(fault: fault, heldSeconds: heldSeconds))
   }
 
-  /// The engine names the failure's underlying error by domain and code.
   private static func fault(_ info: PlaybackErrorInfo?) -> PutioVideoPlayerFault {
     guard let info, let domain = info.underlyingDomain, let code = info.underlyingCode else {
       return .playback
@@ -347,7 +342,6 @@ final class PutioDirectPlayCoordinator {
   }
 }
 
-/// The Direct play engine's subtitle cues, drawn over the picture.
 struct PutioVideoSubtitleOverlay: View {
   let cues: [PutioVideoCue]
 

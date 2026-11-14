@@ -500,8 +500,6 @@ struct MainTabView: View {
     }
   }
 
-  /// Plays one video once with `method`; the account setting stays as it is.
-  /// Cast sends HLS whatever the method.
   private func playVideo(_ route: PutioFileRoute, with method: PutioPlaybackMethod) {
     cancelVideoStart()
     selectedFileRoute = route
@@ -994,8 +992,6 @@ struct MainTabView: View {
     #endif
   }
 
-  /// `method` is a file menu's one-off choice; `nil` plays with the
-  /// account's Playback method.
   private func resolvePlaybackSource(fileID: PutioFileID, method: PutioPlaybackMethod?)
     async throws -> PutioPlaybackResolution
   {

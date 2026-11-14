@@ -63,8 +63,6 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
   }()
   private(set) var isPossible = false
   private(set) var isActive = false
-  /// Whether the playing route offers a picture to put in the window. AVPlayer
-  /// always does; the Direct play engine only on the routes its controller covers.
   private(set) var hasRoute = false
 
   @ObservationIgnored private var controller: AVPictureInPictureController?
@@ -81,8 +79,6 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
     adopt(controller)
   }
 
-  /// The Direct play engine's route: its own controller, or none where the
-  /// route has no picture the window can show.
   func attach(engineController controller: AVPictureInPictureController?, hasRoute: Bool) {
     if let controller, self.controller === controller { return }
     release()
@@ -170,19 +166,15 @@ final class PutioVideoTransport {
   private(set) var selectedAudio: Int?
   private(set) var subtitles: [Track] = []
   private(set) var selectedSubtitle: Int?
-  /// The Direct play engine's cues on screen now; AVPlayer draws its own.
   private(set) var subtitleCues: [PutioVideoCue] = []
   let pictureInPicture = PutioVideoPictureInPicture()
-  /// An MP4 original's audio streams in file order, for the Audio menu's
-  /// codec and layout under Direct play on AVPlayer.
   @ObservationIgnored var originalAudioStreams: [PutioOriginalAudioStream] = []
-  /// Plays an ended Direct play session again from the start; the engine
-  /// cannot resume a session that reached its end.
-  @ObservationIgnored var onEngineRestart: (@MainActor () -> Void)?
+  @ObservationIgnored var onEngineRestart: (@MainActor (Double) -> Void)?
 
   @ObservationIgnored private var player: AVPlayer?
   @ObservationIgnored private var engine: AetherEngine?
   @ObservationIgnored private var engineObservations: Set<AnyCancellable> = []
+  @ObservationIgnored private var engineRoute: (VideoRoute, ObjectIdentifier?)?
   @ObservationIgnored private var attachment: UInt64 = 0
   @ObservationIgnored private var timeObservation: Any?
   @ObservationIgnored private var statusObservation: NSKeyValueObservation?
@@ -227,13 +219,9 @@ final class PutioVideoTransport {
     }
   }
 
-  /// Follows the Direct play engine's session: state, time, tracks, cues and
-  /// Picture in Picture. `nil` lets go of the engine this transport follows.
-  func engineChanged(to engine: AetherEngine?) {
-    guard engine != nil || self.engine != nil else { return }
+  func engineChanged(to engine: AetherEngine) {
     detach()
     attachment &+= 1
-    guard let engine else { return }
     self.engine = engine
     engine.$state
       .sink { [weak self] state in self?.engineStateChanged(state) }
@@ -277,16 +265,25 @@ final class PutioVideoTransport {
     if enabled { loadTracks() }
   }
 
+  func engineReleased(_ engine: AetherEngine) {
+    guard engine === self.engine else { return }
+    detach()
+    attachment &+= 1
+  }
+
   func setControlsEnabled(_ enabled: Bool, for engine: AetherEngine) {
     guard engine === self.engine else { return }
     controlsEnabled = enabled
+    if enabled, speed != .normal { engine.setRate(speed.rawValue) }
   }
 
   func togglePlayPause() {
     guard controlsEnabled else { return }
     if let engine {
       if engine.state == .ended {
-        onEngineRestart?()
+        let elapsed = timeline.elapsedSeconds
+        let duration = timeline.durationSeconds ?? 0
+        onEngineRestart?(elapsed >= duration - 0.5 ? 0 : elapsed)
       } else if isPlaying {
         engine.pause()
       } else {
@@ -396,6 +393,7 @@ final class PutioVideoTransport {
       engineObservations.removeAll()
       pictureInPicture.onActiveChange = nil
       pictureInPicture.detachEngine()
+      engineRoute = nil
       engine = nil
     }
     audible = nil
@@ -426,7 +424,6 @@ final class PutioVideoTransport {
     }
   }
 
-  /// Tracks the device cannot decode are left out of the menu.
   private func engineAudioChanged(_ tracks: [TrackInfo], active: Int?) {
     audioTracks = tracks.enumerated().compactMap { index, track in
       guard PutioDirectPlayDecoders.canDecodeAudio(codec: track.codec) else { return nil }
@@ -443,6 +440,9 @@ final class PutioVideoTransport {
   private func engineRouteChanged(
     _ route: VideoRoute, source: SoftwarePiPSource?, engine: AetherEngine
   ) {
+    let key = (route, source.map(ObjectIdentifier.init))
+    if let engineRoute, engineRoute.0 == key.0, engineRoute.1 == key.1 { return }
+    engineRoute = key
     switch route {
     case .software:
       pictureInPicture.attach(
@@ -514,7 +514,6 @@ final class PutioVideoTransport {
     options.enumerated().map { Track(id: $0.offset, title: $0.element.displayName) }
   }
 
-  /// An original's audio options follow its audio streams in file order.
   private static func details(
     for options: [AVMediaSelectionOption], streams: [PutioOriginalAudioStream]
   ) -> [AVMediaSelectionOption: String] {
@@ -528,7 +527,6 @@ final class PutioVideoTransport {
   }
 }
 
-/// One subtitle cue the Direct play engine hands the app to draw.
 struct PutioVideoCue: Identifiable, Equatable {
   let id: Int
   let text: String?

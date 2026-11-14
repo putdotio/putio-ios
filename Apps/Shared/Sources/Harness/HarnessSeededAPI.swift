@@ -3676,8 +3676,6 @@ import Foundation
         """
     }
 
-    /// The streams of `runtime-proof-direct.mkv`, as put.io's `media_info`
-    /// describes an original.
     private static let directPlayMediaInfo = """
       {"mime_type": "video/x-matroska", "format": {"name": "matroska,webm"},
       "streams": [

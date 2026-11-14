@@ -105,7 +105,33 @@ extension PutioRuntimeTests {
     XCTAssertEqual(source.original?.player, .avPlayer)
     XCTAssertEqual(source.original?.subtitles, [])
     XCTAssertEqual(asked.values, [#"video/mp4; codecs="avc1.64001f,mp4a.40.2""#])
-    XCTAssertFalse(fixtures.capturedRequests().contains { $0.url?.path.hasSuffix("/subtitles") == true })
+  }
+
+  func testDirectPlayGivesAnMP4OriginalWithPutioSubtitleFilesToTheEngine() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      Self.directPlayFile(
+        mediaInfo: """
+          {"format": {"name": "mov,mp4,m4a,3gp,3g2,mj2"},
+          "streams": [
+          {"codec_type": "video", "codec_name": "h264", "rfc6381_codec": "avc1.64001f"}],
+          "playback_issues": []}
+          """),
+      for: Self.directPlayRoute)
+    fixtures.setFixture(
+      """
+      {"default":"en","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/411/subtitles/en"}
+      ]}
+      """,
+      for: Self.directPlaySubtitlesRoute)
+
+    guard case .ready(let source) = try await resolveDirectPlay(runtime) else {
+      return XCTFail("expected the original")
+    }
+
+    XCTAssertEqual(source.original?.player, .engine)
+    XCTAssertEqual(source.original?.subtitles.map(\.key), ["en"])
   }
 
   func testDirectPlayPlaysTheConvertedCopyWhenTheEngineCannotDecodeTheVideo() async throws {

@@ -806,14 +806,11 @@ final class BoardCaptureTests: XCTestCase {
       element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
   }
 
-  /// The Direct play engine playing the Matroska original, from the file
-  /// menu's "Play with Direct play"; compared with the video player boards.
   func testDirectPlayVideo() throws {
     try openDirectPlay()
     try captureBoard("direct-play-video")
   }
 
-  /// The Audio menu lists the original's tracks with codec and layout.
   func testDirectPlayAudioMenu() throws {
     try openDirectPlay()
     let audio = element("video.chip.audio")
