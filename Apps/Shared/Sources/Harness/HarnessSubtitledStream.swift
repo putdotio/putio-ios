@@ -57,7 +57,7 @@
         case .one: [("en-mkv", "eng", "English", "mkv")]
         case .three:
           [
-            ("en-mkv", "eng", "English", "mkv"), ("en", "eng", "English", "folder"),
+            ("en-mkv", "eng", "English", "mkv"), ("es", "spa", "Spanish", "folder"),
             ("tr", "tur", "Turkish", "opensubtitles"),
           ]
         case .failing:

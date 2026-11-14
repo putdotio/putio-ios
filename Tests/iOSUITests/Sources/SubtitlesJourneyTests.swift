@@ -190,10 +190,9 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertFalse(sizeAndTiming.isEnabled, "Size and timing is enabled before its issue")
     screenshot("runtime-subtitles-sources")
     app.buttons["video.subtitles.1"].tap()
-    XCTAssertTrue(waitForLabel(chip, "Subtitles: English"), chip.label)
+    XCTAssertTrue(waitForLabel(chip, "Subtitles: Spanish"), chip.label)
     app.setVideoPlaying(true, with: element("video.play-pause"))
-    XCTAssertTrue(
-      waitForValue(text, "English subtitle from this folder"), "shown: \(text.value ?? "")")
+    XCTAssertTrue(waitForValue(text, "Subtítulo en español"), "shown: \(text.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "en"), "the folder subtitle changed the audio track")
     pausePlayback()
 
@@ -269,6 +268,14 @@ final class SubtitlesJourneyTests: XCTestCase {
       "playback stopped after the failed subtitle")
     XCTAssertTrue(keepsValue(audio, "en"), "the failed subtitle changed the audio track")
     app.closeVideo()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func launch(tracks: String, signingIn: Bool) {
