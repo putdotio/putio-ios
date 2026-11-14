@@ -3132,7 +3132,8 @@ final class BoardCaptureTests: XCTestCase {
       try app.performAccessibilityAudit(for: .textClipped) { issue in
         guard let element = issue.element else { return false }
         if element.elementType == .searchField { return true }
-        return Self.isMiddleTruncatedFileName(element.label)
+        return
+          (Self.isMiddleTruncatedFileName(element.label) || Self.containsEmoji(element.label))
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
     }
@@ -3226,6 +3227,11 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static let minimumXXLargeLineHeight: CGFloat = 24
+
+  private static func containsEmoji(_ label: String?) -> Bool {
+    label?.unicodeScalars.contains { $0.properties.isEmojiPresentation || $0.value == 0xFE0F }
+      ?? false
+  }
 
   private static func isMiddleTruncatedFileName(_ label: String?) -> Bool {
     guard let label, let dot = label.lastIndex(of: "."), dot != label.startIndex else {

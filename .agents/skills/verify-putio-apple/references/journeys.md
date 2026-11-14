@@ -118,7 +118,8 @@ A board state needs one row there and one seeded test step.
   screen's base board and named `<board-id>-xxl.png`. The run sets the
   simulator's text size and restores it afterwards, also on failure or
   interruption. The capture fails when the accessibility audit reports clipped
-  text, except file names cut in the middle.
+  text, except file names cut in the middle and text with an emoji, which the
+  audit flags even when it fits. Check those in the capture yourself.
 
 ## tvOS
 
