@@ -35,7 +35,10 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertFalse(element("cast-settings.receiver").exists)
     XCTAssertFalse(app.staticTexts["Receiver app ID"].exists)
     screenshot("runtime-cast-settings")
-    app.navigationBars.buttons["BackButton"].tap()
+    let back = app.navigationBars.buttons["BackButton"]
+    back.tap()
+    if !back.disappears(within: 3) { back.tap() }
+    app.showTabBar()
 
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
@@ -45,7 +48,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(row.appears(within: 5))
     openLocally(row)
     connectFromPlayer()
-    app.closeVideo()
+    closePaused()
 
     // Tapping a video while connected casts it; the first load fails on the
     // receiver and retry recovers into playing controls.
@@ -120,7 +123,7 @@ final class ChromecastJourneyTests: XCTestCase {
 
     // Sign-out must stop the receiver, not just remove its controls with the shell.
     connectFromPlayer()
-    app.closeVideo()
+    closePaused()
     row.tap()
     XCTAssertTrue(toggle.appears(within: 15))
     XCTAssertEqual(toggle.label, "Pause")
@@ -149,7 +152,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(
       app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
     screenshot("runtime-cast-routes")
-    app.closeVideo()
+    closePaused()
 
     app.terminate()
     app.launchArguments.append("--putio-harness-cast-no-device")
@@ -158,7 +161,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay"])
     XCTAssertFalse(castButton.exists, "Cast showed with no device")
     screenshot("runtime-cast-routes-no-device")
-    app.closeVideo()
+    closePaused()
 
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-cast-no-device" }
@@ -179,6 +182,20 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Local network access is off"].disappears(within: 5),
       "Cancel kept the alert")
+    closePaused()
+
+    app.showTabBar()
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func closePaused() {
+    app.setVideoPlaying(false, with: element("video.play-pause"))
     app.closeVideo()
   }
 
