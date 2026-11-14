@@ -64,7 +64,7 @@ struct PutioFolderSortMenu: View {
   }
 
   private static let checkmark =
-    UIImage(systemName: "checkmark")?
-    .withTintColor(UIColor(PutioTheme.Colors.accent), renderingMode: .alwaysOriginal) ?? UIImage()
-  private static let uncheckedSpace = UIGraphicsImageRenderer(size: checkmark.size).image { _ in }
+    UIImage(systemName: "checkmark")?.fixed(PutioTheme.Colors.accent) ?? UIImage()
+  private static let uncheckedSpace =
+    UIImage(systemName: "checkmark")?.fixed(.clear) ?? UIImage()
 }

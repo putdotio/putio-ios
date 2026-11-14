@@ -86,19 +86,26 @@ extension Image {
 #if canImport(UIKit)
   extension Image {
     public init(putioIcon: PutioIcon, fixed color: Color) {
-      guard let source = UIImage(named: putioIcon.rawValue, in: .module, with: nil) else {
+      guard let image = UIImage(named: putioIcon.rawValue, in: .module, with: nil)?.fixed(color)
+      else {
         self.init(putioIcon: putioIcon)
         return
       }
-      self.init(uiImage: source.withTintColor(UIColor(color), renderingMode: .alwaysOriginal))
+      self.init(uiImage: image)
     }
 
     public init(systemName: String, fixed color: Color) {
-      guard let source = UIImage(systemName: systemName) else {
+      guard let image = UIImage(systemName: systemName)?.fixed(color) else {
         self.init(systemName: systemName)
         return
       }
-      self.init(uiImage: source.withTintColor(UIColor(color), renderingMode: .alwaysOriginal))
+      self.init(uiImage: image)
+    }
+  }
+
+  extension UIImage {
+    public func fixed(_ color: Color) -> UIImage {
+      withTintColor(UIColor(color), renderingMode: .alwaysOriginal)
     }
   }
 #endif

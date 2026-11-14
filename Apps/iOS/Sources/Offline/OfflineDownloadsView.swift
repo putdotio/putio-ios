@@ -451,6 +451,7 @@ struct PutioOfflineTrackPickerView: View {
                   value: PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
               }
             }
+            .putioSwitchTint()
             .accessibilityIdentifier("downloads.track.\(option.languageCode)")
           }
         } header: {

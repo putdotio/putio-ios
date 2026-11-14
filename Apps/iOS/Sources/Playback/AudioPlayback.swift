@@ -821,6 +821,7 @@ struct PutioAudioPlayerView: View {
               .resizable()
               .scaledToFit()
               .frame(width: 96, height: 96)
+              .foregroundStyle(PutioTheme.Components.FileRow.icon)
               .accessibilityHidden(true)
             Text(model.track.title)
               .putioFont(PutioTheme.Typography.heading)
@@ -914,8 +915,10 @@ struct PutioAudioPlayerView: View {
           Image(systemName: playPauseSymbol)
             .font(.system(size: 36))
             .frame(width: 64, height: 64)
+            .foregroundStyle(PutioTheme.Colors.background)
         }
         .buttonStyle(.borderedProminent)
+        .tint(PutioTheme.Colors.textPrimary)
         .clipShape(Circle())
         .disabled(isTransportDisabled)
         .accessibilityLabel(playPauseLabel)
