@@ -1217,6 +1217,47 @@ final class PutioFolderModelTests: XCTestCase {
     try await waitForState(model, .loaded(reconciled))
   }
 
+  func testCreateFolderWhileLoadingCreatesOnceTheListingArrives() async throws {
+    let created = BrowserTestFixtures.item(id: 91, parentID: 42, name: "Season 2", kind: .folder)
+    let listing = BrowserTestFixtures.contents(folderID: 42, items: [])
+    let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in created },
+        renameFile: { _, _ in XCTFail("rename should not run") },
+        deleteFile: { _ in XCTFail("delete should not run") }
+      )
+    )
+
+    XCTAssertTrue(model.canCreateFolder)
+    XCTAssertFalse(model.canStartAction)
+    let creation = Task { await model.createFolder(name: "Season 2") }
+    try await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: listing)
+    await creation.value
+
+    XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
+  }
+
+  func testCreateFolderIsUnavailableWhenTheListingFailed() async {
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in throw PutioRuntimeError.transient },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      )
+    )
+
+    await model.loadIfNeeded()
+
+    XCTAssertFalse(model.canCreateFolder)
+  }
+
   func testFileActionsBecomeAvailableOnlyAfterTheFolderLoads() async {
     let contents = BrowserTestFixtures.contents(items: [])
     let actions = PutioFileActions(

@@ -245,7 +245,7 @@ private struct PutioMoveLevel: View {
         }
         .labelStyle(.iconOnly)
         .tint(PutioTheme.Colors.textPrimary)
-        .disabled(!model.supportsActions || !model.canStartAction || !model.isLoaded || isMoving)
+        .disabled(!model.canCreateFolder || isMoving)
         .accessibilityIdentifier("files.move-new-folder")
       }
     }

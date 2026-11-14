@@ -192,6 +192,10 @@ extension PutioButtonSize {
   #endif
 }
 
+enum PutioDisabledRole {
+  static let opacity = 0.4
+}
+
 #if !os(tvOS)
   public struct PutioBlockButton: View {
     private let title: String
@@ -212,6 +216,21 @@ extension PutioButtonSize {
     }
 
     public var body: some View {
+      if isEnabled || isBusy {
+        button
+          .buttonStyle(.borderedProminent)
+          .buttonBorderShape(.capsule)
+          .controlSize(.large)
+          .tint(PutioTheme.Colors.accent)
+          .disabled(isBusy)
+      } else {
+        button
+          .buttonStyle(PutioDimmedBlockButtonStyle())
+          .disabled(true)
+      }
+    }
+
+    private var button: some View {
       Button {
         action()
       } label: {
@@ -227,12 +246,21 @@ extension PutioButtonSize {
         .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
         .frame(maxWidth: .infinity)
       }
-      .buttonStyle(.borderedProminent)
-      .buttonBorderShape(.capsule)
-      .controlSize(.large)
-      .tint(PutioTheme.Colors.accent)
-      .disabled(!isEnabled || isBusy)
       .accessibilityLabel(title)
+    }
+  }
+
+  struct PutioDimmedBlockButtonStyle: ButtonStyle {
+    static let opacity = PutioDisabledRole.opacity
+
+    @PutioScaledMetric(PutioMetricRole(value: 50, relativeTo: .body)) private var height: CGFloat
+
+    func makeBody(configuration: Configuration) -> some View {
+      configuration.label
+        .padding(.horizontal, PutioTheme.Spacing.space3)
+        .frame(maxWidth: .infinity, minHeight: height)
+        .background(PutioTheme.Colors.accent, in: Capsule())
+        .opacity(Self.opacity)
     }
   }
 #endif
