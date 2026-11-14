@@ -16,6 +16,22 @@ extension XCUIApplication {
     XCTFail("the player controls never showed \(control)", file: file, line: line)
   }
 
+  func setVideoPlaying(
+    _ playing: Bool, with playPause: XCUIElement, file: StaticString = #filePath,
+    line: UInt = #line
+  ) {
+    let target = playing ? "Pause" : "Play"
+    let reached = NSPredicate(format: "label == %@", target)
+    for _ in 0..<3 {
+      revealVideoControls(showing: playPause, file: file, line: line)
+      if playPause.label == target { return }
+      playPause.tap()
+      let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
+      if XCTWaiter.wait(for: [expectation], timeout: 3) == .completed { return }
+    }
+    XCTFail("the player never showed \(target)", file: file, line: line)
+  }
+
   func closeVideo(file: StaticString = #filePath, line: UInt = #line) {
     for _ in 0..<3 {
       revealVideoControls(showing: videoClose, file: file, line: line)

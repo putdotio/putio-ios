@@ -741,21 +741,21 @@ final class BoardCaptureTests: XCTestCase {
     let episode = element("files.item.441")
     XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
     episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
     let retry = app.buttons["Try again"]
     if retry.appears(within: 10) { retry.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 15), "the episode never played")
     XCTAssertEqual(
       element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
     let position = element("video.current-position")
-    XCTAssertTrue(
-      position.appears(within: 10) && position.value as? String != "0",
-      "the episode is not playing")
+    let advanced = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != '0'"), object: position)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "the episode is not playing")
     let playPause = element("video.play-pause")
-    app.revealVideoControls(showing: playPause)
-    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
-      playPause.tap()
-      XCTAssertTrue(playPause.becomesHittable(within: 2))
-    }
+    let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
+    app.setVideoPlaying(!auditsText, with: playPause)
     try captureBoard("rd-ios-pb-02-video")
   }
 

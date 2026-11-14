@@ -125,12 +125,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 10), .completed)
-    let playPause = element("video.play-pause")
-    app.revealVideoControls(showing: playPause)
-    if playPause.label == "Pause" { playPause.tap() }
-    XCTAssertTrue(
-      waitFor(NSPredicate(format: "label == 'Play'"), playPause, timeout: 5),
-      "playback did not pause")
+    app.setVideoPlaying(false, with: element("video.play-pause"))
   }
 
   private func openPlayerMenu(_ entry: String) {

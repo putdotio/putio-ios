@@ -1824,10 +1824,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "Forward 10 seconds did not move playback ahead")
 
     let playPause = element(identifier: "video.play-pause")
-    app.revealVideoControls(showing: playPause)
-    playPause.tap()
-    XCTAssertTrue(
-      waitForLabel(playPause, "Play"), "Pause did not pause: \(playPause.label)")
+    app.setVideoPlaying(false, with: playPause)
     let paused = playbackSeconds(currentPosition)
     XCTAssertFalse(
       skipForward.becomesUnhittable(within: 5), "controls hid while paused")
@@ -1847,8 +1844,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       (remaining.label).hasPrefix("-4:") || (remaining.label).hasPrefix("-5:"),
       "remaining time does not follow the scrub: \(remaining.label)")
 
-    playPause.tap()
-    XCTAssertTrue(waitForLabel(playPause, "Pause"), "Play did not resume")
+    app.setVideoPlaying(true, with: playPause)
     let resumedAt = playbackSeconds(currentPosition)
     XCTAssertTrue(
       waitForPosition(currentPosition, beyond: resumedAt), "playback did not resume")
@@ -2508,12 +2504,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
       object: position
     )
     return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
-  }
-
-  private func waitForLabel(_ element: XCUIElement, _ label: String) -> Bool {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label == %@", label), object: element)
-    return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
   }
 
   private func reportedPlaybackSeconds(from value: String?) -> Int? {
