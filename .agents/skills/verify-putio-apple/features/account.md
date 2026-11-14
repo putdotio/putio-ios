@@ -68,7 +68,10 @@ Preconditions:
   the progress screens. Screenshots: `runtime-session-storage`,
   `runtime-session-restoring`, `runtime-session-check-failed`.
 - **Security.** Run `--only account-security`. Screenshot:
-  `runtime-security-apps`.
+  `runtime-security-apps`. Under `--putio-harness-account-security`, the
+  `harness.account-requests` element lists each revoke, device link and
+  clear the app sent, one `METHOD path body` line each; assert it rather than
+  the UI alone.
 - **Clear your data.** Run `--only clear-data,clear-data-leave`. The first
   clear fails once; `--putio-harness-clear-data <hold|accept|slow>` holds,
   accepts or delays it instead. Screenshots: `runtime-danger-clear-failed`,
