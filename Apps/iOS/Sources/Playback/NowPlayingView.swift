@@ -14,14 +14,8 @@ struct PutioAudioPlayerView: View {
       content
         .putioContentBackground()
         .toolbar { toolbar }
-        .navigationDestination(isPresented: upNextPresentation(regular: true)) {
-          PutioAudioUpNextList(model: model)
-            .putioContentBackground()
-            .navigationTitle(String(localized: "Up next"))
-            .navigationBarTitleDisplayMode(.inline)
-        }
     }
-    .sheet(isPresented: upNextPresentation(regular: false)) {
+    .sheet(isPresented: $showsUpNext) {
       PutioAudioUpNextSheet(model: model)
     }
     .onChange(of: hasFailed) { _, failed in
@@ -55,12 +49,6 @@ struct PutioAudioPlayerView: View {
   private var hasFailed: Bool {
     if case .failed = model.state { return true }
     return false
-  }
-
-  private func upNextPresentation(regular: Bool) -> Binding<Bool> {
-    Binding(
-      get: { showsUpNext && (horizontalSizeClass == .regular) == regular },
-      set: { showsUpNext = $0 })
   }
 
   @ToolbarContentBuilder
