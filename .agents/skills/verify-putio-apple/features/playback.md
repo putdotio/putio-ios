@@ -12,6 +12,9 @@ offline playback.
 - `resume` asks Resume or Start over for a partly watched video, before the
   player or after a conversion, skips, pauses, scrubs, hides and shows the
   controls, and keeps the position across Close and reopening a file.
+- `video-errors` shows the expired-access and Connection lost states, keeps Close
+  and the file name, and Try again plays at the saved position after one silent
+  refetch of a 403.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
   plays from the Up next list while its mark follows playback, and pauses when
@@ -62,6 +65,13 @@ Preconditions:
   `runtime-resume-prompt`, `runtime-video-controls`,
   `runtime-video-controls-hidden`. `--only resume-setting` covers a video with
   no saved position and resume off. Board: `rd-ios-pb-01-resume`.
+- **Video errors.** Run `--only video-errors`. Screenshots:
+  `runtime-video-access-expired`, `runtime-video-connection-lost`,
+  `runtime-video-recovered`. `--putio-harness-video-faults` takes a comma list
+  (`forbidden`, `refused`, `none`) that the seeded video loads use in order:
+  `forbidden` gets a 403 from the media server and `refused` points at a closed
+  loopback port. Boards: `rd-ios-pb-18-link-expired`,
+  `rd-ios-pb-19-connection-lost`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
   `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`,
   `runtime-audio-sleep-menu`, `runtime-audio-sleep-running`.

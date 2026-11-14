@@ -133,6 +133,11 @@ private final class StopCounter: @unchecked Sendable {
     from: baseURL.appending(path: "../not-allowlisted")
   )
   #expect((missingResponse as? HTTPURLResponse)?.statusCode == 404)
+
+  let (_, forbiddenResponse) = try await URLSession.shared.data(
+    from: baseURL.appending(path: "forbidden/runtime-proof.m3u8")
+  )
+  #expect((forbiddenResponse as? HTTPURLResponse)?.statusCode == 403)
 }
 
 @Test func harnessMediaServerFailsFastWhenTheListenerIsCancelledBeforeReady() throws {

@@ -152,6 +152,10 @@ final class HarnessMediaServer: @unchecked Sendable {
     }
 
     let path = String(requestLine[1])
+    guard !path.hasPrefix("/forbidden/") else {
+      send(status: "403 Forbidden", headers: [:], body: Data(), over: connection)
+      return
+    }
     let resource: (name: String, contentType: String)
     switch path {
     case "/runtime-proof.m3u8":

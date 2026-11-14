@@ -1,3 +1,4 @@
+import PutioCore
 import Sentry
 import XCTest
 
@@ -94,6 +95,19 @@ final class SentryTelemetryTests: XCTestCase {
     XCTAssertEqual(sent.context?["os"]?["name"] as? String, "iOS")
     XCTAssertEqual(sent.user?.userId, "synthetic-installation")
     XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
+  }
+
+  func testAPlaybackFailureSendsOnlyItsKind() throws {
+    allowCapture(true)
+    let options = SentryTelemetry.options(try XCTUnwrap(configuration))
+    let sent = try XCTUnwrap(options.beforeSend?(SentryTelemetry.event(for: .connectionLost)))
+
+    XCTAssertEqual(sent.exceptions?.count, 1)
+    XCTAssertEqual(sent.exceptions?.first?.type, "VideoPlaybackFailure.connectionLost")
+    XCTAssertNil(sent.exceptions?.first?.value)
+    XCTAssertEqual(sent.exceptions?.first?.mechanism?.type, "video-player")
+    XCTAssertEqual(sent.exceptions?.first?.mechanism?.handled, true)
+    XCTAssertNil(sent.message)
   }
 
   func testSwitchingOffSendsNothingRecordedBefore() throws {

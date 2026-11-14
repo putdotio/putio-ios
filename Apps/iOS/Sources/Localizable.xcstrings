@@ -2211,6 +2211,17 @@
         }
       }
     },
+    "Reported player failures" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reported player failures"
+          }
+        }
+      }
+    },
     "in %@" : {
       "comment" : "ios-only: Android pin rows show no location",
       "localizations" : {

@@ -234,6 +234,17 @@
         }
       }
     },
+    "Connection lost" : {
+      "comment" : "android: mobile_playback_error_connection_lost",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection lost"
+          }
+        }
+      }
+    },
     "Continue from %@" : {
       "comment" : "android: playback_resume_title | differs: iOS board wording",
       "localizations" : {
@@ -604,6 +615,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load this"
+          }
+        }
+      }
+    },
+    "Couldn’t play this video" : {
+      "comment" : "android: mobile_playback_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t play this video"
           }
         }
       }
@@ -1356,6 +1378,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paused"
+          }
+        }
+      }
+    },
+    "Playback access expired. Retry to refresh it." : {
+      "comment" : "android: mobile_playback_error_credential",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback access expired. Retry to refresh it."
           }
         }
       }

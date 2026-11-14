@@ -531,6 +531,121 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .failed(.playback))
   }
 
+  func testAnExpiredStreamRefetchesOnceWithoutAnErrorAndResumesWhereItStopped() async {
+    let saved = playbackSource()
+    var statesAtResolve: [PutioVideoPlaybackState] = []
+    var model: PutioVideoPlaybackModel?
+    let resolver = PlaybackResolverStub([.success(.ready(saved)), .success(.ready(saved))])
+    model = PutioVideoPlaybackModel(fileID: fileID) {
+      if let model { statesAtResolve.append(model.state) }
+      return try await resolver.resolve($0)
+    }
+    guard let model else { return XCTFail("model was not created") }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+
+    XCTAssertEqual(resolver.requestedIDs.count, 2)
+    XCTAssertEqual(statesAtResolve.last, .ready(saved), "the refetch showed a loading state")
+    XCTAssertEqual(
+      model.state,
+      .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 214, resumesAfterFailure: true)))
+    XCTAssertEqual(model.playerAttempt, 2, "the refetched source kept the failed player")
+  }
+
+  func testASecondExpiryShowsTheExpiredStateAndTryAgainResumesThere() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub(Array(repeating: .success(.ready(saved)), count: 4))
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+    XCTAssertEqual(resolver.requestedIDs.count, 2, "the expired state refetched again")
+
+    await model.retry()
+    XCTAssertEqual(
+      model.state,
+      .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 214, resumesAfterFailure: true)))
+
+    await model.playerFailed(.accessExpired, heldSeconds: 250)
+    XCTAssertEqual(
+      model.state,
+      .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 250, resumesAfterFailure: true)),
+      "Try again did not give the next expiry its own silent refetch")
+  }
+
+  func testAnExpiryAfterTheRefetchedSourcePlayedGetsItsOwnSilentRefetch() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub(Array(repeating: .success(.ready(saved)), count: 3))
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+    model.playerReady()
+    await model.playerFailed(.accessExpired, heldSeconds: 3_600)
+
+    XCTAssertEqual(resolver.requestedIDs.count, 3)
+    XCTAssertEqual(
+      model.state,
+      .ready(
+        PutioPlaybackSource(url: saved.url, startFromSeconds: 3_600, resumesAfterFailure: true)))
+  }
+
+  func testASessionFailureDuringTheSilentRefetchLeavesNoFrozenPlayer() async {
+    let resolver = PlaybackResolverStub([
+      .success(.ready(playbackSource())), .failure(.sessionExpired),
+    ])
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+  }
+
+  func testALostConnectionShowsItsStateAndTryAgainResumesThere() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub([.success(.ready(saved)), .success(.ready(saved))])
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.connectionLost, heldSeconds: 333)
+
+    XCTAssertEqual(model.state, .failed(.connectionLost))
+    XCTAssertEqual(resolver.requestedIDs.count, 1)
+
+    await model.retry()
+    XCTAssertEqual(
+      model.state,
+      .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 333, resumesAfterFailure: true)))
+  }
+
+  func testPlayerErrorsReadAsExpiredAccessLostConnectionOrPlayback() {
+    let forbidden = NSError(
+      domain: NSURLErrorDomain, code: -1102,
+      userInfo: [
+        NSUnderlyingErrorKey: NSError(domain: "CoreMediaErrorDomain", code: -12660)
+      ])
+    let refused = NSError(
+      domain: NSURLErrorDomain, code: -1004,
+      userInfo: [
+        NSUnderlyingErrorKey: NSError(domain: "kCFErrorDomainCFNetwork", code: -1004)
+      ])
+    let offline = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+    let missing = NSError(domain: "CoreMediaErrorDomain", code: -12938)
+    let cancelled = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
+
+    XCTAssertEqual(PutioVideoPlayerFault(error: forbidden), .accessExpired)
+    XCTAssertEqual(PutioVideoPlayerFault(error: refused), .connectionLost)
+    XCTAssertEqual(PutioVideoPlayerFault(error: offline), .connectionLost)
+    XCTAssertEqual(PutioVideoPlayerFault(error: missing), .playback)
+    XCTAssertEqual(PutioVideoPlayerFault(error: cancelled), .playback)
+    XCTAssertEqual(PutioVideoPlayerFault(error: nil), .playback)
+  }
+
   func testTheStartIsChosenOnceAndARetryKeepsItUntilTheServerMoves() async {
     let saved = playbackSource()
     let moved = PutioPlaybackSource(url: saved.url, startFromSeconds: 12)
