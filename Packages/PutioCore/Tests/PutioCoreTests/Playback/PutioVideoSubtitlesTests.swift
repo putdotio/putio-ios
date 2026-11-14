@@ -92,6 +92,10 @@ final class PutioVideoSubtitlesTests: XCTestCase {
     XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .language("tr"))
     memory.remember(PutioSubtitleTrack(id: 3, title: "Unknown", languageTag: "Unknown"))
     XCTAssertEqual(memory.remembered, .language("tr"))
+    memory.forget(english)
+    XCTAssertEqual(memory.remembered, .language("tr"))
+    memory.forget(turkish)
+    XCTAssertNil(memory.remembered)
     memory.remember(nil)
     XCTAssertEqual(PutioSubtitleMemory(defaults: defaults).remembered, .off)
   }

@@ -164,6 +164,7 @@ final class PutioVideoTransport {
   @ObservationIgnored private var checkedErrorEvents = 0
   @ObservationIgnored var onReload: (@MainActor (PutioVideoTrackSelection?) -> Void)?
   @ObservationIgnored var onSubtitlePicked: (@MainActor (PutioSubtitleTrack?) -> Void)?
+  @ObservationIgnored var onSubtitleFailed: (@MainActor (PutioSubtitleTrack) -> Void)?
 
   init() {
     wait = PutioVideoWaitModel()
@@ -320,7 +321,11 @@ final class PutioVideoTransport {
     let failed =
       selectedRendition.map(failing.contains)
       ?? !failing.isDisjoint(with: subtitleRenditions)
+    let failedTrack = legible.options.firstIndex(of: selected).flatMap { index in
+      subtitles.first { $0.id == index }
+    }
     guard failed, selectSubtitle(nil) else { return }
+    if let failedTrack { onSubtitleFailed?(failedTrack) }
     toast = PutioToast(String(localized: "Couldn’t load subtitles"), icon: .warning, width: .fit)
   }
 

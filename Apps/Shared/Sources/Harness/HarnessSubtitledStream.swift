@@ -6,9 +6,7 @@
   /// shapes `subtitle_key=all` from the account: no subtitle renditions when
   /// subtitles are hidden, and the first one `DEFAULT` and `AUTOSELECT` unless
   /// auto-selection is disabled. With `--putio-harness-subtitled-stream`, the
-  /// seeded scenario streams the multi-audio fixture in the matching shape;
-  /// `--putio-harness-subtitle-tracks` picks a master and the subtitles list
-  /// that backs it.
+  /// seeded scenario streams the multi-audio fixture in the matching shape.
   enum HarnessSubtitledStream {
     enum Tracks: String {
       case none

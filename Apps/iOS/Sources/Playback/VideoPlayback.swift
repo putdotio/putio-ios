@@ -37,7 +37,7 @@ struct PutioVideoPlaybackView: View {
   private let castButton: AnyView?
   private let onCast: (@MainActor @Sendable () -> Void)?
   private let subtitlePolicy: PutioSubtitleStartupPolicy
-  private let rememberedSubtitle: PutioRememberedSubtitle?
+  private let subtitleMemory: PutioSubtitleMemory?
   private let loadSubtitleListings: PutioSubtitleListingsLoad
 
   init(
@@ -68,10 +68,11 @@ struct PutioVideoPlaybackView: View {
   ) {
     self.castButton = castButton
     self.subtitlePolicy = subtitlePolicy
-    self.rememberedSubtitle = subtitleMemory?.remembered
+    self.subtitleMemory = subtitleMemory
     self.loadSubtitleListings = loadSubtitleListings
     let transport = PutioVideoTransport()
     transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
+    transport.onSubtitleFailed = { subtitleMemory?.forget($0) }
     _transport = State(initialValue: transport)
     self.onCast = onCast
     self.fileID = route.id
@@ -380,7 +381,7 @@ struct PutioVideoPlaybackView: View {
         transport: transport,
         preferredAudioLanguages: preferredAudioLanguages,
         subtitlePolicy: subtitlePolicy,
-        rememberedSubtitle: rememberedSubtitle,
+        subtitleMemory: subtitleMemory,
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
@@ -578,7 +579,7 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   let transport: PutioVideoTransport
   let preferredAudioLanguages: [String]
   let subtitlePolicy: PutioSubtitleStartupPolicy
-  let rememberedSubtitle: PutioRememberedSubtitle?
+  let subtitleMemory: PutioSubtitleMemory?
   let remembersPlaybackPosition: Bool
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
@@ -611,7 +612,7 @@ private struct PutioVideoPlayerView: UIViewRepresentable {
   func makeCoordinator() -> PutioVideoPlayerCoordinator {
     PutioVideoPlayerCoordinator(
       positionPipeline: positionPipeline, subtitlePolicy: subtitlePolicy,
-      rememberedSubtitle: rememberedSubtitle)
+      subtitleMemory: subtitleMemory)
   }
 
   func makeUIView(context: Context) -> PutioVideoSurfaceView {
@@ -830,7 +831,7 @@ final class PutioVideoPlayerCoordinator {
   convenience init(
     positionPipeline: PutioPlaybackPositionPipeline,
     subtitlePolicy: PutioSubtitleStartupPolicy,
-    rememberedSubtitle: PutioRememberedSubtitle?
+    subtitleMemory: PutioSubtitleMemory?
   ) {
     self.init(
       makeDriver: { PutioVideoPlayerDriver(item: $0) },
@@ -839,7 +840,7 @@ final class PutioVideoPlayerCoordinator {
       positionPipeline: positionPipeline,
       applyDefaultSubtitle: {
         await PutioVideoPlayerCoordinator.selectStartSubtitle(
-          in: $0, policy: subtitlePolicy, remembered: rememberedSubtitle)
+          in: $0, policy: subtitlePolicy, remembered: subtitleMemory?.remembered)
       }
     )
   }
@@ -1310,8 +1311,13 @@ final class PutioVideoPlayerCoordinator {
       !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles)
     }
     let tracks = PutioVideoTransport.subtitleTracks(options, defaultOption: group.defaultOption)
-    let start = policy.startingTrack(in: tracks, remembered: remembered)
-    item.select(start.map { options[$0.id] }, in: group)
+    if let start = policy.startingTrack(in: tracks, remembered: remembered) {
+      item.select(options[start.id], in: group)
+    } else if item.currentMediaSelection.selectedMediaOption(in: group)
+      .map({ !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) }) ?? false
+    {
+      item.select(nil, in: group)
+    }
   }
 
   /// Publishes the audible and legible options in effect so the journey can

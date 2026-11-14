@@ -172,6 +172,13 @@ public final class PutioSubtitleMemory {
     defaults.set(tag, forKey: key)
   }
 
+  public func forget(_ track: PutioSubtitleTrack) {
+    guard case .language(let tag) = remembered,
+      PutioSubtitleLanguage.matches(tag, track.languageTag)
+    else { return }
+    defaults.removeObject(forKey: key)
+  }
+
   private static let offValue = "off"
 }
 

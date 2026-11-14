@@ -76,10 +76,13 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
     app.closeVideo()
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 15))
 
     // "Pick matching subtitles" off: the tracks stay offered, none is on.
     setPlaybackToggle("playback-settings.subtitle-selection", to: "0", retryingSeededFailure: true)
-    openVideo(retryingSeededFailure: false)
+    openVideo(retryingSeededFailure: true)
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
     app.closeVideo()
