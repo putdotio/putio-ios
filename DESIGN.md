@@ -18,6 +18,9 @@ sets the platform rules. Change tokens through
   neutral. Account screens have no yellow.
 - **Glass only on chrome.** The toolbar, tab bar, menus, and toast. A control
   inside the toast adds no second glass layer.
+- **Tab bar.** It minimizes on scroll down, as the stock iPhone tab bar does.
+  Boards draw it full; a minimized bar in a scrolled capture is not a
+  difference.
 - **Type.** GT America for content; Berkeley Mono for sizes, counts, and times.
   Text stops growing at XX Large through the window override in
   [PutioApp](Apps/iOS/Sources/App/PutioApp.swift).
