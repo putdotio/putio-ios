@@ -391,6 +391,68 @@ public struct PutioPickerRow<Option: Hashable>: View {
   }
 }
 
+#if os(iOS)
+  public struct PutioMenuRow<Value: Equatable, Items: View>: View {
+    private let title: String
+    private let icon: PutioIcon?
+    private let source: PutioSettingSource<Value>
+    private let valueLabel: (Value) -> String
+    private let items: (Binding<Value>) -> Items
+
+    public init(
+      _ title: String,
+      icon: PutioIcon? = nil,
+      selection: Value,
+      save: @escaping PutioSettingSave<Value>,
+      valueLabel: @escaping (Value) -> String,
+      @ViewBuilder items: @escaping (Binding<Value>) -> Items
+    ) {
+      self.title = title
+      self.icon = icon
+      self.source = .saved(selection, pending: nil, save)
+      self.valueLabel = valueLabel
+      self.items = items
+    }
+
+    public var body: some View {
+      PutioSettingField(source: source) { selection in
+        Menu {
+          items(selection)
+        } label: {
+          PutioMenuRowLabel(title: title, icon: icon, value: valueLabel(selection.wrappedValue))
+        }
+      }
+    }
+  }
+
+  private struct PutioMenuRowLabel: View {
+    let title: String
+    let icon: PutioIcon?
+    let value: String
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        PutioSettingsLabel(title: title, subtitle: nil, icon: icon)
+          .layoutPriority(1)
+        Spacer(minLength: PutioTheme.Spacing.space2)
+        HStack(spacing: PutioTheme.Spacing.space1) {
+          Text(value)
+            .putioFont(PutioFormLayout.valueFont)
+            .multilineTextAlignment(.trailing)
+          Image(systemName: "chevron.up.chevron.down")
+            .imageScale(.small)
+            .accessibilityHidden(true)
+        }
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
+      .opacity(isEnabled ? 1 : PutioDisabledRole.opacity)
+      .contentShape(Rectangle())
+      .accessibilityElement(children: .combine)
+    }
+  }
+#endif
+
 public struct PutioChoice: Sendable, Equatable {
   public let title: String
   public let description: String?

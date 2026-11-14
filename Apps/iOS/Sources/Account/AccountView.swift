@@ -229,17 +229,19 @@ struct AccountView: View {
 
   private var filesSection: some View {
     PutioSettingsSection(String(localized: "Files")) {
-      PutioPickerRow(
+      PutioMenuRow(
         String(localized: "Default sort order"),
         icon: .sortAscending,
         selection: preferences.account?.defaultSort,
-        options: sortOptions,
         save: { sort in
           guard let sort else { throw CancellationError() }
           try await commit(.defaultSort, .defaultSort(sort))
+        },
+        valueLabel: { sort in
+          sort?.accountValue ?? String(localized: "Current server setting")
         }
-      ) { sort in
-        sort?.accountValue ?? String(localized: "Current server setting")
+      ) { selection in
+        PutioFolderSortMenuItems(current: selection.wrappedValue) { selection.wrappedValue = $0 }
       }
       .disabled(settingsLocked)
       .id(AccountSettingRow.defaultSort)
@@ -412,11 +414,6 @@ struct AccountView: View {
   }
 
   private var settingsLocked: Bool { preferences.isBusy || preferences.isStale }
-
-  private var sortOptions: [PutioFolderSort?] {
-    let sorts = PutioFolderSort.allCases.map(Optional.some)
-    return preferences.account?.defaultSort == nil ? [nil] + sorts : sorts
-  }
 
   private var trashEnabled: Binding<Bool> {
     Binding(

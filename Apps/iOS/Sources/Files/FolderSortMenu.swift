@@ -7,10 +7,6 @@ struct PutioFolderSortMenu: View {
   var isBusy = false
   let onSelect: @MainActor (PutioFolderSort) -> Void
 
-  private var choices: PutioFolderSortChoices {
-    PutioFolderSortChoices(current: current)
-  }
-
   static func accessibilityLabel(for current: PutioFolderSort?) -> String {
     guard let current else { return String(localized: "Sort files") }
     return String(localized: "Sort files, \(current.menuLabel)")
@@ -18,23 +14,7 @@ struct PutioFolderSortMenu: View {
 
   var body: some View {
     Menu {
-      Section("Sort by") {
-        ForEach(PutioFolderSortChoices.fields, id: \.self) { field in
-          row(field.menuTitle, isChecked: choices.checkedField == field) {
-            choices.selecting(field)
-          }
-        }
-      }
-      Section("Order") {
-        ForEach(choices.orders, id: \.self) { order in
-          row(order.orderTitle, isChecked: choices.isChecked(order)) { order }
-        }
-      }
-      Section("Videos") {
-        ForEach(PutioFolderSortChoices.videoOrders, id: \.self) { order in
-          row(order.orderTitle, isChecked: choices.isChecked(order)) { order }
-        }
-      }
+      PutioFolderSortMenuItems(current: current, onSelect: onSelect)
     } label: {
       Label("Sort files", systemImage: "arrow.up.arrow.down")
     }
@@ -44,6 +24,35 @@ struct PutioFolderSortMenu: View {
     .accessibilityIdentifier("files.sort")
     .accessibilityLabel(Self.accessibilityLabel(for: current))
     .accessibilityValue(isBusy ? Text("Updating file order") : Text(verbatim: ""))
+  }
+}
+
+struct PutioFolderSortMenuItems: View {
+  let current: PutioFolderSort?
+  let onSelect: @MainActor (PutioFolderSort) -> Void
+
+  private var choices: PutioFolderSortChoices {
+    PutioFolderSortChoices(current: current)
+  }
+
+  var body: some View {
+    Section("Sort by") {
+      ForEach(PutioFolderSortChoices.fields, id: \.self) { field in
+        row(field.menuTitle, isChecked: choices.checkedField == field) {
+          choices.selecting(field)
+        }
+      }
+    }
+    Section("Order") {
+      ForEach(choices.orders, id: \.self) { order in
+        row(order.orderTitle, isChecked: choices.isChecked(order)) { order }
+      }
+    }
+    Section("Videos") {
+      ForEach(PutioFolderSortChoices.videoOrders, id: \.self) { order in
+        row(order.orderTitle, isChecked: choices.isChecked(order)) { order }
+      }
+    }
   }
 
   private func row(
