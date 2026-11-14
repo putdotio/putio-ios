@@ -739,6 +739,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-39-single-audio", .iphone, "testSingleAudio"),
       BoardCapture("rd-ios-pb-12-up-next", .iphone, "testUpNext"),
       BoardCapture("rd-ios-pb-40-ipad-now-playing", .ipad, "testNowPlaying"),
+      BoardCapture("rd-ios-pb-05-mini", .iphone, "testMiniPlayer"),
+      BoardCapture("rd-ios-pb-41-ipad-mini", .ipad, "testMiniPlayer"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
       BoardCapture(

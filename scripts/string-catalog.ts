@@ -530,10 +530,10 @@ export const checkRepository = async (root: string): Promise<CheckResult> => {
   for (const target of targets) {
     const catalog = JSON.parse(await readFile(join(root, target.catalog), "utf8")) as Catalog;
     if (catalog.sourceLanguage !== "en") problems.push(`${target.catalog}: sourceLanguage must be en`);
-    const templates = new Map<string, string>();
+    const templates = new Map<string, string[]>();
     for (const [key, entry] of Object.entries(catalog.strings)) {
       counts.keys += 1;
-      templates.set(keyTemplate(key), key);
+      templates.set(keyTemplate(key), [...(templates.get(keyTemplate(key)) ?? []), key]);
       const english = englishValues(entry);
       if (english.value === undefined && english.plural === undefined) {
         problems.push(`${target.catalog}: "${key}" has no English value`);
@@ -598,12 +598,12 @@ export const checkRepository = async (root: string): Promise<CheckResult> => {
           problems.push(`${where}: "${shown}" must look up in ${target.name} with bundle: ${target.bundle}`);
           continue;
         }
-        const key = templates.get(literal.template);
-        if (key === undefined) {
+        const keys = templates.get(literal.template);
+        if (keys === undefined) {
           problems.push(`${where}: "${shown}" is not in ${target.catalog}`);
           continue;
         }
-        used.add(key);
+        for (const key of keys) used.add(key);
       }
     }
     for (const key of Object.keys(catalog.strings)) {

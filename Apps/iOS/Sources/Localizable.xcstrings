@@ -45,6 +45,17 @@
         }
       }
     },
+    "%@ of %@" : {
+      "comment" : "android: mobile_playback_position_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ of %@"
+          }
+        }
+      }
+    },
     "%@ selected" : {
       "comment" : "ios-only: the selection header names the selected size, as the board draws it",
       "localizations" : {
@@ -1757,17 +1768,6 @@
         }
       }
     },
-    "End of folder" : {
-      "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "End of folder"
-          }
-        }
-      }
-    },
     "Enter a name or keyword to search your put.io account." : {
       "comment" : "android: mobile_search_start_message",
       "localizations" : {
@@ -2992,17 +2992,6 @@
         }
       }
     },
-    "Now Playing, %@, %@" : {
-      "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Now Playing, %@, %@"
-          }
-        }
-      }
-    },
     "Observed conversion states" : {
       "comment" : "ios-only: no Android string for the iOS video player",
       "localizations" : {
@@ -3109,6 +3098,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open link"
+          }
+        }
+      }
+    },
+    "Open player" : {
+      "comment" : "android: mobile_now_playing_open",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open player"
           }
         }
       }
@@ -3322,28 +3322,6 @@
         }
       }
     },
-    "Playback failed, open to retry" : {
-      "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback failed, open to retry"
-          }
-        }
-      }
-    },
-    "Playback interrupted" : {
-      "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback interrupted"
-          }
-        }
-      }
-    },
     "Playback method" : {
       "comment" : "android: mobile_settings_playback_method",
       "localizations" : {
@@ -3406,17 +3384,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Player"
-          }
-        }
-      }
-    },
-    "Playing" : {
-      "comment" : "ios-only: no Android string for the iOS audio mini player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playing"
           }
         }
       }
@@ -3736,6 +3703,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Source code"
+          }
+        }
+      }
+    },
+    "Stop playback" : {
+      "comment" : "android: mobile_now_playing_dismiss",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop playback"
           }
         }
       }

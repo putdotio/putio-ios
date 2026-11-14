@@ -42,9 +42,36 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(miniToggle.label, "Pause")
     miniToggle.tap()
     XCTAssertEqual(miniToggle.label, "Play")
+    let pausedValue = miniPlayer.value as? String ?? ""
+    XCTAssertTrue(
+      pausedValue.hasPrefix("Harness Track.m4a, ") && pausedValue.contains(" of "),
+      "the mini player reads \(pausedValue)")
+    miniToggle.tap()
+    XCTAssertEqual(miniToggle.label, "Pause")
+    let advanced = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != %@", pausedValue), object: miniPlayer)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "Play from the bar kept the time")
+    miniToggle.tap()
+    XCTAssertEqual(miniToggle.label, "Play")
     app.buttons["Account"].tap()
-    XCTAssertTrue(miniPlayer.exists)
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Account")
+    app.buttons["Search"].tap()
+    XCTAssertTrue(app.searchFields.firstMatch.appears(within: 5), "Search opened no field")
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Search")
+    app.buttons["Close"].tap()
     app.buttons["Files"].tap()
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Files")
+    let folder = app.revealed("files.item.410")
+    XCTAssertTrue(folder.appears(within: 10))
+    folder.tap()
+    XCTAssertTrue(element("files.screen.410").appears(within: 10), "the folder never pushed")
+    XCTAssertTrue(miniPlayer.isHittable, "the mini player left the pushed folder")
+    assertLastRowClears(miniPlayer)
+    app.navigationBars.buttons["BackButton"].firstMatch.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
+    assertLastRowClears(miniPlayer)
+    app.scrollDown(toHit: element("files.item.408"))
     miniPlayer.tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     app.buttons["audio.play-pause"].tap()
@@ -136,11 +163,57 @@ final class AudioJourneyTests: XCTestCase {
       app.buttons["audio.collapse"].tap()
     }
 
+    try stopPlaybackSavesAndRemovesTheBar(miniPlayer)
     signOut()
     XCTAssertFalse(miniPlayer.exists)
 
     try folderQueueRetriesAFailureAndFollowsTheFolder()
     try upNextPlaysATappedFileAndFollowsPlayback()
+  }
+
+  private func stopPlaybackSavesAndRemovesTheBar(_ miniPlayer: XCUIElement) throws {
+    XCTAssertTrue(miniPlayer.appears(within: 5))
+    XCTAssertEqual(app.buttons["audio.mini.toggle"].label, "Pause")
+    let saves = element("audio.position-saves")
+    let before = saves.value as? String ?? ""
+    let stop = app.buttons["audio.mini.stop"]
+    XCTAssertEqual(stop.label, "Stop playback")
+    stop.tap()
+    XCTAssertTrue(miniPlayer.disappears(within: 5), "Stop playback kept the bar")
+    let saved = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != %@", before), object: saves)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [saved], timeout: 10), .completed, "Stop playback saved nothing")
+    let afterStop = saves.value as? String ?? ""
+    let last = try XCTUnwrap(afterStop.split(separator: ",").last)
+    XCTAssertTrue(last.hasPrefix("408@"), "Stop playback saved \(last)")
+    let later = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != %@", afterStop), object: saves)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [later], timeout: 12), .timedOut, "audio kept playing after Stop playback"
+    )
+    app.buttons["Account"].tap()
+    XCTAssertFalse(miniPlayer.exists, "the bar came back on another tab")
+    app.buttons["Files"].tap()
+  }
+
+  private func assertLastRowClears(_ miniPlayer: XCUIElement) {
+    let rows = app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH 'files.item.'"))
+    var lowest = CGRect.zero
+    for _ in 0..<8 {
+      app.swipeUp()
+      let bottom =
+        rows.allElementsBoundByIndex.filter { $0.exists && !$0.frame.isEmpty }
+        .map(\.frame).max { $0.maxY < $1.maxY } ?? .zero
+      if bottom == lowest { break }
+      lowest = bottom
+    }
+    XCTAssertFalse(lowest.isEmpty, "the list shows no rows")
+    XCTAssertTrue(miniPlayer.isHittable, "scrolling hid the mini player")
+    XCTAssertLessThanOrEqual(
+      lowest.maxY, miniPlayer.frame.minY,
+      "the last row ends at \(lowest.maxY), under the mini player at \(miniPlayer.frame.minY)")
   }
 
   private func upNextPlaysATappedFileAndFollowsPlayback() throws {

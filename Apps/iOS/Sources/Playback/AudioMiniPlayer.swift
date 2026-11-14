@@ -26,18 +26,31 @@ final class PutioAudioPlaybackSession {
   }
 }
 
+@MainActor
+@Observable
+final class PutioAudioMiniPlayerPlacement {
+  var tabBarOnTop = false
+}
+
+struct PutioAudioMiniPlayerSlot {
+  let playback: PutioAudioPlaybackSession
+  let placement: PutioAudioMiniPlayerPlacement
+  let onStop: () -> Void
+}
+
 struct PutioAudioMiniPlayer: View {
   let model: PutioAudioPlayerModel
   let onOpen: () -> Void
+  let onStop: () -> Void
   @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
   var body: some View {
-    HStack(spacing: PutioTheme.Spacing.space2) {
+    HStack(spacing: PutioTheme.Spacing.space1) {
       Button(action: onOpen) {
         HStack(spacing: PutioTheme.Spacing.space3) {
           if placement != .inline {
             PutioIconView(.fileAudio, size: Self.iconSize)
-              .foregroundStyle(PutioTheme.Colors.accent)
+              .foregroundStyle(PutioTheme.Components.FileRow.icon)
               .accessibilityHidden(true)
           }
           VStack(alignment: .leading, spacing: 0) {
@@ -45,11 +58,14 @@ struct PutioAudioMiniPlayer: View {
               .putioFont(PutioTheme.Typography.body)
               .foregroundStyle(PutioTheme.Colors.textPrimary)
               .lineLimit(1)
+              .truncationMode(.middle)
+              .accessibilityIdentifier("audio.mini.title")
             if placement != .inline {
               Text(status)
-                .putioFont(PutioTheme.Typography.caption)
+                .putioFont(PutioTheme.Typography.numeric)
                 .foregroundStyle(PutioTheme.Colors.textSecondary)
                 .lineLimit(1)
+                .accessibilityIdentifier("audio.mini.position")
             }
           }
           Spacer(minLength: 0)
@@ -57,55 +73,118 @@ struct PutioAudioMiniPlayer: View {
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .contentShape(Rectangle())
       }
-      .buttonStyle(.plain)
-      .accessibilityLabel("Now Playing, \(model.track.title), \(status)")
+      .accessibilityLabel(Text(String(localized: "Open player")))
+      .accessibilityValue(Text(verbatim: "\(model.track.title), \(status)"))
       .accessibilityIdentifier("audio.mini.open")
-      if case .loading = model.state {
-        ProgressView().frame(minWidth: 44, minHeight: 44)
-          .accessibilityLabel("Preparing audio")
-      } else if case .failed = model.state {
-        Button(action: onOpen) {
-          Image(systemName: "exclamationmark.circle")
-            .frame(minWidth: 44, minHeight: 44)
-        }
-        .accessibilityLabel("Playback failed, open to retry")
-      } else {
-        Button {
-          model.togglePlayPause()
-        } label: {
-          Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-            .frame(minWidth: 44, minHeight: 44)
-        }
-        .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
-        .accessibilityIdentifier("audio.mini.toggle")
-        if placement != .inline {
-          Button {
-            model.skipToNext()
-          } label: {
-            Image(systemName: "forward.end.fill")
-              .frame(minWidth: 44, minHeight: 44)
-          }
-          .disabled(!model.canSkipToNext)
-          .accessibilityLabel("Next file")
-          .accessibilityIdentifier("audio.mini.next")
-        }
+      transport
+      Button(action: onStop) {
+        icon(.x, size: Self.stopGlyph)
       }
+      .accessibilityLabel(Text(String(localized: "Stop playback")))
+      .accessibilityIdentifier("audio.mini.stop")
     }
     .buttonStyle(.plain)
-    .padding(.horizontal, PutioTheme.Spacing.space3)
+    .padding(.leading, PutioTheme.Spacing.space3)
+    .padding(.trailing, PutioTheme.Spacing.space1)
+    .overlay(alignment: .bottom) { progress }
   }
 
-  private static let iconSize = PutioMetricRole(
-    value: PutioTheme.Typography.sizeLg, relativeTo: .body)
+  @ViewBuilder
+  private var transport: some View {
+    switch model.state {
+    case .loading:
+      ProgressView()
+        .frame(width: 44, height: 44)
+        .accessibilityLabel(Text(String(localized: "Preparing audio")))
+    case .failed:
+      EmptyView()
+    case .playing, .paused, .interrupted, .ended:
+      Button {
+        model.togglePlayPause()
+      } label: {
+        icon(model.isPlaying ? .pauseFill : .playFill, size: Self.playGlyph)
+      }
+      .accessibilityLabel(
+        Text(model.isPlaying ? String(localized: "Pause") : String(localized: "Play"))
+      )
+      .accessibilityIdentifier("audio.mini.toggle")
+    }
+  }
+
+  private func icon(_ icon: PutioIcon, size: CGFloat) -> some View {
+    Image(putioIcon: icon)
+      .resizable()
+      .scaledToFit()
+      .frame(width: size, height: size)
+      .frame(width: 44, height: 44)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .contentShape(Rectangle())
+  }
+
+  private var progress: some View {
+    let fraction = model.durationSeconds.map { duration in
+      duration > 0 ? min(max(Double(model.elapsedSeconds) / Double(duration), 0), 1) : 0
+    }
+    return GeometryReader { geometry in
+      Rectangle()
+        .fill(PutioTheme.Colors.accent)
+        .frame(width: geometry.size.width * (fraction ?? 0))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(PutioTheme.Colors.separator)
+    }
+    .frame(height: Self.progressHeight)
+    .padding(.horizontal, Self.progressInset)
+    .accessibilityHidden(true)
+  }
 
   private var status: String {
     switch model.state {
-    case .loading: String(localized: "Preparing audio")
-    case .playing: String(localized: "Playing")
-    case .paused: String(localized: "Paused")
-    case .interrupted: String(localized: "Playback interrupted")
-    case .failed: String(localized: "Couldn’t play this audio")
-    case .ended: String(localized: "End of folder")
+    case .loading: return String(localized: "Preparing audio")
+    case .failed: return String(localized: "Couldn’t play this audio")
+    case .playing, .paused, .interrupted, .ended:
+      let elapsed = PutioAudioClock.text(model.elapsedSeconds)
+      guard let duration = model.durationSeconds else { return elapsed }
+      let total = PutioAudioClock.text(duration)
+      return String(localized: "\(elapsed) of \(total)")
     }
   }
+
+  private static let playGlyph: CGFloat = 22
+  private static let stopGlyph: CGFloat = 18
+  private static let progressHeight: CGFloat = 2
+  private static let progressInset: CGFloat = 22
+  private static let iconSize = PutioMetricRole(
+    value: PutioTheme.Typography.sizeLg, relativeTo: .body)
+}
+
+struct PutioAudioMiniPlayerInset: ViewModifier {
+  let slot: PutioAudioMiniPlayerSlot
+  @Environment(\.tabBarPlacement) private var tabBarPlacement
+
+  private var tabBarOnTop: Bool { tabBarPlacement == .topBar || tabBarPlacement == .sidebar }
+
+  func body(content: Content) -> some View {
+    content
+      .safeAreaInset(edge: .bottom, alignment: .leading, spacing: 0) {
+        if tabBarOnTop, let model = slot.playback.model {
+          PutioAudioMiniPlayer(
+            model: model, onOpen: { slot.playback.isPresented = true }, onStop: slot.onStop
+          )
+          .frame(maxWidth: Self.width, minHeight: Self.height)
+          .clipShape(Capsule())
+          .modifier(PutioCapsuleGlass())
+          .padding(.horizontal, PutioTheme.Spacing.space3)
+          .padding(.bottom, PutioTheme.Spacing.space2)
+        }
+      }
+      .scrollEdgeEffectStyle(
+        slot.playback.model != nil && !tabBarOnTop ? .hard : nil, for: .bottom
+      )
+      .onChange(of: tabBarOnTop, initial: true) { _, onTop in
+        slot.placement.tabBarOnTop = onTop
+      }
+  }
+
+  static let width: CGFloat = 386
+  static let height: CGFloat = 54
 }

@@ -14,7 +14,9 @@ offline playback.
   controls, and keeps the position across Close and reopening a file.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
-  and plays from the Up next list while its mark follows playback.
+  and plays from the Up next list while its mark follows playback. The mini
+  player stays across tabs and folders, keeps the last row above it, and Stop
+  playback saves the position and removes it.
 - `subtitles` picks subtitles from the player menu without changing audio, and
   follows the preferences.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
@@ -64,7 +66,8 @@ Preconditions:
   `--putio-harness-audio-near-end` starts the third track 10 seconds before its
   end. Boards: `rd-ios-pb-04-now-playing`, `rd-ios-pb-12-up-next`,
   `rd-ios-pb-25-preparing-audio`, `rd-ios-pb-37-audio-error`,
-  `rd-ios-pb-39-single-audio`, `rd-ios-pb-40-ipad-now-playing`.
+  `rd-ios-pb-39-single-audio`, `rd-ios-pb-40-ipad-now-playing`,
+  `rd-ios-pb-05-mini`, `rd-ios-pb-41-ipad-mini`.
 - **Subtitles.** Run `--only subtitles`. Screenshots: `runtime-subtitles-menu`,
   `runtime-subtitles-selected`.
 - **Preferences.** Run `--only playback-preferences`. Screenshot:
