@@ -244,11 +244,13 @@ final class PutioVideoPositionReporterTests: XCTestCase {
     await harness.drain()
     XCTAssertEqual(harness.reported, [])
     schedule.tick()
+    await harness.drain()
+    XCTAssertEqual(harness.attempted, [590, 590])
+    XCTAssertEqual(harness.reported, [590])
     schedule.tick()
     reporter.stop()
     await harness.drain()
     XCTAssertEqual(harness.attempted, [590, 590])
-    XCTAssertEqual(harness.reported, [590])
   }
 
   func testNoCadenceBeforeThePositionIsEstablished() {
