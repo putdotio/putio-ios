@@ -235,9 +235,11 @@ enum PutioDisabledRole {
       .buttonStyle(.borderedProminent)
       .buttonBorderShape(.capsule)
       .controlSize(.large)
-      .tint(PutioTheme.Colors.accent)
+      .tint(
+        isEnabled || isBusy
+          ? PutioTheme.Colors.accent : PutioTheme.Colors.accent.opacity(PutioDisabledRole.opacity)
+      )
       .disabled(isBusy)
-      .opacity(isEnabled || isBusy ? 1 : PutioDisabledRole.opacity)
       .allowsHitTesting(isEnabled)
       .accessibilityRepresentation {
         Button(title) {

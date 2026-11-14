@@ -139,7 +139,11 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     @PutioScaledMetric(PutioMetricRole(value: 22, relativeTo: .body)) private var iconSide: CGFloat
 
     var body: some View {
-      if let subtitle = action.subtitle {
+      if let subtitle = action.subtitle, isDimmedDestructive {
+        Text(action.title).foregroundStyle(Self.dimmedDestructive)
+        Text(subtitle).foregroundStyle(Self.dimmedDestructive)
+        icon
+      } else if let subtitle = action.subtitle {
         Text(action.title)
         Text(subtitle)
         icon
@@ -158,15 +162,18 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       }
       let bounds = CGRect(x: 0, y: 0, width: iconSide.rounded(), height: iconSide.rounded())
       let image = UIGraphicsImageRenderer(bounds: bounds).image { _ in source.draw(in: bounds) }
-      guard action.role == .destructive, action.isDisabled else {
+      guard isDimmedDestructive else {
         return Image(uiImage: image.withRenderingMode(.alwaysTemplate))
       }
-      return Image(
-        uiImage: image.withTintColor(Self.dimmedDestructive, renderingMode: .alwaysOriginal))
+      return Image(uiImage: image.fixed(Self.dimmedDestructive))
     }
 
-    private static let dimmedDestructive = UIColor(PutioTheme.Colors.destructive)
-      .withAlphaComponent(PutioDisabledRole.opacity)
+    private var isDimmedDestructive: Bool {
+      action.role == .destructive && action.isDisabled
+    }
+
+    private static let dimmedDestructive = PutioTheme.Colors.destructive
+      .opacity(PutioDisabledRole.opacity)
   }
 
   extension View {

@@ -201,7 +201,7 @@ public struct PutioAlertAction: Identifiable, Sendable {
               .buttonStyle(PutioAlertButtonStyle(tier: action.tier))
               .disabled(action.isDisabled)
               .keyboardShortcut(Self.shortcut(for: action.tier))
-              .opacity(action.isDisabled ? PutioAlertMetrics.disabledOpacity : 1)
+              .opacity(action.isDisabled ? PutioDisabledRole.opacity : 1)
               .accessibilityIdentifier(action.accessibilityIdentifier)
           }
         }
@@ -265,7 +265,6 @@ public struct PutioAlertAction: Identifiable, Sendable {
     static let buttonHeight = PutioMetricRole(value: 48, relativeTo: .body)
     static let fieldHeight = PutioMetricRole(value: 44, relativeTo: .body)
     static let neutralFill = PutioTheme.Colors.textPrimary.opacity(0.1)
-    static let disabledOpacity = 0.4
     static let cornerRadius = PutioTheme.Spacing.space4
     static let lift = PutioTheme.Spacing.space4 + PutioTheme.Spacing.space3
     static let scrim = Color(.sRGB, white: 0.047, opacity: 0.795)
