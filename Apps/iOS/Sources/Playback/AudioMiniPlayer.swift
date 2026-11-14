@@ -177,6 +177,9 @@ struct PutioAudioMiniPlayerInset: ViewModifier {
           .padding(.bottom, PutioTheme.Spacing.space2)
         }
       }
+      .scrollEdgeEffectStyle(
+        slot.playback.model != nil && !tabBarOnTop ? .hard : nil, for: .bottom
+      )
       .onChange(of: tabBarOnTop, initial: true) { _, onTop in
         slot.placement.tabBarOnTop = onTop
       }
