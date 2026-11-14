@@ -4,7 +4,8 @@ import XCTest
 @testable import PutioCore
 
 final class PutioVideoSubtitlesTests: XCTestCase {
-  private let english = PutioSubtitleTrack(id: 0, title: "English", languageTag: "en", isDefault: true)
+  private let english = PutioSubtitleTrack(
+    id: 0, title: "English", languageTag: "en", isDefault: true)
   private let englishFolder = PutioSubtitleTrack(id: 1, title: "English", languageTag: "en")
   private let turkish = PutioSubtitleTrack(id: 2, title: "Turkish", languageTag: "tr")
 
@@ -12,7 +13,8 @@ final class PutioVideoSubtitlesTests: XCTestCase {
     let menu = PutioSubtitleMenu(
       tracks: [english, englishFolder, turkish],
       listings: [
-        PutioSubtitleListing(languageCode: "tur", source: PutioSubtitleSource(apiSource: "opensubtitles")),
+        PutioSubtitleListing(
+          languageCode: "tur", source: PutioSubtitleSource(apiSource: "opensubtitles")),
         PutioSubtitleListing(languageCode: "eng", source: PutioSubtitleSource(apiSource: "mkv")),
         PutioSubtitleListing(languageCode: "eng", source: PutioSubtitleSource(apiSource: "folder")),
       ])
