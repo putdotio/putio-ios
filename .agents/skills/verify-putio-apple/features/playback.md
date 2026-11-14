@@ -42,7 +42,8 @@ offline playback.
 Preconditions:
 
 - Seeded `files-browser` fixtures and the harness's loopback media server.
-  `Root Movie.mkv` (412) is watched to 589 s and starts with an invalid stream.
+  `Root Movie.mkv` (412) starts with an invalid stream; its saved position is
+  in [`HarnessSeededAPI`](../../../../Apps/Shared/Sources/Harness/HarnessSeededAPI.swift).
 
 - **Walk.** Run the full journey without `--only`. Screenshots:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus

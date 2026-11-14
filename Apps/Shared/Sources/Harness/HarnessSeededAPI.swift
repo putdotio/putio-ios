@@ -691,7 +691,11 @@ import Foundation
     private static var refusesBulkSeasonTrash: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-bulk-trash-refusal")
     }
-    private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
+    #if os(tvOS)
+      private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
+    #else
+      private static let initialPlaybackPositions = [411: 90, 412: 560, 414: 37, 442: 1_260]
+    #endif
     nonisolated(unsafe) private static var playbackPositions = initialPlaybackPositions
     nonisolated(unsafe) private static var watchedUpdateFailurePending = true
     nonisolated(unsafe) private static var conversionStarted = false

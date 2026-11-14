@@ -132,6 +132,8 @@ extension PutioRuntime {
     let token = try requireDownloadToken(downloadToken)
     let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
     let duration = file.metaData?.duration ?? 0
+    let startFrom = PutioPlaybackProgress.startSeconds(
+      savedSeconds: file.startFrom, durationSeconds: duration)
     switch playbackType {
     case .hls:
       // Same gate as the local player: put.io serves HLS for any file that
@@ -143,7 +145,7 @@ extension PutioRuntime {
           id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
           playbackType: .hls, url: file.getHlsStreamURL(downloadToken: token),
           artworkURL: artworkURL,
-          durationSeconds: duration, startFromSeconds: file.startFrom, subtitles: [],
+          durationSeconds: duration, startFromSeconds: startFrom, subtitles: [],
           defaultSubtitleKey: nil))
     case .mp4:
       let url: URL
@@ -159,7 +161,7 @@ extension PutioRuntime {
           PutioCastMedia(
             id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
             playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
-            startFromSeconds: file.startFrom, subtitles: subtitles, defaultSubtitleKey: defaultKey))
+            startFromSeconds: startFrom, subtitles: subtitles, defaultSubtitleKey: defaultKey))
       }
       guard try !signedInAccount().hideSubtitles else { return media([], nil) }
       let response = try await performAuthenticatedOperation {

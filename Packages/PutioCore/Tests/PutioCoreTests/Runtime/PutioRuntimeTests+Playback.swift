@@ -540,6 +540,28 @@ extension PutioRuntimeTests {
       })
   }
 
+  func testCastingAWatchedVideoStartsFromTheBeginning() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let file = { (startFrom: Int) in
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"start_from":\(startFrom),"screenshot":"",
+       "video_metadata":{"duration":600,"codec":"h264","width":1920,"height":1080}}}
+      """
+    }
+    var starts: [Int] = []
+    for startFrom in [569, 570] {
+      fixtures.setFixture(file(startFrom), for: "GET /v2/files/412")
+      guard
+        case .ready(let media) = try await runtime.resolveCastMedia(
+          fileID: PutioFileID(rawValue: 412), playbackType: .hls)
+      else { return XCTFail("expected ready media") }
+      starts.append(media.startFromSeconds)
+    }
+    XCTAssertEqual(starts, [569, 0])
+  }
+
   func testCastMediaUsesMP4WithWebVTTTracksAndGatesOnConversion() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let file = { (needConvert: Bool, hasMP4: Bool) in

@@ -145,6 +145,22 @@ import SwiftUI
     }
   }
 
+  struct HarnessAudioSavesProbe: View {
+    let saves: [(fileID: PutioFileID, seconds: Int)]
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Audio positions saved")
+        .accessibilityValue(
+          saves.map { "\($0.fileID.rawValue)@\($0.seconds)" }.joined(separator: ",")
+        )
+        .accessibilityIdentifier("audio.position-saves")
+        .allowsHitTesting(false)
+    }
+  }
+
   /// Records handoff requests for the journey instead of leaving the app. The
   /// tokened stream URL is reduced to its scheme, host, and path before it is
   /// exposed.

@@ -21,7 +21,7 @@ final class PlaybackJourneyTests: XCTestCase {
   /// The saved position asks first; Continue has the first focus and the
   /// progress preview follows the focused choice. The resumed video ends,
   /// its successor comes up next, and the successor starts over on request
-  /// and reports its position on the 15-second cadence.
+  /// and reports its position on the 10-second cadence.
   func testResumeChoicesAndEpisodicContinuation() {
     launch()
     openFile("files.item.412")
@@ -80,8 +80,8 @@ final class PlaybackJourneyTests: XCTestCase {
           reported.hasPrefix("id=414;seconds="),
           let seconds = Int(reported.dropFirst("id=414;seconds=".count))
         else { return false }
-        return (13...20).contains(seconds)
-      }, "a position report within the 15-second cadence")
+        return (8...15).contains(seconds)
+      }, "a position report within the 10-second cadence")
 
     leavePlayer()
     // The finished video's reset reaches its row: it is no longer watched.

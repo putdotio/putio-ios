@@ -18,7 +18,7 @@ final class AudioJourneyTests: XCTestCase {
     let state = app.descendants(matching: .any)["audio.state"]
     XCTAssertTrue(state.appears(within: 10))
     XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
-    assertPlaybackAdvances(in: app)
+    assertOneSaveAfterTenSeconds(in: app)
     XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
 
     // Dragging down dismisses presentation, not the playback session.
@@ -147,6 +147,26 @@ final class AudioJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", value), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func assertOneSaveAfterTenSeconds(in app: XCUIApplication) {
+    let saves = app.descendants(matching: .any)["audio.position-saves"]
+    let started = Date()
+    let firstSave = XCTNSPredicateExpectation(
+      predicate: NSPredicate { object, _ in
+        guard let value = (object as? XCUIElement)?.value as? String else { return false }
+        return !value.isEmpty
+      },
+      object: saves)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [firstSave], timeout: 20), .completed, "no save while playing")
+    XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 5, "saved before the 10 s tick")
+    let value = saves.value as? String ?? ""
+    let parts = value.split(separator: "@")
+    XCTAssertEqual(parts.count, 2, "expected one save, got \(value)")
+    XCTAssertEqual(parts.first, "408", value)
+    let seconds = Int(parts.last ?? "") ?? 0
+    XCTAssertTrue((1...12).contains(seconds), "the save after 10 s was at \(seconds) s")
   }
 
   private func assertPlaybackAdvances(in app: XCUIApplication) {

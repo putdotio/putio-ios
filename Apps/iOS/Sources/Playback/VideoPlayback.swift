@@ -595,6 +595,7 @@ extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 final class PutioSystemVideoPlayerCoordinator {
   typealias DefaultSubtitleApplier = @MainActor (AVPlayerItem) async -> Void
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
+  typealias DurationLoader = @MainActor (AVPlayerItem) async -> Double?
   typealias PositionReportScheduler = PutioVideoPositionReporter.Scheduler
   typealias StatusObserverFactory =
     @MainActor (
@@ -611,6 +612,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private let notificationCenter: NotificationCenter
   private let positionPipeline: PutioPlaybackPositionPipeline
   private let schedulePositionReports: PositionReportScheduler
+  private let loadDuration: DurationLoader
   private var statusObservation: (any PutioPlayerItemStatusObservation)?
   private var positionReporter: PutioVideoPositionReporter?
   private var positionObservation: Any?
@@ -618,6 +620,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var playedToEndObservation: NSObjectProtocol?
   private var timeJumpedObservation: NSObjectProtocol?
   private var mediaSelectionObservation: NSObjectProtocol?
+  private var positionSaveObservations: [NSObjectProtocol] = []
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
   private var onDurationKnown: (@MainActor (Double) -> Void)?
@@ -675,6 +678,9 @@ final class PutioSystemVideoPlayerCoordinator {
     },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
+    },
+    loadDuration: @escaping DurationLoader = {
+      await PutioSystemVideoPlayerCoordinator.duration(of: $0)
     }
   ) {
     self.makeItem = makeItem
@@ -686,6 +692,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.notificationCenter = notificationCenter
     self.positionPipeline = positionPipeline
     self.schedulePositionReports = schedulePositionReports
+    self.loadDuration = loadDuration
   }
 
   @discardableResult
@@ -776,6 +783,7 @@ final class PutioSystemVideoPlayerCoordinator {
     ) { [weak self] _ in
       MainActor.assumeIsolated {
         self?.reportPlaybackRestarted(generation: playbackGeneration)
+        self?.savePosition(generation: playbackGeneration)
       }
     }
 
@@ -796,9 +804,31 @@ final class PutioSystemVideoPlayerCoordinator {
         return PutioVideoPositionReporter.normalizedPosition(
           seconds: CMTimeGetSeconds(driver.currentTime))
       },
+      savedPosition: remembersPlaybackPosition ? source.startFromSeconds : nil,
+      endOfPlayback: .keepsPosition,
       schedule: schedulePositionReports
     )
     self.positionReporter = positionReporter
+    for observation in positionSaveObservations {
+      notificationCenter.removeObserver(observation)
+    }
+    positionSaveObservations = [
+      notificationCenter.addObserver(
+        forName: AVPlayer.rateDidChangeNotification, object: driver.player, queue: .main
+      ) { [weak self, weak driver] _ in
+        MainActor.assumeIsolated {
+          guard driver?.player.rate == 0 else { return }
+          self?.savePosition(generation: playbackGeneration)
+        }
+      },
+      notificationCenter.addObserver(
+        forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+      ) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.savePosition(generation: playbackGeneration)
+        }
+      },
+    ]
     if self.onPositionChanged != nil {
       positionObservation = driver.observePosition(
         every: CMTime(seconds: 0.25, preferredTimescale: 600)
@@ -833,10 +863,30 @@ final class PutioSystemVideoPlayerCoordinator {
       return true
     }
 
-    let startTime = CMTime(
-      seconds: Double(source.startFromSeconds),
-      preferredTimescale: 600
-    )
+    let loadDuration = loadDuration
+    Task { @MainActor [weak self] in
+      let duration = await loadDuration(item)
+      guard let self, generation == playbackGeneration, self.driver === driver,
+        !failureReported
+      else { return }
+      let startSeconds = PutioPlaybackProgress.startSeconds(
+        savedSeconds: source.startFromSeconds, durationSeconds: duration)
+      guard startSeconds > 0 else {
+        positionReporter.positionEstablished()
+        positionReporter.startReporting()
+        driver.play()
+        return
+      }
+      seek(driver, to: startSeconds, reporter: positionReporter, generation: playbackGeneration)
+    }
+    return true
+  }
+
+  private func seek(
+    _ driver: any PutioVideoPlayerDriving, to startSeconds: Int,
+    reporter positionReporter: PutioVideoPositionReporter, generation playbackGeneration: UInt64
+  ) {
+    let startTime = CMTime(seconds: Double(startSeconds), preferredTimescale: 600)
     driver.seek(to: startTime) { [weak self] finished in
       Task { @MainActor [weak self] in
         guard let self, generation == playbackGeneration, self.driver === driver else { return }
@@ -850,7 +900,18 @@ final class PutioSystemVideoPlayerCoordinator {
         driver.play()
       }
     }
-    return true
+  }
+
+  static func duration(of item: AVPlayerItem) async -> Double? {
+    guard let duration = try? await item.asset.load(.duration), duration.isNumeric else {
+      return nil
+    }
+    return CMTimeGetSeconds(duration)
+  }
+
+  private func savePosition(generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration else { return }
+    positionReporter?.savePosition()
   }
 
   func stop(controller: AVPlayerViewController) {
@@ -880,6 +941,10 @@ final class PutioSystemVideoPlayerCoordinator {
       notificationCenter.removeObserver(mediaSelectionObservation)
       self.mediaSelectionObservation = nil
     }
+    for observation in positionSaveObservations {
+      notificationCenter.removeObserver(observation)
+    }
+    positionSaveObservations = []
     onReady = nil
     onPositionChanged = nil
     onPlaybackEnded = nil
@@ -902,6 +967,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private func reportFailure(generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
+    positionReporter?.playbackFailed()
     onFailure?()
   }
 
@@ -1018,7 +1084,7 @@ final class PutioSystemVideoPlayerCoordinator {
 
   /// A time jump after EOF is a restart only when playback actually moved
   /// back into the item. HLS discontinuities at the end jump to the duration,
-  /// and treating those as a restart would overwrite the zero reset.
+  /// and treating those as a restart would save a stale position over the end.
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
     guard
       generation == playbackGeneration, let driver, let positionReporter,

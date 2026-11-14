@@ -1,8 +1,9 @@
-/// One video playback's position reports: a sample every 15 seconds once the
-/// player is ready at its established position, a zero reset when the video
-/// ends, and a final sample when playback stops. Nothing is reported while
-/// the account does not remember positions. Reports go through the shared
-/// pipeline, which keeps them bounded and ordered per file.
+/// One playback's position saves: every 10 seconds once the player is ready
+/// at its established position, at once on pause, seek, background and
+/// error, and a final save when playback stops. A position the server already
+/// holds is not sent again; a failed save is sent again on the next tick.
+/// Nothing is saved while the account does not remember positions. Saves go
+/// through the shared pipeline, which keeps them bounded and ordered per file.
 @MainActor
 public final class PutioVideoPositionReporter {
   public typealias Scheduler =
@@ -11,11 +12,16 @@ public final class PutioVideoPositionReporter {
       @escaping @MainActor @Sendable () -> Void
     ) -> any PutioPositionReportSchedule
 
-  public static let interval = Duration.seconds(15)
+  public enum EndOfPlayback: Sendable {
+    case resetsPosition
+    case keepsPosition
+  }
+
+  public static let interval = Duration.seconds(10)
 
   public private(set) var isReady = false
   public private(set) var isPositionEstablished = false
-  /// Set by the end reset or the final sample; no later sample is reported
+  /// Set by the end save or the final sample; no later sample is reported
   /// until playback moves back into the item.
   public private(set) var hasReportedFinalPosition = false
 
@@ -24,9 +30,12 @@ public final class PutioVideoPositionReporter {
   private let pipeline: PutioPlaybackPositionPipeline
   private let report: PutioPlaybackPositionReport
   private let currentPosition: @MainActor () -> Int?
+  private let endOfPlayback: EndOfPlayback
   private let schedule: Scheduler
   private var activeSchedule: (any PutioPositionReportSchedule)?
   private var isStopped = false
+  private var requestedPosition: Int?
+  private var finalPosition: Int?
 
   public init(
     fileID: PutioFileID,
@@ -34,6 +43,8 @@ public final class PutioVideoPositionReporter {
     pipeline: PutioPlaybackPositionPipeline,
     report: @escaping PutioPlaybackPositionReport,
     currentPosition: @escaping @MainActor () -> Int?,
+    savedPosition: Int? = nil,
+    endOfPlayback: EndOfPlayback = .resetsPosition,
     schedule: @escaping Scheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     }
@@ -43,6 +54,8 @@ public final class PutioVideoPositionReporter {
     self.pipeline = pipeline
     self.report = report
     self.currentPosition = currentPosition
+    self.requestedPosition = savedPosition
+    self.endOfPlayback = endOfPlayback
     self.schedule = schedule
   }
 
@@ -64,20 +77,38 @@ public final class PutioVideoPositionReporter {
       return
     }
     activeSchedule = schedule(Self.interval) { [weak self] in
-      self?.sample()
+      self?.savePosition()
     }
   }
 
+  public func savePosition() {
+    guard !isStopped, isReady, isPositionEstablished else { return }
+    guard !hasReportedFinalPosition else { return resendUnsavedFinalPosition() }
+    guard let position = currentPosition() else { return }
+    enqueue(position)
+  }
+
+  public func playbackFailed() {
+    savePosition()
+    cancel()
+  }
+
   /// Returns whether this end counts: only a ready player that reached its
-  /// start position and has not ended already. A counted end resets the
-  /// saved position to zero.
+  /// start position and has not ended already.
   public func playbackEnded() -> Bool {
     guard !isStopped, isReady, isPositionEstablished, !hasReportedFinalPosition else {
       return false
     }
     hasReportedFinalPosition = true
-    if remembersPosition {
-      enqueue(0, preservesOrdering: true)
+    guard remembersPosition else { return true }
+    switch endOfPlayback {
+    case .resetsPosition:
+      finalPosition = 0
+    case .keepsPosition:
+      finalPosition = currentPosition()
+    }
+    if let finalPosition {
+      enqueue(finalPosition, preservesOrdering: true)
     }
     return true
   }
@@ -87,6 +118,7 @@ public final class PutioVideoPositionReporter {
   public func playbackRestarted() -> Bool {
     guard !isStopped, hasReportedFinalPosition else { return false }
     hasReportedFinalPosition = false
+    finalPosition = nil
     return true
   }
 
@@ -94,9 +126,9 @@ public final class PutioVideoPositionReporter {
   /// lets go of its item.
   public func stop() {
     guard !isStopped else { return }
-    if !hasReportedFinalPosition, remembersPosition, isReady, isPositionEstablished,
-      let position = currentPosition()
-    {
+    if hasReportedFinalPosition {
+      resendUnsavedFinalPosition()
+    } else if isReady, isPositionEstablished, let position = currentPosition() {
       hasReportedFinalPosition = true
       enqueue(position)
     }
@@ -110,16 +142,34 @@ public final class PutioVideoPositionReporter {
     activeSchedule = nil
   }
 
-  private func sample() {
-    guard !isStopped, isReady, !hasReportedFinalPosition, let position = currentPosition() else {
-      return
-    }
-    enqueue(position)
+  private func resendUnsavedFinalPosition() {
+    guard let finalPosition, requestedPosition == nil else { return }
+    enqueue(finalPosition, preservesOrdering: true)
   }
 
   private func enqueue(_ position: Int, preservesOrdering: Bool = false) {
+    guard remembersPosition, preservesOrdering || position != requestedPosition else { return }
+    requestedPosition = position
+    let report = report
     pipeline.enqueue(
-      fileID: fileID, position: position, preservesOrdering: preservesOrdering, report: report)
+      fileID: fileID, position: position, preservesOrdering: preservesOrdering
+    ) { [weak self] fileID, seconds in
+      do {
+        try await report(fileID, seconds)
+        self?.saveSucceeded(seconds)
+      } catch {
+        self?.saveFailed(seconds)
+        throw error
+      }
+    }
+  }
+
+  private func saveSucceeded(_ position: Int) {
+    if requestedPosition == nil { requestedPosition = position }
+  }
+
+  private func saveFailed(_ position: Int) {
+    if requestedPosition == position { requestedPosition = nil }
   }
 
   /// Whole seconds from a player clock reading; `nil` for readings that are
@@ -136,5 +186,20 @@ public final class PutioVideoPositionReporter {
       return false
     }
     return positionSeconds >= durationSeconds - 1
+  }
+}
+
+public enum PutioPlaybackProgress {
+  public static let watchedFraction = 0.95
+
+  public static func isWatched(positionSeconds: Int, durationSeconds: Double?) -> Bool {
+    guard let durationSeconds, durationSeconds.isFinite, durationSeconds > 0 else { return false }
+    return Double(positionSeconds) >= durationSeconds * watchedFraction
+  }
+
+  public static func startSeconds(savedSeconds: Int, durationSeconds: Double?) -> Int {
+    guard savedSeconds > 0 else { return 0 }
+    return isWatched(positionSeconds: savedSeconds, durationSeconds: durationSeconds)
+      ? 0 : savedSeconds
   }
 }

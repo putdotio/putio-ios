@@ -46,7 +46,7 @@ final class ContinueWatchingJourneyTests: XCTestCase {
     XCTAssertTrue(rootVideo.becomesHittable(within: 5), "the root video is not tappable")
     rootVideo.tap()
     XCTAssertTrue(element("video.ready").appears(within: 15), "the root video never played")
-    XCTAssertTrue(element("video.ended").appears(within: 15), "the root video never finished")
+    XCTAssertTrue(element("video.ended").appears(within: 45), "the root video never finished")
     let done = element("video.done")
     XCTAssertTrue(done.becomesHittable(within: 5), "video Done is not tappable")
     done.tap()

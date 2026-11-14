@@ -115,7 +115,7 @@ protocol PutioNowPlayingSurface: AnyObject {
 /// drive the model with a spy.
 @MainActor
 protocol PutioAudioEngine: AnyObject {
-  var onReady: (@MainActor () -> Void)? { get set }
+  var onReady: (@MainActor (_ startSeconds: Int) -> Void)? { get set }
   var onEnded: (@MainActor () -> Void)? { get set }
   var onFailed: (@MainActor () -> Void)? { get set }
   var onPositionChanged: (@MainActor (Int) -> Void)? { get set }
@@ -155,12 +155,13 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private let positionPipeline: PutioPlaybackPositionPipeline
   @ObservationIgnored private let remembersPlaybackPosition: PutioPlaybackPositionSetting
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
+  @ObservationIgnored private let schedulePositionReports: PutioVideoPositionReporter.Scheduler
+  @ObservationIgnored private var positionReporter: PutioVideoPositionReporter?
   @ObservationIgnored private let resolve: PutioAudioResolve
   @ObservationIgnored private let loadNext: PutioNextAudioLoad
   @ObservationIgnored private let notificationCenter: NotificationCenter
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var observers: [NSObjectProtocol] = []
-  @ObservationIgnored private var lastReportedSeconds: Int?
   @ObservationIgnored private var resumesAfterInterruption = false
   @ObservationIgnored private var sessionIsActive = false
   @ObservationIgnored private var isStarted = false
@@ -168,6 +169,7 @@ final class PutioAudioPlayerModel {
   /// Observer ticks are ignored until the engine confirms this position, so a
   /// stale sample cannot undo a seek, a start position, or the end-of-track reset.
   @ObservationIgnored private var awaitedSeconds: Int?
+  @ObservationIgnored private var loadStartSeconds: Int?
   /// True between end or skip and the next load; the finished track no longer
   /// accepts positions.
   @ObservationIgnored private var isTransitioning = false
@@ -181,6 +183,10 @@ final class PutioAudioPlayerModel {
     positionPipeline: PutioPlaybackPositionPipeline,
     remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
     notificationCenter: NotificationCenter = .default,
+    schedulePositionReports: @escaping PutioVideoPositionReporter.Scheduler = {
+      interval, callback in
+      PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
+    },
     reportPosition: @escaping PutioPlaybackPositionReport,
     resolve: @escaping PutioAudioResolve,
     loadNext: @escaping PutioNextAudioLoad
@@ -194,9 +200,10 @@ final class PutioAudioPlayerModel {
     self.positionPipeline = positionPipeline
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.notificationCenter = notificationCenter
+    self.schedulePositionReports = schedulePositionReports
     // Queued reports check the setting again when the pipeline sends them.
     self.reportPosition = { fileID, seconds in
-      guard remembersPlaybackPosition() else { return }
+      guard remembersPlaybackPosition() else { throw CancellationError() }
       try await reportPosition(fileID, seconds)
     }
     self.resolve = resolve
@@ -245,7 +252,7 @@ final class PutioAudioPlayerModel {
     guard case .playing(let track) = state, !isTransitioning else { return }
     engine.pause()
     state = .paused(track)
-    reportCurrentPosition(force: true)
+    positionReporter?.savePosition()
     publishNowPlaying()
   }
 
@@ -273,7 +280,7 @@ final class PutioAudioPlayerModel {
     awaitedSeconds = bounded
     engine.seek(to: bounded)
     elapsedSeconds = bounded
-    reportCurrentPosition(force: true)
+    positionReporter?.savePosition()
     publishNowPlaying()
   }
 
@@ -291,7 +298,7 @@ final class PutioAudioPlayerModel {
 
   func skipToNext() {
     let current = track
-    if case .playing = state { reportCurrentPosition(force: true) }
+    positionReporter?.stop()
     beginTransition()
     transitionTask = Task { [weak self] in await self?.advance(from: current) }
   }
@@ -314,7 +321,8 @@ final class PutioAudioPlayerModel {
     generation &+= 1
     transitionTask?.cancel()
     transitionTask = nil
-    if case .playing = state, !isTransitioning { reportCurrentPosition(force: true) }
+    positionReporter?.stop()
+    positionReporter = nil
     engine.stop()
     nowPlaying.clear()
     nowPlaying.detachCommands()
@@ -332,9 +340,13 @@ final class PutioAudioPlayerModel {
     state = .loading(track)
     elapsedSeconds = override ?? 0
     durationSeconds = nil
-    lastReportedSeconds = nil
+    positionReporter?.cancel()
+    positionReporter = nil
+    loadStartSeconds = nil
+    await positionPipeline.waitForPendingReports(fileID: track.id)
     do {
       try Task.checkCancellation()
+      guard requestGeneration == generation else { return }
       let source = try await resolve(track.id)
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
@@ -344,16 +356,17 @@ final class PutioAudioPlayerModel {
         publishNowPlaying()
         return
       }
-      let startFrom = override ?? (remembersPlaybackPosition() ? source.startFromSeconds : 0)
+      let remembers = remembersPlaybackPosition()
+      let startFrom = override ?? (remembers ? source.startFromSeconds : 0)
       elapsedSeconds = startFrom
-      // The server already holds the start position; report only movement.
-      lastReportedSeconds = startFrom
       awaitedSeconds = startFrom > 0 ? startFrom : nil
+      loadStartSeconds = awaitedSeconds
       engine.load(url: source.url, startFromSeconds: startFrom)
       durationSeconds = engine.durationSeconds
       engine.play(rate: speed.rawValue)
       advancingTo = nil
       state = .playing(track)
+      startReporting(track: track, remembers: remembers, savedSeconds: source.startFromSeconds)
       publishNowPlaying()
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
@@ -365,6 +378,9 @@ final class PutioAudioPlayerModel {
 
   private func advance(from completed: PutioAudioTrack) async {
     let requestGeneration = generation
+    await positionPipeline.waitForPendingReports(fileID: completed.id)
+    guard requestGeneration == generation, !Task.isCancelled else { return }
+    positionReporter?.stop()
     await positionPipeline.waitForPendingReports(fileID: completed.id)
     guard requestGeneration == generation, !Task.isCancelled else { return }
     do {
@@ -390,9 +406,16 @@ final class PutioAudioPlayerModel {
   // MARK: - Engine and system events
 
   private func bindEngine() {
-    engine.onReady = { [weak self] in
+    engine.onReady = { [weak self] startSeconds in
       guard let self else { return }
       durationSeconds = engine.durationSeconds
+      if let requested = loadStartSeconds, awaitedSeconds == requested,
+        requested != startSeconds, !isTransitioning
+      {
+        awaitedSeconds = startSeconds > 0 ? startSeconds : nil
+        elapsedSeconds = startSeconds
+      }
+      loadStartSeconds = nil
       publishNowPlaying()
     }
     engine.onPositionChanged = { [weak self] seconds in
@@ -404,23 +427,20 @@ final class PutioAudioPlayerModel {
       }
       self.elapsedSeconds = seconds
       if self.durationSeconds == nil { self.durationSeconds = self.engine.durationSeconds }
-      self.reportCurrentPosition(force: false)
     }
     engine.onEnded = { [weak self] in
       guard let self, case .playing(let track) = state else { return }
+      if let durationSeconds { elapsedSeconds = durationSeconds }
+      _ = positionReporter?.playbackEnded()
       beginTransition()
       elapsedSeconds = 0
-      lastReportedSeconds = 0
       publishNowPlaying()
-      if remembersPlaybackPosition() {
-        positionPipeline.enqueue(
-          fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
-      }
       transitionTask = Task { [weak self] in await self?.advance(from: track) }
     }
     engine.onFailed = { [weak self] in
       // A failure from the retired item during a transition is stale.
       guard let self, !isTransitioning else { return }
+      positionReporter?.playbackFailed()
       state = .failed(track, .playback)
       publishNowPlaying()
     }
@@ -439,6 +459,12 @@ final class PutioAudioPlayerModel {
       ) { [weak self] notification in
         Task { @MainActor [weak self] in self?.handleRouteChange(notification) }
       })
+    observers.append(
+      notificationCenter.addObserver(
+        forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+      ) { [weak self] _ in
+        MainActor.assumeIsolated { self?.positionReporter?.savePosition() }
+      })
   }
 
   private func handleInterruption(_ notification: Notification) {
@@ -453,7 +479,7 @@ final class PutioAudioPlayerModel {
       sessionIsActive = false
       engine.pause()
       state = .interrupted(track)
-      reportCurrentPosition(force: true)
+      positionReporter?.savePosition()
       publishNowPlaying()
     case .ended:
       guard case .interrupted = state else { return }
@@ -512,23 +538,28 @@ final class PutioAudioPlayerModel {
     sessionIsActive = false
   }
 
-  private static let reportCadence = 15
+  private func startReporting(track: PutioAudioTrack, remembers: Bool, savedSeconds: Int) {
+    let reporter = PutioVideoPositionReporter(
+      fileID: track.id,
+      remembersPosition: true,
+      pipeline: positionPipeline,
+      report: reportPosition,
+      currentPosition: { [weak self] in self?.reportablePosition },
+      savedPosition: remembers ? savedSeconds : 0,
+      endOfPlayback: .keepsPosition,
+      schedule: schedulePositionReports
+    )
+    positionReporter = reporter
+    reporter.positionEstablished()
+    reporter.ready()
+  }
 
-  /// Reports every `reportCadence` seconds of movement while playing, and the
-  /// exact position on pause, seek, and teardown. A position the server already
-  /// holds is never sent twice, and nothing is sent for an account that keeps
-  /// no positions.
-  private func reportCurrentPosition(force: Bool) {
-    guard remembersPlaybackPosition() else { return }
-    let seconds = elapsedSeconds
-    if let last = lastReportedSeconds {
-      if seconds == last { return }
-      if !force, abs(seconds - last) < Self.reportCadence { return }
-    } else if !force, seconds < Self.reportCadence {
-      return
+  private var reportablePosition: Int? {
+    guard !isTransitioning else { return nil }
+    switch state {
+    case .playing, .paused, .interrupted: return elapsedSeconds
+    case .loading, .failed, .ended: return nil
     }
-    lastReportedSeconds = seconds
-    positionPipeline.enqueue(fileID: track.id, position: seconds, report: reportPosition)
   }
 
   private func publishNowPlaying() {
@@ -552,7 +583,7 @@ final class PutioAudioPlayerModel {
 @MainActor
 final class PutioSystemAudioEngine: PutioAudioEngine {
   private static let logger = Logger(subsystem: "io.put", category: "AudioPlayback")
-  var onReady: (@MainActor () -> Void)?
+  var onReady: (@MainActor (_ startSeconds: Int) -> Void)?
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
@@ -654,7 +685,9 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   private func handleReady() {
     guard !itemIsReady else { return }
     itemIsReady = true
-    let start = pendingStartSeconds
+    let start = PutioPlaybackProgress.startSeconds(
+      savedSeconds: pendingStartSeconds,
+      durationSeconds: player.currentItem.map { CMTimeGetSeconds($0.duration) })
     pendingStartSeconds = 0
     let begin: @MainActor () -> Void = { [weak self] in
       guard let self else { return }
@@ -662,7 +695,7 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
         self.pendingRate = nil
         self.player.playImmediately(atRate: rate)
       }
-      self.onReady?()
+      self.onReady?(start)
     }
     guard start > 0 else {
       begin()

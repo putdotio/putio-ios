@@ -322,14 +322,16 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.buttons["Try again"].tap()
     XCTAssertTrue(app.descendants(matching: .any)["video.ready"].appears(within: 10))
     let nextTitle = app.descendants(matching: .any)["video.next-title"]
-    XCTAssertTrue(nextTitle.appears(within: 15), "next-video suggestion never appeared")
+    XCTAssertTrue(nextTitle.appears(within: 45), "next-video suggestion never appeared")
     XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
     XCTAssertFalse(
       app.descendants(matching: .any)["video.next-countdown"].exists,
       "a countdown is shown without autoplay")
-    XCTAssertEqual(
-      app.descendants(matching: .any)["video.position-reported"].value as? String,
-      "id=412;seconds=0", "the completed position reset did not drain before the suggestion")
+    let reported =
+      app.descendants(matching: .any)["video.position-reported"].value as? String ?? ""
+    XCTAssertTrue(
+      reported.hasPrefix("id=412;seconds=") && (Int(reported.dropFirst(15)) ?? 0) >= 589,
+      "the watched end position did not drain before the suggestion: \(reported)")
     let playNext = app.descendants(matching: .any)["video.play-next"]
     let cancelNext = app.descendants(matching: .any)["video.cancel-next"]
     XCTAssertEqual(playNext.label, "Play next, Root Movie 2.mkv")
