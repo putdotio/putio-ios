@@ -141,13 +141,15 @@ struct AccountView: View {
         signOut(removingDownloads: false)
       }
       .accessibilityIdentifier("auth.sign-out-confirm")
-      Button(String(localized: "Sign out and remove downloads"), role: .destructive) {
+      Button(role: .destructive) {
         signOut(removingDownloads: true)
+      } label: {
+        PutioSignOutPrompt.removeDownloadsLabel(downloadedBytes: bytes)
       }
       .accessibilityIdentifier("auth.sign-out-remove-downloads")
       Button("Cancel", role: .cancel) {}
-    } message: { bytes in
-      Text(PutioSignOutPrompt.message(downloadedBytes: bytes))
+    } message: { _ in
+      Text(PutioSignOutPrompt.message)
     }
   }
 
@@ -649,15 +651,11 @@ private enum PutioSignOutPrompt {
       : String(localized: "Downloads stay on this iPhone and come back when you sign in again.")
   }
 
-  static func message(downloadedBytes bytes: Int64) -> String {
+  static func removeDownloadsLabel(downloadedBytes bytes: Int64) -> Text {
     let size = PutioFileRowModel.sizeText(bytes: bytes)
-    return UIDevice.current.userInterfaceIdiom == .pad
-      ? String(
-        localized:
-          "Downloads use \(size) and stay on this iPad. They come back when you sign in again.")
-      : String(
-        localized:
-          "Downloads use \(size) and stay on this iPhone. They come back when you sign in again.")
+    return Text("Sign out and remove downloads") + Text(verbatim: " ")
+      + Text("(\(size))")
+      .font(PutioTheme.Typography.mono.font)
   }
 }
 

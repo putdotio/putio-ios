@@ -224,6 +224,17 @@
         }
       }
     },
+    "(%@)" : {
+      "comment" : "android: mobile_account_sign_out_downloads_size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "(%@)"
+          }
+        }
+      }
+    },
     "A file or folder named “%@” already exists there. Choose another folder." : {
       "comment" : "android: mobile_files_move_collision",
       "localizations" : {
@@ -1752,28 +1763,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloads stay on this iPhone and come back when you sign in again."
-          }
-        }
-      }
-    },
-    "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads use %@ and stay on this iPad. They come back when you sign in again."
-          }
-        }
-      }
-    },
-    "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads use %@ and stay on this iPhone. They come back when you sign in again."
           }
         }
       }
@@ -4664,7 +4653,7 @@
       }
     },
     "Sign out and remove downloads" : {
-      "comment" : "ios-only: stock dialog cannot fit the size in the button",
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox",
       "localizations" : {
         "en" : {
           "stringUnit" : {
