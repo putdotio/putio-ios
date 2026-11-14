@@ -40,7 +40,7 @@ struct PutioFileDetailView: View {
       VStack(alignment: .leading, spacing: PutioFileDetailLayout.sectionGap) {
         preview
         Text(PutioFileDetailText.wrappableName(item.name))
-          .putioFont(PutioTheme.Typography.subheading)
+          .putioFont(PutioFileDetailLayout.title)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityLabel(Text(verbatim: item.name))
@@ -129,13 +129,13 @@ struct PutioFileDetailView: View {
   private var actionRow: some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
       if isVideo {
-        PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .medium) {
+        PutioButton(primaryTitle, icon: .playFill, tier: .primary, size: .regular) {
           onOpen(route)
         }
         .lineLimit(1)
         .accessibilityIdentifier("files.detail.play")
       } else {
-        PutioButton(String(localized: "Open"), icon: .arrowSquareOut, tier: .primary, size: .medium)
+        PutioButton(String(localized: "Open"), icon: .arrowSquareOut, tier: .primary, size: .regular)
         {
           open()
         }
@@ -384,7 +384,14 @@ private enum PutioFileDetailLayout {
   static let actionControl = PutioMetricRole(
     value: PutioTheme.Spacing.space4 + PutioTheme.Spacing.space1 + PutioTheme.Spacing.space1 / 2,
     relativeTo: .body)
-  static let factLabelWidth = PutioTheme.Spacing.space6
+  static let factLabelWidth =
+    PutioTheme.Spacing.space6 - PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1
+  static let title = PutioFontRole(
+    fontName: PutioTheme.Typography.subheading.fontName,
+    size: PutioTheme.Typography.sizeLg - PutioTheme.Spacing.space1 / 2,
+    lineHeight: PutioTheme.Typography.subheading.lineHeight,
+    textStyle: .title2
+  )
   static let kindGlyph = PutioMetricRole(value: PutioTheme.Spacing.space4, relativeTo: .largeTitle)
   static let previewPixels = 2_048
 }
