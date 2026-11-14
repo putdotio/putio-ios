@@ -26,6 +26,7 @@ final class PutioDirectPlayEngine {
     if self.engine == nil {
       engine.maximumSubtitleOffsetSeconds = 0
       engine.retainsVideoPipelineWhenBackgrounded = true
+      engine.deactivatesAudioSessionOnStop = true
     }
     self.engine = engine
     self.owner = ObjectIdentifier(owner)
@@ -293,6 +294,7 @@ final class PutioDirectPlayCoordinator {
     var options = options
     options.autoplay = true
     let audioTrack = engine.activeAudioTrackIndex
+    let subtitleTrack = engine.activeSubtitleTrackIndex
     loading?.cancel()
     callbacks.onPlaybackRestarted()
     loading = Task { @MainActor [weak self] in
@@ -307,6 +309,11 @@ final class PutioDirectPlayCoordinator {
         return
       }
       guard let self, generation == playbackGeneration else { return }
+      if let subtitleTrack {
+        engine.selectSubtitleTrack(index: subtitleTrack)
+      } else {
+        engine.clearSubtitle()
+      }
       _ = positionReporter?.playbackRestarted()
     }
   }

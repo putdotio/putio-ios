@@ -748,7 +748,14 @@ struct MainTabView: View {
       cast.cast(route)
       return
     }
-    guard let start, !start.needsConversion,
+    let method: PutioPlaybackMethod
+    if let routeMethod = route.method {
+      method = routeMethod
+    } else {
+      method = await appConfig.resolvePlaybackMethod()
+    }
+    guard !Task.isCancelled else { return }
+    guard let start, !start.needsConversion || method == .directPlay,
       PutioVideoStart.asksWhereToStart(
         savedSeconds: start.savedSeconds, durationSeconds: start.durationSeconds,
         remembersPosition: account.rememberVideoTime)
