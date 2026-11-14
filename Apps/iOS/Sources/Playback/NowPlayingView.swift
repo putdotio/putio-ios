@@ -4,6 +4,7 @@ import SwiftUI
 struct PutioAudioPlayerView: View {
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   let model: PutioAudioPlayerModel
+  let sleepTimer: PutioAudioSleepTimer
   var castButton: AnyView?
   let onDismiss: @MainActor () -> Void
   var showsHarnessReadiness = false
@@ -24,6 +25,7 @@ struct PutioAudioPlayerView: View {
     .presentationDragIndicator(horizontalSizeClass == .regular ? .visible : .hidden)
     .presentationSizing(.form)
     .overlay { harnessProbes }
+    .overlay(alignment: .bottomLeading) { harnessSleepClock }
   }
 
   @ViewBuilder
@@ -42,7 +44,7 @@ struct PutioAudioPlayerView: View {
         Task { await model.retry() }
       }
     case .playing, .paused, .interrupted, .ended:
-      PutioNowPlayingDetails(model: model) { showsUpNext = true }
+      PutioNowPlayingDetails(model: model, sleepTimer: sleepTimer) { showsUpNext = true }
     }
   }
 
@@ -94,6 +96,15 @@ struct PutioAudioPlayerView: View {
     }
   }
 
+  @ViewBuilder
+  private var harnessSleepClock: some View {
+    #if DEBUG
+      if showsHarnessReadiness, let clock = sleepTimer.clock as? PutioManualSleepTimerClock {
+        HarnessSleepClockProbe(clock: clock)
+      }
+    #endif
+  }
+
   private var stateName: String {
     switch model.state {
     case .loading: "loading"
@@ -108,6 +119,7 @@ struct PutioAudioPlayerView: View {
 
 private struct PutioNowPlayingDetails: View {
   let model: PutioAudioPlayerModel
+  let sleepTimer: PutioAudioSleepTimer
   let showUpNext: () -> Void
   @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
   @State private var scrubSeconds: Double?
@@ -325,13 +337,7 @@ private struct PutioNowPlayingDetails: View {
     .accessibilityLabel(Text("Playback speed"))
     .accessibilityValue(Text(model.speed.title))
     .accessibilityIdentifier("audio.speed")
-    Button {
-    } label: {
-      PutioNowPlayingChipLabel(icon: .moon, title: String(localized: "Sleep timer"))
-    }
-    .putioNowPlayingChip()
-    .disabled(true)
-    .accessibilityIdentifier("audio.sleep-timer")
+    PutioSleepTimerChip(timer: sleepTimer)
     Button(action: showUpNext) {
       PutioNowPlayingChipLabel(icon: .list, title: String(localized: "Up next"))
     }
@@ -344,15 +350,77 @@ private struct PutioNowPlayingDetails: View {
 private struct PutioNowPlayingChipLabel: View {
   let icon: PutioIcon
   let title: String
+  var isNumeric = false
+  var iconColor: Color?
 
   var body: some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
-      PutioIconView(icon, size: PutioNowPlayingMetrics.chipIcon)
-        .accessibilityHidden(true)
-      Text(title)
-        .lineLimit(1)
+      if let iconColor {
+        PutioIconView(icon, size: PutioNowPlayingMetrics.chipIcon)
+          .foregroundStyle(iconColor)
+          .accessibilityHidden(true)
+      } else {
+        PutioIconView(icon, size: PutioNowPlayingMetrics.chipIcon)
+          .accessibilityHidden(true)
+      }
+      if isNumeric {
+        Text(verbatim: title)
+          .lineLimit(1)
+          .putioFont(PutioTheme.Typography.numeric)
+      } else {
+        Text(title)
+          .lineLimit(1)
+          .putioFont(PutioTheme.Components.Button.label)
+      }
     }
-    .putioFont(PutioTheme.Components.Button.label)
+  }
+}
+
+private struct PutioSleepTimerChip: View {
+  let timer: PutioAudioSleepTimer
+
+  var body: some View {
+    let left = timer.remainingSeconds.map(PutioAudioClock.text)
+    Menu {
+      Section("Sleep timer") {
+        row(String(localized: "Off"), isChecked: !timer.isRunning) {
+          timer.cancel()
+        }
+        ForEach(PutioSleepTimerChoice.allCases) { choice in
+          row(choice.title, isChecked: timer.choice == choice) {
+            timer.start(choice)
+          }
+        }
+      }
+    } label: {
+      PutioNowPlayingChipLabel(
+        icon: left == nil ? .moon : .moonFill, title: left ?? String(localized: "Sleep timer"),
+        isNumeric: left != nil,
+        iconColor: left == nil ? nil : PutioTheme.Colors.accent
+      )
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(accessibilityLabel(left: left))
+    }
+    .putioNowPlayingChip()
+    .accessibilityLabel(accessibilityLabel(left: left))
+    .accessibilityIdentifier("audio.sleep-timer")
+  }
+
+  private func accessibilityLabel(left: String?) -> Text {
+    Text(
+      left.map { String(localized: "Sleep timer, \($0) left") } ?? String(localized: "Sleep timer"))
+  }
+
+  private func row(
+    _ title: String, isChecked: Bool, action: @escaping () -> Void
+  ) -> some View {
+    Button(action: action) {
+      if isChecked {
+        Label(title, systemImage: "checkmark")
+      } else {
+        Text(title)
+      }
+    }
   }
 }
 

@@ -187,7 +187,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
   func testMinimizingAndReopeningKeepsTheSamePlaybackAndRemoteCommands() async {
     let h = makeHarness()
-    let playback = PutioAudioPlaybackSession()
+    let playback = PutioAudioPlaybackSession(
+      sleepTimer: PutioAudioSleepTimer(clock: PutioManualSleepTimerClock()))
     defer { playback.stop() }
     playback.present(h.model)
     await waitUntil { h.model.isPlaying }
@@ -214,7 +215,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
   func testReplacingMiniPlayerStopsPreviousTrack() async {
     let first = makeHarness()
     let second = makeHarness()
-    let playback = PutioAudioPlaybackSession()
+    let playback = PutioAudioPlaybackSession(
+      sleepTimer: PutioAudioSleepTimer(clock: PutioManualSleepTimerClock()))
     defer { playback.stop() }
     playback.present(first.model)
     await waitUntil { first.model.isPlaying }
@@ -1018,6 +1020,81 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.nowPlaying.clearCount, 1)
     XCTAssertEqual(h.nowPlaying.detachCount, 1)
     XCTAssertEqual(h.session.events, ["activate", "deactivate"])
+  }
+
+  func testSleepTimerPausesAndSavesThePositionAndTheChipTurnsOff() async {
+    let h = makeHarness()
+    let clock = PutioManualSleepTimerClock()
+    let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
+    defer { playback.stop() }
+    playback.present(h.model)
+    await waitUntil { h.model.isPlaying }
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(64)
+
+    playback.sleepTimer.start(.fifteenMinutes)
+    clock.advance(by: .seconds(900))
+    await waitUntil { h.model.state == .paused(track) }
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertEqual(h.engine.events.last, "pause")
+    XCTAssertEqual(h.reports.reports.map(\.1), [64])
+    XCTAssertFalse(playback.sleepTimer.isRunning)
+    XCTAssertNil(playback.sleepTimer.remainingSeconds)
+  }
+
+  func testSleepTimerKeepsRunningWhenAnotherFileOpensAndStopCancelsIt() async {
+    let first = makeHarness()
+    let second = makeHarness()
+    let clock = PutioManualSleepTimerClock()
+    let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
+    defer { playback.stop() }
+    playback.present(first.model)
+    await waitUntil { first.model.isPlaying }
+    playback.sleepTimer.start(.thirtyMinutes)
+    clock.advance(by: .seconds(600))
+    await waitUntil { playback.sleepTimer.remainingSeconds == 1200 }
+
+    playback.present(second.model)
+    await waitUntil { second.model.isPlaying }
+    XCTAssertEqual(playback.sleepTimer.choice, .thirtyMinutes)
+    clock.advance(by: .seconds(1200))
+    await waitUntil { second.model.state == .paused(self.track) }
+
+    playback.sleepTimer.start(.fifteenMinutes)
+    playback.stop()
+    XCTAssertFalse(playback.sleepTimer.isRunning)
+    clock.advance(by: .seconds(900))
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertEqual(second.engine.events.last, "stop")
+  }
+
+  func testSleepTimerFollowsTheQueueAndHoldsAFileThatIsStillLoading() async {
+    var pending: CheckedContinuation<Void, Never>?
+    let h = makeHarness(resolve: { id in
+      if id.rawValue == 431 { await withCheckedContinuation { pending = $0 } }
+      return PutioPlaybackSource(
+        url: URL(string: "https://media.example.test/\(id.rawValue).m4a")!, startFromSeconds: 0)
+    })
+    let clock = PutioManualSleepTimerClock()
+    let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
+    defer { playback.stop() }
+    playback.present(h.model)
+    await waitUntil { h.model.isPlaying }
+    playback.sleepTimer.start(.fifteenMinutes)
+    h.engine.onPositionChanged?(12)
+
+    h.engine.onEnded?()
+    await waitUntil { pending != nil }
+    clock.advance(by: .seconds(900))
+    await waitUntil { !playback.sleepTimer.isRunning }
+    pending?.resume()
+
+    let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
+    await waitUntil { h.model.state == .paused(next) }
+    XCTAssertEqual(h.engine.events.last, "load:431.m4a@0")
+    h.model.togglePlayPause()
+    XCTAssertEqual(h.model.state, .playing(next))
   }
 
   func testSessionActivationFailureIsARecoverablePlaybackFailure() async {

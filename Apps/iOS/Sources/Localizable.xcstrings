@@ -144,6 +144,29 @@
         }
       }
     },
+    "%lld hours" : {
+      "comment" : "android: mobile_now_playing_sleep_hours",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld hour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld hours"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld items" : {
       "comment" : "android: mobile_files_item_count",
       "localizations" : {
@@ -206,6 +229,29 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld items are still in Files."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes" : {
+      "comment" : "android: mobile_now_playing_sleep_minutes",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
                 }
               }
             }
@@ -3659,6 +3705,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sleep timer"
+          }
+        }
+      }
+    },
+    "Sleep timer, %@ left" : {
+      "comment" : "android: mobile_now_playing_sleep_timer_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer, %@ left"
           }
         }
       }

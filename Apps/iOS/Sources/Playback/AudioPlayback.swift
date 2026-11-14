@@ -172,6 +172,7 @@ final class PutioAudioPlayerModel {
   /// True between end or skip and the next load; the finished track no longer
   /// accepts positions.
   @ObservationIgnored private var isTransitioning = false
+  @ObservationIgnored private var holdsNextStart = false
 
   init(
     track: PutioAudioTrack,
@@ -228,6 +229,7 @@ final class PutioAudioPlayerModel {
   }
 
   func retry() async {
+    holdsNextStart = false
     await load(track: track)
   }
 
@@ -238,6 +240,7 @@ final class PutioAudioPlayerModel {
     case .paused, .interrupted:
       resume()
     case .ended(let track):
+      holdsNextStart = false
       transitionTask?.cancel()
       transitionTask = Task { [weak self] in
         await self?.load(track: track, startFromSeconds: 0)
@@ -255,7 +258,24 @@ final class PutioAudioPlayerModel {
     publishNowPlaying()
   }
 
+  func sleepTimerExpired() {
+    switch state {
+    case .playing:
+      pause()
+    case .interrupted(let track):
+      resumesAfterInterruption = false
+      state = .paused(track)
+      positionReporter?.savePosition()
+      publishNowPlaying()
+    case .loading:
+      holdsNextStart = true
+    case .paused, .ended, .failed:
+      break
+    }
+  }
+
   func resume() {
+    holdsNextStart = false
     switch state {
     case .paused(let track), .interrupted(let track):
       guard activateSession() else { return }
@@ -326,6 +346,7 @@ final class PutioAudioPlayerModel {
 
   private func switchTo(_ target: PutioQueuedAudio) {
     let current = track
+    holdsNextStart = false
     positionReporter?.stop()
     beginTransition()
     transitionTask = Task { [weak self] in await self?.advance(from: current, to: target) }
@@ -346,6 +367,7 @@ final class PutioAudioPlayerModel {
   func stop() {
     guard isStarted else { return }
     isStarted = false
+    holdsNextStart = false
     generation &+= 1
     transitionTask?.cancel()
     transitionTask = nil
@@ -382,6 +404,7 @@ final class PutioAudioPlayerModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
       guard activateSession() else {
+        holdsNextStart = false
         state = .failed(track, .playback)
         publishNowPlaying()
         return
@@ -393,12 +416,18 @@ final class PutioAudioPlayerModel {
       loadStartSeconds = awaitedSeconds
       engine.load(url: source.url, startFromSeconds: startFrom)
       durationSeconds = engine.durationSeconds
-      engine.play(rate: speed.rawValue)
-      state = .playing(track)
+      if holdsNextStart {
+        holdsNextStart = false
+        state = .paused(track)
+      } else {
+        engine.play(rate: speed.rawValue)
+        state = .playing(track)
+      }
       startReporting(track: track, remembers: remembers, savedSeconds: source.startFromSeconds)
       publishNowPlaying()
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
+      holdsNextStart = false
       state = .failed(track, PutioVideoPlaybackFailure.resolving(error) ?? .playback)
       publishNowPlaying()
     }
@@ -438,6 +467,7 @@ final class PutioAudioPlayerModel {
     guard requestGeneration == generation, !Task.isCancelled else { return }
     guard let next else {
       isTransitioning = false
+      holdsNextStart = false
       elapsedSeconds = 0
       state = .ended(completed)
       publishNowPlaying()
