@@ -35,12 +35,12 @@ import Foundation
         id: musicFirstTrackID, name: "FFTT Tree Rings October 6, 2026.mp3",
         parentID: musicFolderID),
       MusicTrack(
-        id: musicTrackID, name: "FFTT Tree Rings October 13, 2026.mp3", parentID: musicFolderID),
+        id: musicTrackID, name: "FFTT Tree Rings Open Air Session, October 13, 2026.mp3", parentID: musicFolderID),
       MusicTrack(
         id: musicLastTrackID, name: "FFTT Tree Rings October 20, 2026.mp3",
         parentID: musicFolderID),
       MusicTrack(
-        id: singleTrackID, name: "FFTT Tree Rings October 13, 2026.mp3",
+        id: singleTrackID, name: "FFTT Tree Rings Open Air Session, October 13, 2026.mp3",
         parentID: singleMusicFolderID),
     ]
 
