@@ -46,7 +46,15 @@ struct MainTabView: View {
         actions: PutioPinnedFilesActions(runtime: runtime), rootName: PutioFolderRoute.root.title))
     #if DEBUG
       HarnessContinueWatching.seed(scenario: scenario, accountID: account.id)
+      let sleepClock: any PutioSleepTimerClock =
+        scenario == .filesBrowser
+          && ProcessInfo.processInfo.arguments.contains("--putio-harness-sleep-clock")
+        ? PutioManualSleepTimerClock() : PutioSystemSleepTimerClock()
+    #else
+      let sleepClock: any PutioSleepTimerClock = PutioSystemSleepTimerClock()
     #endif
+    _audioPlayback = State(
+      initialValue: PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: sleepClock)))
     _continueWatching = State(
       initialValue: PutioContinueWatchingModel(
         store: PutioContinueWatchingStore(accountID: account.id)))
@@ -73,7 +81,7 @@ struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var resumePrompter = PutioVideoResumePrompter()
   @State private var videoStartTask: Task<Void, Never>?
-  @State private var audioPlayback = PutioAudioPlaybackSession()
+  @State private var audioPlayback: PutioAudioPlaybackSession
   @State private var miniPlayerPlacement = PutioAudioMiniPlayerPlacement()
   @State private var presentedPreview: PutioPreviewPresentation?
   @State private var previewToast: PutioToast?
@@ -290,6 +298,7 @@ struct MainTabView: View {
       if let model = audioPlayback.model {
         PutioAudioPlayerView(
           model: model,
+          sleepTimer: audioPlayback.sleepTimer,
           castButton: playerCastButton,
           onDismiss: { audioPlayback.isPresented = false },
           showsHarnessReadiness: scenario == .filesBrowser)
@@ -650,7 +659,7 @@ struct MainTabView: View {
       audioPlayback.isPresented = true
       return
     }
-    stopAudio()
+    stopAudio(keepingSleepTimer: true)
     audioPlayback.present(
       PutioAudioPlayerModel(
         track: PutioAudioTrack(id: route.id, parentID: route.parentID, title: route.title),
@@ -691,9 +700,10 @@ struct MainTabView: View {
       ))
   }
 
-  private func stopAudio() {
-    guard let track = audioPlayback.model?.track else { return }
-    audioPlayback.stop()
+  private func stopAudio(keepingSleepTimer: Bool = false) {
+    let track = audioPlayback.model?.track
+    if keepingSleepTimer { audioPlayback.retire() } else { audioPlayback.stop() }
+    guard let track else { return }
     Task { @MainActor in
       await Task.yield()
       await playbackPositionPipeline.waitForPendingReports(fileID: track.id)

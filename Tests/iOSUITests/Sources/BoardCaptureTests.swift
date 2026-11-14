@@ -1339,6 +1339,34 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard(isPad ? "rd-ios-pb-41-ipad-mini" : "rd-ios-pb-05-mini")
   }
 
+  func testSleepTimerMenu() throws {
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103)
+    app.buttons["audio.sleep-timer"].tap()
+    XCTAssertTrue(
+      app.buttons["1 hour"].appears(within: 5), "the sleep timer menu never opened")
+    XCTAssertTrue(app.buttons["Off"].exists)
+    try captureBoard("rd-ios-pb-11-sleep")
+  }
+
+  func testSleepTimerRunning() throws {
+    app.launchArguments.append("--putio-harness-sleep-clock")
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103)
+    let chip = app.buttons["audio.sleep-timer"]
+    chip.tap()
+    let fifteen = app.buttons["15 minutes"]
+    XCTAssertTrue(fifteen.appears(within: 5), "the sleep timer menu never opened")
+    fifteen.tap()
+    XCTAssertTrue(fifteen.disappears(within: 5), "the sleep timer menu stayed open")
+    let clock = element("audio.sleep-clock")
+    XCTAssertTrue(clock.appears(within: 5))
+    clock.tap()
+    let running = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", "Sleep timer, 11:42 left"), object: chip)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [running], timeout: 5), .completed, "the chip shows \(chip.label)")
+    try captureBoard("rd-ios-pb-36-sleep-running")
+  }
+
   private func playMusic(path: [String], track: Int, state: String = "playing") throws {
     orientForBoardDevice()
     app.launchArguments.append("--putio-harness-music")

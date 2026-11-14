@@ -25,7 +25,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForLabel(element("audio.folder"), "Your Files"))
     XCTAssertFalse(app.buttons["audio.previous"].isEnabled, "the first file has no previous")
     XCTAssertTrue(app.buttons["audio.next"].isEnabled)
-    XCTAssertFalse(app.buttons["audio.sleep-timer"].isEnabled)
+    XCTAssertTrue(app.buttons["audio.sleep-timer"].isEnabled)
     XCTAssertTrue(waitForEnabled(app.buttons["audio.up-next"], true))
 
     // Dragging down dismisses presentation, not the playback session.
@@ -169,6 +169,112 @@ final class AudioJourneyTests: XCTestCase {
 
     try folderQueueRetriesAFailureAndFollowsTheFolder()
     try upNextPlaysATappedFileAndFollowsPlayback()
+    try sleepTimerPausesPlaybackAcrossFiles()
+  }
+
+  private func sleepTimerPausesPlaybackAcrossFiles() throws {
+    app.terminate()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-music",
+      "--putio-harness-sleep-clock",
+    ]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    app.revealed("files.item.3101").tap()
+    let track = app.revealed("files.item.3103")
+    XCTAssertTrue(track.appears(within: 10))
+    track.tap()
+    let state = element("audio.state")
+    XCTAssertTrue(waitForValue(state, "id=3103;state=playing", timeout: 10))
+
+    let chip = app.buttons["audio.sleep-timer"]
+    XCTAssertEqual(chip.label, "Sleep timer")
+    chip.tap()
+    let rows = ["Off", "15 minutes", "30 minutes", "45 minutes", "1 hour"].map {
+      app.buttons[$0]
+    }
+    XCTAssertTrue(rows[4].appears(within: 5), "the menu never opened")
+    XCTAssertTrue(rows.allSatisfy(\.exists), "the menu misses a choice")
+    let tops = rows.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "rows follow the menu's order")
+    let menu = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    menu.name = "runtime-audio-sleep-menu"
+    menu.lifetime = .keepAlways
+    add(menu)
+    rows[1].tap()
+    XCTAssertTrue(rows[1].disappears(within: 5), "the sleep timer menu stayed open")
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 15:00 left"))
+
+    let clock = element("audio.sleep-clock")
+    advance(clock)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 11:42 left"))
+    let running = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    running.name = "runtime-audio-sleep-running"
+    running.lifetime = .keepAlways
+    add(running)
+
+    let playPause = app.buttons["audio.play-pause"]
+    playPause.tap()
+    XCTAssertTrue(waitForValue(state, "id=3103;state=paused"))
+    choose("30 minutes", on: chip)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 30:00 left"), "another choice did not restart")
+    choose("Off", on: chip)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer"), "Off did not cancel")
+    advance(clock)
+    XCTAssertEqual(chip.label, "Sleep timer")
+
+    choose("15 minutes", on: chip)
+    playPause.tap()
+    XCTAssertTrue(waitForValue(state, "id=3103;state=playing"))
+    advance(clock)
+    advance(clock)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 8:24 left"))
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.next"], true))
+    app.buttons["audio.next"].tap()
+    XCTAssertTrue(waitForValue(state, "id=3104;state=playing", timeout: 10))
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 8:24 left"), "the next file reset the timer")
+    advance(clock)
+    advance(clock)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 1:48 left"))
+    XCTAssertTrue(waitForValue(state, "id=3104;state=playing"))
+    advance(clock)
+    XCTAssertTrue(waitForValue(state, "id=3104;state=paused"), "the timer did not pause")
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer"), "the chip kept a finished timer")
+    let saves = element("audio.position-saves")
+    let saved = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value CONTAINS %@", "3104@"), object: saves)
+    XCTAssertEqual(XCTWaiter.wait(for: [saved], timeout: 10), .completed, "no save at the pause")
+
+    choose("15 minutes", on: chip)
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer, 15:00 left"))
+    app.buttons["audio.collapse"].tap()
+    let stop = app.buttons["audio.mini.stop"]
+    XCTAssertTrue(stop.appears(within: 5))
+    stop.tap()
+    XCTAssertTrue(stop.disappears(within: 5), "Stop playback kept the bar")
+    let other = app.revealed("files.item.3104")
+    XCTAssertTrue(other.appears(within: 10))
+    other.tap()
+    XCTAssertTrue(waitForValue(state, "id=3104;state=playing", timeout: 10))
+    XCTAssertTrue(waitForLabel(chip, "Sleep timer"), "Stop playback kept the timer")
+
+    app.buttons["audio.collapse"].tap()
+    signOut()
+  }
+
+  private func choose(_ title: String, on chip: XCUIElement) {
+    chip.tap()
+    let row = app.buttons[title]
+    XCTAssertTrue(row.appears(within: 5), title)
+    row.tap()
+    XCTAssertTrue(row.disappears(within: 5), "the sleep timer menu stayed open")
+  }
+
+  private func advance(_ clock: XCUIElement) {
+    XCTAssertTrue(clock.appears(within: 5))
+    clock.tap()
   }
 
   private func stopPlaybackSavesAndRemovesTheBar(_ miniPlayer: XCUIElement) throws {

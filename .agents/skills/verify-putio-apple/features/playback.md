@@ -14,9 +14,10 @@ offline playback.
   controls, and keeps the position across Close and reopening a file.
 - `audio` plays, pauses, skips 10 seconds, changes speed, moves to the previous
   and next file in the folder, retries a failed load, plays a one-file folder,
-  and plays from the Up next list while its mark follows playback. The mini
-  player stays across tabs and folders, keeps the last row above it, and Stop
-  playback saves the position and removes it.
+  plays from the Up next list while its mark follows playback, and pauses when
+  the sleep timer runs out. The mini player stays across tabs and folders, keeps
+  the last row above it, and Stop playback saves the position, removes it, and
+  cancels the sleep timer.
 - `subtitles` picks subtitles from the player menu without changing audio, and
   follows the preferences.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
@@ -59,13 +60,18 @@ Preconditions:
   `runtime-video-controls-hidden`. `--only resume-setting` covers a video with
   no saved position and resume off. Board: `rd-ios-pb-01-resume`.
 - **Audio.** Run `--only audio`. Screenshots: `runtime-audio-player`,
-  `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`.
+  `runtime-audio-error`, `runtime-audio-single`, `runtime-audio-up-next`,
+  `runtime-audio-sleep-menu`, `runtime-audio-sleep-running`.
   `--putio-harness-music` seeds a Music folder of four tracks and a one-file
   folder under Singles; `--putio-harness-audio-fails-once` and
   `--putio-harness-audio-held` fail or hold the second track's first load, and
   `--putio-harness-audio-near-end` starts the third track 10 seconds before its
-  end. Boards: `rd-ios-pb-04-now-playing`, `rd-ios-pb-12-up-next`,
-  `rd-ios-pb-25-preparing-audio`, `rd-ios-pb-37-audio-error`,
+  end. `--putio-harness-sleep-clock` puts the sleep timer on a manual clock:
+  each tap on the `audio.sleep-clock` probe moves it by
+  [`harnessStep`](../../../../Apps/iOS/Sources/Harness/HarnessSleepTimerClock.swift).
+  Boards: `rd-ios-pb-04-now-playing`, `rd-ios-pb-11-sleep`,
+  `rd-ios-pb-12-up-next`, `rd-ios-pb-25-preparing-audio`,
+  `rd-ios-pb-36-sleep-running`, `rd-ios-pb-37-audio-error`,
   `rd-ios-pb-39-single-audio`, `rd-ios-pb-40-ipad-now-playing`,
   `rd-ios-pb-05-mini`, `rd-ios-pb-41-ipad-mini`.
 - **Subtitles.** Run `--only subtitles`. Screenshots: `runtime-subtitles-menu`,
