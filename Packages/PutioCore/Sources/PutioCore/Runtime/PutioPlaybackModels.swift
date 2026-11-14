@@ -48,9 +48,8 @@ public enum PutioPlaybackResolution: Equatable, Sendable {
   case conversionRequired
 }
 
-/// The next audio file the server suggests after a track, or `nil` at the end
-/// of the folder.
-public struct PutioNextAudio: Equatable, Sendable {
+/// An audio file beside the playing one in its folder.
+public struct PutioQueuedAudio: Equatable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID
   public let name: String
@@ -59,6 +58,22 @@ public struct PutioNextAudio: Equatable, Sendable {
     self.id = id
     self.parentID = parentID
     self.name = name
+  }
+}
+
+/// The audio files on either side of a track in its folder, in name order,
+/// and the folder's name. `nil` where there is none.
+public struct PutioAudioNeighbours: Equatable, Sendable {
+  public let previous: PutioQueuedAudio?
+  public let next: PutioQueuedAudio?
+  public let folderName: String?
+
+  public init(
+    previous: PutioQueuedAudio? = nil, next: PutioQueuedAudio? = nil, folderName: String? = nil
+  ) {
+    self.previous = previous
+    self.next = next
+    self.folderName = folderName
   }
 }
 

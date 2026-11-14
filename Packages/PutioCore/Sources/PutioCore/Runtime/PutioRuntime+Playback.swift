@@ -42,17 +42,45 @@ extension PutioRuntime {
     return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
   }
 
-  public func findNextAudio(after fileID: PutioFileID) async throws -> PutioNextAudio? {
-    let nextFile = try await performAuthenticatedOperation {
-      try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .audio)
+  /// The audio files beside `fileID` in name order, as Android's queue reads
+  /// them. The next-file endpoint can leave the folder, so this lists it.
+  public func audioNeighbours(of fileID: PutioFileID, in parentID: PutioFileID) async throws
+    -> PutioAudioNeighbours
+  {
+    var page = try await performAuthenticatedOperation {
+      try await sdk.getFiles(
+        parentID: parentID.rawValue,
+        query: PutioFilesListQuery(
+          perPage: Self.audioQueuePageSize, fileType: .audio, sortBy: "NAME_ASC"))
     }
-    guard let nextFile else { return nil }
-    return PutioNextAudio(
-      id: PutioFileID(rawValue: nextFile.id),
-      parentID: PutioFileID(rawValue: nextFile.parentID),
-      name: nextFile.name
-    )
+    let folderName = page.parent.flatMap { $0.id == parentID.rawValue ? $0.name : nil }
+    var previous: PutioQueuedAudio?
+    var foundCurrent = false
+    var seen = Set<Int>()
+    var cursors = Set<String>()
+    while true {
+      for file in page.children
+      where file.type == .audio && file.parentID == parentID.rawValue
+        && seen.insert(file.id).inserted
+      {
+        let entry = PutioQueuedAudio(
+          id: PutioFileID(rawValue: file.id), parentID: parentID, name: file.name)
+        if entry.id == fileID {
+          foundCurrent = true
+        } else if foundCurrent {
+          return PutioAudioNeighbours(previous: previous, next: entry, folderName: folderName)
+        } else {
+          previous = entry
+        }
+      }
+      guard let cursor = page.cursor, !cursor.isEmpty else { break }
+      guard cursors.insert(cursor).inserted else { throw PutioRuntimeError.invalidResponse }
+      page = try await performAuthenticatedOperation { try await sdk.continueFiles(cursor: cursor) }
+    }
+    return PutioAudioNeighbours(previous: foundCurrent ? previous : nil, folderName: folderName)
   }
+
+  static let audioQueuePageSize = 100
 
   /// Saves the resume position for any media file; put.io keeps one
   /// `start_from` per file regardless of type. An account that turned

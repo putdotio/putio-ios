@@ -281,6 +281,7 @@ struct MainTabView: View {
       if let model = audioPlayback.model {
         PutioAudioPlayerView(
           model: model,
+          castButton: playerCastButton,
           onDismiss: { audioPlayback.isPresented = false },
           showsHarnessReadiness: scenario == .filesBrowser)
       }
@@ -664,7 +665,9 @@ struct MainTabView: View {
           if let local = offlineQueue.localSource(for: fileID) { return local }
           return try await resolveAudioSource(fileID: fileID)
         },
-        loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
+        loadNeighbours: { track in
+          try await runtime.audioNeighbours(of: track.id, in: track.parentID)
+        }
       ))
   }
 

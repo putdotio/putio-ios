@@ -1175,7 +1175,7 @@ import Foundation
         || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
         || (Self.holdsSearch && url.path == "/v2/files/search")
         || Self.holdsDeviceLink(replayableRequest)
-        || Self.clearsData(replayableRequest, mode: .hold)
+        || Self.clearsData(replayableRequest, mode: .hold) || Self.holdsMusic(url)
       {
         return
       } else if statusCode == 503, url.path == "/v2/files/410" {
@@ -1763,6 +1763,7 @@ import Foundation
         return revokeGrant(grantID)
       }
       if let response = sharedItemsFixture(request, path: url.path) { return response }
+      if let response = musicFixture(request, url: url) { return response }
       if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
         return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
       }
@@ -2182,13 +2183,6 @@ import Foundation
         return (200, audioFile(id: audioTrackFileID, name: "Harness Track.m4a"))
       case "GET /v2/files/\(audioSuccessorFileID)":
         return (200, audioFile(id: audioSuccessorFileID, name: "Harness Track 2.m4a"))
-      case "GET /v2/files/\(audioTrackFileID)/next-file":
-        return (
-          200,
-          #"{"next_file":{"id":\#(audioSuccessorFileID),"name":"Harness Track 2.m4a","parent_id":0}}"#
-        )
-      case "GET /v2/files/\(audioSuccessorFileID)/next-file":
-        return (200, #"{"next_file":null}"#)
       case "POST /v2/files/\(audioTrackFileID)/start-from/set":
         return setPlaybackPosition(request: request, fileID: audioTrackFileID)
       case "POST /v2/files/\(audioSuccessorFileID)/start-from/set":
@@ -2630,13 +2624,14 @@ import Foundation
       let response = unfilteredFilesListFixture(url: url)
       guard
         response.0 == 200,
-        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
-          .contains(where: { $0.name == "file_type" && $0.value == "FOLDER" }) == true,
+        let fileType = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .first(where: { $0.name == "file_type" })?.value,
         var listing = try? JSONSerialization.jsonObject(with: Data(response.1.utf8))
           as? [String: Any],
         let files = listing["files"] as? [[String: Any]]
       else { return response }
-      listing["files"] = files.filter { $0["file_type"] as? String == "FOLDER" }
+      listing["files"] = files.filter { $0["file_type"] as? String == fileType }
+      if fileType != "FOLDER" { listing["cursor"] = "" }
       guard let data = try? JSONSerialization.data(withJSONObject: listing) else {
         return response
       }
@@ -3532,6 +3527,7 @@ import Foundation
           ]
           : [])
       if usesSharedItems { rows.append(sharedRootRow) }
+      rows += musicRootRows
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       rows = ordered(rows, by: sortBy)

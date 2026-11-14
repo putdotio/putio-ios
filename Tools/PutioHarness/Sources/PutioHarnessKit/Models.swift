@@ -733,6 +733,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pv-14-ipad-image", .ipad, "testIPadPreviewImage"),
       BoardCapture("rd-ios-pv-15-ipad-pdf", .ipad, "testIPadPreviewDocument"),
       BoardCapture("rd-ios-pv-17-ipad-detail-pdf", .ipad, "testIPadDetailDocument"),
+      BoardCapture("rd-ios-pb-04-now-playing", .iphone, "testNowPlaying"),
+      BoardCapture("rd-ios-pb-25-preparing-audio", .iphone, "testPreparingAudio"),
+      BoardCapture("rd-ios-pb-37-audio-error", .iphone, "testAudioError"),
+      BoardCapture("rd-ios-pb-39-single-audio", .iphone, "testSingleAudio"),
+      BoardCapture("rd-ios-pb-40-ipad-now-playing", .ipad, "testNowPlaying"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
       BoardCapture(
@@ -1152,7 +1157,8 @@ enum BrowserJourneyContract {
       "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayStoresNoAnswer"),
     JourneyPreflight(
       "audio", "AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack",
-      attachmentNames: ["runtime-audio-player"], timeAllowance: 120),
+      attachmentNames: ["runtime-audio-player", "runtime-audio-error", "runtime-audio-single"],
+      timeAllowance: 240),
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [

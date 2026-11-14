@@ -1232,6 +1232,65 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-26-ipad-root")
   }
 
+  func testNowPlaying() throws {
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103)
+    XCTAssertTrue(
+      expectEnabled(app.buttons["audio.previous"]), "the middle file offers no previous")
+    XCTAssertTrue(app.buttons["audio.next"].isEnabled, "the middle file offers no next")
+    XCTAssertTrue(labeled("Music").exists, "the folder name is missing")
+    try captureBoard("rd-ios-pb-04-now-playing")
+  }
+
+  func testSingleAudio() throws {
+    try playMusic(
+      path: ["files.item.3105", "files.item.3106", "files.item.3107"], track: 3107)
+    XCTAssertTrue(labeled("Music").appears(within: 10), "the folder name is missing")
+    XCTAssertFalse(app.buttons["audio.previous"].isEnabled)
+    XCTAssertFalse(app.buttons["audio.next"].isEnabled)
+    XCTAssertFalse(app.buttons["audio.up-next"].isEnabled)
+    try captureBoard("rd-ios-pb-39-single-audio")
+  }
+
+  func testPreparingAudio() throws {
+    app.launchArguments.append("--putio-harness-audio-held")
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103, state: "loading")
+    XCTAssertTrue(app.staticTexts["Preparing audio"].exists, "the loading state has no label")
+    try captureBoard("rd-ios-pb-25-preparing-audio")
+  }
+
+  func testAudioError() throws {
+    app.launchArguments.append("--putio-harness-audio-fails-once")
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103, state: "failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t play this audio"].exists)
+    XCTAssertTrue(app.staticTexts["put.io is temporarily unavailable. Try again."].exists)
+    XCTAssertTrue(app.buttons["audio.retry"].exists)
+    try captureBoard("rd-ios-pb-37-audio-error")
+  }
+
+  private func playMusic(path: [String], track: Int, state: String = "playing") throws {
+    orientForBoardDevice()
+    app.launchArguments.append("--putio-harness-music")
+    app.launch()
+    openRoot()
+    for identifier in path {
+      let row = app.revealed(identifier)
+      XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
+      row.tap()
+    }
+    let probe = element("audio.state")
+    let reached = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "id=\(track);state=\(state)"), object: probe)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [reached], timeout: 15), .completed,
+      "Now Playing never reached \(state): \(String(describing: probe.value))")
+  }
+
+  private func expectEnabled(_ control: XCUIElement) -> Bool {
+    let enabled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == true"), object: control)
+    return XCTWaiter.wait(for: [enabled], timeout: 10) == .completed
+  }
+
   private func reachContinueWatching() throws {
     app.launchArguments += ["--putio-harness-continue-watching", "three"]
     app.launch()
