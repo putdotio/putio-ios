@@ -1403,6 +1403,11 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
       timeAllowance: 240),
     JourneyPreflight(
+      "video-chips",
+      "SubtitlesJourneyTests/testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture",
+      attachmentNames: ["runtime-video-chips", "runtime-video-chips-changed"],
+      timeAllowance: 180),
+    JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
       attachmentNames: ["runtime-security-apps"], timeAllowance: 180),
     JourneyPreflight(

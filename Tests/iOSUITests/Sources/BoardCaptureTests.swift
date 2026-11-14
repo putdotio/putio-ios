@@ -736,6 +736,9 @@ final class BoardCaptureTests: XCTestCase {
 
   func testVideoPlayer() throws {
     orient(.landscapeLeft)
+    app.launchArguments += [
+      "--putio-harness-subtitled-stream", "--putio-harness-picture-in-picture",
+    ]
     app.launch()
     openSeasonFolder()
     let episode = element("files.item.441")
@@ -756,6 +759,19 @@ final class BoardCaptureTests: XCTestCase {
     let playPause = element("video.play-pause")
     let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
     app.setVideoPlaying(!auditsText, with: playPause)
+    for (chip, label) in [
+      ("audio", "Audio: English"), ("subtitles", "Subtitles: English"),
+      ("speed", "Playback speed 1×"),
+    ] {
+      let control = element("video.chip.\(chip)")
+      app.revealVideoControls(showing: control)
+      XCTAssertEqual(control.label, label)
+    }
+    let speed = element("video.chip.speed")
+    XCTAssertLessThanOrEqual(
+      speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
+    XCTAssertGreaterThanOrEqual(
+      speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
     try captureBoard("rd-ios-pb-02-video")
   }
 

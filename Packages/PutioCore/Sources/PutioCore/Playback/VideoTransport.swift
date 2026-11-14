@@ -79,6 +79,7 @@ public struct PutioVideoControlsVisibility: Equatable, Sendable {
   public enum Pin: Hashable, Sendable {
     case voiceOver
     case scrubbing
+    case menu
   }
 
   public static let idleDelay = Duration.seconds(3)

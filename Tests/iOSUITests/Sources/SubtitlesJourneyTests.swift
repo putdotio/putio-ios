@@ -35,13 +35,13 @@ final class SubtitlesJourneyTests: XCTestCase {
     pausePlayback()
 
     // A non-default audio pick survives every subtitle change.
-    openPlayerMenu("Audio")
+    openChip("audio")
     XCTAssertTrue(app.buttons["English"].appears(within: 5))
     app.buttons["Turkish"].tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(keepsValue(subtitle, "en"), "changing the audio changed the subtitle")
 
-    openPlayerMenu("Subtitles")
+    openChip("subtitles")
     let turkishSubtitle = app.buttons["Turkish"]
     XCTAssertTrue(turkishSubtitle.appears(within: 5))
     XCTAssertTrue(app.buttons["English"].exists)
@@ -62,14 +62,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     pausePlayback()
 
     // Subtitles in a language other than the audio's leave the audio alone.
-    openPlayerMenu("Subtitles")
+    openChip("subtitles")
     let englishSubtitle = app.buttons["English"]
     XCTAssertTrue(englishSubtitle.appears(within: 5))
     englishSubtitle.tap()
     XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "tr"), "English subtitles changed the audio track")
 
-    openPlayerMenu("Subtitles")
+    openChip("subtitles")
     let off = app.buttons["Off"]
     XCTAssertTrue(off.appears(within: 5))
     off.tap()
@@ -100,14 +100,75 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
+  func testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture() throws {
+    app.launchArguments.append("--putio-harness-picture-in-picture")
+    app.launch()
+    let signIn = element("auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+
+    openVideo(retryingSeededFailure: true, startingOver: true)
+    let audio = element("video.audio-language")
+    let subtitle = element("video.subtitle")
+    XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
+    XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
+
+    let audioChip = element("video.chip.audio")
+    let subtitlesChip = element("video.chip.subtitles")
+    let speedChip = element("video.chip.speed")
+    let playPause = element("video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    XCTAssertTrue(waitForLabel(audioChip, "Audio: English"), "the Audio chip is missing")
+    XCTAssertTrue(
+      waitForLabel(subtitlesChip, "Subtitles: English"), "the Subtitles chip is missing")
+    XCTAssertTrue(waitForLabel(speedChip, "Playback speed 1×"), "the speed chip is missing")
+    screenshot("runtime-video-chips")
+
+    // Playing controls hide after 3 seconds idle; an open menu holds them up.
+    app.setVideoPlaying(true, with: playPause)
+    openChip("subtitles")
+    let turkish = app.buttons["video.subtitles.1"]
+    XCTAssertTrue(turkish.appears(within: 5), "the Subtitles chip opened no menu")
+    XCTAssertTrue(app.buttons["video.subtitles.off"].exists)
+    XCTAssertFalse(turkish.disappears(within: 5), "the controls hid and closed the open menu")
+    XCTAssertTrue(subtitlesChip.exists, "the controls hid behind the open menu")
+    turkish.tap()
+    XCTAssertTrue(waitForValue(subtitle, "tr"), "subtitle: \(subtitle.value ?? "")")
+    XCTAssertTrue(waitForLabel(subtitlesChip, "Subtitles: Turkish"), subtitlesChip.label)
+
+    openChip("speed")
+    let faster = app.buttons["video.speed.1.5"]
+    XCTAssertTrue(faster.appears(within: 5), "the speed chip opened no menu")
+    faster.tap()
+    XCTAssertTrue(waitForLabel(speedChip, "Playback speed 1.5×"), speedChip.label)
+
+    app.setVideoPlaying(false, with: playPause)
+    let pictureInPicture = element("video.picture-in-picture")
+    app.revealVideoControls(showing: pictureInPicture)
+    XCTAssertEqual(pictureInPicture.label, "Picture in Picture")
+    let routeRow = pictureInPicture.frame.midY
+    let cast = try XCTUnwrap(
+      app.buttons.matching(identifier: "cast.button").allElementsBoundByIndex.first {
+        abs($0.frame.midY - routeRow) < 4
+      }, "the route group lost Cast")
+    XCTAssertLessThan(
+      pictureInPicture.frame.maxX, cast.frame.minX,
+      "Picture in Picture does not lead the route group")
+    XCTAssertEqual(audioChip.label, "Audio: English")
+    XCTAssertEqual(subtitlesChip.label, "Subtitles: Turkish")
+    screenshot("runtime-video-chips-changed")
+    app.closeVideo()
+  }
+
   /// The seeded scenario fails the first playback attempt for retry proof.
-  private func openVideo(retryingSeededFailure: Bool) {
+  private func openVideo(retryingSeededFailure: Bool, startingOver: Bool = false) {
     app.showTabBar()
     app.buttons["Files"].tap()
     let video = element("files.item.412")
     XCTAssertTrue(video.appears(within: 10))
     video.tap()
-    app.answerResumePrompt()
+    app.answerResumePrompt(startingOver: startingOver)
     if retryingSeededFailure {
       XCTAssertTrue(element("video.error").appears(within: 10))
       app.buttons["Try again"].tap()
@@ -126,13 +187,10 @@ final class SubtitlesJourneyTests: XCTestCase {
     app.setVideoPlaying(false, with: element("video.play-pause"))
   }
 
-  private func openPlayerMenu(_ entry: String) {
-    let options = element("video.options")
-    app.revealVideoControls(showing: options)
-    options.tap()
-    let item = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", entry)).firstMatch
-    XCTAssertTrue(item.appears(within: 5), "\(entry) is missing from the player menu")
-    item.tap()
+  private func openChip(_ name: String) {
+    let chip = element("video.chip.\(name)")
+    app.revealVideoControls(showing: chip)
+    chip.tap()
   }
 
   /// The playback-preferences fixture fails the first account save once.
@@ -159,6 +217,10 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value == %@ AND enabled == true", value), toggle, timeout: 10),
       "\(identifier) did not save \(value)")
+  }
+
+  private func waitForLabel(_ element: XCUIElement, _ label: String) -> Bool {
+    waitFor(NSPredicate(format: "label == %@", label), element, timeout: 10)
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
