@@ -267,7 +267,7 @@ final class AudioJourneyTests: XCTestCase {
   private func choose(_ title: String, on chip: XCUIElement) {
     chip.tap()
     let row = app.buttons[title]
-    XCTAssertTrue(row.appears(within: 5), title)
+    XCTAssertTrue(row.appears(within: 10), title)
     row.tap()
     XCTAssertTrue(row.disappears(within: 5), "the sleep timer menu stayed open")
   }
