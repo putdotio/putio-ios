@@ -921,6 +921,7 @@ final class PutioVideoPlayerCoordinator {
       guard startSeconds > 0 else {
         positionReporter.positionEstablished()
         positionReporter.startReporting()
+        settleControls(.position, generation: playbackGeneration)
         driver.play()
         return
       }
