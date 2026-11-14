@@ -1,6 +1,11 @@
 import XCTest
 
 final class PlaybackPreferencesJourneyTests: XCTestCase {
+  override func tearDown() {
+    XCUIDevice.shared.orientation = .portrait
+    super.tearDown()
+  }
+
   func testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch() throws {
     continueAfterFailure = false
     let app = XCUIApplication()
@@ -10,12 +15,15 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     ]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
+    XCUIDevice.shared.orientation = .portrait
     app.launch()
     let signIn = app.descendants(matching: .any)["auth.sign-in"]
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
     XCTAssertTrue(app.buttons["Account"].appears(within: 10))
     playNextManuallyWithAutoplayOff(app)
+    followTheDeviceWithRotateOff(app)
+    app.showTabBar()
     app.buttons["Account"].tap()
     let proxy = app.revealed("playback-settings.route")
     XCTAssertTrue(proxy.appears(within: 10))
@@ -75,6 +83,9 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     add(attachment)
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
+    app.launchArguments += [
+      "--putio-harness-rotate-off", "--putio-harness-episode-conversion", "converting",
+    ]
     app.launch()
     XCTAssertTrue(app.buttons["Account"].appears(within: 15))
     app.buttons["Account"].tap()
@@ -85,6 +96,10 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     _ = app.revealed("playback-settings.subtitle-selection")
     assertToggle(subtitles, value: "1")
     assertToggle(autoSelection, value: "0")
+    gateFollowsTheDeviceWithRotateOff(app)
+    app.showTabBar()
+    XCTAssertTrue(app.buttons["Account"].becomesHittable(within: 5))
+    app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
@@ -330,6 +345,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(rootVideo.appears(within: 10))
     rootVideo.tap()
     app.answerResumePrompt()
+    XCTAssertTrue(waitForWindow(app, landscape: true), "Rotate on did not hold landscape")
     // The seeded scenario fails the first playback attempt for retry proof.
     XCTAssertTrue(app.descendants(matching: .any)["video.error"].appears(within: 10))
     app.buttons["Try again"].tap()
@@ -371,8 +387,122 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(
       XCTWaiter.wait(for: [resumePosition], timeout: 10), .completed,
       "manual play-next did not open the successor at its saved position")
+    XCTAssertTrue(waitForWindow(app, landscape: true), "the next video dropped the lock")
     app.closeVideo()
+    XCTAssertTrue(waitForWindow(app, landscape: false), "Close did not restore portrait")
     XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
+  }
+
+  private func followTheDeviceWithRotateOff(_ app: XCUIApplication) {
+    app.showTabBar()
+    XCTAssertTrue(app.buttons["Account"].becomesHittable(within: 5))
+    app.buttons["Account"].tap()
+    let rotate = app.switches["playback-settings.auto-rotate"]
+    XCTAssertTrue(app.revealed("playback-settings.auto-rotate").appears(within: 10))
+    let tabBarTop = app.buttons["Files"].frame.minY
+    var swipes = 0
+    while rotate.frame.maxY > tabBarTop, swipes < 3 {
+      app.swipeUp()
+      swipes += 1
+    }
+    assertToggle(rotate, value: "1")
+    tapToggle(rotate)
+    assertToggle(rotate, value: "0")
+
+    app.showTabBar()
+    app.buttons["Files"].tap()
+    let video = app.descendants(matching: .any)["files.item.412"]
+    XCTAssertTrue(video.appears(within: 10))
+    video.tap()
+    if app.resumePrompt.waitForExistence(timeout: 5) { app.answerResumePrompt() }
+    let ready = app.descendants(matching: .any)["video.ready"]
+    XCTAssertTrue(ready.appears(within: 15), "the video never played with Rotate off")
+    XCTAssertTrue(waitForWindow(app, landscape: false), "Rotate off still turned the phone")
+    let title = app.descendants(matching: .any)["video.title"]
+    app.revealVideoControls(showing: app.videoClose)
+    XCTAssertGreaterThanOrEqual(
+      title.frame.minY, app.videoClose.frame.maxY, "the portrait title shares the button row")
+    let speedChip = app.descendants(matching: .any)["video.chip.speed"]
+    let position = app.descendants(matching: .any)["video.current-position"]
+    app.revealVideoControls(showing: speedChip)
+    speedChip.tap()
+    let faster = app.buttons["video.speed.1.5"]
+    XCTAssertTrue(faster.appears(within: 5), "the speed chip opened no menu")
+    faster.tap()
+    XCTAssertTrue(faster.disappears(within: 5), "choosing a speed left the menu open")
+    let turns: [UIDeviceOrientation] = [
+      .landscapeLeft, .portrait, .landscapeRight, .landscapeLeft, .portrait,
+    ]
+    for (turn, orientation) in turns.enumerated() {
+      let started = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "value != nil AND value != '0'"), object: position)
+      XCTAssertEqual(XCTWaiter.wait(for: [started], timeout: 10), .completed, "playback stalled")
+      let before = Int(position.value as? String ?? "") ?? 0
+      XCTAssertGreaterThan(before, 0, "the position probe is missing")
+      XCUIDevice.shared.orientation = orientation
+      XCTAssertTrue(
+        waitForWindow(app, landscape: orientation.isLandscape),
+        "Rotate off did not follow the device to \(orientation.rawValue)")
+      XCTAssertTrue(ready.exists, "rotating reloaded the video")
+      XCTAssertGreaterThanOrEqual(
+        Int(position.value as? String ?? "") ?? 0, before, "rotating lost the position")
+      app.revealVideoControls(showing: speedChip)
+      XCTAssertEqual(speedChip.label, "Playback speed 1.5×", "rotating reset the chips")
+      if turn == 1 {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = "runtime-rotate-off-portrait"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+      }
+    }
+    app.closeVideo()
+    XCTAssertTrue(waitForWindow(app, landscape: false), "Close left the phone in landscape")
+  }
+
+  private func gateFollowsTheDeviceWithRotateOff(_ app: XCUIApplication) {
+    app.showTabBar()
+    app.buttons["Files"].tap()
+    let harness = app.descendants(matching: .any)["files.item.410"]
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = app.descendants(matching: .any)["files.item.440"]
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = app.descendants(matching: .any)["files.item.441"]
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.tap()
+    let progress = app.descendants(matching: .any)["video.conversion-progress"]
+    XCTAssertTrue(progress.appears(within: 15), "the conversion gate never showed progress")
+    XCTAssertTrue(waitForWindow(app, landscape: false), "the gate turned the phone")
+    for orientation in [UIDeviceOrientation.landscapeLeft, .portrait, .landscapeRight, .portrait] {
+      XCUIDevice.shared.orientation = orientation
+      XCTAssertTrue(
+        waitForWindow(app, landscape: orientation.isLandscape),
+        "the gate did not follow the device to \(orientation.rawValue)")
+      XCTAssertTrue(progress.exists, "rotating lost the conversion")
+      XCTAssertTrue(app.buttons["video.conversion.cancel"].isHittable, "rotating hid Cancel")
+      XCTAssertTrue(app.videoClose.isHittable, "rotating hid Close")
+    }
+    XCTAssertGreaterThanOrEqual(
+      app.descendants(matching: .any)["video.title"].frame.minY, app.videoClose.frame.maxY,
+      "the portrait gate title shares the button row")
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    attachment.name = "runtime-rotate-off-converting"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    app.buttons["video.conversion.cancel"].tap()
+    XCTAssertTrue(progress.disappears(within: 5), "Cancel did not close the gate")
+    for _ in 0..<2 { app.navigationBars.buttons["BackButton"].firstMatch.tap() }
+    XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
+  }
+
+  private func waitForWindow(_ app: XCUIApplication, landscape: Bool) -> Bool {
+    let settled = XCTNSPredicateExpectation(
+      predicate: NSPredicate { window, _ in
+        guard let frame = (window as? XCUIElement)?.frame, !frame.isEmpty else { return false }
+        return (frame.width > frame.height) == landscape
+      }, object: app.mainWindow)
+    return XCTWaiter.wait(for: [settled], timeout: 10) == .completed
   }
 
   private func lowerBelowNavigationBar(_ element: XCUIElement, in app: XCUIApplication) {

@@ -897,46 +897,66 @@ struct PutioVideoTopBar<Trailing: View>: View {
   @ViewBuilder let trailing: Trailing
 
   @State private var trailingWidth: CGFloat = 0
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
+
+  private var isUpright: Bool {
+    horizontalSizeClass == .compact && verticalSizeClass == .regular
+  }
 
   var body: some View {
-    ZStack {
+    let layout =
+      isUpright
+      ? AnyLayout(VStackLayout(spacing: PutioTheme.Spacing.space3))
+      : AnyLayout(ZStackLayout())
+    layout {
+      buttons
       Text(title)
         .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
         .lineLimit(1)
         .truncationMode(.middle)
+        .frame(maxWidth: .infinity)
         .padding(
           .horizontal,
-          max(trailingWidth, PutioVideoMetrics.close) + PutioTheme.Spacing.space3
+          isUpright
+            ? PutioVideoMetrics.close + PutioTheme.Spacing.space2
+            : max(trailingWidth, PutioVideoMetrics.close) + PutioTheme.Spacing.space3
         )
+        .allowsHitTesting(false)
         .accessibilityAddTraits(.isHeader)
+        .accessibilitySortPriority(1)
         .accessibilityIdentifier("video.title")
-      HStack(spacing: PutioTheme.Spacing.space3) {
-        Button(action: onClose) {
-          PutioVideoCircleLabel(diameter: PutioVideoMetrics.close) {
-            Image(putioIcon: .x)
-              .resizable()
-              .scaledToFit()
-              .frame(width: 16, height: 16)
+    }
+    .accessibilityElement(children: .contain)
+  }
+
+  private var buttons: some View {
+    HStack(spacing: PutioTheme.Spacing.space3) {
+      Button(action: onClose) {
+        PutioVideoCircleLabel(diameter: PutioVideoMetrics.close) {
+          Image(putioIcon: .x)
+            .resizable()
+            .scaledToFit()
+            .frame(width: 16, height: 16)
+        }
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(String(localized: "Close"))
+      .accessibilityIdentifier("video.close")
+      Spacer(minLength: 0)
+      if showsTrailing {
+        HStack(spacing: 0) { trailing }
+          .padding(.horizontal, PutioTheme.Spacing.space1)
+          .background(Color.black.opacity(0.75), in: Capsule())
+          .overlay {
+            Capsule().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
           }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(String(localized: "Close"))
-        .accessibilityIdentifier("video.close")
-        Spacer(minLength: 0)
-        if showsTrailing {
-          HStack(spacing: 0) { trailing }
-            .padding(.horizontal, PutioTheme.Spacing.space1)
-            .background(Color.black.opacity(0.75), in: Capsule())
-            .overlay {
-              Capsule().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
-            }
-            .onGeometryChange(for: CGFloat.self) {
-              $0.size.width
-            } action: {
-              trailingWidth = $0
-            }
-        }
+          .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+          } action: {
+            trailingWidth = $0
+          }
       }
     }
   }

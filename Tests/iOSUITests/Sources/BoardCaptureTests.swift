@@ -746,7 +746,20 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testVideoPlayer() throws {
-    playBoardEpisode()
+    try captureVideoPlayer(.landscapeLeft, board: "rd-ios-pb-02-video")
+  }
+
+  func testPortraitVideoPlayer() throws {
+    app.launchArguments.append("--putio-harness-rotate-off")
+    try captureVideoPlayer(.portrait, board: "rd-ios-pb-43-portrait-video")
+    let close = app.videoClose.frame
+    let title = element("video.title").frame
+    XCTAssertGreaterThanOrEqual(title.minY, close.maxY, "the portrait title shares the button row")
+    XCTAssertLessThan(app.mainWindow.frame.width, app.mainWindow.frame.height)
+  }
+
+  private func captureVideoPlayer(_ orientation: UIDeviceOrientation, board: String) throws {
+    playBoardEpisode(orientation: orientation)
     let playPause = element("video.play-pause")
     let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
     app.setVideoPlaying(false, with: playPause)
@@ -766,7 +779,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(
       speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
     if !auditsText { app.setVideoPlaying(true, with: playPause) }
-    try captureBoard("rd-ios-pb-02-video")
+    try captureBoard(board)
   }
 
   func testVideoNoCastDevice() throws {
@@ -800,8 +813,11 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-23-airplay")
   }
 
-  private func playBoardEpisode(_ arguments: [String] = []) {
-    orient(.landscapeLeft)
+  private func playBoardEpisode(
+    _ arguments: [String] = [], orientation: UIDeviceOrientation = .landscapeLeft
+  ) {
+    letPlayerFollowPortraitPosture()
+    orient(orientation)
     app.launchArguments +=
       [
         "--putio-harness-subtitled-stream", "--putio-harness-picture-in-picture",
@@ -854,6 +870,19 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-15-converting")
   }
 
+  func testPortraitConversionConverting() throws {
+    app.launchArguments.append("--putio-harness-rotate-off")
+    openConvertingEpisode("converting", showing: "video.conversion-progress", .portrait)
+    XCTAssertTrue(app.staticTexts["Converting to MP4"].exists)
+    XCTAssertEqual(element("video.conversion-progress").value as? String, "62%")
+    assertConversionActions()
+    XCTAssertGreaterThanOrEqual(
+      element("video.title").frame.minY, app.videoClose.frame.maxY,
+      "the portrait title shares the button row")
+    XCTAssertLessThan(app.mainWindow.frame.width, app.mainWindow.frame.height)
+    try captureBoard("rd-ios-pb-44-portrait-converting")
+  }
+
   func testConversionFailed() throws {
     openConvertingEpisode("failed", showing: "video.error")
     XCTAssertTrue(app.staticTexts["Conversion failed"].exists)
@@ -879,11 +908,15 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-30-cannot-convert")
   }
 
-  private func openConvertingEpisode(_ conversion: String, showing state: String) {
+  private func openConvertingEpisode(
+    _ conversion: String, showing state: String,
+    _ orientation: UIDeviceOrientation = .landscapeLeft
+  ) {
     app.launchArguments += [
       "--putio-harness-episode-conversion", conversion, "--putio-harness-vlc-installed",
     ]
-    orient(.landscapeLeft)
+    letPlayerFollowPortraitPosture()
+    orient(orientation)
     app.launch()
     openSeasonFolder()
     let episode = element("files.item.441")
@@ -904,6 +937,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openFailingEpisode(faults: String) {
     app.launchArguments += ["--putio-harness-video-faults", faults]
+    letPlayerFollowPortraitPosture()
     orient(.landscapeLeft)
     app.launch()
     openSeasonFolder()
@@ -960,6 +994,7 @@ final class BoardCaptureTests: XCTestCase {
     let stream = HeldStream()
     app.launchEnvironment["PUTIO_HARNESS_HELD_STREAM"] = stream.environment(hold)
     addTeardownBlock { stream.release() }
+    letPlayerFollowPortraitPosture()
     orient(.landscapeLeft)
     app.launch()
     openSeasonFolder()
@@ -3615,6 +3650,13 @@ final class BoardCaptureTests: XCTestCase {
     case "landscape": XCUIDevice.shared.orientation = .landscapeLeft
     default: XCUIDevice.shared.orientation = orientation
     }
+  }
+
+  private func letPlayerFollowPortraitPosture() {
+    guard ProcessInfo.processInfo.environment["PUTIO_BOARD_ORIENTATION"] == "portrait" else {
+      return
+    }
+    app.launchArguments.append("--putio-harness-rotate-off")
   }
 
   private func rotate(_ orientation: UIDeviceOrientation) {
