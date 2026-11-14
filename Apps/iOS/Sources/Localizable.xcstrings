@@ -500,29 +500,6 @@
         }
       }
     },
-    "Back %lld seconds" : {
-      "comment" : "android: mobile_playback_seek_back",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Back %lld second"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Back %lld seconds"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Buffering on %@" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
