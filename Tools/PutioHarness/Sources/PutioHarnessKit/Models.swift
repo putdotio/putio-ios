@@ -847,6 +847,12 @@ enum BoardCaptureContract {
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
       BoardCapture("rd-ios-pb-02-video", .iphone, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
+      BoardCapture(
+        "rd-ios-pb-45-no-cast-device", .iphone, "testVideoNoCastDevice", screenBase: false),
+      BoardCapture("rd-ios-pb-23-airplay", .iphone, "testVideoAirPlay"),
+      BoardCapture(
+        "ipad-video-no-cast-device", .ipad, "testVideoNoCastDevice", screenBase: false),
+      BoardCapture("ipad-video-airplay", .ipad, "testVideoAirPlay", screenBase: false),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
       BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
@@ -1197,6 +1203,12 @@ enum BrowserJourneyContract {
         "runtime-cast-signed-out",
       ],
       timeAllowance: 180),
+    JourneyPreflight(
+      "cast-routes", "ChromecastJourneyTests/testRouteGroupFollowsCastDiscoveryAndLocalNetwork",
+      attachmentNames: [
+        "runtime-cast-routes", "runtime-cast-routes-no-device", "runtime-cast-local-network-off",
+      ],
+      timeAllowance: 240),
     JourneyPreflight(
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
       attachmentNames: [

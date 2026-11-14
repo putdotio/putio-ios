@@ -358,6 +358,17 @@
         }
       }
     },
+    "AirPlay" : {
+      "comment" : "ios-only: AirPlay is an Apple feature with no Android counterpart",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        }
+      }
+    },
     "All" : {
       "comment" : "android: mobile_search_filter_all",
       "localizations" : {
@@ -2222,6 +2233,28 @@
         }
       }
     },
+    "Local network access is off" : {
+      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local network access is off"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        }
+      }
+    },
     "Reported player failures" : {
       "comment" : "ios-only: no Android string for the iOS video player",
       "localizations" : {
@@ -3958,6 +3991,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This permanently deletes %@ from your put.io account. It can’t be undone."
+          }
+        }
+      }
+    },
+    "This video is playing on “%@”." : {
+      "comment" : "ios-only: AirPlay is an Apple feature with no Android counterpart",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This video is playing on “%@”."
+          }
+        }
+      }
+    },
+    "Turn it on in Settings to find Cast devices." : {
+      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn it on in Settings to find Cast devices."
           }
         }
       }

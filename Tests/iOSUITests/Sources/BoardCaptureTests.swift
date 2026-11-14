@@ -27,6 +27,11 @@ final class BoardCaptureTests: XCTestCase {
     orient(.portrait)
     app.launch()
     openSeasonFolder()
+    XCTAssertFalse(app.buttons["cast.button"].exists, "the folder toolbar draws Cast")
+    let title = element("files.title")
+    XCTAssertTrue(title.appears(within: 5), "the folder has no title")
+    XCTAssertEqual(
+      title.frame.midX, app.mainWindow.frame.midX, accuracy: 2, "the folder title is not centred")
     try captureBoard("rd-ios-02-folder")
   }
 
@@ -735,10 +740,66 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testVideoPlayer() throws {
+    playBoardEpisode()
+    let playPause = element("video.play-pause")
+    let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
+    app.setVideoPlaying(false, with: playPause)
+    XCTAssertEqual(
+      videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    for (chip, label) in [
+      ("audio", "Audio: English"), ("subtitles", "Subtitles: English"),
+      ("speed", "Playback speed 1×"),
+    ] {
+      let control = element("video.chip.\(chip)")
+      app.revealVideoControls(showing: control)
+      XCTAssertEqual(control.label, label)
+    }
+    let speed = element("video.chip.speed")
+    XCTAssertLessThanOrEqual(
+      speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
+    XCTAssertGreaterThanOrEqual(
+      speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
+    if !auditsText { app.setVideoPlaying(true, with: playPause) }
+    try captureBoard("rd-ios-pb-02-video")
+  }
+
+  func testVideoNoCastDevice() throws {
+    playBoardEpisode(["--putio-harness-cast-no-device"])
+    let playPause = element("video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    XCTAssertEqual(videoRouteGroup(), ["video.picture-in-picture", "video.airplay"])
+    XCTAssertFalse(app.buttons["cast.button"].exists, "Cast showed with no device")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      app.setVideoPlaying(true, with: playPause)
+    }
+    try captureBoard("rd-ios-pb-45-no-cast-device")
+  }
+
+  func testVideoAirPlay() throws {
+    playBoardEpisode(["--putio-harness-airplay-device", "Living Room"])
+    let placeholder = element("video.airplay-placeholder")
+    XCTAssertTrue(placeholder.appears(within: 5), "AirPlay showed no placeholder")
+    XCTAssertTrue(app.staticTexts["This video is playing on “Living Room”."].exists)
+    let playPause = element("video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    XCTAssertFalse(element("video.picture-in-picture").exists, "AirPlay kept Picture in Picture")
+    XCTAssertFalse(app.buttons["cast.button"].exists, "AirPlay kept Cast")
+    XCTAssertTrue(element("video.airplay").exists, "AirPlay lost its route button")
+    let speed = element("video.chip.speed")
+    XCTAssertEqual(speed.label, "Playback speed 1×")
+    XCTAssertGreaterThanOrEqual(
+      playPause.frame.minY, placeholder.frame.maxY, "the transport overlaps the AirPlay message")
+    XCTAssertLessThanOrEqual(
+      playPause.frame.maxY, speed.frame.minY, "the transport overlaps the chips")
+    try captureBoard("rd-ios-pb-23-airplay")
+  }
+
+  private func playBoardEpisode(_ arguments: [String] = []) {
     orient(.landscapeLeft)
-    app.launchArguments += [
-      "--putio-harness-subtitled-stream", "--putio-harness-picture-in-picture",
-    ]
+    app.launchArguments +=
+      [
+        "--putio-harness-subtitled-stream", "--putio-harness-picture-in-picture",
+      ] + arguments
     app.launch()
     openSeasonFolder()
     let episode = element("files.item.441")
@@ -756,24 +817,17 @@ final class BoardCaptureTests: XCTestCase {
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(
       XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "the episode is not playing")
-    let playPause = element("video.play-pause")
-    let auditsText = ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1"
-    app.setVideoPlaying(false, with: playPause)
-    for (chip, label) in [
-      ("audio", "Audio: English"), ("subtitles", "Subtitles: English"),
-      ("speed", "Playback speed 1×"),
-    ] {
-      let control = element("video.chip.\(chip)")
-      app.revealVideoControls(showing: control)
-      XCTAssertEqual(control.label, label)
-    }
-    let speed = element("video.chip.speed")
-    XCTAssertLessThanOrEqual(
-      speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
-    XCTAssertGreaterThanOrEqual(
-      speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
-    if !auditsText { app.setVideoPlaying(true, with: playPause) }
-    try captureBoard("rd-ios-pb-02-video")
+  }
+
+  private func videoRouteGroup() -> [String] {
+    let airPlay = element("video.airplay")
+    app.revealVideoControls(showing: airPlay)
+    let row = airPlay.frame.midY
+    return ["video.picture-in-picture", "video.airplay", "cast.button"]
+      .map { element($0) }
+      .filter { $0.exists && abs($0.frame.midY - row) < 4 }
+      .sorted { $0.frame.minX < $1.frame.minX }
+      .map(\.identifier)
   }
 
   func testVideoAccessExpired() throws {

@@ -148,13 +148,16 @@ final class SubtitlesJourneyTests: XCTestCase {
     app.revealVideoControls(showing: pictureInPicture)
     XCTAssertEqual(pictureInPicture.label, "Picture in Picture")
     let routeRow = pictureInPicture.frame.midY
+    let airPlay = element("video.airplay")
+    XCTAssertEqual(airPlay.frame.midY, routeRow, accuracy: 4, "the route group lost AirPlay")
     let cast = try XCTUnwrap(
       app.buttons.matching(identifier: "cast.button").allElementsBoundByIndex.first {
         abs($0.frame.midY - routeRow) < 4
       }, "the route group lost Cast")
     XCTAssertLessThan(
-      pictureInPicture.frame.maxX, cast.frame.minX,
+      pictureInPicture.frame.maxX, airPlay.frame.minX,
       "Picture in Picture does not lead the route group")
+    XCTAssertLessThan(airPlay.frame.maxX, cast.frame.minX, "AirPlay does not precede Cast")
     XCTAssertEqual(audioChip.label, "Audio: English")
     XCTAssertEqual(subtitlesChip.label, "Subtitles: Turkish")
     screenshot("runtime-video-chips-changed")

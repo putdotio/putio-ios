@@ -119,10 +119,7 @@ struct PutioVideoPlaybackView: View {
     ZStack {
       content
       if isReady, !transport.wait.state.hidesControls {
-        PutioVideoControls(
-          title: title, transport: transport, showsCast: castButton != nil || onCast != nil,
-          onClose: onDismiss
-        ) {
+        PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
           castControls
         }
       } else {
@@ -283,7 +280,6 @@ struct PutioVideoPlaybackView: View {
   private var castControls: some View {
     if let castButton {
       castButton
-        .frame(minWidth: 44, minHeight: 44)
     }
     if let onCast {
       PutioButton(String(localized: "Cast"), tier: .secondary, size: .small) {

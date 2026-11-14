@@ -127,6 +127,35 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
   }
 }
 
+struct PutioVideoAirPlay: Equatable {
+  let deviceName: String?
+
+  static func current(isActive: Bool) -> PutioVideoAirPlay? {
+    #if DEBUG
+      if let device = harnessDevice { return PutioVideoAirPlay(deviceName: device) }
+    #endif
+    guard isActive else { return nil }
+    let output = AVAudioSession.sharedInstance().currentRoute.outputs.first {
+      $0.portType == .airPlay
+    }
+    return PutioVideoAirPlay(deviceName: output?.portName)
+  }
+
+  var message: String? {
+    deviceName.map { String(localized: "This video is playing on “\($0)”.") }
+  }
+
+  #if DEBUG
+    private static let harnessDevice: String? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let index = arguments.firstIndex(of: "--putio-harness-airplay-device"),
+        arguments.indices.contains(index + 1)
+      else { return nil }
+      return arguments[index + 1]
+    }()
+  #endif
+}
+
 @MainActor
 @Observable
 final class PutioVideoTransport {
@@ -143,6 +172,7 @@ final class PutioVideoTransport {
   private(set) var selectedAudio: Int?
   private(set) var subtitles: [Track] = []
   private(set) var selectedSubtitle: Int?
+  private(set) var airPlay: PutioVideoAirPlay?
   let pictureInPicture = PutioVideoPictureInPicture()
   let wait: PutioVideoWaitModel
 
@@ -150,6 +180,8 @@ final class PutioVideoTransport {
   @ObservationIgnored private var attachment: UInt64 = 0
   @ObservationIgnored private var timeObservation: Any?
   @ObservationIgnored private var statusObservation: NSKeyValueObservation?
+  @ObservationIgnored private var externalPlaybackObservation: NSKeyValueObservation?
+  @ObservationIgnored private var routeObservation: NSObjectProtocol?
   @ObservationIgnored private var selectionObservation: NSObjectProtocol?
   @ObservationIgnored private var audible:
     (group: AVMediaSelectionGroup, options: [AVMediaSelectionOption])?
@@ -194,6 +226,16 @@ final class PutioVideoTransport {
     statusObservation = player.observe(\.timeControlStatus, options: [.initial, .new]) {
       [weak self] _, _ in
       Task { @MainActor [weak self] in self?.refreshPlaying() }
+    }
+    externalPlaybackObservation = player.observe(
+      \.isExternalPlaybackActive, options: [.initial, .new]
+    ) { [weak self] _, _ in
+      Task { @MainActor [weak self] in self?.refreshAirPlay() }
+    }
+    routeObservation = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.refreshAirPlay() }
     }
   }
 
@@ -274,6 +316,11 @@ final class PutioVideoTransport {
     timeObservation = nil
     statusObservation?.invalidate()
     statusObservation = nil
+    externalPlaybackObservation?.invalidate()
+    externalPlaybackObservation = nil
+    if let routeObservation { NotificationCenter.default.removeObserver(routeObservation) }
+    routeObservation = nil
+    airPlay = nil
     if let selectionObservation { NotificationCenter.default.removeObserver(selectionObservation) }
     selectionObservation = nil
     player = nil
@@ -286,6 +333,11 @@ final class PutioVideoTransport {
     isPlaying = false
     controlsEnabled = false
     playhead = PutioVideoPlayhead()
+  }
+
+  private func refreshAirPlay() {
+    guard let player else { return }
+    airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
   }
 
   private func refreshPlaying() {
@@ -354,7 +406,6 @@ final class PutioVideoTransport {
 struct PutioVideoControls<Trailing: View>: View {
   let title: String
   let transport: PutioVideoTransport
-  var showsCast = false
   let onClose: () -> Void
   @ViewBuilder let trailing: Trailing
 
@@ -369,16 +420,19 @@ struct PutioVideoControls<Trailing: View>: View {
         .onTapGesture { animate { visibility.toggled() } }
         .ignoresSafeArea()
         .accessibilityHidden(true)
+      if let airPlay = transport.airPlay {
+        airPlayCentre(showing: true, transport: false, airPlay: airPlay)
+          .allowsHitTesting(false)
+      }
       if visibility.isVisible {
         ZStack {
           VStack(spacing: 0) {
-            PutioVideoTopBar(
-              title: title,
-              showsTrailing: transport.pictureInPicture.isSupported || showsCast,
-              onClose: onClose
-            ) {
-              PutioVideoPictureInPictureButton(transport: transport) { visibility.interacted() }
-              trailing
+            PutioVideoTopBar(title: title, onClose: onClose) {
+              if transport.airPlay == nil {
+                PutioVideoPictureInPictureButton(transport: transport) { visibility.interacted() }
+              }
+              PutioVideoAirPlayButton(isActive: transport.airPlay != nil)
+              if transport.airPlay == nil { trailing }
             }
             Spacer(minLength: PutioTheme.Spacing.space3)
             PutioVideoChipRow(transport: transport) {
@@ -394,7 +448,11 @@ struct PutioVideoControls<Trailing: View>: View {
             }
           }
           .padding(PutioTheme.Spacing.space3)
-          centre
+          if let airPlay = transport.airPlay {
+            airPlayCentre(showing: false, transport: true, airPlay: airPlay)
+          } else {
+            centre
+          }
         }
         .background { PutioVideoScrim().allowsHitTesting(false) }
         .transition(.opacity)
@@ -424,12 +482,28 @@ struct PutioVideoControls<Trailing: View>: View {
           .hidden()
           .accessibilityHidden(true)
       }
-      transportRow
+      transportRow(circled: true)
       if transport.wait.state == .bufferingLong {
         bufferingLabel
           .accessibilityIdentifier("video.buffering")
       }
     }
+  }
+
+  private func airPlayCentre(
+    showing placeholder: Bool, transport shown: Bool, airPlay: PutioVideoAirPlay
+  )
+    -> some View
+  {
+    VStack(spacing: PutioTheme.Spacing.space5) {
+      PutioVideoAirPlayPlaceholder(airPlay: airPlay)
+        .opacity(placeholder ? 1 : 0)
+        .accessibilityHidden(!placeholder)
+      transportRow(circled: false)
+        .opacity(shown ? 1 : 0)
+        .accessibilityHidden(!shown)
+    }
+    .padding(.horizontal, PutioTheme.Spacing.space4)
   }
 
   private var bufferingLabel: some View {
@@ -438,14 +512,14 @@ struct PutioVideoControls<Trailing: View>: View {
       .foregroundStyle(.white.opacity(0.78))
   }
 
-  private var transportRow: some View {
+  private func transportRow(circled: Bool) -> some View {
     HStack(spacing: PutioTheme.Spacing.space4) {
-      PutioVideoSkipButton(seconds: -PutioVideoTimeline.skipInterval) {
+      PutioVideoSkipButton(seconds: -PutioVideoTimeline.skipInterval, circled: circled) {
         transport.skip(by: -PutioVideoTimeline.skipInterval)
         visibility.interacted()
       }
       if transport.wait.state.showsSpinner {
-        PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause) {
+        PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause, circled: circled) {
           ProgressView()
             .controlSize(.large)
             .tint(.white.opacity(0.78))
@@ -458,7 +532,7 @@ struct PutioVideoControls<Trailing: View>: View {
           transport.togglePlayPause()
           visibility.interacted()
         } label: {
-          PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause) {
+          PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause, circled: circled) {
             Image(putioIcon: transport.isPlaying ? .pauseFill : .playFill)
               .resizable()
               .scaledToFit()
@@ -471,7 +545,7 @@ struct PutioVideoControls<Trailing: View>: View {
         )
         .accessibilityIdentifier("video.play-pause")
       }
-      PutioVideoSkipButton(seconds: PutioVideoTimeline.skipInterval) {
+      PutioVideoSkipButton(seconds: PutioVideoTimeline.skipInterval, circled: circled) {
         transport.skip(by: PutioVideoTimeline.skipInterval)
         visibility.interacted()
       }
@@ -598,7 +672,7 @@ private struct PutioVideoPictureInPictureButton: View {
         pictureInPicture.toggle()
         onToggle()
       } label: {
-        PutioVideoRouteLabel(icon: .pictureInPicture)
+        PutioRouteButtonLabel(icon: .pictureInPicture)
       }
       .buttonStyle(.plain)
       .disabled(!transport.controlsEnabled || !pictureInPicture.isPossible)
@@ -609,17 +683,59 @@ private struct PutioVideoPictureInPictureButton: View {
   }
 }
 
-private struct PutioVideoRouteLabel: View {
-  let icon: PutioIcon
+private struct PutioVideoAirPlayButton: View {
+  let isActive: Bool
 
   var body: some View {
-    Image(putioIcon: icon)
-      .resizable()
-      .scaledToFit()
-      .frame(width: PutioVideoMetrics.routeIcon, height: PutioVideoMetrics.routeIcon)
-      .foregroundStyle(.white)
-      .frame(width: PutioVideoMetrics.close, height: PutioVideoMetrics.close)
-      .contentShape(Rectangle())
+    PutioVideoRoutePicker(isActive: isActive)
+      .frame(width: PutioRouteButtonMetrics.target, height: PutioRouteButtonMetrics.target)
+      .accessibilityLabel(String(localized: "AirPlay"))
+      .accessibilityAddTraits(isActive ? .isSelected : [])
+      .accessibilityIdentifier("video.airplay")
+  }
+}
+
+private struct PutioVideoRoutePicker: UIViewRepresentable {
+  let isActive: Bool
+
+  func makeUIView(context: Context) -> AVRoutePickerView {
+    let picker = AVRoutePickerView()
+    picker.prioritizesVideoDevices = true
+    picker.activeTintColor = UIColor(PutioTheme.Colors.accent)
+    return picker
+  }
+
+  func updateUIView(_ picker: AVRoutePickerView, context: Context) {
+    picker.tintColor = isActive ? UIColor(PutioTheme.Colors.accent) : .white
+  }
+}
+
+private struct PutioVideoAirPlayPlaceholder: View {
+  let airPlay: PutioVideoAirPlay
+
+  var body: some View {
+    VStack(spacing: PutioTheme.Spacing.space2) {
+      Image(putioIcon: .airplay)
+        .resizable()
+        .scaledToFit()
+        .frame(width: PutioVideoMetrics.airPlayIcon, height: PutioVideoMetrics.airPlayIcon)
+        .foregroundStyle(PutioTheme.Colors.accent)
+        .padding(.bottom, PutioTheme.Spacing.space2)
+        .accessibilityHidden(true)
+      Text(String(localized: "AirPlay"))
+        .putioFont(PutioTheme.Typography.heading)
+        .foregroundStyle(.white)
+        .accessibilityAddTraits(.isHeader)
+      if let message = airPlay.message {
+        Text(message)
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(.white.opacity(0.78))
+          .multilineTextAlignment(.center)
+      }
+    }
+    .fixedSize(horizontal: false, vertical: true)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("video.airplay-placeholder")
   }
 }
 
@@ -820,13 +936,14 @@ private final class PutioVideoMenuButton: UIButton {
 
 private struct PutioVideoSkipButton: View {
   let seconds: Double
+  var circled = true
   let action: () -> Void
 
   var body: some View {
     let step = Int(abs(seconds))
     let forward = seconds > 0
     Button(action: action) {
-      PutioVideoCircleLabel(diameter: PutioVideoMetrics.skip) {
+      PutioVideoCircleLabel(diameter: PutioVideoMetrics.skip, circled: circled) {
         Image(systemName: forward ? "goforward.\(step)" : "gobackward.\(step)")
           .font(.system(size: 24))
       }
@@ -842,7 +959,7 @@ private struct PutioVideoSkipButton: View {
 
 private enum PutioVideoMetrics {
   static let close: CGFloat = 44
-  static let routeIcon: CGFloat = 20
+  static let airPlayIcon: CGFloat = 32
   static let chipHeight: CGFloat = 34
   static let chipPadding: CGFloat = 14
   static let chipGap: CGFloat = 12
@@ -859,15 +976,17 @@ private enum PutioVideoMetrics {
 
 struct PutioVideoCircleLabel<Glyph: View>: View {
   let diameter: CGFloat
+  var circled = true
   @ViewBuilder let glyph: Glyph
 
   var body: some View {
     glyph
       .foregroundStyle(.white)
       .frame(width: diameter, height: diameter)
-      .background(Color.black.opacity(0.75), in: Circle())
+      .background(Color.black.opacity(circled ? 0.75 : 0), in: Circle())
       .overlay {
-        Circle().strokeBorder(Color.white.opacity(0.07), lineWidth: PutioTheme.Border.width)
+        Circle().strokeBorder(
+          Color.white.opacity(circled ? 0.07 : 0), lineWidth: PutioTheme.Border.width)
       }
       .contentShape(Circle())
   }

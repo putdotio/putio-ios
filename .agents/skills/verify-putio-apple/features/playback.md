@@ -35,8 +35,10 @@ offline playback.
   tap, and keeps it across relaunch.
 - `proxy` waits on a slow proxy list and keeps the checked proxy when put.io
   refuses the tapped one.
-- `cast` connects, controls the session, switches subtitles, and syncs the
-  position back.
+- `cast` connects from the player, controls the session, switches subtitles,
+  and syncs the position back.
+- `cast-routes` shows Picture in Picture, AirPlay and Cast in the route group,
+  drops Cast with no device, and explains Local Network when it is off.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.
@@ -49,8 +51,8 @@ offline playback.
 - Files tab: tap a video or audio row.
 - Long-press a video row and choose Download; the Downloads tab lists it.
 - Account: playback preferences and Cast settings.
-- The player chips for audio, subtitles, and speed; Picture in Picture in the
-  top bar.
+- The player chips for audio, subtitles, and speed; Picture in Picture,
+  AirPlay and Cast in the top bar.
 
 ## Driving it with the harness
 
@@ -117,6 +119,12 @@ Preconditions:
   `rd-ios-acc-33-proxy-unavailable`.
 - **Cast.** Run `--only cast`. Screenshots: `runtime-cast-settings`,
   `runtime-cast-error`, `runtime-cast-controls`, `runtime-cast-signed-out`.
+- **Route group.** Run `--only cast-routes`. Screenshots: `runtime-cast-routes`,
+  `runtime-cast-routes-no-device`, `runtime-cast-local-network-off`.
+  `--putio-harness-cast-no-device` removes the stub receiver and
+  `--putio-harness-cast-local-network-denied` reports Local Network off.
+  `--putio-harness-airplay-device <name>` shows the player as AirPlaying to
+  that device. Boards: `rd-ios-pb-45-no-cast-device`, `rd-ios-pb-23-airplay`.
 - **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
   Screenshots: `runtime-downloads-picker`, `runtime-downloads-queue`,
   `runtime-downloads-detail`, `runtime-downloads-selection`,
@@ -128,6 +136,8 @@ Preconditions:
 ## Gotchas
 
 - Cast uses a stub receiver. It cannot prove a physical Chromecast.
+- The AirPlay fixture forces the layout only; a real AirPlay receiver needs a
+  device.
 - The Simulator does not support Picture in Picture.
   `--putio-harness-picture-in-picture` shows its button for layout only;
   starting and restoring it needs a device.

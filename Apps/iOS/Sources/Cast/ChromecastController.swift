@@ -6,14 +6,16 @@ import UIKit
 
 /// The Google Cast SDK behind `PutioCastControlling`. The shared context is
 /// configured once per process with the effective receiver ID; discovery is
-/// scoped to that receiver and starts on the first Cast button tap so the
+/// scoped to that receiver and starts when a player opens, so the
 /// local-network prompt appears with intent, not at launch.
 @MainActor
 final class PutioGoogleCastController: NSObject, PutioCastControlling {
   private(set) var connection: PutioCastConnection = .unavailable
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  let providesSystemCastButton = true
+
+  private let localNetwork = PutioLocalNetworkProbe()
+  private var localNetworkDenied = false
 
   private var loadedFileID: PutioFileID?
   private var loadedSubtitles: [PutioCastSubtitle] = []
@@ -97,6 +99,16 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     for request in abandoned { request.cancel() }
     for continuation in continuations {
       continuation.resume(throwing: PutioCastControllerError(failure: .receiver))
+    }
+  }
+
+  func startDiscovery() {
+    let discovery = GCKCastContext.sharedInstance().discoveryManager
+    if !discovery.discoveryActive { discovery.startDiscovery() }
+    localNetwork.start { [weak self] denied in
+      guard let self, denied != localNetworkDenied else { return }
+      localNetworkDenied = denied
+      castStateChanged()
     }
   }
 
@@ -246,7 +258,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       ?? String(localized: "Chromecast")
     let next: PutioCastConnection =
       switch context.castState {
-      case .noDevicesAvailable: .unavailable
+      case .noDevicesAvailable: localNetworkDenied ? .localNetworkDenied : .unavailable
       case .notConnected: .disconnected
       case .connecting: .connecting(deviceName: name)
       case .connected: .connected(deviceName: name)
@@ -354,17 +366,4 @@ extension PutioGoogleCastController: GCKRequestDelegate {
       finish(request, error: PutioCastControllerError(failure: .receiver))
     }
   }
-}
-
-/// Google's Cast button, which owns discovery, the device picker, and the
-/// connected/disconnected glyph state.
-struct PutioGoogleCastButton: UIViewRepresentable {
-  func makeUIView(context: Context) -> GCKUICastButton {
-    let button = GCKUICastButton(frame: CGRect(x: 0, y: 0, width: 24, height: 24))
-    button.tintColor = UIColor(PutioTheme.Colors.accent)
-    button.accessibilityIdentifier = "cast.button"
-    return button
-  }
-
-  func updateUIView(_ uiView: GCKUICastButton, context: Context) {}
 }

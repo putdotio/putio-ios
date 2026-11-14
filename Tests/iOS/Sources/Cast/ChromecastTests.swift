@@ -10,7 +10,6 @@ private final class CastControllerStub: PutioCastControlling {
   var connection: PutioCastConnection = .connected(deviceName: "Living Room")
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  var providesSystemCastButton = false
   private(set) var loads: [(PutioCastMedia, String?)] = []
   private(set) var commands: [String] = []
   var loadResults: [Result<Void, PutioCastControllerError>] = []
@@ -20,6 +19,7 @@ private final class CastControllerStub: PutioCastControlling {
   var commandFailure: PutioCastControllerError?
   var reportsSessionEnd = true
 
+  func startDiscovery() { commands.append("discover") }
   func presentDevicePicker() { commands.append("picker") }
 
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
@@ -380,6 +380,24 @@ final class ChromecastTests: XCTestCase {
     XCTAssertFalse(model.showsCastButton)
     model.cast(route)
     XCTAssertEqual(model.activity, .idle, "casting while disconnected is a no-op")
+  }
+
+  func testCastButtonExplainsLocalNetworkInsteadOfOpeningThePicker() {
+    let controller = CastControllerStub()
+    controller.connection = .disconnected
+    let (model, _) = makeModel(controller: controller, resolutions: [])
+    model.castButtonTapped()
+    XCTAssertEqual(controller.commands, ["picker"])
+    XCTAssertFalse(model.presentsLocalNetworkAlert)
+
+    controller.connect(.localNetworkDenied)
+    XCTAssertTrue(model.showsCastButton, "Local Network off hid the Cast button")
+    model.castButtonTapped()
+    XCTAssertEqual(controller.commands, ["picker"], "Local Network off opened the picker")
+    XCTAssertTrue(model.presentsLocalNetworkAlert)
+
+    controller.connect(.unavailable)
+    XCTAssertFalse(model.showsCastButton)
   }
 
   func testControlsForwardToTheReceiverAndStopClearsWithoutDisconnecting() async throws {

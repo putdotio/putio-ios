@@ -13,6 +13,7 @@ typealias PutioCastPlaybackTypeSave =
 /// entry points: no receiver is on the network.
 enum PutioCastConnection: Equatable, Sendable {
   case unavailable
+  case localNetworkDenied
   case disconnected
   case connecting(deviceName: String)
   case connected(deviceName: String)
@@ -20,7 +21,7 @@ enum PutioCastConnection: Equatable, Sendable {
   var deviceName: String? {
     switch self {
     case .connecting(let name), .connected(let name): name
-    case .unavailable, .disconnected: nil
+    case .unavailable, .localNetworkDenied, .disconnected: nil
     }
   }
 
@@ -54,9 +55,7 @@ protocol PutioCastControlling: AnyObject {
   var connection: PutioCastConnection { get }
   var onConnectionChanged: ((PutioCastConnection) -> Void)? { get set }
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)? { get set }
-  /// True when the controller renders Google's own Cast button; the harness
-  /// controller renders a plain button that opens its stub picker.
-  var providesSystemCastButton: Bool { get }
+  func startDiscovery()
   func presentDevicePicker()
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws
   func play() async throws
@@ -161,6 +160,7 @@ final class PutioCastModel {
   /// Rendered position reports; the harness probe re-renders on it.
   private(set) var reportedPosition: (fileID: PutioFileID, seconds: Int)?
   private(set) var presentsControls = false
+  var presentsLocalNetworkAlert = false
 
   @ObservationIgnored private let controller: PutioCastControlling
   @ObservationIgnored private let resolve: PutioCastResolve
@@ -217,11 +217,7 @@ final class PutioCastModel {
       controller as? PutioHarnessCastController
     }
   #endif
-  var providesSystemCastButton: Bool { controller.providesSystemCastButton }
-  /// Google's button stays mounted before discovery: with discovery starting
-  /// on the first tap, hiding it would leave no way to find a receiver. The
-  /// stub button hides when its controller reports no devices.
-  var showsCastButton: Bool { providesSystemCastButton || connection != .unavailable }
+  var showsCastButton: Bool { connection != .unavailable }
 
   /// A bar or sheet has something to show once a file is being prepared,
   /// is loaded on the receiver, or failed on the way there.
@@ -239,8 +235,16 @@ final class PutioCastModel {
 
   // MARK: Session
 
-  func presentDevicePicker() {
-    controller.presentDevicePicker()
+  func startDiscovery() {
+    controller.startDiscovery()
+  }
+
+  func castButtonTapped() {
+    if connection == .localNetworkDenied {
+      presentsLocalNetworkAlert = true
+    } else {
+      controller.presentDevicePicker()
+    }
   }
 
   func showControls() {
