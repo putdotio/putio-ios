@@ -982,6 +982,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(bulkRestore.isEnabled)
     app.staticTexts["Empty Me"].tap()
     XCTAssertTrue(bulkRestore.isEnabled, "selecting a Trash row did not enable Restore")
+    addScreenshot(named: "runtime-trash-selection")
     XCTAssertTrue(app.buttons["trash.bulk.delete"].isEnabled)
     app.buttons["trash.selection.done"].tap()
     XCTAssertTrue(bulkRestore.disappears(within: 5))
@@ -1081,10 +1082,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let secondPageRow = app.staticTexts["Season Pack.zip"]
     XCTAssertTrue(secondPageRow.appears(within: 10), "continuation page never appended")
     XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
+    XCTAssertFalse(app.showsAccent(on: app.buttons["files.sort"]), "the sort button is yellow")
 
     app.swipeUp()
     openSortMenu()
     assertChecked(["Name", "A to Z"], unchecked: ["Z to A", "Unwatched first", "Watched first"])
+    XCTAssertTrue(
+      app.showsAccent(in: imageColumn(of: "A to Z")), "the sort checkmark is not yellow")
+    XCTAssertFalse(
+      app.showsAccent(in: imageColumn(of: "Z to A")), "an unchecked sort row is yellow")
     addScreenshot(named: "runtime-sort-menu-ascending")
     app.sortChoice("Z to A").tap()
     XCTAssertTrue(
@@ -2273,7 +2279,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func isChecked(_ choice: XCUIElement) -> Bool {
-    choice.isSelected || choice.value as? String == "1"
+    choice.images["selected"].exists
+  }
+
+  private func imageColumn(of title: String) -> CGRect {
+    let row = app.sortChoice(title).frame
+    return CGRect(x: row.minX, y: row.minY, width: min(row.width, 56), height: row.height)
   }
 
   private func assertChecked(

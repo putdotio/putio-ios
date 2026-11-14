@@ -146,6 +146,7 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .tint(PutioTheme.Colors.accent)
   }
 
   @ViewBuilder
@@ -450,6 +451,7 @@ struct PutioOfflineTrackPickerView: View {
                   value: PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
               }
             }
+            .putioSwitchTint()
             .accessibilityIdentifier("downloads.track.\(option.languageCode)")
           }
         } header: {

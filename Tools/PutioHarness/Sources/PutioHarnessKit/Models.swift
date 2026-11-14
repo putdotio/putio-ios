@@ -1156,7 +1156,7 @@ enum BrowserJourneyContract {
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [
         "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
-        "runtime-downloads-remove",
+        "runtime-downloads-selection", "runtime-downloads-remove",
       ],
       timeAllowance: 180),
     JourneyPreflight(
@@ -1299,7 +1299,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "trash-management", "FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty",
       attachmentNames: [
-        "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-empty",
+        "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-selection",
+        "runtime-trash-empty",
       ],
       timeAllowance: 90),
     JourneyPreflight(

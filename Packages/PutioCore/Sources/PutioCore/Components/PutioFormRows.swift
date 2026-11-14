@@ -297,7 +297,7 @@ public struct PutioToggleRow: View {
       Toggle(isOn: isOn) {
         PutioSettingsLabel(title: title, subtitle: subtitle, icon: icon)
       }
-      .modifier(PutioNeutralSwitchTint())
+      .putioSwitchTint()
     }
   }
 }
@@ -847,6 +847,12 @@ private struct PutioSettingsSeparatorLeading: ViewModifier {
     #else
       content
     #endif
+  }
+}
+
+extension View {
+  public func putioSwitchTint() -> some View {
+    modifier(PutioNeutralSwitchTint())
   }
 }
 

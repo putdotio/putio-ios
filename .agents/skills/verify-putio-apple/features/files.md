@@ -158,7 +158,8 @@ Preconditions:
   `--putio-harness-unconfirmed-settings` fails account loads after a settings
   save. Screenshots: `runtime-trash-limit`, `runtime-trash-unknown`.
 - **Trash.** Run `--only trash-management`. Screenshots:
-  `runtime-trash-refresh-error`, `runtime-trash-loaded`, `runtime-trash-empty`.
+  `runtime-trash-refresh-error`, `runtime-trash-loaded`, `runtime-trash-selection`,
+  `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new
   name, then "Folder not found" after the delete.
 - **Previews.** Run `--only previews`. Share opens the share sheet for the

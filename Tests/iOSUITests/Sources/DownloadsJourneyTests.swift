@@ -96,9 +96,16 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
     XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
     XCTAssertEqual(item.value as? String, "Not selected")
+    RunLoop.current.run(until: Date.now.addingTimeInterval(1))
+    let rowAccent = app.accentPixelCount(in: rowBand(item))
     item.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { self.app.buttons["downloads.remove-selected"].isEnabled })
     XCTAssertEqual(item.value as? String, "Selected")
+    RunLoop.current.run(until: Date.now.addingTimeInterval(1))
+    screenshot("runtime-downloads-selection")
+    XCTAssertGreaterThan(
+      app.accentPixelCount(in: rowBand(item)), rowAccent + 1_000,
+      "the selection checkmark is not yellow")
     app.buttons["downloads.remove-selected"].tap()
     let removeLocal = app.buttons["downloads.remove-local"].firstMatch
     XCTAssertTrue(removeLocal.appears(within: 5))
@@ -245,6 +252,12 @@ final class DownloadsJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func rowBand(_ row: XCUIElement) -> CGRect {
+    CGRect(
+      x: 0, y: row.frame.minY, width: app.windows.firstMatch.frame.width,
+      height: row.frame.height)
   }
 
   private func screenshot(_ name: String) {

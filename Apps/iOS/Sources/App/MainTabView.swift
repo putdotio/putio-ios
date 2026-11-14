@@ -95,22 +95,22 @@ struct MainTabView: View {
     TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
       } label: {
         Label {
           Text("Files")
         } icon: {
-          Image(putioIcon: .folderFill)
+          tabIcon(.folderFill, for: .files)
         }
       }
       Tab(value: SelectedTab.downloads) {
         downloads
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
       } label: {
         Label {
           Text("Downloads")
         } icon: {
-          Image(putioIcon: .arrowCircleDown)
+          tabIcon(.arrowCircleDown, for: .downloads)
         }
       }
       // Stays while a write is unsaved, in case its alert could not present.
@@ -123,13 +123,13 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .putioToast(shellToast)
+          .shellTabContent(shellToast)
           .id(historyRevision)
         } label: {
           Label {
             Text("History")
           } icon: {
-            Image(putioIcon: .clockCounterClockwise)
+            tabIcon(.clockCounterClockwise, for: .history)
           }
         }
       }
@@ -153,13 +153,13 @@ struct MainTabView: View {
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
           }
         )
-        .putioToast(shellToast)
+        .shellTabContent(shellToast)
         .id(accountNavigationRevision)
       } label: {
         Label {
           Text("Account")
         } icon: {
-          Image(putioIcon: .userCircle)
+          tabIcon(.userCircle, for: .account)
         }
       }
       Tab(value: SelectedTab.search, role: .search) {
@@ -175,7 +175,13 @@ struct MainTabView: View {
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
-        .putioToast(shellToast)
+        .shellTabContent(shellToast)
+      } label: {
+        Label {
+          Text("Search")
+        } icon: {
+          tabIcon(systemName: "magnifyingglass", for: .search)
+        }
       }
       if !pins.sectionItems.isEmpty {
         TabSection {
@@ -198,6 +204,7 @@ struct MainTabView: View {
         }
       }
     }
+    .tint(PutioTheme.Colors.accent)
     .tabViewStyle(.sidebarAdaptable)
     .defaultAdaptableTabBarPlacement(.tabBar)
     .tabViewSidebarBottomBar {
@@ -393,6 +400,17 @@ struct MainTabView: View {
         opensLaunchLink: deepLinks.hasReceivedLink)
     else { return }
     analyticsPrompt = PutioProductAnalyticsPromptModel(actions: .init(runtime: runtime))
+  }
+
+  private func tabIcon(_ icon: PutioIcon, for tab: SelectedTab) -> Image {
+    selectedTab == tab
+      ? Image(putioIcon: icon) : Image(putioIcon: icon, fixed: PutioTheme.Colors.textPrimary)
+  }
+
+  private func tabIcon(systemName: String, for tab: SelectedTab) -> Image {
+    selectedTab == tab
+      ? Image(systemName: systemName)
+      : Image(systemName: systemName, fixed: PutioTheme.Colors.textPrimary)
   }
 
   private var tabSelection: Binding<SelectedTab> {
@@ -968,4 +986,10 @@ private final class PutioOfflineQueueHolder {
 
   /// Stops only a queue that was built; teardown must not build one.
   func stop() { built?.stop() }
+}
+
+extension View {
+  fileprivate func shellTabContent(_ toast: Binding<PutioToast?>) -> some View {
+    putioToast(toast).tint(PutioTheme.Colors.textPrimary)
+  }
 }
