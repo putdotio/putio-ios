@@ -142,25 +142,6 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertTrashRow(shown: false)
     addScreenshot(named: "runtime-file-preferences")
 
-    // Privacy choices are account settings too: diagnostics start on,
-    // product analytics starts off, and both survive the relaunch below.
-    let diagnostics = app.switches["privacy.diagnostics"]
-    let analytics = app.switches["privacy.product-analytics"]
-    assertPrivacySummary("Diagnostics on · Analytics off")
-    openPrivacy()
-    XCTAssertTrue(element("privacy.strictly-necessary").exists)
-    XCTAssertTrue(element("privacy.policy").exists)
-    XCTAssertTrue(element("privacy.services").exists)
-    assertToggle(diagnostics, enabled: true)
-    assertToggle(analytics, enabled: false)
-    tapToggle(analytics)
-    assertToggle(analytics, enabled: true)
-    tapToggle(diagnostics)
-    assertToggle(diagnostics, enabled: false)
-    addScreenshot(named: "runtime-privacy-controls")
-    app.navigationBars.buttons["BackButton"].tap()
-    assertPrivacySummary("Diagnostics off · Analytics on")
-
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
@@ -174,25 +155,27 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
-    assertPrivacySummary("Diagnostics off · Analytics on")
-    openPrivacy()
-    assertToggle(diagnostics, enabled: false)
-    assertToggle(analytics, enabled: true)
-    app.navigationBars.buttons["BackButton"].tap()
+    assertPrivacySummary("Diagnostics on · Analytics off")
     signOut()
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
-  func testFailedPrivacySaveRevertsWithToast() {
+  func testPrivacyControlsRevertAFailedSaveAndPersist() {
     app.launch()
     let signIn = element("auth.sign-in")
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     openPreferences()
+    assertPrivacySummary("Diagnostics on · Analytics off")
     openPrivacy()
+    XCTAssertTrue(element("privacy.strictly-necessary").exists)
+    XCTAssertTrue(element("privacy.policy").exists)
+    XCTAssertTrue(element("privacy.services").exists)
     let diagnostics = app.switches["privacy.diagnostics"]
+    let analytics = app.switches["privacy.product-analytics"]
     assertToggle(diagnostics, enabled: true)
+    assertToggle(analytics, enabled: false)
     tapToggle(diagnostics)
     let toast = app.staticTexts["Couldn’t save this setting"]
     XCTAssertTrue(toast.appears(within: 10))
@@ -202,8 +185,22 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(diagnostics)
     assertToggle(diagnostics, enabled: false)
     XCTAssertFalse(toast.exists)
+    tapToggle(analytics)
+    assertToggle(analytics, enabled: true)
+    addScreenshot(named: "runtime-privacy-controls")
     app.navigationBars.buttons["BackButton"].tap()
-    assertPrivacySummary("Diagnostics off · Analytics off")
+    assertPrivacySummary("Diagnostics off · Analytics on")
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 15))
+    openPreferences()
+    assertPrivacySummary("Diagnostics off · Analytics on")
+    openPrivacy()
+    assertToggle(diagnostics, enabled: false)
+    assertToggle(analytics, enabled: true)
+    app.navigationBars.buttons["BackButton"].tap()
     signOut()
     XCTAssertTrue(signIn.appears(within: 10))
   }
@@ -264,7 +261,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
   }
 
   private func assertFirstFile(_ name: String) {
-    let row = app.cells.firstMatch
+    let row = app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "files.item.")
+    ).firstMatch
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in row.staticTexts[name].exists }, object: row
     )

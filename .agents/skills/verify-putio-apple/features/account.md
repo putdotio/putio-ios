@@ -20,7 +20,8 @@ from a sign-out that did not finish.
   `destroyed-account` lands on the welcome when the account is gone on return.
 - `file-preferences` recovers a failed save, resets, keeps settings across
   relaunch, and hides History when it is off.
-- `privacy-save-failed` reverts a failed Privacy controls switch with a toast.
+- `privacy-controls` reverts a failed Privacy controls switch with a toast and
+  keeps both switches across relaunch.
 - `history` pages, opens items, deletes, and follows the History setting.
 - `rows` opens and closes every Account row from top to end.
 - `settings-states` shows settings loading and failed, retries, and reverts a
@@ -91,10 +92,9 @@ Preconditions:
   `runtime-security-sign-out-others-done`. Never run it on the live account: it
   signs out the shared web, Android and TV sessions.
 - **File preferences.** Run `--only file-preferences`. Screenshots:
-  `runtime-file-preferences`, `runtime-file-preferences-refresh`,
-  `runtime-privacy-controls`.
-- **Privacy save failure.** Run `--only privacy-save-failed`. Screenshot:
-  `runtime-privacy-save-failed`.
+  `runtime-file-preferences`, `runtime-file-preferences-refresh`.
+- **Privacy controls.** Run `--only privacy-controls`. Screenshots:
+  `runtime-privacy-save-failed`, `runtime-privacy-controls`.
 - **History.** Run `--only history`. Screenshots: `runtime-history-loaded`,
   `runtime-history-error`, `runtime-history-empty`.
 - **Rows.** Run `--only account-rows`. Every navigation row opens its screen
