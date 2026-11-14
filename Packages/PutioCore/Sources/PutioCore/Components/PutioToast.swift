@@ -15,18 +15,26 @@ public struct PutioToast: Identifiable, Equatable, Sendable {
     case warning
   }
 
+  public enum Width: Sendable {
+    case fill
+    case fit
+  }
+
   public let id = UUID()
   public let text: String
   public let icon: Icon?
   public let action: Action?
+  public let width: Width
   public let staysUntilDismissed: Bool
 
   public init(
-    _ text: String, icon: Icon? = nil, action: Action? = nil, staysUntilDismissed: Bool = false
+    _ text: String, icon: Icon? = nil, action: Action? = nil, width: Width = .fill,
+    staysUntilDismissed: Bool = false
   ) {
     self.text = text
     self.icon = icon
     self.action = action
+    self.width = width
     self.staysUntilDismissed = staysUntilDismissed
   }
 
@@ -266,6 +274,8 @@ enum PutioToastLayout {
     static let cornerRadius: CGFloat = 26
     static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
 
-    static func fillsWidth(_ toast: PutioToast) -> Bool { toast.icon == nil || toast.action != nil }
+    static func fillsWidth(_ toast: PutioToast) -> Bool {
+      toast.width == .fill || toast.action != nil
+    }
   #endif
 }

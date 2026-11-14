@@ -628,7 +628,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-54-shared-root", .iphone, "testSharedRoot"),
       BoardCapture("rd-ios-55-shared-long-press", .iphone, "testSharedLongPress"),
       BoardCapture("rd-ios-56-copy", .iphone, "testCopy"),
-      BoardCapture("rd-ios-57-copied", .iphone, "testCopied", screenBase: false),
+      BoardCapture("rd-ios-57-copied", .iphone, "testCopied"),
       BoardCapture("rd-ios-19-move", .iphone, "testMove"),
       BoardCapture("rd-ios-78-link-create", .iphone, "testExclusiveLinkCreating"),
       BoardCapture("rd-ios-79-link-created", .iphone, "testExclusiveLinkCreated"),
@@ -638,7 +638,7 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-37-move-current-folder", .iphone, "testMoveCurrentFolder", screenBase: false),
       BoardCapture("rd-ios-38-move-failed", .iphone, "testMoveNameTaken"),
-      BoardCapture("rd-ios-39-moved", .iphone, "testMoved", screenBase: false),
+      BoardCapture("rd-ios-39-moved", .iphone, "testMoved"),
       BoardCapture(
         "rd-ios-69-move-into-itself", .iphone, "testMoveIntoItself", screenBase: false),
       BoardCapture("rd-ios-06-selection", .iphone, "testSelection"),
@@ -650,9 +650,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-70-selection-all", .iphone, "testSelectionAll", screenBase: false),
       BoardCapture("rd-ios-24-ipad-selection", .ipad, "testIPadSelection"),
       BoardCapture(
-        "rd-ios-60-selection-trashed", .iphone, "testSelectionTrashed", screenBase: false),
+        "rd-ios-60-selection-trashed", .iphone, "testSelectionTrashed"),
       BoardCapture(
-        "rd-ios-61-selection-failed", .iphone, "testSelectionFailed", screenBase: false),
+        "rd-ios-61-selection-failed", .iphone, "testSelectionFailed"),
       BoardCapture("Main", .iphone, "testFilesRoot"),
       BoardCapture(
         "rd-ios-25-continue-watching-menu", .iphone, "testContinueWatchingMenu",
@@ -775,7 +775,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-acc-25-history-off", .iphone, "testAccountHistoryOff"),
       BoardCapture("rd-ios-acc-09-app-info", .iphone, "testAccountAppInfo"),
       BoardCapture(
-        "rd-ios-acc-34-app-info-copied", .iphone, "testAccountAppInfoCopied", screenBase: false),
+        "rd-ios-acc-34-app-info-copied", .iphone, "testAccountAppInfoCopied"),
       BoardCapture("rd-ios-acc-10-licenses", .iphone, "testAccountLicenses"),
       BoardCapture("rd-ios-acc-13-apps", .iphone, "testAccountApps"),
       BoardCapture("rd-ios-acc-40-apps-swipe", .iphone, "testAccountAppsSwipe"),

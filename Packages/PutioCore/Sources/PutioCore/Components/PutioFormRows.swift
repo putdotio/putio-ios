@@ -643,7 +643,8 @@ public final class PutioSettingSaveFailures {
   public init() {}
 
   static var failureToast: PutioToast {
-    PutioToast(String(localized: "Couldn’t save this setting", bundle: .module), icon: .warning)
+    PutioToast(
+      String(localized: "Couldn’t save this setting", bundle: .module), icon: .warning, width: .fit)
   }
 
   public func report() {

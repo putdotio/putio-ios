@@ -1165,7 +1165,7 @@ enum GalleryFixtures {
     PutioToast("Moved to trash", action: PutioToast.Action("Undo") {}),
     PutioToast("Restore started"),
     PutioToast("1 item is in the selected folder."),
-    PutioToast("Copied to clipboard"),
+    PutioToast("Copied to clipboard", width: .fit),
   ]
 
   static let largeTextToasts = [
