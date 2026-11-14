@@ -1,5 +1,7 @@
 import AVFoundation
 import AVKit
+import AetherEngine
+import Combine
 import Observation
 import PutioCore
 import SwiftUI
@@ -66,14 +68,31 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
   }()
   private(set) var isPossible = false
   private(set) var isActive = false
+  private(set) var hasRoute = false
 
   @ObservationIgnored private var controller: AVPictureInPictureController?
   @ObservationIgnored private var observations: [NSKeyValueObservation] = []
+  @ObservationIgnored var onActiveChange: (@MainActor (Bool) -> Void)?
+
+  var isShown: Bool { isSupported && hasRoute }
 
   func attach(to layer: AVPlayerLayer) {
     guard isSupported, controller?.playerLayer !== layer else { return }
     release()
+    hasRoute = true
     guard let controller = AVPictureInPictureController(playerLayer: layer) else { return }
+    adopt(controller)
+  }
+
+  func attach(engineController controller: AVPictureInPictureController?, hasRoute: Bool) {
+    if let controller, self.controller === controller { return }
+    release()
+    self.hasRoute = hasRoute
+    guard let controller else { return }
+    adopt(controller)
+  }
+
+  private func adopt(_ controller: AVPictureInPictureController) {
     controller.delegate = self
     self.controller = controller
     observations = [
@@ -89,7 +108,11 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
   }
 
   func detach(from layer: AVPlayerLayer) {
-    guard controller?.playerLayer === layer else { return }
+    guard controller?.playerLayer === layer || (controller == nil && hasRoute) else { return }
+    release()
+  }
+
+  func detachEngine() {
     release()
   }
 
@@ -112,7 +135,10 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
 
   private func refresh() {
     isPossible = controller?.isPictureInPicturePossible ?? false
-    isActive = controller?.isPictureInPictureActive ?? false
+    let active = controller?.isPictureInPictureActive ?? false
+    guard active != isActive else { return }
+    isActive = active
+    onActiveChange?(active)
   }
 
   private func release() {
@@ -123,6 +149,7 @@ final class PutioVideoPictureInPicture: NSObject, AVPictureInPictureControllerDe
       controller.delegate = nil
     }
     controller = nil
+    hasRoute = false
     refresh()
   }
 }
@@ -162,6 +189,7 @@ final class PutioVideoTransport {
   struct Track: Identifiable, Equatable {
     let id: Int
     let title: String
+    var detail: String?
   }
 
   private(set) var isPlaying = false
@@ -173,10 +201,17 @@ final class PutioVideoTransport {
   private(set) var subtitles: [Track] = []
   private(set) var selectedSubtitle: Int?
   private(set) var airPlay: PutioVideoAirPlay?
+  private(set) var subtitleCues: [PutioVideoCue] = []
+  private(set) var supportsAirPlay = true
   let pictureInPicture = PutioVideoPictureInPicture()
   let wait: PutioVideoWaitModel
+  @ObservationIgnored var originalAudioStreams: [PutioOriginalAudioStream] = []
+  @ObservationIgnored var onEngineRestart: (@MainActor (Double) -> Void)?
 
   @ObservationIgnored private var player: AVPlayer?
+  @ObservationIgnored private var engine: AetherEngine?
+  @ObservationIgnored private var engineObservations: Set<AnyCancellable> = []
+  @ObservationIgnored private var engineRoute: (VideoRoute, ObjectIdentifier?)?
   @ObservationIgnored private var attachment: UInt64 = 0
   @ObservationIgnored private var timeObservation: Any?
   @ObservationIgnored private var statusObservation: NSKeyValueObservation?
@@ -239,14 +274,87 @@ final class PutioVideoTransport {
     }
   }
 
+  func engineChanged(to engine: AetherEngine) {
+    detach()
+    attachment &+= 1
+    wait.restart()
+    self.engine = engine
+    engine.$state
+      .sink { [weak self] state in self?.engineStateChanged(state) }
+      .store(in: &engineObservations)
+    engine.$playbackPhase
+      .sink { [weak self] phase in self?.wait.activityChanged(Self.activity(phase)) }
+      .store(in: &engineObservations)
+    engine.clock.$currentTime.combineLatest(engine.$duration)
+      .sink { [weak self] elapsed, duration in
+        self?.playhead.observed(elapsedSeconds: elapsed, durationSeconds: duration)
+      }
+      .store(in: &engineObservations)
+    engine.$audioTracks.combineLatest(engine.$activeAudioTrackIndex)
+      .sink { [weak self] tracks, active in self?.engineAudioChanged(tracks, active: active) }
+      .store(in: &engineObservations)
+    engine.$subtitleTracks.combineLatest(engine.$activeSubtitleTrackIndex)
+      .sink { [weak self] tracks, active in
+        self?.subtitles = tracks.enumerated().map { index, track in
+          Track(
+            id: track.id,
+            title: PutioTrackLabel.subtitleTitle(
+              language: track.language, name: track.name, index: index))
+        }
+        self?.selectedSubtitle = active
+      }
+      .store(in: &engineObservations)
+    engine.$subtitleCues.combineLatest(engine.clock.$sourceTime)
+      .sink { [weak self] cues, time in self?.showCues(cues, at: time) }
+      .store(in: &engineObservations)
+    engine.$videoRoute.combineLatest(engine.$softwarePiPSource)
+      .sink { [weak self, weak engine] route, source in
+        guard let self, let engine else { return }
+        self.engineRouteChanged(route, source: source, engine: engine)
+      }
+      .store(in: &engineObservations)
+    pictureInPicture.onActiveChange = { [weak self, weak engine] active in
+      guard let engine else { return }
+      engine.pictureInPictureActive = active
+      self?.showNativeSubtitle(in: engine, active: active)
+    }
+  }
+
   func setControlsEnabled(_ enabled: Bool, for player: AVPlayer?) {
     guard player === self.player else { return }
     controlsEnabled = enabled
     if enabled { loadTracks() }
   }
 
+  func engineReleased(_ engine: AetherEngine) {
+    guard engine === self.engine else { return }
+    onEngineRestart = nil
+    onReload = nil
+    detach()
+    attachment &+= 1
+  }
+
+  func setControlsEnabled(_ enabled: Bool, for engine: AetherEngine) {
+    guard engine === self.engine else { return }
+    controlsEnabled = enabled
+    if enabled, speed != .normal { engine.setRate(speed.rawValue) }
+  }
+
   func togglePlayPause() {
-    guard controlsEnabled, let player else { return }
+    guard controlsEnabled else { return }
+    if let engine {
+      if engine.state == .ended {
+        let elapsed = timeline.elapsedSeconds
+        let duration = timeline.durationSeconds ?? 0
+        onEngineRestart?(elapsed >= duration - 0.5 ? 0 : elapsed)
+      } else if isPlaying {
+        engine.pause()
+      } else {
+        engine.play()
+      }
+      return
+    }
+    guard let player else { return }
     if isPlaying {
       player.pause()
     } else {
@@ -270,9 +378,20 @@ final class PutioVideoTransport {
   }
 
   func seek(to seconds: Double) {
-    guard controlsEnabled, let player else { return }
-    let seek = playhead.seekStarted(to: seconds)
+    guard controlsEnabled else { return }
     let attachment = attachment
+    if let engine {
+      let seek = playhead.seekStarted(to: seconds)
+      let target = playhead.timeline.elapsedSeconds
+      Task { @MainActor [weak self, weak engine] in
+        await engine?.seek(to: target)
+        guard let self, self.attachment == attachment else { return }
+        playhead.seekFinished(seek)
+      }
+      return
+    }
+    guard let player else { return }
+    let seek = playhead.seekStarted(to: seconds)
     player.seek(
       to: CMTime(seconds: playhead.timeline.elapsedSeconds, preferredTimescale: 600),
       toleranceBefore: .zero,
@@ -287,11 +406,21 @@ final class PutioVideoTransport {
 
   func setSpeed(_ speed: PutioAudioSpeed) {
     self.speed = speed
+    if let engine {
+      engine.setRate(speed.rawValue)
+      return
+    }
     player?.defaultRate = speed.rawValue
     if isPlaying { player?.rate = speed.rawValue }
   }
 
   func selectAudio(_ index: Int) {
+    if let engine {
+      guard audioTracks.contains(where: { $0.id == index }) else { return }
+      engine.selectAudioTrack(index: index)
+      selectedAudio = index
+      return
+    }
     guard let item = player?.currentItem, let audible, audible.options.indices.contains(index)
     else { return }
     item.select(audible.options[index], in: audible.group)
@@ -299,6 +428,16 @@ final class PutioVideoTransport {
   }
 
   func selectSubtitle(_ index: Int?) {
+    if let engine {
+      if let index {
+        guard subtitles.contains(where: { $0.id == index }) else { return }
+        engine.selectSubtitleTrack(index: index)
+      } else {
+        engine.clearSubtitle()
+      }
+      selectedSubtitle = index
+      return
+    }
     guard let item = player?.currentItem, let legible else { return }
     if let index {
       guard legible.options.indices.contains(index) else { return }
@@ -324,10 +463,19 @@ final class PutioVideoTransport {
     if let selectionObservation { NotificationCenter.default.removeObserver(selectionObservation) }
     selectionObservation = nil
     player = nil
+    if engine != nil {
+      engineObservations.removeAll()
+      pictureInPicture.onActiveChange = nil
+      pictureInPicture.detachEngine()
+      engineRoute = nil
+      supportsAirPlay = true
+      engine = nil
+    }
     audible = nil
     legible = nil
     audioTracks = []
     subtitles = []
+    subtitleCues = []
     selectedAudio = nil
     selectedSubtitle = nil
     isPlaying = false
@@ -355,6 +503,80 @@ final class PutioVideoTransport {
     }
   }
 
+  private func engineStateChanged(_ state: PlaybackState) {
+    switch state {
+    case .playing:
+      isPlaying = true
+    case .paused, .ended, .idle, .error:
+      isPlaying = false
+    case .loading, .seeking:
+      break
+    }
+  }
+
+  private static func activity(_ phase: PlaybackPhase) -> PutioVideoPlayerActivity {
+    switch phase {
+    case .playing: .playing
+    case .loading, .seeking, .rebuffering, .stalled: .waiting
+    case .idle, .paused, .ended, .error: .paused
+    }
+  }
+
+  private func engineAudioChanged(_ tracks: [TrackInfo], active: Int?) {
+    let decodable = tracks.enumerated().filter {
+      PutioDirectPlayDecoders.canDecodeAudio(codec: $0.element.codec)
+    }
+    let titles = PutioTrackLabel.distinct(
+      decodable.map { index, track in
+        PutioTrackLabel.audioTitle(language: track.language, name: track.name, index: index)
+      })
+    audioTracks = zip(decodable, titles).map { entry, title in
+      Track(
+        id: entry.element.id, title: title,
+        detail: PutioTrackLabel.audioDetail(
+          codec: entry.element.codec, profile: entry.element.profile,
+          channels: entry.element.channels))
+    }
+    selectedAudio = active.flatMap { id in audioTracks.contains { $0.id == id } ? id : nil }
+  }
+
+  private func engineRouteChanged(
+    _ route: VideoRoute, source: SoftwarePiPSource?, engine: AetherEngine
+  ) {
+    supportsAirPlay = route == .loopback || route == .remoteBypass
+    let key = (route, source.map(ObjectIdentifier.init))
+    if let engineRoute, engineRoute.0 == key.0, engineRoute.1 == key.1 { return }
+    engineRoute = key
+    switch route {
+    case .software:
+      pictureInPicture.attach(
+        engineController: source?.makePictureInPictureController(), hasRoute: source != nil)
+    case .loopback, .remoteBypass:
+      let layer = engine.nativePlayerLayer
+      pictureInPicture.attach(
+        engineController: layer.flatMap(AVPictureInPictureController.init(playerLayer:)),
+        hasRoute: layer != nil)
+    default:
+      pictureInPicture.attach(engineController: nil, hasRoute: false)
+    }
+  }
+
+  private func showNativeSubtitle(in engine: AetherEngine, active: Bool) {
+    let language = engine.subtitleTracks.first { $0.id == selectedSubtitle }?.language
+    let native =
+      active
+      ? language.flatMap { language in
+        engine.nativeSubtitleTracks.first { $0.language == language }?.ordinal
+      } : nil
+    engine.setNativeSubtitleSelected(track: native)
+  }
+
+  private func showCues(_ cues: [SubtitleCue], at time: Double) {
+    let showing = cues.filter { $0.startTime <= time && time < $0.endTime }
+    guard showing.map(\.id) != subtitleCues.map(\.id) else { return }
+    subtitleCues = showing.map(PutioVideoCue.init)
+  }
+
   private func update(time: CMTime) {
     guard let item = player?.currentItem else { return }
     playhead.observed(
@@ -368,11 +590,15 @@ final class PutioVideoTransport {
       let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
       let legibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .legible)
       guard let self, !Task.isCancelled, player?.currentItem === item else { return }
-      audible = audibleGroup.map { ($0, $0.options) }
+      let details = Self.details(for: audibleGroup?.options ?? [], streams: originalAudioStreams)
+      let playable = (audibleGroup?.options ?? []).filter(\.isPlayable)
+      audible = audibleGroup.map { ($0, playable) }
       legible = legibleGroup.map { group in
         (group, group.options.filter { !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) })
       }
-      audioTracks = Self.tracks(audible?.options ?? [])
+      audioTracks = playable.enumerated().map { index, option in
+        Track(id: index, title: option.displayName, detail: details[option])
+      }
       subtitles = Self.tracks(legible?.options ?? [])
       selectionObservation = NotificationCenter.default.addObserver(
         forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
@@ -400,6 +626,41 @@ final class PutioVideoTransport {
 
   private static func tracks(_ options: [AVMediaSelectionOption]) -> [Track] {
     options.enumerated().map { Track(id: $0.offset, title: $0.element.displayName) }
+  }
+
+  private static func details(
+    for options: [AVMediaSelectionOption], streams: [PutioOriginalAudioStream]
+  ) -> [AVMediaSelectionOption: String] {
+    guard !streams.isEmpty, options.count == streams.count else { return [:] }
+    var details: [AVMediaSelectionOption: String] = [:]
+    for (option, stream) in zip(options, streams) {
+      details[option] = PutioTrackLabel.audioDetail(
+        codec: stream.codec, profile: stream.profile, channels: stream.channels)
+    }
+    return details
+  }
+}
+
+struct PutioVideoCue: Identifiable, Equatable {
+  let id: Int
+  let text: String?
+  let image: CGImage?
+  let position: CGRect?
+
+  init(_ cue: SubtitleCue) {
+    id = cue.id
+    text = cue.text
+    if case .image(let image) = cue.body {
+      self.image = image.cgImage
+      position = image.position
+    } else {
+      image = nil
+      position = nil
+    }
+  }
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.id == rhs.id && lhs.text == rhs.text
   }
 }
 
@@ -434,7 +695,9 @@ struct PutioVideoControls<Trailing: View>: View {
               if transport.airPlay == nil {
                 PutioVideoPictureInPictureButton(transport: transport) { visibility.interacted() }
               }
-              PutioVideoAirPlayButton(isActive: transport.airPlay != nil)
+              if transport.supportsAirPlay {
+                PutioVideoAirPlayButton(isActive: transport.airPlay != nil)
+              }
               if transport.airPlay == nil { trailing }
             }
             if let airPlay = transport.airPlay {
@@ -685,7 +948,7 @@ private struct PutioVideoPictureInPictureButton: View {
 
   var body: some View {
     let pictureInPicture = transport.pictureInPicture
-    if pictureInPicture.isSupported {
+    if pictureInPicture.isShown {
       Button {
         pictureInPicture.toggle()
         onToggle()
@@ -790,7 +1053,7 @@ private struct PutioVideoChipRow: View {
           label: String(localized: "Audio: \(title)"), identifier: "video.chip.audio",
           choices: transport.audioTracks.map { track in
             PutioVideoChipChoice(
-              title: track.title, identifier: "video.audio.\(track.id)",
+              title: track.title, detail: track.detail, identifier: "video.audio.\(track.id)",
               selected: transport.selectedAudio == track.id
             ) { transport.selectAudio(track.id) }
           })
@@ -869,12 +1132,14 @@ private struct PutioVideoChipLabel: View {
 
 private struct PutioVideoChipChoice: Equatable {
   let title: String
+  var detail: String?
   let identifier: String
   let selected: Bool
   let select: @MainActor () -> Void
 
   static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.title == rhs.title && lhs.identifier == rhs.identifier && lhs.selected == rhs.selected
+    lhs.title == rhs.title && lhs.detail == rhs.detail && lhs.identifier == rhs.identifier
+      && lhs.selected == rhs.selected
   }
 }
 
@@ -909,7 +1174,9 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
     button.menu = UIMenu(
       options: .singleSelection,
       children: choices.map { choice in
-        let action = UIAction(title: choice.title, state: choice.selected ? .on : .off) { _ in
+        let action = UIAction(
+          title: choice.title, subtitle: choice.detail, state: choice.selected ? .on : .off
+        ) { _ in
           choice.select()
           onChange()
         }

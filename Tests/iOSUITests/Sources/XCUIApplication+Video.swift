@@ -28,6 +28,7 @@ extension XCUIApplication {
     let reached = NSPredicate(format: "label == %@", target)
     for _ in 0..<3 {
       revealVideoControls(showing: playPause, file: file, line: line)
+      guard playPause.exists, playPause.isHittable else { continue }
       if playPause.label == target { return }
       playPause.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
       let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
@@ -50,6 +51,7 @@ extension XCUIApplication {
   func closeVideo(file: StaticString = #filePath, line: UInt = #line) {
     for _ in 0..<3 {
       revealVideoControls(showing: videoClose, file: file, line: line)
+      guard videoClose.exists, videoClose.isHittable else { continue }
       videoClose.tap()
       if videoClose.disappears(within: 3) { return }
     }

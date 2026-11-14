@@ -36,6 +36,13 @@ extension PutioPlaybackMethod {
     }
   }
 
+  var playWithTitle: String {
+    switch self {
+    case .standard: String(localized: "Play with Standard")
+    case .directPlay: String(localized: "Play with Direct play")
+    }
+  }
+
   fileprivate var summary: String {
     switch self {
     case .standard:
@@ -52,4 +59,23 @@ extension PutioPlaybackMethod {
         )
     }
   }
+}
+
+struct PutioPlayWithOtherMethod {
+  let method: PutioPlaybackMethod
+  let play: @MainActor @Sendable (PutioFileRoute, PutioPlaybackMethod) -> Void
+
+  @MainActor
+  func action(for route: PutioFileRoute, isDisabled: Bool = false) -> PutioItemAction {
+    let method = method
+    let play = play
+    return PutioItemAction(
+      id: "play-with-other-method", title: method.playWithTitle, icon: .playCircle,
+      isDisabled: isDisabled
+    ) { play(route, method) }
+  }
+}
+
+extension EnvironmentValues {
+  @Entry var putioPlayWithOtherMethod: PutioPlayWithOtherMethod? = nil
 }

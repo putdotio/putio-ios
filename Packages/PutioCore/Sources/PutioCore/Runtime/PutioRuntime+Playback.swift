@@ -33,6 +33,51 @@ extension PutioRuntime {
     }
   }
 
+  /// Resolves a video under a Playback method. Standard is the HLS source
+  /// above. Direct play asks the SDK's resolver for the original. AVPlayer
+  /// keeps an MP4 or MOV original it decodes that has no put.io subtitle
+  /// files; every other original plays in the engine with those files.
+  /// `isPlayableInAVPlayer` answers for an extended MP4 MIME type.
+  public func resolveVideoPlayback(
+    fileID: PutioFileID, method: PutioPlaybackMethod,
+    isPlayableInAVPlayer: @escaping @Sendable (String) -> Bool
+  ) async throws -> PutioPlaybackResolution {
+    guard method == .directPlay else { return try await resolveVideoPlaybackSource(fileID: fileID) }
+    let resolved = try await performAuthenticatedOperation {
+      () -> (plan: PutioPlaybackPlan, token: String)? in
+      guard let token = try? requireDownloadToken(session.downloadToken) else { return nil }
+      let plan = try await sdk.resolvePlayback(
+        fileID: fileID.rawValue, downloadToken: token, method: .directPlay,
+        canPlayOriginal: { PutioDirectPlayDecoders.support(of: $0) })
+      return (plan, token)
+    }
+    guard let resolved else { throw PutioRuntimeError.invalidResponse }
+
+    switch resolved.plan {
+    case .ready(let stream):
+      guard stream.kind == .original else {
+        return .ready(PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom))
+      }
+      let sidecars = try? await sidecarSubtitles(fileID: fileID, token: resolved.token)
+      let subtitles = sidecars?.subtitles ?? []
+      let player =
+        subtitles.isEmpty
+        ? stream.mediaInfo.map {
+          PutioDirectPlayDecoders.player(for: $0, isPlayableInAVPlayer: isPlayableInAVPlayer)
+        } ?? .engine : .engine
+      let original = PutioOriginalPlayback(
+        player: player, audioStreams: PutioDirectPlayDecoders.audioStreams(of: stream.mediaInfo),
+        subtitles: subtitles, defaultSubtitleKey: sidecars?.defaultKey)
+      return .ready(
+        PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom, original: original)
+      )
+    case .conversionRequired:
+      return .conversionRequired
+    case .unplayable(let reason):
+      throw PutioPlaybackUnplayable(reason: reason.rawValue)
+    }
+  }
+
   public func resolveAudioPlaybackSource(fileID: PutioFileID) async throws -> PutioPlaybackSource {
     let source = try await performAuthenticatedOperation { () -> PutioAudioPlaybackSource? in
       guard let token = try? requireDownloadToken(session.downloadToken) else { return nil }
@@ -187,39 +232,47 @@ extension PutioRuntime {
             playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
             startFromSeconds: startFrom, subtitles: subtitles, defaultSubtitleKey: defaultKey))
       }
-      guard try !signedInAccount().hideSubtitles else { return media([], nil) }
-      let response = try await performAuthenticatedOperation {
-        try await sdk.getSubtitles(fileID: fileID.rawValue)
-      }
-      // The receiver fetches tracks itself, without the app's header, so the
-      // download token rides on the URL; only the API host may receive it.
-      let apiHost = URL(string: sdk.config.baseURL)?.host
-      var keys = Set<String>()
-      let subtitles = response.subtitles.compactMap { subtitle -> PutioCastSubtitle? in
-        guard !subtitle.key.isEmpty, keys.insert(subtitle.key).inserted,
-          var components = URLComponents(string: subtitle.url), components.scheme == "https",
-          let apiHost, components.host == apiHost
-        else { return nil }
-        var items = (components.queryItems ?? []).filter {
-          $0.name != "oauth_token" && $0.name != "format"
-        }
-        items.append(URLQueryItem(name: "oauth_token", value: token))
-        items.append(URLQueryItem(name: "format", value: "webvtt"))
-        components.queryItems = items
-        guard let url = components.url else { return nil }
-        return PutioCastSubtitle(
-          key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
-          name: subtitle.name, url: url)
-      }
-      // The account may have refreshed while the tracks loaded.
-      let account = try signedInAccount()
-      guard !account.hideSubtitles else { return media([], nil) }
-      let defaultKey = response.defaultKey.flatMap { key in
-        subtitles.contains { $0.key == key } ? key : nil
-      }
-      return media(
-        subtitles, account.dontAutoSelectSubtitles ? nil : defaultKey ?? subtitles.first?.key)
+      let sidecars = try await sidecarSubtitles(fileID: fileID, token: token)
+      return media(sidecars.subtitles, sidecars.defaultKey)
     }
+  }
+
+  /// put.io's subtitle files for a video as WebVTT, under the account's
+  /// subtitle settings. The receiver and the Direct play engine fetch them
+  /// without the app's header, so the download token rides on the URL; only
+  /// the API host may receive it.
+  private func sidecarSubtitles(fileID: PutioFileID, token: String) async throws
+    -> (subtitles: [PutioCastSubtitle], defaultKey: String?)
+  {
+    guard try !signedInAccount().hideSubtitles else { return ([], nil) }
+    let response = try await performAuthenticatedOperation {
+      try await sdk.getSubtitles(fileID: fileID.rawValue)
+    }
+    let apiHost = URL(string: sdk.config.baseURL)?.host
+    var keys = Set<String>()
+    let subtitles = response.subtitles.compactMap { subtitle -> PutioCastSubtitle? in
+      guard !subtitle.key.isEmpty, keys.insert(subtitle.key).inserted,
+        var components = URLComponents(string: subtitle.url), components.scheme == "https",
+        let apiHost, components.host == apiHost
+      else { return nil }
+      var items = (components.queryItems ?? []).filter {
+        $0.name != "oauth_token" && $0.name != "format"
+      }
+      items.append(URLQueryItem(name: "oauth_token", value: token))
+      items.append(URLQueryItem(name: "format", value: "webvtt"))
+      components.queryItems = items
+      guard let url = components.url else { return nil }
+      return PutioCastSubtitle(
+        key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
+        name: subtitle.name, url: url)
+    }
+    // The account may have refreshed while the tracks loaded.
+    let account = try signedInAccount()
+    guard !account.hideSubtitles else { return ([], nil) }
+    let defaultKey = response.defaultKey.flatMap { key in
+      subtitles.contains { $0.key == key } ? key : nil
+    }
+    return (subtitles, account.dontAutoSelectSubtitles ? nil : defaultKey ?? subtitles.first?.key)
   }
 
   private func signedInAccount() throws -> PutioAccountSnapshot {

@@ -3757,6 +3757,17 @@ import Foundation
         """
     }
 
+    private static let directPlayMediaInfo = """
+      {"mime_type": "video/x-matroska", "format": {"name": "matroska,webm"},
+      "streams": [
+      {"codec_type": "video", "codec_name": "h264", "width": 320, "height": 180,
+      "profile": "High", "level": 13},
+      {"codec_type": "audio", "codec_name": "aac", "profile": "LC", "channels": 2},
+      {"codec_type": "audio", "codec_name": "eac3", "channels": 6},
+      {"codec_type": "subtitle", "codec_name": "subrip"}],
+      "playback_issues": []}
+      """
+
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {
       let needsConversion: Bool
       if id == 411 {
@@ -3776,8 +3787,10 @@ import Foundation
             "created_at": "2026-09-01T12:00:00",
             "updated_at": "2026-09-01T12:00:00",
             "need_convert": \(needsConversion),
+            "is_mp4_available": false,
             "start_from": \(startFrom),
-            "video_metadata": {"duration": 590, "codec": "h264", "width": 1920, "height": 1080}
+            "video_metadata": {"duration": 590, "codec": "h264", "width": 1920, "height": 1080},
+            "media_info": \(directPlayMediaInfo)
           }
         }
         """

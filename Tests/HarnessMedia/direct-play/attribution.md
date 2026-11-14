@@ -27,6 +27,3 @@ ffmpeg -f lavfi -i "color=c=0x1a1a1e:s=320x180:r=1:d=30" \
   -disposition:v:0 default -disposition:a:0 default -disposition:a:1 0 \
   runtime-proof-direct.mkv
 ```
-
-Nothing copies it into the app yet; the Direct play journey adds it to the
-Debug-only harness media.

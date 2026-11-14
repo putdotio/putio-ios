@@ -2,6 +2,7 @@ import Foundation
 
 public enum PutioFileMenuRow: String, Hashable, Sendable {
   case play
+  case playWithOtherMethod
   case download
   case openInVLC
   case share
@@ -28,10 +29,14 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var canCopy: Bool
     /// Whether the item is pinned; `nil` leaves Pin and Unpin out.
     public var pinned: Bool?
+    /// The method a video's "Play with" row names: the one that is not the
+    /// account's. `nil` leaves the row out.
+    public var otherPlaybackMethod: PutioPlaybackMethod?
 
     public init(
       canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
-      canShare: Bool = false, canLink: Bool = false, canCopy: Bool = false, pinned: Bool? = nil
+      canShare: Bool = false, canLink: Bool = false, canCopy: Bool = false, pinned: Bool? = nil,
+      otherPlaybackMethod: PutioPlaybackMethod? = nil
     ) {
       self.canEdit = canEdit
       self.canDownload = canDownload
@@ -41,6 +46,7 @@ public struct PutioFileMenu: Equatable, Sendable {
       self.canLink = canLink
       self.pinned = pinned
       self.canCopy = canCopy
+      self.otherPlaybackMethod = otherPlaybackMethod
     }
   }
 
@@ -55,6 +61,9 @@ public struct PutioFileMenu: Equatable, Sendable {
     var playback: [PutioFileMenuRow] = []
     if let route, route.isPlayable {
       playback.append(.play)
+      if capabilities.otherPlaybackMethod != nil, item.kind == .video {
+        playback.append(.playWithOtherMethod)
+      }
       if capabilities.canDownload, route.supportsOfflineDownload { playback.append(.download) }
       if capabilities.vlcInstalled, route.supportsExternalPlayback {
         playback.append(.openInVLC)
