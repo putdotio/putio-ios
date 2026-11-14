@@ -253,31 +253,25 @@ struct PutioVideoControls<Trailing: View>: View {
         .onTapGesture { animate { visibility.toggled() } }
         .ignoresSafeArea()
         .accessibilityHidden(true)
-      ZStack {
-        VStack(spacing: 0) {
-          PutioVideoTopBar(title: title, onClose: onClose) {
-            trailing
-            PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
+      if visibility.isVisible {
+        ZStack {
+          VStack(spacing: 0) {
+            PutioVideoTopBar(title: title, onClose: onClose) {
+              trailing
+              PutioVideoOptionsMenu(transport: transport) { visibility.interacted() }
+            }
+            Spacer(minLength: PutioTheme.Spacing.space3)
+            PutioVideoScrubber(transport: transport) {
+              visibility.interacted()
+            } onScrubbing: {
+              visibility.set(.scrubbing, $0)
+            }
           }
-          Spacer(minLength: PutioTheme.Spacing.space3)
-          PutioVideoScrubber(transport: transport) {
-            visibility.interacted()
-          } onScrubbing: {
-            visibility.set(.scrubbing, $0)
-          }
+          .padding(PutioTheme.Spacing.space3)
+          centre
         }
-        .padding(PutioTheme.Spacing.space3)
-        centre
-      }
-      .background { PutioVideoScrim().allowsHitTesting(false) }
-      .opacity(visibility.isVisible ? 1 : 0)
-      .accessibilityHidden(!visibility.isVisible)
-      if !visibility.isVisible {
-        Color.clear
-          .contentShape(Rectangle())
-          .onTapGesture { animate { visibility.toggled() } }
-          .ignoresSafeArea()
-          .accessibilityHidden(true)
+        .background { PutioVideoScrim().allowsHitTesting(false) }
+        .transition(.opacity)
       }
     }
     .statusBarHidden(!visibility.isVisible)
