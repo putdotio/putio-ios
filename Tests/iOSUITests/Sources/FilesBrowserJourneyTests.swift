@@ -1915,7 +1915,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func assertPlayingToTheEndMarksWatchedAndReopensFromTheStart() {
     let rootVideo = element(identifier: "files.item.412")
-    let done = element(identifier: "video.done")
     let ready = element(identifier: "video.ready")
     XCTAssertTrue(rootVideo.appears(within: 5), "root video row never appeared")
     XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
@@ -1934,7 +1933,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let endSeconds = reportedSeconds(
       of: 412, from: element(identifier: "video.position-reported").value as? String)
     XCTAssertGreaterThanOrEqual(endSeconds ?? -1, 567, "the save did not reach 96% of 590 s")
-    done.tap()
+    app.closeVideo()
 
     let watchedRow = XCTNSPredicateExpectation(
       predicate: NSPredicate(
@@ -1963,7 +1962,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       XCTWaiter.wait(for: [fromTheStart], timeout: 10), .completed,
       "the watched video did not open from the start: \(currentPosition.value ?? "none")")
     XCTAssertFalse(element(identifier: "video.ended").exists, "the watched video opened at its end")
-    done.tap()
+    app.closeVideo()
     XCTAssertTrue(rootVideo.appears(within: 5), "the watched video did not return to the root")
   }
 
