@@ -410,6 +410,7 @@ struct PutioVideoControls<Trailing: View>: View {
   @ViewBuilder let trailing: Trailing
 
   @State private var visibility = PutioVideoControlsVisibility()
+  @State private var airPlayArea: CGRect?
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -420,8 +421,10 @@ struct PutioVideoControls<Trailing: View>: View {
         .onTapGesture { animate { visibility.toggled() } }
         .ignoresSafeArea()
         .accessibilityHidden(true)
-      if let airPlay = transport.airPlay {
+      if let airPlay = transport.airPlay, let airPlayArea {
         airPlayCentre(airPlay, placeholderLayer: true)
+          .frame(width: airPlayArea.width, height: airPlayArea.height)
+          .position(x: airPlayArea.midX, y: airPlayArea.midY)
           .allowsHitTesting(false)
       }
       if visibility.isVisible {
@@ -434,7 +437,17 @@ struct PutioVideoControls<Trailing: View>: View {
               PutioVideoAirPlayButton(isActive: transport.airPlay != nil)
               if transport.airPlay == nil { trailing }
             }
-            Spacer(minLength: PutioTheme.Spacing.space3)
+            if let airPlay = transport.airPlay {
+              airPlayCentre(airPlay, placeholderLayer: false)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onGeometryChange(for: CGRect.self) {
+                  $0.frame(in: .named(Self.coordinateSpace))
+                } action: {
+                  airPlayArea = $0
+                }
+            } else {
+              Spacer(minLength: PutioTheme.Spacing.space3)
+            }
             PutioVideoChipRow(transport: transport) {
               visibility.interacted()
             } onMenu: {
@@ -448,16 +461,13 @@ struct PutioVideoControls<Trailing: View>: View {
             }
           }
           .padding(PutioTheme.Spacing.space3)
-          if let airPlay = transport.airPlay {
-            airPlayCentre(airPlay, placeholderLayer: false)
-          } else {
-            centre
-          }
+          if transport.airPlay == nil { centre }
         }
         .background { PutioVideoScrim().allowsHitTesting(false) }
         .transition(.opacity)
       }
     }
+    .coordinateSpace(.named(Self.coordinateSpace))
     .statusBarHidden(!visibility.isVisible)
     .persistentSystemOverlays(visibility.isVisible ? .automatic : .hidden)
     .task(id: visibility.idleGeneration) {
@@ -490,8 +500,10 @@ struct PutioVideoControls<Trailing: View>: View {
     }
   }
 
+  private static var coordinateSpace: String { "video.controls" }
+
   private func airPlayCentre(_ airPlay: PutioVideoAirPlay, placeholderLayer: Bool) -> some View {
-    VStack(spacing: PutioTheme.Spacing.space5) {
+    VStack(spacing: PutioTheme.Spacing.space3) {
       if placeholderLayer {
         PutioVideoAirPlayPlaceholder(airPlay: airPlay)
         transportRow(circled: false).hidden()
@@ -501,6 +513,7 @@ struct PutioVideoControls<Trailing: View>: View {
       }
     }
     .padding(.horizontal, PutioTheme.Spacing.space4)
+    .padding(.vertical, PutioTheme.Spacing.space2)
   }
 
   private var bufferingLabel: some View {
@@ -516,7 +529,7 @@ struct PutioVideoControls<Trailing: View>: View {
         visibility.interacted()
       }
       if transport.wait.state.showsSpinner {
-        PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause, circled: circled) {
+        PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause(circled), circled: circled) {
           ProgressView()
             .controlSize(.large)
             .tint(.white.opacity(0.78))
@@ -529,7 +542,7 @@ struct PutioVideoControls<Trailing: View>: View {
           transport.togglePlayPause()
           visibility.interacted()
         } label: {
-          PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause, circled: circled) {
+          PutioVideoCircleLabel(diameter: PutioVideoMetrics.playPause(circled), circled: circled) {
             Image(putioIcon: transport.isPlaying ? .pauseFill : .playFill)
               .resizable()
               .scaledToFit()
@@ -940,7 +953,9 @@ private struct PutioVideoSkipButton: View {
     let step = Int(abs(seconds))
     let forward = seconds > 0
     Button(action: action) {
-      PutioVideoCircleLabel(diameter: PutioVideoMetrics.skip, circled: circled) {
+      PutioVideoCircleLabel(
+        diameter: circled ? PutioVideoMetrics.skip : PutioVideoMetrics.close, circled: circled
+      ) {
         Image(systemName: forward ? "goforward.\(step)" : "gobackward.\(step)")
           .font(.system(size: 24))
       }
@@ -962,7 +977,7 @@ private enum PutioVideoMetrics {
   static let chipGap: CGFloat = 12
   static let chipIcon = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .caption)
   static let skip: CGFloat = 56
-  static let playPause: CGFloat = 72
+  static func playPause(_ circled: Bool) -> CGFloat { circled ? 72 : 56 }
   static let titleFont = PutioFontRole(
     fontName: PutioTheme.Components.Button.label.fontName,
     size: PutioTheme.Typography.sizeBase,
