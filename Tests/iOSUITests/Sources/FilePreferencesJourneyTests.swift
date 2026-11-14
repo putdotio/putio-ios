@@ -155,6 +155,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     _ = app.revealed("settings.history")
     assertToggle(history, enabled: true)
+    assertPrivacySummary("Diagnostics on · Analytics off")
     signOut()
     XCTAssertTrue(signIn.appears(within: 10))
   }
