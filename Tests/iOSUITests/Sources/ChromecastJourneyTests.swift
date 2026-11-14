@@ -35,24 +35,30 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertFalse(element("cast-settings.receiver").exists)
     XCTAssertFalse(app.staticTexts["Receiver app ID"].exists)
     screenshot("runtime-cast-settings")
-    app.navigationBars.buttons["BackButton"].tap()
+    let back = app.navigationBars.buttons["BackButton"]
+    back.tap()
+    if !back.disappears(within: 3) { back.tap() }
+    app.showTabBar()
 
-    // Connect through the stub picker from the Files toolbar.
     app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let castButton = app.buttons["cast.button"]
-    XCTAssertTrue(castButton.appears(within: 5))
-    castButton.tap()
-    let device = app.buttons["cast.picker.device"]
-    XCTAssertTrue(device.appears(within: 5))
-    device.tap()
-    XCTAssertTrue(
-      waitUntil(timeout: 5) { castButton.label == "Cast, connected" },
-      "session never connected: \(castButton.label)")
+    XCTAssertFalse(castButton.exists, "the Files toolbar still offers Cast")
+    let row = element("files.item.412")
+    XCTAssertTrue(row.appears(within: 5))
+    let folder = element("files.item.410")
+    XCTAssertTrue(folder.becomesHittable(within: 10), "the Harness Folder is not tappable")
+    folder.tap()
+    let nested = element("files.item.411")
+    XCTAssertTrue(nested.appears(within: 10), "the nested video never appeared")
+    openLocally(nested)
+    connectFromPlayer()
+    app.closeVideo()
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(row.appears(within: 10), "Back never returned to the root folder")
 
     // Tapping a video while connected casts it; the first load fails on the
     // receiver and retry recovers into playing controls.
-    let row = element("files.item.412")
-    XCTAssertTrue(row.appears(within: 5))
     row.tap()
     let retry = app.buttons["cast.retry"]
     XCTAssertTrue(retry.appears(within: 15))
@@ -117,23 +123,14 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(toggle.appears(within: 15))
     tapAction("cast.disconnect")
     XCTAssertTrue(bar.disappears(within: 5))
-    XCTAssertTrue(waitUntil(timeout: 5) { castButton.label == "Cast" })
 
-    // Disconnected: the row opens the local player again. The seeded first
-    // local resolution fails by contract; retry reaches the ready player.
-    row.tap()
-    app.answerResumePrompt()
-    let videoRetry = app.buttons["video.error"]
-    XCTAssertTrue(videoRetry.appears(within: 20))
-    videoRetry.tap()
-    XCTAssertTrue(element("video.ready").appears(within: 20))
-    app.closeVideo()
+    openLocally(row)
+    app.revealVideoControls(showing: castButton)
+    XCTAssertEqual(castButton.label, "Cast")
 
     // Sign-out must stop the receiver, not just remove its controls with the shell.
-    castButton.tap()
-    XCTAssertTrue(device.appears(within: 5))
-    device.tap()
-    XCTAssertTrue(waitUntil(timeout: 5) { castButton.label == "Cast, connected" })
+    connectFromPlayer()
+    app.closeVideo()
     row.tap()
     XCTAssertTrue(toggle.appears(within: 15))
     XCTAssertEqual(toggle.label, "Pause")
@@ -150,6 +147,99 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
     XCTAssertTrue(waitForValue(receiverState, "connected=false;loaded=false", timeout: 5))
     screenshot("runtime-cast-signed-out")
+  }
+
+  func testRouteGroupFollowsCastDiscoveryAndLocalNetwork() throws {
+    app.launchArguments.append("--putio-harness-picture-in-picture")
+    let row = element("files.item.412")
+    let castButton = app.buttons["cast.button"]
+
+    launchSignedIn()
+    openLocally(row)
+    XCTAssertEqual(
+      app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    screenshot("runtime-cast-routes")
+    app.closeVideo()
+
+    app.terminate()
+    app.launchArguments.append("--putio-harness-cast-no-device")
+    launchSignedIn()
+    openLocally(row)
+    XCTAssertEqual(app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay"])
+    XCTAssertFalse(castButton.exists, "Cast showed with no device")
+    screenshot("runtime-cast-routes-no-device")
+    app.closeVideo()
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-cast-no-device" }
+    app.launchArguments.append("--putio-harness-cast-local-network-denied")
+    launchSignedIn()
+    openLocally(row)
+    XCTAssertEqual(
+      app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    castButton.tap()
+    XCTAssertTrue(
+      app.staticTexts["Local network access is off"].appears(within: 5),
+      "Cast did not explain Local Network")
+    XCTAssertTrue(app.staticTexts["Turn it on in Settings to find Cast devices."].exists)
+    XCTAssertTrue(app.buttons["cast.local-network.settings"].exists, "no Open Settings")
+    XCTAssertFalse(app.buttons["cast.picker.device"].exists, "the picker opened anyway")
+    screenshot("runtime-cast-local-network-off")
+    app.buttons["cast.local-network.cancel"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Local network access is off"].disappears(within: 5),
+      "Cancel kept the alert")
+    app.closeVideo()
+
+    app.showTabBar()
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func launchSignedIn() {
+    app.launch()
+    let signIn = element("auth.sign-in")
+    if signIn.appears(within: 10) { signIn.tap() }
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
+  private func openLocally(_ row: XCUIElement) {
+    row.tap()
+    let ready = element("video.ready")
+    let resume = app.buttons["video.resume.resume"]
+    let retry = app.buttons["video.error"]
+    for _ in 0..<40 where !ready.exists {
+      if resume.exists {
+        resume.tap()
+      } else if retry.exists, retry.isHittable {
+        retry.tap()
+      } else {
+        _ = ready.waitForExistence(timeout: 1)
+      }
+    }
+    XCTAssertTrue(ready.appears(within: 20), "the local player never played")
+    let playPause = element("video.play-pause")
+    _ = playPause.disappears(within: 6)
+    app.setVideoPlaying(false, with: playPause)
+  }
+
+  private func connectFromPlayer() {
+    let castButton = app.buttons["cast.button"]
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    let device = app.buttons["cast.picker.device"]
+    XCTAssertTrue(device.appears(within: 5), "Cast opened no picker")
+    device.tap()
+    XCTAssertTrue(device.disappears(within: 5), "the picker stayed open")
+    app.revealVideoControls(showing: castButton)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { castButton.label == "Cast, connected" },
+      "session never connected: \(castButton.label)")
   }
 
   /// Menu pickers occasionally swallow the first item tap while their

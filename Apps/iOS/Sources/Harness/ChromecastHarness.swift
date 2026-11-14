@@ -15,7 +15,6 @@
     private(set) var connection: PutioCastConnection = .disconnected
     @ObservationIgnored var onConnectionChanged: ((PutioCastConnection) -> Void)?
     @ObservationIgnored var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-    @ObservationIgnored let providesSystemCastButton = false
     /// The app observes this to present the stub picker.
     var presentsPicker = false
     private(set) var loaded: PutioCastMedia?
@@ -27,10 +26,12 @@
 
     /// Gallery and exercised launches configure no Cast context and show no
     /// Cast control, so their stub reports no receiver at all.
-    init(failLoadsBeforeSuccess: Int = 0, hasReceiver: Bool = true) {
+    init(failLoadsBeforeSuccess: Int = 0, connection: PutioCastConnection = .disconnected) {
       failuresRemaining = failLoadsBeforeSuccess
-      connection = hasReceiver ? .disconnected : .unavailable
+      self.connection = connection
     }
+
+    func startDiscovery() {}
 
     func presentDevicePicker() {
       presentsPicker = true

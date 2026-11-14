@@ -302,7 +302,9 @@ struct MainTabView: View {
           sleepTimer: audioPlayback.sleepTimer,
           castButton: playerCastButton,
           onDismiss: { audioPlayback.isPresented = false },
-          showsHarnessReadiness: scenario == .filesBrowser)
+          showsHarnessReadiness: scenario == .filesBrowser
+        )
+        .putioCastLocalNetworkAlert(cast)
       }
     }
     .onDisappear {
@@ -310,6 +312,11 @@ struct MainTabView: View {
       offlineQueueHolder.stop()
       PutioVideoOrientationLock.setLocked(false)
     }
+    .onChange(of: selectedVideoRoute != nil || audioPlayback.isPresented, initial: true) {
+      _, playing in
+      if playing { cast.startDiscovery() }
+    }
+    .putioCastLocalNetworkAlert(cast, isActive: !audioPlayback.isPresented)
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
@@ -785,7 +792,6 @@ struct MainTabView: View {
       onBulkDownload: { routes in Task { await requestDownloads(routes) } },
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
-      castButton: { AnyView(PutioCastButton(model: cast)) },
       accountNotice: PutioInactiveAccountNotice(account: account),
       offlineFiles: PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
     )

@@ -143,8 +143,8 @@ private final class AccessibilityCastReceiver: PutioCastControlling {
   let connection: PutioCastConnection = .connected(deviceName: "Living Room")
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  let providesSystemCastButton = false
 
+  func startDiscovery() {}
   func presentDevicePicker() {}
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {}
   func play() async throws {}
