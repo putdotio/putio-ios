@@ -988,7 +988,9 @@ struct MainTabView: View {
       if let fault = HarnessVideoFaults.next() {
         guard
           let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-          let baseURL = URL(string: baseURLString)
+          let baseURL = URL(string: baseURLString),
+          baseURL.scheme == "http",
+          baseURL.host == "127.0.0.1"
         else {
           throw HarnessPlaybackFixtureError.missingResource
         }

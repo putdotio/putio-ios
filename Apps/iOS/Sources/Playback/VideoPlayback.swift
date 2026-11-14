@@ -19,6 +19,7 @@ struct PutioVideoPlaybackView: View {
   @State private var reportedFaults: [PutioVideoPlayerFault] = []
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
+  @State private var playerFailureTask: Task<Void, Never>?
   @State private var transport = PutioVideoTransport()
   private let fileID: PutioFileID
   private let title: String
@@ -153,6 +154,8 @@ struct PutioVideoPlaybackView: View {
       onPlayNext(nextVideo)
     }
     .onDisappear {
+      playerFailureTask?.cancel()
+      playerFailureTask = nil
       nextVideoTransitionTask?.cancel()
       nextVideoTransitionTask = nil
       nextVideoModel.cancel()
@@ -324,7 +327,10 @@ struct PutioVideoPlaybackView: View {
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
-        onReady: { playerIsReady = true },
+        onReady: {
+          playerIsReady = true
+          model.playerReady()
+        },
         onDurationKnown: onDurationKnown,
         observesPlaybackState: showsHarnessReadiness,
         onAudioSelected: { selectedAudioLanguage = $0 },
@@ -347,7 +353,10 @@ struct PutioVideoPlaybackView: View {
         guard reportsPlayerFailures else { return }
         reportedFaults.append(failure.fault)
         reportFailure(failure.fault)
-        Task { await model.playerFailed(failure.fault, heldSeconds: failure.heldSeconds) }
+        playerFailureTask?.cancel()
+        playerFailureTask = Task {
+          await model.playerFailed(failure.fault, heldSeconds: failure.heldSeconds)
+        }
       }
       #if DEBUG
         .onSubtitleSelected { selectedSubtitle = $0 }
@@ -383,6 +392,15 @@ struct PutioVideoPlaybackView: View {
           .accessibilityIdentifier("video.conversion-completed")
       }
     case .failed(let failure):
+      failureView(failure)
+        .accessibilityIdentifier("video.error")
+    }
+  }
+
+  @ViewBuilder
+  private func failureView(_ failure: PutioVideoPlaybackFailure) -> some View {
+    switch failure.kind {
+    case .accessExpired, .connectionLost:
       PutioErrorStateView(
         icon: failure.kind == .connectionLost ? .wifiSlash : .warningCircle,
         title: failure.title,
@@ -391,7 +409,14 @@ struct PutioVideoPlaybackView: View {
       ) {
         retrySequence &+= 1
       }
-      .accessibilityIdentifier("video.error")
+    case .notFound, .rateLimited, .transient, .invalidResponse, .playback, .conversion, .unknown:
+      PutioErrorStateView(
+        title: failure.title,
+        message: failure.message,
+        retryTitle: String(localized: "Try again")
+      ) {
+        retrySequence &+= 1
+      }
     }
   }
 }

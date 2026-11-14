@@ -577,6 +577,35 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       "Try again did not give the next expiry its own silent refetch")
   }
 
+  func testAnExpiryAfterTheRefetchedSourcePlayedGetsItsOwnSilentRefetch() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub(Array(repeating: .success(.ready(saved)), count: 3))
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+    model.playerReady()
+    await model.playerFailed(.accessExpired, heldSeconds: 3_600)
+
+    XCTAssertEqual(resolver.requestedIDs.count, 3)
+    XCTAssertEqual(
+      model.state,
+      .ready(
+        PutioPlaybackSource(url: saved.url, startFromSeconds: 3_600, resumesAfterFailure: true)))
+  }
+
+  func testASessionFailureDuringTheSilentRefetchLeavesNoFrozenPlayer() async {
+    let resolver = PlaybackResolverStub([
+      .success(.ready(playbackSource())), .failure(.sessionExpired),
+    ])
+    let model = PutioVideoPlaybackModel(fileID: fileID) { try await resolver.resolve($0) }
+
+    await model.loadIfNeeded()
+    await model.playerFailed(.accessExpired, heldSeconds: 214)
+
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+  }
+
   func testALostConnectionShowsItsStateAndTryAgainResumesThere() async {
     let saved = playbackSource()
     let resolver = PlaybackResolverStub([.success(.ready(saved)), .success(.ready(saved))])

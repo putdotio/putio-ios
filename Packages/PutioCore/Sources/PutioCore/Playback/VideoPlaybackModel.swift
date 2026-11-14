@@ -210,6 +210,11 @@ public final class PutioVideoPlaybackModel {
     }
   }
 
+  public func playerReady() {
+    guard case .ready = state else { return }
+    refreshedExpiredAccess = false
+  }
+
   public func playerFailed() {
     guard case .ready = state else { return }
     generation &+= 1
@@ -259,12 +264,10 @@ public final class PutioVideoPlaybackModel {
       }
     } catch {
       guard requestGeneration == generation else { return }
-      if Task.isCancelled {
+      let failure = Task.isCancelled ? nil : PutioVideoPlaybackFailure.resolving(error)
+      guard let failure else {
         attemptedLoad = false
-        return
-      }
-      guard let failure = PutioVideoPlaybackFailure.resolving(error) else {
-        attemptedLoad = false
+        if !showsLoading { state = .failed(.accessExpired) }
         return
       }
       state = .failed(failure)

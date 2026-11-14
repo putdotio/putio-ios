@@ -21,7 +21,12 @@ import SwiftUI
       let arguments = ProcessInfo.processInfo.arguments
       guard let flag = arguments.firstIndex(of: argument), arguments.indices.contains(flag + 1)
       else { return nil }
-      return arguments[flag + 1].split(separator: ",").compactMap { Fault(rawValue: String($0)) }
+      return arguments[flag + 1].split(separator: ",").map { name in
+        guard let fault = Fault(rawValue: String(name)) else {
+          preconditionFailure("unknown \(argument) value \(name)")
+        }
+        return fault
+      }
     }()
 
     static func next() -> Fault? {
