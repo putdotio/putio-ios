@@ -902,6 +902,7 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
   func makeUIView(context: Context) -> PutioVideoMenuButton {
     let button = PutioVideoMenuButton(type: .custom)
     button.showsMenuAsPrimaryAction = true
+    button.preferredMenuElementOrder = .fixed
     return button
   }
 
