@@ -54,10 +54,14 @@ final class AudioJourneyTests: XCTestCase {
       XCTWaiter.wait(for: [advanced], timeout: 10), .completed, "Play from the bar kept the time")
     miniToggle.tap()
     XCTAssertEqual(miniToggle.label, "Play")
-    for tab in ["Account", "Search", "Files"] {
-      app.buttons[tab].tap()
-      XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on \(tab)")
-    }
+    app.buttons["Account"].tap()
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Account")
+    app.buttons["Search"].tap()
+    XCTAssertTrue(app.searchFields.firstMatch.appears(within: 5), "Search opened no field")
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Search")
+    app.buttons["Close"].tap()
+    app.buttons["Files"].tap()
+    XCTAssertTrue(miniPlayer.appears(within: 5), "the mini player left on Files")
     let folder = app.revealed("files.item.410")
     XCTAssertTrue(folder.appears(within: 10))
     folder.tap()

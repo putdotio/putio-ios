@@ -24,8 +24,7 @@ struct PutioCastPresentation: ViewModifier {
 }
 
 /// The accessory slot reserves its height whenever it is installed, so the
-/// bar is installed only while a receiver or the audio player has something of
-/// ours.
+/// bar is installed only while a receiver has something of ours.
 private struct PutioCastBarAccessory: ViewModifier {
   let model: PutioCastModel
   let audio: PutioAudioMiniPlayerSlot?

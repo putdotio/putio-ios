@@ -133,7 +133,7 @@ struct PutioAudioMiniPlayer: View {
         .background(PutioTheme.Colors.separator)
     }
     .frame(height: Self.progressHeight)
-    .padding(.horizontal, PutioTheme.Spacing.space3)
+    .padding(.horizontal, Self.progressInset)
     .accessibilityHidden(true)
   }
 
@@ -152,6 +152,7 @@ struct PutioAudioMiniPlayer: View {
   private static let playGlyph: CGFloat = 22
   private static let stopGlyph: CGFloat = 18
   private static let progressHeight: CGFloat = 2
+  private static let progressInset: CGFloat = 22
   private static let iconSize = PutioMetricRole(
     value: PutioTheme.Typography.sizeLg, relativeTo: .body)
 }
