@@ -122,6 +122,7 @@ final class ChromecastJourneyTests: XCTestCase {
     // Disconnected: the row opens the local player again. The seeded first
     // local resolution fails by contract; retry reaches the ready player.
     row.tap()
+    app.answerResumePrompt()
     let videoRetry = app.buttons["video.error"]
     XCTAssertTrue(videoRetry.appears(within: 20))
     videoRetry.tap()

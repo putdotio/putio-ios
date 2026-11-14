@@ -9,6 +9,24 @@ extension XCUIApplication {
     putioAlerts.matching(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
+  var resumePrompt: XCUIElement {
+    putioAlerts.matching(NSPredicate(format: "label BEGINSWITH %@", "Resume from ")).firstMatch
+  }
+
+  func answerResumePrompt(
+    startingOver: Bool = false, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let choice = buttons[startingOver ? "video.resume.start-over" : "video.resume.resume"]
+      .firstMatch
+    XCTAssertTrue(
+      choice.waitForExistence(timeout: 15), "the video never asked where to start",
+      file: file, line: line)
+    choice.tap()
+    XCTAssertTrue(
+      resumePrompt.waitForNonExistence(timeout: 5), "the resume prompt stayed open",
+      file: file, line: line)
+  }
+
   /// Lazy List rows below the fold, such as the Account list's Sign out, are
   /// absent from the accessibility tree until scrolled into view. Bounded so
   /// a missing row still fails instead of scrolling forever.

@@ -811,6 +811,7 @@ enum BoardCaptureContract {
         "rd-ios-acc-56-clear-failed", .iphone, "testAccountClearDataFailed", screenBase: false),
       BoardCapture("rd-ios-acc-06-playback-method", .iphone, "testAccountPlaybackMethod"),
       BoardCapture("rd-ios-acc-07-proxy", .iphone, "testAccountProxy"),
+      BoardCapture("rd-ios-pb-01-resume", .iphone, "testPlaybackResume"),
       BoardCapture("rd-ios-acc-31-proxy-loading", .iphone, "testAccountProxyLoading"),
       BoardCapture("rd-ios-acc-32-proxy-failed", .iphone, "testAccountProxyFailed"),
       BoardCapture("rd-ios-acc-33-proxy-unavailable", .iphone, "testAccountProxyUnavailable"),
@@ -1443,7 +1444,7 @@ enum BrowserJourneyContract {
       "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
     JourneyPreflight(
       "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen",
-      timeAllowance: 150),
+      attachmentNames: ["runtime-resume-prompt"], timeAllowance: 150),
     JourneyPreflight(
       "continue-watching",
       "ContinueWatchingJourneyTests/testStartedVideoIsListedRemovedFinishedAndTrashed",

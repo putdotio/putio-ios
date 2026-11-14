@@ -3695,7 +3695,7 @@ import Foundation
             "updated_at": "2026-09-01T12:00:00",
             "need_convert": \(needsConversion),
             "start_from": \(startFrom),
-            "video_metadata": {"duration": 5400, "codec": "h264", "width": 1920, "height": 1080}
+            "video_metadata": {"duration": 590, "codec": "h264", "width": 1920, "height": 1080}
           }
         }
         """

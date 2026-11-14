@@ -253,6 +253,20 @@ extension PutioRuntime {
       resumePositionSeconds: file.startFrom, durationSeconds: duration, subtitles: await subtitles)
   }
 
+  public func videoStartPoint(fileID: PutioFileID) async throws -> PutioVideoStartPoint {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let file = try await performAuthenticatedOperation {
+      try await sdk.getFile(
+        fileID: fileID.rawValue,
+        query: PutioFileDetailsQuery(
+          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false))
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    return PutioVideoStartPoint(
+      savedSeconds: file.startFrom, durationSeconds: file.metaData?.duration,
+      needsConversion: file.needConvert)
+  }
+
   private func subtitleLanguages(fileID: PutioFileID) async -> [String]? {
     guard case .signedIn(let account) = session.state, !account.hideSubtitles else { return nil }
     guard

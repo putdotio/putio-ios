@@ -2337,6 +2337,23 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-06-playback-method")
   }
 
+  func testPlaybackResume() throws {
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10), "the partly watched episode never appeared")
+    episode.tap()
+    let play = element("files.detail.play")
+    if play.appears(within: 3) { play.tap() }
+    XCTAssertTrue(
+      app.putioAlert("Resume from 21:00?").appears(within: 10),
+      "the episode never asked where to start")
+    XCTAssertTrue(app.buttons["video.resume.start-over"].exists, "the prompt has no Start over")
+    XCTAssertTrue(app.buttons["video.resume.resume"].exists, "the prompt has no Resume")
+    XCTAssertFalse(element("video.done").exists, "the player opened before the answer")
+    try captureBoard("rd-ios-pb-01-resume")
+  }
+
   func testAccountProxy() throws {
     app.launchArguments += ["--putio-harness-proxy", "ready"]
     openProxy()

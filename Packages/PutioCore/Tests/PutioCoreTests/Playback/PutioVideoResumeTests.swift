@@ -113,6 +113,69 @@ final class PutioVideoResumePromptTests: XCTestCase {
   }
 }
 
+final class PutioVideoStartTests: XCTestCase {
+  func testAsksOnlyForAPositionAboveZeroAndBelowTheWatchedMarkWithTheSettingOn() {
+    func asks(_ saved: Int, _ duration: Double?, remembers: Bool = true) -> Bool {
+      PutioVideoStart.asksWhereToStart(
+        savedSeconds: saved, durationSeconds: duration, remembersPosition: remembers)
+    }
+    XCTAssertFalse(asks(0, 5400), "no saved position")
+    XCTAssertTrue(asks(1122, 5400), "mid-file")
+    XCTAssertTrue(asks(5129, 5400), "just below 95%")
+    XCTAssertFalse(asks(5130, 5400), "95%")
+    XCTAssertFalse(asks(5184, 5400), "96%")
+    XCTAssertFalse(asks(1122, 5400, remembers: false), "setting off")
+    XCTAssertTrue(asks(1122, nil), "an unknown length cannot be watched")
+  }
+
+  func testStartOverPlaysFromZeroAndResumeKeepsTheSavedPosition() {
+    let url = URL(string: "https://media.example.test/video.m3u8")!
+    let saved = PutioPlaybackSource(url: url, startFromSeconds: 1122)
+    XCTAssertEqual(PutioVideoStart.source(saved, startingWith: .resume), saved)
+    XCTAssertEqual(
+      PutioVideoStart.source(saved, startingWith: .startOver),
+      PutioPlaybackSource(url: url, startFromSeconds: 0))
+  }
+
+  func testRouteCarriesStartOverOnly() {
+    let route = PutioVideoRoute(
+      id: PutioFileID(rawValue: 7), parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")
+    XCTAssertFalse(route.startsOver)
+    XCTAssertTrue(route.starting(with: .startOver).startsOver)
+    XCTAssertFalse(route.starting(with: .resume).startsOver)
+  }
+}
+
+@MainActor
+final class PutioVideoResumePrompterTests: XCTestCase {
+  func testAnAnswerReachesTheAskerAndClosesThePrompt() async {
+    let prompter = PutioVideoResumePrompter()
+    let asking = Task { await prompter.ask(positionSeconds: 1122) }
+    while !prompter.isAsking { await Task.yield() }
+    XCTAssertEqual(prompter.positionSeconds, 1122)
+    prompter.answer(.startOver)
+    let choice = await asking.value
+    XCTAssertEqual(choice, .startOver)
+    XCTAssertFalse(prompter.isAsking)
+  }
+
+  func testDismissingOrCancellingAnswersNothing() async {
+    let prompter = PutioVideoResumePrompter()
+    let dismissed = Task { await prompter.ask(positionSeconds: 60) }
+    while !prompter.isAsking { await Task.yield() }
+    prompter.answer(nil)
+    let dismissedChoice = await dismissed.value
+    XCTAssertNil(dismissedChoice)
+
+    let cancelled = Task { await prompter.ask(positionSeconds: 60) }
+    while !prompter.isAsking { await Task.yield() }
+    cancelled.cancel()
+    let cancelledChoice = await cancelled.value
+    XCTAssertNil(cancelledChoice)
+    XCTAssertFalse(prompter.isAsking)
+  }
+}
+
 @MainActor
 final class PutioVideoPositionReporterTests: XCTestCase {
   func testSamplesOnTheTenSecondCadenceOnlyOnceReady() async throws {

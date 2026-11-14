@@ -3630,6 +3630,17 @@
         }
       }
     },
+    "Resume from %@?" : {
+      "comment" : "android: playback_resume_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume from %@?"
+          }
+        }
+      }
+    },
     "Revoke this link?" : {
       "comment" : "android: mobile_public_links_revoke_title",
       "localizations" : {
@@ -4660,6 +4671,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Standard"
+          }
+        }
+      }
+    },
+    "Start over" : {
+      "comment" : "android: playback_start_over",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start over"
           }
         }
       }

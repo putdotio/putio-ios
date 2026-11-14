@@ -35,6 +35,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(rootVideo.isHittable, "root video row is not tappable")
     let presentedRoute = element(identifier: "video.presented-route")
     rootVideo.tap()
+    app.answerResumePrompt()
     let rootRoute = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", "id=412"),
       object: presentedRoute
@@ -1241,6 +1242,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     videoResult.tap()
     XCTAssertTrue(element(identifier: "video.error").appears(within: 5))
     app.buttons["Try again"].tap()
+    app.answerResumePrompt()
     XCTAssertTrue(element(identifier: "video.ready").appears(within: 15))
     element(identifier: "video.done").tap()
     XCTAssertTrue(folderResult.appears(within: 10))
@@ -1786,6 +1788,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "conversion progress never appeared"
     )
     XCTAssertTrue(
+      app.putioAlert("Resume from 1:30?").appears(within: 15),
+      "the converted video did not ask where to start")
+    XCTAssertFalse(element(identifier: "video.ready").exists, "the video played before the answer")
+    app.answerResumePrompt()
+    XCTAssertTrue(
       element(identifier: "video.ready").appears(within: 10),
       "converted video never became ready through native HLS"
     )
@@ -1836,12 +1843,20 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     nestedFile.tap()
+    let reopenPrompt = app.putioAlert(
+      "Resume from \(clockText(seconds: persistedSeconds ?? -1))?")
+    XCTAssertTrue(reopenPrompt.appears(within: 10), "reopening did not ask where to start")
+    XCTAssertTrue(nested.exists, "the prompt left the folder")
+    XCTAssertFalse(done.exists, "the player opened before the answer")
+    addScreenshot(named: "runtime-resume-prompt")
+    app.answerResumePrompt(startingOver: true)
     XCTAssertTrue(done.appears(within: 5), "reopened video screen never appeared")
     XCTAssertTrue(
-      resumePosition.appears(within: 5),
-      "persisted resume position did not resolve on reopen"
-    )
-    XCTAssertEqual(resumePosition.value as? String, persistedSeconds.map(String.init))
+      element(identifier: "video.ready").appears(within: 10), "the restarted video never played")
+    XCTAssertEqual(resumePosition.value as? String, "0", "Start over kept the saved position")
+    XCTAssertLessThan(
+      Int(currentPosition.value as? String ?? "") ?? .max, persistedSeconds ?? 0,
+      "Start over did not play from the beginning")
     XCTAssertTrue(done.isHittable, "reopened video Done button is not tappable")
     done.tap()
 
@@ -1872,6 +1887,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(rootVideo.appears(within: 5), "root video row never appeared")
     XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 560))")
     rootVideo.tap()
+    XCTAssertTrue(
+      app.putioAlert("Resume from 9:20?").appears(within: 10), "the root video did not ask")
+    app.answerResumePrompt()
     if !ready.appears(within: 10), element(identifier: "video.error").exists {
       app.buttons["Try again"].tap()
     }
@@ -1896,6 +1914,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     rootVideo.tap()
     XCTAssertTrue(ready.appears(within: 10), "the watched video never became ready")
+    XCTAssertFalse(app.resumePrompt.exists, "a watched video asked where to start")
     XCTAssertEqual(
       element(identifier: "video.resume-position").value as? String, endSeconds.map(String.init))
     let currentPosition = element(identifier: "video.current-position")
@@ -2477,6 +2496,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   /// Mirrors the app's spoken resume position, such as "9 minutes, 49 seconds".
+  private func clockText(seconds: Int) -> String {
+    "\(seconds / 60):" + (seconds % 60 < 10 ? "0" : "") + "\(seconds % 60)"
+  }
+
   private func resumeText(seconds: Int) -> String {
     Duration.seconds(seconds).formatted(
       .units(allowed: [.hours, .minutes, .seconds], width: .wide))

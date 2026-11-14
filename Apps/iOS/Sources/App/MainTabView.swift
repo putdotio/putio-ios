@@ -71,6 +71,8 @@ struct MainTabView: View {
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
+  @State private var resumePrompter = PutioVideoResumePrompter()
+  @State private var videoStartTask: Task<Void, Never>?
   @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreview: PutioPreviewPresentation?
   @State private var previewToast: PutioToast?
@@ -230,6 +232,7 @@ struct MainTabView: View {
       askProductAnalyticsIfNeeded()
     }
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
+    .putioVideoResumeAlert(resumePrompter)
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
       if let preview = presentedPreview {
@@ -692,11 +695,42 @@ struct MainTabView: View {
 
   private func presentVideo(_ route: PutioVideoRoute) {
     stopAudio()
-    selectedVideoRoute = route
-    presentedVideoRoute = route
+    videoStartTask?.cancel()
+    videoStartTask = Task { await openVideo(route) }
     // The autoplay decision reads the document at playback end; a load that
     // failed at sign-in gets another chance before this video finishes.
     Task { await appConfig.loadIfNeeded() }
+  }
+
+  private func openVideo(_ route: PutioVideoRoute) async {
+    let start = await videoStartPoint(for: route)
+    guard !Task.isCancelled else { return }
+    guard let start, !start.needsConversion,
+      PutioVideoStart.asksWhereToStart(
+        savedSeconds: start.savedSeconds, durationSeconds: start.durationSeconds,
+        remembersPosition: account.rememberVideoTime)
+    else {
+      showVideo(route)
+      return
+    }
+    guard let choice = await resumePrompter.ask(positionSeconds: start.savedSeconds),
+      !Task.isCancelled
+    else { return }
+    showVideo(route.starting(with: choice))
+  }
+
+  private func videoStartPoint(for route: PutioVideoRoute) async -> PutioVideoStartPoint? {
+    if case .ready(let source) = route.initialResolution {
+      return PutioVideoStartPoint(
+        savedSeconds: source.startFromSeconds,
+        durationSeconds: await PutioVideoLength.seconds(of: source.url), needsConversion: false)
+    }
+    return try? await runtime.videoStartPoint(fileID: route.id)
+  }
+
+  private func showVideo(_ route: PutioVideoRoute) {
+    selectedVideoRoute = route
+    presentedVideoRoute = route
   }
 
   private var downloads: some View {
