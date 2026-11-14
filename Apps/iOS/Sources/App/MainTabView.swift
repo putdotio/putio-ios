@@ -666,7 +666,14 @@ struct MainTabView: View {
           return try await resolveAudioSource(fileID: fileID)
         },
         loadNeighbours: { track in
-          try await runtime.audioNeighbours(of: track.id, in: track.parentID)
+          do {
+            return try await runtime.audioNeighbours(of: track.id, in: track.parentID)
+          } catch {
+            guard !(error is CancellationError),
+              let stored = PutioAudioNeighbours.stored(offlineQueue.items, around: track)
+            else { throw error }
+            return stored
+          }
         }
       ))
   }

@@ -48,32 +48,53 @@ public enum PutioPlaybackResolution: Equatable, Sendable {
   case conversionRequired
 }
 
-/// An audio file beside the playing one in its folder.
-public struct PutioQueuedAudio: Equatable, Sendable {
+/// An audio file in the playing one's folder.
+public struct PutioQueuedAudio: Equatable, Identifiable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID
   public let name: String
+  public let durationSeconds: Int?
 
-  public init(id: PutioFileID, parentID: PutioFileID, name: String) {
+  public init(id: PutioFileID, parentID: PutioFileID, name: String, durationSeconds: Int? = nil) {
     self.id = id
     self.parentID = parentID
     self.name = name
+    self.durationSeconds = durationSeconds
   }
 }
 
-/// The audio files on either side of a track in its folder, in name order,
-/// and the folder's name. `nil` where there is none.
+/// The audio files on either side of a track in its folder, `nil` where there
+/// is none; every audio file of the folder in its order; and the folder's name.
 public struct PutioAudioNeighbours: Equatable, Sendable {
   public let previous: PutioQueuedAudio?
   public let next: PutioQueuedAudio?
   public let folderName: String?
+  public let queue: [PutioQueuedAudio]
 
   public init(
-    previous: PutioQueuedAudio? = nil, next: PutioQueuedAudio? = nil, folderName: String? = nil
+    previous: PutioQueuedAudio? = nil, next: PutioQueuedAudio? = nil, folderName: String? = nil,
+    queue: [PutioQueuedAudio] = []
   ) {
     self.previous = previous
     self.next = next
     self.folderName = folderName
+    self.queue = queue
+  }
+
+  /// `fileID`'s neighbours in `queue`; none when the queue does not hold it.
+  public init(of fileID: PutioFileID, in queue: [PutioQueuedAudio], folderName: String?) {
+    let index = queue.firstIndex { $0.id == fileID }
+    self.init(
+      previous: index.flatMap { $0 > 0 ? queue[$0 - 1] : nil },
+      next: index.flatMap { $0 + 1 < queue.count ? queue[$0 + 1] : nil },
+      folderName: folderName,
+      queue: queue)
+  }
+
+  /// The same queue around another of its files; `nil` when it holds no such file.
+  public func moved(to fileID: PutioFileID) -> PutioAudioNeighbours? {
+    guard queue.contains(where: { $0.id == fileID }) else { return nil }
+    return PutioAudioNeighbours(of: fileID, in: queue, folderName: folderName)
   }
 }
 

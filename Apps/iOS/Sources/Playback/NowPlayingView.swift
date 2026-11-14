@@ -96,8 +96,11 @@ struct PutioAudioPlayerView: View {
 
 private struct PutioNowPlayingDetails: View {
   let model: PutioAudioPlayerModel
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
   @State private var scrubSeconds: Double?
+  @State private var showsUpNextSheet = false
+  @State private var showsUpNextPage = false
 
   var body: some View {
     GeometryReader { geometry in
@@ -123,6 +126,23 @@ private struct PutioNowPlayingDetails: View {
         .frame(maxWidth: .infinity)
       }
       .scrollBounceBehavior(.basedOnSize)
+    }
+    .sheet(isPresented: $showsUpNextSheet) {
+      PutioAudioUpNextSheet(model: model)
+    }
+    .navigationDestination(isPresented: $showsUpNextPage) {
+      PutioAudioUpNextList(model: model)
+        .putioContentBackground()
+        .navigationTitle(String(localized: "Up next"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+  }
+
+  private func showUpNext() {
+    if horizontalSizeClass == .regular {
+      showsUpNextPage = true
+    } else {
+      showsUpNextSheet = true
     }
   }
 
@@ -319,12 +339,11 @@ private struct PutioNowPlayingDetails: View {
     .putioNowPlayingChip()
     .disabled(true)
     .accessibilityIdentifier("audio.sleep-timer")
-    Button {
-    } label: {
+    Button(action: showUpNext) {
       PutioNowPlayingChipLabel(icon: .list, title: String(localized: "Up next"))
     }
     .putioNowPlayingChip()
-    .disabled(true)
+    .disabled(model.queue.count < 2)
     .accessibilityIdentifier("audio.up-next")
   }
 }

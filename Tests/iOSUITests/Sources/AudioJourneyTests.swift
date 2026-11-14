@@ -26,7 +26,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertFalse(app.buttons["audio.previous"].isEnabled, "the first file has no previous")
     XCTAssertTrue(app.buttons["audio.next"].isEnabled)
     XCTAssertFalse(app.buttons["audio.sleep-timer"].isEnabled)
-    XCTAssertFalse(app.buttons["audio.up-next"].isEnabled)
+    XCTAssertTrue(waitForEnabled(app.buttons["audio.up-next"], true))
 
     // Dragging down dismisses presentation, not the playback session.
     let collapse = app.buttons["audio.collapse"]
@@ -140,6 +140,56 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertFalse(miniPlayer.exists)
 
     try folderQueueRetriesAFailureAndFollowsTheFolder()
+    try upNextPlaysATappedFileAndFollowsPlayback()
+  }
+
+  private func upNextPlaysATappedFileAndFollowsPlayback() throws {
+    app.terminate()
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-music",
+      "--putio-harness-audio-near-end",
+    ]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    app.revealed("files.item.3101").tap()
+    let track = app.revealed("files.item.3103")
+    XCTAssertTrue(track.appears(within: 10))
+    track.tap()
+    let state = element("audio.state")
+    XCTAssertTrue(waitForValue(state, "id=3103;state=playing", timeout: 10))
+
+    let chip = app.buttons["audio.up-next"]
+    XCTAssertTrue(waitForEnabled(chip, true), "a four-file folder offers Up next")
+    chip.tap()
+    XCTAssertTrue(app.staticTexts["Up next"].appears(within: 5))
+    let rows = [3102, 3103, 3104, 3108].map { app.buttons["audio.up-next.\($0)"] }
+    XCTAssertTrue(rows[3].appears(within: 10), "the list never showed the folder")
+    let tops = rows.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "rows follow the folder's order")
+    XCTAssertTrue(rows[1].isSelected, "the playing file is not marked")
+    XCTAssertFalse(rows[2].isSelected)
+    XCTAssertTrue(app.staticTexts["51:02"].exists, "the third row shows no length")
+    let list = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    list.name = "runtime-audio-up-next"
+    list.lifetime = .keepAlways
+    add(list)
+
+    rows[2].tap()
+    XCTAssertTrue(waitForSelected(rows[2], true), "the tapped file is not marked")
+    XCTAssertFalse(rows[1].isSelected)
+    XCTAssertTrue(rows[2].isHittable, "tapping a row closed the list")
+    XCTAssertTrue(
+      waitForSelected(rows[3], true, timeout: 30), "the mark did not follow the next file")
+    XCTAssertFalse(rows[2].isSelected)
+    XCTAssertTrue(rows[3].isHittable, "the list closed when the file ended")
+
+    app.buttons["sheet.trailing"].tap()
+    XCTAssertTrue(rows[3].disappears(within: 5))
+    XCTAssertTrue(waitForValue(state, "id=3108;state=playing", timeout: 10))
+    app.buttons["audio.collapse"].tap()
+    signOut()
   }
 
   private func folderQueueRetriesAFailureAndFollowsTheFolder() throws {
@@ -243,6 +293,14 @@ final class AudioJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label == %@", label), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+  }
+
+  private func waitForSelected(
+    _ element: XCUIElement, _ selected: Bool, timeout: TimeInterval = 10
+  ) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "selected == %@", NSNumber(value: selected)), object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   private func waitForEnabled(_ element: XCUIElement, _ enabled: Bool) -> Bool {

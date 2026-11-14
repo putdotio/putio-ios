@@ -737,6 +737,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-25-preparing-audio", .iphone, "testPreparingAudio"),
       BoardCapture("rd-ios-pb-37-audio-error", .iphone, "testAudioError"),
       BoardCapture("rd-ios-pb-39-single-audio", .iphone, "testSingleAudio"),
+      BoardCapture("rd-ios-pb-12-up-next", .iphone, "testUpNext"),
       BoardCapture("rd-ios-pb-40-ipad-now-playing", .ipad, "testNowPlaying"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
       BoardCapture("rd-ios-acc-02-account", .iphone, "testAccountTop"),
@@ -1157,8 +1158,11 @@ enum BrowserJourneyContract {
       "ProductAnalyticsPromptJourneyTests/testSwipingThePromptAwayStoresNoAnswer"),
     JourneyPreflight(
       "audio", "AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack",
-      attachmentNames: ["runtime-audio-player", "runtime-audio-error", "runtime-audio-single"],
-      timeAllowance: 240),
+      attachmentNames: [
+        "runtime-audio-player", "runtime-audio-error", "runtime-audio-single",
+        "runtime-audio-up-next",
+      ],
+      timeAllowance: 300),
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [

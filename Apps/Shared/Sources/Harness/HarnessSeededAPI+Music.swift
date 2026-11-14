@@ -9,9 +9,11 @@ import Foundation
     static let singlesFolderID = 3_105
     static let singleMusicFolderID = 3_106
     static let singleTrackID = 3_107
+    static let musicFourthTrackID = 3_108
 
     private static let musicLock = NSLock()
-    nonisolated(unsafe) private static var musicPositions: [Int: Int] = [:]
+    nonisolated(unsafe) private static var musicPositions: [Int: Int] =
+      musicArguments.contains("--putio-harness-audio-near-end") ? [musicLastTrackID: 50] : [:]
     nonisolated(unsafe) private static var musicFailuresLeft =
       musicArguments.contains(
         "--putio-harness-audio-fails-once") ? 1 : 0
@@ -28,21 +30,25 @@ import Foundation
       let id: Int
       let name: String
       let parentID: Int
+      let durationSeconds: Int
     }
 
     private static let musicTracks = [
       MusicTrack(
         id: musicFirstTrackID, name: "FFTT Tree Rings October 6, 2026.mp3",
-        parentID: musicFolderID),
+        parentID: musicFolderID, durationSeconds: 3_380),
       MusicTrack(
         id: musicTrackID, name: "FFTT Tree Rings Open Air Session, October 13, 2026.mp3",
-        parentID: musicFolderID),
+        parentID: musicFolderID, durationSeconds: 2_977),
       MusicTrack(
         id: musicLastTrackID, name: "FFTT Tree Rings October 20, 2026.mp3",
-        parentID: musicFolderID),
+        parentID: musicFolderID, durationSeconds: 3_062),
+      MusicTrack(
+        id: musicFourthTrackID, name: "FFTT Tree Rings October 27, 2026.mp3",
+        parentID: musicFolderID, durationSeconds: 3_254),
       MusicTrack(
         id: singleTrackID, name: "FFTT Tree Rings Open Air Session, October 13, 2026.mp3",
-        parentID: singleMusicFolderID),
+        parentID: singleMusicFolderID, durationSeconds: 2_977),
     ]
 
     static var musicRootRows: [String] {
@@ -148,7 +154,8 @@ import Foundation
           "size": 17772,
           "created_at": "2026-10-13T10:00:00Z",
           "updated_at": "2026-10-13T10:00:00Z",
-          "start_from": \(position)
+          "start_from": \(position),
+          "video_metadata": {"duration": \(track.durationSeconds)}
         }
         """
     }

@@ -1267,6 +1267,19 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-37-audio-error")
   }
 
+  func testUpNext() throws {
+    try playMusic(path: ["files.item.3101", "files.item.3102"], track: 3102)
+    let upNext = app.buttons["audio.up-next"]
+    XCTAssertTrue(expectEnabled(upNext), "the four-file folder offers no Up next")
+    upNext.tap()
+    let current = app.buttons["audio.up-next.3102"]
+    XCTAssertTrue(current.appears(within: 10), "the Up next list never opened")
+    XCTAssertTrue(app.buttons["audio.up-next.3108"].exists, "the list stops short of the folder")
+    XCTAssertTrue(current.isSelected, "the playing file is not marked")
+    XCTAssertTrue(labeled("56:20").exists, "the list shows no length")
+    try captureBoard("rd-ios-pb-12-up-next")
+  }
+
   private func playMusic(path: [String], track: Int, state: String = "playing") throws {
     orientForBoardDevice()
     app.launchArguments.append("--putio-harness-music")

@@ -303,6 +303,20 @@ final class PutioAudioPlayerModel {
     switchTo(next)
   }
 
+  /// The folder's audio files in its order, for the Up next list.
+  var queue: [PutioQueuedAudio] { neighbours?.queue ?? [] }
+
+  /// Plays a file from the Up next list; the playing file resumes or replays.
+  func play(_ queued: PutioQueuedAudio) {
+    guard !isTransitioning else { return }
+    guard queued.id != track.id else {
+      if !isPlaying { togglePlayPause() }
+      return
+    }
+    guard queue.contains(where: { $0.id == queued.id }) else { return }
+    switchTo(queued)
+  }
+
   func skipToPrevious() {
     guard canSkipToPrevious, let previous = neighbours?.previous else { return }
     switchTo(previous)
@@ -390,6 +404,14 @@ final class PutioAudioPlayerModel {
 
   private func readNeighbours(of track: PutioAudioTrack) {
     if neighboursTrackID == track.id, neighbours != nil { return }
+    if let moved = neighbours?.moved(to: track.id) {
+      neighboursTask?.cancel()
+      neighboursTask = nil
+      neighboursTrackID = track.id
+      neighbours = moved
+      publishTrackCommands()
+      return
+    }
     neighboursTask?.cancel()
     neighboursTrackID = track.id
     neighbours = nil
