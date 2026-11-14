@@ -34,7 +34,6 @@ struct PutioAudioPlayerView: View {
       ) {
         Task { await model.retry() }
       }
-      .accessibilityIdentifier("audio.error")
     case .playing, .paused, .interrupted, .ended:
       PutioNowPlayingDetails(model: model)
     }

@@ -274,6 +274,6 @@ final class AudioJourneyTests: XCTestCase {
     let advances = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label != %@", initial), object: elapsed)
     XCTAssertEqual(XCTWaiter.wait(for: [advances], timeout: 10), .completed)
-    XCTAssertFalse(element("audio.error").exists)
+    XCTAssertFalse(app.staticTexts["Couldn’t play this audio"].exists)
   }
 }
