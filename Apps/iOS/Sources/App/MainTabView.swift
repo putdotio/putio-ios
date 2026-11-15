@@ -963,7 +963,7 @@ struct MainTabView: View {
       },
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
-      castsConverted: PutioVideoConvertedHandOff(
+      castHandOff: PutioVideoConvertedHandOff(
         isAvailable: { cast.isConnected },
         handOff: { startOverride in
           guard cast.isConnected else { return false }
