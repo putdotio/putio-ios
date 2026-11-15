@@ -898,6 +898,17 @@
         }
       }
     },
+    "Converted fallbacks" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converted fallbacks"
+          }
+        }
+      }
+    },
     "Converting" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -3995,6 +4006,17 @@
         }
       }
     },
+    "This iPad can’t play the original file, and it has no converted version." : {
+      "comment" : "ios-only: iOS wording of mobile_playback_unsupported_video_message, names this iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPad can’t play the original file, and it has no converted version."
+          }
+        }
+      }
+    },
     "This iPad stays signed in. Every other app and device has to sign in again." : {
       "comment" : "ios-only: Android says This device; iOS names the iPad",
       "localizations" : {
@@ -4013,6 +4035,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This iPhone"
+          }
+        }
+      }
+    },
+    "This iPhone can’t play the original file, and it has no converted version." : {
+      "comment" : "ios-only: iOS wording of mobile_playback_unsupported_video_message, names this iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This iPhone can’t play the original file, and it has no converted version."
           }
         }
       }

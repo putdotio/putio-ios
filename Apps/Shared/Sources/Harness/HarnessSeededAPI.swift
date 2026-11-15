@@ -72,7 +72,8 @@ import Foundation
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool? =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-rotate-off") ? false : nil
-    nonisolated(unsafe) private static var streamingMethod: String?
+    nonisolated(unsafe) private static var streamingMethod: String? =
+      failingOriginal == nil ? nil : "file"
     nonisolated(unsafe) private static var streamingMethodSaveFailed = false
     /// Journeys never meet the analytics prompt: the document answers it
     /// unless a run asks for the prompt, which leaves the key unset.
@@ -996,6 +997,31 @@ import Foundation
     }
 
     static let episodeConversionFileID = 441
+
+    private enum FailingOriginal: String {
+      case converted
+      case none
+    }
+
+    private static let failingOriginal: FailingOriginal? = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: "--putio-harness-original-fails"),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return FailingOriginal(rawValue: arguments[flag + 1])
+    }()
+
+    static var failingOriginalFileID: Int? {
+      failingOriginal == nil ? nil : episodeConversionFileID
+    }
+
+    private static var failingOriginalStart: Int { failingOriginal == nil ? 0 : 120 }
+
+    private static var failingOriginalFields: String {
+      guard let failingOriginal else { return "" }
+      let converted = failingOriginal == .converted
+      return #","is_mp4_available":\#(converted),"media_info":\#(directPlayMediaInfo)"#
+    }
 
     private static let episodeConversion: EpisodeConversion? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -2108,8 +2134,8 @@ import Foundation
           {"file":{"id":441,"name":"\(seasonEpisodes[0].name)","file_type":"VIDEO",
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
-          "need_convert":\(episodeNeedsConversion),"start_from":0,
-          "video_metadata":\(seasonEpisodeMetadata)}}
+          "need_convert":\(episodeNeedsConversion),"start_from":\(failingOriginalStart),
+          "video_metadata":\(seasonEpisodeMetadata)\(failingOriginalFields)}}
           """
         )
       case "POST /v2/files/\(episodeConversionFileID)/mp4" where episodeConversion != nil:

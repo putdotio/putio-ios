@@ -38,6 +38,10 @@ offline playback.
   on the next file and after a relaunch. `speed-landscape` scrolls the speed
   menu to 4× in landscape. `audio-tracks` disables the Audio chip with one track
   and keeps English when the switch to Turkish fails.
+- `direct-play-fallback` and `direct-play-cant-play` fail an original before
+  its first frame: it plays converted at the same position and starts converted
+  on the next play, or, with no converted version, shows Can’t play this file
+  with Open in VLC.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
   failed save, and keeps them across relaunch. Rotate to landscape on holds
   landscape and restores portrait on Close; off, the player and the conversion
@@ -140,6 +144,12 @@ Preconditions:
   `--putio-harness-audio-tracks one|failing|fast-forward` streams one audio track, a
   Turkish track whose playlist is missing, or an I-frame playlist for speeds above 2×. Boards: `rd-ios-pb-06-audio`,
   `rd-ios-pb-07-speed`.
+- **Direct play fallback.** Run `--only direct-play-fallback,direct-play-cant-play`.
+  Screenshots: `runtime-direct-play-fallback`, `runtime-direct-play-cant-play`.
+  `--putio-harness-original-fails converted|none` puts the first Blue Lights
+  episode on Direct play at 120 seconds, streams it as the unopenable
+  `runtime-proof-undecodable.mkv`, and gives it a converted version or none.
+  Board: `rd-ios-pb-17-cant-play`.
 - **Preferences.** Run `--only playback-preferences`. Screenshots:
   `runtime-playback-preferences`, `runtime-rotate-off-portrait`,
   `runtime-rotate-off-converting`. `--putio-harness-rotate-off` starts with

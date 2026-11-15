@@ -1812,6 +1812,17 @@
         }
       }
     },
+    "This device can’t play the original file, and it has no converted version." : {
+      "comment" : "android: mobile_playback_unsupported_video_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device can’t play the original file, and it has no converted version."
+          }
+        }
+      }
+    },
     "This device's keychain is unavailable. Try again." : {
       "comment" : "ios-only: no Android string for the shared session errors",
       "localizations" : {

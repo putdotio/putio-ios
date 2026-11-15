@@ -276,22 +276,53 @@ import SwiftUI
     }
   }
 
+  @MainActor
   enum HarnessDirectPlay {
-    static func source(for source: PutioPlaybackSource) throws -> PutioPlaybackSource {
-      guard
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1", let original = source.original
-      else { throw HarnessPlaybackFixtureError.missingResource }
+    private static var forgotFallbacks = false
+
+    static func forgetFallbacks(scenario: HarnessScenario, accountID: Int) {
+      guard scenario == .filesBrowser, !forgotFallbacks else { return }
+      forgotFallbacks = true
+      PutioConvertedFallbacks.clear(accountID: accountID)
+    }
+
+    static func source(for source: PutioPlaybackSource, fileID: PutioFileID) throws
+      -> PutioPlaybackSource
+    {
+      guard let original = source.original else {
+        throw HarnessPlaybackFixtureError.missingResource
+      }
+      let baseURL = try mediaBaseURL()
       let subtitles = original.subtitles.map { subtitle in
         PutioCastSubtitle(
           key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
           name: subtitle.name, url: baseURL.appending(path: "runtime-proof-subtitles.srt"))
       }
+      let fails = fileID.rawValue == HarnessSeededAPI.failingOriginalFileID
       return PutioPlaybackSource(
-        url: baseURL.appending(path: "runtime-proof-direct.mkv"),
+        url: baseURL.appending(
+          path: fails ? "runtime-proof-undecodable.mkv" : "runtime-proof-direct.mkv"),
         startFromSeconds: source.startFromSeconds,
         original: original.subtitles(subtitles, defaultKey: original.defaultSubtitleKey))
+    }
+
+    static func isConverted(_ source: PutioPlaybackSource) -> Bool {
+      source.url.path.hasSuffix("/mp4/stream")
+    }
+
+    static func converted(_ source: PutioPlaybackSource) throws -> PutioPlaybackSource {
+      PutioPlaybackSource(
+        url: try mediaBaseURL().appending(path: "runtime-proof.m3u8"),
+        startFromSeconds: source.startFromSeconds)
+    }
+
+    private static func mediaBaseURL() throws -> URL {
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else { throw HarnessPlaybackFixtureError.missingResource }
+      return baseURL
     }
   }
 

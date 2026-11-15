@@ -45,6 +45,7 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     case conversion
     case conversionStatus
     case conversionUnavailable
+    case unsupported
     case unknown
   }
 
@@ -53,6 +54,7 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
   public let message: String
 
   public static func resolving(_ error: Error) -> PutioVideoPlaybackFailure? {
+    if error is PutioPlaybackUnplayable { return unsupported }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
       return nil
@@ -124,6 +126,14 @@ public struct PutioVideoPlaybackFailure: Equatable, Sendable {
     message: String(localized: "Try again later.", bundle: .module)
   )
 
+  public static let unsupported = PutioVideoPlaybackFailure(
+    kind: .unsupported,
+    title: String(localized: "Can’t play this file", bundle: .module),
+    message: String(
+      localized: "This device can’t play the original file, and it has no converted version.",
+      bundle: .module)
+  )
+
   public static let conversionUnavailable = PutioVideoPlaybackFailure(
     kind: .conversionUnavailable,
     title: String(localized: "Can’t play this file", bundle: .module),
@@ -163,9 +173,12 @@ public final class PutioVideoPlaybackModel {
 
   public private(set) var state: PutioVideoPlaybackState = .loading
   public private(set) var playerAttempt: UInt64 = 0
+  public private(set) var playsConvertedFallback = false
 
   @ObservationIgnored private let fileID: PutioFileID
   @ObservationIgnored private let resolve: PutioPlaybackResolve
+  @ObservationIgnored private let resolveConverted: PutioPlaybackResolve?
+  @ObservationIgnored private var resolvesConverted = false
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let conversionPollInterval: Duration
@@ -191,6 +204,7 @@ public final class PutioVideoPlaybackModel {
     },
     sleep: @escaping PutioVideoConversionSleep = { try await Task.sleep(for: $0) },
     chooseStart: @escaping PutioVideoStartChoice = { source, _ in source },
+    resolveConverted: PutioPlaybackResolve? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = fileID
@@ -200,6 +214,7 @@ public final class PutioVideoPlaybackModel {
     self.loadConversionStatus = loadConversionStatus
     self.sleep = sleep
     self.chooseStart = chooseStart
+    self.resolveConverted = resolveConverted
     self.resolve = resolve
   }
 
@@ -239,10 +254,23 @@ public final class PutioVideoPlaybackModel {
     state = .failed(.playback)
   }
 
-  public func playerFailed(_ fault: PutioVideoPlayerFault, heldSeconds: Int?) async {
+  public func fallsBack(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {
+    guard case .ready(let source) = state, source.original != nil else { return false }
+    return fault == .playback && beforeFirstFrame && resolveConverted != nil && !resolvesConverted
+  }
+
+  public func playerFailed(
+    _ fault: PutioVideoPlayerFault, heldSeconds: Int?, beforeFirstFrame: Bool = false
+  ) async {
     guard case .ready = state else { return }
+    let fallsBack = fallsBack(after: fault, beforeFirstFrame: beforeFirstFrame)
     if let heldSeconds { self.heldSeconds = heldSeconds }
     recovery = .resolve
+    if fallsBack {
+      resolvesConverted = true
+      await resolveSource()
+      return
+    }
     guard fault == .accessExpired, !refreshedExpiredAccess else {
       generation &+= 1
       state = .failed(.player(fault))
@@ -265,7 +293,7 @@ public final class PutioVideoPlaybackModel {
         self.initialResolution = nil
         resolution = initialResolution
       } else {
-        resolution = try await resolve(fileID)
+        resolution = try await resolveCurrent()
       }
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
@@ -368,7 +396,7 @@ public final class PutioVideoPlaybackModel {
       var attempts = 0
       while requestGeneration == generation {
         try Task.checkCancellation()
-        let resolution = try await resolve(fileID)
+        let resolution = try await resolveCurrent()
         try Task.checkCancellation()
         guard requestGeneration == generation else { return }
         switch resolution {
@@ -422,7 +450,13 @@ public final class PutioVideoPlaybackModel {
     }
   }
 
+  private func resolveCurrent() async throws -> PutioPlaybackResolution {
+    guard resolvesConverted, let resolveConverted else { return try await resolve(fileID) }
+    return try await resolveConverted(fileID)
+  }
+
   private func play(_ source: PutioPlaybackSource) {
+    playsConvertedFallback = resolvesConverted
     playerAttempt &+= 1
     state = .ready(source)
   }

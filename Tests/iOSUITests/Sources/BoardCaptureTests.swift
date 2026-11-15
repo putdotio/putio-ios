@@ -947,6 +947,33 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-30-cannot-convert")
   }
 
+  func testCantPlayTheOriginal() throws {
+    app.launchArguments += [
+      "--putio-harness-original-fails", "none", "--putio-harness-vlc-installed",
+    ]
+    letPlayerFollowPortraitPosture()
+    orient(.landscapeLeft)
+    app.launch()
+    openSeasonFolder()
+    let episode = element("files.item.441")
+    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    app.answerResumePrompt()
+    XCTAssertTrue(element("video.error").appears(within: 30), "the original never gave up")
+    XCTAssertTrue(app.staticTexts["Can’t play this file"].exists)
+    let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+    XCTAssertTrue(
+      app.staticTexts[
+        "This \(device) can’t play the original file, and it has no converted version."
+      ].exists, "the message does not name this \(device)")
+    XCTAssertTrue(app.buttons["Open in VLC"].exists, "Can’t play this file offers no VLC")
+    XCTAssertEqual(
+      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+    try captureBoard("rd-ios-pb-17-cant-play")
+  }
+
   private func openConvertingEpisode(
     _ conversion: String, showing state: String,
     _ orientation: UIDeviceOrientation = .landscapeLeft

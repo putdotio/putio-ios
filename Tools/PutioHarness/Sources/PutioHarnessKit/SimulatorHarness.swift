@@ -870,6 +870,10 @@ public struct SimulatorHarness {
           mediaDirectory.appending(path: "runtime-proof-direct.mkv"),
           context: "runtime-proof Direct play original"
         )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-undecodable.mkv"),
+          context: "runtime-proof undecodable original"
+        )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
