@@ -1,6 +1,6 @@
 {
   "repository": "putdotio/putio-android",
-  "commit": "a8cc22d49687378b5379e3c8f2eb9e18745f9ebe",
+  "commit": "cb19bc54656bb2c880eeaeece6dc58d000d08dcf",
   "files": [
     "core/design/src/main/res/values/strings.xml",
     "domain/account/src/main/res/values/strings.xml",
