@@ -335,6 +335,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     openSizeAndTiming(detail: "Extra large · 0.0 s")
     closeSizeAndTiming()
     app.closeVideo()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func openSizeAndTiming(detail: String) {
