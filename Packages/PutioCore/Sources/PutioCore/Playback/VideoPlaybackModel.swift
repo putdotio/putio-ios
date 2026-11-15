@@ -423,8 +423,9 @@ public final class PutioVideoPlaybackModel {
           let start = await startSource(source, afterConversion: true)
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }
-          let startOverride =
-            start.startFromSeconds == source.startFromSeconds ? nil : start.startFromSeconds
+          let choseStart =
+            start.resumesAfterFailure || start.startFromSeconds != source.startFromSeconds
+          let startOverride = choseStart ? start.startFromSeconds : nil
           if handOffArmed, handOffConverted?.handOff(startOverride) == true { return }
           play(start)
           return

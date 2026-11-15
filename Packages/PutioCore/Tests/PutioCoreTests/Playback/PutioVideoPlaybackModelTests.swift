@@ -758,12 +758,14 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
   }
 
   func testAConvertedVideoHandsOffOnlyWhenTheReceiverConnectedDuringTheWait() async {
-    let cases: [(connectedAtOpen: Bool, startsOver: Bool, handedOff: [Int?])] = [
-      (false, true, [0]),
-      (false, false, [nil]),
-      (true, true, []),
+    enum Choice { case startOver, savedPosition, resumeAtSavedSecond }
+    let cases: [(connectedAtOpen: Bool, choice: Choice, handedOff: [Int?])] = [
+      (false, .startOver, [0]),
+      (false, .savedPosition, [nil]),
+      (false, .resumeAtSavedSecond, [90]),
+      (true, .startOver, []),
     ]
-    for (connectedAtOpen, startsOver, expected) in cases {
+    for (connectedAtOpen, choice, expected) in cases {
       let saved = playbackSource()
       let resolver = PlaybackResolverStub([.success(.conversionRequired), .success(.ready(saved))])
       let conversion = VideoConversionStub(statusResults: [.success(.completed)])
@@ -776,7 +778,14 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
         loadConversionStatus: { try await conversion.status($0) },
         sleep: { try await conversion.sleep(for: $0) },
         chooseStart: { source, _ in
-          startsOver ? PutioVideoStart.source(source, startingWith: .startOver) : source
+          switch choice {
+          case .startOver: PutioVideoStart.source(source, startingWith: .startOver)
+          case .savedPosition: source
+          case .resumeAtSavedSecond:
+            PutioPlaybackSource(
+              url: source.url, startFromSeconds: source.startFromSeconds,
+              resumesAfterFailure: true)
+          }
         },
         handOffConverted: PutioVideoConvertedHandOff(
           isAvailable: { connected },
