@@ -965,9 +965,9 @@ struct MainTabView: View {
       onCast: playerCastAction(for: route),
       castsConverted: PutioVideoConvertedHandOff(
         isAvailable: { cast.isConnected },
-        handOff: { start in
+        handOff: { startOverride in
           guard cast.isConnected else { return false }
-          castVideo(route, startingAt: start.startFromSeconds)
+          castVideo(route, startingAt: startOverride)
           return cast.castingRoute != nil
         }),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },

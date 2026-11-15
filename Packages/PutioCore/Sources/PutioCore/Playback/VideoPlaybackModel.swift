@@ -16,11 +16,11 @@ public typealias PutioVideoStartChoice =
 
 public struct PutioVideoConvertedHandOff: Sendable {
   public let isAvailable: @MainActor @Sendable () -> Bool
-  public let handOff: @MainActor @Sendable (PutioPlaybackSource) -> Bool
+  public let handOff: @MainActor @Sendable (_ startOverride: Int?) -> Bool
 
   public init(
     isAvailable: @escaping @MainActor @Sendable () -> Bool,
-    handOff: @escaping @MainActor @Sendable (PutioPlaybackSource) -> Bool
+    handOff: @escaping @MainActor @Sendable (_ startOverride: Int?) -> Bool
   ) {
     self.isAvailable = isAvailable
     self.handOff = handOff
@@ -423,7 +423,9 @@ public final class PutioVideoPlaybackModel {
           let start = await startSource(source, afterConversion: true)
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }
-          if handOffArmed, handOffConverted?.handOff(start) == true { return }
+          let startOverride =
+            start.startFromSeconds == source.startFromSeconds ? nil : start.startFromSeconds
+          if handOffArmed, handOffConverted?.handOff(startOverride) == true { return }
           play(start)
           return
         case .conversionRequired:

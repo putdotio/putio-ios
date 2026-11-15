@@ -532,6 +532,7 @@ final class PutioCastModel {
         media, startSeconds: startSeconds ?? media.startFromSeconds, autoplay: true,
         activeTrackIDs: startingTrackIDs(for: media))
       guard request == generation else { return }
+      requestedStart = nil
       activity = .idle
       startSaving(media)
     } catch {
