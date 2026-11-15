@@ -739,6 +739,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-39-single-audio", .iphone, "testSingleAudio"),
       BoardCapture("rd-ios-pb-12-up-next", .iphone, "testUpNext"),
       BoardCapture("rd-ios-pb-40-ipad-now-playing", .ipad, "testNowPlaying"),
+      BoardCapture("rd-ios-pb-34-now-playing-casting", .iphone, "testNowPlayingCasting"),
+      BoardCapture(
+        "ipad-now-playing-casting", .ipad, "testNowPlayingCasting", screenBase: false),
       BoardCapture("rd-ios-pb-05-mini", .iphone, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-41-ipad-mini", .ipad, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-11-sleep", .iphone, "testSleepTimerMenu"),
@@ -1244,6 +1247,13 @@ enum BrowserJourneyContract {
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",
       attachmentNames: ["runtime-cast-failed", "runtime-cast-playing", "runtime-cast-signed-out"],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "cast-audio",
+      "ChromecastJourneyTests/testAudioCastsFromNowPlayingAdvancesOnTheReceiverAndHandsBackPaused",
+      attachmentNames: [
+        "runtime-audio-cast-failed", "runtime-audio-casting", "runtime-audio-cast-stopped",
+      ],
       timeAllowance: 180),
     JourneyPreflight(
       "cast-routes", "ChromecastJourneyTests/testRouteGroupFollowsCastDiscoveryAndLocalNetwork",

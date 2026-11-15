@@ -70,7 +70,7 @@
       onDiscoveryChanged?(discovery)
     }
 
-    func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
+    func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
       guard connection.isConnected else { throw PutioCastControllerError(failure: .receiver) }
       loadedURLs.append(media.url)
       try await Task.sleep(for: holdsLoads ? .seconds(3_600) : .milliseconds(400))
@@ -80,9 +80,9 @@
       }
       loaded = media
       position = Double(startSeconds)
-      state = .playing
+      state = autoplay ? .playing : .paused
       publish()
-      startClock()
+      if autoplay { startClock() }
     }
 
     func play() async throws {
@@ -120,6 +120,12 @@
       set(.disconnected)
     }
 
+    private func finish() {
+      state = .idle
+      publish()
+      loaded = nil
+    }
+
     private func set(_ next: PutioCastConnection) {
       connection = next
       onConnectionChanged?(next)
@@ -132,6 +138,10 @@
           try? await Task.sleep(for: .seconds(1))
           guard let self, !Task.isCancelled, state == .playing, let loaded else { return }
           position = min(position + 1, loaded.durationSeconds)
+          guard position < loaded.durationSeconds else {
+            finish()
+            return
+          }
           publish()
         }
       }
@@ -151,6 +161,7 @@
 
   struct HarnessCastLoadsProbe: View {
     let urls: [URL]
+    var identifier = "cast.load-requests"
 
     var body: some View {
       Color.clear
@@ -158,7 +169,7 @@
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Cast load requests")
         .accessibilityValue(urls.map(\.path).joined(separator: ","))
-        .accessibilityIdentifier("cast.load-requests")
+        .accessibilityIdentifier(identifier)
         .allowsHitTesting(false)
     }
   }

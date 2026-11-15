@@ -60,6 +60,9 @@ offline playback.
   refuses the tapped one.
 - `cast` connects from the player, controls the session, switches subtitles,
   and syncs the position back.
+- `cast-audio` casts an audio file from Now Playing to the stub speaker, retries
+  a failed load, pauses, plays the next file on the receiver, and stops back to
+  the phone, paused at the receiver's position.
 - `cast-routes` shows Picture in Picture, AirPlay and Cast in the route group,
   drops Cast with no device, and explains Local Network when it is off.
 - `cast-picker` lists a TV and a speaker while playback continues, connects to
@@ -195,6 +198,9 @@ Preconditions:
   first load and `--putio-harness-cast-load-held` holds every load. Boards:
   `rd-ios-pb-32-cast-loading`, `rd-ios-pb-08-casting`,
   `rd-ios-pb-09-cast-failed`.
+- **Audio cast.** Run `--only cast-audio`. Screenshots:
+  `runtime-audio-cast-failed`, `runtime-audio-casting`,
+  `runtime-audio-cast-stopped`. Board: `rd-ios-pb-34-now-playing-casting`.
 - **Route group.** Run `--only cast-routes`. Screenshots: `runtime-cast-routes`,
   `runtime-cast-routes-no-device`, `runtime-cast-local-network-off`.
   `--putio-harness-cast-no-device` removes the stub receiver and

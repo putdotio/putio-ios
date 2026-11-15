@@ -1043,6 +1043,38 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertNil(playback.sleepTimer.remainingSeconds)
   }
 
+  func testAReceiverTakesOverAtThePositionTheSleepTimerPausesItAndTheHandBackIsPaused() async {
+    let h = makeHarness()
+    let clock = PutioManualSleepTimerClock()
+    let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
+    defer { playback.stop() }
+    playback.present(h.model)
+    await waitUntil { h.model.isPlaying }
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(64)
+
+    let receiver = AudioEngineSpy()
+    h.model.moveToReceiver(receiver) { id in
+      PutioPlaybackSource(
+        url: URL(string: "https://cast.example.test/\(id.rawValue).mp3")!, startFromSeconds: 0)
+    }
+    await waitUntil { h.model.isPlaying && h.model.isOnReceiver }
+    XCTAssertEqual(h.engine.events.last, "stop")
+    XCTAssertEqual(receiver.events, ["load:430.mp3@64", "play:1.0"])
+    receiver.onPositionChanged?(80)
+
+    playback.sleepTimer.start(.fifteenMinutes)
+    clock.advance(by: .seconds(900))
+    await waitUntil { h.model.state == .paused(track) }
+    XCTAssertEqual(receiver.events.last, "pause")
+
+    h.model.returnFromReceiver()
+    await waitUntil { h.model.state == .paused(track) && !h.model.isOnReceiver }
+    XCTAssertEqual(receiver.events.last, "stop")
+    XCTAssertEqual(h.engine.events.suffix(2), ["stop", "load:430.m4a@80"])
+    XCTAssertEqual(h.model.elapsedSeconds, 80)
+  }
+
   func testSleepTimerKeepsRunningWhenAnotherFileOpensAndStopCancelsIt() async {
     let first = makeHarness()
     let second = makeHarness()

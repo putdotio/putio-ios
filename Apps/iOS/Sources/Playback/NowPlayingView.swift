@@ -6,6 +6,8 @@ struct PutioAudioPlayerView: View {
   let model: PutioAudioPlayerModel
   let sleepTimer: PutioAudioSleepTimer
   var castButton: AnyView?
+  var receiverName: String?
+  var onStopCasting: (() -> Void)?
   let onDismiss: @MainActor () -> Void
   var showsHarnessReadiness = false
   @State private var showsUpNext = false
@@ -34,6 +36,18 @@ struct PutioAudioPlayerView: View {
     case .loading:
       PutioLoadingStateView(title: String(localized: "Preparing audio"))
         .accessibilityIdentifier("audio.loading")
+    case .failed where model.isOnReceiver:
+      PutioErrorStateView(
+        title: String(localized: "Can’t play this on \(receiverLabel)."),
+        retryTitle: String(localized: "Try again"),
+        retryIdentifier: "audio.retry"
+      ) {
+        Task { await model.retry() }
+      }
+      .secondaryAction(String(localized: "Stop casting"), identifier: "cast.stop") {
+        onStopCasting?()
+      }
+      .accessibilityIdentifier("audio.cast-failed")
     case .failed(_, let failure):
       PutioErrorStateView(
         title: String(localized: "Couldn’t play this audio"),
@@ -44,8 +58,15 @@ struct PutioAudioPlayerView: View {
         Task { await model.retry() }
       }
     case .playing, .paused, .interrupted, .ended:
-      PutioNowPlayingDetails(model: model, sleepTimer: sleepTimer) { showsUpNext = true }
+      PutioNowPlayingDetails(
+        model: model, sleepTimer: sleepTimer,
+        receiverName: model.isOnReceiver ? receiverLabel : nil
+      ) { showsUpNext = true }
     }
+  }
+
+  private var receiverLabel: String {
+    receiverName ?? String(localized: "Chromecast")
   }
 
   private var hasFailed: Bool {
@@ -79,7 +100,8 @@ struct PutioAudioPlayerView: View {
   private var showsRoutes: Bool {
     switch model.state {
     case .playing, .paused, .interrupted, .ended: true
-    case .loading, .failed: false
+    case .failed: model.isOnReceiver
+    case .loading: false
     }
   }
 
@@ -90,7 +112,12 @@ struct PutioAudioPlayerView: View {
         .frame(width: 1, height: 1)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Audio player state")
-        .accessibilityValue(Text(verbatim: "id=\(model.track.id.rawValue);state=\(stateName)"))
+        .accessibilityValue(
+          Text(
+            verbatim:
+              "id=\(model.track.id.rawValue);state=\(stateName)\(model.isOnReceiver ? ";receiver" : "")"
+          )
+        )
         .accessibilityIdentifier("audio.state")
         .allowsHitTesting(false)
     }
@@ -120,6 +147,7 @@ struct PutioAudioPlayerView: View {
 private struct PutioNowPlayingDetails: View {
   let model: PutioAudioPlayerModel
   let sleepTimer: PutioAudioSleepTimer
+  let receiverName: String?
   let showUpNext: () -> Void
   @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
   @State private var scrubSeconds: Double?
@@ -174,13 +202,28 @@ private struct PutioNowPlayingDetails: View {
         .truncationMode(.middle)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("audio.title")
-      Text(model.neighbours?.folderName ?? " ")
-        .putioFont(PutioTheme.Typography.body)
-        .foregroundStyle(PutioTheme.Colors.textSecondary)
-        .lineLimit(1)
-        .truncationMode(.middle)
-        .accessibilityHidden(model.neighbours?.folderName == nil)
-        .accessibilityIdentifier("audio.folder")
+      if let receiverName {
+        HStack(spacing: PutioTheme.Spacing.space2) {
+          PutioIconView(.screencastFill, size: PutioNowPlayingMetrics.receiverIcon)
+            .foregroundStyle(PutioTheme.Colors.accent)
+            .accessibilityHidden(true)
+          Text(String(localized: "Playing on \(receiverName)"))
+            .putioFont(PutioTheme.Typography.body)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("audio.receiver")
+      } else {
+        Text(model.neighbours?.folderName ?? " ")
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .accessibilityHidden(model.neighbours?.folderName == nil)
+          .accessibilityIdentifier("audio.folder")
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
   }
@@ -317,6 +360,17 @@ private struct PutioNowPlayingDetails: View {
 
   @ViewBuilder
   private var chipRow: some View {
+    if receiverName == nil { speedChip }
+    PutioSleepTimerChip(timer: sleepTimer)
+    Button(action: showUpNext) {
+      PutioNowPlayingChipLabel(icon: .list, title: String(localized: "Up next"))
+    }
+    .putioNowPlayingChip()
+    .disabled(model.queue.count < 2)
+    .accessibilityIdentifier("audio.up-next")
+  }
+
+  private var speedChip: some View {
     Menu {
       ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
         Button {
@@ -337,13 +391,6 @@ private struct PutioNowPlayingDetails: View {
     .accessibilityLabel(Text("Playback speed"))
     .accessibilityValue(Text(model.speed.title))
     .accessibilityIdentifier("audio.speed")
-    PutioSleepTimerChip(timer: sleepTimer)
-    Button(action: showUpNext) {
-      PutioNowPlayingChipLabel(icon: .list, title: String(localized: "Up next"))
-    }
-    .putioNowPlayingChip()
-    .disabled(model.queue.count < 2)
-    .accessibilityIdentifier("audio.up-next")
   }
 }
 
@@ -441,6 +488,7 @@ private enum PutioNowPlayingMetrics {
   static let artworkRadius: CGFloat = 28
   static let playPause: CGFloat = 60
   static let chipIcon = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .body)
+  static let receiverIcon = PutioMetricRole(value: PutioTheme.Typography.sizeSm, relativeTo: .body)
   static let titleFont = PutioFontRole(
     fontName: PutioTheme.Typography.heading.fontName,
     size: PutioTheme.Typography.sizeMd,

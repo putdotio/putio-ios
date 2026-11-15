@@ -136,6 +136,11 @@ protocol PutioAudioEngine: AnyObject {
   func seek(to seconds: Int)
   func setRate(_ rate: Float)
   func stop()
+  var playsAtRate: Bool { get }
+}
+
+extension PutioAudioEngine {
+  var playsAtRate: Bool { true }
 }
 
 @MainActor
@@ -155,7 +160,10 @@ final class PutioAudioPlayerModel {
   private(set) var durationSeconds: Int?
   private(set) var neighbours: PutioAudioNeighbours?
 
-  @ObservationIgnored private let engine: any PutioAudioEngine
+  private(set) var isOnReceiver = false
+
+  @ObservationIgnored private var engine: any PutioAudioEngine
+  @ObservationIgnored private let localEngine: any PutioAudioEngine
   @ObservationIgnored private let nowPlaying: any PutioNowPlayingSurface
   @ObservationIgnored private let audioSession: any PutioAudioSessioning
   @ObservationIgnored private let speedStore: PutioAudioSpeedStore
@@ -164,7 +172,8 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
   @ObservationIgnored private let schedulePositionReports: PutioVideoPositionReporter.Scheduler
   @ObservationIgnored private var positionReporter: PutioVideoPositionReporter?
-  @ObservationIgnored private let resolve: PutioAudioResolve
+  @ObservationIgnored private var resolve: PutioAudioResolve
+  @ObservationIgnored private let localResolve: PutioAudioResolve
   @ObservationIgnored private let loadNeighbours: PutioAudioNeighboursLoad
   @ObservationIgnored private var neighboursTask: Task<PutioAudioNeighbours?, Never>?
   @ObservationIgnored private var neighboursTrackID: PutioFileID?
@@ -204,6 +213,7 @@ final class PutioAudioPlayerModel {
     self.state = .loading(track)
     self.speed = speedStore.load()
     self.engine = engine
+    self.localEngine = engine
     self.nowPlaying = nowPlaying
     self.audioSession = audioSession
     self.speedStore = speedStore
@@ -217,6 +227,7 @@ final class PutioAudioPlayerModel {
       try await reportPosition(fileID, seconds)
     }
     self.resolve = resolve
+    self.localResolve = resolve
     self.loadNeighbours = loadNeighbours
     bindEngine()
   }
@@ -323,6 +334,60 @@ final class PutioAudioPlayerModel {
     speedStore.save(speed)
     if isPlaying { engine.setRate(speed.rawValue) }
     publishNowPlaying()
+  }
+
+  func moveToReceiver(
+    _ receiver: any PutioAudioEngine, resolve receiverResolve: @escaping PutioAudioResolve
+  ) {
+    guard !isOnReceiver else { return }
+    switchOutput(to: receiver, resolve: receiverResolve, onReceiver: true, keepsPlaying: true)
+  }
+
+  func returnFromReceiver() {
+    guard isOnReceiver else { return }
+    switchOutput(to: localEngine, resolve: localResolve, onReceiver: false, keepsPlaying: false)
+  }
+
+  private func switchOutput(
+    to next: any PutioAudioEngine, resolve nextResolve: @escaping PutioAudioResolve,
+    onReceiver: Bool, keepsPlaying: Bool
+  ) {
+    let seconds = elapsedSeconds
+    let plays: Bool
+    switch state {
+    case .playing, .loading: plays = keepsPlaying && !holdsNextStart
+    case .paused, .interrupted, .failed, .ended: plays = false
+    }
+    let resumes: Bool
+    switch state {
+    case .ended: resumes = false
+    default: resumes = isStarted
+    }
+    if resumes { positionReporter?.stop() }
+    generation &+= 1
+    transitionTask?.cancel()
+    transitionTask = nil
+    awaitedSeconds = nil
+    loadStartSeconds = nil
+    engine.onReady = nil
+    engine.onEnded = nil
+    engine.onFailed = nil
+    engine.onPositionChanged = nil
+    engine.stop()
+    engine = next
+    resolve = nextResolve
+    isOnReceiver = onReceiver
+    bindEngine()
+    guard resumes else {
+      publishNowPlaying()
+      return
+    }
+    holdsNextStart = !plays
+    let track = track
+    state = .loading(track)
+    transitionTask = Task { [weak self] in
+      await self?.load(track: track, startFromSeconds: seconds)
+    }
   }
 
   var canSkipToPrevious: Bool { neighbours?.previous != nil && !isTransitioning }
@@ -662,7 +727,7 @@ final class PutioAudioPlayerModel {
           title: track.title,
           elapsedSeconds: elapsedSeconds,
           durationSeconds: durationSeconds,
-          rate: isPlaying ? speed.rawValue : 0
+          rate: isPlaying ? (engine.playsAtRate ? speed.rawValue : 1) : 0
         ))
     }
   }

@@ -320,11 +320,22 @@ struct MainTabView: View {
           model: model,
           sleepTimer: audioPlayback.sleepTimer,
           castButton: playerCastButton,
+          receiverName: cast.connection.deviceName,
+          onStopCasting: { cast.disconnect() },
           onDismiss: { audioPlayback.isPresented = false },
           showsHarnessReadiness: scenario == .filesBrowser
         )
         .putioCastLocalNetworkAlert(cast)
         .putioCastPicker(cast)
+        .overlay(alignment: .topTrailing) {
+          #if DEBUG
+            if scenario == .filesBrowser, let loads = cast.harnessController?.loadedURLs,
+              !loads.isEmpty
+            {
+              HarnessCastLoadsProbe(urls: loads, identifier: "audio.cast-loads")
+            }
+          #endif
+        }
       }
     }
     .onDisappear {
@@ -342,6 +353,14 @@ struct MainTabView: View {
     }
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
+    }
+    .onChange(of: cast.isConnected) { _, connected in
+      guard let model = audioPlayback.model else { return }
+      if connected {
+        castAudio(model)
+      } else {
+        model.returnFromReceiver()
+      }
     }
     .sheet(item: $trackPicker) { request in
       PutioOfflineTrackPickerView(
@@ -699,44 +718,51 @@ struct MainTabView: View {
       return
     }
     stopAudio(keepingSleepTimer: true)
-    audioPlayback.present(
-      PutioAudioPlayerModel(
-        track: PutioAudioTrack(id: route.id, parentID: route.parentID, title: route.title),
-        engine: PutioSystemAudioEngine(),
-        nowPlaying: PutioSystemNowPlayingSurface(),
-        audioSession: PutioSystemAudioSession(),
-        speedStore: PutioAudioSpeedStore(),
-        positionPipeline: playbackPositionPipeline,
-        remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
-        reportPosition: { fileID, seconds in
-          if offlineQueue.item(for: fileID)?.isPlayable == true {
-            await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
-          } else {
-            try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-          }
-          #if DEBUG
-            if scenario == .filesBrowser {
-              harnessAudioSaves.append((fileID, seconds))
-            }
-          #endif
-        },
-        resolve: { fileID in
-          if let local = offlineQueue.localSource(for: fileID) { return local }
-          return try await resolveAudioSource(fileID: fileID)
-        },
-        loadNeighbours: { track in
-          do {
-            return try await runtime.audioNeighbours(of: track.id, in: track.parentID)
-          } catch PutioRuntimeError.transient {
-            let files = PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
-              .items(track.parentID)
-            guard let stored = PutioAudioNeighbours.stored(files, around: track) else {
-              throw PutioRuntimeError.transient
-            }
-            return stored
-          }
+    let model = PutioAudioPlayerModel(
+      track: PutioAudioTrack(id: route.id, parentID: route.parentID, title: route.title),
+      engine: PutioSystemAudioEngine(),
+      nowPlaying: PutioSystemNowPlayingSurface(),
+      audioSession: PutioSystemAudioSession(),
+      speedStore: PutioAudioSpeedStore(),
+      positionPipeline: playbackPositionPipeline,
+      remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
+      reportPosition: { fileID, seconds in
+        if offlineQueue.item(for: fileID)?.isPlayable == true {
+          await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+        } else {
+          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         }
-      ))
+        #if DEBUG
+          if scenario == .filesBrowser {
+            harnessAudioSaves.append((fileID, seconds))
+          }
+        #endif
+      },
+      resolve: { fileID in
+        if let local = offlineQueue.localSource(for: fileID) { return local }
+        return try await resolveAudioSource(fileID: fileID)
+      },
+      loadNeighbours: { track in
+        do {
+          return try await runtime.audioNeighbours(of: track.id, in: track.parentID)
+        } catch PutioRuntimeError.transient {
+          let files = PutioOfflineFolderFiles(queue: offlineQueue, open: openOffline)
+            .items(track.parentID)
+          guard let stored = PutioAudioNeighbours.stored(files, around: track) else {
+            throw PutioRuntimeError.transient
+          }
+          return stored
+        }
+      }
+    )
+    castAudio(model)
+    audioPlayback.present(model)
+  }
+
+  private func castAudio(_ model: PutioAudioPlayerModel) {
+    guard cast.isConnected, !cast.hasSession, selectedVideoRoute == nil else { return }
+    let receiver = cast.makeAudioReceiver { try await runtime.resolveCastAudio(fileID: $0) }
+    model.moveToReceiver(receiver) { try await receiver.resolve($0) }
   }
 
   private func stopAudio(keepingSleepTimer: Bool = false) {
