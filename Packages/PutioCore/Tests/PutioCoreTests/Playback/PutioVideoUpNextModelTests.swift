@@ -20,19 +20,22 @@ private struct UpNextFailure: Error {}
 private final class HeldLookup {
   let started = XCTestExpectation(description: "HeldLookup suspended")
   private(set) var requests = 0
-  private var continuation: CheckedContinuation<Void, Never>?
+  private var released = false
+  private var continuations: [CheckedContinuation<Void, Never>] = []
 
   func hold() async {
     requests += 1
+    guard !released else { return }
     await withCheckedContinuation {
-      continuation = $0
-      started.fulfill()
+      continuations.append($0)
+      if requests == 1 { started.fulfill() }
     }
   }
 
   func release() {
-    continuation?.resume()
-    continuation = nil
+    released = true
+    for continuation in continuations { continuation.resume() }
+    continuations.removeAll()
   }
 }
 
