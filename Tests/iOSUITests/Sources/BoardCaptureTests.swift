@@ -775,6 +775,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(
       speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
     if orientation == .portrait {
+      app.revealVideoControls(showing: app.videoClose)
       XCTAssertGreaterThanOrEqual(
         element("video.title").frame.minY, app.videoClose.frame.maxY,
         "the portrait title shares the button row")
