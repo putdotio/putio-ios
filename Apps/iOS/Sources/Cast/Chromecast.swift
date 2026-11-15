@@ -171,6 +171,7 @@ final class PutioCastModel {
   var presentsPicker = false
   var presentsLocalNetworkAlert = false
 
+  @ObservationIgnored private var connectionsMade = 0
   @ObservationIgnored private let controller: PutioCastControlling
   @ObservationIgnored private let resolve: PutioCastResolve
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
@@ -244,6 +245,8 @@ final class PutioCastModel {
   }
 
   var isConnected: Bool { connection.isConnected }
+
+  var connectionID: Int? { isConnected ? connectionsMade : nil }
 
   #if DEBUG
     var harnessController: PutioHarnessCastController? {
@@ -457,6 +460,7 @@ final class PutioCastModel {
   private func connectionChanged(_ connection: PutioCastConnection) {
     let lostSession = self.connection.isConnected && !connection.isConnected
     if lostSession { handBack() }
+    if connection.isConnected, !self.connection.isConnected { connectionsMade &+= 1 }
     self.connection = connection
     if connection == .unavailable || connection == .localNetworkDenied { presentsPicker = false }
     if lostSession { clearSession() }
