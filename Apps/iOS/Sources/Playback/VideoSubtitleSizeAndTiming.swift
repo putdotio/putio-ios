@@ -59,7 +59,10 @@ struct PutioSubtitleSizeAndTimingPanel: View {
       .listSectionSpacing(.compact)
     }
     .presentationDetents([.medium, .large])
-    .frame(idealWidth: Self.popoverWidth, idealHeight: Self.popoverHeight)
+    .frame(
+      idealWidth: Self.popoverWidth, maxWidth: .infinity, idealHeight: Self.popoverHeight,
+      maxHeight: .infinity
+    )
     .accessibilityIdentifier("video.size-and-timing")
   }
 
