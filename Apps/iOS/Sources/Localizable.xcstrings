@@ -502,7 +502,7 @@
       }
     },
     "Audio output" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
+      "comment" : "ios-only: the AirPlay route picker on Now Playing; AirPlay is an Apple feature with no Android counterpart",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -668,7 +668,7 @@
       }
     },
     "Cast, connected" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
+      "comment" : "android: mobile_cast_casting_to | differs: the iOS button names no device",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1174,7 +1174,7 @@
       }
     },
     "Couldn’t load subtitles" : {
-      "comment" : "ios-only: no Android string for a subtitle that fails to load (putio-android#642)",
+      "comment" : "ios-only: no Android string for a subtitle that fails to load (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1286,7 +1286,7 @@
       }
     },
     "Couldn’t switch audio track" : {
-      "comment" : "ios-only: Android phone shows no notice for a failed audio switch; Android TV says tv_player_audio_failed (putio-android#720)",
+      "comment" : "ios-only: Android phone shows no notice for a failed audio switch; Android TV says tv_player_audio_failed (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2046,7 +2046,7 @@
       }
     },
     "Font and colours follow iOS caption settings." : {
-      "comment" : "ios-only: iOS wording of mobile_playback_subtitle_caption_settings, names iOS caption settings",
+      "comment" : "android: mobile_playback_subtitle_caption_settings | differs: names iOS caption settings",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2113,7 +2113,7 @@
       }
     },
     "Get VLC" : {
-      "comment" : "ios-only: no Android string for the iOS VLC handoff",
+      "comment" : "ios-only: no Android action opens the store page from the VLC notice (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2212,7 +2212,7 @@
       }
     },
     "Local network access is off" : {
-      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2256,7 +2256,7 @@
       }
     },
     "Open Settings" : {
-      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2300,7 +2300,7 @@
       }
     },
     "Install VLC for iOS from the App Store to stream this file there." : {
-      "comment" : "ios-only: no Android string for the iOS VLC handoff",
+      "comment" : "android: mobile_files_vlc_missing | differs: the iOS alert splits it into a title and a message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2608,7 +2608,7 @@
       }
     },
     "Loading on %@" : {
-      "comment" : "ios-only: no Android string for the Cast loading line (putio-android#642)",
+      "comment" : "ios-only: no Android string for the Cast loading line (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3952,7 +3952,7 @@
       }
     },
     "This iPad can’t play the original file, and it has no converted version." : {
-      "comment" : "ios-only: iOS wording of mobile_playback_unsupported_video_message, names this iPad",
+      "comment" : "android: mobile_playback_unsupported_video_message | differs: names this iPad",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3985,7 +3985,7 @@
       }
     },
     "This iPhone can’t play the original file, and it has no converted version." : {
-      "comment" : "ios-only: iOS wording of mobile_playback_unsupported_video_message, names this iPhone",
+      "comment" : "android: mobile_playback_unsupported_video_message | differs: names this iPhone",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4051,7 +4051,7 @@
       }
     },
     "Turn it on in Settings to find Cast devices." : {
-      "comment" : "ios-only: the Local Network permission exists only on iOS",
+      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5404,7 +5404,7 @@
       }
     },
     "VLC is not installed" : {
-      "comment" : "ios-only: no Android string for the iOS VLC handoff",
+      "comment" : "android: mobile_files_vlc_missing | differs: the iOS alert splits it into a title and a message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5735,7 +5735,7 @@
       }
     },
     "Play next" : {
-      "comment" : "ios-only: no Android string for the iOS Up next card (putio-android#617)",
+      "comment" : "android: mobile_playback_play_now | differs: Up next board wording",
       "localizations" : {
         "en" : {
           "stringUnit" : {

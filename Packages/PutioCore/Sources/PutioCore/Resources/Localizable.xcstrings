@@ -357,7 +357,7 @@
       }
     },
     "Could not convert video" : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "comment" : "ios-only: no Android string for a failed conversion request (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -478,7 +478,7 @@
       }
     },
     "Could not open video" : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "comment" : "android: mobile_playback_error_title | differs: iOS says the video could not be opened",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1791,7 +1791,7 @@
       }
     },
     "The video could not be played. Try again." : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "comment" : "ios-only: no Android string for a player fault (putio-android#835)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2033,7 +2033,7 @@
       }
     },
     "Video not found" : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "comment" : "android: mobile_files_folder_not_found | differs: the player names the video",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2309,7 +2309,7 @@
       }
     },
     "put.io could not prepare this video. Try again." : {
-      "comment" : "ios-only: no Android string for the shared video playback and resume",
+      "comment" : "android: mobile_state_error_unavailable | differs: iOS names the video",
       "localizations" : {
         "en" : {
           "stringUnit" : {
