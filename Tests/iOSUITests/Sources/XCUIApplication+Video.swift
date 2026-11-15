@@ -30,8 +30,11 @@ extension XCUIApplication {
       revealVideoControls(showing: playPause, file: file, line: line)
       guard let shown = try? playPause.snapshot() else { continue }
       if shown.label == target { return }
-      coordinate(withNormalizedOffset: .zero)
-        .withOffset(CGVector(dx: shown.frame.midX, dy: shown.frame.midY)).tap()
+      let window = mainWindow.frame
+      mainWindow.coordinate(withNormalizedOffset: .zero)
+        .withOffset(
+          CGVector(dx: shown.frame.midX - window.minX, dy: shown.frame.midY - window.minY)
+        ).tap()
       let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
       if XCTWaiter.wait(for: [expectation], timeout: 3) == .completed { return }
     }

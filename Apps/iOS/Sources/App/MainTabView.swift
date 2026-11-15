@@ -322,6 +322,7 @@ struct MainTabView: View {
           castButton: playerCastButton,
           receiverName: cast.connection.deviceName,
           onStopCasting: { cast.disconnect() },
+          castMenuItem: cast.showsCastButton ? AnyView(PutioCastMenuButton(model: cast)) : nil,
           onDismiss: { audioPlayback.isPresented = false },
           showsHarnessReadiness: scenario == .filesBrowser
         )

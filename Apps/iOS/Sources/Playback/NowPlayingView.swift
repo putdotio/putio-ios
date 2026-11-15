@@ -8,15 +8,24 @@ struct PutioAudioPlayerView: View {
   var castButton: AnyView?
   var receiverName: String?
   var onStopCasting: (() -> Void)?
+  var castMenuItem: AnyView?
   let onDismiss: @MainActor () -> Void
   var showsHarnessReadiness = false
   @State private var showsUpNext = false
 
   var body: some View {
+    if #available(iOS 27.1, *) {
+      PutioRailEdgeReader { player(railed: $0 != nil) }
+    } else {
+      player(railed: false)
+    }
+  }
+
+  private func player(railed: Bool) -> some View {
     NavigationStack {
       content
         .putioContentBackground()
-        .toolbar { toolbar }
+        .toolbar { toolbar(railed: railed) }
     }
     .sheet(isPresented: $showsUpNext) {
       PutioAudioUpNextSheet(model: model)
@@ -74,10 +83,10 @@ struct PutioAudioPlayerView: View {
   }
 
   @ToolbarContentBuilder
-  private var toolbar: some ToolbarContent {
+  private func toolbar(railed: Bool) -> some ToolbarContent {
     ToolbarItem(placement: .topBarLeading) {
       Button(action: onDismiss) {
-        Image(putioIcon: .caretDown)
+        Image(putioIcon: railed ? .caretLeft : .caretDown)
           .resizable()
           .scaledToFit()
           .frame(width: 18, height: 18)
@@ -86,14 +95,26 @@ struct PutioAudioPlayerView: View {
       .accessibilityIdentifier("audio.collapse")
     }
     if showsRoutes {
-      ToolbarItemGroup(placement: .topBarTrailing) {
-        PutioAudioRoutePicker()
-          .frame(width: 24, height: 24)
-          .accessibilityLabel(Text("Audio output"))
-          .accessibilityIdentifier("audio.airplay")
-        if let castButton { castButton }
+      if #available(iOS 27.1, *), railed {
+        ToolbarItem(placement: .topBarTrailing) { airPlay }
+          .axisBehavior(.verticalPreferred)
+        if let castMenuItem {
+          ToolbarOverflowMenu { castMenuItem }
+        }
+      } else {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+          airPlay
+          if let castButton { castButton }
+        }
       }
     }
+  }
+
+  private var airPlay: some View {
+    PutioAudioRoutePicker()
+      .frame(width: 24, height: 24)
+      .accessibilityLabel(Text("Audio output"))
+      .accessibilityIdentifier("audio.airplay")
   }
 
   private var showsRoutes: Bool {
@@ -148,29 +169,41 @@ private struct PutioNowPlayingDetails: View {
   let sleepTimer: PutioAudioSleepTimer
   let receiverName: String?
   let showUpNext: () -> Void
-  @ScaledMetric(relativeTo: .body) private var detailsHeight: CGFloat = 330
+  @ScaledMetric(relativeTo: .body) private var estimatedDetailsHeight: CGFloat = 330
+  @State private var measuredDetailsHeight: CGFloat?
   @State private var scrubSeconds: Double?
 
   var body: some View {
     GeometryReader { geometry in
       let width = min(geometry.size.width, PutioNowPlayingMetrics.maxWidth)
+      let top = PutioTheme.Spacing.space3
+      let bottom = PutioTheme.Spacing.space4
       let artwork = max(
         PutioNowPlayingMetrics.minArtwork,
         min(
           width - PutioNowPlayingMetrics.inset * 2,
-          geometry.size.height - detailsHeight,
+          geometry.size.height
+            - (measuredDetailsHeight.map { $0 + PutioNowPlayingMetrics.sectionGap + top + bottom }
+              ?? estimatedDetailsHeight),
           PutioNowPlayingMetrics.maxArtwork))
       ScrollView {
         VStack(spacing: PutioNowPlayingMetrics.sectionGap) {
           artworkTile(side: artwork)
-          heading
-          scrubber
-          transport
-          chips
+          VStack(spacing: PutioNowPlayingMetrics.sectionGap) {
+            heading
+            scrubber
+            transport
+            chips
+          }
+          .onGeometryChange(for: CGFloat.self) {
+            $0.size.height
+          } action: {
+            measuredDetailsHeight = $0
+          }
         }
         .padding(.horizontal, PutioNowPlayingMetrics.inset)
-        .padding(.top, PutioTheme.Spacing.space3)
-        .padding(.bottom, PutioTheme.Spacing.space4)
+        .padding(.top, top)
+        .padding(.bottom, bottom)
         .frame(width: width)
         .frame(maxWidth: .infinity)
       }

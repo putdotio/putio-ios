@@ -754,6 +754,66 @@ final class BoardCaptureTests: XCTestCase {
     try captureVideoPlayer(.portrait, board: "rd-ios-pb-43-portrait-video")
   }
 
+  func testDuoVideoPlayer() throws {
+    playBoardEpisode(orientation: .portrait)
+    let playPause = element("video.play-pause")
+    app.setVideoPlaying(false, with: playPause)
+    assertVideoFillsDuoWindow()
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      app.setVideoPlaying(true, with: playPause)
+    }
+    try captureBoard("rd-ios-pb-48-duo-closed-video")
+    let environment = ProcessInfo.processInfo.environment
+    guard environment["PUTIO_BOARD_TEXT_AUDIT"] != "1",
+      environment["PUTIO_BOARD_DEVICE"] == "duo-folded"
+    else { return }
+
+    app.setVideoPlaying(false, with: playPause)
+    try unfold()
+    try assertVideoPlaysAfterPostureChange(resume: true)
+    try fold()
+    try assertVideoPlaysAfterPostureChange(resume: false)
+  }
+
+  private func assertVideoPlaysAfterPostureChange(resume: Bool) throws {
+    XCTAssertTrue(element("video.ready").exists, "the posture change closed the video")
+    assertVideoFillsDuoWindow()
+    let title = element("video.title")
+    app.revealVideoControls(showing: title)
+    XCTAssertEqual(title.label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+    let position = element("video.current-position")
+    let start = try XCTUnwrap(position.value as? String, "the player reports no position")
+    if resume { app.setVideoPlaying(true, with: element("video.play-pause")) }
+    let advanced = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != %@", start), object: position)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advanced], timeout: 10), .completed,
+      "the video does not play after the posture change")
+  }
+
+  private func assertVideoFillsDuoWindow() {
+    let boardSizes = [Self.foldedDuoSize, Self.openDuoSize]
+    XCTAssertTrue(
+      waitUntil(10) { boardSizes.contains(app.mainWindow.frame.size) },
+      "the player window is not a Duo board size: \(app.mainWindow.frame.size)")
+    let window = app.mainWindow.frame
+    let castButton = element("cast.button")
+    for _ in 0..<3 where !castButton.appears(within: 2) {
+      app.mainWindow.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.3)).tap()
+    }
+    XCTAssertTrue(castButton.appears(within: 5), "the player controls never settled")
+    XCTAssertEqual(
+      app.videoRouteGroup(), ["video.picture-in-picture", "video.airplay", "cast.button"])
+    let close = app.videoClose.frame
+    let cast = castButton.frame
+    let scrubber = element("video.scrubber").frame
+    XCTAssertLessThan(close.midY, window.midY, "Close left the top of the player")
+    XCTAssertGreaterThan(scrubber.midY, window.midY, "the scrubber left the bottom of the player")
+    XCTAssertGreaterThan(cast.midX, window.midX, "the route buttons left the trailing side")
+    XCTAssertLessThanOrEqual(cast.maxX, window.maxX, "the route buttons are cut off")
+    XCTAssertLessThanOrEqual(scrubber.maxX, window.maxX, "the scrubber is cut off")
+  }
+
   private func captureVideoPlayer(_ orientation: UIDeviceOrientation, board: String) throws {
     playBoardEpisode(orientation: orientation)
     let playPause = element("video.play-pause")
@@ -1865,6 +1925,9 @@ final class BoardCaptureTests: XCTestCase {
       expectEnabled(app.buttons["audio.previous"]), "the middle file offers no previous")
     XCTAssertTrue(app.buttons["audio.next"].isEnabled, "the middle file offers no next")
     XCTAssertTrue(labeled("Music").exists, "the folder name is missing")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-folded" {
+      try assertNowPlayingInTrailingBar()
+    }
     try captureBoard("rd-ios-pb-04-now-playing")
   }
 
@@ -1886,6 +1949,32 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(app.buttons["audio.sleep-timer"].exists)
     XCTAssertTrue(app.buttons["audio.up-next"].exists)
     try captureBoard("rd-ios-pb-34-now-playing-casting")
+  }
+
+  private func assertNowPlayingInTrailingBar() throws {
+    let window = app.mainWindow.frame
+    let collapse = app.buttons["audio.collapse"]
+    let airPlay = element("audio.airplay")
+    let more = app.buttons["More"].firstMatch
+    for (name, control) in [("Back", collapse), ("AirPlay", airPlay), ("More", more)] {
+      XCTAssertTrue(control.appears(within: 5), "\(name) is missing")
+      XCTAssertGreaterThan(control.frame.minX, window.midX, "\(name) left the trailing bar")
+    }
+    XCTAssertEqual(airPlay.frame.midX, collapse.frame.midX, accuracy: 2, "AirPlay is off the bar")
+    XCTAssertEqual(more.frame.midX, collapse.frame.midX, accuracy: 2, "More is off the bar")
+    XCTAssertLessThan(collapse.frame.midY, airPlay.frame.midY, "Back is not above AirPlay")
+    XCTAssertLessThan(airPlay.frame.midY, more.frame.midY, "AirPlay is not above More")
+    let cast = app.buttons["Cast"].firstMatch
+    XCTAssertFalse(cast.exists, "Cast sits in the bar, not in More")
+    more.tap()
+    XCTAssertTrue(cast.appears(within: 5), "More has no Cast")
+    cast.tap()
+    let pickerTitle = app.staticTexts["Cast to"]
+    XCTAssertTrue(pickerTitle.appears(within: 5), "Cast in More opened no picker")
+    app.buttons["sheet.trailing"].tap()
+    XCTAssertTrue(pickerTitle.disappears(within: 5), "the Cast picker never closed")
+    let title = element("audio.title")
+    XCTAssertLessThan(title.frame.maxX, collapse.frame.minX, "the title runs under the bar")
   }
 
   func testSingleAudio() throws {
@@ -1958,6 +2047,14 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertLessThanOrEqual(mini.frame.maxY, window.maxY, "the mini player is cut off")
     }
     XCTAssertTrue(mini.isHittable, "the mini player left with the folder")
+    if !isPad {
+      let stop = app.buttons["audio.mini.stop"].frame
+      XCTAssertFalse(
+        stop.union(mini.frame).intersects(tabButton("Files").frame),
+        "the mini player covers the tab bar")
+      XCTAssertLessThanOrEqual(
+        mini.frame.maxY, app.mainWindow.frame.maxY, "the mini player is cut off")
+    }
     try captureBoard(isPad ? "rd-ios-pb-41-ipad-mini" : "rd-ios-pb-05-mini")
   }
 
@@ -1994,10 +2091,12 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-music")
     app.launch()
     openRoot()
+    var screen = "files.screen.0"
     for identifier in path {
-      let row = app.revealed(identifier)
+      let row = app.revealed(identifier, swipingIn: app.collectionViews[screen].firstMatch)
       XCTAssertTrue(row.appears(within: 10), "\(identifier) never appeared")
       row.tap()
+      screen = identifier.replacingOccurrences(of: "files.item.", with: "files.screen.")
     }
     let probe = element("audio.state")
     let reached = XCTNSPredicateExpectation(
@@ -2335,7 +2434,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func assertPreviewFillsWindowWithRail() {
-    let boardSizes = [CGSize(width: 466, height: 678), Self.openDuoSize]
+    let boardSizes = [Self.foldedDuoSize, Self.openDuoSize]
     XCTAssertTrue(
       waitUntil(10) { boardSizes.contains(app.mainWindow.frame.size) },
       "the window never settled on a Duo board size: \(app.mainWindow.frame.size)")
@@ -3778,7 +3877,7 @@ final class BoardCaptureTests: XCTestCase {
   private func openRoot() {
     let root = element("files.screen.0")
     let signIn = element("auth.sign-in")
-    let back = app.navigationBars.buttons["BackButton"].firstMatch
+    let back = app.buttons["BackButton"].firstMatch
     var settledSince: Date?
     let deadline = Date.now.addingTimeInterval(30)
     while Date.now < deadline {
@@ -3973,6 +4072,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static let regularWidthThreshold: CGFloat = 600
+  private static let foldedDuoSize = CGSize(width: 466, height: 678)
   private static let openDuoSize = CGSize(width: 951, height: 669)
 
   private func orient(_ orientation: UIDeviceOrientation) {

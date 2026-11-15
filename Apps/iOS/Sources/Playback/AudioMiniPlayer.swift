@@ -76,6 +76,7 @@ struct PutioAudioMiniPlayer: View {
                 .putioFont(PutioTheme.Typography.numeric)
                 .foregroundStyle(PutioTheme.Colors.textSecondary)
                 .lineLimit(1)
+                .minimumScaleFactor(Self.statusMinimumScale)
                 .accessibilityIdentifier("audio.mini.position")
             }
           }
@@ -161,6 +162,7 @@ struct PutioAudioMiniPlayer: View {
   }
 
   private static let playGlyph: CGFloat = 22
+  private static let statusMinimumScale: CGFloat = 0.75
   private static let stopGlyph: CGFloat = 18
   private static let progressHeight: CGFloat = 2
   private static let progressInset: CGFloat = 22
