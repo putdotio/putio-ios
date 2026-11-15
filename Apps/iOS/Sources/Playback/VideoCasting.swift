@@ -11,32 +11,32 @@ struct PutioVideoCastingView: View {
       PutioVideoTopBar(title: title, onClose: onClose) {
         PutioCastButton(model: model)
       }
-      GeometryReader { proxy in
-        ScrollView {
-          VStack(spacing: 0) {
-            if let phase = model.phase {
-              PutioVideoCastingStatus(
-                phase: phase, deviceName: deviceName, onRetry: model.retry,
-                onStop: model.stopCasting
-              )
-              .padding(.top, PutioTheme.Spacing.space3)
-            }
-            Spacer(minLength: PutioTheme.Spacing.space2)
-            if model.phase == .playing {
-              TimelineView(.periodic(from: .now, by: 1)) { _ in
-                transport
-              }
-            }
-          }
-          .frame(minHeight: proxy.size.height)
+      ScrollView {
+        if let phase = model.phase {
+          PutioVideoCastingStatus(
+            phase: phase, deviceName: deviceName, onRetry: model.retry,
+            onStop: model.stopCasting
+          )
+          .padding(.top, PutioTheme.Spacing.space3)
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollIndicators(.hidden)
+      }
+      .scrollBounceBehavior(.basedOnSize)
+      .scrollIndicators(.hidden)
+      .putioToast(toast)
+      if model.phase == .playing {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+          transport
+        }
+        .padding(.top, PutioTheme.Spacing.space2)
       }
     }
     .padding(PutioTheme.Spacing.space3)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
+  }
+
+  private var toast: Binding<PutioToast?> {
+    Binding(get: { model.toast }, set: { model.toast = $0 })
   }
 
   private var deviceName: String {
@@ -46,7 +46,7 @@ struct PutioVideoCastingView: View {
   private var transport: some View {
     let timeline = PutioVideoTimeline(
       elapsedSeconds: model.positionSeconds, durationSeconds: model.durationSeconds)
-    return VStack(spacing: PutioTheme.Spacing.space3) {
+    return VStack(spacing: 0) {
       HStack(spacing: PutioTheme.Spacing.space4 + PutioTheme.Spacing.space2) {
         PutioVideoSkipButton(seconds: -PutioVideoTimeline.skipInterval, circled: false) {
           model.skip(by: -PutioVideoTimeline.skipInterval)
@@ -70,7 +70,21 @@ struct PutioVideoCastingView: View {
           model.skip(by: PutioVideoTimeline.skipInterval)
         }
       }
+      .padding(.bottom, PutioTheme.Spacing.space3)
+      ViewThatFits(in: .horizontal) {
+        chips(iconOnly: false)
+        chips(iconOnly: true)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.bottom, PutioVideoMetrics.chipGap)
       PutioVideoScrubber(timeline: timeline, isEnabled: true) { model.seek(toSeconds: $0) }
+    }
+  }
+
+  private func chips(iconOnly: Bool) -> some View {
+    HStack(spacing: PutioTheme.Spacing.space2) {
+      PutioVideoTrackChips(
+        tracks: model.chipTracks, iconOnly: iconOnly, onChange: {}, onPresentation: { _, _ in })
     }
   }
 }

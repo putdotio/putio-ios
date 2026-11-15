@@ -1004,6 +1004,9 @@ struct MainTabView: View {
         if let loads = cast.harnessController?.loadedURLs, !loads.isEmpty {
           HarnessCastLoadsProbe(urls: loads)
         }
+        if let controller = cast.harnessController, controller.loaded != nil {
+          HarnessCastTracksProbe(ids: controller.activeTrackIDs)
+        }
       }
     }
   #endif

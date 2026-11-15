@@ -1254,7 +1254,10 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",
-      attachmentNames: ["runtime-cast-failed", "runtime-cast-playing", "runtime-cast-signed-out"],
+      attachmentNames: [
+        "runtime-cast-failed", "runtime-cast-playing", "runtime-cast-tracks",
+        "runtime-cast-signed-out",
+      ],
       timeAllowance: 180),
     JourneyPreflight(
       "cast-audio",

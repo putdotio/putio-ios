@@ -25,6 +25,8 @@
     @ObservationIgnored var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
     private(set) var loaded: PutioCastMedia?
     private(set) var loadedURLs: [URL] = []
+    private(set) var activeTrackIDs: [Int] = []
+    @ObservationIgnored private var textTrackIDs: Set<Int> = []
     @ObservationIgnored private var state: PutioCastPlayerState = .idle
     @ObservationIgnored private var position: Double = 0
     @ObservationIgnored private var failuresRemaining: Int
@@ -70,7 +72,14 @@
       onDiscoveryChanged?(discovery)
     }
 
-    func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
+    static let audioTracks = [
+      PutioCastAudioTrack(id: 1, languageCode: "en", name: "English"),
+      PutioCastAudioTrack(id: 2, languageCode: "tr", name: "Turkish"),
+    ]
+
+    func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool, activeTrackIDs: [Int])
+      async throws
+    {
       guard connection.isConnected else { throw PutioCastControllerError(failure: .receiver) }
       loadedURLs.append(media.url)
       try await Task.sleep(for: holdsLoads ? .seconds(3_600) : .milliseconds(400))
@@ -79,10 +88,28 @@
         throw PutioCastControllerError(failure: .receiver)
       }
       loaded = media
+      textTrackIDs = Set(media.subtitles.indices.map(PutioCastTextTrack.id(at:)))
+      let audio = activeTrackIDs.filter { id in Self.audioTracks.contains { $0.id == id } }
+      self.activeTrackIDs =
+        (audio.isEmpty ? [Self.audioTracks[0].id] : audio)
+        + activeTrackIDs.filter(textTrackIDs.contains)
       position = Double(startSeconds)
       state = autoplay ? .playing : .paused
       publish()
       if autoplay { startClock() }
+    }
+
+    func setActiveTrackIDs(_ ids: [Int]) async throws {
+      let known = Set(Self.audioTracks.map(\.id)).union(textTrackIDs)
+      guard loaded != nil, ids.allSatisfy(known.contains) else {
+        throw PutioCastControllerError(failure: .receiver)
+      }
+      activeTrackIDs = ids
+      publish()
+    }
+
+    func refreshStatus() {
+      publish()
     }
 
     func play() async throws {
@@ -108,6 +135,7 @@
     func stop() async throws {
       clock?.cancel()
       loaded = nil
+      activeTrackIDs = []
       state = .idle
       onMediaStatusChanged?(nil)
     }
@@ -115,6 +143,7 @@
     func endSession() {
       clock?.cancel()
       loaded = nil
+      activeTrackIDs = []
       state = .idle
       select(nil)
       set(.disconnected)
@@ -155,7 +184,22 @@
       onMediaStatusChanged?(
         PutioCastMediaStatus(
           fileID: loaded.id, playerState: state, positionSeconds: position,
-          durationSeconds: loaded.durationSeconds))
+          durationSeconds: loaded.durationSeconds, audioTracks: Self.audioTracks,
+          activeTrackIDs: activeTrackIDs))
+    }
+  }
+
+  struct HarnessCastTracksProbe: View {
+    let ids: [Int]
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Cast active tracks")
+        .accessibilityValue(ids.map(String.init).joined(separator: ","))
+        .accessibilityIdentifier("cast.active-tracks")
+        .allowsHitTesting(false)
     }
   }
 

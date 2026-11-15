@@ -80,7 +80,8 @@ final class PutioCastAudioEngine: PutioAudioEngine {
       guard let self, request == generation else { return }
       let autoplay = wantsPlay
       do {
-        try await controller.load(media, startSeconds: startFromSeconds, autoplay: autoplay)
+        try await controller.load(
+          media, startSeconds: startFromSeconds, autoplay: autoplay, activeTrackIDs: [])
         guard request == generation else { return }
         pending = nil
         loaded = media

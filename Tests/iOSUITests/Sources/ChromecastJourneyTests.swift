@@ -77,6 +77,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue((8...12).contains(interval), "timed saves came \(interval) s apart")
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Play" })
+    switchesReceiverTracks()
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Pause" })
 
@@ -119,6 +120,42 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
     XCTAssertTrue(waitForValue(receiverState, "connected=false;loaded=false", timeout: 5))
     screenshot("runtime-cast-signed-out")
+  }
+
+  private func switchesReceiverTracks() {
+    let tracks = element("cast.active-tracks")
+    let subtitles = element("video.chip.subtitles")
+    let audio = element("video.chip.audio")
+    XCTAssertTrue(waitForValue(tracks, "1,1000", timeout: 5), "loaded with \(tracks.value ?? "")")
+    XCTAssertEqual(subtitles.label, "Subtitles: English")
+    XCTAssertEqual(audio.label, "Audio: English")
+
+    choose("video.subtitles.off", from: subtitles)
+    XCTAssertFalse(
+      app.buttons["video.subtitles.size-and-timing"].exists, "casting offered Size and timing")
+    XCTAssertTrue(waitForValue(tracks, "1", timeout: 5), "Off left \(tracks.value ?? "")")
+    XCTAssertTrue(waitUntil(timeout: 5) { subtitles.label == "Subtitles: Off" })
+    choose("video.subtitles.1000", from: subtitles)
+    XCTAssertTrue(waitForValue(tracks, "1,1000", timeout: 5), "on left \(tracks.value ?? "")")
+    choose("video.subtitles.1001", from: subtitles)
+    XCTAssertTrue(waitForValue(tracks, "1,1001", timeout: 5), "Turkish left \(tracks.value ?? "")")
+    XCTAssertTrue(waitUntil(timeout: 5) { subtitles.label == "Subtitles: Turkish" })
+    screenshot("runtime-cast-tracks")
+    choose("video.audio.2", from: audio)
+    XCTAssertTrue(waitForValue(tracks, "2,1001", timeout: 5), "audio left \(tracks.value ?? "")")
+    XCTAssertTrue(waitUntil(timeout: 5) { audio.label == "Audio: Turkish" })
+    choose("video.subtitles.off", from: subtitles)
+    XCTAssertTrue(waitForValue(tracks, "2", timeout: 5), "Off left \(tracks.value ?? "")")
+  }
+
+  private func choose(_ identifier: String, from chip: XCUIElement) {
+    let row = app.buttons[identifier]
+    for _ in 0..<3 where !row.exists {
+      chip.tap()
+      _ = row.waitForExistence(timeout: 3)
+    }
+    XCTAssertTrue(row.exists, "\(chip.identifier) opened no \(identifier)")
+    row.tap()
   }
 
   private func reportedSeconds(_ reported: XCUIElement) -> Int? {

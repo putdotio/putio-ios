@@ -58,7 +58,7 @@ offline playback.
   tap, and keeps it across relaunch.
 - `proxy` waits on a slow proxy list and keeps the checked proxy when put.io
   refuses the tapped one.
-- `cast` connects from the player, controls the session, switches subtitles,
+- `cast` connects from the player, controls the session, switches subtitles and audio,
   and syncs the position back.
 - `cast-audio` casts an audio file from Now Playing to the stub speaker, retries
   a failed load, pauses, plays the next file on the receiver, and stops back to
@@ -193,7 +193,9 @@ Preconditions:
   `rd-ios-acc-31-proxy-loading`, `rd-ios-acc-32-proxy-failed`,
   `rd-ios-acc-33-proxy-unavailable`.
 - **Cast.** Run `--only cast`. Screenshots: `runtime-cast-failed`,
-  `runtime-cast-playing`, `runtime-cast-signed-out`.
+  `runtime-cast-playing`, `runtime-cast-tracks`, `runtime-cast-signed-out`.
+  `cast.active-tracks` holds the stub receiver's active track ids: audio 1
+  (English) and 2 (Turkish), subtitles from 1000 in load order.
   `--putio-harness-cast-load-fails-once` makes the stub receiver refuse the
   first load and `--putio-harness-cast-load-held` holds every load. Boards:
   `rd-ios-pb-32-cast-loading`, `rd-ios-pb-08-casting`,

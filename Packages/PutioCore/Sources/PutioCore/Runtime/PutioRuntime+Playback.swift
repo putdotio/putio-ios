@@ -172,8 +172,9 @@ extension PutioRuntime {
 
   /// Resolves a video into the HLS stream a Cast receiver plays, behind the
   /// local player's gate: put.io serves HLS for any file that needs no
-  /// conversion or already has its MP4. The URL carries the download token,
-  /// never the session token.
+  /// conversion or already has its MP4. Subtitles travel as put.io's subtitle
+  /// files instead of in the stream, unless those cannot be read. URLs carry
+  /// the download token, never the session token.
   public func resolveCastMedia(fileID: PutioFileID) async throws -> PutioCastResolution {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let (file, downloadToken) = try await performAuthenticatedOperation {
@@ -191,14 +192,25 @@ extension PutioRuntime {
     let token = try requireDownloadToken(downloadToken)
     guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
     let duration = file.metaData?.duration ?? 0
+    let sidecars = try? await sidecarSubtitles(fileID: fileID, token: token)
+    let stream = file.getHlsStreamURL(downloadToken: token)
     return .ready(
       PutioCastMedia(
         id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-        url: file.getHlsStreamURL(downloadToken: token),
+        url: sidecars == nil ? stream : Self.withoutMuxedSubtitles(stream),
         artworkURL: URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil },
         durationSeconds: duration,
         startFromSeconds: PutioPlaybackProgress.startSeconds(
-          savedSeconds: file.startFrom, durationSeconds: duration)))
+          savedSeconds: file.startFrom, durationSeconds: duration),
+        subtitles: sidecars?.subtitles ?? [], defaultSubtitleKey: sidecars?.defaultKey))
+  }
+
+  private static func withoutMuxedSubtitles(_ url: URL) -> URL {
+    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+      return url
+    }
+    components.queryItems = components.queryItems?.filter { $0.name != "subtitle_key" }
+    return components.url ?? url
   }
 
   public func resolveCastAudio(fileID: PutioFileID) async throws -> PutioCastMedia {
@@ -259,7 +271,7 @@ extension PutioRuntime {
       guard let url = components.url else { return nil }
       return PutioCastSubtitle(
         key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
-        name: subtitle.name, url: url)
+        name: subtitle.name, source: PutioSubtitleSource(apiSource: subtitle.source), url: url)
     }
     // The account may have refreshed while the tracks loaded.
     let account = try signedInAccount()

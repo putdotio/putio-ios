@@ -1,6 +1,7 @@
 import Foundation
 import PutioCore
 import Testing
+import UIKit
 import XCTest
 
 @testable import Putio
@@ -13,7 +14,13 @@ private final class CastControllerStub: PutioCastControlling {
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  private(set) var loads: [(media: PutioCastMedia, startSeconds: Int)] = []
+  private(set) var loads: [(media: PutioCastMedia, startSeconds: Int, activeTrackIDs: [Int])] =
+    []
+  private(set) var trackSwitches: [[Int]] = []
+  private(set) var statusRefreshes = 0
+  var trackSwitchFailure: PutioCastControllerError?
+  var holdsTrackSwitches = false
+  private var trackSwitchGates: [CheckedContinuation<Void, Never>] = []
   private(set) var commands: [String] = []
   var loadResults: [Result<Void, PutioCastControllerError>] = []
   var loadGate: CheckedContinuation<Void, Never>?
@@ -25,9 +32,11 @@ private final class CastControllerStub: PutioCastControlling {
   func startDiscovery() { commands.append("discover") }
   func connect(toDevice id: PutioCastDevice.ID) { commands.append("connect:\(id)") }
 
-  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool, activeTrackIDs: [Int])
+    async throws
+  {
     defer { completedLoads += 1 }
-    loads.append((media, startSeconds))
+    loads.append((media, startSeconds, activeTrackIDs))
     if holdsLoad {
       await withCheckedContinuation { loadGate = $0 }
     }
@@ -38,6 +47,21 @@ private final class CastControllerStub: PutioCastControlling {
   func pause() async throws { try send("pause") }
   func seek(toSeconds seconds: Double) async throws { try send("seek:\(Int(seconds))") }
   func stop() async throws { commands.append("stop") }
+  func refreshStatus() { statusRefreshes += 1 }
+
+  func setActiveTrackIDs(_ ids: [Int]) async throws {
+    trackSwitches.append(ids)
+    if holdsTrackSwitches {
+      await withCheckedContinuation { trackSwitchGates.append($0) }
+    }
+    if let trackSwitchFailure { throw trackSwitchFailure }
+  }
+
+  func releaseTrackSwitches() {
+    let gates = trackSwitchGates
+    trackSwitchGates = []
+    for gate in gates { gate.resume() }
+  }
 
   private func send(_ command: String) throws {
     commands.append(command)
@@ -189,7 +213,8 @@ final class ChromecastTests: XCTestCase {
   private func makeModel(
     controller: CastControllerStub,
     resolutions: [Result<PutioCastResolution, PutioRuntimeError>],
-    conversionStatuses: [PutioVideoConversionStatus] = []
+    conversionStatuses: [PutioVideoConversionStatus] = [],
+    subtitleMemory: PutioSubtitleMemory? = nil
   ) -> (PutioCastModel, Box) {
     controllers.append(controller)
     let box = Box(resolutions: resolutions, conversionStatuses: conversionStatuses)
@@ -207,6 +232,7 @@ final class ChromecastTests: XCTestCase {
         guard !box.conversionStatuses.isEmpty else { return .completed }
         return box.conversionStatuses.removeFirst()
       },
+      subtitleMemory: subtitleMemory,
       schedulePositionSaves: { ticks.schedule($0, $1) })
     return (model, box)
   }
@@ -639,5 +665,191 @@ final class ChromecastTests: XCTestCase {
     for bad in ["$(PUTIO_CHROMECAST_RECEIVER_APP_ID)", "abcd1234", "ABCD123", "ABCD123G", ""] {
       XCTAssertFalse(PutioCastReceiver.isValid(bad), bad)
     }
+  }
+
+  private func subtitledMedia(defaultKey: String? = "en") -> PutioCastMedia {
+    let subtitle = { (key: String, language: String, code: String, source: PutioSubtitleSource) in
+      PutioCastSubtitle(
+        key: key, language: language, languageCode: code, name: "\(language).srt",
+        source: source,
+        url: URL(string: "https://api.put.io/v2/files/412/subtitles/\(key)?format=webvtt")!)
+    }
+    return PutioCastMedia(
+      id: PutioFileID(rawValue: 412), parentID: .root, title: "Movie.mkv",
+      url: URL(string: "https://api.put.io/v2/files/412/hls/media.m3u8?oauth_token=secret")!,
+      artworkURL: nil, durationSeconds: 5400, startFromSeconds: 589,
+      subtitles: [
+        subtitle("en", "English", "eng", .embedded),
+        subtitle("tr", "Turkish", "tur", .openSubtitles),
+      ],
+      defaultSubtitleKey: defaultKey)
+  }
+
+  private let english = PutioCastTextTrack.id(at: 0)
+  private let turkish = PutioCastTextTrack.id(at: 1)
+  private let receiverAudio = [
+    PutioCastAudioTrack(id: 1, languageCode: "en", name: nil),
+    PutioCastAudioTrack(id: 2, languageCode: "tr", name: nil),
+  ]
+
+  private func trackStatus(_ active: [Int], audio: [PutioCastAudioTrack]? = nil)
+    -> PutioCastMediaStatus
+  {
+    PutioCastMediaStatus(
+      fileID: route.id, playerState: .playing, positionSeconds: 600, durationSeconds: 5400,
+      audioTracks: audio ?? receiverAudio, activeTrackIDs: active)
+  }
+
+  private func memory() throws -> PutioSubtitleMemory {
+    let suite = "cast-tracks-\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+    addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+    return PutioSubtitleMemory(defaults: defaults)
+  }
+
+  func testLoadSideLoadsSubtitlesAndStartsOnTheRememberedOrDefaultTrack() async throws {
+    let cases: [(PutioSubtitleTrack?, String?, [Int])] = [
+      (nil, "en", [english]),
+      (nil, nil, []),
+      (PutioSubtitleTrack(id: 0, title: "Turkish", languageTag: "tr"), "en", [turkish]),
+    ]
+    for (remembered, defaultKey, expected) in cases {
+      let subtitleMemory = try memory()
+      if let remembered { subtitleMemory.remember(remembered) }
+      let controller = CastControllerStub()
+      let (model, box) = makeModel(
+        controller: controller,
+        resolutions: [.success(.ready(subtitledMedia(defaultKey: defaultKey)))],
+        subtitleMemory: subtitleMemory)
+      model.cast(route, saves: box.saves)
+      try await expect({ controller.loads.count == 1 })
+      XCTAssertEqual(
+        controller.loads[0].activeTrackIDs, expected, "\(String(describing: remembered))")
+    }
+  }
+
+  func testChipsFollowTheReceiversActiveTracksAndGroupSubtitlesBySource() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))])
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([2, turkish]))
+    let chips = model.chipTracks
+    XCTAssertTrue(chips.enabled)
+    XCTAssertEqual(chips.audioTracks.map(\.title), ["English", "Turkish"])
+    XCTAssertEqual(chips.selectedAudioTitle, "Turkish")
+    XCTAssertEqual(chips.selectedSubtitleTitle, "Turkish")
+    XCTAssertEqual(chips.subtitleMenu.inFile.map(\.track.id), [english])
+    XCTAssertEqual(chips.subtitleMenu.found.map(\.track.id), [turkish])
+
+    controller.report(trackStatus([1]))
+    XCTAssertEqual(model.chipTracks.selectedSubtitleTitle, "Off")
+    XCTAssertEqual(model.chipTracks.selectedAudio, 1)
+  }
+
+  func testSwitchingSendsTheAudioAndTextTrackIDsAndOffSendsNoTextTrack() async throws {
+    let subtitleMemory = try memory()
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
+      subtitleMemory: subtitleMemory)
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+
+    await model.pickSubtitle(turkish)?.value
+    controller.report(trackStatus([1, turkish]))
+    await model.selectAudio(2)?.value
+    controller.report(trackStatus([2, turkish]))
+    await model.pickSubtitle(nil)?.value
+    controller.report(trackStatus([2]))
+    await model.pickSubtitle(english)?.value
+    controller.report(trackStatus([2, 7, english]))
+    XCTAssertNil(model.pickSubtitle(english), "choosing the shown subtitle sent a switch")
+    await model.pickSubtitle(nil)?.value
+
+    XCTAssertEqual(
+      controller.trackSwitches, [[1, turkish], [2, turkish], [2], [2, english], [2, 7]])
+    XCTAssertEqual(subtitleMemory.remembered, .off)
+    XCTAssertNil(model.selectAudio(2), "choosing the playing track sent a switch")
+    XCTAssertNil(model.toast)
+  }
+
+  func testAFailedSwitchKeepsThePreviousTrackAndSaysSo() async throws {
+    let subtitleMemory = try memory()
+    subtitleMemory.remember(PutioSubtitleTrack(id: 0, title: "English", languageTag: "eng"))
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
+      subtitleMemory: subtitleMemory)
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+    controller.trackSwitchFailure = PutioCastControllerError(failure: .receiver)
+
+    let switching = model.pickSubtitle(turkish)
+    XCTAssertEqual(model.selectedSubtitle, turkish, "the menu did not show the choice at once")
+    await switching?.value
+    XCTAssertEqual(model.selectedSubtitle, english)
+    XCTAssertEqual(model.toast?.text, "Couldn’t load subtitles")
+    XCTAssertEqual(subtitleMemory.remembered, .language("eng"))
+    XCTAssertEqual(model.phase, .playing, "a failed switch failed the cast")
+
+    model.toast = nil
+    await model.selectAudio(2)?.value
+    XCTAssertEqual(model.selectedAudio, 1)
+    XCTAssertEqual(model.toast?.text, "Couldn’t switch audio track")
+  }
+
+  func testASubtitleChoiceIsRememberedWhenAnAudioSwitchOverlapsIt() async throws {
+    let subtitleMemory = try memory()
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
+      subtitleMemory: subtitleMemory)
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+    controller.holdsTrackSwitches = true
+
+    let subtitle = model.pickSubtitle(turkish)
+    let audio = model.selectAudio(2)
+    try await expect({ controller.trackSwitches.count == 2 })
+    controller.releaseTrackSwitches()
+    await subtitle?.value
+    await audio?.value
+
+    XCTAssertEqual(controller.trackSwitches, [[1, turkish], [2, turkish]])
+    XCTAssertEqual(subtitleMemory.remembered, .language("tur"))
+  }
+
+  func testATrackSwitchQueuedBeforeTheReceiverMovesOnIsNotSent() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))])
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+
+    let switching = model.pickSubtitle(turkish)
+    controller.report(nil)
+    await switching?.value
+
+    XCTAssertEqual(controller.trackSwitches, [], "the old choice reached the next media")
+  }
+
+  func testReturningToTheForegroundRereadsTheReceiversTracks() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))])
+    NotificationCenter.default.post(
+      name: UIApplication.willEnterForegroundNotification, object: nil)
+    XCTAssertEqual(controller.statusRefreshes, 0, "refreshed with nothing cast")
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    NotificationCenter.default.post(
+      name: UIApplication.willEnterForegroundNotification, object: nil)
+    XCTAssertEqual(controller.statusRefreshes, 1)
   }
 }

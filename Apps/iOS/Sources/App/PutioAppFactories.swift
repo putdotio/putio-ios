@@ -161,12 +161,18 @@ enum PutioCastControllerFactory {
       let harness = false
       controller = PutioGoogleCastController()
     #endif
+    #if DEBUG
+      let subtitleMemory = HarnessSubtitleMemory.make()
+    #else
+      let subtitleMemory = PutioSubtitleMemory()
+    #endif
     return PutioCastModel(
       controller: controller,
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
       resolve: { try await runtime.resolveCastMedia(fileID: $0) },
       startConversion: { try await runtime.startVideoConversion(fileID: $0) },
-      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) }
+      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+      subtitleMemory: subtitleMemory
     )
   }
 }

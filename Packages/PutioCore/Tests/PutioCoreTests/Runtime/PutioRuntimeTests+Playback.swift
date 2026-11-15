@@ -554,7 +554,7 @@ extension PutioRuntimeTests {
     }
   }
 
-  func testCastMediaIsAlwaysHLSWithMuxedSubtitlesAndRedactsTheToken() async throws {
+  func testCastMediaIsHLSWithSideLoadedSubtitlesAndRedactsTheToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
       #"{"config":{"chromecast_playback_type":"mp4"}}"#, for: "GET /v2/config")
@@ -565,6 +565,14 @@ extension PutioRuntimeTests {
        "need_convert":false,"start_from":589,"screenshot":"https://img.put.io/412.jpg",
        "video_metadata":{"duration":5400.5,"codec":"h264","width":1920,"height":1080}}}
       """, for: "GET /v2/files/412")
+    fixtures.setFixture(
+      """
+      {"default":"tr","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"mkv","url":"https://api.put.io/v2/files/412/subtitles/en"},
+        {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr?oauth_token=stored-token"},
+        {"key":"x","language":"Elsewhere","language_code":"und","name":"x.srt","source":"folder","url":"https://example.com/x.srt"}
+      ]}
+      """, for: "GET /v2/files/412/subtitles")
     guard
       case .ready(let media) = try await runtime.resolveCastMedia(
         fileID: PutioFileID(rawValue: 412))
@@ -575,15 +583,47 @@ extension PutioRuntimeTests {
     XCTAssertEqual(media.artworkURL, URL(string: "https://img.put.io/412.jpg"))
     let components = try XCTUnwrap(URLComponents(url: media.url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(components.path, "/v2/files/412/hls/media.m3u8")
-    XCTAssertEqual(components.queryItems?.first { $0.name == "subtitle_key" }?.value, "all")
+    XCTAssertNil(
+      components.queryItems?.first { $0.name == "subtitle_key" },
+      "the stream muxes subtitles the load request already side-loads")
     XCTAssertEqual(
       components.queryItems?.first { $0.name == "oauth_token" }?.value, "account-download-secret")
-    XCTAssertFalse(String(reflecting: media).contains("stored-token"))
-    XCTAssertFalse(String(describing: media).contains("stored-token"))
+    XCTAssertEqual(media.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertEqual(media.subtitles.map(\.source), [.embedded, .openSubtitles])
+    XCTAssertEqual(media.defaultSubtitleKey, "tr")
+    for subtitle in media.subtitles {
+      let query = URLComponents(url: subtitle.url, resolvingAgainstBaseURL: false)?.queryItems
+      XCTAssertEqual(
+        query?.filter { $0.name == "oauth_token" }.map(\.value), ["account-download-secret"])
+      XCTAssertEqual(query?.first { $0.name == "format" }?.value, "webvtt")
+    }
+    XCTAssertFalse(String(reflecting: media).contains("secret"))
+    XCTAssertFalse(String(describing: media).contains("secret"))
     XCTAssertFalse(
-      fixtures.capturedRequests().contains {
-        $0.url?.path.hasSuffix("/subtitles") == true || $0.url?.path.hasPrefix("/v2/config") == true
-      }, "casting reads neither a Chromecast setting nor sidecar subtitles")
+      fixtures.capturedRequests().contains { $0.url?.path.hasPrefix("/v2/config") == true },
+      "casting reads no Chromecast setting")
+  }
+
+  func testCastMediaStillLoadsWhenSubtitlesFailOrAreHidden() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"start_from":0}}
+      """, for: "GET /v2/files/412")
+    fixtures.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 500, for: "GET /v2/files/412/subtitles")
+    guard
+      case .ready(let failed) = try await runtime.resolveCastMedia(
+        fileID: PutioFileID(rawValue: 412))
+    else { return XCTFail("expected ready media") }
+    XCTAssertEqual(failed.subtitles, [])
+    XCTAssertNil(failed.defaultSubtitleKey)
+    XCTAssertEqual(
+      URLComponents(url: failed.url, resolvingAgainstBaseURL: false)?.queryItems?
+        .first { $0.name == "subtitle_key" }?.value, "all",
+      "without subtitle files the stream keeps its own subtitles")
   }
 
   func testCastAudioSendsTheOriginalStreamWithItsTypeAndRejectsVideo() async throws {
