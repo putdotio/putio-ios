@@ -25,6 +25,12 @@ extension XCUIElement {
     poll("become unhittable", timeout: timeout) { element, _ in !element.isHittable }
   }
 
+  func hasValue(_ value: String, within timeout: TimeInterval) -> Bool {
+    poll("read \(value)", timeout: timeout) { element, _ in
+      element.exists && element.value as? String == value
+    }
+  }
+
   func disappears(within timeout: TimeInterval) -> Bool {
     poll("disappear", timeout: timeout) { element, _ in !element.exists }
   }

@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor
 struct PutioVideoPlaybackView: View {
   @State private var model: PutioVideoPlaybackModel
-  @State private var nextVideoModel: PutioNextVideoModel
+  @State private var nextVideoModel: PutioVideoUpNextModel
   @State private var resumePrompter: PutioVideoResumePrompter
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
@@ -57,12 +57,13 @@ struct PutioVideoPlaybackView: View {
     reportFailure: @escaping @MainActor @Sendable (PutioVideoPlayerFault) -> Void,
     showsHarnessReadiness: Bool = false,
     conversionPollInterval: Duration = PutioVideoPlaybackModel.conversionPollInterval,
-    nextVideoAutoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
+    upNextSleep: @escaping PutioNextVideoSleep = { try await Task.sleep(for: $0) },
     positionPipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
-    loadNextVideo: @escaping PutioNextVideoLoad,
+    findNextVideo: @escaping PutioUpNextFind,
+    prepareNextVideo: @escaping PutioUpNextPrepare,
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
@@ -135,14 +136,16 @@ struct PutioVideoPlaybackView: View {
       }
     )
     _nextVideoModel = State(
-      initialValue: PutioNextVideoModel(
+      initialValue: PutioVideoUpNextModel(
+        fileID: route.id,
         suggestionsEnabled: suggestsNextVideo,
         autoplayEnabled: autoplayNextVideo,
-        autoplayDelay: nextVideoAutoplayDelay,
         waitForReset: { completedFileID in
           await positionPipeline.waitForPendingReports(fileID: completedFileID)
         },
-        loadNext: loadNextVideo
+        find: findNextVideo,
+        prepare: prepareNextVideo,
+        sleep: upNextSleep
       )
     )
   }
@@ -153,8 +156,12 @@ struct PutioVideoPlaybackView: View {
       if !transport.subtitleCues.isEmpty {
         PutioVideoSubtitleOverlay(cues: transport.subtitleCues)
       }
-      if isReady, !transport.wait.state.hidesControls {
-        PutioVideoControls(title: title, transport: transport, onClose: onDismiss) {
+      if isReady, nextVideoFailed {
+        nextVideoFailure
+      } else if isReady, !transport.wait.state.hidesControls {
+        PutioVideoControls(
+          title: title, transport: transport, onClose: onDismiss, upNext: upNext
+        ) {
           castControls
         }
       } else {
@@ -177,6 +184,9 @@ struct PutioVideoPlaybackView: View {
     .task {
       transport.subtitleListings = (try? await loadSubtitleListings(fileID)) ?? []
     }
+    .task {
+      await nextVideoModel.lookUp()
+    }
     .task(id: retrySequence) {
       guard retrySequence > 0 else { return }
       playerIsReady = false
@@ -189,16 +199,16 @@ struct PutioVideoPlaybackView: View {
       guard case .playing(let nextVideo) = state else { return }
       onPlayNext(nextVideo)
     }
+    .onChange(of: nextVideoFailed) { _, failed in
+      if failed, transport.isPlaying { transport.togglePlayPause() }
+    }
     .onDisappear {
       playerFailureTask?.cancel()
       playerFailureTask = nil
-      nextVideoTransitionTask?.cancel()
-      nextVideoTransitionTask = nil
-      nextVideoModel.cancel()
+      cancelNextVideo()
     }
     .overlay(alignment: .bottom) {
-      nextVideoOverlay
-        .padding(.bottom, isReady ? PutioTheme.Spacing.space5 : 0)
+      nextVideoProbe
     }
     .overlay(alignment: .topLeading) {
       if showsHarnessReadiness {
@@ -362,36 +372,75 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
-  @ViewBuilder
-  private var nextVideoOverlay: some View {
+  private var nextVideoFailed: Bool {
+    nextVideoModel.state == .failed
+  }
+
+  private var upNext: PutioVideoUpNext? {
+    let offer: PutioVideoUpNext.Offer
     switch nextVideoModel.state {
-    case .loading:
-      if showsHarnessReadiness {
-        ProgressView()
-          .tint(PutioTheme.Colors.accent)
-          .accessibilityLabel("Finding the next video")
-          .accessibilityIdentifier("video.next-loading")
-          .padding(PutioTheme.Spacing.space4)
+    case .countingDown(let next, let secondsLeft):
+      offer = .card(name: next.name, secondsLeft: secondsLeft)
+    case .finding, .playing:
+      guard nextVideoModel.upcoming != nil else { return nil }
+      offer = .chip(busy: true)
+    case .idle, .failed:
+      guard nextVideoModel.upcoming != nil else { return nil }
+      offer = .chip(busy: false)
+    }
+    return PutioVideoUpNext(
+      offer: offer,
+      onPlay: { startNextVideoTask { await nextVideoModel.playNext() } },
+      onCancel: { cancelNextVideo() })
+  }
+
+  private var nextVideoFailure: some View {
+    ZStack {
+      Color.black.opacity(0.75).ignoresSafeArea()
+      PutioErrorStateView(
+        icon: .warningCircle, title: String(localized: "Couldn’t find the next video"),
+        message: nil, retryIdentifier: "video.next-error.retry"
+      ) {
+        startNextVideoTask { await nextVideoModel.retry() }
       }
-    case .available(let nextVideo):
-      PutioNextVideoOverlay(
-        nextVideo: nextVideo.video,
-        autoplaySecondsRemaining: nextVideoModel.autoplaySecondsRemaining,
-        onPlay: { nextVideoModel.playNext() },
-        onCancel: { nextVideoModel.cancel() }
+      .secondaryAction(
+        String(localized: "Cancel"), identifier: "video.next-error.cancel",
+        perform: cancelNextVideo
       )
-      .padding(PutioTheme.Spacing.space4)
-    case .unavailable:
-      if showsHarnessReadiness {
-        Color.clear
-          .frame(width: 1, height: 1)
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel("No next video")
-          .accessibilityIdentifier("video.next-unavailable")
-          .allowsHitTesting(false)
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("video.next-error")
+      VStack {
+        PutioVideoTopBar(title: title, showsTrailing: false, onClose: onDismiss) {
+          EmptyView()
+        }
+        Spacer()
       }
-    case .idle, .playing, .cancelled:
-      EmptyView()
+      .padding(PutioTheme.Spacing.space3)
+    }
+  }
+
+  private func startNextVideoTask(_ operation: @escaping @MainActor () async -> Void) {
+    let previous = nextVideoTransitionTask
+    nextVideoTransitionTask = Task { @MainActor in await operation() }
+    previous?.cancel()
+  }
+
+  private func cancelNextVideo() {
+    nextVideoTransitionTask?.cancel()
+    nextVideoTransitionTask = nil
+    nextVideoModel.cancel()
+  }
+
+  @ViewBuilder
+  private var nextVideoProbe: some View {
+    if showsHarnessReadiness, nextVideoModel.lookupSettled {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Next video lookup")
+        .accessibilityValue(nextVideoModel.upcoming.map { "id=\($0.id.rawValue)" } ?? "none")
+        .accessibilityIdentifier("video.next-lookup")
+        .allowsHitTesting(false)
     }
   }
 
@@ -411,16 +460,12 @@ struct PutioVideoPlaybackView: View {
       onPositionChanged: { observedPlaybackPosition = $0 },
       onPlaybackEnded: {
         playbackReachedEnd = true
-        nextVideoTransitionTask?.cancel()
-        nextVideoTransitionTask = Task { @MainActor in
-          await nextVideoModel.playbackEnded(completedFileID: fileID)
-        }
+        guard !nextVideoModel.isPlayingChosenVideo else { return }
+        startNextVideoTask { await nextVideoModel.playbackEnded() }
       },
       onPlaybackRestarted: {
+        if playbackReachedEnd { cancelNextVideo() }
         playbackReachedEnd = false
-        nextVideoTransitionTask?.cancel()
-        nextVideoTransitionTask = nil
-        nextVideoModel.cancel()
       },
       onFailure: { failure in
         playerIsReady = false
@@ -627,63 +672,6 @@ struct PutioConversionStatusView<Status: View>: View {
     }
     .padding(PutioTheme.Spacing.space4)
     .frame(maxWidth: 480)
-  }
-}
-
-struct PutioNextVideoOverlay: View {
-  let nextVideo: PutioNextVideo
-  var autoplaySecondsRemaining: Int?
-  let onPlay: () -> Void
-  let onCancel: () -> Void
-
-  // Video chrome uses fixed white opacities under the Apple contract (DESIGN.md).
-  var body: some View {
-    VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
-      Text("Up Next")
-        .putioFont(PutioTheme.Typography.heading)
-        .foregroundStyle(.white)
-      Text(nextVideo.name)
-        .putioFont(PutioTheme.Typography.body)
-        .foregroundStyle(.white.opacity(0.78))
-        .accessibilityLabel("Up next, \(nextVideo.name)")
-        .accessibilityIdentifier("video.next-title")
-      if let autoplaySecondsRemaining {
-        Text(
-          "Playing in \(Duration.seconds(autoplaySecondsRemaining).formatted(.units(allowed: [.seconds], width: .wide)))"
-        )
-        .putioFont(PutioTheme.Typography.caption)
-        .foregroundStyle(.white.opacity(0.78))
-        .monospacedDigit()
-        .accessibilityIdentifier("video.next-countdown")
-      }
-      HStack(spacing: PutioTheme.Spacing.space2) {
-        PutioButton(String(localized: "Play Next"), tier: .primary, action: onPlay)
-          .accessibilityLabel("Play next, \(nextVideo.name)")
-          .accessibilityIdentifier("video.play-next")
-        PutioButton(String(localized: "Cancel"), tier: .secondary, action: onCancel)
-          .accessibilityLabel("Cancel playing \(nextVideo.name)")
-          .accessibilityIdentifier("video.cancel-next")
-      }
-    }
-    .padding(PutioTheme.Spacing.space4)
-    .frame(maxWidth: 480, alignment: .leading)
-    .modifier(PutioNextVideoSurface())
-  }
-}
-
-private struct PutioNextVideoSurface: ViewModifier {
-  @ViewBuilder func body(content: Content) -> some View {
-    if HarnessRendering.usesRasterFallback {
-      content.background(
-        .regularMaterial,
-        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-      )
-    } else {
-      content.glassEffect(
-        .regular,
-        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-      )
-    }
   }
 }
 

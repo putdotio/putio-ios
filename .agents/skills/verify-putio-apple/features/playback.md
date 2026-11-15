@@ -141,6 +141,12 @@ Preconditions:
   `runtime-video-chips`, `runtime-video-chips-changed`. Boards:
   `rd-ios-pb-02-video`, `rd-ios-pb-13-ipad-video`, which stream the multi-audio
   fixture.
+- **Up next.** The walk, `resume-persistence` and `playback-preferences` cover
+  autoplay, Cancel and the chip. `--putio-harness-next-episode` chains the
+  Blue Lights episodes, `--putio-harness-next-file-fails <n>` fails the first n
+  next-file lookups and `--putio-harness-up-next-held` holds the countdown.
+  Boards: `rd-ios-pb-21-up-next`, `rd-ios-pb-35-next-episode`, and
+  `video-next-not-found` with no board.
 - **Direct play.** Run `--only direct-play`. Screenshots:
   `runtime-direct-play-menu`, `runtime-direct-play-controls`,
   `runtime-direct-play-audio`. It streams

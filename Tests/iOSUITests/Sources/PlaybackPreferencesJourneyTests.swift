@@ -336,10 +336,6 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
   }
 
-  /// With the persisted default (autoplay off) the suggestion still appears
-  /// after the completed video's position reset and waits past the autoplay
-  /// countdown for the manual action, which opens the successor at its saved
-  /// position.
   private func playNextManuallyWithAutoplayOff(_ app: XCUIApplication) {
     let rootVideo = app.descendants(matching: .any)["files.item.412"]
     XCTAssertTrue(rootVideo.appears(within: 10))
@@ -350,43 +346,32 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["video.error"].appears(within: 10))
     app.buttons["Try again"].tap()
     XCTAssertTrue(app.descendants(matching: .any)["video.ready"].appears(within: 10))
-    let nextTitle = app.descendants(matching: .any)["video.next-title"]
-    XCTAssertTrue(nextTitle.appears(within: 45), "next-video suggestion never appeared")
-    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
-    XCTAssertFalse(
-      app.descendants(matching: .any)["video.next-countdown"].exists,
-      "a countdown is shown without autoplay")
+    let chip = app.descendants(matching: .any)["video.next-episode"]
+    XCTAssertTrue(chip.appears(within: 10), "Next episode never showed while playing")
+    XCTAssertEqual(chip.label, "Next episode")
+    XCTAssertTrue(
+      app.descendants(matching: .any)["video.ended"].appears(within: 45),
+      "the root video never reached its end")
     let reported =
       app.descendants(matching: .any)["video.position-reported"].value as? String ?? ""
     XCTAssertTrue(
       reported.hasPrefix("id=412;seconds=") && (Int(reported.dropFirst(15)) ?? 0) >= 589,
-      "the watched end position did not drain before the suggestion: \(reported)")
-    let playNext = app.descendants(matching: .any)["video.play-next"]
-    let cancelNext = app.descendants(matching: .any)["video.cancel-next"]
-    XCTAssertEqual(playNext.label, "Play next, Root Movie 2.mkv")
-    XCTAssertEqual(cancelNext.label, "Cancel playing Root Movie 2.mkv")
+      "the watched end position did not drain: \(reported)")
     let presentedRoute = app.descendants(matching: .any)["video.presented-route"]
     XCTAssertTrue(presentedRoute.appears(within: 5))
-    let successorRoute = NSPredicate(format: "value == %@", "id=414")
-    XCTAssertEqual(
-      XCTWaiter.wait(
-        for: [XCTNSPredicateExpectation(predicate: successorRoute, object: presentedRoute)],
-        timeout: 8),
-      .timedOut, "the successor started without autoplay enabled")
+    XCTAssertFalse(
+      presentedRoute.hasValue("id=414", within: 12), "the successor started without autoplay")
+    XCTAssertFalse(
+      app.descendants(matching: .any)["video.up-next"].exists,
+      "the Up next card showed without autoplay")
     XCTAssertEqual(presentedRoute.value as? String, "id=412")
-    XCTAssertTrue(playNext.isHittable)
-    playNext.tap()
-    XCTAssertEqual(
-      XCTWaiter.wait(
-        for: [XCTNSPredicateExpectation(predicate: successorRoute, object: presentedRoute)],
-        timeout: 10),
-      .completed, "manual play-next did not open the successor")
-    let resumePosition = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", "37"),
-      object: app.descendants(matching: .any)["video.resume-position"])
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [resumePosition], timeout: 10), .completed,
-      "manual play-next did not open the successor at its saved position")
+    XCTAssertTrue(chip.isHittable, "the finished video lost its Next episode chip")
+    chip.tap()
+    XCTAssertTrue(
+      presentedRoute.hasValue("id=414", within: 10), "Next episode did not open the successor")
+    XCTAssertTrue(
+      app.descendants(matching: .any)["video.resume-position"].hasValue("37", within: 10),
+      "Next episode did not open the successor at its saved position")
     XCTAssertTrue(waitForWindow(app, landscape: true), "the next video dropped the lock")
     app.closeVideo()
     XCTAssertTrue(waitForWindow(app, landscape: false), "Close did not restore portrait")

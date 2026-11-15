@@ -906,6 +906,7 @@ struct PutioVideoControls<Trailing: View>: View {
   let title: String
   let transport: PutioVideoTransport
   let onClose: () -> Void
+  var upNext: PutioVideoUpNext?
   @ViewBuilder let trailing: Trailing
 
   @State private var visibility = PutioVideoControlsVisibility()
@@ -960,7 +961,7 @@ struct PutioVideoControls<Trailing: View>: View {
                 .putioToast(toast)
                 .offset(y: PutioTheme.Spacing.space2)
             }
-            PutioVideoChipRow(transport: transport) {
+            PutioVideoChipRow(transport: transport, upNext: upNext) {
               visibility.interacted()
             } onMenu: {
               visibility.set(.menu, $0)
@@ -998,6 +999,9 @@ struct PutioVideoControls<Trailing: View>: View {
     }
     .onChange(of: voiceOverEnabled, initial: true) { _, enabled in
       visibility.set(.voiceOver, enabled)
+    }
+    .onChange(of: upNext?.showsCard == true, initial: true) { _, shown in
+      animate { visibility.set(.upNext, shown) }
     }
   }
 
@@ -1291,6 +1295,7 @@ private struct PutioVideoAirPlayPlaceholder: View {
 
 private struct PutioVideoChipRow: View {
   let transport: PutioVideoTransport
+  let upNext: PutioVideoUpNext?
   let onChange: () -> Void
   let onMenu: (Bool) -> Void
 
@@ -1298,11 +1303,33 @@ private struct PutioVideoChipRow: View {
 
   var body: some View {
     ViewThatFits(in: .horizontal) {
-      chips(iconOnly: false)
-      chips(iconOnly: true)
+      row(iconOnly: false)
+      row(iconOnly: true)
+      if let upNext {
+        VStack(alignment: .trailing, spacing: PutioVideoMetrics.chipGap) {
+          PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false)
+          ViewThatFits(in: .horizontal) {
+            chips(iconOnly: false)
+            chips(iconOnly: true)
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+        }
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .onChange(of: openMenus.isEmpty) { _, closed in onMenu(!closed) }
+  }
+
+  private func row(iconOnly: Bool) -> some View {
+    HStack(alignment: .bottom, spacing: PutioTheme.Spacing.space2) {
+      chips(iconOnly: iconOnly)
+        .layoutPriority(2)
+      if let upNext {
+        Spacer(minLength: PutioTheme.Spacing.space2)
+        PutioVideoUpNextAccessory(upNext: upNext, iconOnly: iconOnly)
+          .layoutPriority(1)
+      }
+    }
   }
 
   private func menuPresented(_ button: ObjectIdentifier, _ presented: Bool) {
@@ -1426,7 +1453,7 @@ private struct PutioVideoChipRow: View {
   }
 }
 
-private struct PutioVideoChipLabel: View {
+struct PutioVideoChipLabel: View {
   let icon: PutioIcon
   let title: String
   let iconOnly: Bool
@@ -1595,7 +1622,7 @@ private struct PutioVideoSkipButton: View {
   }
 }
 
-private enum PutioVideoMetrics {
+enum PutioVideoMetrics {
   static let close: CGFloat = 44
   static let airPlayIcon: CGFloat = 32
   static let chipHeight: CGFloat = 34

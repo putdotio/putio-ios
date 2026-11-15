@@ -59,6 +59,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "video.ready").appears(within: 10),
       "root video never became ready near EOF"
     )
+    XCTAssertTrue(
+      element(identifier: "video.next-lookup").hasValue("id=414", within: 10),
+      "the root video did not look up its successor")
     let nextTitle = element(identifier: "video.next-title")
     XCTAssertTrue(nextTitle.appears(within: 45), "next-video suggestion never appeared")
     XCTAssertFalse(
@@ -66,7 +69,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "root browser remained interactive while the next-video player was presented"
     )
     let nextVideoAttachment = screenshotAttachment(named: "runtime-playback")
-    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
+    XCTAssertEqual(nextTitle.label, "Root Movie 2.mkv")
+    let countdown = element(identifier: "video.next-countdown").label
+    XCTAssertTrue(countdown.hasPrefix("Up next in "), "the Up next card read \(countdown)")
+    XCTAssertFalse(
+      element(identifier: "video.next-episode").exists, "the chip stayed beside the Up next card")
     XCTAssertTrue(
       element(identifier: "video.play-next").isHittable,
       "manual play-next action is not tappable"
@@ -91,7 +98,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       object: presentedRoute
     )
     XCTAssertEqual(
-      XCTWaiter.wait(for: [successorRoute], timeout: 10),
+      XCTWaiter.wait(for: [successorRoute], timeout: 20),
       .completed,
       "autoplay did not select the successor route"
     )
@@ -104,6 +111,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       .completed,
       "autoplay did not open the successor at its saved position"
     )
+    XCTAssertTrue(
+      element(identifier: "video.next-lookup").hasValue("none", within: 10),
+      "the last video looked up a successor")
+    XCTAssertFalse(
+      element(identifier: "video.next-episode").exists, "the last video offered Next episode")
     app.closeVideo()
 
     XCTAssertTrue(root.appears(within: 5), "successor video did not return to root")
@@ -1935,6 +1947,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let cancelNext = element(identifier: "video.cancel-next")
     XCTAssertTrue(cancelNext.appears(within: 45), "root video never played to its end")
     cancelNext.tap()
+    XCTAssertTrue(
+      element(identifier: "video.up-next").disappears(within: 5), "Cancel kept the Up next card")
+    XCTAssertTrue(
+      element(identifier: "video.next-episode").appears(within: 5),
+      "Cancel did not leave the Next episode chip")
+    let presented = element(identifier: "video.presented-route")
+    XCTAssertFalse(
+      presented.hasValue("id=414", within: 12), "Cancel still played the next video")
+    XCTAssertEqual(presented.value as? String, "id=412")
     let endSeconds = reportedSeconds(
       of: 412, from: element(identifier: "video.position-reported").value as? String)
     XCTAssertGreaterThanOrEqual(endSeconds ?? -1, 567, "the save did not reach 96% of 590 s")

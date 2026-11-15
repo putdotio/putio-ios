@@ -853,6 +853,15 @@ struct MainTabView: View {
       fetch: { route, extent in try await downloadPreview(route, extent) })
   }
 
+  private var upNextSleep: PutioNextVideoSleep {
+    #if DEBUG
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-up-next-held") {
+        return { _ in try await Task.sleep(for: .seconds(3_600)) }
+      }
+    #endif
+    return { try await Task.sleep(for: $0) }
+  }
+
   private func videoPlayer(for route: PutioVideoRoute) -> some View {
     PutioVideoPlaybackView(
       route: route,
@@ -871,7 +880,7 @@ struct MainTabView: View {
       showsHarnessReadiness: scenario == .filesBrowser,
       conversionPollInterval: scenario == .filesBrowser
         ? .milliseconds(1_200) : PutioVideoPlaybackModel.conversionPollInterval,
-      nextVideoAutoplayDelay: .seconds(5),
+      upNextSleep: upNextSleep,
       positionPipeline: playbackPositionPipeline,
       reportPosition: { fileID, seconds in
         if offlineQueue.item(for: fileID)?.isPlayable == true {
@@ -892,11 +901,16 @@ struct MainTabView: View {
       loadConversionStatus: { fileID in
         try await runtime.videoConversionStatus(fileID: fileID)
       },
-      loadNextVideo: { fileID in
-        try await prepareNextVideo(
+      findNextVideo: { fileID in
+        try await findNextVideo(
           after: fileID,
           findNext: { try await runtime.findNextVideo(after: $0) },
-          findOfflineNext: { offlineQueue.nextVideo(after: $0) },
+          findOfflineNext: { offlineQueue.nextVideo(after: $0) }
+        )
+      },
+      prepareNextVideo: { video in
+        try await preparePlayableVideo(
+          video,
           waitForPendingReports: {
             await playbackPositionPipeline.waitForPendingReports(fileID: $0)
           },
