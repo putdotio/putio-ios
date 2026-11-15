@@ -23,9 +23,10 @@ server serves every file in this directory; the downloads journey fetches the
 master playlist through `AVAssetDownloadURLSession`. The Tuist app target
 copies the directory only into Debug builds.
 
-The WebVTT subtitle renditions are hand-written text: one cue per language
-(`multi-subtitle-English.vtt`, `multi-subtitle-Turkish.vtt`) spanning the 20
-seconds, each in a one-segment playlist. `X-TIMESTAMP-MAP=MPEGTS:126000` matches
+The WebVTT subtitle renditions are hand-written text: one cue per rendition
+(`multi-subtitle-English.vtt`, `multi-subtitle-Spanish.vtt`,
+`multi-subtitle-Turkish.vtt`) spanning the 20 seconds, each in a one-segment
+playlist. `X-TIMESTAMP-MAP=MPEGTS:126000` matches
 the audio segments' first PTS. The `multi-subtitles*.m3u8` masters reuse the
 renditions above in the shapes put.io's HLS endpoint serves for
 `subtitle_key=all`:
@@ -38,9 +39,18 @@ renditions above in the shapes put.io's HLS endpoint serves for
 - `multi-subtitles-autoselect-audio.m3u8`: `multi-subtitles.m3u8` with both
   audio renditions `AUTOSELECT=YES`, so automatic selection may pick either by
   the viewer's language.
+- `multi-subtitles-one.m3u8`: English alone.
+- `multi-subtitles-three.m3u8`: English, Spanish and Turkish. AVFoundation
+  keeps only the first of two renditions that share a language and name, as
+  put.io names them, so the three tracks use three languages.
+- `multi-subtitles-failing.m3u8`: English; Turkish, whose playlist the
+  server does not have; and German, whose playlist names a segment the server
+  does not have. Selecting either fails with a 404.
 
 These masters declare `CLOSED-CAPTIONS=NONE`, as put.io does. The subtitles
-journey streams them with `--putio-harness-subtitled-stream`.
+journey streams them with `--putio-harness-subtitled-stream`, and
+`--putio-harness-subtitle-tracks none|one|three|failing` picks the hidden, one,
+three or failing master.
 
 The audio menu journey streams two more masters with
 `--putio-harness-audio-tracks`: `multi-audio-one.m3u8` keeps only the English

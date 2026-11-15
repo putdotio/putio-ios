@@ -55,6 +55,11 @@ struct MainTabView: View {
     #endif
     _audioPlayback = State(
       initialValue: PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: sleepClock)))
+    #if DEBUG
+      _subtitleMemory = State(initialValue: HarnessSubtitleMemory.make())
+    #else
+      _subtitleMemory = State(initialValue: PutioSubtitleMemory())
+    #endif
     _continueWatching = State(
       initialValue: PutioContinueWatchingModel(
         store: PutioContinueWatchingStore(accountID: account.id)))
@@ -80,6 +85,7 @@ struct MainTabView: View {
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
   @State private var harnessAudioSaves: [(fileID: PutioFileID, seconds: Int)] = []
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
+  @State private var subtitleMemory: PutioSubtitleMemory
   @State private var folderRefreshRequests: PutioFolderRefreshRequests
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var historyRevision: UInt64 = 0
@@ -922,6 +928,11 @@ struct MainTabView: View {
       resolveConverted: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method, playsConverted: true)
       },
+      subtitlePolicy: PutioSubtitleStartupPolicy(
+        hideSubtitles: account.hideSubtitles,
+        dontAutoSelectSubtitles: account.dontAutoSelectSubtitles),
+      subtitleMemory: subtitleMemory,
+      loadSubtitleListings: { fileID in try await runtime.subtitleListings(fileID: fileID) },
       resolve: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method)
       }
