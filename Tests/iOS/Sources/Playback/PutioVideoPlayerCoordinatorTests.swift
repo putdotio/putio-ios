@@ -1028,7 +1028,8 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
       ])
     await waitUntil { !failures.isEmpty }
 
-    XCTAssertEqual(failures, [PutioVideoPlayerFailure(fault: .connectionLost, heldSeconds: 263)])
+    XCTAssertEqual(failures.map(\.fault), [.connectionLost])
+    XCTAssertEqual(failures.map(\.heldSeconds), [263])
     coordinator.stop(surface: surface)
   }
 
