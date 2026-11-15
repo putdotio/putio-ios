@@ -77,10 +77,9 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue((8...12).contains(interval), "timed saves came \(interval) s apart")
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Play" })
+    switchesReceiverTracks()
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Pause" })
-
-    switchesReceiverTracks()
 
     app.closeVideo()
     let bar = element("cast.bar")
