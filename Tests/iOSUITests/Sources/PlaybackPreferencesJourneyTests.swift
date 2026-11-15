@@ -399,7 +399,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.buttons["Account"].tap()
     let rotate = app.switches["playback-settings.auto-rotate"]
     XCTAssertTrue(app.revealed("playback-settings.auto-rotate").appears(within: 10))
-    let tabBarTop = app.buttons["Files"].frame.minY
+    let tabBarTop = app.tabBars.firstMatch.frame.minY
     var swipes = 0
     while rotate.frame.maxY > tabBarTop, swipes < 3 {
       app.swipeUp()
