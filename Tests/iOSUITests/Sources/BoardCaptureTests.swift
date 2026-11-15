@@ -1376,7 +1376,8 @@ final class BoardCaptureTests: XCTestCase {
     episode.tap()
     let detailPlay = element("files.detail.play")
     if detailPlay.appears(within: 3) { detailPlay.tap() }
-    XCTAssertTrue(app.videoClose.appears(within: 10), "the player never opened")
+    XCTAssertTrue(
+      element("video.presented-route").hasValue("id=441", within: 10), "the player never opened")
   }
 
   func testDirectPlayVideo() throws {

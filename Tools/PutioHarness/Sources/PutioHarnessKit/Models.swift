@@ -859,8 +859,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-48-duo-closed-video", .duoFolded, "testDuoVideoPlayer"),
       BoardCapture("rd-ios-pb-49-duo-open-video", .duoOpen, "testDuoVideoPlayer"),
-      BoardCapture(
-        "rd-ios-pb-45-no-cast-device", .iphone, "testVideoNoCastDevice", screenBase: false),
+      BoardCapture("rd-ios-pb-45-no-cast-device", .iphone, "testVideoNoCastDevice"),
       BoardCapture("rd-ios-pb-23-airplay", .iphone, "testVideoAirPlay"),
       BoardCapture(
         "ipad-video-no-cast-device", .ipad, "testVideoNoCastDevice", screenBase: false),
@@ -896,7 +895,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
       BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
       BoardCapture("rd-ios-pb-10-buffering", .iphone, "testBuffering"),
-      BoardCapture("rd-ios-pb-26-buffering-long", .iphone, "testBufferingLong", screenBase: false),
+      BoardCapture("rd-ios-pb-26-buffering-long", .iphone, "testBufferingLong"),
       BoardCapture("rd-ios-pb-27-stalled", .iphone, "testStalled"),
       BoardCapture("rd-ios-pb-28-conversion-queued", .iphone, "testConversionQueued"),
       BoardCapture("rd-ios-pb-15-converting", .iphone, "testConversionConverting"),
