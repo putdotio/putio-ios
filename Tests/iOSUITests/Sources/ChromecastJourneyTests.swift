@@ -276,8 +276,9 @@ final class ChromecastJourneyTests: XCTestCase {
     speaker.tap()
     XCTAssertTrue(speaker.disappears(within: 5), "the picker stayed open")
 
-    let failed = element("audio.cast-failed")
-    XCTAssertTrue(failed.appears(within: 15), "the failed load showed no failure")
+    XCTAssertTrue(
+      state.hasValue("id=3103;state=failed;receiver", within: 15),
+      "the failed load showed no failure")
     XCTAssertTrue(app.staticTexts["Can’t play this on Kitchen speaker."].exists)
     XCTAssertTrue(app.buttons["cast.stop"].exists, "the failure offers no Stop casting")
     screenshot("runtime-audio-cast-failed")

@@ -47,7 +47,6 @@ struct PutioAudioPlayerView: View {
       .secondaryAction(String(localized: "Stop casting"), identifier: "cast.stop") {
         onStopCasting?()
       }
-      .accessibilityIdentifier("audio.cast-failed")
     case .failed(_, let failure):
       PutioErrorStateView(
         title: String(localized: "Couldn’t play this audio"),
