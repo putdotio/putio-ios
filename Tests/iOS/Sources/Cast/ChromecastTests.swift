@@ -824,6 +824,21 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(subtitleMemory.remembered, .language("tur"))
   }
 
+  func testATrackSwitchQueuedBeforeTheReceiverMovesOnIsNotSent() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))])
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+
+    let switching = model.pickSubtitle(turkish)
+    controller.report(nil)
+    await switching?.value
+
+    XCTAssertEqual(controller.trackSwitches, [], "the old choice reached the next media")
+  }
+
   func testReturningToTheForegroundRereadsTheReceiversTracks() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(

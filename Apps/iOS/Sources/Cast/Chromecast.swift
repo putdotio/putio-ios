@@ -382,7 +382,7 @@ final class PutioCastModel {
     let attempt = trackSwitch
     pendingTrackIDs = ids
     return Task { @MainActor [weak self] in
-      guard let self else { return }
+      guard let self, request == generation else { return }
       let succeeded: Bool
       do {
         try await controller.setActiveTrackIDs(ids)
