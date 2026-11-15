@@ -158,13 +158,6 @@ final class ChromecastJourneyTests: XCTestCase {
     row.tap()
   }
 
-  private func clockSeconds(_ clock: String?) -> Int? {
-    guard let parts = clock?.split(separator: ":").map({ Int($0) }), !parts.isEmpty,
-      parts.allSatisfy({ $0 != nil })
-    else { return nil }
-    return parts.compactMap { $0 }.reduce(0) { $0 * 60 + $1 }
-  }
-
   private func reportedSeconds(_ reported: XCUIElement) -> Int? {
     guard let value = reported.value as? String, value.hasPrefix("id=412;seconds=") else {
       return nil
@@ -267,7 +260,7 @@ final class ChromecastJourneyTests: XCTestCase {
       element("cast.load-requests").value as? String, "/v2/files/412/hls/media.m3u8",
       "the receiver loaded something other than the playing video")
     let receiver = try XCTUnwrap(
-      clockSeconds(element("video.scrubber").value as? String), "no receiver position")
+      (element("video.scrubber").value as? String).flatMap(Self.seconds), "no receiver position")
     XCTAssertTrue(
       (local...local + 20).contains(receiver),
       "the receiver started at \(receiver) s, not at the phone's \(local) s")
