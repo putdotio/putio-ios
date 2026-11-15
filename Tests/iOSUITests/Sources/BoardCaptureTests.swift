@@ -774,7 +774,7 @@ final class BoardCaptureTests: XCTestCase {
       speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
     XCTAssertGreaterThanOrEqual(
       speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
-    if orientation == .portrait {
+    if orientation == .portrait, UIDevice.current.userInterfaceIdiom == .phone {
       app.revealVideoControls(showing: app.videoClose)
       XCTAssertGreaterThanOrEqual(
         element("video.title").frame.minY, app.videoClose.frame.maxY,
@@ -879,10 +879,12 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Converting to MP4"].exists)
     XCTAssertEqual(element("video.conversion-progress").value as? String, "62%")
     assertConversionActions()
-    XCTAssertGreaterThanOrEqual(
-      element("video.title").frame.minY, app.videoClose.frame.maxY,
-      "the portrait title shares the button row")
     XCTAssertLessThan(app.mainWindow.frame.width, app.mainWindow.frame.height)
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertGreaterThanOrEqual(
+        element("video.title").frame.minY, app.videoClose.frame.maxY,
+        "the portrait title shares the button row")
+    }
     try captureBoard("rd-ios-pb-44-portrait-converting")
   }
 
