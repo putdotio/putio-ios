@@ -209,9 +209,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   }
 
   func refreshStatus() {
-    guard let client = remoteMediaClient else { return }
-    publishStatus(client.mediaStatus)
-    _ = client.requestStatus()
+    _ = remoteMediaClient?.requestStatus()
   }
 
   func play() async throws {
