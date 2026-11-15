@@ -172,6 +172,7 @@ final class PutioCastModel {
   @ObservationIgnored private let subtitleMemory: PutioSubtitleMemory?
   @ObservationIgnored private var foregroundObservation: NSObjectProtocol?
   @ObservationIgnored private var trackSwitch: UInt64 = 0
+  @ObservationIgnored private var subtitleSwitch: UInt64 = 0
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var castTask: Task<Void, Never>?
   @ObservationIgnored private var saves: PutioCastPositionSaves?
@@ -345,12 +346,16 @@ final class PutioCastModel {
     guard id == nil || track != nil, id != selectedSubtitle else { return nil }
     let textIDs = Set(tracks.map(\.id))
     let ids = activeTrackIDs.filter { !textIDs.contains($0) } + [id].compactMap { $0 }
-    return switchTracks(to: ids) { [weak self] succeeded in
+    subtitleSwitch &+= 1
+    let pick = subtitleSwitch
+    return switchTracks(to: ids) { [weak self] succeeded, latest in
+      guard let self else { return }
       if succeeded {
-        self?.subtitleMemory?.remember(track)
-      } else {
-        if let track { self?.subtitleMemory?.forget(track) }
-        self?.toast = PutioToast(
+        guard pick == subtitleSwitch else { return }
+        subtitleMemory?.remember(track)
+      } else if latest {
+        if let track { subtitleMemory?.forget(track) }
+        toast = PutioToast(
           String(localized: "Couldn’t load subtitles"), icon: .warning, width: .fit)
       }
     }
@@ -361,15 +366,15 @@ final class PutioCastModel {
     let audioIDs = Set(audioTracks.map(\.id))
     guard audioIDs.contains(id), id != selectedAudio else { return nil }
     let ids = [id] + activeTrackIDs.filter { !audioIDs.contains($0) }
-    return switchTracks(to: ids) { [weak self] succeeded in
-      guard !succeeded else { return }
+    return switchTracks(to: ids) { [weak self] succeeded, latest in
+      guard !succeeded, latest else { return }
       self?.toast = PutioToast(
         String(localized: "Couldn’t switch audio track"), icon: .warning, width: .fit)
     }
   }
 
   private func switchTracks(
-    to ids: [Int], finished: @escaping @MainActor (Bool) -> Void
+    to ids: [Int], finished: @escaping @MainActor (_ succeeded: Bool, _ latest: Bool) -> Void
   ) -> Task<Void, Never>? {
     guard media != nil, status != nil else { return nil }
     let request = generation
@@ -385,9 +390,10 @@ final class PutioCastModel {
       } catch {
         succeeded = false
       }
-      guard request == generation, attempt == trackSwitch else { return }
-      pendingTrackIDs = nil
-      finished(succeeded)
+      guard request == generation else { return }
+      let latest = attempt == trackSwitch
+      if latest { pendingTrackIDs = nil }
+      finished(succeeded, latest)
     }
   }
 

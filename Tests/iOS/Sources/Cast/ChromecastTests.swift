@@ -19,6 +19,8 @@ private final class CastControllerStub: PutioCastControlling {
   private(set) var trackSwitches: [[Int]] = []
   private(set) var statusRefreshes = 0
   var trackSwitchFailure: PutioCastControllerError?
+  var holdsTrackSwitches = false
+  private var trackSwitchGates: [CheckedContinuation<Void, Never>] = []
   private(set) var commands: [String] = []
   var loadResults: [Result<Void, PutioCastControllerError>] = []
   var loadGate: CheckedContinuation<Void, Never>?
@@ -49,7 +51,16 @@ private final class CastControllerStub: PutioCastControlling {
 
   func setActiveTrackIDs(_ ids: [Int]) async throws {
     trackSwitches.append(ids)
+    if holdsTrackSwitches {
+      await withCheckedContinuation { trackSwitchGates.append($0) }
+    }
     if let trackSwitchFailure { throw trackSwitchFailure }
+  }
+
+  func releaseTrackSwitches() {
+    let gates = trackSwitchGates
+    trackSwitchGates = []
+    for gate in gates { gate.resume() }
   }
 
   private func send(_ command: String) throws {
@@ -789,6 +800,28 @@ final class ChromecastTests: XCTestCase {
     await model.selectAudio(2)?.value
     XCTAssertEqual(model.selectedAudio, 1)
     XCTAssertEqual(model.toast?.text, "Couldn’t switch audio track")
+  }
+
+  func testASubtitleChoiceIsRememberedWhenAnAudioSwitchOverlapsIt() async throws {
+    let subtitleMemory = try memory()
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
+      subtitleMemory: subtitleMemory)
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
+    controller.holdsTrackSwitches = true
+
+    let subtitle = model.pickSubtitle(turkish)
+    let audio = model.selectAudio(2)
+    try await expect({ controller.trackSwitches.count == 2 })
+    controller.releaseTrackSwitches()
+    await subtitle?.value
+    await audio?.value
+
+    XCTAssertEqual(controller.trackSwitches, [[1, turkish], [2, turkish]])
+    XCTAssertEqual(subtitleMemory.remembered, .language("tur"))
   }
 
   func testReturningToTheForegroundRereadsTheReceiversTracks() async throws {
