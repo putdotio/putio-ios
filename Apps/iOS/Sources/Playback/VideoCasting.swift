@@ -11,28 +11,23 @@ struct PutioVideoCastingView: View {
       PutioVideoTopBar(title: title, onClose: onClose) {
         PutioCastButton(model: model)
       }
-      GeometryReader { proxy in
-        ScrollView {
-          VStack(spacing: 0) {
-            if let phase = model.phase {
-              PutioVideoCastingStatus(
-                phase: phase, deviceName: deviceName, onRetry: model.retry,
-                onStop: model.stopCasting
-              )
-              .padding(.top, PutioTheme.Spacing.space3)
-            }
-            Spacer(minLength: PutioTheme.Spacing.space2)
-              .putioToast(toast)
-            if model.phase == .playing {
-              TimelineView(.periodic(from: .now, by: 1)) { _ in
-                transport
-              }
-            }
-          }
-          .frame(minHeight: proxy.size.height)
+      ScrollView {
+        if let phase = model.phase {
+          PutioVideoCastingStatus(
+            phase: phase, deviceName: deviceName, onRetry: model.retry,
+            onStop: model.stopCasting
+          )
+          .padding(.top, PutioTheme.Spacing.space3)
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollIndicators(.hidden)
+      }
+      .scrollBounceBehavior(.basedOnSize)
+      .scrollIndicators(.hidden)
+      .putioToast(toast)
+      if model.phase == .playing {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+          transport
+        }
+        .padding(.top, PutioTheme.Spacing.space2)
       }
     }
     .padding(PutioTheme.Spacing.space3)
