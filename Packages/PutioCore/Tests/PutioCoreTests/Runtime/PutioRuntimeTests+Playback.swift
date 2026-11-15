@@ -725,8 +725,8 @@ extension PutioRuntimeTests {
 
     let request = try XCTUnwrap(
       fixtures.capturedRequests().last { $0.url?.path == "/v2/files/412" })
-    let query = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?
-      .queryItems ?? []
+    let url = try XCTUnwrap(request.url)
+    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
     XCTAssertTrue(
       query.contains { ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1" },
       "GET /files/{id} returns need_convert only with mp4_status or mp4_stream_url")
