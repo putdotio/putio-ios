@@ -1,5 +1,6 @@
 import Foundation
 import PutioSDK
+import UniformTypeIdentifiers
 
 extension PutioRuntime {
   public func findNextVideo(after fileID: PutioFileID) async throws -> PutioNextVideo? {
@@ -198,6 +199,37 @@ extension PutioRuntime {
         durationSeconds: duration,
         startFromSeconds: PutioPlaybackProgress.startSeconds(
           savedSeconds: file.startFrom, durationSeconds: duration)))
+  }
+
+  public func resolveCastAudio(fileID: PutioFileID) async throws -> PutioCastMedia {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let (file, downloadToken) = try await performAuthenticatedOperation {
+      (
+        try await sdk.getFile(
+          fileID: fileID.rawValue,
+          query: PutioFileDetailsQuery(
+            mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)),
+        session.downloadToken
+      )
+    }
+    guard file.id == fileID.rawValue, file.type == .audio else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    let token = try requireDownloadToken(downloadToken)
+    let duration = file.metaData?.duration ?? 0
+    return PutioCastMedia(
+      id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
+      url: file.getAudioStreamURL(downloadToken: token), artworkURL: nil,
+      durationSeconds: duration,
+      startFromSeconds: PutioPlaybackProgress.startSeconds(
+        savedSeconds: file.startFrom, durationSeconds: duration),
+      kind: .audio(contentType: Self.audioContentType(fileName: file.name)))
+  }
+
+  static func audioContentType(fileName: String) -> String {
+    let fileExtension = (fileName as NSString).pathExtension
+    return UTType(filenameExtension: fileExtension, conformingTo: .audio)?.preferredMIMEType
+      ?? "audio/mpeg"
   }
 
   /// put.io's subtitle files for a video as WebVTT, under the account's

@@ -25,7 +25,7 @@ private final class CastControllerStub: PutioCastControlling {
   func startDiscovery() { commands.append("discover") }
   func connect(toDevice id: PutioCastDevice.ID) { commands.append("connect:\(id)") }
 
-  func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
     defer { completedLoads += 1 }
     loads.append((media, startSeconds))
     if holdsLoad {

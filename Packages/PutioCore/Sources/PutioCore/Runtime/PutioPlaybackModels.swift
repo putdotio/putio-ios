@@ -288,12 +288,19 @@ public struct PutioCastSubtitle: Equatable, Sendable, CustomStringConvertible,
   }
 }
 
-/// Everything a receiver needs to play one video's HLS stream. The stream URL
-/// is tokened and redacted from every textual rendering; put.io muxes the
-/// subtitles into the stream.
+/// Everything a receiver needs to play one file: a video's HLS stream, where
+/// put.io muxes the subtitles, or an audio file's original stream. The stream
+/// URL is tokened and redacted from every textual rendering.
 public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   CustomDebugStringConvertible, CustomReflectable
 {
+  public enum Kind: Equatable, Sendable {
+    case video
+    case audio(contentType: String)
+  }
+
+  public static let hlsContentType = "application/x-mpegURL"
+
   public let id: PutioFileID
   public let parentID: PutioFileID
   public let title: String
@@ -301,10 +308,11 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   public let artworkURL: URL?
   public let durationSeconds: Double
   public let startFromSeconds: Int
+  public let kind: Kind
 
   public init(
     id: PutioFileID, parentID: PutioFileID, title: String, url: URL, artworkURL: URL?,
-    durationSeconds: Double, startFromSeconds: Int
+    durationSeconds: Double, startFromSeconds: Int, kind: Kind = .video
   ) {
     self.id = id
     self.parentID = parentID
@@ -313,6 +321,14 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     self.artworkURL = artworkURL
     self.durationSeconds = durationSeconds
     self.startFromSeconds = startFromSeconds
+    self.kind = kind
+  }
+
+  public var contentType: String {
+    switch kind {
+    case .video: Self.hlsContentType
+    case .audio(let contentType): contentType
+    }
   }
 
   public var description: String {
@@ -327,6 +343,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
       children: [
         "id": id, "parentID": parentID, "title": title, "url": "<redacted>",
         "durationSeconds": durationSeconds, "startFromSeconds": startFromSeconds,
+        "kind": kind,
       ],
       displayStyle: .struct)
   }

@@ -13,6 +13,7 @@ private final class AudioEngineSpy: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
+  var onPlayingChanged: (@MainActor (Bool) -> Void)?
   var durationSeconds: Int? = 240
   private(set) var events: [String] = []
 
@@ -1041,6 +1042,44 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.reports.reports.map(\.1), [64])
     XCTAssertFalse(playback.sleepTimer.isRunning)
     XCTAssertNil(playback.sleepTimer.remainingSeconds)
+  }
+
+  func testAReceiverTakesOverAtThePositionTheSleepTimerPausesItAndTheHandBackIsPaused() async {
+    let h = makeHarness()
+    let clock = PutioManualSleepTimerClock()
+    let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
+    defer { playback.stop() }
+    playback.present(h.model)
+    await waitUntil { h.model.isPlaying }
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(64)
+
+    let receiver = AudioEngineSpy()
+    h.model.moveToReceiver(receiver) { id in
+      PutioPlaybackSource(
+        url: URL(string: "https://cast.example.test/\(id.rawValue).mp3")!, startFromSeconds: 0)
+    }
+    await waitUntil { h.model.isPlaying && h.model.isOnReceiver }
+    XCTAssertEqual(h.engine.events.last, "stop")
+    XCTAssertEqual(receiver.events, ["load:430.mp3@64", "play:1.0"])
+    receiver.onPositionChanged?(64)
+    receiver.onPositionChanged?(80)
+    receiver.onPlayingChanged?(false)
+    XCTAssertEqual(h.model.state, .paused(track))
+    XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
+    receiver.onPlayingChanged?(true)
+    XCTAssertEqual(h.model.state, .playing(track))
+
+    playback.sleepTimer.start(.fifteenMinutes)
+    clock.advance(by: .seconds(900))
+    await waitUntil { h.model.state == .paused(track) }
+    XCTAssertEqual(receiver.events.last, "pause")
+
+    h.model.returnFromReceiver()
+    await waitUntil { h.model.state == .paused(track) && !h.model.isOnReceiver }
+    XCTAssertEqual(receiver.events.last, "stop")
+    XCTAssertEqual(h.engine.events.suffix(2), ["stop", "load:430.m4a@80"])
+    XCTAssertEqual(h.model.elapsedSeconds, 80)
   }
 
   func testSleepTimerKeepsRunningWhenAnotherFileOpensAndStopCancelsIt() async {

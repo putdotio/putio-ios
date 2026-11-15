@@ -586,6 +586,36 @@ extension PutioRuntimeTests {
       }, "casting reads neither a Chromecast setting nor sidecar subtitles")
   }
 
+  func testCastAudioSendsTheOriginalStreamWithItsTypeAndRejectsVideo() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"file":{"id":430,"name":"Session.mp3","file_type":"AUDIO","parent_id":7,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "start_from":45,"video_metadata":{"duration":2977}}}
+      """, for: "GET /v2/files/430")
+
+    let media = try await runtime.resolveCastAudio(fileID: PutioFileID(rawValue: 430))
+
+    XCTAssertEqual(media.title, "Session.mp3")
+    XCTAssertEqual(media.parentID, PutioFileID(rawValue: 7))
+    XCTAssertEqual(media.startFromSeconds, 45)
+    XCTAssertEqual(media.durationSeconds, 2977)
+    XCTAssertEqual(media.contentType, "audio/mpeg")
+    let components = try XCTUnwrap(URLComponents(url: media.url, resolvingAgainstBaseURL: false))
+    XCTAssertEqual(components.path, "/v2/files/430/stream")
+    XCTAssertEqual(
+      components.queryItems?.filter { $0.name == "oauth_token" }.map(\.value),
+      ["account-download-secret"])
+    XCTAssertFalse(String(reflecting: media).contains("account-download-secret"))
+
+    fixtures.setFixture(
+      Self.playbackFile(needConvert: false, startFrom: 0), for: Self.playbackRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveCastAudio(fileID: PutioFileID(rawValue: 411))
+    }
+  }
+
   func testCastingAWatchedVideoStartsFromTheBeginning() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let file = { (startFrom: Int) in

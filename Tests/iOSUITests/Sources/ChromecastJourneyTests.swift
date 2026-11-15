@@ -255,6 +255,87 @@ final class ChromecastJourneyTests: XCTestCase {
     app.closeVideo()
   }
 
+  func testAudioCastsFromNowPlayingAdvancesOnTheReceiverAndHandsBackPaused() throws {
+    app.launchArguments.append("--putio-harness-music")
+    launchSignedIn()
+    for id in [3101, 3103] {
+      let row = app.revealed("files.item.\(id)")
+      XCTAssertTrue(row.becomesHittable(within: 10), "files.item.\(id) never appeared")
+      row.tap()
+    }
+    let state = element("audio.state")
+    XCTAssertTrue(state.hasValue("id=3103;state=playing", within: 15), "the file never played")
+    XCTAssertTrue(app.buttons["audio.speed"].exists, "local playback has no Speed")
+
+    let castButton = app.buttons["cast.button"]
+    XCTAssertTrue(castButton.appears(within: 5), "Now Playing offers no Cast")
+    castButton.tap()
+    let speaker = app.buttons["cast.picker.device.kitchen-speaker"]
+    XCTAssertTrue(speaker.appears(within: 5), "Cast opened no picker")
+    XCTAssertTrue(speaker.label.contains("Audio only"), speaker.label)
+    speaker.tap()
+    XCTAssertTrue(speaker.disappears(within: 5), "the picker stayed open")
+
+    XCTAssertTrue(
+      state.hasValue("id=3103;state=failed;receiver", within: 15),
+      "the failed load showed no failure")
+    XCTAssertTrue(app.staticTexts["Can’t play this on Kitchen speaker."].exists)
+    XCTAssertTrue(app.buttons["cast.stop"].exists, "the failure offers no Stop casting")
+    screenshot("runtime-audio-cast-failed")
+    app.buttons["audio.retry"].tap()
+
+    XCTAssertTrue(
+      state.hasValue("id=3103;state=playing;receiver", within: 15), "the speaker never played")
+    XCTAssertTrue(app.staticTexts["Playing on Kitchen speaker"].exists)
+    XCTAssertEqual(castButton.label, "Cast, connected")
+    XCTAssertFalse(app.buttons["audio.speed"].exists, "casting kept Speed")
+    XCTAssertTrue(app.buttons["audio.sleep-timer"].exists, "casting dropped Sleep timer")
+    XCTAssertTrue(app.buttons["audio.up-next"].exists, "casting dropped Up next")
+    screenshot("runtime-audio-casting")
+
+    let playPause = app.buttons["audio.play-pause"]
+    playPause.tap()
+    XCTAssertTrue(state.hasValue("id=3103;state=paused;receiver", within: 5))
+    let elapsed = app.staticTexts["audio.elapsed"]
+    let pausedAt = elapsed.label
+    XCTAssertFalse(
+      waitUntil(timeout: 3) { elapsed.label != pausedAt }, "the receiver kept playing")
+
+    app.buttons["audio.next"].tap()
+    XCTAssertTrue(
+      state.hasValue("id=3104;state=playing;receiver", within: 15),
+      "Next did not play on the receiver")
+    XCTAssertEqual(
+      element("audio.cast-loads").value as? String,
+      "/v2/files/3103/stream,/v2/files/3103/stream,/v2/files/3104/stream",
+      "a load carried something other than the audio stream")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { (Self.seconds(elapsed.label) ?? 0) >= 3 },
+      "the receiver position never advanced: \(elapsed.label)")
+    playPause.tap()
+    XCTAssertTrue(state.hasValue("id=3104;state=paused;receiver", within: 5))
+    let receiverPosition = elapsed.label
+
+    castButton.tap()
+    let stop = app.buttons["cast.picker.stop"]
+    XCTAssertTrue(stop.appears(within: 5), "no Stop casting while connected")
+    stop.tap()
+    XCTAssertTrue(
+      state.hasValue("id=3104;state=paused", within: 15), "the phone never took over paused")
+    XCTAssertEqual(elapsed.label, receiverPosition, "the hand-back moved the position")
+    XCTAssertTrue(app.buttons["audio.speed"].exists, "local playback has no Speed")
+    XCTAssertEqual(castButton.label, "Cast")
+    XCTAssertTrue(
+      waitForValue(element("cast.receiver-state"), "connected=false;loaded=false", timeout: 5))
+    screenshot("runtime-audio-cast-stopped")
+  }
+
+  private static func seconds(_ clock: String) -> Int? {
+    let parts = clock.split(separator: ":").compactMap { Int($0) }
+    guard parts.count >= 2 else { return nil }
+    return parts.reduce(0) { $0 * 60 + $1 }
+  }
+
   private func launchSignedIn() {
     app.launch()
     let signIn = element("auth.sign-in")

@@ -142,7 +142,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   /// A new load supersedes every request still in flight (an earlier load or
   /// a stop), so a late completion cannot idle the receiver under this media
   /// or play the previous file after this one was accepted.
-  func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
     guard let client = remoteMediaClient else { throw PutioCastControllerError(failure: .receiver) }
     abandonPendingRequests()
     loadedFileID = nil
@@ -150,9 +150,13 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     // put.io playlists carry no stable duration, so the receiver derives
     // seekability from the stream.
     builder.streamType = .none
-    builder.contentType = "application/x-mpegURL"
+    builder.contentType = media.contentType
     if media.durationSeconds > 0 { builder.streamDuration = media.durationSeconds }
-    let metadata = GCKMediaMetadata(metadataType: .movie)
+    let metadata: GCKMediaMetadata
+    switch media.kind {
+    case .video: metadata = GCKMediaMetadata(metadataType: .movie)
+    case .audio: metadata = GCKMediaMetadata(metadataType: .musicTrack)
+    }
     metadata.setString(media.title, forKey: kGCKMetadataKeyTitle)
     metadata.setString("put.io", forKey: kGCKMetadataKeySubtitle)
     if let artworkURL = media.artworkURL {
@@ -164,7 +168,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     builder.customData = [Self.fileIDKey: media.id.rawValue]
     let request = GCKMediaLoadRequestDataBuilder()
     request.mediaInformation = builder.build()
-    request.autoplay = true
+    request.autoplay = NSNumber(value: autoplay)
     request.startTime = TimeInterval(startSeconds)
     try await perform(client.loadMedia(with: request.build()))
     // Status updates carry this file only once the receiver accepted it; the

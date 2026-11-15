@@ -1868,6 +1868,26 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-04-now-playing")
   }
 
+  func testNowPlayingCasting() throws {
+    try playMusic(path: ["files.item.3101", "files.item.3103"], track: 3103)
+    let castButton = app.buttons["cast.button"]
+    XCTAssertTrue(castButton.appears(within: 5), "Now Playing offers no Cast")
+    castButton.tap()
+    let speaker = app.buttons["cast.picker.device.kitchen-speaker"]
+    XCTAssertTrue(speaker.appears(within: 5), "Cast opened no picker")
+    speaker.tap()
+    XCTAssertTrue(speaker.disappears(within: 5), "the picker stayed open")
+    XCTAssertTrue(
+      element("audio.state").hasValue("id=3103;state=playing;receiver", within: 15),
+      "the speaker never played")
+    XCTAssertTrue(labeled("Playing on Kitchen speaker").appears(within: 5))
+    XCTAssertEqual(castButton.label, "Cast, connected")
+    XCTAssertFalse(app.buttons["audio.speed"].exists, "casting kept Speed")
+    XCTAssertTrue(app.buttons["audio.sleep-timer"].exists)
+    XCTAssertTrue(app.buttons["audio.up-next"].exists)
+    try captureBoard("rd-ios-pb-34-now-playing-casting")
+  }
+
   func testSingleAudio() throws {
     try playMusic(
       path: ["files.item.3105", "files.item.3106", "files.item.3107"], track: 3107)

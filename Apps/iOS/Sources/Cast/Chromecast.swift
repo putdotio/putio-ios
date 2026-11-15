@@ -76,7 +76,7 @@ protocol PutioCastControlling: AnyObject {
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)? { get set }
   func startDiscovery()
   func connect(toDevice id: PutioCastDevice.ID)
-  func load(_ media: PutioCastMedia, startSeconds: Int) async throws
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws
   func play() async throws
   func pause() async throws
   func seek(toSeconds seconds: Double) async throws
@@ -156,6 +156,7 @@ final class PutioCastModel {
   @ObservationIgnored private var reporter: PutioVideoPositionReporter?
   @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
   @ObservationIgnored private var statusReceivedAt: ContinuousClock.Instant?
+  @ObservationIgnored private weak var audioReceiver: PutioCastAudioEngine?
 
   init(
     controller: PutioCastControlling,
@@ -321,8 +322,15 @@ final class PutioCastModel {
 
   // MARK: Casting
 
+  func makeAudioReceiver(resolve: @escaping PutioCastAudioResolve) -> PutioCastAudioEngine {
+    let receiver = PutioCastAudioEngine(controller: controller, resolve: resolve)
+    audioReceiver = receiver
+    return receiver
+  }
+
   func cast(_ route: PutioVideoRoute, saves: PutioCastPositionSaves) {
     guard isConnected else { return }
+    audioReceiver = nil
     reporter?.stop()
     reporter = nil
     generation &+= 1
@@ -361,7 +369,7 @@ final class PutioCastModel {
       guard case .ready(let media) = resolution else { return }
       activity = .loading(route.id)
       self.media = media
-      try await controller.load(media, startSeconds: media.startFromSeconds)
+      try await controller.load(media, startSeconds: media.startFromSeconds, autoplay: true)
       guard request == generation else { return }
       activity = .idle
       startSaving(media)
@@ -467,6 +475,7 @@ final class PutioCastModel {
   private func statusChanged(_ status: PutioCastMediaStatus?) {
     guard let media else {
       self.status = nil
+      audioReceiver?.receive(status)
       return
     }
     guard let status, status.fileID == media.id else {
