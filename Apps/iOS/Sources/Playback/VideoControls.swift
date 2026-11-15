@@ -214,6 +214,11 @@ final class PutioVideoTransport {
   private(set) var selectedSubtitle: Int?
   private(set) var airPlay: PutioVideoAirPlay?
   private(set) var subtitleCues: [PutioVideoCue] = []
+  private(set) var subtitleSize: PutioSubtitleTextSize
+  private(set) var subtitleTiming = PutioSubtitleTiming()
+  #if DEBUG
+    private(set) var shownCaption: String?
+  #endif
   private(set) var supportsAirPlay = true
   var subtitleListings: [PutioSubtitleListing] = []
   var toast: PutioToast?
@@ -246,15 +251,22 @@ final class PutioVideoTransport {
   @ObservationIgnored private var subtitleRenditions: [URL] = []
   @ObservationIgnored private var checkedErrorEvents = 0
   @ObservationIgnored private var subtitleSelectedAt: Date?
+  @ObservationIgnored private let sizeMemory: PutioSubtitleSizeMemory
+  @ObservationIgnored private let captionFeed = PutioVideoCaptionFeed()
+  @ObservationIgnored private var captionObservation: Any?
+  @ObservationIgnored private var engineCues: (cues: [SubtitleCue], time: Double) = ([], 0)
   @ObservationIgnored var onReload: (@MainActor (PutioVideoTrackSelection?) -> Void)?
   @ObservationIgnored var onSubtitlePicked: (@MainActor (PutioSubtitleTrack?) -> Void)?
   @ObservationIgnored var onSubtitleFailed: (@MainActor (PutioSubtitleTrack) -> Void)?
 
-  init(speedStore: PutioAudioSpeedStore? = nil) {
+  init(speedStore: PutioAudioSpeedStore? = nil, sizeMemory: PutioSubtitleSizeMemory? = nil) {
     wait = PutioVideoWaitModel()
     let speedStore = speedStore ?? .video()
     self.speedStore = speedStore
     speed = speedStore.load()
+    let sizeMemory = sizeMemory ?? .video()
+    self.sizeMemory = sizeMemory
+    subtitleSize = sizeMemory.size
   }
 
   var timeline: PutioVideoTimeline { playhead.timeline }
@@ -304,7 +316,17 @@ final class PutioVideoTransport {
     ) { [weak self] _ in
       MainActor.assumeIsolated { self?.refreshAirPlay() }
     }
-    if let item = player.currentItem { watchSubtitleFailures(of: item) }
+    captionObservation = player.addPeriodicTimeObserver(
+      forInterval: CMTime(value: 1, timescale: 20), queue: .main
+    ) { [weak self] time in
+      MainActor.assumeIsolated { self?.refreshCaptions(at: time.seconds) }
+    }
+    pictureInPicture.onActiveChange = { [weak self] _ in self?.refreshCaptionRendering() }
+    if let item = player.currentItem {
+      captionFeed.attach(to: item)
+      watchSubtitleFailures(of: item)
+    }
+    refreshCaptionRendering()
   }
 
   func engineChanged(to engine: AetherEngine) {
@@ -312,6 +334,7 @@ final class PutioVideoTransport {
     attachment &+= 1
     wait.restart()
     self.engine = engine
+    engine.setSoftwareSubtitleDelay(subtitleTiming.seconds)
     engine.$state
       .sink { [weak self] state in self?.engineStateChanged(state) }
       .store(in: &engineObservations)
@@ -425,6 +448,7 @@ final class PutioVideoTransport {
       return
     }
     guard let player else { return }
+    captionFeed.clear()
     let seek = playhead.seekStarted(to: seconds)
     player.seek(
       to: CMTime(seconds: playhead.timeline.elapsedSeconds, preferredTimescale: 600),
@@ -505,6 +529,59 @@ final class PutioVideoTransport {
       String(localized: "Couldn’t switch audio track"), icon: .warning, width: .fit)
   }
 
+  func setSubtitleSize(_ size: PutioSubtitleTextSize) {
+    subtitleSize = size
+    sizeMemory.size = size
+  }
+
+  func moveSubtitlesEarlier() {
+    subtitleTiming.moveEarlier()
+    subtitleTimingChanged()
+  }
+
+  func moveSubtitlesLater() {
+    subtitleTiming.moveLater()
+    subtitleTimingChanged()
+  }
+
+  func resetSubtitleTiming() {
+    subtitleTiming.reset()
+    subtitleTimingChanged()
+  }
+
+  private func subtitleTimingChanged() {
+    if let engine {
+      engine.setSoftwareSubtitleDelay(subtitleTiming.seconds)
+      showCues(engineCues.cues, at: engineCues.time)
+    } else if let player {
+      refreshCaptions(at: player.currentTime().seconds)
+    }
+  }
+
+  private func refreshCaptionRendering() {
+    guard let player else { return }
+    captionFeed.rendersNatively = pictureInPicture.isActive || player.isExternalPlaybackActive
+    refreshCaptions(at: player.currentTime().seconds)
+  }
+
+  private func refreshCaptions(at seconds: Double) {
+    guard engine == nil, seconds.isFinite else { return }
+    let cues =
+      captionFeed.rendersNatively
+      ? [] : captionFeed.cues(at: seconds, offset: subtitleTiming.seconds)
+    showCaption(cues, at: seconds)
+  }
+
+  private func showCaption(_ cues: [PutioVideoCue], at seconds: Double) {
+    guard cues != subtitleCues else { return }
+    subtitleCues = cues
+    #if DEBUG
+      let text = cues.compactMap { $0.text.map { String($0.characters) } }
+        .joined(separator: "\n")
+      if !text.isEmpty { shownCaption = text + "@" + String(format: "%.1f", seconds) }
+    #endif
+  }
+
   func pickSubtitle(_ index: Int?) {
     guard selectSubtitle(index) else { return }
     onSubtitlePicked?(index.flatMap { index in subtitles.first { $0.id == index } })
@@ -530,8 +607,15 @@ final class PutioVideoTransport {
     } else {
       item.select(nil, in: legible.group)
     }
+    if index != selectedSubtitle { restartCaptions() }
     selectedSubtitle = index
     return true
+  }
+
+  private func restartCaptions() {
+    captionFeed.clear()
+    guard let player else { return }
+    refreshCaptions(at: player.currentTime().seconds)
   }
 
   private func watchSubtitleFailures(of item: AVPlayerItem) {
@@ -601,6 +685,10 @@ final class PutioVideoTransport {
     toast = nil
     if let timeObservation, let player { player.removeTimeObserver(timeObservation) }
     timeObservation = nil
+    if let captionObservation, let player { player.removeTimeObserver(captionObservation) }
+    captionObservation = nil
+    captionFeed.detach()
+    engineCues = ([], 0)
     statusObservation?.invalidate()
     statusObservation = nil
     externalPlaybackObservation?.invalidate()
@@ -617,6 +705,7 @@ final class PutioVideoTransport {
     subtitleRenditions = []
     checkedErrorEvents = 0
     subtitleSelectedAt = nil
+    if player != nil { pictureInPicture.onActiveChange = nil }
     player = nil
     if engine != nil {
       engineObservations.removeAll()
@@ -641,6 +730,7 @@ final class PutioVideoTransport {
   private func refreshAirPlay() {
     guard let player else { return }
     airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
+    refreshCaptionRendering()
   }
 
   private func refreshPlaying() {
@@ -727,9 +817,11 @@ final class PutioVideoTransport {
   }
 
   private func showCues(_ cues: [SubtitleCue], at time: Double) {
-    let showing = cues.filter { $0.startTime <= time && time < $0.endTime }
+    engineCues = (cues, time)
+    let shifted = time - subtitleTiming.seconds
+    let showing = cues.filter { $0.startTime <= shifted && shifted < $0.endTime }
     guard showing.map(\.id) != subtitleCues.map(\.id) else { return }
-    subtitleCues = showing.map(PutioVideoCue.init)
+    showCaption(showing.map(PutioVideoCue.init), at: time)
   }
 
   private func update(time: CMTime) {
@@ -741,6 +833,7 @@ final class PutioVideoTransport {
 
   private func loadTracks() {
     guard let item = player?.currentItem, trackLoad == nil else { return }
+    captionFeed.attach(to: item)
     trackLoad = Task { @MainActor [weak self] in
       async let renditions = Self.audioRenditions(of: item)
       let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
@@ -785,6 +878,7 @@ final class PutioVideoTransport {
       }
     }
     if stampsSubtitle, subtitle != selectedSubtitle, subtitle != nil { subtitleSelectedAt = Date() }
+    if subtitle != selectedSubtitle { restartCaptions() }
     selectedSubtitle = subtitle
   }
 
@@ -876,29 +970,6 @@ final class PutioVideoTransport {
 extension PutioVideoErrorEvent {
   init(_ event: AVPlayerItemErrorLogEvent) {
     self.init(uri: event.uri.flatMap(URL.init(string:)), date: event.date)
-  }
-}
-
-struct PutioVideoCue: Identifiable, Equatable {
-  let id: Int
-  let text: String?
-  let image: CGImage?
-  let position: CGRect?
-
-  init(_ cue: SubtitleCue) {
-    id = cue.id
-    text = cue.text
-    if case .image(let image) = cue.body {
-      self.image = image.cgImage
-      position = image.position
-    } else {
-      image = nil
-      position = nil
-    }
-  }
-
-  static func == (lhs: Self, rhs: Self) -> Bool {
-    lhs.id == rhs.id && lhs.text == rhs.text
   }
 }
 
@@ -1308,6 +1379,8 @@ private struct PutioVideoChipRow: View {
   let onMenu: (Bool) -> Void
 
   @State private var openMenus: Set<ObjectIdentifier> = []
+  @State private var showsSizeAndTiming = false
+  @State private var subtitlesChipFrame = CGRect.zero
 
   var body: some View {
     ViewThatFits(in: .horizontal) {
@@ -1325,7 +1398,15 @@ private struct PutioVideoChipRow: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .onChange(of: openMenus.isEmpty) { _, closed in onMenu(!closed) }
+    .coordinateSpace(.named(Self.coordinateSpace))
+    .popover(
+      isPresented: $showsSizeAndTiming,
+      attachmentAnchor: .rect(.rect(subtitlesChipFrame)), arrowEdge: .bottom
+    ) {
+      PutioSubtitleSizeAndTimingPanel(transport: transport)
+        .presentationCompactAdaptation(.sheet)
+    }
+    .onChange(of: openMenus.isEmpty && !showsSizeAndTiming) { _, closed in onMenu(!closed) }
   }
 
   private func row(iconOnly: Bool) -> some View {
@@ -1339,6 +1420,8 @@ private struct PutioVideoChipRow: View {
       }
     }
   }
+
+  private static let coordinateSpace = "video.chips"
 
   private func menuPresented(_ button: ObjectIdentifier, _ presented: Bool) {
     if presented {
@@ -1372,7 +1455,13 @@ private struct PutioVideoChipRow: View {
       chip(
         icon: .closedCaptioning, title: subtitle, iconOnly: iconOnly,
         label: String(localized: "Subtitles: \(subtitle)"), identifier: "video.chip.subtitles",
-        sections: subtitleSections)
+        sections: subtitleSections
+      )
+      .onGeometryChange(for: CGRect.self) {
+        $0.frame(in: .named(Self.coordinateSpace))
+      } action: {
+        subtitlesChipFrame = $0
+      }
       let speed = transport.speed.title
       chip(
         icon: .gauge, title: speed, iconOnly: iconOnly,
@@ -1403,7 +1492,7 @@ private struct PutioVideoChipRow: View {
           items: [
             off,
             .unavailable(
-              title: String(localized: "No captions available"), icon: nil,
+              title: String(localized: "No captions available"),
               identifier: "video.subtitles.none"),
           ])
       ]
@@ -1419,9 +1508,12 @@ private struct PutioVideoChipRow: View {
       }
       + [
         PutioVideoChipSection(items: [
-          .unavailable(
-            title: String(localized: "Size and timing"), icon: .textAa,
-            identifier: "video.subtitles.size-and-timing")
+          .action(
+            PutioVideoChipAction(
+              title: String(localized: "Size and timing"),
+              detail: "\(transport.subtitleSize.title) · \(transport.subtitleTiming.text)",
+              icon: .textAa, identifier: "video.subtitles.size-and-timing"
+            ) { showsSizeAndTiming = true })
         ])
       ]
   }
@@ -1499,9 +1591,28 @@ private struct PutioVideoChipChoice: Equatable {
   }
 }
 
+private struct PutioVideoChipAction: Equatable {
+  let title: String
+  let detail: String
+  let icon: PutioIcon
+  let identifier: String
+  let perform: @MainActor () -> Void
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.title == rhs.title && lhs.detail == rhs.detail && lhs.icon == rhs.icon
+      && lhs.identifier == rhs.identifier
+  }
+}
+
 private enum PutioVideoChipItem: Equatable {
   case choice(PutioVideoChipChoice)
-  case unavailable(title: String, icon: PutioIcon?, identifier: String)
+  case action(PutioVideoChipAction)
+  case unavailable(title: String, identifier: String)
+
+  var isChoice: Bool {
+    if case .action = self { return false }
+    return true
+  }
 }
 
 private struct PutioVideoChipSection: Equatable {
@@ -1540,7 +1651,9 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
     let onChange = onChange
     let menus = sections.map { section in
       UIMenu(
-        title: section.title ?? "", options: [.displayInline, .singleSelection],
+        title: section.title ?? "",
+        options: section.items.allSatisfy(\.isChoice)
+          ? [.displayInline, .singleSelection] : .displayInline,
         children: section.items.map { Self.element($0, onChange: onChange) })
     }
     if let only = menus.first, menus.count == 1, sections[0].title == nil {
@@ -1562,10 +1675,16 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
       action.subtitle = choice.detail
       action.accessibilityIdentifier = choice.identifier
       return action
-    case .unavailable(let title, let icon, let identifier):
-      let action = UIAction(
-        title: title, image: icon.flatMap { UIImage(putioIcon: $0) }, attributes: .disabled
-      ) { _ in }
+    case .action(let item):
+      let action = UIAction(title: item.title, image: UIImage(putioIcon: item.icon)) { _ in
+        item.perform()
+        onChange()
+      }
+      action.subtitle = item.detail
+      action.accessibilityIdentifier = item.identifier
+      return action
+    case .unavailable(let title, let identifier):
+      let action = UIAction(title: title, attributes: .disabled) { _ in }
       action.accessibilityIdentifier = identifier
       return action
     }

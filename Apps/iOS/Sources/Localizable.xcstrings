@@ -2067,6 +2067,17 @@
         }
       }
     },
+    "Extra large" : {
+      "comment" : "android: playback_size_extra_large",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra large"
+          }
+        }
+      }
+    },
     "File not found" : {
       "comment" : "ios-only: no Android string for the iOS Chromecast controls",
       "localizations" : {
@@ -2129,6 +2140,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Folders"
+          }
+        }
+      }
+    },
+    "Font and colours follow iOS caption settings." : {
+      "comment" : "ios-only: iOS wording of mobile_playback_subtitle_caption_settings, names iOS caption settings",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Font and colours follow iOS caption settings."
           }
         }
       }
@@ -2310,6 +2332,17 @@
         }
       }
     },
+    "Large" : {
+      "comment" : "android: playback_size_large",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large"
+          }
+        }
+      }
+    },
     "Local network access is off" : {
       "comment" : "ios-only: the Local Network permission exists only on iOS",
       "localizations" : {
@@ -2328,6 +2361,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Looking for devices…"
+          }
+        }
+      }
+    },
+    "Medium" : {
+      "comment" : "android: playback_size_medium",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
           }
         }
       }
@@ -3808,6 +3852,17 @@
         }
       }
     },
+    "Reset" : {
+      "comment" : "android: playback_subtitle_reset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
     "Resume %@, %@ left" : {
       "comment" : "android: mobile_files_continue_watching_resume",
       "localizations" : {
@@ -3859,6 +3914,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "See all"
+          }
+        }
+      }
+    },
+    "Shown caption" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shown caption"
           }
         }
       }
@@ -3925,6 +3991,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sleep timer, %@ left"
+          }
+        }
+      }
+    },
+    "Small" : {
+      "comment" : "android: playback_size_small",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small"
           }
         }
       }
@@ -4013,6 +4090,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TestFlight"
+          }
+        }
+      }
+    },
+    "Text size" : {
+      "comment" : "android: playback_text_size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text size"
           }
         }
       }
@@ -4156,6 +4244,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This video is playing on “%@”."
+          }
+        }
+      }
+    },
+    "Timing" : {
+      "comment" : "android: playback_subtitle_timing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Timing"
           }
         }
       }

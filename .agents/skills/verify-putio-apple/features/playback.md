@@ -32,6 +32,9 @@ offline playback.
 - `subtitle-menu` groups the Subtitles menu by source for zero, one and three
   tracks, remembers the last language, and turns a track that fails to load
   off with a toast while playback continues.
+- `subtitle-size-timing` keeps playing while Size and timing is open, grows
+  the caption at Extra large, shows a cue 0.5 s later and earlier, resets, and
+  keeps the size but not the timing for the next file.
 - `video-chips` shows each chip's choice, keeps the controls up while a chip
   menu is open, and puts Picture in Picture first in the route group.
 - `direct-play` plays a Matroska original in the Direct play engine from the

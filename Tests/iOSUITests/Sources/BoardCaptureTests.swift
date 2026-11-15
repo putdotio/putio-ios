@@ -1004,8 +1004,7 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertTrue(
         app.buttons["video.subtitles.\(row)"].label.contains(source), "row \(row) lacks \(source)")
     }
-    let sizeAndTiming = app.buttons["video.subtitles.size-and-timing"]
-    XCTAssertFalse(sizeAndTiming.exists && sizeAndTiming.isEnabled, "Size and timing is enabled")
+    XCTAssertTrue(app.buttons["video.subtitles.size-and-timing"].exists)
     try captureBoard("rd-ios-pb-03-subtitles")
   }
 
@@ -1033,7 +1032,21 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(holds(chip, "label == 'Subtitles: Off'"), chip.label)
   }
 
+  func testSubtitleSizeAndTiming() throws {
+    openSubtitledEpisode(tracks: "one")
+    openSubtitlesChip()
+    let row = app.buttons["video.subtitles.size-and-timing"]
+    XCTAssertTrue(row.isEnabled, "Size and timing is disabled")
+    XCTAssertTrue(row.label.contains("Medium · 0.0 s"), row.label)
+    row.tap()
+    XCTAssertTrue(
+      app.steppers["video.subtitle-timing"].appears(within: 5), "Size and timing never opened")
+    XCTAssertTrue(app.buttons["video.subtitle-timing.reset"].exists)
+    try captureBoard("rd-ios-pb-22-size-and-timing")
+  }
+
   private func openSubtitledEpisode(tracks: String) {
+    letPlayerFollowPortraitPosture()
     orient(.landscapeLeft)
     app.launchArguments += [
       "--putio-harness-subtitle-tracks", tracks, "--putio-harness-picture-in-picture",
