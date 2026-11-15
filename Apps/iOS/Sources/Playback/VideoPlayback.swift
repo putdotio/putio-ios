@@ -1307,7 +1307,7 @@ final class PutioVideoPlayerCoordinator {
     onFailure?(
       PutioVideoPlayerFailure(
         fault: fault, heldSeconds: heldSeconds,
-        beforeFirstFrame: !positionEstablished && surface?.showsFirstFrame != true))
+        beforeFirstFrame: surface?.showsFirstFrame != true))
   }
 
   /// Offline assets keep every downloaded language; the player picks the

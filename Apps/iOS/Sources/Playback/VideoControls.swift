@@ -25,6 +25,7 @@ final class PutioVideoSurfaceView: UIView {
     set {
       let old = playerLayer?.player
       guard old !== newValue else { return }
+      showsFirstFrame = false
       playerLayer?.player = newValue
       if let playerLayer {
         if newValue == nil {
@@ -46,12 +47,21 @@ final class PutioVideoSurfaceView: UIView {
 
   private var playerLayer: AVPlayerLayer? { layer as? AVPlayerLayer }
 
-  var showsFirstFrame: Bool { playerLayer?.isReadyForDisplay == true }
+  private(set) var showsFirstFrame = false
+  private var readyForDisplayObservation: NSKeyValueObservation?
 
   override init(frame: CGRect) {
     super.init(frame: frame)
     backgroundColor = .black
     playerLayer?.videoGravity = .resizeAspect
+    readyForDisplayObservation = playerLayer?.observe(\.isReadyForDisplay, options: [.new]) {
+      [weak self] layer, _ in
+      guard layer.isReadyForDisplay else { return }
+      Task { @MainActor [weak self] in
+        guard self?.player != nil else { return }
+        self?.showsFirstFrame = true
+      }
+    }
   }
 
   required init?(coder: NSCoder) { nil }
