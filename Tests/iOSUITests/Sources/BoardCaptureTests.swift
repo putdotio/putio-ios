@@ -1046,6 +1046,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openSubtitledEpisode(tracks: String) {
+    letPlayerFollowPortraitPosture()
     orient(.landscapeLeft)
     app.launchArguments += [
       "--putio-harness-subtitle-tracks", tracks, "--putio-harness-picture-in-picture",
