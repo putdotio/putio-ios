@@ -152,6 +152,7 @@ enum PutioCastControllerFactory {
         controller = PutioHarnessCastController(
           failLoadsBeforeSuccess: arguments.contains("--putio-harness-cast-load-fails-once")
             ? 1 : 0,
+          holdsLoads: arguments.contains("--putio-harness-cast-load-held"),
           connection: harness ? harnessCastConnection(arguments) : .unavailable)
       } else {
         controller = PutioGoogleCastController()
@@ -162,19 +163,10 @@ enum PutioCastControllerFactory {
     #endif
     return PutioCastModel(
       controller: controller,
-      positionReportInterval: harness ? .seconds(3) : .seconds(15),
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
-      resolve: { fileID, playbackType in
-        try await runtime.resolveCastMedia(fileID: fileID, playbackType: playbackType)
-      },
-      loadPlaybackType: { try await runtime.castPlaybackType() },
-      savePlaybackType: { try await runtime.setCastPlaybackType($0) },
+      resolve: { try await runtime.resolveCastMedia(fileID: $0) },
       startConversion: { try await runtime.startVideoConversion(fileID: $0) },
-      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
-      remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
-      reportPosition: { fileID, seconds in
-        try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-      }
+      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) }
     )
   }
 }

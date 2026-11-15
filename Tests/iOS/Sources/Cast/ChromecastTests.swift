@@ -9,10 +9,11 @@ import XCTest
 private final class CastControllerStub: PutioCastControlling {
   var connection: PutioCastConnection = .connected(deviceName: "Living Room")
   var discovery = PutioCastDiscovery()
+  var approximatePositionSeconds: Double?
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  private(set) var loads: [(PutioCastMedia, String?)] = []
+  private(set) var loads: [(media: PutioCastMedia, startSeconds: Int)] = []
   private(set) var commands: [String] = []
   var loadResults: [Result<Void, PutioCastControllerError>] = []
   var loadGate: CheckedContinuation<Void, Never>?
@@ -24,9 +25,9 @@ private final class CastControllerStub: PutioCastControlling {
   func startDiscovery() { commands.append("discover") }
   func connect(toDevice id: PutioCastDevice.ID) { commands.append("connect:\(id)") }
 
-  func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
     defer { completedLoads += 1 }
-    loads.append((media, subtitleKey))
+    loads.append((media, startSeconds))
     if holdsLoad {
       await withCheckedContinuation { loadGate = $0 }
     }
@@ -36,7 +37,6 @@ private final class CastControllerStub: PutioCastControlling {
   func play() async throws { try send("play") }
   func pause() async throws { try send("pause") }
   func seek(toSeconds seconds: Double) async throws { try send("seek:\(Int(seconds))") }
-  func setSubtitle(key: String?) async throws { try send("subtitle:\(key ?? "off")") }
   func stop() async throws { commands.append("stop") }
 
   private func send(_ command: String) throws {
@@ -68,6 +68,28 @@ private final class CastControllerStub: PutioCastControlling {
 }
 
 @MainActor
+private final class SaveTicks {
+  private var callbacks: [@MainActor @Sendable () -> Void] = []
+  private(set) var intervals: [Duration] = []
+
+  func schedule(
+    _ interval: Duration, _ callback: @escaping @MainActor @Sendable () -> Void
+  ) -> any PutioPositionReportSchedule {
+    intervals.append(interval)
+    callbacks.append(callback)
+    return Tick()
+  }
+
+  func fire() {
+    for callback in callbacks { callback() }
+  }
+
+  private final class Tick: PutioPositionReportSchedule {
+    func invalidate() {}
+  }
+}
+
+@MainActor
 struct CastLifecycleTests {
   enum Ending: CaseIterable {
     case idle, missing, otherIdle, disconnect
@@ -80,19 +102,21 @@ struct CastLifecycleTests {
     controller.reportsSessionEnd = false
     let fileID = PutioFileID(rawValue: 412)
     let media = PutioCastMedia(
-      id: fileID, parentID: .root, title: "Movie", playbackType: .mp4,
-      url: try #require(URL(string: "https://example.com/movie.mp4")), artworkURL: nil,
-      durationSeconds: 900, startFromSeconds: 0, subtitles: [], defaultSubtitleKey: nil)
+      id: fileID, parentID: .root, title: "Movie",
+      url: try #require(URL(string: "https://example.com/movie.m3u8")), artworkURL: nil,
+      durationSeconds: 900, startFromSeconds: 0)
     let model = PutioCastModel(
-      controller: controller, positionReportInterval: .seconds(60),
-      resolve: { _, _ in .ready(media) }, loadPlaybackType: { .mp4 },
-      savePlaybackType: { _ in }, startConversion: { _ in },
-      loadConversionStatus: { _ in .completed }, reportPosition: { _, _ in })
+      controller: controller, resolve: { _ in .ready(media) }, startConversion: { _ in },
+      loadConversionStatus: { _ in .completed })
     defer {
       controller.connect(.disconnected)
       controller.releaseLoad()
     }
-    model.cast(PutioVideoRoute(id: fileID, parentID: .root, title: "Movie"))
+    model.cast(
+      PutioVideoRoute(id: fileID, parentID: .root, title: "Movie"),
+      saves: PutioCastPositionSaves(
+        remembersPosition: false, pipeline: PutioPlaybackPositionPipeline(),
+        report: { _, _ in }))
     let deadline = ContinuousClock.now + .seconds(2)
     while controller.loads.isEmpty, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(5))
@@ -100,18 +124,15 @@ struct CastLifecycleTests {
     try #require(controller.loads.count == 1)
     controller.report(
       PutioCastMediaStatus(
-        fileID: fileID, playerState: .playing, positionSeconds: 30,
-        durationSeconds: 900, activeSubtitleKey: nil))
+        fileID: fileID, playerState: .playing, positionSeconds: 30, durationSeconds: 900))
     let pause = try #require(model.togglePlayback())
     let seek = try #require(model.seek(toSeconds: 45))
-    let subtitles = try #require(model.selectSubtitle(key: nil))
     switch ending {
     case .idle, .otherIdle:
       controller.report(
         PutioCastMediaStatus(
           fileID: ending == .idle ? fileID : PutioFileID(rawValue: 414),
-          playerState: .idle, positionSeconds: 0, durationSeconds: 900,
-          activeSubtitleKey: nil))
+          playerState: .idle, positionSeconds: 0, durationSeconds: 900))
     case .missing:
       controller.report(nil)
     case .disconnect:
@@ -120,7 +141,7 @@ struct CastLifecycleTests {
     #expect(model.media == nil)
     #expect(model.status == nil)
     #expect(model.activity == .idle)
-    #expect(!model.presentsControls)
+    #expect(!model.hasSession)
     if ending == .disconnect {
       #expect(!model.isConnected)
     } else {
@@ -129,7 +150,6 @@ struct CastLifecycleTests {
     controller.releaseLoad()
     await pause.value
     await seek.value
-    await subtitles.value
     #expect(controller.commands == (ending == .disconnect ? ["end"] : []))
     #expect(model.media == nil)
     #expect(model.activity == .idle)
@@ -151,67 +171,43 @@ final class ChromecastTests: XCTestCase {
   private let route = PutioVideoRoute(
     id: PutioFileID(rawValue: 412), parentID: .root, title: "Movie.mkv")
 
-  private func media(id: Int = 412, subtitles: [PutioCastSubtitle] = [], defaultKey: String? = nil)
-    -> PutioCastMedia
-  {
+  private func media(id: Int = 412, start: Int = 589) -> PutioCastMedia {
     PutioCastMedia(
-      id: PutioFileID(rawValue: id), parentID: .root, title: "Movie.mkv", playbackType: .mp4,
-      url: URL(string: "https://api.put.io/v2/files/\(id)/mp4/download?oauth_token=secret")!,
-      artworkURL: nil, durationSeconds: 5400, startFromSeconds: 589, subtitles: subtitles,
-      defaultSubtitleKey: defaultKey)
-  }
-
-  private func subtitle(_ key: String) -> PutioCastSubtitle {
-    PutioCastSubtitle(
-      key: key, language: key, languageCode: key, name: "\(key).srt",
-      url: URL(string: "https://api.put.io/s/\(key)")!)
+      id: PutioFileID(rawValue: id), parentID: .root, title: "Movie.mkv",
+      url: URL(string: "https://api.put.io/v2/files/\(id)/hls/media.m3u8?oauth_token=secret")!,
+      artworkURL: nil, durationSeconds: 5400, startFromSeconds: start)
   }
 
   private func status(
-    id: Int = 412, _ state: PutioCastPlayerState, position: Double = 600, subtitle: String? = nil
+    id: Int = 412, _ state: PutioCastPlayerState, position: Double = 600
   ) -> PutioCastMediaStatus {
     PutioCastMediaStatus(
       fileID: PutioFileID(rawValue: id), playerState: state, positionSeconds: position,
-      durationSeconds: 5400, activeSubtitleKey: subtitle)
+      durationSeconds: 5400)
   }
 
   private func makeModel(
     controller: CastControllerStub,
     resolutions: [Result<PutioCastResolution, PutioRuntimeError>],
-    playbackType: Result<PutioCastPlaybackType, PutioRuntimeError> = .success(.mp4),
-    conversionStatuses: [PutioVideoConversionStatus] = [],
-    reportInterval: Duration = .milliseconds(40),
-    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true }
+    conversionStatuses: [PutioVideoConversionStatus] = []
   ) -> (PutioCastModel, Box) {
     controllers.append(controller)
     let box = Box(resolutions: resolutions, conversionStatuses: conversionStatuses)
+    let ticks = box.ticks
     let model = PutioCastModel(
-      controller: controller, positionReportInterval: reportInterval,
+      controller: controller,
       conversionPollInterval: .milliseconds(5),
-      resolve: { id, type in
-        box.resolveRequests.append((id, type))
+      resolve: { id in
+        box.resolveRequests.append(id)
         guard !box.resolutions.isEmpty else { throw PutioRuntimeError.unknown }
         return try box.resolutions.removeFirst().get()
-      },
-      loadPlaybackType: {
-        box.playbackTypeLoads += 1
-        if let load = box.loadPlaybackType { return try await load() }
-        return try playbackType.get()
-      },
-      savePlaybackType: { type in
-        box.savedTypes.append(type)
-        if let failure = box.saveFailure {
-          box.saveFailure = nil
-          throw failure
-        }
       },
       startConversion: { _ in box.conversionStarts += 1 },
       loadConversionStatus: { _ in
         guard !box.conversionStatuses.isEmpty else { return .completed }
         return box.conversionStatuses.removeFirst()
       },
-      remembersPlaybackPosition: remembersPlaybackPosition,
-      reportPosition: { id, seconds in box.reports.append((id, seconds)) })
+      schedulePositionSaves: { ticks.schedule($0, $1) })
     return (model, box)
   }
 
@@ -219,13 +215,12 @@ final class ChromecastTests: XCTestCase {
   final class Box {
     var resolutions: [Result<PutioCastResolution, PutioRuntimeError>]
     var conversionStatuses: [PutioVideoConversionStatus]
-    var resolveRequests: [(PutioFileID, PutioCastPlaybackType)] = []
-    var playbackTypeLoads = 0
-    var loadPlaybackType: PutioCastPlaybackTypeLoad?
-    var savedTypes: [PutioCastPlaybackType] = []
-    var saveFailure: PutioRuntimeError?
+    var resolveRequests: [PutioFileID] = []
     var conversionStarts = 0
     var reports: [(PutioFileID, Int)] = []
+    var remembersPosition = true
+    let pipeline = PutioPlaybackPositionPipeline()
+    fileprivate let ticks = SaveTicks()
 
     init(
       resolutions: [Result<PutioCastResolution, PutioRuntimeError>],
@@ -233,6 +228,12 @@ final class ChromecastTests: XCTestCase {
     ) {
       self.resolutions = resolutions
       self.conversionStatuses = conversionStatuses
+    }
+
+    var saves: PutioCastPositionSaves {
+      PutioCastPositionSaves(
+        remembersPosition: remembersPosition, pipeline: pipeline,
+        report: { [weak self] id, seconds in self?.reports.append((id, seconds)) })
     }
   }
 
@@ -261,25 +262,55 @@ final class ChromecastTests: XCTestCase {
     return condition()
   }
 
-  func testCastLoadsWithDefaultSubtitleAndPresentsControls() async throws {
+  private func castPlaying(
+    _ model: PutioCastModel, _ controller: CastControllerStub, _ box: Box,
+    position: Double = 600
+  ) async throws {
+    model.cast(route, saves: box.saves)
+    try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(status(.playing, position: position))
+  }
+
+  func testCastLoadsTheHLSStreamFromTheSavedPositionThroughLoadingToPlaying() async throws {
     let controller = CastControllerStub()
-    let expected = media(subtitles: [subtitle("en"), subtitle("tr")], defaultKey: "tr")
+    let expected = media()
     let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
     XCTAssertTrue(model.isConnected)
-    XCTAssertFalse(model.hasSession)
-    model.cast(route)
-    XCTAssertTrue(model.presentsControls)
-    XCTAssertEqual(model.activity, .resolving(route.id))
+    XCTAssertNil(model.phase)
+    model.cast(route, saves: box.saves)
+    XCTAssertEqual(model.castingRoute, route)
+    XCTAssertEqual(model.phase, .loading)
     try await expect({ model.activity == .idle && model.media != nil })
-    XCTAssertEqual(box.resolveRequests.map(\.1), [.mp4])
-    XCTAssertEqual(box.playbackTypeLoads, 1)
+    XCTAssertEqual(box.resolveRequests, [route.id])
     XCTAssertEqual(controller.loads.count, 1)
-    XCTAssertEqual(controller.loads.first?.1, "tr")
-    XCTAssertEqual(model.media, expected)
-    XCTAssertTrue(model.hasSession)
-    controller.report(status(.playing, subtitle: "tr"))
+    XCTAssertEqual(controller.loads.first?.media.url.path, "/v2/files/412/hls/media.m3u8")
+    XCTAssertEqual(controller.loads.first?.startSeconds, 589)
+    XCTAssertEqual(model.phase, .loading, "loaded but not yet reported by the receiver")
+    controller.report(status(.loading))
+    XCTAssertEqual(model.phase, .loading, "the receiver is still loading the stream")
+    controller.report(status(.playing))
+    XCTAssertEqual(model.phase, .playing)
     XCTAssertTrue(model.isPlaying)
-    XCTAssertEqual(model.status?.activeSubtitleKey, "tr")
+  }
+
+  func testCastWaitsForThePhonesPendingSaveBeforeResolving() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    let save = PendingSave()
+    box.pipeline.enqueue(fileID: route.id, position: 120) { _, _ in
+      await withCheckedContinuation { save.continuation = $0 }
+    }
+    model.cast(route, saves: box.saves)
+    try await expect({ save.continuation != nil })
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(box.resolveRequests.isEmpty, "resolved before the local save landed")
+    save.continuation?.resume()
+    try await expect({ box.resolveRequests == [self.route.id] })
+  }
+
+  @MainActor
+  private final class PendingSave {
+    var continuation: CheckedContinuation<Void, Never>?
   }
 
   func testConversionGateConvertsThenReResolvesAndFailureIsRetryable() async throws {
@@ -289,7 +320,7 @@ final class ChromecastTests: XCTestCase {
       controller: controller,
       resolutions: [.success(.conversionRequired), .success(.ready(expected))],
       conversionStatuses: [.queued, .converting(progress: 0.5), .completed])
-    model.cast(route)
+    model.cast(route, saves: box.saves)
     try await expect({ model.media == expected })
     XCTAssertEqual(box.conversionStarts, 1)
     XCTAssertEqual(box.resolveRequests.count, 2)
@@ -302,11 +333,8 @@ final class ChromecastTests: XCTestCase {
         .success(.conversionRequired), .success(.conversionRequired), .success(.ready(expected)),
       ],
       conversionStatuses: [.failed])
-    failed.cast(route)
-    try await expect({
-      if case .failed(_, let failure) = failed.activity { return failure.kind == .conversion }
-      return false
-    })
+    failed.cast(route, saves: failedBox.saves)
+    try await expect({ failed.phase == .failed(canRetry: true) })
     XCTAssertNil(failed.media)
     XCTAssertTrue(failing.loads.isEmpty)
     failedBox.conversionStatuses = [.completed]
@@ -315,39 +343,31 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(failedBox.conversionStarts, 2)
   }
 
-  func testReceiverLoadFailureIsRetryableAndRuntimeErrorsMap() async throws {
+  func testReceiverLoadFailureShowsTheFailedLayoutAndTryAgainLoads() async throws {
     let controller = CastControllerStub()
     controller.loadResults = [.failure(PutioCastControllerError(failure: .receiver)), .success(())]
     let expected = media()
-    let (model, _) = makeModel(
+    let (model, box) = makeModel(
       controller: controller, resolutions: [.success(.ready(expected)), .success(.ready(expected))])
-    model.cast(route)
-    try await expect({
-      if case .failed(let id, let failure) = model.activity {
-        return id == self.route.id && failure.kind == .receiver
-      }
-      return false
-    })
+    model.cast(route, saves: box.saves)
+    try await expect({ model.phase == .failed(canRetry: true) })
     XCTAssertNil(model.media)
-    XCTAssertTrue(model.presentsControls)
+    XCTAssertEqual(model.castingRoute, route, "the failed layout stays on the casting route")
     model.retry()
+    XCTAssertEqual(model.phase, .loading)
     try await expect({ model.media == expected && model.activity == .idle })
     XCTAssertEqual(controller.loads.count, 2)
 
     let notFound = CastControllerStub()
-    let (missing, _) = makeModel(controller: notFound, resolutions: [.failure(.notFound)])
-    missing.cast(route)
-    try await expect({
-      if case .failed(_, let failure) = missing.activity {
-        return failure.kind == .notFound && !failure.canRetry
-      }
-      return false
-    })
+    let (missing, missingBox) = makeModel(controller: notFound, resolutions: [.failure(.notFound)])
+    missing.cast(route, saves: missingBox.saves)
+    try await expect({ missing.phase == .failed(canRetry: false) })
 
     let expired = CastControllerStub()
-    let (signedOut, _) = makeModel(controller: expired, resolutions: [.failure(.sessionExpired)])
-    signedOut.cast(route)
-    try await expect({ signedOut.activity == .idle && !signedOut.presentsControls })
+    let (signedOut, expiredBox) = makeModel(
+      controller: expired, resolutions: [.failure(.sessionExpired)])
+    signedOut.cast(route, saves: expiredBox.saves)
+    try await expect({ signedOut.activity == .idle && !signedOut.hasSession })
   }
 
   func testNewerCastWinsOverAStaleLoadAndSessionEndClearsEverything() async throws {
@@ -355,12 +375,14 @@ final class ChromecastTests: XCTestCase {
     controller.holdsLoad = true
     let first = media(id: 412)
     let second = media(id: 414)
-    let (model, _) = makeModel(
+    let (model, box) = makeModel(
       controller: controller, resolutions: [.success(.ready(first)), .success(.ready(second))])
-    model.cast(route)
+    model.cast(route, saves: box.saves)
     try await expect({ controller.loads.count == 1 })
     controller.holdsLoad = false
-    model.cast(PutioVideoRoute(id: PutioFileID(rawValue: 414), parentID: .root, title: "Next"))
+    model.cast(
+      PutioVideoRoute(id: PutioFileID(rawValue: 414), parentID: .root, title: "Next"),
+      saves: box.saves)
     try await expect({ controller.loads.count == 2 })
     controller.releaseLoad()
     try await expect({ controller.completedLoads == 2 && model.media == second })
@@ -375,12 +397,11 @@ final class ChromecastTests: XCTestCase {
     XCTAssertNil(model.media)
     XCTAssertNil(model.status)
     XCTAssertEqual(model.activity, .idle)
-    XCTAssertFalse(model.presentsControls)
     XCTAssertFalse(model.hasSession)
     XCTAssertTrue(model.showsCastButton)
     controller.connect(.unavailable)
     XCTAssertFalse(model.showsCastButton)
-    model.cast(route)
+    model.cast(route, saves: box.saves)
     XCTAssertEqual(model.activity, .idle, "casting while disconnected is a no-op")
   }
 
@@ -432,46 +453,80 @@ final class ChromecastTests: XCTestCase {
       "choosing the connected device reconnected it")
   }
 
-  func testControlsForwardToTheReceiverAndStopClearsWithoutDisconnecting() async throws {
+  func testTransportSkipsTenSecondsAndClampsToTheMedia() async throws {
     let controller = CastControllerStub()
-    let expected = media(subtitles: [subtitle("en")], defaultKey: "en")
-    let (model, _) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
     model.togglePlayback()
-    model.seek(toSeconds: 10)
-    model.cast(route)
+    model.skip(by: 10)
+    model.cast(route, saves: box.saves)
     try await expect({ model.media != nil })
-    XCTAssertTrue(controller.commands.isEmpty, "controls need loaded media")
-    controller.report(status(.playing))
+    XCTAssertTrue(controller.commands.isEmpty, "controls need a receiver status")
+    controller.report(status(.playing, position: 600))
     model.togglePlayback()
     try await expect({ controller.commands == ["pause"] })
-    controller.report(status(.paused))
+    controller.report(status(.paused, position: 600))
     model.togglePlayback()
     try await expect({ controller.commands.last == "play" })
+    controller.approximatePositionSeconds = 604
+    model.skip(by: PutioVideoTimeline.skipInterval)
+    try await expect({ controller.commands.last == "seek:614" })
+    model.skip(by: -PutioVideoTimeline.skipInterval)
+    try await expect({ controller.commands.last == "seek:594" })
     model.seek(toSeconds: -5)
     try await expect({ controller.commands.last == "seek:0" })
-    model.selectSubtitle(key: "nope")
-    model.selectSubtitle(key: "en")
-    try await expect({ controller.commands.last == "subtitle:en" })
-    model.selectSubtitle(key: nil)
-    try await expect({ controller.commands.last == "subtitle:off" })
-    XCTAssertEqual(controller.commands, ["pause", "play", "seek:0", "subtitle:en", "subtitle:off"])
+    model.seek(toSeconds: 9_000)
+    try await expect({ controller.commands.last == "seek:5400" })
+  }
+
+  func testStopHandsBackTheReceiverPositionAndKeepsTheDevice() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    try await castPlaying(model, controller, box, position: 700)
+    controller.approximatePositionSeconds = 702.6
     model.stopCasting()
-    try await expect({ controller.commands.last == "stop" })
-    XCTAssertEqual(controller.commands.last, "stop")
-    XCTAssertNil(model.media)
-    XCTAssertFalse(model.presentsControls)
+    XCTAssertEqual(model.handback, PutioCastHandback(route: route, seconds: 702))
+    XCTAssertNil(model.castingRoute)
     XCTAssertTrue(model.isConnected)
-    controller.report(nil)
-    XCTAssertNil(model.status)
+    try await expect({ controller.commands.last == "stop" })
+    try await expect({ box.reports.map(\.1) == [702] }, "stop saves the receiver's position")
+    model.clearHandback()
+    XCTAssertNil(model.handback)
+  }
+
+  func testStopFromTheFailedLayoutHandsBackWithoutAPosition() async throws {
+    let controller = CastControllerStub()
+    controller.loadResults = [.failure(PutioCastControllerError(failure: .receiver))]
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    model.cast(route, saves: box.saves)
+    try await expect({ model.phase == .failed(canRetry: true) })
+    model.stopCasting()
+    XCTAssertEqual(model.handback, PutioCastHandback(route: route, seconds: nil))
+    XCTAssertFalse(controller.commands.contains("stop"), "nothing was loaded to stop")
+  }
+
+  func testLosingTheConnectionHandsBackAndDisconnectEndsTheSession() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(media())), .success(.ready(media()))])
+    try await castPlaying(model, controller, box, position: 650)
+    controller.connect(.disconnected)
+    XCTAssertEqual(model.handback?.seconds, 650)
+
+    controller.connect(.connected(deviceName: "Living Room"))
+    try await castPlaying(model, controller, box, position: 660)
+    XCTAssertNil(model.handback, "a new cast clears the old hand-back")
+    model.disconnect()
+    XCTAssertEqual(model.handback?.seconds, 660)
+    XCTAssertEqual(controller.commands.last, "end")
   }
 
   func testQueuedControlsAreDiscardedWhenAnotherCastStarts() async throws {
     let controller = CastControllerStub()
-    let first = media(subtitles: [subtitle("en")])
-    let second = media(id: 414, subtitles: [subtitle("tr")])
-    let (model, _) = makeModel(
+    let first = media()
+    let second = media(id: 414)
+    let (model, box) = makeModel(
       controller: controller, resolutions: [.success(.ready(first)), .success(.ready(second))])
-    model.cast(route)
+    model.cast(route, saves: box.saves)
     try await expect({ model.media == first && model.activity == .idle })
 
     controller.report(status(.playing))
@@ -479,16 +534,12 @@ final class ChromecastTests: XCTestCase {
     controller.report(status(.paused))
     let play = try XCTUnwrap(model.togglePlayback())
     let seek = try XCTUnwrap(model.seek(toSeconds: 30))
-    let subtitles = try XCTUnwrap(model.selectSubtitle(key: "en"))
-    let subtitlesOff = try XCTUnwrap(model.selectSubtitle(key: nil))
     // No suspension before replacement: every control still belongs to the old cast.
-    model.cast(PutioVideoRoute(id: second.id, parentID: .root, title: "Next"))
+    model.cast(PutioVideoRoute(id: second.id, parentID: .root, title: "Next"), saves: box.saves)
 
     await pause.value
     await play.value
     await seek.value
-    await subtitles.value
-    await subtitlesOff.value
     XCTAssertTrue(controller.commands.isEmpty, "queued controls must not reach the next cast")
 
     try await expect({ model.media == second && model.activity == .idle })
@@ -497,200 +548,88 @@ final class ChromecastTests: XCTestCase {
     controller.report(status(id: 414, .paused))
     await model.togglePlayback()?.value
     await model.seek(toSeconds: 45)?.value
-    await model.selectSubtitle(key: "tr")?.value
-    await model.selectSubtitle(key: nil)?.value
-    XCTAssertEqual(
-      controller.commands, ["pause", "play", "seek:45", "subtitle:tr", "subtitle:off"])
+    XCTAssertEqual(controller.commands, ["pause", "play", "seek:45"])
   }
 
-  func testQueuedControlsAreDiscardedWhenTheReceiverDisconnects() async throws {
+  func testControlFailureShowsTheFailedLayoutAndReceiverStatusRecovers() async throws {
     let controller = CastControllerStub()
-    let expected = media(subtitles: [subtitle("en")])
-    let (model, _) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
-    model.cast(route)
-    try await expect({ model.media == expected && model.activity == .idle })
-
-    controller.report(status(.playing))
-    let pause = try XCTUnwrap(model.togglePlayback())
-    let seek = try XCTUnwrap(model.seek(toSeconds: 30))
-    let subtitles = try XCTUnwrap(model.selectSubtitle(key: "en"))
-    controller.connect(.disconnected)
-
-    await pause.value
-    await seek.value
-    await subtitles.value
-    XCTAssertTrue(controller.commands.isEmpty, "queued controls must not reach an ended session")
-    XCTAssertFalse(model.hasSession)
-  }
-
-  func testControlFailurePreservesMediaAndReceiverStatusRecoversTheControls() async throws {
-    let controller = CastControllerStub()
-    let expected = media(subtitles: [subtitle("en")])
-    let (model, _) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
-    model.cast(route)
+    let expected = media()
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
+    model.cast(route, saves: box.saves)
     try await expect({ model.media == expected })
 
     let actions: [(String, () -> Void)] = [
       ("pause", { model.togglePlayback() }),
       ("seek:30", { model.seek(toSeconds: 30) }),
-      ("subtitle:en", { model.selectSubtitle(key: "en") }),
     ]
     for (command, action) in actions {
       controller.report(status(.playing))
       controller.commandFailure = PutioCastControllerError(failure: .receiver)
       action()
       try await expect(
-        {
-          model.activity == .failed(self.route.id, .receiver)
-            && controller.commands.last == command
-        }, command)
+        { model.phase == .failed(canRetry: true) && controller.commands.last == command },
+        command)
       XCTAssertEqual(model.media, expected)
-      XCTAssertTrue(model.presentsControls)
       XCTAssertTrue(model.isConnected)
 
       controller.commandFailure = nil
       controller.report(status(.paused))
-      XCTAssertEqual(model.activity, .idle)
+      XCTAssertEqual(model.phase, .playing)
       model.togglePlayback()
       try await expect({ controller.commands.last == "play" })
     }
   }
 
-  func testPositionReportsAreThrottledDistinctAndFlushedOnStop() async throws {
+  func testReceiverPositionSavesEveryTenSecondsAndOnPauseAndSeek() async throws {
     let controller = CastControllerStub()
-    let expected = media()
-    let (model, box) = makeModel(
-      controller: controller, resolutions: [.success(.ready(expected))],
-      reportInterval: .milliseconds(30))
-    model.cast(route)
-    try await expect({ model.media != nil })
-    controller.report(status(.playing, position: 589.9))
-    try await Task.sleep(for: .milliseconds(80))
-    XCTAssertTrue(box.reports.isEmpty, "the start position is not re-reported")
-    controller.report(status(.playing, position: 601.4))
-    try await expect({ box.reports.count == 1 })
-    XCTAssertEqual(box.reports.first?.1, 601)
-    XCTAssertEqual(model.reportedPosition?.seconds, 601)
-    try await Task.sleep(for: .milliseconds(80))
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    try await castPlaying(model, controller, box, position: 589.9)
+    XCTAssertEqual(box.ticks.intervals, [PutioVideoPositionReporter.interval])
+    XCTAssertEqual(PutioVideoPositionReporter.interval, .seconds(10))
+    box.ticks.fire()
+    try await Task.sleep(for: .milliseconds(30))
+    XCTAssertTrue(box.reports.isEmpty, "the start position is not saved again")
+
+    controller.report(status(.playing, position: 599.4))
+    box.ticks.fire()
+    try await expect({ box.reports.map(\.1) == [599] })
+    XCTAssertEqual(model.reportedPosition?.seconds, 599)
+    box.ticks.fire()
+    try await Task.sleep(for: .milliseconds(30))
     XCTAssertEqual(box.reports.count, 1, "an unchanged position is not repeated")
-    controller.report(status(.buffering, position: 650))
-    try await Task.sleep(for: .milliseconds(80))
-    XCTAssertEqual(box.reports.count, 1, "buffering positions are not trusted")
-    controller.report(status(.paused, position: 700))
-    model.stopCasting()
-    try await expect({ box.reports.count == 2 })
-    XCTAssertEqual(box.reports.map(\.1), [601, 700], "stop flushes the last paused position")
-    try await Task.sleep(for: .milliseconds(80))
-    XCTAssertEqual(box.reports.count, 2, "reporting stops with the session")
+
+    controller.report(status(.paused, position: 604))
+    try await expect({ box.reports.map(\.1) == [599, 604] }, "pause saves at once")
+
+    controller.approximatePositionSeconds = 640
+    await model.seek(toSeconds: 640)?.value
+    try await expect({ box.reports.map(\.1) == [599, 604, 640] }, "seek saves at once")
   }
 
-  func testAccountWithoutRememberedPositionsNeverReportsCastPositions() async throws {
+  func testPlayingToTheEndSavesTheEndForTheWatchedMark() async throws {
     let controller = CastControllerStub()
-    let (model, box) = makeModel(
-      controller: controller, resolutions: [.success(.ready(media()))],
-      reportInterval: .milliseconds(10), remembersPlaybackPosition: { false })
-    model.cast(route)
-    try await expect({ model.media != nil })
-    controller.report(status(.playing, position: 601.4))
-    try await Task.sleep(for: .milliseconds(80))
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    try await castPlaying(model, controller, box, position: 5_399.5)
+    controller.report(status(.idle, position: 0))
+    try await expect({ box.reports.map(\.1) == [5_399] })
+    XCTAssertTrue(
+      PutioPlaybackProgress.isWatched(positionSeconds: 5_399, durationSeconds: 5_400))
+    XCTAssertFalse(model.hasSession)
+    XCTAssertNil(model.handback, "an ended video is not handed back")
+  }
+
+  func testAnAccountThatForgetsPositionsSavesNothing() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    box.remembersPosition = false
+    try await castPlaying(model, controller, box, position: 601)
+    box.ticks.fire()
     controller.report(status(.paused, position: 700))
     model.stopCasting()
     try await Task.sleep(for: .milliseconds(40))
     XCTAssertTrue(box.reports.isEmpty)
     XCTAssertNil(model.reportedPosition)
-  }
-
-  func testQueuedCastReportChecksTheSettingWhenItIsSent() async throws {
-    let controller = CastControllerStub()
-    let setting = Setting()
-    let (model, box) = makeModel(
-      controller: controller, resolutions: [.success(.ready(media()))],
-      reportInterval: .seconds(60), remembersPlaybackPosition: { setting.remembers })
-    model.cast(route)
-    try await expect({ model.media != nil })
-    controller.report(status(.paused, position: 700))
-    model.stopCasting()
-    // Turned off after the stop flush was queued but before it was sent.
-    setting.remembers = false
-    try await Task.sleep(for: .milliseconds(40))
-    XCTAssertTrue(box.reports.isEmpty)
-  }
-
-  @MainActor
-  final class Setting {
-    var remembers = true
-  }
-
-  func testReceiverIdleEndsTheSessionSurfaceAndAnotherSendersMediaIsIgnored() async throws {
-    let controller = CastControllerStub()
-    let expected = media()
-    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
-    model.cast(route)
-    try await expect({ model.media != nil })
-    controller.report(status(.playing, position: 700))
-    controller.report(status(.idle, position: 900))
-    try await expect({ box.reports.count == 1 })
-    XCTAssertNil(model.media)
-    XCTAssertFalse(model.presentsControls)
-    XCTAssertEqual(box.reports.map(\.1), [700], "the last playing position is flushed, not idle's")
-    XCTAssertTrue(model.isConnected)
-  }
-
-  func testPlaybackTypeSavesOnlyFlipOnAcknowledgement() async throws {
-    let controller = CastControllerStub()
-    let (model, box) = makeModel(controller: controller, resolutions: [])
-    await model.loadPlaybackTypeIfNeeded()
-    XCTAssertEqual(model.playbackType, .mp4)
-    box.saveFailure = .transient
-    await model.savePlaybackType(.hls)
-    XCTAssertEqual(model.playbackType, .mp4)
-    XCTAssertEqual(model.playbackTypeFailure, "Check your connection and try again.")
-    await model.savePlaybackType(.hls)
-    XCTAssertEqual(model.playbackType, .hls)
-    XCTAssertNil(model.playbackTypeFailure)
-    XCTAssertEqual(box.savedTypes, [.hls, .hls])
-    await model.savePlaybackType(.hls)
-    XCTAssertEqual(box.savedTypes.count, 2, "saving the current value is a no-op")
-    model.cast(route)
-    try await expect({ model.activity != .resolving(self.route.id) })
-    XCTAssertEqual(box.resolveRequests.last?.1, .hls, "casting uses the saved type")
-    XCTAssertEqual(box.playbackTypeLoads, 1)
-  }
-
-  func testPlaybackTypeLoadFailureIsRetryable() async throws {
-    let controller = CastControllerStub()
-    let (model, box) = makeModel(
-      controller: controller, resolutions: [], playbackType: .failure(.rateLimited))
-    await model.loadPlaybackTypeIfNeeded()
-    XCTAssertNil(model.playbackType)
-    XCTAssertEqual(
-      model.playbackTypeFailure, "put.io is receiving too many requests. Try again shortly.")
-    await model.loadPlaybackTypeIfNeeded(force: true)
-    XCTAssertEqual(box.playbackTypeLoads, 2)
-  }
-
-  func testPlaybackTypeRefreshCannotOverwriteAcknowledgedSave() async throws {
-    let (model, box) = makeModel(controller: CastControllerStub(), resolutions: [])
-    await model.loadPlaybackTypeIfNeeded()
-    var pending: CheckedContinuation<PutioCastPlaybackType, Never>?
-    box.loadPlaybackType = {
-      await withCheckedContinuation { pending = $0 }
-    }
-    let refresh = Task { await model.loadPlaybackTypeIfNeeded(force: true) }
-    _ = try await waitUntil { pending != nil }
-    guard let pending else {
-      refresh.cancel()
-      return XCTFail("preference refresh did not start")
-    }
-
-    await model.savePlaybackType(.hls)
-    XCTAssertEqual(model.playbackType, .hls)
-    pending.resume(returning: .mp4)
-    await refresh.value
-
-    XCTAssertEqual(model.playbackType, .hls)
-    XCTAssertNil(model.playbackTypeFailure)
-    XCTAssertEqual(box.savedTypes, [.hls])
+    XCTAssertEqual(model.handback?.seconds, 700, "the phone still continues from the receiver")
   }
 
   func testReceiverIDComesFromTheBundleWithAPublicFallback() {
@@ -700,11 +639,5 @@ final class ChromecastTests: XCTestCase {
     for bad in ["$(PUTIO_CHROMECAST_RECEIVER_APP_ID)", "abcd1234", "ABCD123", "ABCD123G", ""] {
       XCTAssertFalse(PutioCastReceiver.isValid(bad), bad)
     }
-  }
-
-  func testClockFormatting() {
-    XCTAssertEqual(PutioCastControlsView.clock(0), "0:00")
-    XCTAssertEqual(PutioCastControlsView.clock(65.9), "1:05")
-    XCTAssertEqual(PutioCastControlsView.clock(3661), "1:01:01")
   }
 }

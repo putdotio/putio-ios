@@ -7,37 +7,24 @@ import XCTest
 
 @MainActor
 final class PlaybackAccessibilityTests: XCTestCase {
-  func testCastControlsFitLandscapeAndAccessibilityText() async throws {
+  func testCastingLayoutFitsLandscapeAtExtraLargeText() async throws {
     let (model, _) = try await makeCast()
     defer { model.disconnect() }
-    for (name, size, textSize) in [
-      ("cast-landscape", CGSize(width: 844, height: 390), DynamicTypeSize.large),
-      ("cast-accessibility3", CGSize(width: 390, height: 844), DynamicTypeSize.accessibility3),
+    for (name, size, verticalSizeClass) in [
+      ("casting-landscape-xxl", CGSize(width: 874, height: 402), UserInterfaceSizeClass.compact),
+      ("casting-portrait-xxl", CGSize(width: 402, height: 874), .regular),
     ] {
       let window = host(
-        PutioCastControlsView(model: model).dynamicTypeSize(textSize), size: size)
+        PutioVideoCastingView(model: model, title: "Movie.mkv", onClose: {})
+          .environment(\.verticalSizeClass, verticalSizeClass)
+          .dynamicTypeSize(.xxLarge),
+        size: size)
       defer { window.isHidden = true }
       let slider = try await slider(in: window)
       let frame = slider.convert(slider.bounds, to: window)
       XCTAssertTrue(
-        frame.minX >= 0 && frame.maxX <= window.bounds.width,
-        "Playback slider is horizontally clipped in \(name): \(frame)")
+        window.bounds.contains(frame), "the scrubber is clipped in \(name): \(frame)")
       attach(window, name: name)
-      let scrollView = try XCTUnwrap(
-        scrollAncestor(of: slider), "Overflowing playback controls need a scrollable surface")
-      XCTAssertLessThanOrEqual(scrollView.contentSize.width, scrollView.bounds.width + 1)
-      let bottom = max(
-        0,
-        scrollView.contentSize.height - scrollView.bounds.height
-          + scrollView.adjustedContentInset.bottom)
-      if size.width > size.height {
-        XCTAssertGreaterThan(bottom, 0, "Landscape controls must remain reachable by scrolling")
-      }
-      scrollView.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
-      window.layoutIfNeeded()
-      try await Task.sleep(for: .milliseconds(50))
-      window.layoutIfNeeded()
-      XCTAssertEqual(scrollView.contentOffset.y, bottom, accuracy: 1)
     }
   }
 
@@ -107,24 +94,21 @@ final class PlaybackAccessibilityTests: XCTestCase {
     return view.subviews.lazy.compactMap { self.findSlider(in: $0) }.first
   }
 
-  private func scrollAncestor(of view: UIView) -> UIScrollView? {
-    guard let parent = view.superview else { return nil }
-    return parent as? UIScrollView ?? scrollAncestor(of: parent)
-  }
-
   private func makeCast() async throws -> (PutioCastModel, AccessibilityCastReceiver) {
     let receiver = AccessibilityCastReceiver()
     let id = PutioFileID(rawValue: 412)
     let media = PutioCastMedia(
-      id: id, parentID: .root, title: "Movie.mkv", playbackType: .mp4,
-      url: try XCTUnwrap(URL(string: "https://media.example.test/movie.mp4")),
-      artworkURL: nil, durationSeconds: 240, startFromSeconds: 60,
-      subtitles: [], defaultSubtitleKey: nil)
+      id: id, parentID: .root, title: "Movie.mkv",
+      url: try XCTUnwrap(URL(string: "https://media.example.test/movie.m3u8")),
+      artworkURL: nil, durationSeconds: 240, startFromSeconds: 60)
     let model = PutioCastModel(
-      controller: receiver, resolve: { _, _ in .ready(media) }, loadPlaybackType: { .mp4 },
-      savePlaybackType: { _ in }, startConversion: { _ in },
-      loadConversionStatus: { _ in .completed }, reportPosition: { _, _ in })
-    model.cast(PutioVideoRoute(id: id, parentID: .root, title: media.title))
+      controller: receiver, resolve: { _ in .ready(media) }, startConversion: { _ in },
+      loadConversionStatus: { _ in .completed })
+    model.cast(
+      PutioVideoRoute(id: id, parentID: .root, title: media.title),
+      saves: PutioCastPositionSaves(
+        remembersPosition: false, pipeline: PutioPlaybackPositionPipeline(),
+        report: { _, _ in }))
     let deadline = ContinuousClock.now + .seconds(2)
     while model.media == nil || model.activity != .idle, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(1))
@@ -132,8 +116,7 @@ final class PlaybackAccessibilityTests: XCTestCase {
     _ = try XCTUnwrap(model.media)
     receiver.onMediaStatusChanged?(
       PutioCastMediaStatus(
-        fileID: id, playerState: .paused, positionSeconds: 60,
-        durationSeconds: 240, activeSubtitleKey: nil))
+        fileID: id, playerState: .paused, positionSeconds: 60, durationSeconds: 240))
     return (model, receiver)
   }
 }
@@ -142,17 +125,17 @@ final class PlaybackAccessibilityTests: XCTestCase {
 private final class AccessibilityCastReceiver: PutioCastControlling {
   let connection: PutioCastConnection = .connected(deviceName: "Living Room")
   let discovery = PutioCastDiscovery()
+  let approximatePositionSeconds: Double? = nil
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
 
   func startDiscovery() {}
   func connect(toDevice id: PutioCastDevice.ID) {}
-  func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {}
+  func load(_ media: PutioCastMedia, startSeconds: Int) async throws {}
   func play() async throws {}
   func pause() async throws {}
   func seek(toSeconds seconds: Double) async throws {}
-  func setSubtitle(key: String?) async throws {}
   func stop() async throws {}
   func endSession() { onConnectionChanged?(.disconnected) }
 }

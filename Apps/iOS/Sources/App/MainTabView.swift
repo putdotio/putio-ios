@@ -81,6 +81,7 @@ struct MainTabView: View {
   @State private var linkDeviceCode: String?
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioVideoRoute?
+  @State private var presentsCasting = false
   @State private var harnessPlaybackAttempt = 0
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
   @State private var harnessAudioSaves: [(fileID: PutioFileID, seconds: Int)] = []
@@ -177,7 +178,6 @@ struct MainTabView: View {
           account: account,
           refreshRequests: folderRefreshRequests,
           trashReconciliation: trashReconciliation,
-          cast: cast,
           appConfig: appConfig,
           showsLinkDevice: $showsLinkDevice,
           linkDeviceCode: linkDeviceCode,
@@ -257,7 +257,7 @@ struct MainTabView: View {
       await appConfig.loadIfNeeded()
       askProductAnalyticsIfNeeded()
     }
-    .modifier(PutioCastPresentation(model: cast, audio: miniPlayer))
+    .modifier(PutioCastPresentation(model: cast, audio: miniPlayer, onOpen: openCasting))
     .putioVideoResumeAlert(resumePrompter)
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
@@ -282,9 +282,15 @@ struct MainTabView: View {
     }
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
-        videoPlayer(for: route)
-          .putioToast($externalPlayback.toast)
-          .putioCastPicker(cast)
+        Group {
+          if presentsCasting {
+            PutioVideoCastingView(model: cast, title: route.title, onClose: closeCasting)
+          } else {
+            videoPlayer(for: route)
+              .putioToast($externalPlayback.toast)
+          }
+        }
+        .putioCastPicker(cast)
       }
     }
     // Keyed on the cover, not the route, so the next video keeps the lock.
@@ -331,6 +337,9 @@ struct MainTabView: View {
       if playing { cast.startDiscovery() }
     }
     .putioCastLocalNetworkAlert(cast, isActive: !audioPlayback.isPresented)
+    .onChange(of: cast.castingRoute) { previous, route in
+      castingRouteChanged(from: previous, to: route)
+    }
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
@@ -533,7 +542,7 @@ struct MainTabView: View {
   private func playVideo(_ route: PutioVideoRoute) {
     stopAudio()
     if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
-      cast.cast(route)
+      castVideo(route)
     } else {
       presentVideo(route)
     }
@@ -759,7 +768,7 @@ struct MainTabView: View {
     let start = await videoStartPoint(for: route)
     guard !Task.isCancelled else { return }
     if route.initialResolution == nil, cast.isConnected {
-      cast.cast(route)
+      castVideo(route)
       return
     }
     let method: PutioPlaybackMethod
@@ -884,19 +893,7 @@ struct MainTabView: View {
         ? .milliseconds(1_200) : PutioVideoPlaybackModel.conversionPollInterval,
       upNextSleep: upNextSleep,
       positionPipeline: playbackPositionPipeline,
-      reportPosition: { fileID, seconds in
-        if offlineQueue.item(for: fileID)?.isPlayable == true {
-          await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
-        } else {
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-        }
-        continueWatching.positionSaved(fileID: fileID, seconds: seconds)
-        #if DEBUG
-          if scenario == .filesBrowser {
-            harnessReportedPosition = (fileID, seconds)
-          }
-        #endif
-      },
+      reportPosition: { try await reportVideoPosition(fileID: $0, seconds: $1) },
       startConversion: { fileID in
         try await runtime.startVideoConversion(fileID: fileID)
       },
@@ -976,6 +973,9 @@ struct MainTabView: View {
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }
+        if let loads = cast.harnessController?.loadedURLs, !loads.isEmpty {
+          HarnessCastLoadsProbe(urls: loads)
+        }
       }
     }
   #endif
@@ -985,14 +985,77 @@ struct MainTabView: View {
     return AnyView(PutioCastButton(model: cast))
   }
 
-  /// Hands the video to the receiver; the local player's teardown flushes
-  /// its final position first.
   private func playerCastAction(for route: PutioVideoRoute) -> (@MainActor @Sendable () -> Void)? {
     guard cast.isConnected else { return nil }
     return {
-      dismissPresentedVideo()
-      cast.cast(route)
+      presentsCasting = true
+      cast.cast(route, saves: castSaves)
+      if cast.castingRoute == nil { presentsCasting = false }
     }
+  }
+
+  private func castVideo(_ route: PutioVideoRoute) {
+    cast.cast(route, saves: castSaves)
+    openCasting()
+  }
+
+  private var castSaves: PutioCastPositionSaves {
+    PutioCastPositionSaves(
+      remembersPosition: account.rememberVideoTime, pipeline: playbackPositionPipeline,
+      report: { try await reportVideoPosition(fileID: $0, seconds: $1) })
+  }
+
+  private func reportVideoPosition(fileID: PutioFileID, seconds: Int) async throws {
+    if offlineQueue.item(for: fileID)?.isPlayable == true {
+      await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+    } else {
+      try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+    }
+    continueWatching.positionSaved(fileID: fileID, seconds: seconds)
+    #if DEBUG
+      if scenario == .filesBrowser {
+        harnessReportedPosition = (fileID, seconds)
+      }
+    #endif
+  }
+
+  private func castingRouteChanged(from previous: PutioVideoRoute?, to route: PutioVideoRoute?) {
+    if let route {
+      cancelVideoStart()
+      presentsCasting = true
+      selectedVideoRoute = route
+      presentedVideoRoute = route
+      return
+    }
+    let handback = cast.handback
+    cast.clearHandback()
+    guard presentsCasting, let shown = selectedVideoRoute else {
+      presentsCasting = false
+      if let previous { refreshFolderAfterPlayback(previous) }
+      return
+    }
+    presentsCasting = false
+    guard let handback, handback.route.id == shown.id else {
+      dismissPresentedVideo()
+      return
+    }
+    refreshFolderAfterPlayback(shown)
+    let local = handback.seconds.map { handback.route.resuming(at: $0) } ?? handback.route
+    selectedVideoRoute = local
+    presentedVideoRoute = local
+  }
+
+  private func closeCasting() {
+    presentsCasting = false
+    selectedVideoRoute = nil
+    presentedVideoRoute = nil
+  }
+
+  private func openCasting() {
+    guard let route = cast.castingRoute else { return }
+    presentsCasting = true
+    selectedVideoRoute = route
+    presentedVideoRoute = route
   }
 
   private var vlcAction: PutioFileSelection? {
@@ -1008,6 +1071,7 @@ struct MainTabView: View {
 
   private func dismissPresentedVideo() {
     cancelVideoStart()
+    presentsCasting = false
     guard let dismissedRoute = selectedVideoRoute else { return }
     selectedVideoRoute = nil
     presentedVideoRoute = nil

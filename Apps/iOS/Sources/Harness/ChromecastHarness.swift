@@ -6,7 +6,8 @@
 
   /// A deterministic receiver for the seeded journey: a TV and a speaker that
   /// discovery keeps looking past, and a clock that advances while "playing".
-  /// Load can be made to fail once so retry is proven.
+  /// Load can be made to fail once so retry is proven, and can be held so the
+  /// loading layout stays on screen.
   @MainActor
   @Observable
   final class PutioHarnessCastController: PutioCastControlling {
@@ -23,18 +24,27 @@
     @ObservationIgnored var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
     @ObservationIgnored var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
     private(set) var loaded: PutioCastMedia?
+    private(set) var loadedURLs: [URL] = []
     @ObservationIgnored private var state: PutioCastPlayerState = .idle
     @ObservationIgnored private var position: Double = 0
-    @ObservationIgnored private var activeSubtitleKey: String?
     @ObservationIgnored private var failuresRemaining: Int
+    @ObservationIgnored private let holdsLoads: Bool
     @ObservationIgnored private var clock: Task<Void, Never>?
 
     /// Gallery and exercised launches configure no Cast context and show no
     /// Cast control, so their stub reports no receiver at all.
-    init(failLoadsBeforeSuccess: Int = 0, connection: PutioCastConnection = .disconnected) {
+    init(
+      failLoadsBeforeSuccess: Int = 0, holdsLoads: Bool = false,
+      connection: PutioCastConnection = .disconnected
+    ) {
       failuresRemaining = failLoadsBeforeSuccess
+      self.holdsLoads = holdsLoads
       self.connection = connection
       discovery = PutioCastDiscovery(devices: [Self.tv, Self.speaker], isSearching: true)
+    }
+
+    var approximatePositionSeconds: Double? {
+      loaded == nil ? nil : position
     }
 
     func startDiscovery() {}
@@ -60,16 +70,16 @@
       onDiscoveryChanged?(discovery)
     }
 
-    func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
+    func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
       guard connection.isConnected else { throw PutioCastControllerError(failure: .receiver) }
-      try await Task.sleep(for: .milliseconds(400))
+      loadedURLs.append(media.url)
+      try await Task.sleep(for: holdsLoads ? .seconds(3_600) : .milliseconds(400))
       if failuresRemaining > 0 {
         failuresRemaining -= 1
         throw PutioCastControllerError(failure: .receiver)
       }
       loaded = media
-      position = Double(media.startFromSeconds)
-      activeSubtitleKey = subtitleKey
+      position = Double(startSeconds)
       state = .playing
       publish()
       startClock()
@@ -92,12 +102,6 @@
     func seek(toSeconds seconds: Double) async throws {
       guard let loaded else { throw PutioCastControllerError(failure: .receiver) }
       position = min(max(0, seconds), loaded.durationSeconds)
-      publish()
-    }
-
-    func setSubtitle(key: String?) async throws {
-      guard loaded != nil else { throw PutioCastControllerError(failure: .receiver) }
-      activeSubtitleKey = key
       publish()
     }
 
@@ -141,12 +145,26 @@
       onMediaStatusChanged?(
         PutioCastMediaStatus(
           fileID: loaded.id, playerState: state, positionSeconds: position,
-          durationSeconds: loaded.durationSeconds, activeSubtitleKey: activeSubtitleKey))
+          durationSeconds: loaded.durationSeconds))
     }
   }
 
-  /// Exposes the last rendered position report so the journey can assert the
-  /// throttled sync without reading network traffic.
+  struct HarnessCastLoadsProbe: View {
+    let urls: [URL]
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Cast load requests")
+        .accessibilityValue(urls.map(\.path).joined(separator: ","))
+        .accessibilityIdentifier("cast.load-requests")
+        .allowsHitTesting(false)
+    }
+  }
+
+  /// Exposes the last rendered position save so the journey can assert the
+  /// cadence without reading network traffic.
   struct HarnessCastPositionProbe: View {
     let fileID: PutioFileID
     let seconds: Int

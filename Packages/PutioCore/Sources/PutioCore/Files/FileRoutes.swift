@@ -147,6 +147,7 @@ public struct PutioVideoRoute: Identifiable, Equatable, Sendable {
   /// The method for this one play, from a file menu row; `nil` plays with
   /// the account's Playback method.
   public let method: PutioPlaybackMethod?
+  public let resumesAt: Int?
 
   public init(
     id: PutioFileID,
@@ -154,7 +155,8 @@ public struct PutioVideoRoute: Identifiable, Equatable, Sendable {
     title: String,
     initialResolution: PutioPlaybackResolution? = nil,
     startsOver: Bool = false,
-    method: PutioPlaybackMethod? = nil
+    method: PutioPlaybackMethod? = nil,
+    resumesAt: Int? = nil
   ) {
     self.id = id
     self.parentID = parentID
@@ -162,6 +164,13 @@ public struct PutioVideoRoute: Identifiable, Equatable, Sendable {
     self.initialResolution = initialResolution
     self.startsOver = startsOver
     self.method = method
+    self.resumesAt = resumesAt
+  }
+
+  public func resuming(at seconds: Int) -> PutioVideoRoute {
+    PutioVideoRoute(
+      id: id, parentID: parentID, title: title, initialResolution: initialResolution,
+      method: method, resumesAt: seconds)
   }
 
   public func starting(with choice: PutioVideoResumePrompt.Choice) -> PutioVideoRoute {

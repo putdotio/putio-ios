@@ -144,14 +144,6 @@ extension PutioRuntime {
     try await performAuthenticatedOperation { try await sdk.getConfig(as: PutioAppConfig.self) }
   }
 
-  public func castPlaybackType() async throws -> PutioCastPlaybackType {
-    try await appConfig().chromecastPlaybackType
-  }
-
-  public func setCastPlaybackType(_ playbackType: PutioCastPlaybackType) async throws {
-    try await setAppConfigValue(.chromecastPlaybackType, playbackType.rawValue)
-  }
-
   public func setAutoplayNextVideo(_ enabled: Bool) async throws {
     try await setAppConfigValue(.autoplayNextVideo, enabled)
   }
@@ -177,16 +169,11 @@ extension PutioRuntime {
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
-  /// Resolves a video into what a Cast receiver plays. Every URL carries the
-  /// download token, never the session token. HLS uses the tokened playlist
-  /// with server-muxed subtitles; MP4 uses the converted file when
-  /// available (or the original when it needs no conversion) and lists the
-  /// file's subtitles as WebVTT tracks. Files that still need conversion for
-  /// MP4 playback resolve as `conversionRequired`. MP4 tracks follow the
-  /// account's subtitle settings; HLS gets them applied by the server.
-  public func resolveCastMedia(fileID: PutioFileID, playbackType: PutioCastPlaybackType)
-    async throws -> PutioCastResolution
-  {
+  /// Resolves a video into the HLS stream a Cast receiver plays, behind the
+  /// local player's gate: put.io serves HLS for any file that needs no
+  /// conversion or already has its MP4. The URL carries the download token,
+  /// never the session token.
+  public func resolveCastMedia(fileID: PutioFileID) async throws -> PutioCastResolution {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let (file, downloadToken) = try await performAuthenticatedOperation {
       (
@@ -201,42 +188,16 @@ extension PutioRuntime {
       throw PutioRuntimeError.invalidResponse
     }
     let token = try requireDownloadToken(downloadToken)
-    let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
+    guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
     let duration = file.metaData?.duration ?? 0
-    let startFrom = PutioPlaybackProgress.startSeconds(
-      savedSeconds: file.startFrom, durationSeconds: duration)
-    switch playbackType {
-    case .hls:
-      // Same gate as the local player: put.io serves HLS for any file that
-      // needs no conversion or already has its MP4, so the receiver keeps
-      // the muxed-subtitle playlist after the gate instead of the MP4.
-      guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
-      return .ready(
-        PutioCastMedia(
-          id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-          playbackType: .hls, url: file.getHlsStreamURL(downloadToken: token),
-          artworkURL: artworkURL,
-          durationSeconds: duration, startFromSeconds: startFrom, subtitles: [],
-          defaultSubtitleKey: nil))
-    case .mp4:
-      let url: URL
-      if file.hasMp4 {
-        url = file.getMp4DownloadURL(downloadToken: token)
-      } else if !file.needConvert {
-        url = file.getDownloadURL(downloadToken: token)
-      } else {
-        return .conversionRequired
-      }
-      let media = { (subtitles: [PutioCastSubtitle], defaultKey: String?) in
-        PutioCastResolution.ready(
-          PutioCastMedia(
-            id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-            playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
-            startFromSeconds: startFrom, subtitles: subtitles, defaultSubtitleKey: defaultKey))
-      }
-      let sidecars = try await sidecarSubtitles(fileID: fileID, token: token)
-      return media(sidecars.subtitles, sidecars.defaultKey)
-    }
+    return .ready(
+      PutioCastMedia(
+        id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
+        url: file.getHlsStreamURL(downloadToken: token),
+        artworkURL: URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil },
+        durationSeconds: duration,
+        startFromSeconds: PutioPlaybackProgress.startSeconds(
+          savedSeconds: file.startFrom, durationSeconds: duration)))
   }
 
   /// put.io's subtitle files for a video as WebVTT, under the account's

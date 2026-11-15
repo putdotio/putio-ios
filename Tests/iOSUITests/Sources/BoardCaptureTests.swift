@@ -825,6 +825,47 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-33-local-network-off")
   }
 
+  func testCastLoading() throws {
+    castBoardEpisode(["--putio-harness-cast-load-held"])
+    XCTAssertTrue(element("cast.loading").appears(within: 10), "no loading layout")
+    XCTAssertTrue(app.staticTexts["Loading on Living Room TV"].exists)
+    XCTAssertTrue(app.buttons["cast.stop"].exists, "loading offers no Stop casting")
+    try captureBoard("rd-ios-pb-32-cast-loading")
+  }
+
+  func testCasting() throws {
+    castBoardEpisode()
+    XCTAssertTrue(element("cast.playing").appears(within: 15), "the receiver never played")
+    XCTAssertTrue(app.staticTexts["Playing on Living Room TV"].exists)
+    XCTAssertEqual(app.buttons["cast.toggle"].label, "Pause")
+    XCTAssertEqual(app.buttons["cast.button"].label, "Cast, connected")
+    XCTAssertFalse(element("video.picture-in-picture").exists, "casting kept Picture in Picture")
+    XCTAssertFalse(element("video.chip.speed").exists, "casting kept Speed")
+    try captureBoard("rd-ios-pb-08-casting")
+  }
+
+  func testCastFailed() throws {
+    castBoardEpisode(["--putio-harness-cast-load-fails-once"])
+    XCTAssertTrue(element("cast.failed").appears(within: 15), "the failed load showed no failure")
+    XCTAssertTrue(app.staticTexts["Can’t play this on Living Room TV."].exists)
+    XCTAssertTrue(app.buttons["cast.retry"].exists, "the failure offers no Try again")
+    XCTAssertTrue(app.buttons["cast.stop"].exists, "the failure offers no Stop casting")
+    try captureBoard("rd-ios-pb-09-cast-failed")
+  }
+
+  private func castBoardEpisode(_ arguments: [String] = []) {
+    playBoardEpisode(arguments)
+    let castButton = app.buttons["cast.button"]
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    let tv = app.buttons["cast.picker.device.living-room-tv"]
+    XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
+    tv.tap()
+    let castHere = app.buttons["video.cast"]
+    app.revealVideoControls(showing: castHere)
+    castHere.tap()
+  }
+
   func testVideoAirPlay() throws {
     playBoardEpisode(["--putio-harness-airplay-device", "Living Room"])
     let placeholder = element("video.airplay-placeholder")
@@ -3212,7 +3253,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private static let iPadAccountRows = [
     "account.public-links", "account.trash", "playback-settings.method",
-    "playback-settings.route", "account.chromecast", "account.downloads", "account.privacy",
+    "playback-settings.route", "account.downloads", "account.privacy",
     "security.apps", "security.link-device", "account.two-factor", "account.about",
     "account.licenses", "account.clear-data", "account.destroy-account",
   ]

@@ -21,7 +21,6 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   private var localNetworkDenied = false
 
   private var loadedFileID: PutioFileID?
-  private var loadedSubtitles: [PutioCastSubtitle] = []
   private var castStateObservation: NSObjectProtocol?
   private var pendingRequests: [Int: CheckedContinuation<Void, Error>] = [:]
   private var pendingRequestObjects: [Int: GCKRequest] = [:]
@@ -143,16 +142,15 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   /// A new load supersedes every request still in flight (an earlier load or
   /// a stop), so a late completion cannot idle the receiver under this media
   /// or play the previous file after this one was accepted.
-  func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int) async throws {
     guard let client = remoteMediaClient else { throw PutioCastControllerError(failure: .receiver) }
     abandonPendingRequests()
     loadedFileID = nil
-    let subtitles = media.subtitles
     let builder = GCKMediaInformationBuilder(contentURL: media.url)
-    // HLS uses `.none`: put.io playlists carry no stable duration and the
-    // receiver derives seekability from the stream.
-    builder.streamType = media.playbackType == .hls ? .none : .buffered
-    builder.contentType = media.playbackType == .hls ? "application/x-mpegURL" : "video/mp4"
+    // put.io playlists carry no stable duration, so the receiver derives
+    // seekability from the stream.
+    builder.streamType = .none
+    builder.contentType = "application/x-mpegURL"
     if media.durationSeconds > 0 { builder.streamDuration = media.durationSeconds }
     let metadata = GCKMediaMetadata(metadataType: .movie)
     metadata.setString(media.title, forKey: kGCKMetadataKeyTitle)
@@ -164,29 +162,26 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     // Status updates are attributed to this file only while the receiver
     // still reports our tag; another sender's media publishes as nil.
     builder.customData = [Self.fileIDKey: media.id.rawValue]
-    builder.mediaTracks = subtitles.enumerated().compactMap { index, subtitle in
-      GCKMediaTrack(
-        identifier: index + 1, contentIdentifier: subtitle.url.absoluteString,
-        contentType: "text/vtt", type: .text, textSubtype: .subtitles,
-        name: "\(subtitle.language) - \(subtitle.name)", languageCode: subtitle.languageCode,
-        customData: nil)
-    }
     let request = GCKMediaLoadRequestDataBuilder()
     request.mediaInformation = builder.build()
     request.autoplay = true
-    request.startTime = TimeInterval(media.startFromSeconds)
-    if let subtitleKey, let index = subtitles.firstIndex(where: { $0.key == subtitleKey }) {
-      request.activeTrackIDs = [NSNumber(value: index + 1)]
-    } else if media.playbackType != .hls {
-      // An omitted list lets the receiver activate its own default text track.
-      request.activeTrackIDs = []
-    }
+    request.startTime = TimeInterval(startSeconds)
     try await perform(client.loadMedia(with: request.build()))
     // Status updates carry this file only once the receiver accepted it; the
     // status that arrived during the request is replayed so controls enable.
     loadedFileID = media.id
-    loadedSubtitles = subtitles
     publishStatus(client.mediaStatus)
+  }
+
+  var approximatePositionSeconds: Double? {
+    guard let fileID = loadedFileID, let client = remoteMediaClient,
+      let mediaStatus = client.mediaStatus,
+      let tag = mediaStatus.mediaInformation?.customData as? [String: Any],
+      tag[Self.fileIDKey] as? Int == fileID.rawValue,
+      [.playing, .paused, .buffering].contains(mediaStatus.playerState)
+    else { return nil }
+    let position = client.approximateStreamPosition()
+    return position.isFinite ? position : nil
   }
 
   func play() async throws {
@@ -206,15 +201,8 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     try await perform(client.seek(with: options))
   }
 
-  func setSubtitle(key: String?) async throws {
-    guard let client = remoteMediaClient else { throw PutioCastControllerError(failure: .receiver) }
-    let ids = key.flatMap(trackID(for:)).map { [NSNumber(value: $0)] } ?? []
-    try await perform(client.setActiveTrackIDs(ids))
-  }
-
   func stop() async throws {
     loadedFileID = nil
-    loadedSubtitles = []
     guard let client = remoteMediaClient else { return }
     try await perform(client.stop())
   }
@@ -227,7 +215,6 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   private func endCurrentSession() {
     abandonPendingRequests()
     loadedFileID = nil
-    loadedSubtitles = []
     _ = GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
   }
 
@@ -235,10 +222,6 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
 
   private var remoteMediaClient: GCKRemoteMediaClient? {
     GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient
-  }
-
-  private func trackID(for key: String) -> Int? {
-    loadedSubtitles.firstIndex { $0.key == key }.map { $0 + 1 }
   }
 
   /// Bridges a `GCKRequest` to async. Cancelling the awaiting task cancels
@@ -351,17 +334,10 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       case .unknown: .loading
       @unknown default: .loading
       }
-    let subtitles = loadedSubtitles
-    let activeKey = mediaStatus.activeTrackIDs?.lazy.compactMap { id -> String? in
-      let index = id.intValue - 1
-      guard subtitles.indices.contains(index) else { return nil }
-      return subtitles[index].key
-    }.first
     onMediaStatusChanged?(
       PutioCastMediaStatus(
         fileID: fileID, playerState: state, positionSeconds: mediaStatus.streamPosition,
-        durationSeconds: mediaStatus.mediaInformation?.streamDuration ?? 0,
-        activeSubtitleKey: activeKey))
+        durationSeconds: mediaStatus.mediaInformation?.streamDuration ?? 0))
   }
 }
 
@@ -389,7 +365,6 @@ extension PutioGoogleCastController: GCKSessionManagerListener {
   ) {
     MainActor.assumeIsolated {
       loadedFileID = nil
-      loadedSubtitles = []
       abandonPendingRequests()
       castStateChanged()
       startPendingSession()

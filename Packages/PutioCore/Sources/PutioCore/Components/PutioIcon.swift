@@ -67,6 +67,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case pushPinSlash = "push-pin-slash-regular"
   case rss = "rss-regular"
   case screencast = "screencast-regular"
+  case screencastFill = "screencast-fill"
   case shieldCheck = "shield-check-regular"
   case skipBackFill = "skip-back-fill"
   case skipForward = "skip-forward-regular"

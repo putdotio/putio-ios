@@ -12,7 +12,8 @@ struct PutioCastButton: View {
       Button {
         model.castButtonTapped()
       } label: {
-        PutioRouteButtonLabel(icon: .screencast, isActive: model.isConnected)
+        PutioRouteButtonLabel(
+          icon: model.isConnected ? .screencastFill : .screencast, isActive: model.isConnected)
       }
       .buttonStyle(.plain)
       .accessibilityLabel(
@@ -263,16 +264,17 @@ private struct PutioCastLocalNetworkAlert: ViewModifier {
 }
 
 /// The persistent bar above the tab bar while a receiver has something of
-/// ours: title, transport, and the route into the expanded controls.
+/// ours: title, status, play and pause, and the way back to the player.
 struct PutioCastBar: View {
   let model: PutioCastModel
+  let onOpen: () -> Void
 
   var body: some View {
     HStack(spacing: PutioTheme.Spacing.space3) {
       Image(systemName: "tv")
         .foregroundStyle(PutioTheme.Colors.accent)
       VStack(alignment: .leading, spacing: 2) {
-        Text(model.currentTitle ?? String(localized: "Preparing…"))
+        Text(verbatim: model.currentTitle ?? "")
           .putioFont(PutioTheme.Typography.body)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .lineLimit(1)
@@ -284,16 +286,18 @@ struct PutioCastBar: View {
           .accessibilityIdentifier("cast.bar.status")
       }
       Spacer(minLength: PutioTheme.Spacing.space2)
-      if model.status != nil {
+      if model.phase == .playing {
         Button {
           model.togglePlayback()
         } label: {
           Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
             .font(.title3)
         }
-        .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(
+          model.isPlaying ? String(localized: "Pause") : String(localized: "Play")
+        )
         .accessibilityIdentifier("cast.bar.toggle")
-      } else if case .failed = model.activity {
+      } else if case .failed = model.phase {
         Image(systemName: "exclamationmark.triangle.fill")
           .foregroundStyle(PutioTheme.Colors.destructive)
       } else {
@@ -304,7 +308,7 @@ struct PutioCastBar: View {
     .padding(.vertical, PutioTheme.Spacing.space3)
     .background(PutioTheme.Colors.surface)
     .contentShape(Rectangle())
-    .onTapGesture { model.showControls() }
+    .onTapGesture(perform: onOpen)
     .accessibilityElement(children: .contain)
     .accessibilityAddTraits(.isButton)
     .accessibilityIdentifier("cast.bar")
@@ -312,311 +316,10 @@ struct PutioCastBar: View {
 
   private var barSubtitle: String {
     let device = model.connection.deviceName ?? String(localized: "Chromecast")
-    switch model.activity {
-    case .resolving: return String(localized: "Preparing for \(device)")
-    case .conversionRequired, .conversionQueued: return String(localized: "Waiting to convert")
-    case .converting(_, let progress):
-      return String(
-        localized: "Converting \(progress.formatted(.percent.precision(.fractionLength(0))))")
-    case .loading: return String(localized: "Loading on \(device)")
-    case .failed(_, let failure): return failure.title
-    case .idle:
-      switch model.status?.playerState {
-      case .buffering, .loading: return String(localized: "Buffering on \(device)")
-      case .paused: return String(localized: "Paused on \(device)")
-      case .playing: return String(localized: "Playing on \(device)")
-      case .idle, nil: return String(localized: "Connected to \(device)")
-      }
+    switch model.phase {
+    case .failed: return String(localized: "Can’t play this on \(device).")
+    case .playing: return String(localized: "Playing on \(device)")
+    case .loading, nil: return String(localized: "Loading on \(device)")
     }
-  }
-}
-
-/// Expanded controls: artwork, scrubber, transport, subtitles, stop, and
-/// disconnect. Conversion and failure states mirror the local player's copy.
-struct PutioCastControlsView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  let model: PutioCastModel
-  @State private var scrubPosition: Double?
-
-  var body: some View {
-    NavigationStack {
-      Group {
-        switch model.activity {
-        case .resolving:
-          PutioLoadingStateView(title: String(localized: "Preparing video"))
-            .accessibilityIdentifier("cast.preparing")
-        case .conversionRequired:
-          PutioConversionStatusView {
-            PutioLoadingStateView(title: String(localized: "Starting conversion"))
-              .accessibilityIdentifier("cast.conversion-required")
-          }
-        case .conversionQueued:
-          PutioConversionStatusView {
-            PutioLoadingStateView(title: String(localized: "Waiting to convert"))
-              .accessibilityIdentifier("cast.conversion-queued")
-          }
-        case .converting(_, let progress):
-          PutioConversionStatusView {
-            VStack(spacing: PutioTheme.Spacing.space3) {
-              ProgressView(value: progress)
-                .tint(PutioTheme.Colors.accent)
-                .accessibilityLabel("Video conversion progress")
-                .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
-                .accessibilityIdentifier("cast.conversion-progress")
-              Text("Converting video")
-                .putioFont(PutioTheme.Typography.body)
-                .foregroundStyle(PutioTheme.Colors.textSecondary)
-            }
-          }
-        case .loading:
-          PutioLoadingStateView(
-            title: String(
-              localized:
-                "Loading on \(model.connection.deviceName ?? String(localized: "Chromecast"))")
-          )
-          .accessibilityIdentifier("cast.loading")
-        case .failed(_, let failure):
-          PutioErrorStateView(
-            title: failure.title, message: failure.message,
-            retryTitle: failure.canRetry ? String(localized: "Try again") : nil,
-            retryIdentifier: "cast.retry",
-            retry: failure.canRetry ? { model.retry() } : nil
-          )
-        case .idle:
-          if let media = model.media {
-            controls(for: media)
-          } else {
-            PutioEmptyStateView(
-              icon: .fileVideo, title: String(localized: "Nothing casting"),
-              message: String(
-                localized:
-                  "Pick a video to play it on \(model.connection.deviceName ?? String(localized: "Chromecast"))."
-              )
-            )
-            .accessibilityIdentifier("cast.empty")
-          }
-        }
-      }
-      .putioContentBackground()
-      .navigationTitle(model.connection.deviceName ?? String(localized: "Chromecast"))
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Done") { model.hideControls() }
-            .accessibilityIdentifier("cast.controls.done")
-        }
-        if model.media == nil {
-          ToolbarItem(placement: .primaryAction) {
-            Button("Disconnect", role: .destructive) { model.disconnect() }
-              .accessibilityIdentifier("cast.disconnect")
-          }
-        }
-      }
-    }
-  }
-
-  private func controls(for media: PutioCastMedia) -> some View {
-    GeometryReader { geometry in
-      ScrollView {
-        VStack(spacing: PutioTheme.Spacing.space4) {
-          AsyncImage(url: media.artworkURL) { phase in
-            if let image = phase.image {
-              image.resizable().aspectRatio(16 / 9, contentMode: .fit)
-            } else {
-              ZStack {
-                PutioTheme.Colors.surface
-                Image(putioIcon: .fileVideo)
-                  .foregroundStyle(PutioTheme.Colors.textSecondary)
-              }
-              .aspectRatio(16 / 9, contentMode: .fit)
-            }
-          }
-          .clipShape(RoundedRectangle(cornerRadius: PutioTheme.Radius.medium))
-          .frame(maxWidth: 480)
-          .accessibilityHidden(true)
-          Text(media.title)
-            .putioFont(PutioTheme.Typography.heading)
-            .foregroundStyle(PutioTheme.Colors.textPrimary)
-            .lineLimit(2)
-            .accessibilityIdentifier("cast.title")
-          scrubber(for: media)
-          HStack(spacing: dynamicTypeSize.isAccessibilitySize ? 0 : PutioTheme.Spacing.space6) {
-            transportButton(
-              "gobackward.30", label: String(localized: "Back 30 seconds"),
-              identifier: "cast.rewind"
-            ) {
-              model.seek(toSeconds: (model.status?.positionSeconds ?? 0) - 30)
-            }
-            Button {
-              model.togglePlayback()
-            } label: {
-              Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                .font(.system(size: 56))
-            }
-            .disabled(model.status == nil)
-            .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
-            .accessibilityIdentifier("cast.toggle")
-            transportButton(
-              "goforward.30", label: String(localized: "Forward 30 seconds"),
-              identifier: "cast.forward"
-            ) {
-              model.seek(toSeconds: (model.status?.positionSeconds ?? 0) + 30)
-            }
-          }
-          if !media.subtitles.isEmpty {
-            subtitlePicker(for: media)
-          } else if media.playbackType == .hls {
-            Text("Subtitles are handled by the receiver for HLS streams.")
-              .putioFont(PutioTheme.Typography.caption)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
-              .multilineTextAlignment(.center)
-          }
-          Spacer(minLength: 0)
-          sessionActions
-        }
-        .padding(PutioTheme.Spacing.space4)
-        .frame(width: geometry.size.width)
-        .frame(minHeight: geometry.size.height)
-      }
-    }
-  }
-
-  /// Stop keeps the device; Disconnect ends the session. Plain buttons, not
-  /// a menu: they are the two things a person reaches for on this screen.
-  private var sessionActions: some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: PutioTheme.Spacing.space3) { sessionButtons }
-      VStack(spacing: PutioTheme.Spacing.space3) { sessionButtons }
-    }
-  }
-
-  private var sessionButtons: some View {
-    Group {
-      PutioButton(String(localized: "Stop casting"), tier: .secondary) { model.stopCasting() }
-        .disabled(model.media == nil)
-        .accessibilityIdentifier("cast.stop")
-      PutioButton(String(localized: "Disconnect"), tier: .secondary) { model.disconnect() }
-        .accessibilityIdentifier("cast.disconnect")
-    }
-  }
-
-  private func transportButton(
-    _ systemImage: String, label: String, identifier: String, action: @escaping () -> Void
-  ) -> some View {
-    Button(action: action) {
-      Image(systemName: systemImage).font(.title)
-    }
-    .disabled(model.status == nil)
-    .accessibilityLabel(label)
-    .accessibilityIdentifier(identifier)
-  }
-
-  private func scrubber(for media: PutioCastMedia) -> some View {
-    let reported = model.status?.durationSeconds ?? 0
-    let duration = max(reported > 0 ? reported : media.durationSeconds, 1)
-    let position = scrubPosition ?? min(model.status?.positionSeconds ?? 0, duration)
-    return VStack(spacing: PutioTheme.Spacing.space1) {
-      Slider(
-        value: Binding(get: { position }, set: { scrubPosition = $0 }),
-        in: 0...duration
-      ) { editing in
-        guard !editing, let target = scrubPosition else { return }
-        model.seek(toSeconds: target)
-        scrubPosition = nil
-      }
-      .tint(PutioTheme.Colors.accent)
-      .disabled(model.status == nil)
-      .accessibilityLabel("Playback position")
-      .accessibilityValue(Self.clock(position))
-      .accessibilityIdentifier("cast.position")
-      HStack {
-        Text(Self.clock(position))
-        Spacer()
-        Text(Self.clock(duration))
-      }
-      .putioFont(PutioTheme.Typography.caption)
-      .foregroundStyle(PutioTheme.Colors.textSecondary)
-      .monospacedDigit()
-    }
-  }
-
-  private func subtitlePicker(for media: PutioCastMedia) -> some View {
-    Picker(
-      "Subtitles",
-      selection: Binding(
-        get: { model.status?.activeSubtitleKey ?? "" },
-        set: { model.selectSubtitle(key: $0.isEmpty ? nil : $0) })
-    ) {
-      Text("Off").tag("")
-      ForEach(media.subtitles, id: \.key) { subtitle in
-        Text("\(subtitle.language) · \(subtitle.name)").tag(subtitle.key)
-      }
-    }
-    .pickerStyle(.menu)
-    .disabled(model.status == nil)
-    .accessibilityIdentifier("cast.subtitles")
-    .accessibilityValue(activeSubtitleName(in: media))
-  }
-
-  /// VoiceOver reads the language, not the server key; the journey asserts
-  /// the same string.
-  private func activeSubtitleName(in media: PutioCastMedia) -> String {
-    guard let key = model.status?.activeSubtitleKey,
-      let subtitle = media.subtitles.first(where: { $0.key == key })
-    else { return String(localized: "Off") }
-    return subtitle.language
-  }
-
-  static func clock(_ seconds: Double) -> String {
-    PutioVideoTimeline.clock(seconds)
-  }
-}
-
-/// The feature-owned Chromecast settings: the server-side playback type.
-/// Account settings link here.
-struct PutioCastPreferencesView: View {
-  let model: PutioCastModel
-
-  var body: some View {
-    Form {
-      Section {
-        if let playbackType = model.playbackType {
-          PutioPickerRow(
-            title: String(localized: "Playback type"),
-            selection: Binding(
-              get: { playbackType },
-              set: { newValue in
-                guard newValue != playbackType else { return }
-                Task { await model.savePlaybackType(newValue) }
-              }),
-            options: PutioCastPlaybackType.allCases
-          ) { $0 == .hls ? "HLS" : "MP4" }
-          .disabled(model.isSavingPlaybackType)
-          .accessibilityIdentifier("cast-settings.playback-type")
-          .accessibilityValue(playbackType == .hls ? "HLS" : "MP4")
-        } else if let failure = model.playbackTypeFailure {
-          Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-          Button("Try again") { Task { await model.loadPlaybackTypeIfNeeded(force: true) } }
-            .accessibilityIdentifier("cast-settings.retry")
-        } else {
-          ProgressView("Loading playback type")
-        }
-        if model.playbackType != nil, let failure = model.playbackTypeFailure {
-          Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-            .accessibilityIdentifier("cast-settings.save-failure")
-        }
-      } header: {
-        Text("Chromecast")
-      } footer: {
-        Text(
-          "HLS streams the original file with put.io subtitles. MP4 casts the converted file and lets you switch subtitles on the receiver."
-        )
-      }
-      .listRowBackground(PutioTheme.Colors.surface)
-    }
-    .navigationTitle("Chromecast")
-    .putioFont(PutioTheme.Typography.body)
-    .putioContentBackground()
-    .task { await model.loadPlaybackTypeIfNeeded() }
   }
 }

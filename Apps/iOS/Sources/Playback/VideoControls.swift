@@ -1046,7 +1046,10 @@ struct PutioVideoControls<Trailing: View>: View {
               visibility.set(.menu, $0)
             }
             .padding(.bottom, PutioVideoMetrics.chipGap)
-            PutioVideoScrubber(transport: transport) {
+            PutioVideoScrubber(
+              timeline: transport.timeline, isEnabled: transport.controlsEnabled,
+              seek: transport.seek(to:)
+            ) {
               visibility.interacted()
             } onScrubbing: {
               visibility.set(.scrubbing, $0)
@@ -1171,17 +1174,19 @@ struct PutioVideoControls<Trailing: View>: View {
   }
 }
 
-private struct PutioVideoScrubber: View {
-  let transport: PutioVideoTransport
-  let onInteract: () -> Void
-  let onScrubbing: (Bool) -> Void
+struct PutioVideoScrubber: View {
+  let timeline: PutioVideoTimeline
+  let isEnabled: Bool
+  let seek: (Double) -> Void
+  var onInteract: () -> Void = {}
+  var onScrubbing: (Bool) -> Void = { _ in }
 
   @State private var scrubSeconds: Double?
 
   var body: some View {
     let shown = PutioVideoTimeline(
-      elapsedSeconds: scrubSeconds ?? transport.timeline.elapsedSeconds,
-      durationSeconds: transport.timeline.durationSeconds)
+      elapsedSeconds: scrubSeconds ?? timeline.elapsedSeconds,
+      durationSeconds: timeline.durationSeconds)
     return HStack(spacing: PutioTheme.Spacing.space3) {
       Text(shown.elapsedText)
         .accessibilityIdentifier("video.elapsed")
@@ -1190,7 +1195,7 @@ private struct PutioVideoScrubber: View {
           get: { shown.elapsedSeconds },
           set: { seconds in
             if scrubSeconds == nil {
-              transport.seek(to: seconds)
+              seek(seconds)
               onInteract()
             } else {
               scrubSeconds = seconds
@@ -1200,9 +1205,9 @@ private struct PutioVideoScrubber: View {
         in: 0...max(shown.durationSeconds ?? 0, 1),
         onEditingChanged: { editing in
           if editing {
-            scrubSeconds = transport.timeline.elapsedSeconds
+            scrubSeconds = timeline.elapsedSeconds
           } else if let scrubSeconds {
-            transport.seek(to: scrubSeconds)
+            seek(scrubSeconds)
             self.scrubSeconds = nil
           }
           onScrubbing(editing)
@@ -1210,7 +1215,7 @@ private struct PutioVideoScrubber: View {
       )
       .sliderThumbVisibility(.hidden)
       .tint(PutioTheme.Colors.accent)
-      .disabled(!transport.controlsEnabled || shown.durationSeconds == nil)
+      .disabled(!isEnabled || shown.durationSeconds == nil)
       .accessibilityLabel(String(localized: "Playback position"))
       .accessibilityValue(shown.elapsedText)
       .accessibilityIdentifier("video.scrubber")
@@ -1724,7 +1729,7 @@ private final class PutioVideoMenuButton: UIButton {
   }
 }
 
-private struct PutioVideoSkipButton: View {
+struct PutioVideoSkipButton: View {
   let seconds: Double
   var circled = true
   let action: () -> Void
@@ -1755,6 +1760,7 @@ enum PutioVideoMetrics {
   static let chipHeight: CGFloat = 34
   static let chipPadding: CGFloat = 14
   static let chipGap: CGFloat = 12
+  static let pillHeight: CGFloat = 38
   static let chipIcon = PutioMetricRole(value: PutioTheme.Typography.sizeBase, relativeTo: .caption)
   static let skip: CGFloat = 56
   static func playPause(_ circled: Bool) -> CGFloat { circled ? 72 : 56 }

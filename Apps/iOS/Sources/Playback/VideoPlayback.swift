@@ -103,6 +103,7 @@ struct PutioVideoPlaybackView: View {
     let resumePrompter = PutioVideoResumePrompter()
     _resumePrompter = State(initialValue: resumePrompter)
     let startsOver = route.startsOver
+    let resumesAt = route.resumesAt
     _model = State(
       initialValue: PutioVideoPlaybackModel(
         fileID: route.id,
@@ -111,6 +112,11 @@ struct PutioVideoPlaybackView: View {
         startConversion: startConversion,
         loadConversionStatus: loadConversionStatus,
         chooseStart: { source, afterConversion in
+          if let resumesAt {
+            return PutioPlaybackSource(
+              url: source.url, startFromSeconds: resumesAt, resumesAfterFailure: true,
+              original: source.original)
+          }
           if startsOver { return PutioVideoStart.source(source, startingWith: .startOver) }
           guard afterConversion, remembersPlaybackPosition, source.startFromSeconds > 0 else {
             return source
