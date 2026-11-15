@@ -871,6 +871,9 @@ enum BoardCaptureContract {
       BoardCapture("direct-play-audio", .iphone, "testDirectPlayAudioMenu", screenBase: false),
       BoardCapture(
         "direct-play-audio-ipad", .ipad, "testDirectPlayAudioMenu", screenBase: false),
+      BoardCapture("rd-ios-pb-43-portrait-video", .iphone, "testPortraitVideoPlayer"),
+      BoardCapture(
+        "rd-ios-pb-44-portrait-converting", .iphone, "testPortraitConversionConverting"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1414,7 +1417,10 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "playback-preferences",
       "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
-      attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
+      attachmentNames: [
+        "runtime-playback-preferences", "runtime-rotate-off-portrait",
+        "runtime-rotate-off-converting",
+      ], timeAllowance: 420),
     JourneyPreflight(
       "proxy",
       "PlaybackPreferencesJourneyTests/testProxyListWaitsOnASlowLoadAndARefusedRouteKeepsTheCheckedOne",

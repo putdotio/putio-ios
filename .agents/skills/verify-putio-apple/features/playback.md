@@ -35,7 +35,9 @@ offline playback.
   file menu on Standard, keeps a plain tap on HLS, follows the setting, then
   seeks, switches to the E-AC-3 track and resumes on Direct play.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
-  failed save, and keeps them across relaunch.
+  failed save, and keeps them across relaunch. Rotate to landscape on holds
+  landscape and restores portrait on Close; off, the player and the conversion
+  gate follow the device both ways and keep the position and the chips.
 - `resume-setting` asks before turning resume off, reverts a failed save, and
   plays a saved video from zero in portrait with Rotate off.
 - `playback-method` reverts a failed Direct play save, applies it on the next
@@ -126,8 +128,11 @@ Preconditions:
   and serves put.io's subtitle files as the loopback SubRip file. Captures
   compare with `rd-ios-pb-02-video`, `rd-ios-pb-06-audio` and
   `rd-ios-pb-13-ipad-video`.
-- **Preferences.** Run `--only playback-preferences`. Screenshot:
-  `runtime-playback-preferences`.
+- **Preferences.** Run `--only playback-preferences`. Screenshots:
+  `runtime-playback-preferences`, `runtime-rotate-off-portrait`,
+  `runtime-rotate-off-converting`. `--putio-harness-rotate-off` starts with
+  Rotate to landscape off; video boards captured with `--orientation portrait` pass it.
+  Boards: `rd-ios-pb-43-portrait-video`, `rd-ios-pb-44-portrait-converting`.
 - **Resume setting.** Run `--only resume-setting`. Screenshot:
   `runtime-resume-off-confirm`.
 - **Playback method.** Run `--only playback-method`. Screenshot:

@@ -28,9 +28,10 @@ extension XCUIApplication {
     let reached = NSPredicate(format: "label == %@", target)
     for _ in 0..<3 {
       revealVideoControls(showing: playPause, file: file, line: line)
-      guard playPause.exists, playPause.isHittable else { continue }
-      if playPause.label == target { return }
-      playPause.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      guard let shown = try? playPause.snapshot() else { continue }
+      if shown.label == target { return }
+      coordinate(withNormalizedOffset: .zero)
+        .withOffset(CGVector(dx: shown.frame.midX, dy: shown.frame.midY)).tap()
       let expectation = XCTNSPredicateExpectation(predicate: reached, object: playPause)
       if XCTWaiter.wait(for: [expectation], timeout: 3) == .completed { return }
     }
