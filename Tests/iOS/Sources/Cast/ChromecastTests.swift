@@ -647,6 +647,10 @@ final class ChromecastTests: XCTestCase {
     model.retry()
     try await expect({ controller.loads.count == 2 && model.activity == .idle })
     XCTAssertEqual(controller.loads.last?.startSeconds, 1_200)
+    controller.report(status(.buffering, position: 1_200))
+    await clock.advance()
+    await clock.advance()
+    XCTAssertEqual(model.phase, .failed(canRetry: true), "a stuck retry stalls again")
     controller.report(status(.playing, position: 1_200))
     XCTAssertEqual(model.phase, .playing)
   }

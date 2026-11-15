@@ -549,6 +549,7 @@ final class PutioCastModel {
       guard request == generation else { return }
       requestedStart = nil
       activity = .idle
+      armStallDetection()
       startSaving(media)
     } catch {
       guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
@@ -672,6 +673,11 @@ final class PutioCastModel {
     statusReceivedAt = .now
     wait.activityChanged(status.playerState.waitActivity)
     if wasPlaying, status.playerState == .paused { reporter?.savePosition() }
+  }
+
+  private func armStallDetection() {
+    wait.activityChanged(.playing)
+    if let status { wait.activityChanged(status.playerState.waitActivity) }
   }
 
   private func endOnReceiver() {
