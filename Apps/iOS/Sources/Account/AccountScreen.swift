@@ -3,7 +3,7 @@ import SwiftUI
 
 enum AccountDestination: Hashable {
   case publicLinks, trash
-  case playbackMethod, proxy, chromecast
+  case playbackMethod, proxy
   case downloads
   case privacy
   case loggedInApps, linkDevice
@@ -16,7 +16,6 @@ struct AccountScreen: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
-  let cast: PutioCastModel
   let appConfig: PutioAppConfigModel
   @Binding var showsLinkDevice: Bool
   let linkDeviceCode: String?
@@ -32,7 +31,6 @@ struct AccountScreen: View {
     account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests,
     trashReconciliation: PutioTrashReconciliation,
-    cast: PutioCastModel,
     appConfig: PutioAppConfigModel,
     showsLinkDevice: Binding<Bool>,
     linkDeviceCode: String?,
@@ -43,7 +41,6 @@ struct AccountScreen: View {
     self.account = account
     self.refreshRequests = refreshRequests
     self.trashReconciliation = trashReconciliation
-    self.cast = cast
     self.appConfig = appConfig
     _showsLinkDevice = showsLinkDevice
     self.linkDeviceCode = linkDeviceCode
@@ -133,8 +130,6 @@ struct AccountScreen: View {
       PlaybackMethodView(appConfig: appConfig)
     case .proxy:
       ProxySettingsView(runtime: runtime, preferences: preferences)
-    case .chromecast:
-      PutioCastPreferencesView(model: cast)
     case .downloads:
       DownloadSettingsView(queue: downloads)
     case .privacy:

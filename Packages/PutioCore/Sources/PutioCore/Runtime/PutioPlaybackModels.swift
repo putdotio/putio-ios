@@ -179,14 +179,6 @@ public enum PutioVideoConversionStatus: Equatable, Sendable {
   case unavailable
 }
 
-/// The put.io `chromecast_playback_type` account config. HLS streams the
-/// original file with server-muxed subtitles; MP4 casts the converted file
-/// and attaches subtitles as side-loaded WebVTT tracks.
-public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Sendable {
-  case hls
-  case mp4
-}
-
 public enum PutioPlaybackMethod: String, CaseIterable, Hashable, Codable, Sendable {
   case standard = "hls"
   case directPlay = "file"
@@ -201,10 +193,8 @@ public enum PutioPlaybackMethod: String, CaseIterable, Hashable, Codable, Sendab
 
 /// The keys this app stores in the account's `/config` document. put.io keeps
 /// whatever a client writes, per OAuth app, so the shape is the app's to
-/// declare; the web app keeps its own keys, and the Chromecast key below is
-/// the one iOS has always written.
+/// declare; the web app keeps its own keys.
 public enum PutioAppConfigKey: String, CaseIterable, Sendable {
-  case chromecastPlaybackType = "chromecast_playback_type"
   case autoplayNextVideo = "autoplay_next_video"
   case autoRotateVideo = "auto_rotate_video"
   case streamingMethod = "streaming_method"
@@ -220,7 +210,6 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
 /// to the defaults below instead of failing, because another client may never
 /// have written them.
 public struct PutioAppConfig: Codable, Equatable, Sendable {
-  public var chromecastPlaybackType: PutioCastPlaybackType
   public var autoplayNextVideo: Bool
   /// On unless turned off: video playback holds the phone in landscape.
   public var autoRotateVideo: Bool
@@ -228,11 +217,9 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
   public var productAnalyticsPromptAnswered: Bool
 
   public init(
-    chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false,
-    autoRotateVideo: Bool = true, playbackMethod: PutioPlaybackMethod = .standard,
-    productAnalyticsPromptAnswered: Bool = false
+    autoplayNextVideo: Bool = false, autoRotateVideo: Bool = true,
+    playbackMethod: PutioPlaybackMethod = .standard, productAnalyticsPromptAnswered: Bool = false
   ) {
-    self.chromecastPlaybackType = chromecastPlaybackType
     self.autoplayNextVideo = autoplayNextVideo
     self.autoRotateVideo = autoRotateVideo
     self.playbackMethod = playbackMethod
@@ -240,7 +227,6 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
   }
 
   private enum CodingKeys: String, CodingKey {
-    case chromecastPlaybackType = "chromecast_playback_type"
     case autoplayNextVideo = "autoplay_next_video"
     case autoRotateVideo = "auto_rotate_video"
     case playbackMethod = "streaming_method"
@@ -249,9 +235,6 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
 
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    let rawPlaybackType = try? container.decodeIfPresent(
-      String.self, forKey: .chromecastPlaybackType)
-    chromecastPlaybackType = rawPlaybackType.flatMap(PutioCastPlaybackType.init(rawValue:)) ?? .hls
     autoplayNextVideo =
       (try? container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo)) ?? false
     autoRotateVideo =
@@ -305,42 +288,35 @@ public struct PutioCastSubtitle: Equatable, Sendable, CustomStringConvertible,
   }
 }
 
-/// Everything a receiver needs to play one video. The stream URL is tokened
-/// and redacted from every textual rendering. `subtitles` is empty for HLS,
-/// where the server muxes them into the stream.
+/// Everything a receiver needs to play one video's HLS stream. The stream URL
+/// is tokened and redacted from every textual rendering; put.io muxes the
+/// subtitles into the stream.
 public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   CustomDebugStringConvertible, CustomReflectable
 {
   public let id: PutioFileID
   public let parentID: PutioFileID
   public let title: String
-  public let playbackType: PutioCastPlaybackType
   public let url: URL
   public let artworkURL: URL?
   public let durationSeconds: Double
   public let startFromSeconds: Int
-  public let subtitles: [PutioCastSubtitle]
-  public let defaultSubtitleKey: String?
 
   public init(
-    id: PutioFileID, parentID: PutioFileID, title: String, playbackType: PutioCastPlaybackType,
-    url: URL, artworkURL: URL?, durationSeconds: Double, startFromSeconds: Int,
-    subtitles: [PutioCastSubtitle], defaultSubtitleKey: String?
+    id: PutioFileID, parentID: PutioFileID, title: String, url: URL, artworkURL: URL?,
+    durationSeconds: Double, startFromSeconds: Int
   ) {
     self.id = id
     self.parentID = parentID
     self.title = title
-    self.playbackType = playbackType
     self.url = url
     self.artworkURL = artworkURL
     self.durationSeconds = durationSeconds
     self.startFromSeconds = startFromSeconds
-    self.subtitles = subtitles
-    self.defaultSubtitleKey = defaultSubtitleKey
   }
 
   public var description: String {
-    "PutioCastMedia(id: \(id.rawValue), playbackType: \(playbackType), url: <redacted>)"
+    "PutioCastMedia(id: \(id.rawValue), url: <redacted>)"
   }
 
   public var debugDescription: String { description }
@@ -349,9 +325,8 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     Mirror(
       self,
       children: [
-        "id": id, "parentID": parentID, "title": title, "playbackType": playbackType,
-        "url": "<redacted>", "durationSeconds": durationSeconds,
-        "startFromSeconds": startFromSeconds, "subtitles": subtitles,
+        "id": id, "parentID": parentID, "title": title, "url": "<redacted>",
+        "durationSeconds": durationSeconds, "startFromSeconds": startFromSeconds,
       ],
       displayStyle: .struct)
   }

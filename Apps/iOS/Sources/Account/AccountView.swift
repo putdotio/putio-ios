@@ -305,8 +305,6 @@ struct AccountView: View {
         opens: .proxy
       )
       .accessibilityIdentifier("playback-settings.route")
-      row(String(localized: "Chromecast"), icon: .screencast, opens: .chromecast)
-        .accessibilityIdentifier("account.chromecast")
     }
   }
 

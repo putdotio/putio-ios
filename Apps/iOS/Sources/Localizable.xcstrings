@@ -579,17 +579,6 @@
         }
       }
     },
-    "Back 30 seconds" : {
-      "comment" : "android: mobile_playback_seek_back | differs: iOS fixes the 30-second step in the text",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Back 30 seconds"
-          }
-        }
-      }
-    },
     "Buffering…" : {
       "comment" : "android: mobile_playback_buffering",
       "localizations" : {
@@ -597,17 +586,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Buffering…"
-          }
-        }
-      }
-    },
-    "Buffering on %@" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Buffering on %@"
           }
         }
       }
@@ -630,6 +608,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cannot open link"
+          }
+        }
+      }
+    },
+    "Can’t play this on %@." : {
+      "comment" : "android: mobile_cast_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t play this on %@."
           }
         }
       }
@@ -854,17 +843,6 @@
         }
       }
     },
-    "Connected to %@" : {
-      "comment" : "android: mobile_cast_casting_to | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connected to %@"
-          }
-        }
-      }
-    },
     "Contact us" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
       "localizations" : {
@@ -883,17 +861,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Continue watching"
-          }
-        }
-      }
-    },
-    "Conversion failed" : {
-      "comment" : "android: mobile_playback_conversion_failed | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conversion failed"
           }
         }
       }
@@ -931,17 +898,6 @@
         }
       }
     },
-    "Converting %@" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converting %@"
-          }
-        }
-      }
-    },
     "Converting to MP4" : {
       "comment" : "android: mobile_playback_conversion_title",
       "localizations" : {
@@ -949,17 +905,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converting to MP4"
-          }
-        }
-      }
-    },
-    "Converting video" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converting video"
           }
         }
       }
@@ -1015,17 +960,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy link"
-          }
-        }
-      }
-    },
-    "Could not cast" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not cast"
           }
         }
       }
@@ -1158,17 +1092,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not save downloads"
-          }
-        }
-      }
-    },
-    "Could not save the Chromecast setting. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not save the Chromecast setting. Try again."
           }
         }
       }
@@ -1693,17 +1616,6 @@
         }
       }
     },
-    "Disconnect" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Disconnect"
-          }
-        }
-      }
-    },
     "Document" : {
       "comment" : "ios-only: no Android string for the iOS file browser",
       "localizations" : {
@@ -2078,17 +1990,6 @@
         }
       }
     },
-    "File not found" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File not found"
-          }
-        }
-      }
-    },
     "Files" : {
       "comment" : "android: mobile_destination_files",
       "localizations" : {
@@ -2178,17 +2079,6 @@
         }
       }
     },
-    "Forward 30 seconds" : {
-      "comment" : "android: mobile_playback_seek_forward | differs: iOS fixes the 30-second step in the text",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Forward 30 seconds"
-          }
-        }
-      }
-    },
     "Found by put.io" : {
       "comment" : "android: playback_subtitles_found",
       "localizations" : {
@@ -2262,28 +2152,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "History is turned off in your account settings."
-          }
-        }
-      }
-    },
-    "HLS" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HLS"
-          }
-        }
-      }
-    },
-    "HLS streams the original file with put.io subtitles. MP4 casts the converted file and lets you switch subtitles on the receiver." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HLS streams the original file with put.io subtitles. MP4 casts the converted file and lets you switch subtitles on the receiver."
           }
         }
       }
@@ -2740,23 +2608,12 @@
       }
     },
     "Loading on %@" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
+      "comment" : "ios-only: no Android string for the Cast loading line (putio-android#642)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading on %@"
-          }
-        }
-      }
-    },
-    "Loading playback type" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading playback type"
           }
         }
       }
@@ -2994,17 +2851,6 @@
         }
       }
     },
-    "MP4" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "MP4"
-          }
-        }
-      }
-    },
     "New account events will appear here." : {
       "comment" : "android: mobile_history_empty_message | differs: iOS board wording",
       "localizations" : {
@@ -3155,17 +3001,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not watched"
-          }
-        }
-      }
-    },
-    "Nothing casting" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing casting"
           }
         }
       }
@@ -3456,17 +3291,6 @@
         }
       }
     },
-    "Paused on %@" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paused on %@"
-          }
-        }
-      }
-    },
     "Paused · %@" : {
       "comment" : "android: mobile_downloads_status_paused | differs: iOS shows progress, not bytes saved",
       "localizations" : {
@@ -3485,17 +3309,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Page %lld of %lld"
-          }
-        }
-      }
-    },
-    "Pick a video to play it on %@." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pick a video to play it on %@."
           }
         }
       }
@@ -3654,17 +3467,6 @@
         }
       }
     },
-    "Playback type" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback type"
-          }
-        }
-      }
-    },
     "Player" : {
       "comment" : "android: mobile_settings_about_player",
       "localizations" : {
@@ -3727,17 +3529,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Preparing audio"
-          }
-        }
-      }
-    },
-    "Preparing for %@" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing for %@"
           }
         }
       }
@@ -4365,17 +4156,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "put.io"
-          }
-        }
-      }
-    },
-    "put.io could not convert this video for Chromecast. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "put.io could not convert this video for Chromecast. Try again."
           }
         }
       }
@@ -5073,17 +4853,6 @@
         }
       }
     },
-    "Something went wrong while casting. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Something went wrong while casting. Try again."
-          }
-        }
-      }
-    },
     "Something went wrong. Try again." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -5113,17 +4882,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start over"
-          }
-        }
-      }
-    },
-    "Starting conversion" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Starting conversion"
           }
         }
       }
@@ -5194,17 +4952,6 @@
         }
       }
     },
-    "Subtitles are handled by the receiver for HLS streams." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Subtitles are handled by the receiver for HLS streams."
-          }
-        }
-      }
-    },
     "Swipe an app to revoke its access. This app keeps its own sign-in." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -5234,17 +4981,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That proxy isn’t available for your account."
-          }
-        }
-      }
-    },
-    "The Chromecast did not accept the video. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The Chromecast did not accept the video. Try again."
           }
         }
       }
@@ -5652,17 +5388,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version"
-          }
-        }
-      }
-    },
-    "Video conversion progress" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Video conversion progress"
           }
         }
       }

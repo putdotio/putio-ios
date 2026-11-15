@@ -59,11 +59,9 @@ import Foundation
       var productAnalyticsEnabled = false
     }
 
-    /// Chromecast config is process-scoped: the seeded journey never relaunches
-    /// across a save, and the first save fails once for retry proof.
-    private static let castLock = NSLock()
-    nonisolated(unsafe) private static var castPlaybackType = "hls"
-    nonisolated(unsafe) private static var castSaveFailed = false
+    /// Config document values are process-scoped: the seeded journey never
+    /// relaunches across a save.
+    private static let configLock = NSLock()
     /// The recorded journey proves autoplay, so the default config document
     /// enables it. The playback-preferences fixture persists the production
     /// default (off) and fails the first save once for retry proof.
@@ -91,7 +89,7 @@ import Foundation
     nonisolated(unsafe) private static var analyticsPromptAnswered = !ProcessInfo.processInfo
       .arguments.contains(HarnessLaunch.analyticsPromptArgument)
 
-    /// Account security fixtures are process-scoped like Chromecast config:
+    /// Account security fixtures are process-scoped like config values:
     /// one launch revokes, links, and clears, with one transient failure on
     /// each mutating endpoint for retry proof.
     private static var usesAccountSecurity: Bool {
@@ -1948,15 +1946,15 @@ import Foundation
           return (200, accountInfoLocked)
         }
       case "GET /v2/config":
-        let (playbackType, answered, rotates) = castLock.withLock {
-          (castPlaybackType, analyticsPromptAnswered, autoRotateVideo)
+        let (answered, rotates) = configLock.withLock {
+          (analyticsPromptAnswered, autoRotateVideo)
         }
         let prompt = answered ? #","dismissed.product_analytics_prompt":true"# : ""
         let rotation = rotates.map { #","auto_rotate_video":\#($0)"# } ?? ""
         let method = streamingMethodConfigValue.map { #","streaming_method":"\#($0)""# } ?? ""
         return (
           200,
-          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(method)\#(prompt)\#(rotation)}}"#
+          #"{"config":{"autoplay_next_video":\#(autoplayConfigValue)\#(method)\#(prompt)\#(rotation)}}"#
         )
       case "PUT /v2/config/dismissed.product_analytics_prompt":
         guard requestPayload(request)?["value"] as? Bool == true else {
@@ -1966,7 +1964,7 @@ import Foundation
               statusCode: 400, type: "HARNESS_INVALID_PROMPT_ANSWER", message: "value must be true")
           )
         }
-        castLock.withLock { analyticsPromptAnswered = true }
+        configLock.withLock { analyticsPromptAnswered = true }
         return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/autoplay_next_video":
         return updateAutoplayConfig(request: request)
@@ -1991,32 +1989,8 @@ import Foundation
               message: "value must be a boolean")
           )
         }
-        castLock.withLock { autoRotateVideo = value }
+        configLock.withLock { autoRotateVideo = value }
         return (200, #"{"status":"OK"}"#)
-      case "PUT /v2/config/chromecast_playback_type":
-        return castLock.withLock {
-          guard let value = requestPayload(request)?["value"] as? String,
-            ["hls", "mp4"].contains(value)
-          else {
-            return (
-              400,
-              fixtureError(
-                statusCode: 400, type: "HARNESS_INVALID_PLAYBACK_TYPE",
-                message: "value must be hls or mp4")
-            )
-          }
-          if !castSaveFailed {
-            castSaveFailed = true
-            return (
-              503,
-              fixtureError(
-                statusCode: 503, type: "HARNESS_CAST_SAVE_RETRY",
-                message: "Retry saving the playback type")
-            )
-          }
-          castPlaybackType = value
-          return (200, #"{"status":"OK"}"#)
-        }
       case _
       where HarnessSubtitledStream.tracks() != nil
         && [412, 441, 442, 443, 444].map({ "GET /v2/files/\($0)/subtitles" }).contains(routeKey):

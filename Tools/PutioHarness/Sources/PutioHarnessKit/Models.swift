@@ -869,6 +869,12 @@ enum BoardCaptureContract {
       BoardCapture("ipad-video-up-next", .ipad, "testVideoUpNext", screenBase: false),
       BoardCapture("ipad-video-next-episode", .ipad, "testVideoNextEpisode", screenBase: false),
       BoardCapture("video-next-not-found", .iphone, "testVideoNextNotFound"),
+      BoardCapture("rd-ios-pb-32-cast-loading", .iphone, "testCastLoading"),
+      BoardCapture("rd-ios-pb-08-casting", .iphone, "testCasting"),
+      BoardCapture("rd-ios-pb-09-cast-failed", .iphone, "testCastFailed"),
+      BoardCapture("ipad-cast-loading", .ipad, "testCastLoading", screenBase: false),
+      BoardCapture("ipad-casting", .ipad, "testCasting"),
+      BoardCapture("ipad-cast-failed", .ipad, "testCastFailed", screenBase: false),
       BoardCapture("rd-ios-pb-31-cast-picker", .iphone, "testCastPicker"),
       BoardCapture("rd-ios-pb-33-local-network-off", .iphone, "testCastLocalNetworkOff"),
       BoardCapture("ipad-cast-picker", .ipad, "testCastPicker"),
@@ -906,7 +912,7 @@ enum BoardCaptureContract {
 
   static let iPadAccountScreens: KeyValuePairs<String, String> = [
     "public-links": "account.public-links", "trash": "account.trash",
-    "playback-method": "playback-settings.method", "chromecast": "account.chromecast",
+    "playback-method": "playback-settings.method",
     "downloads": "account.downloads", "logged-in-apps": "security.apps",
     "link-device": "security.link-device",
     "app-info": "account.about", "licenses": "account.licenses",
@@ -1235,11 +1241,9 @@ enum BrowserJourneyContract {
       "download-start-failed", "DownloadsJourneyTests/testADownloadThatCannotStartIsReported",
       attachmentNames: ["runtime-downloads-start-failed"], timeAllowance: 90),
     JourneyPreflight(
-      "cast", "ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync",
-      attachmentNames: [
-        "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
-        "runtime-cast-signed-out",
-      ],
+      "cast",
+      "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",
+      attachmentNames: ["runtime-cast-failed", "runtime-cast-playing", "runtime-cast-signed-out"],
       timeAllowance: 180),
     JourneyPreflight(
       "cast-routes", "ChromecastJourneyTests/testRouteGroupFollowsCastDiscoveryAndLocalNetwork",

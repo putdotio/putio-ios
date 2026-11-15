@@ -80,7 +80,6 @@ final class AccountJourneyTests: XCTestCase {
       ("account.public-links", "Exclusive links"),
       ("account.trash", "Trash"),
       ("playback-settings.route", "Choose your proxy"),
-      ("account.chromecast", "Chromecast"),
       ("account.privacy", "Privacy controls"),
       ("security.apps", "Logged-in apps"),
       ("security.link-device", "Link a device"),

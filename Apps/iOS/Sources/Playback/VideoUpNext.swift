@@ -83,12 +83,12 @@ private struct PutioVideoUpNextCard: View {
   private var actions: some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
       Button(action: onCancel) {
-        label(String(localized: "Cancel"), prominent: false)
+        PutioVideoPillLabel(title: String(localized: "Cancel"))
       }
       .buttonStyle(.plain)
       .accessibilityIdentifier("video.cancel-next")
       Button(action: onPlay) {
-        label(String(localized: "Play next"), prominent: true)
+        PutioVideoPillLabel(title: String(localized: "Play next"), prominent: true)
       }
       .buttonStyle(.plain)
       .accessibilityIdentifier("video.play-next")
@@ -99,14 +99,19 @@ private struct PutioVideoUpNextCard: View {
   private var countdown: String {
     Duration.seconds(secondsLeft).formatted(.units(allowed: [.seconds], width: .wide))
   }
+}
 
-  private func label(_ title: String, prominent: Bool) -> some View {
+struct PutioVideoPillLabel: View {
+  let title: String
+  var prominent = false
+
+  var body: some View {
     Text(title)
       .putioFont(PutioTheme.Components.Button.label)
       .lineLimit(1)
       .foregroundStyle(prominent ? PutioTheme.Components.Button.primaryForeground : .white)
       .padding(.horizontal, PutioVideoMetrics.chipPadding)
-      .frame(minHeight: PutioUpNextMetrics.buttonHeight)
+      .frame(minHeight: PutioVideoMetrics.pillHeight)
       .background(
         prominent ? PutioTheme.Colors.accent : Color.white.opacity(0.12), in: Capsule()
       )
@@ -184,5 +189,4 @@ private struct PutioUpNextCardLayout: Layout {
 private enum PutioUpNextMetrics {
   static let radius: CGFloat = 22
   static let inset: CGFloat = 12
-  static let buttonHeight: CGFloat = 38
 }

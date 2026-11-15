@@ -2,12 +2,9 @@ import Foundation
 import Observation
 import PutioCore
 import SwiftUI
+import UIKit
 
-typealias PutioCastResolve =
-  @MainActor @Sendable (PutioFileID, PutioCastPlaybackType) async throws -> PutioCastResolution
-typealias PutioCastPlaybackTypeLoad = @MainActor @Sendable () async throws -> PutioCastPlaybackType
-typealias PutioCastPlaybackTypeSave =
-  @MainActor @Sendable (PutioCastPlaybackType) async throws -> Void
+typealias PutioCastResolve = @MainActor @Sendable (PutioFileID) async throws -> PutioCastResolution
 
 /// The receiver connection as the shell sees it. `unavailable` hides Cast
 /// entry points: no receiver is on the network.
@@ -45,7 +42,6 @@ struct PutioCastMediaStatus: Equatable, Sendable {
   let playerState: PutioCastPlayerState
   let positionSeconds: Double
   let durationSeconds: Double
-  let activeSubtitleKey: String?
 }
 
 struct PutioCastDevice: Identifiable, Equatable, Sendable {
@@ -74,16 +70,16 @@ struct PutioCastDiscovery: Equatable, Sendable {
 protocol PutioCastControlling: AnyObject {
   var connection: PutioCastConnection { get }
   var discovery: PutioCastDiscovery { get }
+  var approximatePositionSeconds: Double? { get }
   var onConnectionChanged: ((PutioCastConnection) -> Void)? { get set }
   var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)? { get set }
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)? { get set }
   func startDiscovery()
   func connect(toDevice id: PutioCastDevice.ID)
-  func load(_ media: PutioCastMedia, subtitleKey: String?) async throws
+  func load(_ media: PutioCastMedia, startSeconds: Int) async throws
   func play() async throws
   func pause() async throws
   func seek(toSeconds seconds: Double) async throws
-  func setSubtitle(key: String?) async throws
   func stop() async throws
   func endSession()
 }
@@ -100,49 +96,23 @@ struct PutioCastFailure: Equatable, Sendable {
   }
 
   let kind: Kind
-  let title: String
-  let message: String
-  let canRetry: Bool
+
+  var canRetry: Bool { kind != .notFound }
 
   static func resolving(_ error: Error) -> PutioCastFailure? {
+    if let failure = (error as? PutioCastControllerError)?.failure { return failure }
     switch error as? PutioRuntimeError {
-    case .authenticationRequired, .sessionExpired:
-      return nil
-    case .notFound:
-      return Self(
-        kind: .notFound, title: String(localized: "File not found"),
-        message: String(localized: "It may have been moved or deleted."),
-        canRetry: false)
-    case .rateLimited:
-      return Self(
-        kind: .rateLimited, title: String(localized: "Could not cast"),
-        message: String(localized: "put.io is receiving too many requests. Try again shortly."),
-        canRetry: true)
-    case .transient:
-      return Self(
-        kind: .transient, title: String(localized: "Could not cast"),
-        message: String(localized: "Check your connection and try again."), canRetry: true)
-    case .invalidResponse:
-      return Self(
-        kind: .invalidResponse, title: String(localized: "Could not cast"),
-        message: String(localized: "put.io returned an invalid response. Try again."),
-        canRetry: true)
-    case .unknown, nil:
-      return Self(
-        kind: .unknown, title: String(localized: "Could not cast"),
-        message: String(localized: "Something went wrong while casting. Try again."), canRetry: true
-      )
+    case .authenticationRequired, .sessionExpired: return nil
+    case .notFound: return Self(kind: .notFound)
+    case .rateLimited: return Self(kind: .rateLimited)
+    case .transient: return Self(kind: .transient)
+    case .invalidResponse: return Self(kind: .invalidResponse)
+    case .unknown, nil: return Self(kind: .unknown)
     }
   }
 
-  static let receiver = Self(
-    kind: .receiver, title: String(localized: "Could not cast"),
-    message: String(localized: "The Chromecast did not accept the video. Try again."),
-    canRetry: true)
-  static let conversion = Self(
-    kind: .conversion, title: String(localized: "Conversion failed"),
-    message: String(localized: "put.io could not convert this video for Chromecast. Try again."),
-    canRetry: true)
+  static let receiver = Self(kind: .receiver)
+  static let conversion = Self(kind: .conversion)
 }
 
 /// What the shell is doing on the model's behalf for one file.
@@ -154,21 +124,12 @@ enum PutioCastActivity: Equatable, Sendable {
   case converting(PutioFileID, progress: Double)
   case loading(PutioFileID)
   case failed(PutioFileID, PutioCastFailure)
-
-  var fileID: PutioFileID? {
-    switch self {
-    case .idle: nil
-    case .resolving(let id), .conversionRequired(let id), .conversionQueued(let id),
-      .converting(let id, _), .loading(let id), .failed(let id, _):
-      id
-    }
-  }
 }
 
-/// Owns the Cast session as the user sees it: connection, the file being
-/// cast, receiver status, subtitle selection, and throttled position reports.
-/// Every await re-checks its generation so a session end, a stop, or a newer
-/// cast request wins over a stale response.
+/// Owns the Cast session as the user sees it: connection, the video being
+/// cast, receiver status, and its position saves. Every await re-checks its
+/// generation so a session end, a stop, or a newer cast request wins over a
+/// stale response.
 @MainActor
 @Observable
 final class PutioCastModel {
@@ -176,57 +137,44 @@ final class PutioCastModel {
   private(set) var activity: PutioCastActivity = .idle
   private(set) var media: PutioCastMedia?
   private(set) var status: PutioCastMediaStatus?
-  private(set) var playbackType: PutioCastPlaybackType?
-  private(set) var playbackTypeFailure: String?
-  private(set) var isSavingPlaybackType = false
-  /// Rendered position reports; the harness probe re-renders on it.
+  private(set) var route: PutioVideoRoute?
+  private(set) var handback: PutioCastHandback?
   private(set) var reportedPosition: (fileID: PutioFileID, seconds: Int)?
-  private(set) var presentsControls = false
   private(set) var discovery: PutioCastDiscovery
   var presentsPicker = false
   var presentsLocalNetworkAlert = false
 
   @ObservationIgnored private let controller: PutioCastControlling
   @ObservationIgnored private let resolve: PutioCastResolve
-  @ObservationIgnored private let loadPlaybackType: PutioCastPlaybackTypeLoad
-  @ObservationIgnored private let persistPlaybackType: PutioCastPlaybackTypeSave
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
-  @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
-  @ObservationIgnored private let remembersPlaybackPosition: PutioPlaybackPositionSetting
-  @ObservationIgnored private let positionReportInterval: Duration
   @ObservationIgnored private let conversionPollInterval: Duration
+  @ObservationIgnored private let schedulePositionSaves: PutioVideoPositionReporter.Scheduler
   @ObservationIgnored private var generation: UInt64 = 0
-  @ObservationIgnored private var playbackTypeGeneration: UInt64 = 0
   @ObservationIgnored private var castTask: Task<Void, Never>?
-  @ObservationIgnored private var reportTask: Task<Void, Never>?
-  @ObservationIgnored private var lastReportedSeconds: Int?
-  @ObservationIgnored private var pendingRoute: PutioVideoRoute?
+  @ObservationIgnored private var saves: PutioCastPositionSaves?
+  @ObservationIgnored private var reporter: PutioVideoPositionReporter?
+  @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
+  @ObservationIgnored private var statusReceivedAt: ContinuousClock.Instant?
 
   init(
     controller: PutioCastControlling,
-    positionReportInterval: Duration = .seconds(15),
     conversionPollInterval: Duration = .seconds(3),
     resolve: @escaping PutioCastResolve,
-    loadPlaybackType: @escaping PutioCastPlaybackTypeLoad,
-    savePlaybackType: @escaping PutioCastPlaybackTypeSave,
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
-    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
-    reportPosition: @escaping PutioPlaybackPositionReport
+    schedulePositionSaves: @escaping PutioVideoPositionReporter.Scheduler = { interval, callback in
+      PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
+    }
   ) {
     self.controller = controller
     self.connection = controller.connection
     self.discovery = controller.discovery
-    self.positionReportInterval = positionReportInterval
     self.conversionPollInterval = conversionPollInterval
     self.resolve = resolve
-    self.loadPlaybackType = loadPlaybackType
-    self.persistPlaybackType = savePlaybackType
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
-    self.reportPosition = reportPosition
-    self.remembersPlaybackPosition = remembersPlaybackPosition
+    self.schedulePositionSaves = schedulePositionSaves
     controller.onConnectionChanged = { [weak self] connection in
       self?.connectionChanged(connection)
     }
@@ -235,6 +183,17 @@ final class PutioCastModel {
     }
     controller.onMediaStatusChanged = { [weak self] status in
       self?.statusChanged(status)
+    }
+    backgroundObservation = NotificationCenter.default.addObserver(
+      forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.reporter?.savePosition() }
+    }
+  }
+
+  isolated deinit {
+    if let backgroundObservation {
+      NotificationCenter.default.removeObserver(backgroundObservation)
     }
   }
 
@@ -247,18 +206,52 @@ final class PutioCastModel {
   #endif
   var showsCastButton: Bool { connection != .unavailable }
 
-  /// A bar or sheet has something to show once a file is being prepared,
-  /// is loaded on the receiver, or failed on the way there.
-  var hasSession: Bool {
-    isConnected && (media != nil || activity != .idle)
+  var castingRoute: PutioVideoRoute? {
+    guard isConnected, media != nil || activity != .idle else { return nil }
+    return route
   }
 
+  var hasSession: Bool { castingRoute != nil }
+
   var currentTitle: String? {
-    media?.title
+    media?.title ?? route?.title
   }
 
   var isPlaying: Bool {
     status?.playerState == .playing || status?.playerState == .buffering
+  }
+
+  var phase: PutioCastPhase? {
+    guard hasSession else { return nil }
+    switch activity {
+    case .failed(_, let failure): return .failed(canRetry: failure.canRetry)
+    case .resolving, .conversionRequired, .conversionQueued, .converting, .loading:
+      return .loading
+    case .idle:
+      switch status?.playerState {
+      case .playing, .paused, .buffering: return .playing
+      case .loading, .idle, nil: return .loading
+      }
+    }
+  }
+
+  var positionSeconds: Double {
+    guard let status else { return 0 }
+    if let approximate = controller.approximatePositionSeconds { return approximate }
+    guard status.playerState == .playing, let statusReceivedAt else {
+      return status.positionSeconds
+    }
+    let elapsed = statusReceivedAt.duration(to: .now)
+    let seconds =
+      status.positionSeconds + Double(elapsed.components.seconds)
+      + Double(elapsed.components.attoseconds) / 1e18
+    return durationSeconds.map { min(seconds, $0) } ?? seconds
+  }
+
+  var durationSeconds: Double? {
+    let reported = status?.durationSeconds ?? 0
+    let duration = reported > 0 ? reported : media?.durationSeconds ?? 0
+    return duration > 0 ? duration : nil
   }
 
   // MARK: Session
@@ -287,143 +280,113 @@ final class PutioCastModel {
     disconnect()
   }
 
-  func showControls() {
-    guard hasSession else { return }
-    presentsControls = true
-  }
-
-  func hideControls() {
-    presentsControls = false
-  }
-
   func disconnect() {
-    flushPositionReport()
+    handBack()
     clearSession()
     if connection != .unavailable { connection = .disconnected }
     controller.endSession()
   }
 
+  func clearHandback() {
+    handback = nil
+  }
+
   private func connectionChanged(_ connection: PutioCastConnection) {
-    let wasConnected = self.connection.isConnected
+    let lostSession = self.connection.isConnected && !connection.isConnected
+    if lostSession { handBack() }
     self.connection = connection
     if connection == .unavailable || connection == .localNetworkDenied { presentsPicker = false }
-    if wasConnected, !connection.isConnected {
-      flushPositionReport()
-      clearSession()
-    }
+    if lostSession { clearSession() }
+  }
+
+  private func handBack() {
+    guard let route, castingRoute != nil else { return }
+    let seconds = receiverPosition()
+    reporter?.stop()
+    handback = PutioCastHandback(route: route, seconds: seconds)
   }
 
   private func clearSession() {
     generation &+= 1
     castTask?.cancel()
     castTask = nil
-    stopReporting()
+    reporter?.cancel()
+    reporter = nil
+    saves = nil
     activity = .idle
     media = nil
     status = nil
-    presentsControls = false
-    pendingRoute = nil
+    route = nil
   }
 
   // MARK: Casting
 
-  /// Casts a video to the connected receiver. Conversion-gated files are
-  /// converted first; the activity states mirror the local player's.
-  func cast(_ route: PutioVideoRoute) {
+  func cast(_ route: PutioVideoRoute, saves: PutioCastPositionSaves) {
     guard isConnected else { return }
-    flushPositionReport()
+    reporter?.stop()
+    reporter = nil
     generation &+= 1
     let request = generation
     castTask?.cancel()
-    stopReporting()
-    pendingRoute = route
+    self.route = route
+    self.saves = saves
+    handback = nil
     media = nil
     status = nil
     activity = .resolving(route.id)
-    presentsControls = true
     castTask = Task { @MainActor [weak self] in
+      await Task.yield()
+      await saves.pipeline.waitForPendingReports(fileID: route.id)
       await self?.run(route, generation: request)
     }
   }
 
   func retry() {
-    guard case .failed = activity, let pendingRoute else { return }
-    cast(pendingRoute)
+    guard case .failed = activity, let route, let saves else { return }
+    cast(route, saves: saves)
   }
 
   private func run(_ route: PutioVideoRoute, generation request: UInt64) async {
+    guard request == generation else { return }
     do {
-      let playbackType = try await currentPlaybackType()
-      guard request == generation else { return }
-      var resolution = try await resolve(route.id, playbackType)
+      var resolution = try await resolve(route.id)
       guard request == generation else { return }
       if case .conversionRequired = resolution {
         try await convert(route.id, generation: request)
         guard request == generation else { return }
-        resolution = try await resolve(route.id, playbackType)
+        resolution = try await resolve(route.id)
         guard request == generation else { return }
         guard case .ready = resolution else { throw PutioRuntimeError.invalidResponse }
       }
       guard case .ready(let media) = resolution else { return }
       activity = .loading(route.id)
       self.media = media
-      try await controller.load(media, subtitleKey: media.defaultSubtitleKey)
+      try await controller.load(media, startSeconds: media.startFromSeconds)
       guard request == generation else { return }
       activity = .idle
-      lastReportedSeconds = media.startFromSeconds
-      startReporting()
+      startSaving(media)
     } catch {
       guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
         return
       }
       media = nil
-      if let castFailure = error as? PutioCastControllerError {
-        activity = .failed(route.id, castFailure.failure)
-      } else if let conversion = error as? PutioCastConversionError {
-        guard let failure = PutioCastFailure.resolvingConversion(conversion.underlying) else {
-          activity = .idle
-          presentsControls = false
-          return
-        }
-        activity = .failed(route.id, failure)
-      } else if let failure = PutioCastFailure.resolving(error) {
+      if let failure = PutioCastFailure.resolving(error) {
         activity = .failed(route.id, failure)
       } else {
-        // The session expired; the shell signs out and the bar goes with it.
         activity = .idle
-        presentsControls = false
       }
     }
   }
 
-  private func currentPlaybackType() async throws -> PutioCastPlaybackType {
-    if let playbackType { return playbackType }
-    let request = playbackTypeGeneration
-    let loaded = try await loadPlaybackType()
-    if playbackType == nil, request == playbackTypeGeneration, !isSavingPlaybackType {
-      playbackType = loaded
-    }
-    return playbackType ?? loaded
-  }
-
   private func convert(_ fileID: PutioFileID, generation request: UInt64) async throws {
     activity = .conversionRequired(fileID)
-    do {
-      try await startConversion(fileID)
-    } catch {
-      throw PutioCastConversionError(error)
-    }
+    try await startConversion(fileID)
     guard request == generation else { return }
     activity = .conversionQueued(fileID)
     while true {
       try await Task.sleep(for: conversionPollInterval)
       guard request == generation else { return }
-      let status: PutioVideoConversionStatus
-      do {
-        status = try await loadConversionStatus(fileID)
-      } catch {
-        throw PutioCastConversionError(error)
-      }
+      let status = try await loadConversionStatus(fileID)
       guard request == generation else { return }
       switch status {
       case .queued:
@@ -435,54 +398,6 @@ final class PutioCastModel {
       case .failed, .unavailable:
         throw PutioCastControllerError(failure: .conversion)
       }
-    }
-  }
-
-  // MARK: Playback type
-
-  func loadPlaybackTypeIfNeeded(force: Bool = false) async {
-    guard !isSavingPlaybackType, force || playbackType == nil else { return }
-    playbackTypeGeneration &+= 1
-    let request = playbackTypeGeneration
-    playbackTypeFailure = nil
-    do {
-      let loaded = try await loadPlaybackType()
-      guard request == playbackTypeGeneration, !Task.isCancelled else { return }
-      playbackType = loaded
-    } catch {
-      guard request == playbackTypeGeneration, !Task.isCancelled, !(error is CancellationError)
-      else { return }
-      playbackTypeFailure = Self.preferenceMessage(for: error)
-    }
-  }
-
-  /// Saves through the server; the local value flips only on acknowledgement
-  /// so a failed save shows the authoritative type with a retryable message.
-  func savePlaybackType(_ newValue: PutioCastPlaybackType) async {
-    guard !isSavingPlaybackType, newValue != playbackType else { return }
-    playbackTypeGeneration &+= 1
-    isSavingPlaybackType = true
-    playbackTypeFailure = nil
-    defer { isSavingPlaybackType = false }
-    do {
-      try await persistPlaybackType(newValue)
-      playbackType = newValue
-    } catch {
-      guard !(error is CancellationError) else { return }
-      playbackTypeFailure = Self.preferenceMessage(for: error)
-    }
-  }
-
-  private static func preferenceMessage(for error: Error) -> String? {
-    switch error as? PutioRuntimeError {
-    case .authenticationRequired, .sessionExpired: return nil
-    case .transient: return String(localized: "Check your connection and try again.")
-    case .rateLimited:
-      return String(localized: "put.io is receiving too many requests. Try again shortly.")
-    case .invalidResponse:
-      return String(localized: "put.io returned an invalid response. Try again.")
-    case .notFound, .unknown, nil:
-      return String(localized: "Could not save the Chromecast setting. Try again.")
     }
   }
 
@@ -508,30 +423,21 @@ final class PutioCastModel {
   }
 
   @discardableResult
-  func seek(toSeconds seconds: Double) -> Task<Void, Never>? {
-    guard media != nil else { return nil }
-    let request = generation
-    return Task { @MainActor [weak self] in
-      guard let self, request == generation else { return }
-      do {
-        try await controller.seek(toSeconds: max(0, seconds))
-      } catch {
-        guard request == generation else { return }
-        self.reportControlFailure(error)
-      }
-    }
+  func skip(by seconds: Double) -> Task<Void, Never>? {
+    seek(toSeconds: positionSeconds + seconds)
   }
 
   @discardableResult
-  func selectSubtitle(key: String?) -> Task<Void, Never>? {
-    guard let media, key == nil || media.subtitles.contains(where: { $0.key == key }) else {
-      return nil
-    }
+  func seek(toSeconds seconds: Double) -> Task<Void, Never>? {
+    guard media != nil, status != nil else { return nil }
+    let target = durationSeconds.map { min(max(0, seconds), $0) } ?? max(0, seconds)
     let request = generation
     return Task { @MainActor [weak self] in
       guard let self, request == generation else { return }
       do {
-        try await controller.setSubtitle(key: key)
+        try await controller.seek(toSeconds: target)
+        guard request == generation else { return }
+        reporter?.savePosition()
       } catch {
         guard request == generation else { return }
         self.reportControlFailure(error)
@@ -539,36 +445,23 @@ final class PutioCastModel {
     }
   }
 
-  /// Stops receiver playback but keeps the device connected.
   func stopCasting() {
-    flushPositionReport()
-    let request = generation
-    generation &+= 1
-    castTask?.cancel()
-    castTask = nil
-    stopReporting()
     let hadMedia = media != nil
-    media = nil
-    status = nil
-    activity = .idle
-    presentsControls = false
-    pendingRoute = nil
+    handBack()
+    clearSession()
+    let request = generation
     guard hadMedia else { return }
     // A cast that starts while this stop is in flight supersedes it inside
     // the controller, so the stop cannot idle the newer media.
     Task { @MainActor [weak self] in
-      guard let self, request &+ 1 == generation else { return }
+      guard let self, request == generation else { return }
       try? await controller.stop()
     }
   }
 
   private func reportControlFailure(_ error: Error) {
     guard let fileID = media?.id else { return }
-    if let castFailure = error as? PutioCastControllerError {
-      activity = .failed(fileID, castFailure.failure)
-    } else {
-      activity = .failed(fileID, .receiver)
-    }
+    activity = .failed(fileID, (error as? PutioCastControllerError)?.failure ?? .receiver)
   }
 
   private func statusChanged(_ status: PutioCastMediaStatus?) {
@@ -579,83 +472,85 @@ final class PutioCastModel {
     guard let status, status.fileID == media.id else {
       // The receiver moved on (another sender, or playback ended).
       if self.status != nil, status == nil || status?.playerState == .idle {
-        flushPositionReport()
-        clearSession()
+        endOnReceiver()
       }
+      return
+    }
+    if status.playerState == .idle {
+      endOnReceiver()
       return
     }
     if case .failed = activity { activity = .idle }
-    if status.playerState == .idle {
-      // Flush against the last playing/paused status; idle carries no
-      // trusted position.
-      flushPositionReport()
-      clearSession()
-      return
-    }
+    let wasPlaying = isPlaying
     self.status = status
+    statusReceivedAt = .now
+    if wasPlaying, status.playerState == .paused { reporter?.savePosition() }
   }
 
-  // MARK: Position reports
-
-  private func startReporting() {
-    stopReporting()
-    let request = generation
-    reportTask = Task { @MainActor [weak self] in
-      while !Task.isCancelled {
-        try? await Task.sleep(for: self?.positionReportInterval ?? .seconds(15))
-        guard let self, !Task.isCancelled, request == generation else { return }
-        self.reportPositionIfNeeded()
+  private func endOnReceiver() {
+    if let status, let reporter {
+      if PutioVideoPositionReporter.isAtEnd(
+        positionSeconds: max(status.positionSeconds, positionSeconds),
+        durationSeconds: durationSeconds ?? 0)
+      {
+        _ = reporter.playbackEnded()
+        reporter.cancel()
+      } else {
+        reporter.stop()
       }
     }
+    clearSession()
   }
 
-  private func stopReporting() {
-    reportTask?.cancel()
-    reportTask = nil
+  private func startSaving(_ media: PutioCastMedia) {
+    guard let saves else { return }
+    let report = saves.report
+    let reporter = PutioVideoPositionReporter(
+      fileID: media.id,
+      remembersPosition: saves.remembersPosition,
+      pipeline: saves.pipeline,
+      report: { [weak self] fileID, seconds in
+        try await report(fileID, seconds)
+        self?.reportedPosition = (fileID, seconds)
+      },
+      currentPosition: { [weak self] in self?.receiverPosition() },
+      savedPosition: media.startFromSeconds,
+      endOfPlayback: .keepsPosition,
+      schedule: schedulePositionSaves
+    )
+    self.reporter = reporter
+    reporter.positionEstablished()
+    reporter.ready()
   }
 
-  private func reportPositionIfNeeded() {
-    guard remembersPlaybackPosition(), let media, let status,
-      status.playerState == .playing || status.playerState == .paused
-    else { return }
-    let seconds = Int(status.positionSeconds.rounded(.down))
-    guard seconds > 0, seconds != lastReportedSeconds else { return }
-    lastReportedSeconds = seconds
-    reportedPosition = (media.id, seconds)
-    let report = reportPosition
-    let remembersPlaybackPosition = remembersPlaybackPosition
-    // Not generation-guarded on purpose: the report names its own file and
-    // second, so a session end or a newer cast never makes it wrong, and the
-    // final flush must outlive the session that produced it.
-    Task { @MainActor in
-      guard remembersPlaybackPosition() else { return }
-      try? await report(media.id, seconds)
+  private func receiverPosition() -> Int? {
+    guard let status, status.playerState != .idle, status.playerState != .loading else {
+      return nil
     }
+    return PutioVideoPositionReporter.normalizedPosition(seconds: positionSeconds)
   }
+}
 
-  private func flushPositionReport() {
-    reportPositionIfNeeded()
-  }
+enum PutioCastPhase: Equatable {
+  case loading
+  case playing
+  case failed(canRetry: Bool)
+}
+
+struct PutioCastPositionSaves {
+  let remembersPosition: Bool
+  let pipeline: PutioPlaybackPositionPipeline
+  let report: PutioPlaybackPositionReport
+}
+
+struct PutioCastHandback: Equatable {
+  let route: PutioVideoRoute
+  let seconds: Int?
 }
 
 /// A controller failure the model shows as-is instead of mapping.
 struct PutioCastControllerError: Error {
   let failure: PutioCastFailure
-}
-
-/// Conversion errors keep their runtime mapping but the copy names conversion.
-private struct PutioCastConversionError: Error {
-  let underlying: Error
-  init(_ underlying: Error) { self.underlying = underlying }
-}
-
-extension PutioCastFailure {
-  fileprivate static func resolvingConversion(_ error: Error) -> PutioCastFailure? {
-    guard let mapped = resolving(error) else { return nil }
-    return PutioCastFailure(
-      kind: mapped.kind, title: String(localized: "Conversion failed"), message: mapped.message,
-      canRetry: mapped.canRetry)
-  }
 }
 
 /// The receiver app identifier. It is a build setting because iOS scopes

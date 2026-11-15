@@ -14,34 +14,10 @@ final class ChromecastJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
   }
 
-  func testCastSettingsSessionControlsSubtitlesAndPositionSync() throws {
+  func testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition() throws {
     app.launch()
     signIn()
 
-    // Settings: the first save fails and is retried. The receiver app ID is
-    // build configuration, not a user setting, so it is not shown.
-    app.buttons["Account"].tap()
-    let entry = app.revealed("account.chromecast")
-    XCTAssertTrue(entry.appears(within: 5))
-    entry.tap()
-    let playbackType = element("cast-settings.playback-type")
-    XCTAssertTrue(playbackType.appears(within: 10))
-    XCTAssertEqual(playbackType.value as? String, "HLS")
-    pick(playbackType, "MP4")
-    XCTAssertTrue(element("cast-settings.save-failure").appears(within: 10))
-    XCTAssertEqual(playbackType.value as? String, "HLS", "a failed save flipped the local value")
-    pick(playbackType, "MP4", expecting: "MP4")
-    XCTAssertTrue(element("cast-settings.save-failure").disappears(within: 5))
-    XCTAssertFalse(element("cast-settings.receiver").exists)
-    XCTAssertFalse(app.staticTexts["Receiver app ID"].exists)
-    screenshot("runtime-cast-settings")
-    let back = app.navigationBars.buttons["BackButton"]
-    back.tap()
-    if !back.disappears(within: 3) { back.tap() }
-    app.showTabBar()
-
-    app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let castButton = app.buttons["cast.button"]
     XCTAssertFalse(castButton.exists, "the Files toolbar still offers Cast")
     let row = element("files.item.412")
@@ -57,87 +33,83 @@ final class ChromecastJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(row.appears(within: 10), "Back never returned to the root folder")
 
-    // Tapping a video while connected casts it; the first load fails on the
-    // receiver and retry recovers into playing controls.
     row.tap()
-    let retry = app.buttons["cast.retry"]
-    XCTAssertTrue(retry.appears(within: 15))
-    XCTAssertTrue(app.staticTexts["Could not cast"].exists)
+    let failed = element("cast.failed")
+    XCTAssertTrue(failed.appears(within: 15), "the failed load showed no failure")
+    XCTAssertTrue(app.staticTexts["Can’t play this on Living Room TV."].exists)
+    XCTAssertTrue(app.buttons["cast.stop"].exists, "the failure offers no Stop casting")
     XCTAssertFalse(element("video.ready").exists, "the local player opened while casting")
-    screenshot("runtime-cast-error")
-    retry.tap()
+    screenshot("runtime-cast-failed")
+
+    app.buttons["cast.retry"].tap()
+    let playing = element("cast.playing")
+    XCTAssertTrue(playing.appears(within: 15), "Try again never played")
+    XCTAssertTrue(app.staticTexts["Playing on Living Room TV"].exists)
+    let loads = element("cast.load-requests")
+    XCTAssertEqual(
+      loads.value as? String,
+      "/v2/files/412/hls/media.m3u8,/v2/files/412/hls/media.m3u8",
+      "a load request carried something other than the HLS stream")
+    XCTAssertEqual(castButton.label, "Cast, connected")
+    XCTAssertFalse(element("video.picture-in-picture").exists, "casting kept Picture in Picture")
+    XCTAssertFalse(element("video.chip.speed").exists, "casting kept Speed")
     let toggle = app.buttons["cast.toggle"]
-    XCTAssertTrue(toggle.appears(within: 15))
     XCTAssertEqual(toggle.label, "Pause")
-    XCTAssertEqual(element("cast.title").label, "Root Movie.mkv")
+    screenshot("runtime-cast-playing")
 
-    // Subtitles: MP4 casting lists put.io subtitles; English is the default.
-    let subtitles = element("cast.subtitles")
-    XCTAssertTrue(subtitles.appears(within: 5))
-    XCTAssertEqual(subtitles.value as? String, "English")
-    pick(subtitles, "Turkish · Turkish.srt", expecting: "Turkish")
-    pick(subtitles, "Off", expecting: "Off")
-
-    // Transport and the throttled position report (seeded start-from is 560).
+    let reported = element("cast.position-reported")
+    app.buttons["video.skip-back"].tap()
+    XCTAssertTrue(reported.appears(within: 5), "a seek saved no position")
+    app.buttons["video.skip-back"].tap()
+    XCTAssertTrue(waitUntil(timeout: 5) { self.reportedSeconds(reported) ?? 600 < 560 })
+    let afterSeek = try XCTUnwrap(reportedSeconds(reported))
+    XCTAssertTrue(
+      waitUntil(timeout: 15) { self.reportedSeconds(reported) != afterSeek },
+      "no save followed receiver playback")
+    let firstTick = try XCTUnwrap(reportedSeconds(reported))
+    let firstSaved = Date()
+    XCTAssertTrue(
+      waitUntil(timeout: 15) { self.reportedSeconds(reported) != firstTick },
+      "no save followed 10 seconds of receiver playback")
+    let interval = Date().timeIntervalSince(firstSaved)
+    let secondTick = try XCTUnwrap(reportedSeconds(reported))
+    XCTAssertGreaterThan(secondTick, firstTick, "the timed save went backwards")
+    XCTAssertTrue((8...12).contains(interval), "timed saves came \(interval) s apart")
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Play" })
-    let reported = element("cast.position-reported")
-    XCTAssertTrue(reported.appears(within: 10), "no position report while paused")
-    let firstReport = reported.value as? String ?? ""
-    let firstSeconds = Int(firstReport.split(separator: "=").last ?? "") ?? 0
-    XCTAssertTrue(firstReport.hasPrefix("id=412;seconds="), firstReport)
-    XCTAssertGreaterThan(firstSeconds, 560, "report never advanced past the seeded start")
     toggle.tap()
     XCTAssertTrue(waitUntil(timeout: 5) { toggle.label == "Pause" })
-    app.buttons["cast.forward"].tap()
-    XCTAssertTrue(
-      waitUntil(timeout: 10) { (reported.value as? String ?? "") != firstReport },
-      "position report did not advance after seeking")
-    screenshot("runtime-cast-controls")
-    app.buttons["cast.controls.done"].tap()
 
-    // The bar stays above the tabs while casting and reopens the controls.
+    app.closeVideo()
     let bar = element("cast.bar")
     XCTAssertTrue(bar.appears(within: 5))
     XCTAssertEqual(element("cast.bar.title").label, "Root Movie.mkv")
     XCTAssertTrue(element("cast.bar.status").label.hasPrefix("Playing on Living Room TV"))
-    app.buttons["Downloads"].tap()
-    XCTAssertTrue(bar.appears(within: 5))
-    app.buttons["Files"].tap()
+    XCTAssertTrue(
+      waitForValue(element("cast.receiver-state"), "connected=true;loaded=true", timeout: 5))
     bar.tap()
-    XCTAssertTrue(toggle.appears(within: 5))
-    XCUIDevice.shared.orientation = .landscapeLeft
-    defer { XCUIDevice.shared.orientation = .portrait }
-    XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.width > self.app.frame.height })
-    tapAction("cast.stop")
-    XCTAssertTrue(bar.disappears(within: 5), "stopping did not clear the bar")
-    XCUIDevice.shared.orientation = .portrait
-    XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.height > self.app.frame.width })
+    XCTAssertTrue(playing.appears(within: 5), "the bar did not reopen the casting layout")
 
-    row.press(forDuration: 1)
-    XCTAssertTrue(app.buttons["Play"].appears(within: 5))
-    XCTAssertFalse(app.buttons["Cast"].exists, "the row menu still offers Cast")
-    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
-    XCTAssertTrue(app.buttons["Play"].disappears(within: 5))
-    row.tap()
-    XCTAssertTrue(toggle.appears(within: 15))
-    tapAction("cast.disconnect")
-    XCTAssertTrue(bar.disappears(within: 5))
-
-    openLocally(row)
-    app.revealVideoControls(showing: castButton)
-    XCTAssertEqual(castButton.label, "Cast")
-
-    // Sign-out must stop the receiver, not just remove its controls with the shell.
-    connectFromPlayer()
+    app.buttons["cast.stop"].tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20), "the phone never took over")
+    let handedBack = try XCTUnwrap(reportedSeconds(reported))
+    XCTAssertEqual(element("video.resume-position").value as? String, "\(handedBack)")
+    XCTAssertFalse(app.buttons["video.resume.resume"].exists, "the hand-back asked where to start")
+    XCTAssertTrue(
+      waitForValue(element("cast.receiver-state"), "connected=true;loaded=false", timeout: 5))
     app.closeVideo()
+    XCTAssertFalse(bar.exists, "stopping kept the bar")
+
+    // Sign-out must stop the receiver, not just remove its layout with the shell.
     row.tap()
-    XCTAssertTrue(toggle.appears(within: 15))
-    XCTAssertEqual(toggle.label, "Pause")
-    app.buttons["cast.controls.done"].tap()
+    XCTAssertTrue(playing.appears(within: 15))
+    app.closeVideo()
+    XCTAssertTrue(bar.appears(within: 5))
+    row.tap()
+    XCTAssertTrue(playing.appears(within: 15), "casting the same video did not reopen the player")
+    app.closeVideo()
     let receiverState = element("cast.receiver-state")
     XCTAssertTrue(waitForValue(receiverState, "connected=true;loaded=true", timeout: 5))
-
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
@@ -147,6 +119,13 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
     XCTAssertTrue(waitForValue(receiverState, "connected=false;loaded=false", timeout: 5))
     screenshot("runtime-cast-signed-out")
+  }
+
+  private func reportedSeconds(_ reported: XCUIElement) -> Int? {
+    guard let value = reported.value as? String, value.hasPrefix("id=412;seconds=") else {
+      return nil
+    }
+    return Int(value.dropFirst("id=412;seconds=".count))
   }
 
   func testRouteGroupFollowsCastDiscoveryAndLocalNetwork() throws {
@@ -315,32 +294,6 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(timeout: 5) { castButton.label == "Cast, connected" },
       "session never connected: \(castButton.label)")
-  }
-
-  /// Menu pickers occasionally swallow the first item tap while their
-  /// presentation settles; one retry keeps the proof about the feature.
-  private func pick(_ picker: XCUIElement, _ option: String, expecting value: String? = nil) {
-    for attempt in 0..<2 {
-      XCTAssertTrue(waitUntilHittable(picker, timeout: 5))
-      picker.tap()
-      let item = app.buttons[option].firstMatch
-      XCTAssertTrue(waitUntilHittable(item, timeout: 5), "\(option) never became hittable")
-      item.tap()
-      guard let value else { return }
-      if waitForValue(picker, value, timeout: 5) { return }
-      if item.exists { item.tap() }
-      XCTAssertEqual(attempt, 0, "\(option) did not apply: \(picker.value ?? "")")
-    }
-  }
-
-  private func tapAction(_ identifier: String) {
-    let item = app.buttons[identifier]
-    for _ in 0..<4 {
-      if item.isHittable { break }
-      app.scrollViews.firstMatch.swipeUp()
-    }
-    XCTAssertTrue(waitUntilHittable(item, timeout: 5), "\(identifier) never became hittable")
-    item.tap()
   }
 
   private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {

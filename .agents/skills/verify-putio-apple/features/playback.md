@@ -189,8 +189,12 @@ Preconditions:
   proxy save with `UNAVAILABLE_VALUE`. Boards: `rd-ios-acc-07-proxy`,
   `rd-ios-acc-31-proxy-loading`, `rd-ios-acc-32-proxy-failed`,
   `rd-ios-acc-33-proxy-unavailable`.
-- **Cast.** Run `--only cast`. Screenshots: `runtime-cast-settings`,
-  `runtime-cast-error`, `runtime-cast-controls`, `runtime-cast-signed-out`.
+- **Cast.** Run `--only cast`. Screenshots: `runtime-cast-failed`,
+  `runtime-cast-playing`, `runtime-cast-signed-out`.
+  `--putio-harness-cast-load-fails-once` makes the stub receiver refuse the
+  first load and `--putio-harness-cast-load-held` holds every load. Boards:
+  `rd-ios-pb-32-cast-loading`, `rd-ios-pb-08-casting`,
+  `rd-ios-pb-09-cast-failed`.
 - **Route group.** Run `--only cast-routes`. Screenshots: `runtime-cast-routes`,
   `runtime-cast-routes-no-device`, `runtime-cast-local-network-off`.
   `--putio-harness-cast-no-device` removes the stub receiver and
