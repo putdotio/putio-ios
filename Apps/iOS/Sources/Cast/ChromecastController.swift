@@ -142,7 +142,9 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   /// A new load supersedes every request still in flight (an earlier load or
   /// a stop), so a late completion cannot idle the receiver under this media
   /// or play the previous file after this one was accepted.
-  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool, activeTrackIDs: [Int])
+    async throws
+  {
     guard let client = remoteMediaClient else { throw PutioCastControllerError(failure: .receiver) }
     abandonPendingRequests()
     loadedFileID = nil
@@ -166,10 +168,20 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     // Status updates are attributed to this file only while the receiver
     // still reports our tag; another sender's media publishes as nil.
     builder.customData = [Self.fileIDKey: media.id.rawValue]
+    builder.mediaTracks = media.subtitles.enumerated().compactMap { index, subtitle in
+      GCKMediaTrack(
+        identifier: PutioCastTextTrack.id(at: index),
+        contentIdentifier: subtitle.url.absoluteString, contentType: "text/vtt", type: .text,
+        textSubtype: .subtitles, name: subtitle.language, languageCode: subtitle.languageCode,
+        customData: nil)
+    }
     let request = GCKMediaLoadRequestDataBuilder()
     request.mediaInformation = builder.build()
     request.autoplay = NSNumber(value: autoplay)
     request.startTime = TimeInterval(startSeconds)
+    if !activeTrackIDs.isEmpty {
+      request.activeTrackIDs = activeTrackIDs.map { NSNumber(value: $0) }
+    }
     try await perform(client.loadMedia(with: request.build()))
     // Status updates carry this file only once the receiver accepted it; the
     // status that arrived during the request is replayed so controls enable.
@@ -186,6 +198,20 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     else { return nil }
     let position = client.approximateStreamPosition()
     return position.isFinite ? position : nil
+  }
+
+  func setActiveTrackIDs(_ ids: [Int]) async throws {
+    guard let client = remoteMediaClient, loadedFileID != nil else {
+      throw PutioCastControllerError(failure: .receiver)
+    }
+    try await perform(client.setActiveTrackIDs(ids.map { NSNumber(value: $0) }))
+    publishStatus(client.mediaStatus)
+  }
+
+  func refreshStatus() {
+    guard let client = remoteMediaClient else { return }
+    publishStatus(client.mediaStatus)
+    _ = client.requestStatus()
   }
 
   func play() async throws {
@@ -338,10 +364,17 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       case .unknown: .loading
       @unknown default: .loading
       }
+    let audioTracks = (mediaStatus.mediaInformation?.mediaTracks ?? []).filter {
+      $0.type == .audio
+    }
     onMediaStatusChanged?(
       PutioCastMediaStatus(
         fileID: fileID, playerState: state, positionSeconds: mediaStatus.streamPosition,
-        durationSeconds: mediaStatus.mediaInformation?.streamDuration ?? 0))
+        durationSeconds: mediaStatus.mediaInformation?.streamDuration ?? 0,
+        audioTracks: audioTracks.map {
+          PutioCastAudioTrack(id: $0.identifier, languageCode: $0.languageCode, name: $0.name)
+        },
+        activeTrackIDs: (mediaStatus.activeTrackIDs ?? []).map(\.intValue)))
   }
 }
 

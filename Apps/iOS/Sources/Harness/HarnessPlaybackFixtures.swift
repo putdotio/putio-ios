@@ -327,7 +327,8 @@ import SwiftUI
       let subtitles = original.subtitles.map { subtitle in
         PutioCastSubtitle(
           key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
-          name: subtitle.name, url: baseURL.appending(path: "runtime-proof-subtitles.srt"))
+          name: subtitle.name, source: subtitle.source,
+          url: baseURL.appending(path: "runtime-proof-subtitles.srt"))
       }
       let fails = fileID.rawValue == HarnessSeededAPI.failingOriginalFileID
       return PutioPlaybackSource(

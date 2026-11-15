@@ -261,13 +261,18 @@ public struct PutioCastSubtitle: Equatable, Sendable, CustomStringConvertible,
   public let language: String
   public let languageCode: String
   public let name: String
+  public let source: PutioSubtitleSource
   public let url: URL
 
-  public init(key: String, language: String, languageCode: String, name: String, url: URL) {
+  public init(
+    key: String, language: String, languageCode: String, name: String,
+    source: PutioSubtitleSource, url: URL
+  ) {
     self.key = key
     self.language = language
     self.languageCode = languageCode
     self.name = name
+    self.source = source
     self.url = url
   }
 
@@ -282,15 +287,15 @@ public struct PutioCastSubtitle: Equatable, Sendable, CustomStringConvertible,
       self,
       children: [
         "key": key, "language": language, "languageCode": languageCode, "name": name,
-        "url": "<redacted>",
+        "source": source, "url": "<redacted>",
       ],
       displayStyle: .struct)
   }
 }
 
-/// Everything a receiver needs to play one file: a video's HLS stream, where
-/// put.io muxes the subtitles, or an audio file's original stream. The stream
-/// URL is tokened and redacted from every textual rendering.
+/// Everything a receiver needs to play one file: a video's HLS stream with
+/// put.io's subtitle files side-loaded, or an audio file's original stream.
+/// Every URL is tokened and redacted from every textual rendering.
 public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   CustomDebugStringConvertible, CustomReflectable
 {
@@ -309,10 +314,13 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   public let durationSeconds: Double
   public let startFromSeconds: Int
   public let kind: Kind
+  public let subtitles: [PutioCastSubtitle]
+  public let defaultSubtitleKey: String?
 
   public init(
     id: PutioFileID, parentID: PutioFileID, title: String, url: URL, artworkURL: URL?,
-    durationSeconds: Double, startFromSeconds: Int, kind: Kind = .video
+    durationSeconds: Double, startFromSeconds: Int, kind: Kind = .video,
+    subtitles: [PutioCastSubtitle] = [], defaultSubtitleKey: String? = nil
   ) {
     self.id = id
     self.parentID = parentID
@@ -322,6 +330,8 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     self.durationSeconds = durationSeconds
     self.startFromSeconds = startFromSeconds
     self.kind = kind
+    self.subtitles = subtitles
+    self.defaultSubtitleKey = defaultSubtitleKey
   }
 
   public var contentType: String {
@@ -343,7 +353,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
       children: [
         "id": id, "parentID": parentID, "title": title, "url": "<redacted>",
         "durationSeconds": durationSeconds, "startFromSeconds": startFromSeconds,
-        "kind": kind,
+        "kind": kind, "subtitles": subtitles, "defaultSubtitleKey": defaultSubtitleKey as Any,
       ],
       displayStyle: .struct)
   }

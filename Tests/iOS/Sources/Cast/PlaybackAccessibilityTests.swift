@@ -132,7 +132,11 @@ private final class AccessibilityCastReceiver: PutioCastControlling {
 
   func startDiscovery() {}
   func connect(toDevice id: PutioCastDevice.ID) {}
-  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool) async throws {}
+  func load(_ media: PutioCastMedia, startSeconds: Int, autoplay: Bool, activeTrackIDs: [Int])
+    async throws
+  {}
+  func setActiveTrackIDs(_ ids: [Int]) async throws {}
+  func refreshStatus() {}
   func play() async throws {}
   func pause() async throws {}
   func seek(toSeconds seconds: Double) async throws {}

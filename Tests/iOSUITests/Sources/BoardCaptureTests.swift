@@ -901,6 +901,8 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(app.buttons["cast.button"].label, "Cast, connected")
     XCTAssertFalse(element("video.picture-in-picture").exists, "casting kept Picture in Picture")
     XCTAssertFalse(element("video.chip.speed").exists, "casting kept Speed")
+    XCTAssertEqual(element("video.chip.audio").label, "Audio: English")
+    XCTAssertEqual(element("video.chip.subtitles").label, "Subtitles: English")
     try captureBoard("rd-ios-pb-08-casting")
   }
 

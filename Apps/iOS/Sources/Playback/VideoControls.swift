@@ -271,18 +271,16 @@ final class PutioVideoTransport {
 
   var timeline: PutioVideoTimeline { playhead.timeline }
 
-  var selectedAudioTitle: String {
-    selectedAudio.flatMap { index in audioTracks.first { $0.id == index }?.title }
-      ?? String(localized: "Audio")
-  }
-
-  var selectedSubtitleTitle: String {
-    selectedSubtitle.flatMap { index in subtitles.first { $0.id == index }?.title }
-      ?? String(localized: "Off")
-  }
-
   var subtitleMenu: PutioSubtitleMenu {
     PutioSubtitleMenu(tracks: subtitles, listings: engine == nil ? subtitleListings : [])
+  }
+
+  var chipTracks: PutioVideoChipTracks {
+    PutioVideoChipTracks(
+      audioTracks: audioTracks, selectedAudio: selectedAudio,
+      selectAudio: { [weak self] in self?.selectAudio($0) }, subtitleMenu: subtitleMenu,
+      selectedSubtitle: selectedSubtitle, pickSubtitle: { [weak self] in self?.pickSubtitle($0) },
+      enabled: controlsEnabled)
   }
 
   func playerChanged(from old: AVPlayer?, to new: AVPlayer?) {
@@ -1403,7 +1401,7 @@ private struct PutioVideoChipRow: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .coordinateSpace(.named(Self.coordinateSpace))
+    .coordinateSpace(.named(PutioVideoTrackChips.coordinateSpace))
     .popover(
       isPresented: $showsSizeAndTiming,
       attachmentAnchor: .rect(.rect(subtitlesChipFrame)), arrowEdge: .bottom
@@ -1426,8 +1424,6 @@ private struct PutioVideoChipRow: View {
     }
   }
 
-  private static let coordinateSpace = "video.chips"
-
   private func menuPresented(_ button: ObjectIdentifier, _ presented: Bool) {
     if presented {
       openMenus.insert(button)
@@ -1438,39 +1434,20 @@ private struct PutioVideoChipRow: View {
 
   private func chips(iconOnly: Bool) -> some View {
     HStack(spacing: PutioTheme.Spacing.space2) {
-      if !transport.audioTracks.isEmpty {
-        let title = transport.selectedAudioTitle
-        chip(
-          icon: .speakerHigh, title: title, iconOnly: iconOnly,
-          label: String(localized: "Audio: \(title)"), identifier: "video.chip.audio",
-          enabled: transport.audioTracks.count > 1,
-          sections: [
-            PutioVideoChipSection(
-              items: transport.audioTracks.map { track in
-                .choice(
-                  PutioVideoChipChoice(
-                    title: track.title, detail: track.detail,
-                    identifier: "video.audio.\(track.id)",
-                    selected: transport.selectedAudio == track.id
-                  ) { transport.selectAudio(track.id) })
-              })
-          ])
-      }
-      let subtitle = transport.selectedSubtitleTitle
-      chip(
-        icon: .closedCaptioning, title: subtitle, iconOnly: iconOnly,
-        label: String(localized: "Subtitles: \(subtitle)"), identifier: "video.chip.subtitles",
-        sections: subtitleSections
-      )
-      .onGeometryChange(for: CGRect.self) {
-        $0.frame(in: .named(Self.coordinateSpace))
-      } action: {
+      PutioVideoTrackChips(
+        tracks: transport.chipTracks, iconOnly: iconOnly,
+        sizeAndTiming: PutioVideoSizeAndTimingEntry(
+          detail: "\(transport.subtitleSize.title) · \(transport.subtitleTiming.text)"
+        ) { showsSizeAndTiming = true },
+        onChange: onChange, onPresentation: menuPresented
+      ) {
         subtitlesChipFrame = $0
       }
       let speed = transport.speed.title
-      chip(
+      PutioVideoChip(
         icon: .gauge, title: speed, iconOnly: iconOnly,
         label: String(localized: "Playback speed \(speed)"), identifier: "video.chip.speed",
+        enabled: transport.controlsEnabled,
         sections: [
           PutioVideoChipSection(
             items: PutioAudioSpeed.allCases.map { option in
@@ -1480,17 +1457,90 @@ private struct PutioVideoChipRow: View {
                   selected: transport.speed == option
                 ) { transport.setSpeed(option) })
             })
-        ])
+        ], onChange: onChange, onPresentation: menuPresented)
+    }
+  }
+}
+
+struct PutioVideoChipTracks {
+  var audioTracks: [PutioVideoTransport.Track]
+  var selectedAudio: Int?
+  var selectAudio: @MainActor (Int) -> Void
+  var subtitleMenu: PutioSubtitleMenu
+  var selectedSubtitle: Int?
+  var pickSubtitle: @MainActor (Int?) -> Void
+  var enabled: Bool
+
+  var selectedAudioTitle: String {
+    selectedAudio.flatMap { index in audioTracks.first { $0.id == index }?.title }
+      ?? String(localized: "Audio")
+  }
+
+  var selectedSubtitleTitle: String {
+    let rows = subtitleMenu.inFile + subtitleMenu.found + subtitleMenu.unsourced
+    return selectedSubtitle.flatMap { index in rows.first { $0.track.id == index }?.track.title }
+      ?? String(localized: "Off")
+  }
+}
+
+struct PutioVideoSizeAndTimingEntry {
+  let detail: String
+  let open: () -> Void
+}
+
+struct PutioVideoTrackChips: View {
+  let tracks: PutioVideoChipTracks
+  let iconOnly: Bool
+  var sizeAndTiming: PutioVideoSizeAndTimingEntry?
+  let onChange: () -> Void
+  let onPresentation: (ObjectIdentifier, Bool) -> Void
+  var onSubtitlesFrame: ((CGRect) -> Void)?
+
+  static let coordinateSpace = "video.chips"
+
+  var body: some View {
+    if !tracks.audioTracks.isEmpty {
+      let title = tracks.selectedAudioTitle
+      PutioVideoChip(
+        icon: .speakerHigh, title: title, iconOnly: iconOnly,
+        label: String(localized: "Audio: \(title)"), identifier: "video.chip.audio",
+        enabled: tracks.enabled && tracks.audioTracks.count > 1,
+        sections: [
+          PutioVideoChipSection(
+            items: tracks.audioTracks.map { track in
+              .choice(
+                PutioVideoChipChoice(
+                  title: track.title, detail: track.detail,
+                  identifier: "video.audio.\(track.id)",
+                  selected: tracks.selectedAudio == track.id
+                ) { tracks.selectAudio(track.id) })
+            })
+        ], onChange: onChange, onPresentation: onPresentation)
+    }
+    let subtitle = tracks.selectedSubtitleTitle
+    let chip = PutioVideoChip(
+      icon: .closedCaptioning, title: subtitle, iconOnly: iconOnly,
+      label: String(localized: "Subtitles: \(subtitle)"), identifier: "video.chip.subtitles",
+      enabled: tracks.enabled, sections: subtitleSections, onChange: onChange,
+      onPresentation: onPresentation)
+    if let onSubtitlesFrame {
+      chip.onGeometryChange(for: CGRect.self) {
+        $0.frame(in: .named(Self.coordinateSpace))
+      } action: {
+        onSubtitlesFrame($0)
+      }
+    } else {
+      chip
     }
   }
 
   private var subtitleSections: [PutioVideoChipSection] {
-    let menu = transport.subtitleMenu
+    let menu = tracks.subtitleMenu
     let off = PutioVideoChipItem.choice(
       PutioVideoChipChoice(
         title: String(localized: "Off"), identifier: "video.subtitles.off",
-        selected: transport.selectedSubtitle == nil
-      ) { transport.pickSubtitle(nil) })
+        selected: tracks.selectedSubtitle == nil
+      ) { tracks.pickSubtitle(nil) })
     guard !menu.isEmpty else {
       return [
         PutioVideoChipSection(
@@ -1507,20 +1557,19 @@ private struct PutioVideoChipRow: View {
       (String(localized: "Found by put.io"), menu.found),
       (nil, menu.unsourced),
     ]
+    let sizeAndTiming = sizeAndTiming.map { entry in
+      PutioVideoChipSection(items: [
+        .action(
+          PutioVideoChipAction(
+            title: String(localized: "Size and timing"), detail: entry.detail, icon: .textAa,
+            identifier: "video.subtitles.size-and-timing", perform: entry.open))
+      ])
+    }
     return [PutioVideoChipSection(items: [off])]
       + groups.filter { !$0.1.isEmpty }.map { title, rows in
         PutioVideoChipSection(title: title, items: rows.map(subtitleItem))
       }
-      + [
-        PutioVideoChipSection(items: [
-          .action(
-            PutioVideoChipAction(
-              title: String(localized: "Size and timing"),
-              detail: "\(transport.subtitleSize.title) · \(transport.subtitleTiming.text)",
-              icon: .textAa, identifier: "video.subtitles.size-and-timing"
-            ) { showsSizeAndTiming = true })
-        ])
-      ]
+      + (sizeAndTiming.map { [$0] } ?? [])
   }
 
   private func subtitleItem(_ row: PutioSubtitleMenu.Row) -> PutioVideoChipItem {
@@ -1529,8 +1578,8 @@ private struct PutioVideoChipRow: View {
       PutioVideoChipChoice(
         title: track.title, detail: row.source.map(Self.sourceTitle),
         identifier: "video.subtitles.\(track.id)",
-        selected: transport.selectedSubtitle == track.id
-      ) { transport.pickSubtitle(track.id) })
+        selected: tracks.selectedSubtitle == track.id
+      ) { tracks.pickSubtitle(track.id) })
   }
 
   private static func sourceTitle(_ source: PutioSubtitleSource) -> String {
@@ -1540,20 +1589,27 @@ private struct PutioVideoChipRow: View {
     case .openSubtitles: String(localized: "OpenSubtitles")
     }
   }
+}
 
-  private func chip(
-    icon: PutioIcon, title: String, iconOnly: Bool, label: String, identifier: String,
-    enabled: Bool = true, sections: [PutioVideoChipSection]
-  ) -> some View {
-    let enabled = enabled && transport.controlsEnabled
-    return PutioVideoChipLabel(icon: icon, title: title, iconOnly: iconOnly)
+private struct PutioVideoChip: View {
+  let icon: PutioIcon
+  let title: String
+  let iconOnly: Bool
+  let label: String
+  let identifier: String
+  let enabled: Bool
+  let sections: [PutioVideoChipSection]
+  let onChange: () -> Void
+  let onPresentation: (ObjectIdentifier, Bool) -> Void
+
+  var body: some View {
+    PutioVideoChipLabel(icon: icon, title: title, iconOnly: iconOnly)
       .opacity(enabled ? 1 : 0.5)
       .accessibilityHidden(true)
       .overlay {
         PutioVideoChipMenu(
           sections: sections, label: label, identifier: identifier,
-          enabled: enabled, onChange: onChange,
-          onPresentation: menuPresented)
+          enabled: enabled, onChange: onChange, onPresentation: onPresentation)
       }
   }
 }
