@@ -154,7 +154,7 @@ struct PutioVideoPlaybackView: View {
     ZStack {
       content
       if !transport.subtitleCues.isEmpty {
-        PutioVideoSubtitleOverlay(cues: transport.subtitleCues)
+        PutioVideoSubtitleOverlay(cues: transport.subtitleCues, size: transport.subtitleSize)
       }
       if isReady, nextVideoFailed {
         nextVideoFailure
@@ -256,6 +256,15 @@ struct PutioVideoPlaybackView: View {
                 .accessibilityLabel("Shown subtitle text")
                 .accessibilityValue(shownSubtitleText)
                 .accessibilityIdentifier("video.subtitle-text")
+                .allowsHitTesting(false)
+            }
+            if let shownCaption = transport.shownCaption {
+              Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Shown caption")
+                .accessibilityValue(shownCaption)
+                .accessibilityIdentifier("video.caption-shown")
                 .allowsHitTesting(false)
             }
             if let selectedSubtitle {

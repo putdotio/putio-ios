@@ -24,7 +24,8 @@ final class PutioDirectPlayEngine {
   func claim(by owner: AnyObject) throws -> AetherEngine {
     let engine = try engine ?? AetherEngine()
     if self.engine == nil {
-      engine.maximumSubtitleOffsetSeconds = 0
+      engine.maximumSubtitleAdvanceSeconds = 0
+      engine.maximumSubtitleDelaySeconds = PutioSubtitleTiming.limitSeconds
       engine.retainsVideoPipelineWhenBackgrounded = true
       engine.deactivatesAudioSessionOnStop = true
     }
@@ -363,39 +364,5 @@ final class PutioDirectPlayCoordinator {
       return .playback
     }
     return PutioVideoPlayerFault(error: NSError(domain: domain, code: code))
-  }
-}
-
-struct PutioVideoSubtitleOverlay: View {
-  let cues: [PutioVideoCue]
-
-  var body: some View {
-    GeometryReader { geometry in
-      ZStack(alignment: .bottom) {
-        ForEach(cues) { cue in
-          if let image = cue.image, let position = cue.position {
-            Image(decorative: image, scale: 1)
-              .resizable()
-              .frame(
-                width: position.width * geometry.size.width,
-                height: position.height * geometry.size.height
-              )
-              .position(
-                x: position.midX * geometry.size.width, y: position.midY * geometry.size.height)
-          } else if let text = cue.text, !text.isEmpty {
-            Text(text)
-              .putioFont(PutioTheme.Typography.body)
-              .foregroundStyle(.white)
-              .multilineTextAlignment(.center)
-              .shadow(color: .black, radius: 2)
-              .padding(.horizontal, PutioTheme.Spacing.space4)
-              .padding(.bottom, PutioTheme.Spacing.space6)
-              .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-              .accessibilityIdentifier("video.subtitle-cue")
-          }
-        }
-      }
-    }
-    .allowsHitTesting(false)
   }
 }

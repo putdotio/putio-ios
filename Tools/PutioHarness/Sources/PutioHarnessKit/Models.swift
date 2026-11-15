@@ -860,6 +860,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-03-subtitles", .iphone, "testSubtitlesMenu"),
       BoardCapture("rd-ios-pb-14-ipad-subtitles", .ipad, "testSubtitlesMenu"),
       BoardCapture("rd-ios-pb-20-no-subtitles", .iphone, "testNoSubtitles"),
+      BoardCapture("rd-ios-pb-22-size-and-timing", .iphone, "testSubtitleSizeAndTiming"),
+      BoardCapture(
+        "ipad-size-and-timing", .ipad, "testSubtitleSizeAndTiming", screenBase: false),
       BoardCapture("rd-ios-pb-38-subtitles-failed", .iphone, "testSubtitlesFailed"),
       BoardCapture("rd-ios-pb-21-up-next", .iphone, "testVideoUpNext"),
       BoardCapture("rd-ios-pb-35-next-episode", .iphone, "testVideoNextEpisode"),
@@ -1470,6 +1473,10 @@ enum BrowserJourneyContract {
         "runtime-subtitles-sources", "runtime-subtitles-none", "runtime-subtitles-failed",
       ],
       timeAllowance: 420),
+    JourneyPreflight(
+      "subtitle-size-timing",
+      "SubtitlesJourneyTests/testSizeAndTimingScaleTheCaptionShiftItsCuesAndResetForTheNextFile",
+      attachmentNames: ["runtime-size-and-timing"], timeAllowance: 300),
     JourneyPreflight(
       "video-chips",
       "SubtitlesJourneyTests/testChipsShowTheChoicesAndStayUpWithAMenuBesidePictureInPicture",

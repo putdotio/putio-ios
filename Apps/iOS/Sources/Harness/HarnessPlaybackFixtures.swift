@@ -78,6 +78,18 @@ import SwiftUI
     }
   }
 
+  enum HarnessSubtitleSize {
+    private static var reset = false
+
+    static func resetOnLaunch(_ defaults: UserDefaults) {
+      guard !reset, HarnessLaunch.arguments.contains(HarnessScenario.launchArgument) else {
+        return
+      }
+      reset = true
+      defaults.removeObject(forKey: PutioSubtitleSizeMemory.key)
+    }
+  }
+
   struct HarnessFileSelectionProbe: View {
     let route: PutioFileRoute
 

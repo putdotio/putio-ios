@@ -13,6 +13,7 @@
       case one
       case three
       case failing
+      case timed
     }
 
     static let tracksArgument = "--putio-harness-subtitle-tracks"
@@ -41,6 +42,7 @@
       case .one?: return "multi-audio/multi-subtitles-one.m3u8"
       case .three?: return "multi-audio/multi-subtitles-three.m3u8"
       case .failing?: return "multi-audio/multi-subtitles-failing.m3u8"
+      case .timed?: return "multi-audio/multi-subtitles-timed.m3u8"
       case nil: break
       }
       if account.dontAutoSelectSubtitles { return "multi-audio/multi-subtitles-unselected.m3u8" }
@@ -54,7 +56,7 @@
       let subtitles: [(key: String, code: String, language: String, source: String)] =
         switch tracks {
         case .none: []
-        case .one: [("en-mkv", "eng", "English", "mkv")]
+        case .one, .timed: [("en-mkv", "eng", "English", "mkv")]
         case .three:
           [
             ("en-mkv", "eng", "English", "mkv"), ("es", "spa", "Spanish", "folder"),

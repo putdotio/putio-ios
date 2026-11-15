@@ -46,11 +46,13 @@ renditions above in the shapes put.io's HLS endpoint serves for
 - `multi-subtitles-failing.m3u8`: English; Turkish, whose playlist the
   server does not have; and German, whose playlist names a segment the server
   does not have. Selecting either fails with a 404.
+- `multi-subtitles-timed.m3u8`: English from `multi-subtitle-Timed.vtt`, five
+  cues of 4 seconds each ("First line" to "Fifth line"), for cue timing.
 
 These masters declare `CLOSED-CAPTIONS=NONE`, as put.io does. The subtitles
 journey streams them with `--putio-harness-subtitled-stream`, and
-`--putio-harness-subtitle-tracks none|one|three|failing` picks the hidden, one,
-three or failing master.
+`--putio-harness-subtitle-tracks none|one|three|failing|timed` picks the hidden,
+one, three, failing or timed master.
 
 The audio menu journey streams two more masters with
 `--putio-harness-audio-tracks`: `multi-audio-one.m3u8` keeps only the English

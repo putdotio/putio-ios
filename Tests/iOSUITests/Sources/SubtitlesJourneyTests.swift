@@ -188,9 +188,8 @@ final class SubtitlesJourneyTests: XCTestCase {
       let label = app.buttons["video.subtitles.\(row)"].label
       XCTAssertTrue(label.contains(source), "row \(row) reads \(label)")
     }
-    let sizeAndTiming = app.buttons["video.subtitles.size-and-timing"]
-    XCTAssertTrue(sizeAndTiming.exists, "the menu lacks Size and timing")
-    XCTAssertFalse(sizeAndTiming.isEnabled, "Size and timing is enabled before its issue")
+    XCTAssertTrue(
+      app.buttons["video.subtitles.size-and-timing"].exists, "the menu lacks Size and timing")
     screenshot("runtime-subtitles-sources")
     pick(app.buttons["video.subtitles.1"])
     XCTAssertTrue(waitForLabel(chip, "Subtitles: Spanish"), chip.label)
@@ -286,6 +285,91 @@ final class SubtitlesJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  func testSizeAndTimingScaleTheCaptionShiftItsCuesAndResetForTheNextFile() throws {
+    launch(tracks: "timed", signingIn: true)
+    openVideo(retryingSeededFailure: true, startingOver: true)
+    let subtitle = element("video.subtitle")
+    XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
+    let caption = element("video.subtitle-cue")
+    XCTAssertTrue(caption.appears(within: 10), "no caption showed")
+    let mediumHeight = caption.frame.height
+
+    openSizeAndTiming(detail: "Medium · 0.0 s")
+    let position = element("video.current-position")
+    let openedAt = position.value as? String ?? ""
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value != %@", openedAt), position, timeout: 10),
+      "playback stopped while Size and timing was open")
+    screenshot("runtime-size-and-timing")
+    closeSizeAndTiming()
+    app.setVideoPlaying(false, with: element("video.play-pause"))
+
+    openSizeAndTiming(detail: "Medium · 0.0 s")
+    app.buttons["Extra large"].tap()
+    let timing = app.steppers["video.subtitle-timing"]
+    for _ in 0..<5 { timing.buttons.element(boundBy: 1).tap() }
+    XCTAssertTrue(waitForValue(timing, "+0.5 s"), "timing: \(timing.value ?? "")")
+    closeSizeAndTiming()
+    XCTAssertTrue(
+      waitFor(
+        NSPredicate(format: "frame.size.height > %f", mediumHeight * 1.3), caption, timeout: 10),
+      "Extra large left the caption at \(caption.frame.height) pt from \(mediumHeight) pt")
+    try assertSecondLineShows(at: 4.5)
+
+    openSizeAndTiming(detail: "Extra large · +0.5 s")
+    app.buttons["video.subtitle-timing.reset"].tap()
+    XCTAssertTrue(waitForValue(timing, "0.0 s"), "Reset left \(timing.value ?? "")")
+    for _ in 0..<5 { timing.buttons.element(boundBy: 0).tap() }
+    XCTAssertTrue(waitForValue(timing, "\u{2212}0.5 s"), "timing: \(timing.value ?? "")")
+    closeSizeAndTiming()
+    try assertSecondLineShows(at: 3.5)
+    app.closeVideo()
+
+    openVideo(retryingSeededFailure: false, startingOver: true)
+    openSizeAndTiming(detail: "Extra large · 0.0 s")
+    closeSizeAndTiming()
+    app.closeVideo()
+  }
+
+  private func openSizeAndTiming(detail: String) {
+    openChip("subtitles")
+    let row = app.buttons["video.subtitles.size-and-timing"]
+    XCTAssertTrue(row.appears(within: 5), "the menu lacks Size and timing")
+    XCTAssertTrue(row.isEnabled, "Size and timing is disabled")
+    XCTAssertTrue(row.label.contains(detail), "Size and timing reads \(row.label)")
+    row.tap()
+    XCTAssertTrue(
+      app.steppers["video.subtitle-timing"].appears(within: 5), "Size and timing never opened")
+  }
+
+  private func closeSizeAndTiming() {
+    let close = app.buttons["sheet.trailing"]
+    XCTAssertTrue(close.appears(within: 5))
+    close.tap()
+    XCTAssertTrue(
+      app.steppers["video.subtitle-timing"].disappears(within: 5), "Size and timing stayed open")
+  }
+
+  private func assertSecondLineShows(at expected: Double) throws {
+    let back = element("video.skip-back")
+    for _ in 0..<2 {
+      app.revealVideoControls(showing: back)
+      back.tap()
+    }
+    let shown = element("video.caption-shown")
+    app.setVideoPlaying(true, with: element("video.play-pause"))
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value BEGINSWITH 'First line@'"), shown, timeout: 15),
+      "First line never showed from the start: \(shown.value ?? "")")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value BEGINSWITH 'Second line@'"), shown, timeout: 15),
+      "Second line never showed: \(shown.value ?? "")")
+    let value = try XCTUnwrap(shown.value as? String)
+    let seconds = try XCTUnwrap(Double(value.split(separator: "@").last ?? ""))
+    XCTAssertEqual(seconds, expected, accuracy: 0.2, "Second line showed at \(seconds) s")
+    app.setVideoPlaying(false, with: element("video.play-pause"))
   }
 
   private func closeMenu() {
