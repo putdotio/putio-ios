@@ -100,7 +100,7 @@ final class ChromecastJourneyTests: XCTestCase {
     let bar = element("cast.bar")
     XCTAssertTrue(bar.appears(within: 5))
     XCTAssertEqual(element("cast.bar.title").label, "Root Movie.mkv")
-    XCTAssertTrue(element("cast.bar.status").label.hasPrefix("Playing on Harness TV"))
+    XCTAssertTrue(element("cast.bar.status").label.hasPrefix("Playing on Living Room TV"))
     app.buttons["Downloads"].tap()
     XCTAssertTrue(bar.appears(within: 5))
     app.buttons["Files"].tap()
@@ -183,7 +183,7 @@ final class ChromecastJourneyTests: XCTestCase {
       "Cast did not explain Local Network")
     XCTAssertTrue(app.staticTexts["Turn it on in Settings to find Cast devices."].exists)
     XCTAssertTrue(app.buttons["cast.local-network.settings"].exists, "no Open Settings")
-    XCTAssertFalse(app.buttons["cast.picker.device"].exists, "the picker opened anyway")
+    XCTAssertFalse(element("cast.picker").exists, "the picker opened anyway")
     screenshot("runtime-cast-local-network-off")
     app.buttons["cast.local-network.cancel"].tap()
     XCTAssertTrue(
@@ -201,6 +201,81 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testPickerListsDevicesWhilePlaybackContinuesAndConnects() throws {
+    let row = element("files.item.412")
+    let castButton = app.buttons["cast.button"]
+    let position = element("video.current-position")
+
+    launchSignedIn()
+    openLocally(row, paused: false)
+    let before = try XCTUnwrap(Int(position.value as? String ?? ""), "no playback position")
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    XCTAssertTrue(app.staticTexts["Cast to"].appears(within: 5), "Cast opened no picker")
+    let tv = app.buttons["cast.picker.device.living-room-tv"]
+    let speaker = app.buttons["cast.picker.device.kitchen-speaker"]
+    XCTAssertTrue(tv.label.contains("Living Room TV"), tv.label)
+    XCTAssertTrue(tv.label.contains("Chromecast with Google TV"), tv.label)
+    XCTAssertTrue(speaker.label.contains("Kitchen speaker"), speaker.label)
+    XCTAssertTrue(speaker.label.contains("Audio only"), speaker.label)
+    let searching = element("cast.picker.searching")
+    XCTAssertTrue(searching.exists, "the picker never said it was searching")
+    XCTAssertTrue(searching.label.contains("Looking for devices…"), searching.label)
+    XCTAssertGreaterThan(searching.frame.minY, speaker.frame.minY, "searching is not last")
+    XCTAssertFalse(element("cast.picker.stop").exists, "Stop casting showed while disconnected")
+    screenshot("runtime-cast-picker")
+    XCTAssertFalse(waitUntil(timeout: 3) { !tv.exists }, "the picker closed on its own")
+    app.buttons["sheet.trailing"].tap()
+    XCTAssertTrue(tv.disappears(within: 5), "Close kept the picker")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { Int(position.value as? String ?? "") ?? 0 >= before + 3 },
+      "playback stopped while the picker was open: \(before) -> \(position.value ?? "")")
+
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
+    tv.tap()
+    XCTAssertTrue(tv.disappears(within: 5), "choosing a device kept the picker open")
+    app.revealVideoControls(showing: castButton)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { castButton.label == "Cast, connected" },
+      "session never connected: \(castButton.label)")
+
+    castButton.tap()
+    XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
+    XCTAssertTrue(tv.isSelected, "the connected device is not marked")
+    let stop = app.buttons["cast.picker.stop"]
+    XCTAssertTrue(stop.exists, "no Stop casting while connected")
+    stop.tap()
+    XCTAssertTrue(stop.disappears(within: 5), "Stop casting kept the picker")
+    app.revealVideoControls(showing: castButton)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { castButton.label == "Cast" },
+      "Stop casting kept the session: \(castButton.label)")
+    app.closeVideo()
+
+    app.terminate()
+    app.launchArguments += ["--putio-harness-episode-conversion", "completes-late"]
+    launchSignedIn()
+    for id in [410, 440, 441] {
+      let item = element("files.item.\(id)")
+      XCTAssertTrue(item.becomesHittable(within: 10), "files.item.\(id) never appeared")
+      item.tap()
+    }
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    XCTAssertTrue(castButton.appears(within: 10), "the conversion gate offers no Cast")
+    XCTAssertFalse(element("video.ready").exists, "the conversion finished before Cast")
+    castButton.tap()
+    XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
+    XCTAssertFalse(
+      waitUntil(timeout: 15) { !tv.exists }, "the picker closed when the converted video started")
+    app.buttons["sheet.trailing"].tap()
+    XCTAssertTrue(tv.disappears(within: 5), "Close kept the picker")
+    XCTAssertTrue(element("video.ready").appears(within: 2), "the converted video never played")
+    app.closeVideo()
+  }
+
   private func launchSignedIn() {
     app.launch()
     let signIn = element("auth.sign-in")
@@ -208,7 +283,7 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
-  private func openLocally(_ row: XCUIElement) {
+  private func openLocally(_ row: XCUIElement, paused: Bool = true) {
     row.tap()
     let ready = element("video.ready")
     let resume = app.buttons["video.resume.resume"]
@@ -225,14 +300,14 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(ready.appears(within: 20), "the local player never played")
     let playPause = element("video.play-pause")
     _ = playPause.disappears(within: 6)
-    app.setVideoPlaying(false, with: playPause)
+    app.setVideoPlaying(!paused, with: playPause)
   }
 
   private func connectFromPlayer() {
     let castButton = app.buttons["cast.button"]
     app.revealVideoControls(showing: castButton)
     castButton.tap()
-    let device = app.buttons["cast.picker.device"]
+    let device = app.buttons["cast.picker.device.living-room-tv"]
     XCTAssertTrue(device.appears(within: 5), "Cast opened no picker")
     device.tap()
     XCTAssertTrue(device.disappears(within: 5), "the picker stayed open")

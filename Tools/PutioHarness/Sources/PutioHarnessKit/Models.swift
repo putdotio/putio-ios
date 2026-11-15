@@ -866,6 +866,11 @@ enum BoardCaptureContract {
       BoardCapture("ipad-video-up-next", .ipad, "testVideoUpNext", screenBase: false),
       BoardCapture("ipad-video-next-episode", .ipad, "testVideoNextEpisode", screenBase: false),
       BoardCapture("video-next-not-found", .iphone, "testVideoNextNotFound"),
+      BoardCapture("rd-ios-pb-31-cast-picker", .iphone, "testCastPicker"),
+      BoardCapture("rd-ios-pb-33-local-network-off", .iphone, "testCastLocalNetworkOff"),
+      BoardCapture("ipad-cast-picker", .ipad, "testCastPicker"),
+      BoardCapture(
+        "ipad-local-network-off", .ipad, "testCastLocalNetworkOff", screenBase: false),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
       BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
@@ -1238,6 +1243,11 @@ enum BrowserJourneyContract {
       attachmentNames: [
         "runtime-cast-routes", "runtime-cast-routes-no-device", "runtime-cast-local-network-off",
       ],
+      timeAllowance: 240),
+    JourneyPreflight(
+      "cast-picker",
+      "ChromecastJourneyTests/testPickerListsDevicesWhilePlaybackContinuesAndConnects",
+      attachmentNames: ["runtime-cast-picker"],
       timeAllowance: 240),
     JourneyPreflight(
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",

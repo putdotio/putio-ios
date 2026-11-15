@@ -490,6 +490,17 @@
         }
       }
     },
+    "Audio only" : {
+      "comment" : "android: mobile_cast_audio_only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio only"
+          }
+        }
+      }
+    },
     "Audio output" : {
       "comment" : "ios-only: no Android string for the iOS audio player",
       "localizations" : {
@@ -652,6 +663,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cast receiver"
+          }
+        }
+      }
+    },
+    "Cast to" : {
+      "comment" : "android: mobile_cast_to",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cast to"
           }
         }
       }
@@ -2295,6 +2317,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Local network access is off"
+          }
+        }
+      }
+    },
+    "Looking for devices…" : {
+      "comment" : "android: mobile_cast_searching",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking for devices…"
           }
         }
       }

@@ -797,6 +797,34 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-45-no-cast-device")
   }
 
+  func testCastPicker() throws {
+    playBoardEpisode()
+    let castButton = app.buttons["cast.button"]
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    let speaker = app.buttons["cast.picker.device.kitchen-speaker"]
+    XCTAssertTrue(speaker.appears(within: 5), "Cast opened no picker")
+    XCTAssertTrue(app.staticTexts["Cast to"].exists, "the picker has no title")
+    XCTAssertTrue(speaker.label.contains("Audio only"), speaker.label)
+    XCTAssertTrue(element("cast.picker.searching").exists, "the picker is not searching")
+    try captureBoard("rd-ios-pb-31-cast-picker")
+  }
+
+  func testCastLocalNetworkOff() throws {
+    playBoardEpisode(["--putio-harness-cast-local-network-denied"])
+    let castButton = app.buttons["cast.button"]
+    app.revealVideoControls(showing: castButton)
+    castButton.tap()
+    XCTAssertTrue(
+      app.staticTexts["Local network access is off"].appears(within: 5),
+      "Cast did not explain Local Network")
+    XCTAssertTrue(app.staticTexts["Turn it on in Settings to find Cast devices."].exists)
+    XCTAssertTrue(app.buttons["cast.local-network.cancel"].exists, "no Cancel")
+    XCTAssertTrue(app.buttons["cast.local-network.settings"].exists, "no Open Settings")
+    XCTAssertFalse(element("cast.picker").exists, "the picker opened anyway")
+    try captureBoard("rd-ios-pb-33-local-network-off")
+  }
+
   func testVideoAirPlay() throws {
     playBoardEpisode(["--putio-harness-airplay-device", "Living Room"])
     let placeholder = element("video.airplay-placeholder")

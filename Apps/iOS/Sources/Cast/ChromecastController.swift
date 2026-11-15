@@ -11,10 +11,13 @@ import UIKit
 @MainActor
 final class PutioGoogleCastController: NSObject, PutioCastControlling {
   private(set) var connection: PutioCastConnection = .unavailable
+  private(set) var discovery = PutioCastDiscovery()
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
+  var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
 
   private let localNetwork = PutioLocalNetworkProbe()
+  private var pendingDeviceID: PutioCastDevice.ID?
   private var localNetworkDenied = false
 
   private var loadedFileID: PutioFileID?
@@ -70,6 +73,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     super.init()
     let context = GCKCastContext.sharedInstance()
     context.sessionManager.add(self)
+    context.discoveryManager.add(self)
     castStateObservation = NotificationCenter.default.addObserver(
       forName: NSNotification.Name.gckCastStateDidChange, object: context, queue: .main
     ) { [weak self] _ in
@@ -79,10 +83,12 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       client.add(self)
     }
     castStateChanged()
+    discoveryChanged()
   }
 
   // The Cast SDK is main-thread only, so teardown stays on the main actor.
   isolated deinit {
+    GCKCastContext.sharedInstance().discoveryManager.remove(self)
     let sessionManager = GCKCastContext.sharedInstance().sessionManager
     sessionManager.remove(self)
     sessionManager.currentCastSession?.remoteMediaClient?.remove(self)
@@ -112,8 +118,26 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     }
   }
 
-  func presentDevicePicker() {
-    GCKCastContext.sharedInstance().presentCastDialog()
+  func connect(toDevice id: PutioCastDevice.ID) {
+    let sessionManager = GCKCastContext.sharedInstance().sessionManager
+    guard sessionManager.currentSession != nil else {
+      startSession(on: id)
+      return
+    }
+    pendingDeviceID = id
+    endCurrentSession()
+  }
+
+  private func startPendingSession() {
+    guard let pendingDeviceID else { return }
+    self.pendingDeviceID = nil
+    startSession(on: pendingDeviceID)
+  }
+
+  private func startSession(on id: PutioCastDevice.ID) {
+    let context = GCKCastContext.sharedInstance()
+    guard let device = context.discoveryManager.device(withUniqueID: id) else { return }
+    _ = context.sessionManager.startSession(with: device)
   }
 
   /// A new load supersedes every request still in flight (an earlier load or
@@ -196,6 +220,11 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   }
 
   func endSession() {
+    pendingDeviceID = nil
+    endCurrentSession()
+  }
+
+  private func endCurrentSession() {
     abandonPendingRequests()
     loadedFileID = nil
     loadedSubtitles = []
@@ -264,9 +293,40 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       case .connected: .connected(deviceName: name)
       @unknown default: .disconnected
       }
+    discoveryChanged()
     guard next != connection else { return }
     connection = next
     onConnectionChanged?(next)
+  }
+
+  private func discoveryChanged() {
+    let context = GCKCastContext.sharedInstance()
+    let manager = context.discoveryManager
+    let selectedID = context.sessionManager.currentCastSession?.device.uniqueID
+    let devices = (0..<manager.deviceCount).map { index in
+      Self.device(manager.device(at: index), selectedID: selectedID)
+    }
+    let next = PutioCastDiscovery(
+      devices: devices, isSearching: manager.discoveryState == .running)
+    guard next != discovery else { return }
+    discovery = next
+    onDiscoveryChanged?(next)
+  }
+
+  private static func device(_ device: GCKDevice, selectedID: String?) -> PutioCastDevice {
+    let audioOnly = !device.hasCapabilities(.videoOut)
+    let kind: PutioCastDevice.Kind =
+      switch device.type {
+      case .TV: .tv
+      case .speaker, .speakerGroup: .speaker
+      case .generic, .nearbyUnpaired: audioOnly ? .speaker : .other
+      @unknown default: .other
+      }
+    return PutioCastDevice(
+      id: device.uniqueID,
+      name: device.friendlyName ?? device.modelName ?? String(localized: "Chromecast"),
+      model: device.modelName, kind: kind, audioOnly: audioOnly,
+      isSelected: device.uniqueID == selectedID)
   }
 
   private static let fileIDKey = "putio_file_id"
@@ -332,13 +392,27 @@ extension PutioGoogleCastController: GCKSessionManagerListener {
       loadedSubtitles = []
       abandonPendingRequests()
       castStateChanged()
+      startPendingSession()
     }
   }
 
   nonisolated func sessionManager(
     _ sessionManager: GCKSessionManager, didFailToStart session: GCKSession, withError error: Error
   ) {
-    MainActor.assumeIsolated { castStateChanged() }
+    MainActor.assumeIsolated {
+      castStateChanged()
+      startPendingSession()
+    }
+  }
+}
+
+extension PutioGoogleCastController: GCKDiscoveryManagerListener {
+  nonisolated func didStartDiscovery(forDeviceCategory deviceCategory: String) {
+    MainActor.assumeIsolated { discoveryChanged() }
+  }
+
+  nonisolated func didUpdateDeviceList() {
+    MainActor.assumeIsolated { discoveryChanged() }
   }
 }
 
