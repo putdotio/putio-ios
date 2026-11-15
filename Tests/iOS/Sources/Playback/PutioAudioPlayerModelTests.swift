@@ -1061,6 +1061,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await waitUntil { h.model.isPlaying && h.model.isOnReceiver }
     XCTAssertEqual(h.engine.events.last, "stop")
     XCTAssertEqual(receiver.events, ["load:430.mp3@64", "play:1.0"])
+    receiver.onPositionChanged?(64)
     receiver.onPositionChanged?(80)
 
     playback.sleepTimer.start(.fifteenMinutes)
