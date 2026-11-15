@@ -28,10 +28,6 @@ public struct PutioSubtitleTiming: Equatable, Sendable {
 
   public var seconds: Double { Double(tenths) / 10 }
 
-  public var canMoveEarlier: Bool { tenths > -Self.limitTenths }
-  public var canMoveLater: Bool { tenths < Self.limitTenths }
-  public var isShifted: Bool { tenths != 0 }
-
   public mutating func moveEarlier() {
     tenths = max(tenths - 1, -Self.limitTenths)
   }
@@ -56,8 +52,6 @@ public struct PutioSubtitleChanges<Cue: Sendable>: Sendable {
   private var changes: [(time: Double, cues: [Cue])] = []
 
   public init() {}
-
-  public var isEmpty: Bool { changes.isEmpty }
 
   public mutating func record(_ cues: [Cue], at time: Double) {
     guard time.isFinite else { return }

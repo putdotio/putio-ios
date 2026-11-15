@@ -1483,7 +1483,7 @@ private struct PutioVideoChipRow: View {
           items: [
             off,
             .unavailable(
-              title: String(localized: "No captions available"), icon: nil,
+              title: String(localized: "No captions available"),
               identifier: "video.subtitles.none"),
           ])
       ]
@@ -1598,7 +1598,7 @@ private struct PutioVideoChipAction: Equatable {
 private enum PutioVideoChipItem: Equatable {
   case choice(PutioVideoChipChoice)
   case action(PutioVideoChipAction)
-  case unavailable(title: String, icon: PutioIcon?, identifier: String)
+  case unavailable(title: String, identifier: String)
 }
 
 private struct PutioVideoChipSection: Equatable {
@@ -1667,10 +1667,8 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
       action.subtitle = item.detail
       action.accessibilityIdentifier = item.identifier
       return action
-    case .unavailable(let title, let icon, let identifier):
-      let action = UIAction(
-        title: title, image: icon.flatMap { UIImage(putioIcon: $0) }, attributes: .disabled
-      ) { _ in }
+    case .unavailable(let title, let identifier):
+      let action = UIAction(title: title, attributes: .disabled) { _ in }
       action.accessibilityIdentifier = identifier
       return action
     }

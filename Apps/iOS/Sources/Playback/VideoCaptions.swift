@@ -68,10 +68,6 @@ final class PutioVideoCaptionFeed: NSObject, AVPlayerItemLegibleOutputPushDelega
     changes.removeAll()
   }
 
-  func restart() {
-    changes.removeAll()
-  }
-
   func cues(at time: Double, offset: Double) -> [PutioVideoCue] {
     changes.forget(before: time - PutioSubtitleTiming.limitSeconds)
     return changes.cues(at: time, offset: offset)

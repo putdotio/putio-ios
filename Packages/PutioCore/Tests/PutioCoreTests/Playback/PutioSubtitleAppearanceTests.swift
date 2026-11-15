@@ -14,14 +14,11 @@ final class PutioSubtitleAppearanceTests: XCTestCase {
     XCTAssertEqual(timing.text, "\u{2212}0.7 s")
     timing.reset()
     XCTAssertEqual(timing.text, "0.0 s")
-    XCTAssertFalse(timing.isShifted)
 
     for _ in 0..<150 { timing.moveLater() }
     XCTAssertEqual(timing.text, "+10.0 s")
-    XCTAssertFalse(timing.canMoveLater)
     for _ in 0..<250 { timing.moveEarlier() }
     XCTAssertEqual(timing.text, "\u{2212}10.0 s")
-    XCTAssertFalse(timing.canMoveEarlier)
   }
 
   func testAChangeShowsOffsetSecondsAfterItsTime() {
