@@ -221,6 +221,7 @@ final class ChromecastJourneyTests: XCTestCase {
     let row = element("files.item.412")
     let castButton = app.buttons["cast.button"]
     let position = element("video.current-position")
+    app.launchArguments.removeAll { $0 == "--putio-harness-cast-load-fails-once" }
 
     launchSignedIn()
     openLocally(row, paused: false)
@@ -247,11 +248,22 @@ final class ChromecastJourneyTests: XCTestCase {
       waitUntil(timeout: 10) { Int(position.value as? String ?? "") ?? 0 >= before + 3 },
       "playback stopped while the picker was open: \(before) -> \(position.value ?? "")")
 
+    let local = try XCTUnwrap(Int(position.value as? String ?? ""), "no playback position")
     app.revealVideoControls(showing: castButton)
     castButton.tap()
     XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
     tv.tap()
     XCTAssertTrue(tv.disappears(within: 5), "choosing a device kept the picker open")
+    XCTAssertTrue(
+      element("cast.playing").appears(within: 15), "the playing video stayed on the phone")
+    XCTAssertEqual(
+      element("cast.load-requests").value as? String, "/v2/files/412/hls/media.m3u8",
+      "the receiver loaded something other than the playing video")
+    let receiver = try XCTUnwrap(
+      (element("video.scrubber").value as? String).flatMap(Self.seconds), "no receiver position")
+    XCTAssertTrue(
+      (local...local + 20).contains(receiver),
+      "the receiver started at \(receiver) s, not at the phone's \(local) s")
     app.revealVideoControls(showing: castButton)
     XCTAssertTrue(
       waitUntil(timeout: 5) { castButton.label == "Cast, connected" },

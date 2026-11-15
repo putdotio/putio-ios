@@ -38,6 +38,7 @@ struct PutioVideoPlaybackView: View {
   private let onPlayNext: @MainActor @Sendable (PutioPlayableNextVideo) -> Void
   private let castButton: AnyView?
   private let onCast: (@MainActor @Sendable () -> Void)?
+  private let castHandOff: PutioVideoConvertedHandOff?
   private let onOpenInVLC: (() -> Void)?
   private let onFallback: @MainActor @Sendable () -> Void
   private let onFallbackPlays: @MainActor @Sendable () -> Void
@@ -67,7 +68,7 @@ struct PutioVideoPlaybackView: View {
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
-    castsConverted: PutioVideoConvertedHandOff? = nil,
+    castHandOff: PutioVideoConvertedHandOff? = nil,
     onOpenInVLC: (() -> Void)? = nil,
     onFallback: @escaping @MainActor @Sendable () -> Void = {},
     onFallbackPlays: @escaping @MainActor @Sendable () -> Void = {},
@@ -88,6 +89,7 @@ struct PutioVideoPlaybackView: View {
     transport.onSubtitleFailed = { subtitleMemory?.forget($0) }
     _transport = State(initialValue: transport)
     self.onCast = onCast
+    self.castHandOff = castHandOff
     self.onOpenInVLC = onOpenInVLC
     self.fileID = route.id
     self.title = route.title
@@ -131,7 +133,7 @@ struct PutioVideoPlaybackView: View {
           let choice = await resumePrompter.ask(positionSeconds: source.startFromSeconds)
           return PutioVideoStart.source(source, startingWith: choice ?? .resume)
         },
-        handOffConverted: castsConverted,
+        handOffConverted: castHandOff,
         resolveConverted: resolveConverted.map { resolveConverted in
           { fileID in
             await positionPipeline.waitForPendingReports(fileID: fileID)
@@ -204,6 +206,11 @@ struct PutioVideoPlaybackView: View {
     .onChange(of: nextVideoModel.state) { _, state in
       guard case .playing(let nextVideo) = state else { return }
       onPlayNext(nextVideo)
+    }
+    .onChange(of: castHandOff?.isAvailable() == true) { _, connected in
+      guard connected, isReady, transport.isPlaying, let castHandOff else { return }
+      _ = castHandOff.handOff(
+        PutioVideoPositionReporter.normalizedPosition(seconds: transport.timeline.elapsedSeconds))
     }
     .onChange(of: nextVideoFailed) { _, failed in
       if failed, transport.isPlaying { transport.togglePlayPause() }
