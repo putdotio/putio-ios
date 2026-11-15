@@ -917,10 +917,8 @@ struct MainTabView: View {
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
-      onFallback: {
-        convertedFallbacks.remember(route.id)
-        SentryTelemetry.reportFallback()
-      },
+      onFallback: { SentryTelemetry.reportFallback() },
+      onFallbackPlays: { convertedFallbacks.remember(route.id) },
       resolveConverted: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method, playsConverted: true)
       },
@@ -1042,7 +1040,9 @@ struct MainTabView: View {
       if source.original != nil {
         return .ready(try HarnessDirectPlay.source(for: source, fileID: fileID))
       }
-      if HarnessDirectPlay.isConverted(source) {
+      if fileID.rawValue == HarnessSeededAPI.failingOriginalFileID,
+        HarnessDirectPlay.isConverted(source)
+      {
         return .ready(try HarnessDirectPlay.converted(source))
       }
       if let fault = HarnessVideoFaults.next() {

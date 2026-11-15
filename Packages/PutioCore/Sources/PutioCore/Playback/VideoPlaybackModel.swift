@@ -173,6 +173,7 @@ public final class PutioVideoPlaybackModel {
 
   public private(set) var state: PutioVideoPlaybackState = .loading
   public private(set) var playerAttempt: UInt64 = 0
+  public private(set) var playsConvertedFallback = false
 
   @ObservationIgnored private let fileID: PutioFileID
   @ObservationIgnored private let resolve: PutioPlaybackResolve
@@ -455,6 +456,7 @@ public final class PutioVideoPlaybackModel {
   }
 
   private func play(_ source: PutioPlaybackSource) {
+    playsConvertedFallback = resolvesConverted
     playerAttempt &+= 1
     state = .ready(source)
   }

@@ -23,8 +23,10 @@ final class PutioVideoFallbackTests: XCTestCase {
       })
 
     await model.loadIfNeeded()
+    XCTAssertFalse(model.playsConvertedFallback)
     XCTAssertTrue(model.fallsBack(after: .playback, beforeFirstFrame: true))
     await model.playerFailed(.playback, heldSeconds: 120, beforeFirstFrame: true)
+    XCTAssertTrue(model.playsConvertedFallback)
 
     XCTAssertEqual(convertedRequests, [fileID])
     XCTAssertEqual(
@@ -83,6 +85,7 @@ final class PutioVideoFallbackTests: XCTestCase {
     await model.playerFailed(.playback, heldSeconds: 3, beforeFirstFrame: true)
 
     XCTAssertEqual(model.state, .failed(.unsupported))
+    XCTAssertFalse(model.playsConvertedFallback)
     XCTAssertEqual(PutioVideoPlaybackFailure.unsupported.title, "Can’t play this file")
   }
 
