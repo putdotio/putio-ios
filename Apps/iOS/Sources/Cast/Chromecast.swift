@@ -176,6 +176,7 @@ final class PutioCastModel {
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var castTask: Task<Void, Never>?
   @ObservationIgnored private var saves: PutioCastPositionSaves?
+  @ObservationIgnored private var requestedStart: Int?
   @ObservationIgnored private var reporter: PutioVideoPositionReporter?
   @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
   @ObservationIgnored private var statusReceivedAt: ContinuousClock.Instant?
@@ -479,7 +480,9 @@ final class PutioCastModel {
     return receiver
   }
 
-  func cast(_ route: PutioVideoRoute, saves: PutioCastPositionSaves) {
+  func cast(
+    _ route: PutioVideoRoute, saves: PutioCastPositionSaves, startingAt startSeconds: Int? = nil
+  ) {
     guard isConnected else { return }
     audioReceiver = nil
     reporter?.stop()
@@ -489,6 +492,7 @@ final class PutioCastModel {
     castTask?.cancel()
     self.route = route
     self.saves = saves
+    requestedStart = startSeconds
     handback = nil
     media = nil
     status = nil
@@ -498,16 +502,18 @@ final class PutioCastModel {
     castTask = Task { @MainActor [weak self] in
       await Task.yield()
       await saves.pipeline.waitForPendingReports(fileID: route.id)
-      await self?.run(route, generation: request)
+      await self?.run(route, startingAt: startSeconds, generation: request)
     }
   }
 
   func retry() {
     guard case .failed = activity, let route, let saves else { return }
-    cast(route, saves: saves)
+    cast(route, saves: saves, startingAt: requestedStart)
   }
 
-  private func run(_ route: PutioVideoRoute, generation request: UInt64) async {
+  private func run(
+    _ route: PutioVideoRoute, startingAt startSeconds: Int?, generation request: UInt64
+  ) async {
     guard request == generation else { return }
     do {
       var resolution = try await resolve(route.id)
@@ -523,7 +529,7 @@ final class PutioCastModel {
       activity = .loading(route.id)
       self.media = media
       try await controller.load(
-        media, startSeconds: media.startFromSeconds, autoplay: true,
+        media, startSeconds: startSeconds ?? media.startFromSeconds, autoplay: true,
         activeTrackIDs: startingTrackIDs(for: media))
       guard request == generation else { return }
       activity = .idle

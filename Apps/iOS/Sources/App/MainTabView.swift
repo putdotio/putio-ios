@@ -963,11 +963,13 @@ struct MainTabView: View {
       },
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
-      castsConverted: {
-        guard cast.isConnected else { return false }
-        castVideo(route)
-        return cast.castingRoute != nil
-      },
+      castsConverted: PutioVideoConvertedHandOff(
+        isAvailable: { cast.isConnected },
+        handOff: { start in
+          guard cast.isConnected else { return false }
+          castVideo(route, startingAt: start.startFromSeconds)
+          return cast.castingRoute != nil
+        }),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
       onFallback: { SentryTelemetry.reportFallback() },
       onFallbackPlays: { convertedFallbacks.remember(route.id) },
@@ -1030,8 +1032,8 @@ struct MainTabView: View {
     }
   }
 
-  private func castVideo(_ route: PutioVideoRoute) {
-    cast.cast(route, saves: castSaves)
+  private func castVideo(_ route: PutioVideoRoute, startingAt startSeconds: Int? = nil) {
+    cast.cast(route, saves: castSaves, startingAt: startSeconds)
     openCasting()
   }
 

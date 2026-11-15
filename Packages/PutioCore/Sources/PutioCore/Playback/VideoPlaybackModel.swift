@@ -11,9 +11,21 @@ public typealias PutioVideoConversionStatusLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 public typealias PutioVideoConversionSleep =
   @MainActor @Sendable (Duration) async throws -> Void
-public typealias PutioVideoConvertedHandOff = @MainActor @Sendable () -> Bool
 public typealias PutioVideoStartChoice =
   @MainActor @Sendable (PutioPlaybackSource, _ afterConversion: Bool) async -> PutioPlaybackSource
+
+public struct PutioVideoConvertedHandOff: Sendable {
+  public let isAvailable: @MainActor @Sendable () -> Bool
+  public let handOff: @MainActor @Sendable (PutioPlaybackSource) -> Bool
+
+  public init(
+    isAvailable: @escaping @MainActor @Sendable () -> Bool,
+    handOff: @escaping @MainActor @Sendable (PutioPlaybackSource) -> Bool
+  ) {
+    self.isAvailable = isAvailable
+    self.handOff = handOff
+  }
+}
 
 public enum PutioVideoPlaybackState: Equatable {
   case loading
@@ -186,6 +198,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
   @ObservationIgnored private let handOffConverted: PutioVideoConvertedHandOff?
+  @ObservationIgnored private var handOffArmed = false
   @ObservationIgnored private var chosenStart: (saved: Int, start: Int)?
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
@@ -220,6 +233,7 @@ public final class PutioVideoPlaybackModel {
     self.handOffConverted = handOffConverted
     self.resolveConverted = resolveConverted
     self.resolve = resolve
+    armHandOffIfUnavailable()
   }
 
   public func loadIfNeeded() async {
@@ -353,6 +367,7 @@ public final class PutioVideoPlaybackModel {
 
     do {
       while requestGeneration == generation {
+        armHandOffIfUnavailable()
         try Task.checkCancellation()
         let status = try await loadConversionStatus(fileID)
         try Task.checkCancellation()
@@ -405,10 +420,10 @@ public final class PutioVideoPlaybackModel {
         guard requestGeneration == generation else { return }
         switch resolution {
         case .ready(let source):
-          if handOffConverted?() == true { return }
           let start = await startSource(source, afterConversion: true)
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }
+          if handOffArmed, handOffConverted?.handOff(start) == true { return }
           play(start)
           return
         case .conversionRequired:
@@ -464,6 +479,10 @@ public final class PutioVideoPlaybackModel {
     playsConvertedFallback = resolvesConverted
     playerAttempt &+= 1
     state = .ready(source)
+  }
+
+  private func armHandOffIfUnavailable() {
+    if handOffConverted?.isAvailable() == false { handOffArmed = true }
   }
 
   private func startSource(_ source: PutioPlaybackSource, afterConversion: Bool) async

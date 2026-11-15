@@ -318,7 +318,6 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(
       element("cast.playing").appears(within: 20),
       "the converted video never played on the receiver")
-    XCTAssertFalse(element("video.ready").exists, "the converted video also played locally")
     XCTAssertEqual(
       element("cast.load-requests").value as? String, "/v2/files/441/hls/media.m3u8",
       "the receiver loaded something other than the converted video")
