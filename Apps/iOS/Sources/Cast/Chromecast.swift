@@ -34,6 +34,14 @@ enum PutioCastPlayerState: Equatable, Sendable {
   case buffering
   case playing
   case paused
+
+  var waitActivity: PutioVideoPlayerActivity {
+    switch self {
+    case .playing: .playing
+    case .paused: .paused
+    case .idle, .loading, .buffering: .waiting
+    }
+  }
 }
 
 struct PutioCastAudioTrack: Equatable, Sendable {
@@ -181,6 +189,7 @@ final class PutioCastModel {
   @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
   @ObservationIgnored private var statusReceivedAt: ContinuousClock.Instant?
   @ObservationIgnored private weak var audioReceiver: PutioCastAudioEngine?
+  @ObservationIgnored private let wait: PutioVideoWaitModel
 
   init(
     controller: PutioCastControlling,
@@ -189,6 +198,7 @@ final class PutioCastModel {
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
     subtitleMemory: PutioSubtitleMemory? = nil,
+    waitSleep: @escaping PutioVideoWaitSleep = { try await Task.sleep(for: $0) },
     schedulePositionSaves: @escaping PutioVideoPositionReporter.Scheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     }
@@ -202,6 +212,7 @@ final class PutioCastModel {
     self.loadConversionStatus = loadConversionStatus
     self.schedulePositionSaves = schedulePositionSaves
     self.subtitleMemory = subtitleMemory
+    self.wait = PutioVideoWaitModel(sleep: waitSleep)
     controller.onConnectionChanged = { [weak self] connection in
       self?.connectionChanged(connection)
     }
@@ -263,6 +274,7 @@ final class PutioCastModel {
     case .resolving, .conversionRequired, .conversionQueued, .converting, .loading:
       return .loading
     case .idle:
+      if wait.state == .stalled { return .failed(canRetry: true) }
       switch status?.playerState {
       case .playing, .paused, .buffering: return .playing
       case .loading, .idle, nil: return .loading
@@ -470,6 +482,7 @@ final class PutioCastModel {
     route = nil
     pendingTrackIDs = nil
     toast = nil
+    wait.restart()
   }
 
   // MARK: Casting
@@ -498,6 +511,7 @@ final class PutioCastModel {
     status = nil
     pendingTrackIDs = nil
     toast = nil
+    wait.restart()
     activity = .resolving(route.id)
     castTask = Task { @MainActor [weak self] in
       await Task.yield()
@@ -507,8 +521,9 @@ final class PutioCastModel {
   }
 
   func retry() {
-    guard case .failed = activity, let route, let saves else { return }
-    cast(route, saves: saves, startingAt: requestedStart)
+    guard case .failed = phase, let route, let saves else { return }
+    let start = wait.state == .stalled ? receiverPosition() : requestedStart
+    cast(route, saves: saves, startingAt: start)
   }
 
   private func run(
@@ -655,6 +670,7 @@ final class PutioCastModel {
     let wasPlaying = isPlaying
     self.status = status
     statusReceivedAt = .now
+    wait.activityChanged(status.playerState.waitActivity)
     if wasPlaying, status.playerState == .paused { reporter?.savePosition() }
   }
 

@@ -92,6 +92,24 @@ private final class CastControllerStub: PutioCastControlling {
 }
 
 @MainActor
+private final class StallClock {
+  private(set) var requested: [Duration] = []
+  private var pending: [CheckedContinuation<Void, Never>] = []
+
+  func sleep(_ duration: Duration) async throws {
+    requested.append(duration)
+    await withCheckedContinuation { pending.append($0) }
+  }
+
+  func advance() async {
+    for _ in 0..<20 { await Task.yield() }
+    guard !pending.isEmpty else { return XCTFail("no timer is waiting") }
+    pending.removeFirst().resume()
+    for _ in 0..<20 { await Task.yield() }
+  }
+}
+
+@MainActor
 private final class SaveTicks {
   private var callbacks: [@MainActor @Sendable () -> Void] = []
   private(set) var intervals: [Duration] = []
@@ -214,7 +232,8 @@ final class ChromecastTests: XCTestCase {
     controller: CastControllerStub,
     resolutions: [Result<PutioCastResolution, PutioRuntimeError>],
     conversionStatuses: [PutioVideoConversionStatus] = [],
-    subtitleMemory: PutioSubtitleMemory? = nil
+    subtitleMemory: PutioSubtitleMemory? = nil,
+    waitSleep: @escaping PutioVideoWaitSleep = { _ in try await Task.sleep(for: .seconds(3_600)) }
   ) -> (PutioCastModel, Box) {
     controllers.append(controller)
     let box = Box(resolutions: resolutions, conversionStatuses: conversionStatuses)
@@ -233,6 +252,7 @@ final class ChromecastTests: XCTestCase {
         return box.conversionStatuses.removeFirst()
       },
       subtitleMemory: subtitleMemory,
+      waitSleep: waitSleep,
       schedulePositionSaves: { ticks.schedule($0, $1) })
     return (model, box)
   }
@@ -604,6 +624,31 @@ final class ChromecastTests: XCTestCase {
       model.togglePlayback()
       try await expect({ controller.commands.last == "play" })
     }
+  }
+
+  func testAReceiverStuckBufferingShowsTheFailedLayoutAndTryAgainResumesThere() async throws {
+    let controller = CastControllerStub()
+    let expected = media()
+    let clock = StallClock()
+    let (model, box) = makeModel(
+      controller: controller,
+      resolutions: [.success(.ready(expected)), .success(.ready(expected))],
+      waitSleep: { try await clock.sleep($0) })
+    try await castPlaying(model, controller, box)
+    controller.report(status(.buffering, position: 1_200))
+    XCTAssertEqual(model.phase, .playing)
+    await clock.advance()
+    XCTAssertEqual(model.phase, .playing, "buffering under thirty seconds is not a stall")
+    await clock.advance()
+    XCTAssertEqual(clock.requested.reduce(.zero, +), .seconds(30))
+    XCTAssertEqual(model.phase, .failed(canRetry: true))
+    controller.report(status(.buffering, position: 1_200))
+    XCTAssertEqual(model.phase, .failed(canRetry: true), "a frozen receiver stays stalled")
+    model.retry()
+    try await expect({ controller.loads.count == 2 && model.activity == .idle })
+    XCTAssertEqual(controller.loads.last?.startSeconds, 1_200)
+    controller.report(status(.playing, position: 1_200))
+    XCTAssertEqual(model.phase, .playing)
   }
 
   func testReceiverPositionSavesEveryTenSecondsAndOnPauseAndSeek() async throws {
