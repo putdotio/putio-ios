@@ -612,17 +612,6 @@
         }
       }
     },
-    "Cancel playing %@" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel playing %@"
-          }
-        }
-      }
-    },
     "Cannot open link" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
       "localizations" : {
@@ -2100,17 +2089,6 @@
         }
       }
     },
-    "Finding the next video" : {
-      "comment" : "android: mobile_playback_finding_next | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finding the next video"
-          }
-        }
-      }
-    },
     "Folder" : {
       "comment" : "android: mobile_files_detail_folder",
       "localizations" : {
@@ -3060,17 +3038,6 @@
         }
       }
     },
-    "No next video" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No next video"
-          }
-        }
-      }
-    },
     "None stored" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -3511,28 +3478,6 @@
         }
       }
     },
-    "Play Next" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play Next"
-          }
-        }
-      }
-    },
-    "Play next, %@" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Play next, %@"
-          }
-        }
-      }
-    },
     "Play with Direct play" : {
       "comment" : "android: mobile_files_play_with_direct_play",
       "localizations" : {
@@ -3650,17 +3595,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Player"
-          }
-        }
-      }
-    },
-    "Playing in %@" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playing in %@"
           }
         }
       }
@@ -5513,28 +5447,6 @@
         }
       }
     },
-    "Up Next" : {
-      "comment" : "android: mobile_now_playing_up_next | differs: iOS uses title case",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Up Next"
-          }
-        }
-      }
-    },
-    "Up next, %@" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Up next, %@"
-          }
-        }
-      }
-    },
     "Update storage" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
       "localizations" : {
@@ -5932,6 +5844,50 @@
         }
       }
     },
+    "Couldn’t find the next video" : {
+      "comment" : "android: mobile_playback_next_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t find the next video"
+          }
+        }
+      }
+    },
+    "Next episode" : {
+      "comment" : "android: playback_next_episode",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next episode"
+          }
+        }
+      }
+    },
+    "Next video lookup" : {
+      "comment" : "ios-only: no Android string for the iOS video player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next video lookup"
+          }
+        }
+      }
+    },
+    "Play next" : {
+      "comment" : "ios-only: no Android string for the iOS Up next card (putio-android#617)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play next"
+          }
+        }
+      }
+    },
     "You’re already copying as much as put.io allows at once. Try again when that copy finishes." : {
       "comment" : "android: mobile_files_copy_concurrent_limit",
       "localizations" : {
@@ -5950,6 +5906,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That’s too many files to copy at once."
+          }
+        }
+      }
+    },
+    "Up next in %@" : {
+      "comment" : "android: mobile_playback_up_next_in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next in %@"
           }
         }
       }

@@ -197,14 +197,34 @@ public func prepareNextVideo(
   waitForPendingReports: PutioNextVideoResetWait,
   resolve: PutioPlaybackResolve
 ) async throws -> PutioPlayableNextVideo? {
-  let found: PutioNextVideo?
+  guard
+    let video = try await findNextVideo(
+      after: fileID, findNext: findNext, findOfflineNext: findOfflineNext)
+  else { return nil }
+  return try await preparePlayableVideo(
+    video, waitForPendingReports: waitForPendingReports, resolve: resolve)
+}
+
+@MainActor
+public func findNextVideo(
+  after fileID: PutioFileID,
+  findNext: @MainActor @Sendable (PutioFileID) async throws -> PutioNextVideo?,
+  findOfflineNext: @MainActor (PutioFileID) -> PutioNextVideo? = { _ in nil }
+) async throws -> PutioNextVideo? {
   do {
-    found = try await findNext(fileID)
+    return try await findNext(fileID)
   } catch {
     guard !(error is CancellationError), let offline = findOfflineNext(fileID) else { throw error }
-    found = offline
+    return offline
   }
-  guard let video = found else { return nil }
+}
+
+@MainActor
+public func preparePlayableVideo(
+  _ video: PutioNextVideo,
+  waitForPendingReports: PutioNextVideoResetWait,
+  resolve: PutioPlaybackResolve
+) async throws -> PutioPlayableNextVideo {
   await waitForPendingReports(video.id)
   try Task.checkCancellation()
   let resolution = try await resolve(video.id)

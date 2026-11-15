@@ -850,6 +850,93 @@ final class BoardCaptureTests: XCTestCase {
     }
   }
 
+  func testVideoNextEpisode() throws {
+    playBoardEpisode(["--putio-harness-next-episode", "--putio-harness-rotate-off"])
+    XCTAssertTrue(element("video.next-lookup").hasValue("id=442", within: 10))
+    let playPause = element("video.play-pause")
+    let chip = element("video.next-episode")
+    app.setVideoPlaying(false, with: playPause)
+    app.revealVideoControls(showing: chip)
+    XCTAssertEqual(chip.label, "Next episode")
+    XCTAssertLessThanOrEqual(
+      chip.frame.maxY, element("video.scrubber").frame.minY, "the chip overlaps the scrubber")
+    XCTAssertGreaterThanOrEqual(
+      chip.frame.minY, playPause.frame.maxY, "the chip overlaps the transport buttons")
+    XCTAssertGreaterThan(
+      chip.frame.minX, element("video.chip.speed").frame.maxX, "the chip is not after the chips")
+    XCTAssertFalse(element("video.up-next").exists, "the card showed before the end")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      app.setVideoPlaying(true, with: playPause)
+    }
+    try captureBoard("rd-ios-pb-35-next-episode")
+    app.revealVideoControls(showing: chip)
+    chip.tap()
+    assertPlaysSecondEpisode("Next episode")
+  }
+
+  func testVideoUpNext() throws {
+    playBoardEpisode([
+      "--putio-harness-next-episode", "--putio-harness-rotate-off",
+      "--putio-harness-up-next-held",
+    ])
+    XCTAssertTrue(element("video.next-lookup").hasValue("id=442", within: 10))
+    playBoardEpisodeToItsEnd()
+    let card = element("video.up-next")
+    XCTAssertTrue(card.appears(within: 30), "the Up next card never showed")
+    let cardFrame = card.frame
+    XCTAssertLessThanOrEqual(
+      cardFrame.maxY, element("video.scrubber").frame.minY, "the card overlaps the scrubber")
+    XCTAssertGreaterThanOrEqual(
+      cardFrame.minY, element("video.play-pause").frame.maxY,
+      "the card covers the transport buttons")
+    XCTAssertGreaterThanOrEqual(
+      cardFrame.maxX, element("video.remaining").frame.maxX - 1, "the card is not on the right")
+    XCTAssertEqual(
+      element("video.next-title").label, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv")
+    let countdown = element("video.next-countdown").label
+    XCTAssertTrue(countdown.hasPrefix("Up next in "), "the card read \(countdown)")
+    XCTAssertEqual(element("video.cancel-next").label, "Cancel")
+    XCTAssertEqual(element("video.play-next").label, "Play next")
+    XCTAssertFalse(element("video.next-episode").exists, "the chip stayed beside the card")
+    try captureBoard("rd-ios-pb-21-up-next")
+    element("video.play-next").tap()
+    assertPlaysSecondEpisode("Play next")
+  }
+
+  func testVideoNextNotFound() throws {
+    playBoardEpisode([
+      "--putio-harness-next-episode", "--putio-harness-rotate-off",
+      "--putio-harness-next-file-fails", "2", "--putio-harness-up-next-held",
+    ])
+    XCTAssertTrue(element("video.next-lookup").hasValue("none", within: 10))
+    XCTAssertFalse(element("video.next-episode").exists, "a failed lookup offered Next episode")
+    playBoardEpisodeToItsEnd()
+    let failure = element("video.next-error")
+    XCTAssertTrue(failure.appears(within: 30), "the failed lookup showed no error")
+    XCTAssertTrue(app.staticTexts["Couldn’t find the next video"].exists)
+    XCTAssertTrue(element("video.close").exists, "the error lost Close")
+    try captureBoard("video-next-not-found")
+    app.buttons["video.next-error.retry"].tap()
+    let playNext = element("video.play-next")
+    XCTAssertTrue(playNext.appears(within: 10), "Try again did not offer the next video")
+    playNext.tap()
+    assertPlaysSecondEpisode("Play next")
+  }
+
+  private func playBoardEpisodeToItsEnd() {
+    let scrubber = element("video.scrubber")
+    app.revealVideoControls(showing: scrubber)
+    scrubber.adjust(toNormalizedSliderPosition: 0.99)
+    XCTAssertTrue(element("video.ended").appears(within: 30), "the episode never ended")
+  }
+
+  private func assertPlaysSecondEpisode(_ trigger: String) {
+    XCTAssertTrue(
+      element("video.presented-route").hasValue("id=442", within: 20),
+      "\(trigger) did not open the second episode")
+    XCTAssertTrue(element("video.ready").appears(within: 15), "the second episode never played")
+  }
+
   private func playBoardEpisode(
     _ arguments: [String] = [], orientation: UIDeviceOrientation = .landscapeLeft
   ) {
@@ -869,8 +956,9 @@ final class BoardCaptureTests: XCTestCase {
     let retry = app.buttons["Try again"]
     if retry.appears(within: 10) { retry.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 15), "the episode never played")
-    XCTAssertEqual(
-      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+    let title = element("video.title")
+    app.revealVideoControls(showing: title)
+    XCTAssertEqual(title.label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
     let position = element("video.current-position")
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)

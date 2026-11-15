@@ -68,6 +68,17 @@ import Foundation
     /// enables it. The playback-preferences fixture persists the production
     /// default (off) and fails the first save once for retry proof.
     nonisolated(unsafe) private static var autoplayNextVideo = accountSettingsMode == nil
+    static let nextEpisodeArgument = "--putio-harness-next-episode"
+    static let nextFileFailsArgument = "--putio-harness-next-file-fails"
+    private static let servesNextEpisodes = ProcessInfo.processInfo.arguments.contains(
+      nextEpisodeArgument)
+    nonisolated(unsafe) private static var nextFileFailuresLeft: Int = {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: nextFileFailsArgument),
+        arguments.indices.contains(flag + 1)
+      else { return 0 }
+      return Int(arguments[flag + 1]) ?? 0
+    }()
     nonisolated(unsafe) private static var autoplaySaveFailed = false
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool? =
@@ -1867,6 +1878,7 @@ import Foundation
       }
       if let response = sharedItemsFixture(request, path: url.path) { return response }
       if let response = musicFixture(request, url: url) { return response }
+      if let response = nextFileFixture(routeKey) { return response }
       if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
         return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
       }
@@ -2366,6 +2378,37 @@ import Foundation
     }
 
     static let seasonFolderID = 440
+
+    private static func nextFileFixture(_ routeKey: String) -> (Int, String)? {
+      let prefix = "GET /v2/files/"
+      let suffix = "/next-file"
+      guard routeKey.hasPrefix(prefix), routeKey.hasSuffix(suffix) else { return nil }
+      let fails = fileActionsLock.withLock {
+        guard nextFileFailuresLeft > 0 else { return false }
+        nextFileFailuresLeft -= 1
+        return true
+      }
+      if fails {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_NEXT_FILE_RETRY", message: "Retry finding the next file"
+          )
+        )
+      }
+      guard servesNextEpisodes,
+        let fileID = Int(routeKey.dropFirst(prefix.count).dropLast(suffix.count)),
+        let index = seasonEpisodes.firstIndex(where: { $0.id == fileID })
+      else { return nil }
+      guard seasonEpisodes.indices.contains(index + 1) else {
+        return (200, #"{"next_file":null}"#)
+      }
+      let next = seasonEpisodes[index + 1]
+      return (
+        200,
+        #"{"next_file":{"id":\#(next.id),"name":\#(jsonString(next.name)),"parent_id":\#(seasonFolderID)}}"#
+      )
+    }
     private static let seasonFolderSize: Int64 = 13_100_000_000
     private static let harnessFolderSize: Int64 = 1_073_741_824 + seasonFolderSize
 

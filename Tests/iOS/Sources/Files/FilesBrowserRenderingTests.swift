@@ -78,30 +78,21 @@ final class FilesBrowserRenderingTests: XCTestCase {
   }
 
   @MainActor
-  func testNextVideoOverlayMatchesBaseline() throws {
-    let overlay = PutioNextVideoOverlay(
-      nextVideo: PutioNextVideo(
-        id: PutioFileID(rawValue: 414),
-        parentID: .root,
-        name: "Big Buck Bunny.mkv"
-      ),
-      onPlay: {},
-      onCancel: {}
+  func testUpNextCardMatchesBaseline() throws {
+    let card = PutioVideoUpNextAccessory(
+      upNext: PutioVideoUpNext(
+        offer: .card(name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", secondsLeft: 10),
+        onPlay: {}, onCancel: {}),
+      iconOnly: false
     )
-    .padding(PutioTheme.Spacing.space4)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-    .background(
-      LinearGradient(
-        colors: [PutioTheme.Colors.surface, PutioTheme.Colors.accent.opacity(0.25)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-      )
-    )
+    .padding(PutioTheme.Spacing.space3)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+    .background(Color.black)
 
-    let viewport = CGSize(width: 390, height: 320)
+    let viewport = CGSize(width: 520, height: 160)
     let image = try assertRenderingSnapshot(
-      name: "video-next-overlay",
-      view: overlay,
+      name: "video-up-next-card",
+      view: card,
       size: viewport
     )
 
