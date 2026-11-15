@@ -58,6 +58,7 @@ struct SessionRootView: View {
         cast.disconnect()
         if case .signingOut = state {
           PutioContinueWatchingStore.clear(accountID: previousAccount.id)
+          PutioConvertedFallbacks.clear(accountID: previousAccount.id)
         }
       }
       if case .signedIn = state {

@@ -52,6 +52,21 @@ enum SentryTelemetry {
     SentrySDK.capture(event: event(for: fault))
   }
 
+  static func reportFallback() {
+    guard isCapturing, SentrySDK.isEnabled else { return }
+    SentrySDK.capture(event: fallbackEvent())
+  }
+
+  static func fallbackEvent() -> Event {
+    let event = Event(level: .warning)
+    let exception = Exception(value: nil, type: "VideoPlaybackFallback.decoder_error")
+    let mechanism = Mechanism(type: "video-player")
+    mechanism.handled = true
+    exception.mechanism = mechanism
+    event.exceptions = [exception]
+    return event
+  }
+
   static func event(for fault: PutioVideoPlayerFault) -> Event {
     let event = Event(level: .error)
     let exception = Exception(value: nil, type: "VideoPlaybackFailure.\(fault.rawValue)")

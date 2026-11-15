@@ -39,7 +39,7 @@ extension PutioRuntime {
   /// files; every other original plays in the engine with those files.
   /// `isPlayableInAVPlayer` answers for an extended MP4 MIME type.
   public func resolveVideoPlayback(
-    fileID: PutioFileID, method: PutioPlaybackMethod,
+    fileID: PutioFileID, method: PutioPlaybackMethod, playsConverted: Bool = false,
     isPlayableInAVPlayer: @escaping @Sendable (String) -> Bool
   ) async throws -> PutioPlaybackResolution {
     guard method == .directPlay else { return try await resolveVideoPlaybackSource(fileID: fileID) }
@@ -48,7 +48,9 @@ extension PutioRuntime {
       guard let token = try? requireDownloadToken(session.downloadToken) else { return nil }
       let plan = try await sdk.resolvePlayback(
         fileID: fileID.rawValue, downloadToken: token, method: .directPlay,
-        canPlayOriginal: { PutioDirectPlayDecoders.support(of: $0) })
+        canPlayOriginal: {
+          playsConverted ? .unsupported(.decoderError) : PutioDirectPlayDecoders.support(of: $0)
+        })
       return (plan, token)
     }
     guard let resolved else { throw PutioRuntimeError.invalidResponse }

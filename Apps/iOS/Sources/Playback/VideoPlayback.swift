@@ -17,6 +17,7 @@ struct PutioVideoPlaybackView: View {
   #endif
   @State private var playbackReachedEnd = false
   @State private var reportedFaults: [PutioVideoPlayerFault] = []
+  @State private var fallbacks = 0
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   @State private var playerFailureTask: Task<Void, Never>?
@@ -36,6 +37,7 @@ struct PutioVideoPlaybackView: View {
   private let castButton: AnyView?
   private let onCast: (@MainActor @Sendable () -> Void)?
   private let onOpenInVLC: (() -> Void)?
+  private let onFallback: @MainActor @Sendable () -> Void
 
   init(
     route: PutioVideoRoute,
@@ -59,8 +61,11 @@ struct PutioVideoPlaybackView: View {
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
     onOpenInVLC: (() -> Void)? = nil,
+    onFallback: @escaping @MainActor @Sendable () -> Void = {},
+    resolveConverted: PutioPlaybackResolve? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
+    self.onFallback = onFallback
     self.castButton = castButton
     self.onCast = onCast
     self.onOpenInVLC = onOpenInVLC
@@ -99,6 +104,12 @@ struct PutioVideoPlaybackView: View {
           else { return source }
           let choice = await resumePrompter.ask(positionSeconds: source.startFromSeconds)
           return PutioVideoStart.source(source, startingWith: choice ?? .resume)
+        },
+        resolveConverted: resolveConverted.map { resolveConverted in
+          { fileID in
+            await positionPipeline.waitForPendingReports(fileID: fileID)
+            return try await resolveConverted(fileID)
+          }
         }
       ) { fileID in
         await positionPipeline.waitForPendingReports(fileID: fileID)
@@ -243,6 +254,15 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.conversion-history")
               .allowsHitTesting(false)
           }
+          if fallbacks > 0 {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Converted fallbacks")
+              .accessibilityValue("\(fallbacks)")
+              .accessibilityIdentifier("video.fallbacks")
+              .allowsHitTesting(false)
+          }
           if !reportedFaults.isEmpty {
             Color.clear
               .frame(width: 1, height: 1)
@@ -371,11 +391,18 @@ struct PutioVideoPlaybackView: View {
       onFailure: { failure in
         playerIsReady = false
         guard reportsPlayerFailures else { return }
-        reportedFaults.append(failure.fault)
-        reportFailure(failure.fault)
+        if model.fallsBack(after: failure.fault, beforeFirstFrame: failure.beforeFirstFrame) {
+          fallbacks += 1
+          onFallback()
+        } else {
+          reportedFaults.append(failure.fault)
+          reportFailure(failure.fault)
+        }
         playerFailureTask?.cancel()
         playerFailureTask = Task {
-          await model.playerFailed(failure.fault, heldSeconds: failure.heldSeconds)
+          await model.playerFailed(
+            failure.fault, heldSeconds: failure.heldSeconds,
+            beforeFirstFrame: failure.beforeFirstFrame)
         }
       })
     #if DEBUG
@@ -462,6 +489,15 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
+  private var unsupportedMessage: String {
+    guard UIDevice.current.userInterfaceIdiom == .pad else {
+      return String(
+        localized: "This iPhone can’t play the original file, and it has no converted version.")
+    }
+    return String(
+      localized: "This iPad can’t play the original file, and it has no converted version.")
+  }
+
   private func conversionGate(_ phase: PutioVideoConversionGate.Phase) -> some View {
     PutioVideoConversionGate(phase: phase, onCancel: onDismiss, onOpenInVLC: onOpenInVLC)
       .accessibilityElement(children: .contain)
@@ -498,6 +534,11 @@ struct PutioVideoPlaybackView: View {
         icon: .warningCircle, title: failure.title, message: failure.message,
         actionTitle: String(localized: "Open in VLC"),
         actionIdentifier: "video.conversion.vlc", prominent: false, action: onOpenInVLC)
+    case .unsupported:
+      PutioErrorStateView(
+        icon: .warningCircle, title: failure.title, message: unsupportedMessage,
+        actionTitle: String(localized: "Open in VLC"),
+        actionIdentifier: "video.unsupported.vlc", prominent: false, action: onOpenInVLC)
     case .notFound, .rateLimited, .transient, .invalidResponse, .playback, .unknown:
       PutioErrorStateView(
         title: failure.title,
@@ -513,6 +554,7 @@ struct PutioVideoPlaybackView: View {
 struct PutioVideoPlayerFailure: Equatable, Sendable {
   let fault: PutioVideoPlayerFault
   let heldSeconds: Int?
+  var beforeFirstFrame = false
 }
 
 /// A conversion state under app.put.io's explanation of why the video waits.
@@ -1250,7 +1292,10 @@ final class PutioVideoPlayerCoordinator {
     }
     let heldSeconds = positionEstablished ? playingSeconds : recoveredStartSeconds
     positionReporter?.playbackFailed()
-    onFailure?(PutioVideoPlayerFailure(fault: fault, heldSeconds: heldSeconds))
+    onFailure?(
+      PutioVideoPlayerFailure(
+        fault: fault, heldSeconds: heldSeconds,
+        beforeFirstFrame: surface?.showsFirstFrame != true))
   }
 
   /// Offline assets keep every downloaded language; the player picks the

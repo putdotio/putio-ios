@@ -58,6 +58,11 @@ struct MainTabView: View {
     _continueWatching = State(
       initialValue: PutioContinueWatchingModel(
         store: PutioContinueWatchingStore(accountID: account.id)))
+    #if DEBUG
+      HarnessDirectPlay.forgetFallbacks(scenario: scenario, accountID: account.id)
+    #endif
+    _convertedFallbacks = State(
+      initialValue: PutioConvertedFallbacks(accountID: account.id))
   }
 
   private enum SelectedTab: Hashable {
@@ -94,6 +99,7 @@ struct MainTabView: View {
   @State private var appConfig: PutioAppConfigModel
   @State private var pins: PutioPinnedFilesModel
   @State private var continueWatching: PutioContinueWatchingModel
+  @State private var convertedFallbacks: PutioConvertedFallbacks
   @State private var analyticsPrompt: PutioProductAnalyticsPromptModel?
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
@@ -911,6 +917,13 @@ struct MainTabView: View {
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
+      onFallback: {
+        convertedFallbacks.remember(route.id)
+        SentryTelemetry.reportFallback()
+      },
+      resolveConverted: { fileID in
+        try await resolvePlaybackSource(fileID: fileID, method: route.method, playsConverted: true)
+      },
       resolve: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method)
       }
@@ -1009,9 +1022,9 @@ struct MainTabView: View {
     #endif
   }
 
-  private func resolvePlaybackSource(fileID: PutioFileID, method: PutioPlaybackMethod?)
-    async throws -> PutioPlaybackResolution
-  {
+  private func resolvePlaybackSource(
+    fileID: PutioFileID, method: PutioPlaybackMethod?, playsConverted: Bool = false
+  ) async throws -> PutioPlaybackResolution {
     let playbackMethod: PutioPlaybackMethod
     if let method {
       playbackMethod = method
@@ -1020,13 +1033,17 @@ struct MainTabView: View {
     }
     let resolution = try await runtime.resolveVideoPlayback(
       fileID: fileID, method: playbackMethod,
+      playsConverted: playsConverted || convertedFallbacks.contains(fileID),
       isPlayableInAVPlayer: { PutioDirectPlayback.isPlayableInAVPlayer($0) })
     #if DEBUG
       guard scenario == .filesBrowser, case .ready(let source) = resolution else {
         return resolution
       }
       if source.original != nil {
-        return .ready(try HarnessDirectPlay.source(for: source))
+        return .ready(try HarnessDirectPlay.source(for: source, fileID: fileID))
+      }
+      if HarnessDirectPlay.isConverted(source) {
+        return .ready(try HarnessDirectPlay.converted(source))
       }
       if let fault = HarnessVideoFaults.next() {
         guard

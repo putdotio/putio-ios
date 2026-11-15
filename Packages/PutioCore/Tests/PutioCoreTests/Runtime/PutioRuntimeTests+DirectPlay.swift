@@ -182,6 +182,32 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testAnOriginalThatFailedHereResolvesToItsConvertedCopyOrNothing() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      Self.directPlayFile(mediaInfo: Self.matroska, mp4Available: true), for: Self.directPlayRoute)
+
+    let converted = try await runtime.resolveVideoPlayback(
+      fileID: PutioFileID(rawValue: 411), method: .directPlay, playsConverted: true,
+      isPlayableInAVPlayer: { _ in true })
+
+    guard case .ready(let source) = converted else { return XCTFail("expected the converted copy") }
+    XCTAssertEqual(source.url.path, "/v2/files/411/mp4/stream")
+    XCTAssertEqual(source.startFromSeconds, 42)
+    XCTAssertNil(source.original)
+
+    fixtures.setFixture(Self.directPlayFile(mediaInfo: Self.matroska), for: Self.directPlayRoute)
+    do {
+      _ = try await runtime.resolveVideoPlayback(
+        fileID: PutioFileID(rawValue: 411), method: .directPlay, playsConverted: true,
+        isPlayableInAVPlayer: { _ in true })
+      XCTFail("expected no converted version")
+    } catch let error as PutioPlaybackUnplayable {
+      XCTAssertEqual(error.reason, "decoder_error")
+      XCTAssertEqual(PutioVideoPlaybackFailure.resolving(error), .unsupported)
+    }
+  }
+
   func testStandardStaysOnHLSWithoutAskingForMediaInfo() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(Self.directPlayFile(mediaInfo: Self.matroska), for: Self.directPlayRoute)

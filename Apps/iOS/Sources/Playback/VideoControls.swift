@@ -46,6 +46,8 @@ final class PutioVideoSurfaceView: UIView {
 
   private var playerLayer: AVPlayerLayer? { layer as? AVPlayerLayer }
 
+  var showsFirstFrame: Bool { playerLayer?.isReadyForDisplay == true }
+
   override init(frame: CGRect) {
     super.init(frame: frame)
     backgroundColor = .black

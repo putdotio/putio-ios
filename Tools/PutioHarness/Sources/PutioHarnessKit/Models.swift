@@ -869,6 +869,8 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-pb-29-conversion-status-failed", .iphone, "testConversionStatusFailed"),
       BoardCapture("rd-ios-pb-30-cannot-convert", .iphone, "testCannotConvert"),
+      BoardCapture("rd-ios-pb-17-cant-play", .iphone, "testCantPlayTheOriginal"),
+      BoardCapture("cant-play-ipad", .ipad, "testCantPlayTheOriginal"),
       BoardCapture("rd-ios-pb-42-ipad-converting", .ipad, "testConversionConverting"),
       BoardCapture("direct-play-video", .iphone, "testDirectPlayVideo"),
       BoardCapture("direct-play-video-ipad", .ipad, "testDirectPlayVideo"),
@@ -1466,6 +1468,16 @@ enum BrowserJourneyContract {
       "AudioSpeedJourneyTests/testOneTrackDisablesTheAudioChipAndAFailedSwitchKeepsThePreviousTrack",
       attachmentNames: ["runtime-audio-one-track", "runtime-audio-switch-failed"],
       timeAllowance: 240),
+    JourneyPreflight(
+      "direct-play-fallback",
+      "DirectPlayFallbackJourneyTests/"
+        + "testAFailingOriginalPlaysConvertedWhereItStoodAndStartsConvertedNextTime",
+      attachmentNames: ["runtime-direct-play-fallback"], timeAllowance: 180),
+    JourneyPreflight(
+      "direct-play-cant-play",
+      "DirectPlayFallbackJourneyTests/"
+        + "testAFailingOriginalWithNoConvertedVersionSaysItCannotPlayAndOffersVLC",
+      attachmentNames: ["runtime-direct-play-cant-play"], timeAllowance: 120),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
       attachmentNames: ["runtime-security-apps"], timeAllowance: 180),

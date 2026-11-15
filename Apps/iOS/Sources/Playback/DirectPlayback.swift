@@ -352,7 +352,10 @@ final class PutioDirectPlayCoordinator {
       positionEstablished
       ? playingSeconds : source.flatMap { $0.resumesAfterFailure ? $0.startFromSeconds : nil }
     positionReporter?.playbackFailed()
-    callbacks.onFailure(PutioVideoPlayerFailure(fault: fault, heldSeconds: heldSeconds))
+    callbacks.onFailure(
+      PutioVideoPlayerFailure(
+        fault: fault, heldSeconds: heldSeconds,
+        beforeFirstFrame: engine?.hasFirstFrameReadyForDisplay != true))
   }
 
   private static func fault(_ info: PlaybackErrorInfo?) -> PutioVideoPlayerFault {

@@ -193,6 +193,8 @@ final class HarnessMediaServer: @unchecked Sendable {
       resource = ("runtime-proof-long.srt", "application/x-subrip")
     case "/runtime-proof-direct.mkv":
       resource = ("runtime-proof-direct.mkv", "video/x-matroska")
+    case "/runtime-proof-undecodable.mkv":
+      resource = ("runtime-proof-undecodable.mkv", "video/x-matroska")
     default:
       if let held = Self.heldResource(path: path) {
         resource = (held.name, held.contentType)
