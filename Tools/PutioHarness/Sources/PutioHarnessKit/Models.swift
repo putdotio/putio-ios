@@ -749,6 +749,8 @@ enum BoardCaptureContract {
         "duo-open-now-playing-casting", .duoOpen, "testNowPlayingCasting", screenBase: false),
       BoardCapture("rd-ios-pb-05-mini", .iphone, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-41-ipad-mini", .ipad, "testMiniPlayer"),
+      BoardCapture("rd-ios-pb-46-duo-closed-now-playing", .duoFolded, "testNowPlaying"),
+      BoardCapture("rd-ios-pb-47-duo-closed-mini", .duoFolded, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-11-sleep", .iphone, "testSleepTimerMenu"),
       BoardCapture("rd-ios-pb-36-sleep-running", .iphone, "testSleepTimerRunning"),
       BoardCapture("rd-ios-acc-01-downloads", .iphone, "testAccountDownloads"),
@@ -855,6 +857,8 @@ enum BoardCaptureContract {
         environment: ["PUTIO_INACTIVE_ACCOUNT": "family"]),
       BoardCapture("rd-ios-pb-02-video", .iphone, "testVideoPlayer"),
       BoardCapture("rd-ios-pb-13-ipad-video", .ipad, "testVideoPlayer"),
+      BoardCapture("rd-ios-pb-48-duo-closed-video", .duoFolded, "testDuoVideoPlayer"),
+      BoardCapture("rd-ios-pb-49-duo-open-video", .duoOpen, "testDuoVideoPlayer"),
       BoardCapture(
         "rd-ios-pb-45-no-cast-device", .iphone, "testVideoNoCastDevice", screenBase: false),
       BoardCapture("rd-ios-pb-23-airplay", .iphone, "testVideoAirPlay"),

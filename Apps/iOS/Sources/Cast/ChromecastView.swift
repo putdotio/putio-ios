@@ -212,6 +212,28 @@ extension PutioCastDevice {
   }
 }
 
+struct PutioCastMenuButton: View {
+  let model: PutioCastModel
+
+  var body: some View {
+    if model.showsCastButton {
+      Button {
+        model.castButtonTapped()
+      } label: {
+        Label {
+          Text(String(localized: "Cast"))
+        } icon: {
+          Image(putioIcon: model.isConnected ? .screencastFill : .screencast)
+        }
+      }
+      .accessibilityLabel(
+        model.isConnected ? String(localized: "Cast, connected") : String(localized: "Cast")
+      )
+      .accessibilityIdentifier("cast.button")
+    }
+  }
+}
+
 struct PutioRouteButtonLabel: View {
   let icon: PutioIcon
   var isActive = false
