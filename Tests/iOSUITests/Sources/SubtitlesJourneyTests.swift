@@ -312,9 +312,9 @@ final class SubtitlesJourneyTests: XCTestCase {
     for _ in 0..<5 { timing.buttons.element(boundBy: 1).tap() }
     XCTAssertTrue(waitForValue(timing, "+0.5 s"), "timing: \(timing.value ?? "")")
     closeSizeAndTiming()
-    XCTAssertTrue(
-      waitFor(
-        NSPredicate(format: "frame.size.height > %f", mediumHeight * 1.3), caption, timeout: 10),
+    XCTAssertTrue(caption.appears(within: 5), "the caption left with the panel")
+    XCTAssertGreaterThan(
+      caption.frame.height, mediumHeight * 1.3,
       "Extra large left the caption at \(caption.frame.height) pt from \(mediumHeight) pt")
     try assertSecondLineShows(at: 4.5)
 
