@@ -1,0 +1,17 @@
+#EXTM3U
+#EXT-X-VERSION:4
+#EXT-X-TARGETDURATION:4
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXT-X-I-FRAMES-ONLY
+#EXTINF:4.000000,
+multi-fast-video-000.ts
+#EXTINF:4.000000,
+multi-fast-video-001.ts
+#EXTINF:4.000000,
+multi-fast-video-002.ts
+#EXTINF:4.000000,
+multi-fast-video-003.ts
+#EXTINF:4.000000,
+multi-fast-video-004.ts
+#EXT-X-ENDLIST

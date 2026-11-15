@@ -853,6 +853,10 @@ enum BoardCaptureContract {
       BoardCapture(
         "ipad-video-no-cast-device", .ipad, "testVideoNoCastDevice", screenBase: false),
       BoardCapture("ipad-video-airplay", .ipad, "testVideoAirPlay", screenBase: false),
+      BoardCapture("rd-ios-pb-06-audio", .iphone, "testVideoAudioMenu"),
+      BoardCapture("rd-ios-pb-07-speed", .iphone, "testVideoSpeedMenu"),
+      BoardCapture("ipad-video-audio", .ipad, "testVideoAudioMenu", screenBase: false),
+      BoardCapture("ipad-video-speed", .ipad, "testVideoSpeedMenu", screenBase: false),
       BoardCapture("rd-ios-pb-18-link-expired", .iphone, "testVideoAccessExpired"),
       BoardCapture("rd-ios-pb-19-connection-lost", .iphone, "testVideoConnectionLost"),
       BoardCapture("rd-ios-pb-24-preparing-video", .iphone, "testPreparingVideo"),
@@ -1450,6 +1454,18 @@ enum BrowserJourneyContract {
         "runtime-direct-play-menu", "runtime-direct-play-controls", "runtime-direct-play-audio",
       ],
       timeAllowance: 300),
+    JourneyPreflight(
+      "audio-speed",
+      "AudioSpeedJourneyTests/testAudioSwitchesTrackAndSpeedCarriesToTheNextFileAndTheNextLaunch",
+      attachmentNames: ["runtime-audio-menu", "runtime-speed-kept"], timeAllowance: 300),
+    JourneyPreflight(
+      "speed-landscape", "AudioSpeedJourneyTests/testSpeedMenuScrollsInsideTheSafeAreaInLandscape",
+      attachmentNames: ["runtime-speed-menu-scrolled"], timeAllowance: 180),
+    JourneyPreflight(
+      "audio-tracks",
+      "AudioSpeedJourneyTests/testOneTrackDisablesTheAudioChipAndAFailedSwitchKeepsThePreviousTrack",
+      attachmentNames: ["runtime-audio-one-track", "runtime-audio-switch-failed"],
+      timeAllowance: 240),
     JourneyPreflight(
       "account-security", "AccountSecurityJourneyTests/testAppsAndLinking",
       attachmentNames: ["runtime-security-apps"], timeAllowance: 180),

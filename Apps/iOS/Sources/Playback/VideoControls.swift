@@ -194,7 +194,7 @@ final class PutioVideoTransport {
 
   private(set) var isPlaying = false
   private var playhead = PutioVideoPlayhead()
-  private(set) var speed: PutioAudioSpeed = .normal
+  private(set) var speed: PutioAudioSpeed
   private(set) var controlsEnabled = false
   private(set) var audioTracks: [Track] = []
   private(set) var selectedAudio: Int?
@@ -203,6 +203,7 @@ final class PutioVideoTransport {
   private(set) var airPlay: PutioVideoAirPlay?
   private(set) var subtitleCues: [PutioVideoCue] = []
   private(set) var supportsAirPlay = true
+  var toast: PutioToast?
   let pictureInPicture = PutioVideoPictureInPicture()
   let wait: PutioVideoWaitModel
   @ObservationIgnored var originalAudioStreams: [PutioOriginalAudioStream] = []
@@ -223,10 +224,17 @@ final class PutioVideoTransport {
   @ObservationIgnored private var legible:
     (group: AVMediaSelectionGroup, options: [AVMediaSelectionOption])?
   @ObservationIgnored private var trackLoad: Task<Void, Never>?
+  @ObservationIgnored private let speedStore: PutioAudioSpeedStore
+  @ObservationIgnored private var audioRenditions: [PutioAudioRendition] = []
+  @ObservationIgnored private var audioSwitch: PutioVideoAudioSwitch?
+  @ObservationIgnored private var audioErrorObservation: NSObjectProtocol?
   @ObservationIgnored var onReload: (@MainActor (PutioVideoTrackSelection?) -> Void)?
 
-  init() {
+  init(speedStore: PutioAudioSpeedStore? = nil) {
     wait = PutioVideoWaitModel()
+    let speedStore = speedStore ?? .video()
+    self.speedStore = speedStore
+    speed = speedStore.load()
   }
 
   var timeline: PutioVideoTimeline { playhead.timeline }
@@ -406,6 +414,7 @@ final class PutioVideoTransport {
 
   func setSpeed(_ speed: PutioAudioSpeed) {
     self.speed = speed
+    speedStore.save(speed)
     if let engine {
       engine.setRate(speed.rawValue)
       return
@@ -421,10 +430,53 @@ final class PutioVideoTransport {
       selectedAudio = index
       return
     }
-    guard let item = player?.currentItem, let audible, audible.options.indices.contains(index)
+    guard let item = player?.currentItem, let audible, audible.options.indices.contains(index),
+      index != selectedAudio
     else { return }
+    let rendition = Self.rendition(
+      of: audible.options[index], at: index, count: audible.options.count, in: audioRenditions)
+    let now = Date()
+    let pending = audioSwitch.flatMap { $0.isOver(at: now) ? nil : $0 }
+    audioSwitch = (pending?.previous ?? selectedAudio).map {
+      PutioVideoAudioSwitch(previous: $0, playlist: rendition?.uri, startedAt: now)
+    }
     item.select(audible.options[index], in: audible.group)
     selectedAudio = index
+  }
+
+  private func watchAudioFailures(of item: AVPlayerItem) {
+    audioErrorObservation = NotificationCenter.default.addObserver(
+      forName: AVPlayerItem.newErrorLogEntryNotification, object: item, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.checkAudioFailure(of: item) }
+    }
+  }
+
+  private func checkAudioFailure(of item: AVPlayerItem) {
+    guard player?.currentItem === item, let audible, let events = item.errorLog()?.events else {
+      return
+    }
+    guard var audioSwitch else { return }
+    if audioSwitch.playlist == nil, let selectedAudio,
+      audible.options.indices.contains(selectedAudio),
+      let playlist = Self.rendition(
+        of: audible.options[selectedAudio], at: selectedAudio, count: audible.options.count,
+        in: audioRenditions)?.uri
+    {
+      audioSwitch = PutioVideoAudioSwitch(
+        previous: audioSwitch.previous, playlist: playlist, startedAt: audioSwitch.startedAt)
+      self.audioSwitch = audioSwitch
+    }
+    guard events.contains(where: { audioSwitch.failed(by: PutioVideoErrorEvent($0)) }) else {
+      if audioSwitch.isOver(at: Date()) { self.audioSwitch = nil }
+      return
+    }
+    self.audioSwitch = nil
+    guard audible.options.indices.contains(audioSwitch.previous) else { return }
+    item.select(audible.options[audioSwitch.previous], in: audible.group)
+    selectedAudio = audioSwitch.previous
+    toast = PutioToast(
+      String(localized: "Couldn’t switch audio track"), icon: .warning, width: .fit)
   }
 
   func selectSubtitle(_ index: Int?) {
@@ -451,6 +503,13 @@ final class PutioVideoTransport {
   private func detach() {
     trackLoad?.cancel()
     trackLoad = nil
+    if let audioErrorObservation {
+      NotificationCenter.default.removeObserver(audioErrorObservation)
+    }
+    audioErrorObservation = nil
+    audioRenditions = []
+    audioSwitch = nil
+    toast = nil
     if let timeObservation, let player { player.removeTimeObserver(timeObservation) }
     timeObservation = nil
     statusObservation?.invalidate()
@@ -587,6 +646,7 @@ final class PutioVideoTransport {
   private func loadTracks() {
     guard let item = player?.currentItem, trackLoad == nil else { return }
     trackLoad = Task { @MainActor [weak self] in
+      async let renditions = Self.audioRenditions(of: item)
       let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
       let legibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .legible)
       guard let self, !Task.isCancelled, player?.currentItem === item else { return }
@@ -596,9 +656,8 @@ final class PutioVideoTransport {
       legible = legibleGroup.map { group in
         (group, group.options.filter { !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) })
       }
-      audioTracks = playable.enumerated().map { index, option in
-        Track(id: index, title: option.displayName, detail: details[option])
-      }
+      audioTracks = Self.audioTracks(playable, details: details, renditions: [])
+      watchAudioFailures(of: item)
       subtitles = Self.tracks(legible?.options ?? [])
       selectionObservation = NotificationCenter.default.addObserver(
         forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
@@ -606,6 +665,11 @@ final class PutioVideoTransport {
         MainActor.assumeIsolated { self?.refreshSelection() }
       }
       refreshSelection()
+      let loaded = await renditions
+      guard !Task.isCancelled, player?.currentItem === item, !loaded.isEmpty else { return }
+      audioRenditions = loaded
+      audioTracks = Self.audioTracks(playable, details: details, renditions: loaded)
+      checkAudioFailure(of: item)
     }
   }
 
@@ -628,6 +692,61 @@ final class PutioVideoTransport {
     options.enumerated().map { Track(id: $0.offset, title: $0.element.displayName) }
   }
 
+  private static func audioTracks(
+    _ options: [AVMediaSelectionOption], details: [AVMediaSelectionOption: String],
+    renditions: [PutioAudioRendition]
+  ) -> [Track] {
+    let renditions = options.enumerated().map { index, option in
+      rendition(of: option, at: index, count: options.count, in: renditions)
+    }
+    let titles = PutioTrackLabel.distinct(
+      options.enumerated().map { index, option in
+        PutioTrackLabel.audioTitle(
+          language: option.extendedLanguageTag ?? option.locale?.identifier
+            ?? renditions[index]?.languageTag,
+          name: nil, index: index)
+      })
+    return options.enumerated().map { index, option in
+      Track(
+        id: index, title: titles[index],
+        detail: details[option]
+          ?? renditions[index].flatMap {
+            PutioTrackLabel.audioDetail(codec: $0.codec, profile: nil, channels: $0.channels)
+          })
+    }
+  }
+
+  private static func rendition(
+    of option: AVMediaSelectionOption, at index: Int, count: Int,
+    in renditions: [PutioAudioRendition]
+  ) -> PutioAudioRendition? {
+    let named = renditions.filter { $0.name == option.displayName }
+    if named.count == 1 { return named[0] }
+    return renditions.count == count ? renditions[index] : nil
+  }
+
+  private static let masterPlaylistLimit = 256 * 1024
+
+  private static func audioRenditions(of item: AVPlayerItem) async -> [PutioAudioRendition] {
+    guard let master = (item.asset as? AVURLAsset)?.url,
+      master.scheme == "http" || master.scheme == "https",
+      master.pathExtension.lowercased() == "m3u8",
+      let (bytes, _) = try? await URLSession.shared.bytes(
+        for: URLRequest(url: master, timeoutInterval: 10))
+    else { return [] }
+    var data = Data()
+    do {
+      for try await byte in bytes {
+        data.append(byte)
+        guard data.count <= masterPlaylistLimit else { return [] }
+      }
+    } catch {
+      return []
+    }
+    guard let text = String(data: data, encoding: .utf8) else { return [] }
+    return PutioAudioRendition.parse(masterPlaylist: text, relativeTo: master)
+  }
+
   private static func details(
     for options: [AVMediaSelectionOption], streams: [PutioOriginalAudioStream]
   ) -> [AVMediaSelectionOption: String] {
@@ -638,6 +757,12 @@ final class PutioVideoTransport {
         codec: stream.codec, profile: stream.profile, channels: stream.channels)
     }
     return details
+  }
+}
+
+extension PutioVideoErrorEvent {
+  init(_ event: AVPlayerItemErrorLogEvent) {
+    self.init(uri: event.uri.flatMap(URL.init(string:)), date: event.date)
   }
 }
 
@@ -703,6 +828,7 @@ struct PutioVideoControls<Trailing: View>: View {
             if let airPlay = transport.airPlay {
               airPlayCentre(airPlay, placeholderLayer: false)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .putioToast(Binding(get: { transport.toast }, set: { transport.toast = $0 }))
                 .onGeometryChange(for: EdgeInsets.self) { proxy in
                   let area = proxy.frame(in: .named(Self.coordinateSpace))
                   let bounds =
@@ -716,7 +842,10 @@ struct PutioVideoControls<Trailing: View>: View {
                   airPlayInsets = $0
                 }
             } else {
-              Spacer(minLength: PutioTheme.Spacing.space3)
+              Color.clear
+                .frame(minHeight: PutioTheme.Spacing.space3, maxHeight: .infinity)
+                .putioToast(Binding(get: { transport.toast }, set: { transport.toast = $0 }))
+                .offset(y: PutioTheme.Spacing.space2)
             }
             PutioVideoChipRow(transport: transport) {
               visibility.interacted()
@@ -747,6 +876,9 @@ struct PutioVideoControls<Trailing: View>: View {
       animate { visibility.idleElapsed(generation: generation, isPlaying: transport.isPlaying) }
     }
     .onChange(of: transport.isPlaying) { _, _ in animate { visibility.interacted() } }
+    .onChange(of: transport.toast != nil) { _, shown in
+      animate { visibility.set(.notice, shown) }
+    }
     .onChange(of: transport.airPlay) { _, _ in animate { visibility.interacted() } }
     .onChange(of: transport.wait.state.showsSpinner, initial: true) { _, buffering in
       animate { visibility.set(.buffering, buffering) }
@@ -1071,6 +1203,7 @@ private struct PutioVideoChipRow: View {
         chip(
           icon: .speakerHigh, title: title, iconOnly: iconOnly,
           label: String(localized: "Audio: \(title)"), identifier: "video.chip.audio",
+          enabled: transport.audioTracks.count > 1,
           choices: transport.audioTracks.map { track in
             PutioVideoChipChoice(
               title: track.title, detail: track.detail, identifier: "video.audio.\(track.id)",
@@ -1111,15 +1244,16 @@ private struct PutioVideoChipRow: View {
 
   private func chip(
     icon: PutioIcon, title: String, iconOnly: Bool, label: String, identifier: String,
-    choices: [PutioVideoChipChoice]
+    enabled: Bool = true, choices: [PutioVideoChipChoice]
   ) -> some View {
-    PutioVideoChipLabel(icon: icon, title: title, iconOnly: iconOnly)
-      .opacity(transport.controlsEnabled ? 1 : 0.5)
+    let enabled = enabled && transport.controlsEnabled
+    return PutioVideoChipLabel(icon: icon, title: title, iconOnly: iconOnly)
+      .opacity(enabled ? 1 : 0.5)
       .accessibilityHidden(true)
       .overlay {
         PutioVideoChipMenu(
           choices: choices, label: label, identifier: identifier,
-          enabled: transport.controlsEnabled, onChange: onChange,
+          enabled: enabled, onChange: onChange,
           onPresentation: menuPresented)
       }
   }
@@ -1174,6 +1308,7 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
   func makeUIView(context: Context) -> PutioVideoMenuButton {
     let button = PutioVideoMenuButton(type: .custom)
     button.showsMenuAsPrimaryAction = true
+    button.preferredMenuElementOrder = .fixed
     return button
   }
 

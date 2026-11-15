@@ -36,8 +36,8 @@ final class SubtitlesJourneyTests: XCTestCase {
 
     // A non-default audio pick survives every subtitle change.
     openChip("audio")
-    XCTAssertTrue(app.buttons["English"].appears(within: 5))
-    app.buttons["Turkish"].tap()
+    XCTAssertTrue(element("video.audio.0").appears(within: 5))
+    element("video.audio.1").tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(keepsValue(subtitle, "en"), "changing the audio changed the subtitle")
 
