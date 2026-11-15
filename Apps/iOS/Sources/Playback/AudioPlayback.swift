@@ -142,6 +142,10 @@ protocol PutioAudioEngine: AnyObject {
 
 extension PutioAudioEngine {
   var playsAtRate: Bool { true }
+
+  func load(url: URL, exactlyAt seconds: Int) {
+    load(url: url, startFromSeconds: seconds)
+  }
 }
 
 @MainActor
@@ -500,7 +504,11 @@ final class PutioAudioPlayerModel {
       elapsedSeconds = startFrom
       awaitedSeconds = startFrom > 0 ? startFrom : nil
       loadStartSeconds = awaitedSeconds
-      engine.load(url: source.url, startFromSeconds: startFrom)
+      if override != nil {
+        engine.load(url: source.url, exactlyAt: startFrom)
+      } else {
+        engine.load(url: source.url, startFromSeconds: startFrom)
+      }
       durationSeconds = engine.durationSeconds
       if holdsNextStart {
         holdsNextStart = false
@@ -579,7 +587,12 @@ final class PutioAudioPlayerModel {
       publishNowPlaying()
     }
     engine.onPositionChanged = { [weak self] seconds in
-      guard let self, self.isPlaying, !self.isTransitioning else { return }
+      guard let self, !self.isTransitioning else { return }
+      switch self.state {
+      case .playing: break
+      case .paused where self.isOnReceiver: break
+      default: return
+      }
       if let awaited = self.awaitedSeconds {
         // Samples before the seek lands describe the old position.
         guard abs(seconds - awaited) <= 1 else { return }
@@ -776,6 +789,7 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   private var itemIsReady = false
   private var pendingStartSeconds = 0
   private var pendingRate: Float?
+  private var startsExactly = false
 
   init() {
     player.automaticallyWaitsToMinimizeStalling = true
@@ -787,9 +801,18 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   }
 
   func load(url: URL, startFromSeconds: Int) {
+    load(url: url, startFromSeconds: startFromSeconds, exact: false)
+  }
+
+  func load(url: URL, exactlyAt seconds: Int) {
+    load(url: url, startFromSeconds: seconds, exact: true)
+  }
+
+  private func load(url: URL, startFromSeconds: Int, exact: Bool) {
     stopObserving()
     let item = AVPlayerItem(url: url)
     itemIsReady = false
+    startsExactly = exact
     pendingStartSeconds = startFromSeconds
     pendingRate = nil
     player.replaceCurrentItem(with: item)
@@ -865,9 +888,12 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   private func handleReady() {
     guard !itemIsReady else { return }
     itemIsReady = true
-    let start = PutioPlaybackProgress.startSeconds(
-      savedSeconds: pendingStartSeconds,
-      durationSeconds: player.currentItem.map { CMTimeGetSeconds($0.duration) })
+    let start =
+      startsExactly
+      ? pendingStartSeconds
+      : PutioPlaybackProgress.startSeconds(
+        savedSeconds: pendingStartSeconds,
+        durationSeconds: player.currentItem.map { CMTimeGetSeconds($0.duration) })
     pendingStartSeconds = 0
     let begin: @MainActor () -> Void = { [weak self] in
       guard let self else { return }

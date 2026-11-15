@@ -22,6 +22,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   private var wantsPlay = false
   private var pendingSeekSeconds: Int?
   private var commandsInFlight = 0
+  private var ownsReceiverMedia = false
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
   private var ticker: Task<Void, Never>?
@@ -73,6 +74,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
       return
     }
     pending = media
+    ownsReceiverMedia = true
     loadTask = Task { @MainActor [weak self] in
       await Task.yield()
       guard let self, request == generation else { return }
@@ -129,7 +131,8 @@ final class PutioCastAudioEngine: PutioAudioEngine {
     loadTask?.cancel()
     loadTask = nil
     stopTicker()
-    let hadMedia = loaded != nil || pending != nil
+    let hadMedia = ownsReceiverMedia
+    ownsReceiverMedia = false
     loaded = nil
     pending = nil
     resolved = nil
@@ -175,6 +178,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
     stopTicker()
     loaded = nil
     status = nil
+    ownsReceiverMedia = false
     if PutioVideoPositionReporter.isAtEnd(positionSeconds: position, durationSeconds: duration) {
       onEnded?()
     } else {
