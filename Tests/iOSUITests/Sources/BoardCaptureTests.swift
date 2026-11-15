@@ -752,10 +752,6 @@ final class BoardCaptureTests: XCTestCase {
   func testPortraitVideoPlayer() throws {
     app.launchArguments.append("--putio-harness-rotate-off")
     try captureVideoPlayer(.portrait, board: "rd-ios-pb-43-portrait-video")
-    let close = app.videoClose.frame
-    let title = element("video.title").frame
-    XCTAssertGreaterThanOrEqual(title.minY, close.maxY, "the portrait title shares the button row")
-    XCTAssertLessThan(app.mainWindow.frame.width, app.mainWindow.frame.height)
   }
 
   private func captureVideoPlayer(_ orientation: UIDeviceOrientation, board: String) throws {
@@ -778,6 +774,12 @@ final class BoardCaptureTests: XCTestCase {
       speed.frame.maxY, element("video.scrubber").frame.minY, "the chips overlap the scrubber")
     XCTAssertGreaterThanOrEqual(
       speed.frame.minY, playPause.frame.maxY, "the chips overlap the transport buttons")
+    if orientation == .portrait {
+      XCTAssertGreaterThanOrEqual(
+        element("video.title").frame.minY, app.videoClose.frame.maxY,
+        "the portrait title shares the button row")
+      XCTAssertLessThan(app.mainWindow.frame.width, app.mainWindow.frame.height)
+    }
     if !auditsText { app.setVideoPlaying(true, with: playPause) }
     try captureBoard(board)
   }
