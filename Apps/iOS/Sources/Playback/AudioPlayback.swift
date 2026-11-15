@@ -65,20 +65,30 @@ enum PutioAudioSpeed: Float, CaseIterable, Sendable {
 
 @MainActor
 final class PutioAudioSpeedStore {
-  private static let key = "putio.audio.playback-speed"
+  static let audioKey = "putio.audio.playback-speed"
+  static let videoKey = "putio.video.playback-speed"
   private let defaults: UserDefaults
+  private let key: String
 
-  init(defaults: UserDefaults = .standard) {
+  init(defaults: UserDefaults = .standard, key: String = audioKey) {
     self.defaults = defaults
+    self.key = key
+  }
+
+  static func video(defaults: UserDefaults = .standard) -> PutioAudioSpeedStore {
+    #if DEBUG
+      HarnessPlaybackSpeed.resetUnlessKept(defaults)
+    #endif
+    return PutioAudioSpeedStore(defaults: defaults, key: videoKey)
   }
 
   func load() -> PutioAudioSpeed {
-    guard defaults.object(forKey: Self.key) != nil else { return .normal }
-    return PutioAudioSpeed(rawValue: defaults.float(forKey: Self.key)) ?? .normal
+    guard defaults.object(forKey: key) != nil else { return .normal }
+    return PutioAudioSpeed(rawValue: defaults.float(forKey: key)) ?? .normal
   }
 
   func save(_ speed: PutioAudioSpeed) {
-    defaults.set(speed.rawValue, forKey: Self.key)
+    defaults.set(speed.rawValue, forKey: key)
   }
 }
 

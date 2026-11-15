@@ -816,6 +816,40 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-pb-23-airplay")
   }
 
+  func testVideoAudioMenu() throws {
+    playBoardEpisode()
+    let english = element("video.audio.0")
+    openVideoChipMenu("audio", showing: english)
+    XCTAssertTrue(english.appears(within: 5), "the Audio chip opened no menu")
+    XCTAssertTrue(english.label.contains("English"), english.label)
+    XCTAssertTrue(english.label.contains("AAC · mono"), english.label)
+    XCTAssertTrue(element("video.audio.1").label.contains("Turkish"))
+    try captureBoard("rd-ios-pb-06-audio")
+  }
+
+  func testVideoSpeedMenu() throws {
+    playBoardEpisode()
+    let slowest = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "identifier == %@ OR label == %@", "video.speed.0.25", "0.25×"))
+      .firstMatch
+    openVideoChipMenu("speed", showing: slowest)
+    XCTAssertTrue(slowest.appears(within: 5), "the speed chip opened no menu")
+    try captureBoard("rd-ios-pb-07-speed")
+  }
+
+  private func openVideoChipMenu(_ name: String, showing firstRow: XCUIElement) {
+    let playPause = element("video.play-pause")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
+      app.setVideoPlaying(false, with: playPause)
+    }
+    let chip = element("video.chip.\(name)")
+    for _ in 0..<3 {
+      app.revealVideoControls(showing: chip)
+      chip.tap()
+      if firstRow.waitForExistence(timeout: 3) { return }
+    }
+  }
+
   private func playBoardEpisode(
     _ arguments: [String] = [], orientation: UIDeviceOrientation = .landscapeLeft
   ) {

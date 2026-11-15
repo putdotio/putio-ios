@@ -41,3 +41,21 @@ renditions above in the shapes put.io's HLS endpoint serves for
 
 These masters declare `CLOSED-CAPTIONS=NONE`, as put.io does. The subtitles
 journey streams them with `--putio-harness-subtitled-stream`.
+
+The audio menu journey streams two more masters with
+`--putio-harness-audio-tracks`: `multi-audio-one.m3u8` keeps only the English
+audio rendition, and `multi-audio-failing.m3u8` points the Turkish rendition
+at a playlist that does not exist, so switching to it fails.
+
+AVPlayer pauses an HLS video above 2× unless the master lists an I-frame
+playlist, as put.io's HLS does. `multi-audio-speed.m3u8`
+(`--putio-harness-audio-tracks fast-forward`) pairs the audio renditions with
+`multi-fast-video.m3u8`, the video re-encoded with a keyframe every 2 seconds,
+and lists its segments again as `multi-fast-iframes.m3u8`:
+
+```sh
+ffmpeg -i multi-video-000.ts -map 0:v -c:v libx264 -preset veryfast \
+  -tune stillimage -g 2 -pix_fmt yuv420p -b:v 48k -f hls -hls_time 4 \
+  -hls_playlist_type vod -hls_segment_filename "multi-fast-video-%03d.ts" \
+  multi-fast-video.m3u8
+```

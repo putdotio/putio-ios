@@ -1044,7 +1044,8 @@ struct MainTabView: View {
       }
       harnessPlaybackAttempt += 1
       let heldPath = HarnessHeldStream.path()
-      let subtitledPath = HarnessSubtitledStream.path(for: account)
+      let subtitledPath =
+        HarnessAudioStream.path() ?? HarnessSubtitledStream.path(for: account)
       let fixtureURL: URL
       let probesInvalidFixture =
         heldPath == nil && fileID.rawValue != 411 && harnessPlaybackAttempt == 1

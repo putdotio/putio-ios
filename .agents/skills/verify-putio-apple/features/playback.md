@@ -34,6 +34,10 @@ offline playback.
 - `direct-play` plays a Matroska original in the Direct play engine from the
   file menu on Standard, keeps a plain tap on HLS, follows the setting, then
   seeks, switches to the E-AC-3 track and resumes on Direct play.
+- `audio-speed` switches English to Turkish from the Audio chip and keeps 2.5×
+  on the next file and after a relaunch. `speed-landscape` scrolls the speed
+  menu to 4× in landscape. `audio-tracks` disables the Audio chip with one track
+  and keeps English when the switch to Turkish fails.
 - `playback-preferences` saves proxy, subtitle, and autoplay settings, retries a
   failed save, and keeps them across relaunch. Rotate to landscape on holds
   landscape and restores portrait on Close; off, the player and the conversion
@@ -128,6 +132,14 @@ Preconditions:
   and serves put.io's subtitle files as the loopback SubRip file. Captures
   compare with `rd-ios-pb-02-video`, `rd-ios-pb-06-audio` and
   `rd-ios-pb-13-ipad-video`.
+- **Audio and speed.** Run `--only audio-speed,speed-landscape,audio-tracks`.
+  Screenshots: `runtime-audio-menu`, `runtime-speed-kept`,
+  `runtime-speed-menu-scrolled`, `runtime-audio-one-track`,
+  `runtime-audio-switch-failed`. Harness launches reset the video speed unless
+  they pass `--putio-harness-keep-playback-speed`;
+  `--putio-harness-audio-tracks one|failing|fast-forward` streams one audio track, a
+  Turkish track whose playlist is missing, or an I-frame playlist for speeds above 2×. Boards: `rd-ios-pb-06-audio`,
+  `rd-ios-pb-07-speed`.
 - **Preferences.** Run `--only playback-preferences`. Screenshots:
   `runtime-playback-preferences`, `runtime-rotate-off-portrait`,
   `runtime-rotate-off-converting`. `--putio-harness-rotate-off` starts with

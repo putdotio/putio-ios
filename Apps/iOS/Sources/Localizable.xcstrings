@@ -1329,6 +1329,17 @@
         }
       }
     },
+    "Couldn’t switch audio track" : {
+      "comment" : "ios-only: Android phone shows no notice for a failed audio switch; Android TV says tv_player_audio_failed (putio-android#720)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t switch audio track"
+          }
+        }
+      }
+    },
     "Couldn’t update recent searches" : {
       "comment" : "android: mobile_search_recent_error_title",
       "localizations" : {
