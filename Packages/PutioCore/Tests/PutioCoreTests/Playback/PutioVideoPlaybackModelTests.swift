@@ -769,7 +769,7 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       let saved = playbackSource()
       let resolver = PlaybackResolverStub([.success(.conversionRequired), .success(.ready(saved))])
       let conversion = VideoConversionStub(statusResults: [.success(.completed)])
-      var connected = connectedAtOpen
+      var connection: Int? = connectedAtOpen ? 1 : nil
       var handedOff: [Int?] = []
       let model = PutioVideoPlaybackModel(
         fileID: fileID,
@@ -788,13 +788,13 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
           }
         },
         handOffConverted: PutioVideoConvertedHandOff(
-          isAvailable: { connected },
+          connection: { connection },
           handOff: { startOverride in
             handedOff.append(startOverride)
             return true
           }),
         resolve: { fileID in
-          connected = true
+          connection = 1
           return try await resolver.resolve(fileID)
         }
       )
@@ -809,6 +809,35 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
         XCTAssertEqual(model.state, .conversionCompleted)
       }
     }
+  }
+
+  func testAConvertedVideoHandsOffWhenTheReceiverSwitchedWithinOnePoll() async {
+    let saved = playbackSource()
+    let resolver = PlaybackResolverStub([.success(.conversionRequired), .success(.ready(saved))])
+    let conversion = VideoConversionStub(statusResults: [.success(.completed)])
+    var connection: Int? = 1
+    var handedOff: [Int?] = []
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      conversionPollInterval: .milliseconds(10),
+      startConversion: { try await conversion.start($0) },
+      loadConversionStatus: { try await conversion.status($0) },
+      sleep: { try await conversion.sleep(for: $0) },
+      handOffConverted: PutioVideoConvertedHandOff(
+        connection: { connection },
+        handOff: { startOverride in
+          handedOff.append(startOverride)
+          return true
+        }),
+      resolve: { fileID in
+        connection = 2
+        return try await resolver.resolve(fileID)
+      }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(handedOff, [nil], "the receiver connected during the wait takes the video")
+    XCTAssertEqual(model.state, .conversionCompleted)
   }
 
   func testAReadySourceOffersItsStartWithoutConversion() async {

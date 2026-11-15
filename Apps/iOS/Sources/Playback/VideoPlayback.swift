@@ -207,8 +207,8 @@ struct PutioVideoPlaybackView: View {
       guard case .playing(let nextVideo) = state else { return }
       onPlayNext(nextVideo)
     }
-    .onChange(of: castHandOff?.isAvailable() == true) { _, connected in
-      guard connected, isReady, transport.isPlaying, let castHandOff else { return }
+    .onChange(of: castHandOff?.connection()) { _, connection in
+      guard connection != nil, isReady, transport.isPlaying, let castHandOff else { return }
       _ = castHandOff.handOff(
         PutioVideoPositionReporter.normalizedPosition(seconds: transport.timeline.elapsedSeconds))
     }

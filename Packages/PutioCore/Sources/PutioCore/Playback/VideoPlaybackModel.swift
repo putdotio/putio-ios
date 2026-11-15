@@ -15,14 +15,14 @@ public typealias PutioVideoStartChoice =
   @MainActor @Sendable (PutioPlaybackSource, _ afterConversion: Bool) async -> PutioPlaybackSource
 
 public struct PutioVideoConvertedHandOff: Sendable {
-  public let isAvailable: @MainActor @Sendable () -> Bool
+  public let connection: @MainActor @Sendable () -> Int?
   public let handOff: @MainActor @Sendable (_ startOverride: Int?) -> Bool
 
   public init(
-    isAvailable: @escaping @MainActor @Sendable () -> Bool,
+    connection: @escaping @MainActor @Sendable () -> Int?,
     handOff: @escaping @MainActor @Sendable (_ startOverride: Int?) -> Bool
   ) {
-    self.isAvailable = isAvailable
+    self.connection = connection
     self.handOff = handOff
   }
 }
@@ -198,7 +198,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
   @ObservationIgnored private let handOffConverted: PutioVideoConvertedHandOff?
-  @ObservationIgnored private var handOffArmed = false
+  @ObservationIgnored private let connectionAtOpen: Int?
   @ObservationIgnored private var chosenStart: (saved: Int, start: Int)?
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
@@ -233,7 +233,7 @@ public final class PutioVideoPlaybackModel {
     self.handOffConverted = handOffConverted
     self.resolveConverted = resolveConverted
     self.resolve = resolve
-    armHandOffIfUnavailable()
+    connectionAtOpen = handOffConverted?.connection()
   }
 
   public func loadIfNeeded() async {
@@ -367,7 +367,6 @@ public final class PutioVideoPlaybackModel {
 
     do {
       while requestGeneration == generation {
-        armHandOffIfUnavailable()
         try Task.checkCancellation()
         let status = try await loadConversionStatus(fileID)
         try Task.checkCancellation()
@@ -426,7 +425,7 @@ public final class PutioVideoPlaybackModel {
           let choseStart =
             start.resumesAfterFailure || start.startFromSeconds != source.startFromSeconds
           let startOverride = choseStart ? start.startFromSeconds : nil
-          if handOffArmed, handOffConverted?.handOff(startOverride) == true { return }
+          if connectedDuringWait, handOffConverted?.handOff(startOverride) == true { return }
           play(start)
           return
         case .conversionRequired:
@@ -484,8 +483,9 @@ public final class PutioVideoPlaybackModel {
     state = .ready(source)
   }
 
-  private func armHandOffIfUnavailable() {
-    if handOffConverted?.isAvailable() == false { handOffArmed = true }
+  private var connectedDuringWait: Bool {
+    guard let connection = handOffConverted?.connection() else { return false }
+    return connection != connectionAtOpen
   }
 
   private func startSource(_ source: PutioPlaybackSource, afterConversion: Bool) async

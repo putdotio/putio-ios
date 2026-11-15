@@ -964,7 +964,7 @@ struct MainTabView: View {
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
       castHandOff: PutioVideoConvertedHandOff(
-        isAvailable: { cast.isConnected },
+        connection: { cast.connectionID },
         handOff: { startOverride in
           guard cast.isConnected else { return false }
           castVideo(route, startingAt: startOverride)
