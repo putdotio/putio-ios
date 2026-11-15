@@ -46,6 +46,7 @@ public final class PutioVideoUpNextModel {
   @ObservationIgnored private let prepare: PutioUpNextPrepare
   @ObservationIgnored private let sleep: PutioNextVideoSleep
   @ObservationIgnored private var lookup = Lookup.pending
+  @ObservationIgnored private var lookupTask: Task<PutioNextVideo?, Error>?
   @ObservationIgnored private var lastRequest: Request?
   @ObservationIgnored private var generation: UInt64 = 0
 
@@ -72,14 +73,7 @@ public final class PutioVideoUpNextModel {
   public func lookUp() async {
     defer { lookupSettled = true }
     guard suggestionsEnabled, case .pending = lookup else { return }
-    do {
-      let next = try await find(fileID)
-      try Task.checkCancellation()
-      lookup = .found(next)
-      upcoming = next
-    } catch {
-      if case .pending = lookup { lookup = .failed }
-    }
+    _ = try? await successor()
   }
 
   public func playbackEnded() async {
@@ -117,8 +111,6 @@ public final class PutioVideoUpNextModel {
     let request = begin(.chosen)
     state = .finding
     do {
-      await waitForReset(fileID)
-      guard isCurrent(request) else { return }
       let found: PutioNextVideo? = if let target { target } else { try await successor() }
       guard let next = found else {
         settle(request, .idle)
@@ -154,12 +146,28 @@ public final class PutioVideoUpNextModel {
     case .found(let next):
       return next
     case .pending, .failed:
-      let next = try await find(fileID)
-      try Task.checkCancellation()
-      lookup = .found(next)
-      upcoming = next
-      return next
+      let task = lookupTask ?? startLookup()
+      do {
+        let next = try await task.value
+        lookup = .found(next)
+        upcoming = next
+        return next
+      } catch {
+        if lookupTask == task {
+          lookupTask = nil
+          lookup = .failed
+        }
+        throw error
+      }
     }
+  }
+
+  private func startLookup() -> Task<PutioNextVideo?, Error> {
+    let find = find
+    let fileID = fileID
+    let task = Task { try await find(fileID) }
+    lookupTask = task
+    return task
   }
 
   private func countDown(to next: PutioNextVideo, _ request: UInt64) async throws {

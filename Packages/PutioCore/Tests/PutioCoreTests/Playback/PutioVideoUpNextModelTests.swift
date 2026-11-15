@@ -17,6 +17,26 @@ private final class UpNextRecorder {
 private struct UpNextFailure: Error {}
 
 @MainActor
+private final class HeldLookup {
+  let started = XCTestExpectation(description: "HeldLookup suspended")
+  private(set) var requests = 0
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func hold() async {
+    requests += 1
+    await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
+  }
+
+  func release() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
+@MainActor
 final class PutioVideoUpNextModelTests: XCTestCase {
   private let fileID = PutioFileID(rawValue: 441)
   private let next = PutioNextVideo(
@@ -162,7 +182,7 @@ final class PutioVideoUpNextModelTests: XCTestCase {
     await model.lookUp()
     await model.playNext()
     XCTAssertEqual(model.state, .playing(playable(next)))
-    XCTAssertEqual(recorder.operations, ["find:441", "reset:441", "prepare:442"])
+    XCTAssertEqual(recorder.operations, ["find:441", "prepare:442"])
     XCTAssertTrue(recorder.countdown.isEmpty)
   }
 
@@ -192,5 +212,29 @@ final class PutioVideoUpNextModelTests: XCTestCase {
     model.cancel()
     XCTAssertEqual(model.state, .idle)
     XCTAssertEqual(model.upcoming, next)
+  }
+
+  func testTheEndAwaitsTheLookupInFlightInsteadOfFindingAgain() async {
+    let held = HeldLookup()
+    let next = next
+    let model = PutioVideoUpNextModel(
+      fileID: fileID,
+      autoplayEnabled: { true },
+      countdown: .zero,
+      waitForReset: { _ in },
+      find: { _ in
+        await held.hold()
+        return next
+      },
+      prepare: { self.playable($0) })
+    let lookup = Task { await model.lookUp() }
+    await fulfillment(of: [held.started], timeout: 1)
+    let ended = Task { await model.playbackEnded() }
+    for _ in 0..<5 { await Task.yield() }
+    held.release()
+    await lookup.value
+    await ended.value
+    XCTAssertEqual(held.requests, 1)
+    XCTAssertEqual(model.state, .playing(playable(next)))
   }
 }
