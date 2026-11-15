@@ -742,6 +742,11 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-34-now-playing-casting", .iphone, "testNowPlayingCasting"),
       BoardCapture(
         "ipad-now-playing-casting", .ipad, "testNowPlayingCasting", screenBase: false),
+      BoardCapture(
+        "duo-folded-now-playing-casting", .duoFolded, "testNowPlayingCasting",
+        screenBase: false),
+      BoardCapture(
+        "duo-open-now-playing-casting", .duoOpen, "testNowPlayingCasting", screenBase: false),
       BoardCapture("rd-ios-pb-05-mini", .iphone, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-41-ipad-mini", .ipad, "testMiniPlayer"),
       BoardCapture("rd-ios-pb-11-sleep", .iphone, "testSleepTimerMenu"),
