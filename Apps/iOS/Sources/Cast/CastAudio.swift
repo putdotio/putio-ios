@@ -72,14 +72,18 @@ final class PutioCastAudioEngine: PutioAudioEngine {
     loadTask = Task { @MainActor [weak self] in
       await Task.yield()
       guard let self, request == generation else { return }
+      let autoplay = wantsPlay
       do {
-        try await controller.load(media, startSeconds: startFromSeconds, autoplay: wantsPlay)
+        try await controller.load(media, startSeconds: startFromSeconds, autoplay: autoplay)
         guard request == generation else { return }
         pending = nil
         loaded = media
-        let autoplayed = wantsPlay
         onReady?(startFromSeconds)
-        if autoplayed { startTicker() }
+        guard request == generation else { return }
+        if wantsPlay != autoplay {
+          if wantsPlay { command { try await $0.play() } } else { command { try await $0.pause() } }
+        }
+        if wantsPlay { startTicker() }
       } catch {
         guard request == generation, !(error is CancellationError) else { return }
         pending = nil
