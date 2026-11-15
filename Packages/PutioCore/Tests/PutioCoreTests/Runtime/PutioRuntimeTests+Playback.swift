@@ -712,6 +712,26 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testCastMediaRequestsTheConversionFlagTheFilesAPIOmitsByDefault() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":true,"is_mp4_available":false,"start_from":0}}
+      """, for: "GET /v2/files/412")
+
+    _ = try await runtime.resolveCastMedia(fileID: PutioFileID(rawValue: 412))
+
+    let request = try XCTUnwrap(
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/files/412" })
+    let url = try XCTUnwrap(request.url)
+    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    XCTAssertTrue(
+      query.contains { ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1" },
+      "GET /files/{id} returns need_convert only with mp4_status or mp4_stream_url")
+  }
+
   func testMediaURLsLeavingTheAppNeverCarryTheSessionToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
