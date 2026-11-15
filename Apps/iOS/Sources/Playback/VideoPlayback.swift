@@ -67,6 +67,7 @@ struct PutioVideoPlaybackView: View {
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     castButton: AnyView? = nil,
     onCast: (@MainActor @Sendable () -> Void)? = nil,
+    castsConverted: PutioVideoConvertedHandOff? = nil,
     onOpenInVLC: (() -> Void)? = nil,
     onFallback: @escaping @MainActor @Sendable () -> Void = {},
     onFallbackPlays: @escaping @MainActor @Sendable () -> Void = {},
@@ -130,6 +131,7 @@ struct PutioVideoPlaybackView: View {
           let choice = await resumePrompter.ask(positionSeconds: source.startFromSeconds)
           return PutioVideoStart.source(source, startingWith: choice ?? .resume)
         },
+        handOffConverted: castsConverted,
         resolveConverted: resolveConverted.map { resolveConverted in
           { fileID in
             await positionPipeline.waitForPendingReports(fileID: fileID)

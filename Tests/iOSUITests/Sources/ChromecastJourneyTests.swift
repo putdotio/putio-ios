@@ -292,6 +292,37 @@ final class ChromecastJourneyTests: XCTestCase {
     app.closeVideo()
   }
 
+  func testAVideoConvertedAfterCastConnectsPlaysOnTheReceiver() throws {
+    let castButton = app.buttons["cast.button"]
+    let tv = app.buttons["cast.picker.device.living-room-tv"]
+    app.launchArguments.removeAll { $0 == "--putio-harness-cast-load-fails-once" }
+    app.launchArguments += ["--putio-harness-episode-conversion", "completes-late"]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    let episode = element("files.item.441")
+    if signIn.appears(within: 10) { signIn.tap() }
+    for id in [410, 440] where !episode.appears(within: 3) {
+      let folder = element("files.item.\(id)")
+      if folder.exists { folder.tap() }
+    }
+    XCTAssertTrue(episode.becomesHittable(within: 10), "the converting episode never appeared")
+    episode.tap()
+    let detailPlay = element("files.detail.play")
+    if detailPlay.appears(within: 3) { detailPlay.tap() }
+    XCTAssertTrue(castButton.appears(within: 10), "the conversion gate offers no Cast")
+    castButton.tap()
+    XCTAssertTrue(tv.appears(within: 5), "Cast opened no picker")
+    tv.tap()
+    XCTAssertTrue(tv.disappears(within: 5), "choosing a device kept the picker open")
+    XCTAssertFalse(element("video.ready").exists, "the conversion finished before Cast connected")
+    XCTAssertTrue(
+      element("cast.playing").appears(within: 20),
+      "the converted video never played on the receiver")
+    XCTAssertEqual(
+      element("cast.load-requests").value as? String, "/v2/files/441/hls/media.m3u8",
+      "the receiver loaded something other than the converted video")
+  }
+
   func testAudioCastsFromNowPlayingAdvancesOnTheReceiverAndHandsBackPaused() throws {
     app.launchArguments.append("--putio-harness-music")
     launchSignedIn()

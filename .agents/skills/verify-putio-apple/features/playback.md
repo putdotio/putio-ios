@@ -67,6 +67,8 @@ offline playback.
   drops Cast with no device, and explains Local Network when it is off.
 - `cast-picker` lists a TV and a speaker while playback continues, connects to
   the TV, and stops casting.
+- `cast-conversion` connects during a conversion wait and plays the converted
+  video on the receiver, not the phone.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.

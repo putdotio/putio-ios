@@ -757,6 +757,60 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
   }
 
+  func testAConvertedVideoHandsOffOnlyWhenTheReceiverConnectedDuringTheWait() async {
+    enum Choice { case startOver, savedPosition, resumeAtSavedSecond }
+    let cases: [(connectedAtOpen: Bool, choice: Choice, handedOff: [Int?])] = [
+      (false, .startOver, [0]),
+      (false, .savedPosition, [nil]),
+      (false, .resumeAtSavedSecond, [90]),
+      (true, .startOver, []),
+    ]
+    for (connectedAtOpen, choice, expected) in cases {
+      let saved = playbackSource()
+      let resolver = PlaybackResolverStub([.success(.conversionRequired), .success(.ready(saved))])
+      let conversion = VideoConversionStub(statusResults: [.success(.completed)])
+      var connected = connectedAtOpen
+      var handedOff: [Int?] = []
+      let model = PutioVideoPlaybackModel(
+        fileID: fileID,
+        conversionPollInterval: .milliseconds(10),
+        startConversion: { try await conversion.start($0) },
+        loadConversionStatus: { try await conversion.status($0) },
+        sleep: { try await conversion.sleep(for: $0) },
+        chooseStart: { source, _ in
+          switch choice {
+          case .startOver: PutioVideoStart.source(source, startingWith: .startOver)
+          case .savedPosition: source
+          case .resumeAtSavedSecond:
+            PutioPlaybackSource(
+              url: source.url, startFromSeconds: source.startFromSeconds,
+              resumesAfterFailure: true)
+          }
+        },
+        handOffConverted: PutioVideoConvertedHandOff(
+          isAvailable: { connected },
+          handOff: { startOverride in
+            handedOff.append(startOverride)
+            return true
+          }),
+        resolve: { fileID in
+          connected = true
+          return try await resolver.resolve(fileID)
+        }
+      )
+
+      await model.loadIfNeeded()
+      XCTAssertEqual(handedOff, expected)
+      if connectedAtOpen {
+        XCTAssertEqual(
+          model.state, .ready(PutioPlaybackSource(url: saved.url, startFromSeconds: 0)),
+          "a receiver connected before the wait took the video")
+      } else {
+        XCTAssertEqual(model.state, .conversionCompleted)
+      }
+    }
+  }
+
   func testAReadySourceOffersItsStartWithoutConversion() async {
     let saved = playbackSource()
     let resolver = PlaybackResolverStub([.success(.ready(saved))])
