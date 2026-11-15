@@ -284,6 +284,7 @@ struct MainTabView: View {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         videoPlayer(for: route)
           .putioToast($externalPlayback.toast)
+          .putioCastPicker(cast)
       }
     }
     // Keyed on the cover, not the route, so the next video keeps the lock.
@@ -317,6 +318,7 @@ struct MainTabView: View {
           showsHarnessReadiness: scenario == .filesBrowser
         )
         .putioCastLocalNetworkAlert(cast)
+        .putioCastPicker(cast)
       }
     }
     .onDisappear {

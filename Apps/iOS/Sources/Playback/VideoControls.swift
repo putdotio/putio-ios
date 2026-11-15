@@ -902,6 +902,10 @@ struct PutioVideoCue: Identifiable, Equatable {
   }
 }
 
+extension EnvironmentValues {
+  @Entry var putioVideoControlsHold: @MainActor @Sendable (Bool) -> Void = { _ in }
+}
+
 struct PutioVideoControls<Trailing: View>: View {
   let title: String
   let transport: PutioVideoTransport
@@ -937,7 +941,11 @@ struct PutioVideoControls<Trailing: View>: View {
               if transport.supportsAirPlay {
                 PutioVideoAirPlayButton(isActive: transport.airPlay != nil)
               }
-              if transport.airPlay == nil { trailing }
+              if transport.airPlay == nil {
+                trailing.environment(\.putioVideoControlsHold) { held in
+                  animate { visibility.set(.routePicker, held) }
+                }
+              }
             }
             if let airPlay = transport.airPlay {
               airPlayCentre(airPlay, placeholderLayer: false)

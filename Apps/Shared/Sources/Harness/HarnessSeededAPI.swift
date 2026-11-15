@@ -1005,6 +1005,7 @@ import Foundation
       case offline
       case unavailable
       case completes
+      case completesLate = "completes-late"
     }
 
     static let episodeConversionFileID = 441
@@ -1073,6 +1074,10 @@ import Foundation
           return ("ERROR", 0)
         case .unavailable:
           return ("NOT_AVAILABLE", 0)
+        case .completesLate:
+          guard episodeConversionReads > 8 else { return ("CONVERTING", 62) }
+          episodeConversionCompleted = true
+          return ("COMPLETED", 100)
         case .completes:
           switch episodeConversionReads {
           case 1: return ("IN_QUEUE", 0)

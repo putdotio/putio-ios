@@ -2,7 +2,7 @@ import PutioCore
 import SwiftUI
 
 /// The Cast surfaces that ride on the tab shell: the bar above the tab bar,
-/// the expanded controls sheet, and the harness stub picker.
+/// and the expanded controls sheet.
 struct PutioCastPresentation: ViewModifier {
   let model: PutioCastModel
   var audio: PutioAudioMiniPlayerSlot? = nil
@@ -17,9 +17,6 @@ struct PutioCastPresentation: ViewModifier {
         PutioCastControlsView(model: model)
           .preferredColorScheme(.dark)
       }
-      #if DEBUG
-        .modifier(PutioHarnessCastPresentation(model: model))
-      #endif
   }
 }
 

@@ -80,6 +80,7 @@ public struct PutioVideoControlsVisibility: Equatable, Sendable {
     case voiceOver
     case scrubbing
     case menu
+    case routePicker
     case buffering
     case notice
     case upNext

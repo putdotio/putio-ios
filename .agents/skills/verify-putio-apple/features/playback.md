@@ -59,6 +59,8 @@ offline playback.
   and syncs the position back.
 - `cast-routes` shows Picture in Picture, AirPlay and Cast in the route group,
   drops Cast with no device, and explains Local Network when it is off.
+- `cast-picker` lists a TV and a speaker while playback continues, connects to
+  the TV, and stops casting.
 - `downloads` picks audio tracks, queues, plays offline, syncs the position, and
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.
@@ -105,9 +107,10 @@ Preconditions:
   it. Boards: `rd-ios-pb-24-preparing-video`, `rd-ios-pb-10-buffering`,
   `rd-ios-pb-26-buffering-long`, `rd-ios-pb-27-stalled`.
 - **Conversion gate.** Run `--only conversion-gate,conversion-completed,conversion-failed,conversion-unavailable,conversion-status`.
-  `--putio-harness-episode-conversion queued|converting|failed|offline|unavailable|completes`
+  `--putio-harness-episode-conversion queued|converting|failed|offline|unavailable|completes|completes-late`
   makes the first Blue Lights episode need conversion and seeds its status
-  reads; `video.conversion-reads` counts them. Boards:
+  reads; `completes-late` finishes several reads after `completes`.
+  `video.conversion-reads` counts them. Boards:
   `rd-ios-pb-28-conversion-queued`, `rd-ios-pb-15-converting`,
   `rd-ios-pb-16-conversion-failed`, `rd-ios-pb-29-conversion-status-failed`,
   `rd-ios-pb-30-cannot-convert`, `rd-ios-pb-42-ipad-converting`.
@@ -191,6 +194,10 @@ Preconditions:
   `--putio-harness-cast-local-network-denied` reports Local Network off.
   `--putio-harness-airplay-device <name>` shows the player as AirPlaying to
   that device. Boards: `rd-ios-pb-45-no-cast-device`, `rd-ios-pb-23-airplay`.
+- **Cast picker.** Run `--only cast-picker`. Screenshot: `runtime-cast-picker`.
+  The stub receiver lists "Living Room TV" and "Kitchen speaker" and keeps
+  searching. Boards:
+  `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
 - **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
   Screenshots: `runtime-downloads-picker`, `runtime-downloads-queue`,
   `runtime-downloads-detail`, `runtime-downloads-selection`,

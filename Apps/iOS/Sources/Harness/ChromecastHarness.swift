@@ -4,19 +4,24 @@
   import PutioCore
   import SwiftUI
 
-  /// A deterministic receiver for the seeded journey: one fake device, a
-  /// picker sheet driven by the app, and a clock that advances while
-  /// "playing". Load can be made to fail once so retry is proven.
+  /// A deterministic receiver for the seeded journey: a TV and a speaker that
+  /// discovery keeps looking past, and a clock that advances while "playing".
+  /// Load can be made to fail once so retry is proven.
   @MainActor
   @Observable
   final class PutioHarnessCastController: PutioCastControlling {
-    static let deviceName = "Harness TV"
+    static let tv = PutioCastDevice(
+      id: "living-room-tv", name: "Living Room TV", model: "Chromecast with Google TV",
+      kind: .tv, audioOnly: false, isSelected: false)
+    static let speaker = PutioCastDevice(
+      id: "kitchen-speaker", name: "Kitchen speaker", model: "Google Nest Audio",
+      kind: .speaker, audioOnly: true, isSelected: false)
 
     private(set) var connection: PutioCastConnection = .disconnected
+    private(set) var discovery: PutioCastDiscovery
     @ObservationIgnored var onConnectionChanged: ((PutioCastConnection) -> Void)?
+    @ObservationIgnored var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
     @ObservationIgnored var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-    /// The app observes this to present the stub picker.
-    var presentsPicker = false
     private(set) var loaded: PutioCastMedia?
     @ObservationIgnored private var state: PutioCastPlayerState = .idle
     @ObservationIgnored private var position: Double = 0
@@ -29,26 +34,30 @@
     init(failLoadsBeforeSuccess: Int = 0, connection: PutioCastConnection = .disconnected) {
       failuresRemaining = failLoadsBeforeSuccess
       self.connection = connection
+      discovery = PutioCastDiscovery(devices: [Self.tv, Self.speaker], isSearching: true)
     }
 
     func startDiscovery() {}
 
-    func presentDevicePicker() {
-      presentsPicker = true
-    }
-
-    func connectToHarnessDevice() {
-      presentsPicker = false
-      set(.connecting(deviceName: Self.deviceName))
+    func connect(toDevice id: PutioCastDevice.ID) {
+      guard let device = discovery.devices.first(where: { $0.id == id }) else { return }
+      if connection.deviceName != nil { endSession() }
+      select(id)
+      set(.connecting(deviceName: device.name))
       Task { @MainActor [weak self] in
         try? await Task.sleep(for: .milliseconds(300))
         guard let self, case .connecting = connection else { return }
-        set(.connected(deviceName: Self.deviceName))
+        set(.connected(deviceName: device.name))
       }
     }
 
-    func dismissPicker() {
-      presentsPicker = false
+    private func select(_ id: PutioCastDevice.ID?) {
+      discovery.devices = discovery.devices.map {
+        PutioCastDevice(
+          id: $0.id, name: $0.name, model: $0.model, kind: $0.kind, audioOnly: $0.audioOnly,
+          isSelected: $0.id == id)
+      }
+      onDiscoveryChanged?(discovery)
     }
 
     func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
@@ -103,6 +112,7 @@
       clock?.cancel()
       loaded = nil
       state = .idle
+      select(nil)
       set(.disconnected)
     }
 
@@ -135,33 +145,6 @@
     }
   }
 
-  /// The stub device picker, standing in for Google's dialog.
-  struct PutioHarnessCastPicker: View {
-    let controller: PutioHarnessCastController
-
-    var body: some View {
-      NavigationStack {
-        List {
-          Button {
-            controller.connectToHarnessDevice()
-          } label: {
-            Label(PutioHarnessCastController.deviceName, systemImage: "tv")
-          }
-          .accessibilityIdentifier("cast.picker.device")
-        }
-        .putioContentBackground()
-        .navigationTitle("Cast to")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { controller.dismissPicker() }
-              .accessibilityIdentifier("cast.picker.cancel")
-          }
-        }
-      }
-    }
-  }
-
   /// Exposes the last rendered position report so the journey can assert the
   /// throttled sync without reading network traffic.
   struct HarnessCastPositionProbe: View {
@@ -176,25 +159,6 @@
         .accessibilityValue("id=\(fileID.rawValue);seconds=\(seconds)")
         .accessibilityIdentifier("cast.position-reported")
         .allowsHitTesting(false)
-    }
-  }
-
-  /// Presents the harness stub picker; a no-op outside the seeded scenario.
-  struct PutioHarnessCastPresentation: ViewModifier {
-    let model: PutioCastModel
-
-    func body(content: Content) -> some View {
-      if let controller = model.harnessController {
-        content.sheet(
-          isPresented: Binding(
-            get: { controller.presentsPicker }, set: { if !$0 { controller.dismissPicker() } })
-        ) {
-          PutioHarnessCastPicker(controller: controller)
-            .preferredColorScheme(.dark)
-        }
-      } else {
-        content
-      }
     }
   }
 #endif

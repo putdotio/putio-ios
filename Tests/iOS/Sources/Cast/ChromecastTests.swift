@@ -8,7 +8,9 @@ import XCTest
 @MainActor
 private final class CastControllerStub: PutioCastControlling {
   var connection: PutioCastConnection = .connected(deviceName: "Living Room")
+  var discovery = PutioCastDiscovery()
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
+  var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
   private(set) var loads: [(PutioCastMedia, String?)] = []
   private(set) var commands: [String] = []
@@ -20,7 +22,7 @@ private final class CastControllerStub: PutioCastControlling {
   var reportsSessionEnd = true
 
   func startDiscovery() { commands.append("discover") }
-  func presentDevicePicker() { commands.append("picker") }
+  func connect(toDevice id: PutioCastDevice.ID) { commands.append("connect:\(id)") }
 
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {
     defer { completedLoads += 1 }
@@ -387,17 +389,47 @@ final class ChromecastTests: XCTestCase {
     controller.connection = .disconnected
     let (model, _) = makeModel(controller: controller, resolutions: [])
     model.castButtonTapped()
-    XCTAssertEqual(controller.commands, ["picker"])
+    XCTAssertTrue(model.presentsPicker)
+    XCTAssertEqual(controller.commands, ["discover"])
     XCTAssertFalse(model.presentsLocalNetworkAlert)
+    model.presentsPicker = false
 
     controller.connect(.localNetworkDenied)
     XCTAssertTrue(model.showsCastButton, "Local Network off hid the Cast button")
     model.castButtonTapped()
-    XCTAssertEqual(controller.commands, ["picker"], "Local Network off opened the picker")
+    XCTAssertFalse(model.presentsPicker, "Local Network off opened the picker")
+    XCTAssertEqual(controller.commands, ["discover"], "Local Network off searched anyway")
     XCTAssertTrue(model.presentsLocalNetworkAlert)
 
     controller.connect(.unavailable)
     XCTAssertFalse(model.showsCastButton)
+  }
+
+  func testPickerListsDiscoveryAndChoosingADeviceClosesItAndConnects() {
+    let controller = CastControllerStub()
+    controller.connection = .disconnected
+    let (model, _) = makeModel(controller: controller, resolutions: [])
+    let tv = PutioCastDevice(
+      id: "tv", name: "Living Room TV", model: "Chromecast with Google TV", kind: .tv,
+      audioOnly: false, isSelected: false)
+    let speaker = PutioCastDevice(
+      id: "speaker", name: "Kitchen speaker", model: nil, kind: .speaker, audioOnly: true,
+      isSelected: true)
+    let found = PutioCastDiscovery(devices: [tv, speaker], isSearching: true)
+    controller.onDiscoveryChanged?(found)
+    XCTAssertEqual(model.discovery, found)
+
+    model.castButtonTapped()
+    model.choose(tv)
+    XCTAssertFalse(model.presentsPicker, "choosing a device kept the picker open")
+    XCTAssertEqual(controller.commands, ["discover", "connect:tv"])
+
+    model.castButtonTapped()
+    model.choose(speaker)
+    XCTAssertFalse(model.presentsPicker)
+    XCTAssertEqual(
+      controller.commands, ["discover", "connect:tv", "discover"],
+      "choosing the connected device reconnected it")
   }
 
   func testControlsForwardToTheReceiverAndStopClearsWithoutDisconnecting() async throws {

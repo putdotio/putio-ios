@@ -141,11 +141,13 @@ final class PlaybackAccessibilityTests: XCTestCase {
 @MainActor
 private final class AccessibilityCastReceiver: PutioCastControlling {
   let connection: PutioCastConnection = .connected(deviceName: "Living Room")
+  let discovery = PutioCastDiscovery()
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
+  var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
 
   func startDiscovery() {}
-  func presentDevicePicker() {}
+  func connect(toDevice id: PutioCastDevice.ID) {}
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws {}
   func play() async throws {}
   func pause() async throws {}

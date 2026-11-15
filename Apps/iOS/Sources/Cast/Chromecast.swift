@@ -48,15 +48,37 @@ struct PutioCastMediaStatus: Equatable, Sendable {
   let activeSubtitleKey: String?
 }
 
+struct PutioCastDevice: Identifiable, Equatable, Sendable {
+  enum Kind: Equatable, Sendable {
+    case tv
+    case speaker
+    case other
+  }
+
+  let id: String
+  let name: String
+  let model: String?
+  let kind: Kind
+  let audioOnly: Bool
+  let isSelected: Bool
+}
+
+struct PutioCastDiscovery: Equatable, Sendable {
+  var devices: [PutioCastDevice] = []
+  var isSearching = false
+}
+
 /// The Cast SDK behind a seam so the model's state machine is testable and
 /// the harness can drive a deterministic receiver without a network.
 @MainActor
 protocol PutioCastControlling: AnyObject {
   var connection: PutioCastConnection { get }
+  var discovery: PutioCastDiscovery { get }
   var onConnectionChanged: ((PutioCastConnection) -> Void)? { get set }
+  var onDiscoveryChanged: ((PutioCastDiscovery) -> Void)? { get set }
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)? { get set }
   func startDiscovery()
-  func presentDevicePicker()
+  func connect(toDevice id: PutioCastDevice.ID)
   func load(_ media: PutioCastMedia, subtitleKey: String?) async throws
   func play() async throws
   func pause() async throws
@@ -160,6 +182,8 @@ final class PutioCastModel {
   /// Rendered position reports; the harness probe re-renders on it.
   private(set) var reportedPosition: (fileID: PutioFileID, seconds: Int)?
   private(set) var presentsControls = false
+  private(set) var discovery: PutioCastDiscovery
+  var presentsPicker = false
   var presentsLocalNetworkAlert = false
 
   @ObservationIgnored private let controller: PutioCastControlling
@@ -193,6 +217,7 @@ final class PutioCastModel {
   ) {
     self.controller = controller
     self.connection = controller.connection
+    self.discovery = controller.discovery
     self.positionReportInterval = positionReportInterval
     self.conversionPollInterval = conversionPollInterval
     self.resolve = resolve
@@ -204,6 +229,9 @@ final class PutioCastModel {
     self.remembersPlaybackPosition = remembersPlaybackPosition
     controller.onConnectionChanged = { [weak self] connection in
       self?.connectionChanged(connection)
+    }
+    controller.onDiscoveryChanged = { [weak self] discovery in
+      self?.discovery = discovery
     }
     controller.onMediaStatusChanged = { [weak self] status in
       self?.statusChanged(status)
@@ -243,8 +271,20 @@ final class PutioCastModel {
     if connection == .localNetworkDenied {
       presentsLocalNetworkAlert = true
     } else {
-      controller.presentDevicePicker()
+      controller.startDiscovery()
+      presentsPicker = true
     }
+  }
+
+  func choose(_ device: PutioCastDevice) {
+    presentsPicker = false
+    guard !device.isSelected else { return }
+    controller.connect(toDevice: device.id)
+  }
+
+  func stopCastingFromPicker() {
+    presentsPicker = false
+    disconnect()
   }
 
   func showControls() {
@@ -266,6 +306,7 @@ final class PutioCastModel {
   private func connectionChanged(_ connection: PutioCastConnection) {
     let wasConnected = self.connection.isConnected
     self.connection = connection
+    if connection == .unavailable || connection == .localNetworkDenied { presentsPicker = false }
     if wasConnected, !connection.isConnected {
       flushPositionReport()
       clearSession()
