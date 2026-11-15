@@ -448,6 +448,7 @@ final class PutioVideoTransport {
       return
     }
     guard let player else { return }
+    captionFeed.clear()
     let seek = playhead.seekStarted(to: seconds)
     player.seek(
       to: CMTime(seconds: playhead.timeline.elapsedSeconds, preferredTimescale: 600),
@@ -606,8 +607,15 @@ final class PutioVideoTransport {
     } else {
       item.select(nil, in: legible.group)
     }
+    if index != selectedSubtitle { restartCaptions() }
     selectedSubtitle = index
     return true
+  }
+
+  private func restartCaptions() {
+    captionFeed.clear()
+    guard let player else { return }
+    refreshCaptions(at: player.currentTime().seconds)
   }
 
   private func watchSubtitleFailures(of item: AVPlayerItem) {
@@ -870,6 +878,7 @@ final class PutioVideoTransport {
       }
     }
     if stampsSubtitle, subtitle != selectedSubtitle, subtitle != nil { subtitleSelectedAt = Date() }
+    if subtitle != selectedSubtitle { restartCaptions() }
     selectedSubtitle = subtitle
   }
 
@@ -1599,6 +1608,11 @@ private enum PutioVideoChipItem: Equatable {
   case choice(PutioVideoChipChoice)
   case action(PutioVideoChipAction)
   case unavailable(title: String, identifier: String)
+
+  var isChoice: Bool {
+    if case .action = self { return false }
+    return true
+  }
 }
 
 private struct PutioVideoChipSection: Equatable {
@@ -1637,7 +1651,9 @@ private struct PutioVideoChipMenu: UIViewRepresentable {
     let onChange = onChange
     let menus = sections.map { section in
       UIMenu(
-        title: section.title ?? "", options: [.displayInline, .singleSelection],
+        title: section.title ?? "",
+        options: section.items.allSatisfy(\.isChoice)
+          ? [.displayInline, .singleSelection] : .displayInline,
         children: section.items.map { Self.element($0, onChange: onChange) })
     }
     if let only = menus.first, menus.count == 1, sections[0].title == nil {

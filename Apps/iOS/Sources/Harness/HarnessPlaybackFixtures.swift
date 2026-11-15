@@ -78,6 +78,7 @@ import SwiftUI
     }
   }
 
+  @MainActor
   enum HarnessSubtitleSize {
     private static var reset = false
 

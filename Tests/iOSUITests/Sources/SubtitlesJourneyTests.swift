@@ -325,6 +325,10 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(timing, "\u{2212}0.5 s"), "timing: \(timing.value ?? "")")
     closeSizeAndTiming()
     try assertSecondLineShows(at: 3.5)
+    XCTAssertTrue(caption.exists, "no caption showed before Off")
+    openChip("subtitles")
+    pick(app.buttons["video.subtitles.off"])
+    XCTAssertTrue(caption.disappears(within: 3), "the caption stayed after Off")
     app.closeVideo()
 
     openVideo(retryingSeededFailure: false, startingOver: true)

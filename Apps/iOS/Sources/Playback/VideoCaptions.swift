@@ -45,7 +45,7 @@ final class PutioVideoCaptionFeed: NSObject, AVPlayerItemLegibleOutputPushDelega
   override init() {
     super.init()
     output.setDelegate(self, queue: .main)
-    output.advanceIntervalForDelegateInvocation = PutioSubtitleTiming.limitSeconds
+    output.advanceIntervalForDelegateInvocation = PutioSubtitleTiming.limitSeconds + 1
     output.textStylingResolution = .sourceAndRulesOnly
     output.suppressesPlayerRendering = true
   }
@@ -65,6 +65,10 @@ final class PutioVideoCaptionFeed: NSObject, AVPlayerItemLegibleOutputPushDelega
   func detach() {
     if let item, item.outputs.contains(output) { item.remove(output) }
     item = nil
+    changes.removeAll()
+  }
+
+  func clear() {
     changes.removeAll()
   }
 
