@@ -61,8 +61,8 @@ final class DirectPlayFallbackJourneyTests: XCTestCase {
     XCTAssertFalse(element("video.conversion-progress").exists, "the state started a conversion")
     screenshot("runtime-direct-play-cant-play")
 
-    let vlc = app.buttons["video.unsupported.vlc"]
-    XCTAssertEqual(vlc.label, "Open in VLC")
+    let vlc = app.buttons["Open in VLC"]
+    XCTAssertTrue(vlc.exists, "the state offers no Open in VLC")
     vlc.tap()
     XCTAssertTrue(
       waitFor(
