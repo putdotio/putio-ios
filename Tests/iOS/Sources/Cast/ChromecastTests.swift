@@ -550,6 +550,24 @@ final class ChromecastTests: XCTestCase {
     XCTAssertFalse(controller.commands.contains("stop"), "nothing was loaded to stop")
   }
 
+  func testEachNewReceiverConnectionGetsItsOwnIDAndARenameKeepsIt() {
+    let controller = CastControllerStub()
+    let (model, _) = makeModel(controller: controller, resolutions: [])
+    let atOpen = model.connectionID
+    XCTAssertNotNil(atOpen)
+
+    controller.connect(.connected(deviceName: "Living Room TV"))
+    XCTAssertEqual(model.connectionID, atOpen, "a renamed receiver is the same connection")
+
+    controller.connect(.disconnected)
+    XCTAssertNil(model.connectionID)
+    controller.connect(.connecting(deviceName: "Bedroom"))
+    XCTAssertNil(model.connectionID)
+    controller.connect(.connected(deviceName: "Bedroom"))
+    XCTAssertNotNil(model.connectionID)
+    XCTAssertNotEqual(model.connectionID, atOpen, "a switched receiver is a new connection")
+  }
+
   func testLosingTheConnectionHandsBackAndDisconnectEndsTheSession() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(

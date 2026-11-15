@@ -460,7 +460,7 @@ final class PutioCastModel {
   private func connectionChanged(_ connection: PutioCastConnection) {
     let lostSession = self.connection.isConnected && !connection.isConnected
     if lostSession { handBack() }
-    if connection.isConnected, connection != self.connection { connectionsMade &+= 1 }
+    if connection.isConnected, !self.connection.isConnected { connectionsMade &+= 1 }
     self.connection = connection
     if connection == .unavailable || connection == .localNetworkDenied { presentsPicker = false }
     if lostSession { clearSession() }
