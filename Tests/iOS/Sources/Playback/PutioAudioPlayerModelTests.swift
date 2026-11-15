@@ -13,6 +13,7 @@ private final class AudioEngineSpy: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
+  var onPlayingChanged: (@MainActor (Bool) -> Void)?
   var durationSeconds: Int? = 240
   private(set) var events: [String] = []
 
@@ -1063,6 +1064,11 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(receiver.events, ["load:430.mp3@64", "play:1.0"])
     receiver.onPositionChanged?(64)
     receiver.onPositionChanged?(80)
+    receiver.onPlayingChanged?(false)
+    XCTAssertEqual(h.model.state, .paused(track))
+    XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
+    receiver.onPlayingChanged?(true)
+    XCTAssertEqual(h.model.state, .playing(track))
 
     playback.sleepTimer.start(.fifteenMinutes)
     clock.advance(by: .seconds(900))

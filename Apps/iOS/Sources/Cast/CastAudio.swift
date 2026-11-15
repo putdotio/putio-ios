@@ -9,6 +9,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
+  var onPlayingChanged: (@MainActor (Bool) -> Void)?
 
   private let controller: PutioCastControlling
   private let resolveMedia: PutioCastAudioResolve
@@ -20,6 +21,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   private var statusReceivedAt: ContinuousClock.Instant?
   private var wantsPlay = false
   private var pendingSeekSeconds: Int?
+  private var commandsInFlight = 0
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
   private var ticker: Task<Void, Never>?
@@ -141,22 +143,33 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   func receive(_ next: PutioCastMediaStatus?) {
     guard let loaded else { return }
     guard let next, next.fileID == loaded.id, next.playerState != .idle else {
-      finish()
+      let terminal = next.flatMap { $0.fileID == loaded.id ? $0.positionSeconds : nil }
+      finish(at: terminal)
       return
     }
     status = next
     statusReceivedAt = .now
     switch next.playerState {
     case .playing, .buffering:
+      if !wantsPlay, commandsInFlight == 0 {
+        wantsPlay = true
+        onPlayingChanged?(true)
+      }
       if wantsPlay { startTicker() }
-    case .paused, .loading, .idle:
+    case .paused:
+      if wantsPlay, commandsInFlight == 0 {
+        wantsPlay = false
+        stopTicker()
+        onPlayingChanged?(false)
+      }
+    case .loading, .idle:
       break
     }
     if let seconds = currentPosition() { onPositionChanged?(seconds) }
   }
 
-  private func finish() {
-    let position = currentPositionSeconds() ?? 0
+  private func finish(at terminal: Double? = nil) {
+    let position = max(terminal ?? 0, currentPositionSeconds() ?? 0)
     let duration = Double(durationSeconds ?? 0)
     generation &+= 1
     stopTicker()
@@ -172,7 +185,9 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   private func command(_ send: @escaping @MainActor (PutioCastControlling) async throws -> Void) {
     let request = generation
     let controller = controller
+    commandsInFlight += 1
     Task { @MainActor [weak self] in
+      defer { self?.commandsInFlight -= 1 }
       do {
         try await send(controller)
       } catch {

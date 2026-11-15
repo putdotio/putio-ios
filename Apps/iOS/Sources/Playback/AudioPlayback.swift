@@ -128,6 +128,7 @@ protocol PutioAudioEngine: AnyObject {
   var onEnded: (@MainActor () -> Void)? { get set }
   var onFailed: (@MainActor () -> Void)? { get set }
   var onPositionChanged: (@MainActor (Int) -> Void)? { get set }
+  var onPlayingChanged: (@MainActor (Bool) -> Void)? { get set }
   var durationSeconds: Int? { get }
 
   func load(url: URL, startFromSeconds: Int)
@@ -380,6 +381,7 @@ final class PutioAudioPlayerModel {
     engine.onEnded = nil
     engine.onFailed = nil
     engine.onPositionChanged = nil
+    engine.onPlayingChanged = nil
     engine.stop()
     engine = next
     resolve = nextResolve
@@ -595,6 +597,20 @@ final class PutioAudioPlayerModel {
       publishNowPlaying()
       transitionTask = Task { [weak self] in await self?.advance(from: track, to: nil) }
     }
+    engine.onPlayingChanged = { [weak self] playing in
+      guard let self, !isTransitioning else { return }
+      switch (state, playing) {
+      case (.paused(let track), true), (.interrupted(let track), true):
+        state = .playing(track)
+        publishNowPlaying()
+      case (.playing(let track), false):
+        state = .paused(track)
+        positionReporter?.savePosition()
+        publishNowPlaying()
+      default:
+        break
+      }
+    }
     engine.onFailed = { [weak self] in
       // A failure from the retired item during a transition is stale.
       guard let self, !isTransitioning else { return }
@@ -631,10 +647,9 @@ final class PutioAudioPlayerModel {
     else { return }
     switch type {
     case .began:
+      sessionIsActive = false
       guard !isOnReceiver, case .playing(let track) = state else { return }
       resumesAfterInterruption = true
-      // The system deactivated the session; resume must activate it again.
-      sessionIsActive = false
       engine.pause()
       state = .interrupted(track)
       positionReporter?.savePosition()
@@ -751,6 +766,7 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
+  var onPlayingChanged: (@MainActor (Bool) -> Void)?
 
   let player = AVPlayer()
   private var statusObservation: NSKeyValueObservation?
