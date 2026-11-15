@@ -192,6 +192,7 @@ final class PutioAudioPlayerModel {
   /// accepts positions.
   @ObservationIgnored private var isTransitioning = false
   @ObservationIgnored private var holdsNextStart = false
+  @ObservationIgnored private var requestedStartSeconds: Int?
 
   init(
     track: PutioAudioTrack,
@@ -352,23 +353,29 @@ final class PutioAudioPlayerModel {
     to next: any PutioAudioEngine, resolve nextResolve: @escaping PutioAudioResolve,
     onReceiver: Bool, keepsPlaying: Bool
   ) {
-    let seconds = elapsedSeconds
     let plays: Bool
     switch state {
     case .playing, .loading: plays = keepsPlaying && !holdsNextStart
     case .paused, .interrupted, .failed, .ended: plays = false
     }
+    let seconds: Int?
+    switch state {
+    case .loading: seconds = requestedStartSeconds
+    default: seconds = elapsedSeconds
+    }
     let resumes: Bool
     switch state {
     case .ended: resumes = false
-    default: resumes = isStarted
+    default: resumes = isStarted && !isTransitioning
     }
-    if resumes { positionReporter?.stop() }
-    generation &+= 1
-    transitionTask?.cancel()
-    transitionTask = nil
-    awaitedSeconds = nil
-    loadStartSeconds = nil
+    if resumes {
+      positionReporter?.stop()
+      generation &+= 1
+      transitionTask?.cancel()
+      transitionTask = nil
+      awaitedSeconds = nil
+      loadStartSeconds = nil
+    }
     engine.onReady = nil
     engine.onEnded = nil
     engine.onFailed = nil
@@ -378,6 +385,7 @@ final class PutioAudioPlayerModel {
     resolve = nextResolve
     isOnReceiver = onReceiver
     bindEngine()
+    if isTransitioning, !plays { holdsNextStart = true }
     guard resumes else {
       publishNowPlaying()
       return
@@ -465,6 +473,7 @@ final class PutioAudioPlayerModel {
     let requestGeneration = generation
     isTransitioning = false
     state = .loading(track)
+    requestedStartSeconds = override
     elapsedSeconds = override ?? 0
     durationSeconds = nil
     positionReporter?.cancel()
@@ -622,7 +631,7 @@ final class PutioAudioPlayerModel {
     else { return }
     switch type {
     case .began:
-      guard case .playing(let track) = state else { return }
+      guard !isOnReceiver, case .playing(let track) = state else { return }
       resumesAfterInterruption = true
       // The system deactivated the session; resume must activate it again.
       sessionIsActive = false
@@ -650,7 +659,7 @@ final class PutioAudioPlayerModel {
   private func handleRouteChange(_ notification: Notification) {
     guard let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
       let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
-      reason == .oldDeviceUnavailable
+      reason == .oldDeviceUnavailable, !isOnReceiver
     else { return }
     // Unplugging headphones pauses rather than playing out loud.
     pause()

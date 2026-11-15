@@ -138,7 +138,7 @@
           try? await Task.sleep(for: .seconds(1))
           guard let self, !Task.isCancelled, state == .playing, let loaded else { return }
           position = min(position + 1, loaded.durationSeconds)
-          guard position < loaded.durationSeconds else {
+          guard loaded.durationSeconds <= 0 || position < loaded.durationSeconds else {
             finish()
             return
           }

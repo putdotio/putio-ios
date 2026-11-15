@@ -220,9 +220,7 @@ extension PutioRuntime {
     return PutioCastMedia(
       id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
       url: file.getAudioStreamURL(downloadToken: token), artworkURL: nil,
-      durationSeconds: duration,
-      startFromSeconds: PutioPlaybackProgress.startSeconds(
-        savedSeconds: file.startFrom, durationSeconds: duration),
+      durationSeconds: duration, startFromSeconds: file.startFrom,
       kind: .audio(contentType: Self.audioContentType(fileName: file.name)))
   }
 

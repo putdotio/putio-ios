@@ -19,6 +19,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   private var status: PutioCastMediaStatus?
   private var statusReceivedAt: ContinuousClock.Instant?
   private var wantsPlay = false
+  private var pendingSeekSeconds: Int?
   private var generation: UInt64 = 0
   private var loadTask: Task<Void, Never>?
   private var ticker: Task<Void, Never>?
@@ -60,6 +61,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
     loaded = nil
     status = nil
     wantsPlay = false
+    pendingSeekSeconds = nil
     guard let media = resolved, media.url == url else {
       pending = nil
       Task { @MainActor [weak self] in
@@ -80,6 +82,10 @@ final class PutioCastAudioEngine: PutioAudioEngine {
         loaded = media
         onReady?(startFromSeconds)
         guard request == generation else { return }
+        if let seek = pendingSeekSeconds {
+          pendingSeekSeconds = nil
+          command { try await $0.seek(toSeconds: Double(seek)) }
+        }
         if wantsPlay != autoplay {
           if wantsPlay { command { try await $0.play() } } else { command { try await $0.pause() } }
         }
@@ -107,7 +113,10 @@ final class PutioCastAudioEngine: PutioAudioEngine {
   }
 
   func seek(to seconds: Int) {
-    guard loaded != nil else { return }
+    guard loaded != nil else {
+      if pending != nil { pendingSeekSeconds = seconds }
+      return
+    }
     command { try await $0.seek(toSeconds: Double(seconds)) }
   }
 

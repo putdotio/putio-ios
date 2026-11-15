@@ -760,7 +760,8 @@ struct MainTabView: View {
   }
 
   private func castAudio(_ model: PutioAudioPlayerModel) {
-    guard cast.isConnected, !cast.hasSession, selectedVideoRoute == nil else { return }
+    guard cast.isConnected, !cast.hasSession, selectedVideoRoute == nil, !model.isOnReceiver
+    else { return }
     let receiver = cast.makeAudioReceiver { try await runtime.resolveCastAudio(fileID: $0) }
     model.moveToReceiver(receiver) { try await receiver.resolve($0) }
   }
