@@ -11,6 +11,7 @@ public typealias PutioVideoConversionStatusLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 public typealias PutioVideoConversionSleep =
   @MainActor @Sendable (Duration) async throws -> Void
+public typealias PutioVideoConvertedHandOff = @MainActor @Sendable () -> Bool
 public typealias PutioVideoStartChoice =
   @MainActor @Sendable (PutioPlaybackSource, _ afterConversion: Bool) async -> PutioPlaybackSource
 
@@ -184,6 +185,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
+  @ObservationIgnored private let handOffConverted: PutioVideoConvertedHandOff?
   @ObservationIgnored private var chosenStart: (saved: Int, start: Int)?
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
@@ -204,6 +206,7 @@ public final class PutioVideoPlaybackModel {
     },
     sleep: @escaping PutioVideoConversionSleep = { try await Task.sleep(for: $0) },
     chooseStart: @escaping PutioVideoStartChoice = { source, _ in source },
+    handOffConverted: PutioVideoConvertedHandOff? = nil,
     resolveConverted: PutioPlaybackResolve? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
@@ -214,6 +217,7 @@ public final class PutioVideoPlaybackModel {
     self.loadConversionStatus = loadConversionStatus
     self.sleep = sleep
     self.chooseStart = chooseStart
+    self.handOffConverted = handOffConverted
     self.resolveConverted = resolveConverted
     self.resolve = resolve
   }
@@ -401,6 +405,7 @@ public final class PutioVideoPlaybackModel {
         guard requestGeneration == generation else { return }
         switch resolution {
         case .ready(let source):
+          if handOffConverted?() == true { return }
           let start = await startSource(source, afterConversion: true)
           try Task.checkCancellation()
           guard requestGeneration == generation else { return }

@@ -963,6 +963,11 @@ struct MainTabView: View {
       },
       castButton: playerCastButton,
       onCast: playerCastAction(for: route),
+      castsConverted: {
+        guard cast.isConnected else { return false }
+        castVideo(route)
+        return cast.castingRoute != nil
+      },
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
       onFallback: { SentryTelemetry.reportFallback() },
       onFallbackPlays: { convertedFallbacks.remember(route.id) },

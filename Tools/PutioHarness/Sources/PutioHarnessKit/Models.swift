@@ -1278,6 +1278,10 @@ enum BrowserJourneyContract {
       attachmentNames: ["runtime-cast-picker"],
       timeAllowance: 240),
     JourneyPreflight(
+      "cast-conversion",
+      "ChromecastJourneyTests/testAVideoConvertedAfterCastConnectsPlaysOnTheReceiver",
+      timeAllowance: 120),
+    JourneyPreflight(
       "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
