@@ -27,6 +27,7 @@ struct PutioSubtitleSizeAndTimingPanel: View {
           .accessibilityIdentifier("video.subtitle-size")
         } header: {
           Text(String(localized: "Text size"))
+            .putioFont(PutioTheme.Typography.caption)
             .textCase(nil)
         }
         Section {
@@ -49,11 +50,13 @@ struct PutioSubtitleSizeAndTimingPanel: View {
           .accessibilityIdentifier("video.subtitle-timing.reset")
         } header: {
           Text(String(localized: "Timing"))
+            .putioFont(PutioTheme.Typography.caption)
             .textCase(nil)
         } footer: {
           Text(String(localized: "Font and colours follow iOS caption settings."))
         }
       }
+      .listSectionSpacing(.compact)
     }
     .presentationDetents([.medium, .large])
     .frame(idealWidth: Self.popoverWidth, idealHeight: Self.popoverHeight)
@@ -77,5 +80,5 @@ struct PutioSubtitleSizeAndTimingPanel: View {
   }
 
   private static let popoverWidth: CGFloat = 420
-  private static let popoverHeight: CGFloat = 400
+  private static let popoverHeight: CGFloat = 340
 }
