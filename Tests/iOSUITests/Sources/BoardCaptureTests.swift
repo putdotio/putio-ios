@@ -2460,11 +2460,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testHistoryList() throws {
-    orientForBoardDevice()
-    app.launchArguments.append("--putio-harness-history-board")
-    app.launch()
-    reachFilesRoot()
-    tabButton("History").tap()
+    openHistory("board")
     XCTAssertTrue(
       element("history.item.907").appears(within: 10), "the seeded history never loaded")
     XCTAssertTrue(app.staticTexts["Today"].exists, "History has no Today section")
@@ -2476,6 +2472,50 @@ final class BoardCaptureTests: XCTestCase {
         element("history.item.\(id)").label.contains(kind), "event \(id) does not read \(kind)")
     }
     try captureBoard("rd-ios-hist-01-list")
+  }
+
+  func testHistoryLoading() throws {
+    openHistory("slow")
+    XCTAssertTrue(labeled("Loading history").appears(within: 5), "History shows no spinner")
+    XCTAssertEqual(app.navigationBars["History"].buttons.count, 0, "loading History offers More")
+    showSettledTabBar()
+    try captureBoard("rd-ios-hist-06-loading")
+  }
+
+  func testHistoryEmpty() throws {
+    openHistory("empty")
+    XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 10), "History never read empty")
+    XCTAssertTrue(
+      app.staticTexts["Completed transfers and shared files will appear here."].exists,
+      "the empty History has no message")
+    XCTAssertEqual(app.navigationBars["History"].buttons.count, 0, "the empty History offers More")
+    XCTAssertFalse(
+      app.descendants(matching: .any).matching(
+        NSPredicate(format: "identifier BEGINSWITH %@", "history.item.")
+      ).firstMatch.exists, "the empty History shows events")
+    showSettledTabBar()
+    try captureBoard("rd-ios-hist-02-empty")
+  }
+
+  func testHistoryLoadFailed() throws {
+    openHistory("failing")
+    XCTAssertTrue(app.buttons["history.retry"].appears(within: 10), "History never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load history"].exists, "the failure has no title")
+    XCTAssertTrue(
+      app.staticTexts["Check your connection and try again."].exists,
+      "the failure has no message")
+    XCTAssertEqual(app.navigationBars["History"].buttons.count, 0, "failed History offers More")
+    showSettledTabBar()
+    try captureBoard("rd-ios-hist-07-error")
+  }
+
+  private func openHistory(_ mode: String) {
+    orientForBoardDevice()
+    app.launchArguments += ["--putio-harness-history", mode]
+    app.launch()
+    reachFilesRoot()
+    tabButton("History").tap()
+    XCTAssertTrue(app.navigationBars["History"].appears(within: 5), "History never opened")
   }
 
   func testHistoryTabHidden() throws {
