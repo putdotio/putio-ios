@@ -8,6 +8,7 @@ struct TrashManagementView: View {
   @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
+  @State private var stillMovingFailure: PutioTrashErrorPresentation?
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @Environment(\.locale) private var locale
@@ -159,9 +160,19 @@ struct TrashManagementView: View {
     } message: {
       Text("Every item in Trash will be deleted and cannot be restored.")
     }
+    .alert(
+      "Restore could not start",
+      isPresented: stillMovingAlertPresented,
+      presenting: stillMovingFailure
+    ) { _ in
+      Button("OK") {}
+        .accessibilityIdentifier("trash.still-moving.ok")
+    } message: { failure in
+      Text(failure.message)
+    }
     .putioToast($toast)
     .overlay {
-      if model.activeMutation != nil {
+      if showsBlockingProgress {
         ProgressView("Updating Trash…")
           .controlSize(.large)
           .padding(PutioTheme.Spacing.space4)
@@ -372,6 +383,20 @@ struct TrashManagementView: View {
     )
   }
 
+  private var stillMovingAlertPresented: Binding<Bool> {
+    Binding(
+      get: { stillMovingFailure != nil },
+      set: { if !$0 { stillMovingFailure = nil } }
+    )
+  }
+
+  private var showsBlockingProgress: Bool {
+    switch model.activeMutation {
+    case .none, .restore: false
+    default: true
+    }
+  }
+
   private var deletionConfirmationPresented: Binding<Bool> {
     Binding(
       get: { pendingDeletion != nil },
@@ -492,7 +517,7 @@ struct TrashManagementView: View {
     guard let outcome else { return }
     switch outcome {
     case .restored:
-      toast = PutioToast(String(localized: "Item restored"))
+      toast = PutioToast(String(localized: "Restore started"))
     case .permanentlyDeleted:
       toast = PutioToast(
         String(localized: "Item deleted"))
@@ -506,6 +531,11 @@ struct TrashManagementView: View {
     case .emptied:
       toast = PutioToast(
         String(localized: "Trash emptied"))
+    case .failed(.restore, let failure) where failure.isStillMovingToTrash:
+      stillMovingFailure = failure
+    case .failed(.restore, _):
+      toast = PutioToast(
+        String(localized: "Restore could not start"), icon: .warning, width: .fit)
     case .failed(_, let failure):
       toast = PutioToast(failure.title)
     }
