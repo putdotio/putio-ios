@@ -120,6 +120,9 @@ struct TrashManagementView: View {
     .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
     .environment(\.editMode, $editMode)
     .putioConfirmAlert($confirmAlert)
+    .onChange(of: confirmAlert?.id) { _, id in
+      if id == nil { pendingDeletion = nil }
+    }
     .confirmationDialog(
       "Delete \(pendingBulkDeletion.count) items permanently?",
       isPresented: bulkDeletionConfirmationPresented,
@@ -174,7 +177,6 @@ struct TrashManagementView: View {
     .onChange(of: model.reconciliationVersion) { _, _ in
       Task {
         await model.applyReconciliation()
-        // Confirmations for rows another screen has since removed are moot.
         if let pending = pendingDeletion, model.page?.items.contains(pending) != true {
           pendingDeletion = nil
           confirmAlert = nil
