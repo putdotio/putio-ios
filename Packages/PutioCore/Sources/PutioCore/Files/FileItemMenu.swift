@@ -67,7 +67,9 @@ public struct PutioFileMenu: Equatable, Sendable {
       }
       if capabilities.canDownload, route.supportsOfflineDownload {
         playback.append(.download)
-        if item.kind == .video { playback.append(.downloadWithDirectPlay) }
+        if capabilities.otherPlaybackMethod == .directPlay, item.kind == .video {
+          playback.append(.downloadWithDirectPlay)
+        }
       }
       if capabilities.vlcInstalled, route.supportsExternalPlayback {
         playback.append(.openInVLC)
