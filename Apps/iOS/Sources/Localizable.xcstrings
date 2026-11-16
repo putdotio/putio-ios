@@ -2245,7 +2245,7 @@
       }
     },
     "Open a video or audio file’s actions and choose Download." : {
-      "comment" : "android: mobile_downloads_empty_message",
+      "comment" : "android: mobile_downloads_empty_message | differs: the board drops \"to this device\"",
       "localizations" : {
         "en" : {
           "stringUnit" : {
