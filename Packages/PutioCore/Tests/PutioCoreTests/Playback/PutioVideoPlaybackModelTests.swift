@@ -812,6 +812,61 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     }
   }
 
+  func testAReceiverConnectedWhilePreparingTakesAVideoThatNeedsNoConversion() async {
+    var connection: Int?
+    var handedOff: [Int?] = []
+    let model = noConversionModel(connection: { connection }, handedOff: { handedOff.append($0) })
+
+    await model.loadIfNeeded()
+    connection = 1
+    model.receiverConnected(preparing: false, playingAtSeconds: nil)
+    XCTAssertEqual(handedOff, [], "a paused video left the phone")
+    connection = 2
+    model.receiverConnected(preparing: true, playingAtSeconds: nil)
+    XCTAssertEqual(handedOff, [0], "a preparing video stayed on the phone")
+  }
+
+  func testAReceiverConnectedWhileResolvingTakesAVideoThatNeedsNoConversion() async {
+    var connection: Int?
+    var handedOff: [Int?] = []
+    let model = noConversionModel(
+      connection: { connection }, handedOff: { handedOff.append($0) },
+      resolving: { connection = 1 })
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(handedOff, [0], "a resolving video stayed on the phone")
+    XCTAssertEqual(model.state, .loading)
+  }
+
+  func testAReceiverConnectedWhileAReloadPreparesLeavesTheVideoOnThePhone() async {
+    var connection: Int?
+    var handedOff: [Int?] = []
+    let model = noConversionModel(connection: { connection }, handedOff: { handedOff.append($0) })
+
+    await model.loadIfNeeded()
+    model.playbackStarted()
+    connection = 1
+    model.receiverConnected(preparing: true, playingAtSeconds: nil)
+    XCTAssertEqual(handedOff, [], "a reload cast the first start instead of the playing position")
+  }
+
+  func testARetryLeavesTheVideoOffAReceiverConnectedWhilePaused() async {
+    var connection: Int?
+    var handedOff: [Int?] = []
+    let model = noConversionModel(
+      connection: { connection }, handedOff: { handedOff.append($0) }, attempts: 2)
+
+    await model.loadIfNeeded()
+    model.playbackStarted()
+    connection = 1
+    model.receiverConnected(preparing: false, playingAtSeconds: nil)
+    model.playerFailed()
+    await model.retry()
+    XCTAssertEqual(handedOff, [], "a retry cast to a receiver the video stayed off")
+    XCTAssertEqual(
+      model.state, .ready(PutioPlaybackSource(url: playbackSource().url, startFromSeconds: 0)))
+  }
+
   func testAReadySourceOffersItsStartWithoutConversion() async {
     let saved = playbackSource()
     let resolver = PlaybackResolverStub([.success(.ready(saved))])
@@ -833,6 +888,30 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
   func testSessionFailuresRemainOwnedByTheSessionRoot() {
     XCTAssertNil(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.authenticationRequired))
     XCTAssertNil(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.sessionExpired))
+  }
+
+  private func noConversionModel(
+    connection: @escaping @MainActor @Sendable () -> Int?,
+    handedOff: @escaping @MainActor @Sendable (Int?) -> Void,
+    resolving: @escaping @MainActor @Sendable () -> Void = {},
+    attempts: Int = 1
+  ) -> PutioVideoPlaybackModel {
+    let resolver = PlaybackResolverStub(
+      Array(repeating: .success(.ready(playbackSource())), count: attempts))
+    return PutioVideoPlaybackModel(
+      fileID: fileID,
+      chooseStart: { source, _ in PutioVideoStart.source(source, startingWith: .startOver) },
+      handOffConverted: PutioVideoConvertedHandOff(
+        connection: connection,
+        handOff: { startOverride, _ in
+          handedOff(startOverride)
+          return true
+        }),
+      resolve: { fileID in
+        resolving()
+        return try await resolver.resolve(fileID)
+      }
+    )
   }
 
   private func playbackSource() -> PutioPlaybackSource {
