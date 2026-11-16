@@ -731,6 +731,9 @@ enum BoardCaptureContract {
         "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
       BoardCapture(
+        "rd-ios-dl-27-info", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "info"]),
+      BoardCapture(
         "rd-ios-dl-28-notifications-off", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list", "PUTIO_NOTIFICATIONS_DENIED": "1"]),
       BoardCapture(
@@ -1329,7 +1332,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [
-        "runtime-downloads-queue", "runtime-downloads-selection", "runtime-downloads-remove",
+        "runtime-downloads-queue", "runtime-downloads-info", "runtime-downloads-selection",
+        "runtime-downloads-remove",
       ],
       timeAllowance: 180),
     JourneyPreflight(

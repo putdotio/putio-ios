@@ -854,17 +854,6 @@
         }
       }
     },
-    "Converting" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converting"
-          }
-        }
-      }
-    },
     "Converting to MP4" : {
       "comment" : "android: mobile_playback_conversion_title",
       "localizations" : {
@@ -1281,17 +1270,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Default sort order"
-          }
-        }
-      }
-    },
-    "Default track" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Default track"
           }
         }
       }
@@ -2035,6 +2013,17 @@
         }
       }
     },
+    "Info" : {
+      "comment" : "ios-only: the iOS download Info sheet has no Android menu item",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Info"
+          }
+        }
+      }
+    },
     "Large" : {
       "comment" : "android: playback_size_large",
       "localizations" : {
@@ -2108,17 +2097,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No longer available"
-          }
-        }
-      }
-    },
-    "No longer on this iPhone" : {
-      "comment" : "android: mobile_files_download_missing | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No longer on this iPhone"
           }
         }
       }
@@ -2930,17 +2908,6 @@
         }
       }
     },
-    "None stored" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "None stored"
-          }
-        }
-      }
-    },
     "Not enough space on this device. Free up storage and try again." : {
       "comment" : "android: mobile_downloads_status_failed_storage | differs: iOS board wording",
       "localizations" : {
@@ -3212,17 +3179,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Pause"
-          }
-        }
-      }
-    },
-    "Paused" : {
-      "comment" : "android: mobile_downloads_meta_paused",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paused"
           }
         }
       }
@@ -4690,17 +4646,6 @@
         }
       }
     },
-    "Status" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Status"
-          }
-        }
-      }
-    },
     "Stop casting" : {
       "comment" : "android: mobile_cast_stop",
       "localizations" : {
@@ -5115,17 +5060,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "VLC is not installed"
-          }
-        }
-      }
-    },
-    "Waiting" : {
-      "comment" : "android: mobile_transfer_status_waiting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting"
           }
         }
       }
