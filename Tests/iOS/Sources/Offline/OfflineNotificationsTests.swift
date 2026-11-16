@@ -1,3 +1,4 @@
+import PutioCore
 import UserNotifications
 import XCTest
 
@@ -22,5 +23,21 @@ final class OfflineNotificationsTests: XCTestCase {
 
     await status.refresh()
     XCTAssertTrue(status.showsRow(hasDownloads: true), "the row did not return when denied")
+  }
+
+  func testAFailedDownloadPostsTheFileNameAndTheShortReason() {
+    let failure = PutioOfflineFailure(
+      kind: .resolution, message: "Check your connection and try again.")
+    let item = PutioOfflineItem(
+      id: PutioFileID(rawValue: 9), parentID: .root, name: "Episode 1.mkv", kind: .video,
+      createdAt: .now, stage: .failed(failure), localPath: nil, storedBytes: 0,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 4_000)
+
+    let content = PutioOfflineNotifications.failureContent(item, failure)
+
+    XCTAssertEqual(content.title, "Download failed")
+    XCTAssertEqual(content.subtitle, "Episode 1.mkv")
+    XCTAssertEqual(content.body, "Connection lost")
   }
 }

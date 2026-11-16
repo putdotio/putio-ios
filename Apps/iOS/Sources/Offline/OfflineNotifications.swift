@@ -33,11 +33,17 @@ enum PutioOfflineNotifications {
     _ item: PutioOfflineItem, _ failure: PutioOfflineFailure,
     center: UNUserNotificationCenter = .current()
   ) {
+    post(failureContent(item, failure), for: item, center: center)
+  }
+
+  static func failureContent(
+    _ item: PutioOfflineItem, _ failure: PutioOfflineFailure
+  ) -> UNMutableNotificationContent {
     let content = UNMutableNotificationContent()
     content.title = String(localized: "Download failed")
     content.subtitle = item.name
-    content.body = failure.message
-    post(content, for: item, center: center)
+    content.body = failure.reason
+    return content
   }
 
   private static func post(
