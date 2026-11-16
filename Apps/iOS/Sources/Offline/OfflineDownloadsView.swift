@@ -6,6 +6,7 @@ struct PutioOfflineDownloadsView: View {
   let onOpen: @MainActor (PutioOfflineItem) -> Void
   var onSelect: (@MainActor (PutioOfflineItem) -> Void)?
   var onBeginSelection: (@MainActor () -> Void)?
+  var openID: PutioFileID?
 
   @Environment(\.locale) private var locale
   @Environment(\.scenePhase) private var scenePhase
@@ -237,7 +238,9 @@ struct PutioOfflineDownloadsView: View {
         .accessibilityValue(Text(accessibilityValue(item)))
       }
     }
-    .modifier(PutioOfflineColumnRow(id: item.id, inColumns: onSelect != nil))
+    .modifier(
+      PutioOfflineColumnRow(id: item.id, inColumns: onSelect != nil || openID == item.id)
+    )
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipeAction(item) }
     .contextMenu {
