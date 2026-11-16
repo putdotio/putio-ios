@@ -196,6 +196,156 @@ final class BoardCaptureTests: XCTestCase {
     exerciseSwipeRemoval(device: device)
   }
 
+  func testDownloadsSelection() throws {
+    let step = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_SELECTION"])
+    let board = try XCTUnwrap(Self.downloadsSelectionBoards[step], "no board for \(step)")
+    if step == "remove-failed" { app.launchArguments.append("--putio-harness-offline-writes-fail") }
+    try openDownloadsFixture("list")
+    let device =
+      ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" ? "iPad" : "iPhone"
+    selectDownloads([442, 443, 441])
+    assertSelectionSummary("4.6 GB selected")
+    XCTAssertFalse(
+      app.buttons["Pause download, \(episode(2))"].exists, "selection kept the ring")
+    switch step {
+    case "remove-many":
+      element("selection.action.remove").tap()
+      let alert = app.putioAlert("Remove 3 downloads from this \(device)?")
+      XCTAssertTrue(alert.appears(within: 5), "Remove asked for no confirmation")
+      XCTAssertTrue(
+        alert.staticTexts[
+          "The files stay in your put.io account. Only the copies on this \(device) are removed."
+        ].exists, "the alert does not keep the files in the account")
+    case "remove-failed":
+      element("selection.action.remove").tap()
+      app.buttons["downloads.remove-confirm"].firstMatch.tap()
+      XCTAssertTrue(
+        removalFailure.appears(within: 5), "the failed removal was not reported")
+    default:
+      break
+    }
+    try captureBoard(board)
+    let onPhone = device == "iPhone"
+    if step == "remove-failed" { exerciseFailedRemoval(device: device) }
+    if step == "selection", onPhone { exerciseDownloadsSelection(device: device) }
+  }
+
+  private func selectDownloads(_ ids: [Int]) {
+    app.buttons["downloads.more"].firstMatch.tap()
+    app.buttons["downloads.select"].firstMatch.tap()
+    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
+    assertSelectionBar(["pause", "resume", "remove"])
+    if ids.isEmpty {
+      for action in ["pause", "resume", "remove"] {
+        XCTAssertFalse(
+          element("selection.action.\(action)").isEnabled, "an empty selection can \(action)")
+      }
+    }
+    for id in ids {
+      let row = element("downloads.item.\(id)")
+      app.bringIntoView(row)
+      row.tap()
+      XCTAssertEqual(row.value as? String, "Selected", "row \(id) did not select")
+    }
+    XCTAssertTrue(
+      app.staticTexts["\(ids.count) selected"].exists, "the header miscounts the selection")
+  }
+
+  private func closeSelection() {
+    app.buttons["selection.close"].firstMatch.tap()
+    XCTAssertTrue(element("selection.bar").disappears(within: 5), "Done kept the selection")
+  }
+
+  private var removalFailure: XCUIElement {
+    app.putioAlert("Could not remove downloads")
+  }
+
+  private func assertSelectionSummary(_ size: String) {
+    let summary = element("downloads.selection.summary").label
+    XCTAssertTrue(summary.contains("6 items"), "the summary miscounts the rows: \(summary)")
+    XCTAssertTrue(summary.contains(size), "the summary miscounts the size: \(summary)")
+  }
+
+  private func exerciseFailedRemoval(device: String) {
+    let alert = removalFailure
+    XCTAssertTrue(
+      alert.staticTexts[
+        "Nothing was removed because this \(device) could not save the change. Remove the downloads again."
+      ].exists, "the failure does not say nothing was removed")
+    XCTAssertEqual(
+      alert.buttons.allElementsBoundByIndex.map(\.label), ["OK", "Try again"],
+      "the failure offers more than OK and Try again")
+    app.buttons["downloads.remove-failed-retry"].firstMatch.tap()
+    Thread.sleep(forTimeInterval: 2)
+    XCTAssertTrue(alert.appears(within: 8), "a retry that fails again is not reported")
+    app.buttons["downloads.remove-failed-ok"].firstMatch.tap()
+    XCTAssertTrue(alert.disappears(within: 5), "OK kept the failure")
+    XCTAssertFalse(
+      app.putioAlert("Could not save downloads").exists, "the removal also raised the save alert")
+    XCTAssertTrue(app.staticTexts["3 selected"].exists, "the failure ended the selection")
+    for id in [442, 443, 441] {
+      let row = app.revealed("downloads.item.\(id)")
+      XCTAssertEqual(row.value as? String, "Selected", "row \(id) left the selection")
+    }
+  }
+
+  private func exerciseDownloadsSelection(device: String) {
+    closeSelection()
+    XCTAssertTrue(tabButton("Files").exists, "Done left the tab bar hidden")
+
+    selectDownloads([])
+    for id in [442, 443] {
+      let row = element("downloads.item.\(id)")
+      app.bringIntoView(row)
+      row.tap()
+    }
+    element("selection.action.pause").tap()
+    closeSelection()
+    XCTAssertTrue(settles(element("downloads.item.442")) { $0 == "paused;42" }, "442 kept running")
+    XCTAssertTrue(settles(element("downloads.item.443")) { $0 == "paused;0" }, "443 kept its place")
+
+    selectDownloads([442, 443])
+    element("selection.action.resume").tap()
+    closeSelection()
+    XCTAssertTrue(
+      settles(element("downloads.item.442")) { $0 == "downloading;42" }, "442 did not resume")
+    XCTAssertTrue(settles(element("downloads.item.443")) { $0 == "queued" }, "443 did not resume")
+
+    let finished = element("downloads.item.9001")
+    app.bringIntoView(finished)
+    finished.press(forDuration: 1)
+    app.buttons["downloads.select.9001"].firstMatch.tap()
+    XCTAssertEqual(finished.value as? String, "Selected", "the row menu did not tick its row")
+    let audio = element("downloads.item.408")
+    app.bringIntoView(audio)
+    audio.tap()
+    assertSelectionSummary("1.1 GB selected")
+    element("selection.action.remove").tap()
+    let alert = app.putioAlert("Remove 2 downloads from this \(device)?")
+    XCTAssertTrue(alert.appears(within: 5), "removing two asked for no confirmation")
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
+    XCTAssertTrue(finished.disappears(within: 5), "the removed video stayed")
+    XCTAssertTrue(audio.disappears(within: 5), "the removed audio stayed")
+    XCTAssertTrue(element("selection.bar").disappears(within: 5), "removal kept the selection")
+
+    selectDownloads([])
+    app.buttons["selection.toggle-all"].tap()
+    XCTAssertTrue(app.staticTexts["4 selected"].exists, "Select all missed a row")
+    element("selection.action.remove").tap()
+    XCTAssertTrue(
+      app.putioAlert("Remove 4 downloads from this \(device)?").appears(within: 5),
+      "removing every row asked for no confirmation")
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
+    XCTAssertTrue(
+      app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the running rows stayed")
+    XCTAssertTrue(element("selection.bar").disappears(within: 5), "the empty list kept selecting")
+  }
+
+  private static let downloadsSelectionBoards = [
+    "selection": "rd-ios-dl-06-selection", "remove-many": "rd-ios-dl-17-remove-many",
+    "remove-failed": "rd-ios-dl-18-remove-failed",
+  ]
+
   private func revealSwipe(_ id: Int, _ action: String, label: String) {
     let row = element("downloads.item.\(id)")
     app.bringIntoView(row)

@@ -756,6 +756,15 @@ enum BoardCaptureContract {
         "rd-ios-dl-16-swipe-failed", .iphone, "testDownloadsSwipe", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_SWIPE": "failed"]),
       BoardCapture(
+        "rd-ios-dl-06-selection", .iphone, "testDownloadsSelection",
+        environment: ["PUTIO_DOWNLOADS_SELECTION": "selection"]),
+      BoardCapture(
+        "rd-ios-dl-17-remove-many", .iphone, "testDownloadsSelection", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_SELECTION": "remove-many"]),
+      BoardCapture(
+        "rd-ios-dl-18-remove-failed", .iphone, "testDownloadsSelection", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_SELECTION": "remove-failed"]),
+      BoardCapture(
         "rd-ios-dl-21-ipad-none", .ipad, "testDownloadsFixture",
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
       BoardCapture(
