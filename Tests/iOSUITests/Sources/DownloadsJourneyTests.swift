@@ -225,6 +225,43 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testADownloadFinishesWithNotificationsOff() throws {
+    app.launchArguments.append("--putio-harness-notifications-denied")
+    app.launch()
+    signIn()
+
+    app.buttons["Downloads"].tap()
+    XCTAssertTrue(element("downloads.empty").appears(within: 10))
+    XCTAssertFalse(
+      element("downloads.notifications-off").exists, "the row showed on an empty tab")
+
+    app.buttons["Files"].tap()
+    let track = element("files.item.408")
+    XCTAssertTrue(track.appears(within: 10))
+    track.press(forDuration: 1)
+    let download = app.buttons["Download"]
+    XCTAssertTrue(download.appears(within: 5))
+    download.tap()
+    let item = element("downloads.item.408")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      element("downloads.notifications-off").appears(within: 5),
+      "denied notifications showed no row")
+    XCTAssertTrue(app.buttons["downloads.notifications-turn-on"].exists)
+    XCTAssertTrue(
+      waitForValue(item, "completed", timeout: 60),
+      "the download did not finish without notifications: \(item.value ?? "")")
+    screenshot("runtime-downloads-notifications-off")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
   func testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther() throws {
     app.launch()
     signIn()

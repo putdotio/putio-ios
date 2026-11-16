@@ -118,8 +118,11 @@ final class BoardCaptureTests: XCTestCase {
     let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
     let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
     let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
+    let notificationsOff =
+      ProcessInfo.processInfo.environment["PUTIO_NOTIFICATIONS_DENIED"] == "1"
     if fixture == "attention-states" { orient(.portrait) } else { orientForBoardDevice() }
     app.launchArguments += ["--putio-harness-downloads", fixture]
+    if notificationsOff { app.launchArguments.append("--putio-harness-notifications-denied") }
     app.launch()
     let downloads = tabButton("Downloads")
     let signIn = element("auth.sign-in")
@@ -145,7 +148,11 @@ final class BoardCaptureTests: XCTestCase {
       }
       if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
     }
+    XCTAssertEqual(
+      element("downloads.notifications-off").exists, notificationsOff,
+      "the notifications-off row does not follow the permission")
     try captureBoard(board)
+    guard !notificationsOff else { return }
     let onPhone = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "ipad"
     if fixture == "list", onPhone {
       let video = app.buttons["downloads.item.9001"].firstMatch
