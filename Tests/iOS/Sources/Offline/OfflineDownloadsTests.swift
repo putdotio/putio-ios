@@ -1126,7 +1126,27 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(
       queue.item(for: fileID)?.stage,
       .failed(PutioOfflineFailure.resolving(PutioRuntimeError.transient) ?? .download))
+    XCTAssertEqual(
+      queue.item(for: fileID)?.downloadState(queuePosition: nil),
+      .failed(reason: "Connection lost"))
     XCTAssertEqual(engine.started.count, 1, "an offline retry starts nothing")
+  }
+
+  func testAConnectionLostOfflineWaitsAndRestartsWhenThePathReturns() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(fileID, 0.4)
+
+    queue.setOnline(false)
+    engine.onFinished?(fileID, URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .waitingForNetwork(progress: 0.4))
+
+    queue.setOnline(true)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 1], "the lost task restarts")
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .downloading(progress: 0))
   }
 
   func testAPositionSavedOfflineIsSentWhenThePathReturns() async {
