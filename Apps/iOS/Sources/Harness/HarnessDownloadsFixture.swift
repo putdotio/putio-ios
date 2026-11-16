@@ -92,7 +92,8 @@
           Self.episode(5, .converting(progress: 0.12), created: today),
           Self.episode(3, .paused(progress: 0.42), created: today),
           waitingForNetwork,
-          Self.episode(4, .downloading(progress: 0.06), created: today, bytes: fourthEpisodeBytes),
+          Self.episode(
+            4, .downloading(progress: 0.06), created: today, bytes: Self.fourthEpisodeBytes),
           Self.episode(7, .queued, created: today),
           removing,
           Self.sintel(created: yesterday),
@@ -103,7 +104,7 @@
         return [
           Self.episode(2, .failed(Self.connectionLost), created: today),
           Self.episode(3, .failed(.authentication), created: today),
-          Self.episode(4, .failed(.notFound), created: today, bytes: fourthEpisodeBytes),
+          Self.episode(4, .failed(.notFound), created: today, bytes: Self.fourthEpisodeBytes),
           Self.episode(5, .failed(.storage), created: today),
           Self.episode(6, .failed(.download), created: today),
           missing,
