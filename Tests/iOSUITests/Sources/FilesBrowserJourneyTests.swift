@@ -285,8 +285,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
         "Open in VLC", "Select", "Mark as watched",
         "Rename", "Move",
         "Exclusive link",
-        "Move to trash",
       ])
+    XCTAssertTrue(app.buttons["Move to trash"].exists, "the scrolling menu lost Move to trash")
     addScreenshot(named: "runtime-item-menu-vlc")
     dismissMenu()
     let root = element(identifier: "files.screen.0")
