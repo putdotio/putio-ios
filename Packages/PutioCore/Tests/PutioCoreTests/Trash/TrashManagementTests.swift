@@ -55,11 +55,19 @@ private final class SuspendedStorageRefresh {
 private final class ControlledTrashLoader {
   private var pending: [Int: CheckedContinuation<PutioTrashPage, any Error>] = [:]
   private(set) var requestCount = 0
+  var honorsCancellation = false
 
   func load(cursor _: String?) async throws -> PutioTrashPage {
     let request = requestCount
     requestCount += 1
-    return try await withCheckedThrowingContinuation { pending[request] = $0 }
+    guard honorsCancellation else {
+      return try await withCheckedThrowingContinuation { pending[request] = $0 }
+    }
+    return try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { pending[request] = $0 }
+    } onCancel: {
+      Task { @MainActor in self.fail(request: request, with: CancellationError()) }
+    }
   }
 
   func succeed(request: Int, with page: PutioTrashPage) {
@@ -400,26 +408,91 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertNil(model.page?.nextCursor)
   }
 
-  func testACancelledPageChangesTheRequestEpochAndKeepsTheCursor() async {
+  func testACallerThatGoesAwayDoesNotCancelThePage() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let loader = ControlledTrashLoader()
+    loader.honorsCancellation = true
+    let model = heldModel(loader, reconciliation: PutioTrashReconciliation())
+    await loadFirstPage(model, loader, page(items: [a], cursor: "c2", totalCount: 2))
+    let epoch = model.pageRequestEpoch
+
+    let scrolledAway = Task { await model.loadMore() }
+    await waitUntil("the continuation request") { loader.requestCount == 2 }
+    scrolledAway.cancel()
+    for _ in 0..<10 { await Task.yield() }
+    loader.succeed(request: 1, with: page(items: [b], totalCount: 2))
+    await scrolledAway.value
+
+    XCTAssertEqual(model.page?.items, [a, b])
+    XCTAssertEqual(model.pageRequestEpoch, epoch)
+  }
+
+  func testLeavingTheScreenCancelsThePageAndChangesTheRequestEpoch() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
     let loader = ControlledTrashLoader()
+    loader.honorsCancellation = true
     let model = heldModel(loader, reconciliation: PutioTrashReconciliation())
-
-    let firstLoad = Task { await model.loadIfNeeded() }
-    await waitUntil("the first page request") { loader.requestCount == 1 }
-    loader.succeed(request: 0, with: page(items: [a], cursor: "c2", totalCount: 2))
-    await firstLoad.value
+    await loadFirstPage(model, loader, page(items: [a], cursor: "c2", totalCount: 2))
     let epoch = model.pageRequestEpoch
 
     let more = Task { await model.loadMore() }
     await waitUntil("the continuation request") { loader.requestCount == 2 }
+    model.abandonListing()
+    await waitUntil("the cancelled page") { model.pageRequestEpoch != epoch }
     more.cancel()
+    await more.value
+
+    XCTAssertNil(model.paginationFailure)
+    XCTAssertEqual(model.page?.nextCursor, "c2")
+  }
+
+  func testACancellationNobodyAskedForIsAPageFailure() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let loader = ControlledTrashLoader()
+    let model = heldModel(loader, reconciliation: PutioTrashReconciliation())
+    await loadFirstPage(model, loader, page(items: [a], cursor: "c2", totalCount: 2))
+    let epoch = model.pageRequestEpoch
+
+    let more = Task { await model.loadMore() }
+    await waitUntil("the continuation request") { loader.requestCount == 2 }
     loader.fail(request: 1, with: CancellationError())
     await more.value
 
-    XCTAssertNotEqual(model.pageRequestEpoch, epoch)
-    XCTAssertNil(model.paginationFailure)
+    XCTAssertEqual(model.pageRequestEpoch, epoch, "the footer must not ask again")
+    XCTAssertNotNil(model.paginationFailure)
     XCTAssertEqual(model.page?.nextCursor, "c2")
+  }
+
+  func testRefreshSupersedesAPageInFlight() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let loader = ControlledTrashLoader()
+    loader.honorsCancellation = true
+    let model = heldModel(loader, reconciliation: PutioTrashReconciliation())
+    await loadFirstPage(model, loader, page(items: [a], cursor: "c2", totalCount: 2))
+
+    let more = Task { await model.loadMore() }
+    await waitUntil("the continuation request") { loader.requestCount == 2 }
+    let refresh = Task { await model.refresh() }
+    await waitUntil("the refreshed first page") { loader.requestCount == 3 }
+    loader.succeed(request: 2, with: page(items: [a, b], cursor: "c3", totalCount: 3))
+    await refresh.value
+    more.cancel()
+    await more.value
+
+    XCTAssertEqual(model.page?.items, [a, b])
+    XCTAssertEqual(model.page?.nextCursor, "c3")
+    XCTAssertNil(model.paginationFailure)
+  }
+
+  private func loadFirstPage(
+    _ model: PutioTrashModel, _ loader: ControlledTrashLoader, _ first: PutioTrashPage
+  ) async {
+    let firstLoad = Task { await model.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: first)
+    await firstLoad.value
   }
 
   func testRestoreAllCoversPagesNeverLoaded() async {

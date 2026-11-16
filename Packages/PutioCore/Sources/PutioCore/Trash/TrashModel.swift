@@ -368,6 +368,7 @@ public final class PutioTrashModel {
   // Identifies the listing the current page belongs to, so its
   // continuations reconcile against the same accumulator.
   @ObservationIgnored private var listingID = UUID()
+  @ObservationIgnored private var pageTask: Task<Void, Never>?
 
   public init(
     actions: PutioTrashActions,
@@ -477,6 +478,7 @@ public final class PutioTrashModel {
   /// The screen is leaving; a partially walked listing will not complete.
   public func abandonListing() {
     isVisible = false
+    pageTask?.cancel()
     reconciliation.abandonListing(listingID)
   }
 
@@ -508,6 +510,9 @@ public final class PutioTrashModel {
   }
 
   public func refresh() async {
+    if activeMutation == nil, !isRefreshing, !isRefreshingStorage {
+      await cancelPageRequest()
+    }
     await load(initial: false, supersedesRefresh: false)
   }
 
@@ -530,8 +535,25 @@ public final class PutioTrashModel {
   }
 
   public func loadMore() async {
-    await loadNextPage()
-    await repairIfRequested()
+    let task = pageTask ?? startPageRequest()
+    await task.value
+  }
+
+  private func startPageRequest() -> Task<Void, Never> {
+    let task = Task { [weak self] in
+      guard let self else { return }
+      await loadNextPage()
+      await repairIfRequested()
+      pageTask = nil
+    }
+    pageTask = task
+    return task
+  }
+
+  private func cancelPageRequest() async {
+    guard let pageTask else { return }
+    pageTask.cancel()
+    await pageTask.value
   }
 
   private func loadNextPage() async {
@@ -570,7 +592,7 @@ public final class PutioTrashModel {
             sizeBytes: shownPage.sizeBytes
           )))
     } catch {
-      guard !(error is CancellationError), !Task.isCancelled else {
+      guard !Task.isCancelled else {
         paginationFailure = previousPaginationFailure
         pageRequestEpoch &+= 1
         return
