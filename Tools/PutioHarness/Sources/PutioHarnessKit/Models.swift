@@ -716,6 +716,9 @@ enum BoardCaptureContract {
         "rd-ios-dl-14-long-press-failed", .iphone, "testDownloadsMenu", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_MENU": "failed"]),
       BoardCapture(
+        "downloads-long-press-missing", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "missing"]),
+      BoardCapture(
         "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
       BoardCapture(
@@ -730,6 +733,12 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-dl-24-ipad-empty", .ipad, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
+      BoardCapture(
+        "ipad-downloads-long-press", .ipad, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "finished"]),
+      BoardCapture(
+        "ipad-downloads-more", .ipad, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "more"]),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),

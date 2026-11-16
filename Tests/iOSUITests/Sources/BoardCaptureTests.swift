@@ -167,13 +167,17 @@ final class BoardCaptureTests: XCTestCase {
   func testDownloadsMenu() throws {
     let menu = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_MENU"])
     orient(.portrait)
-    openDownloads("list")
+    openDownloads(menu == "missing" ? "attention-states" : "list")
     let downloading = element("downloads.item.442")
     switch menu {
     case "finished":
       let finished = element("downloads.item.441")
       openRowMenu(441, ["play", "select", "remove-menu"])
       XCTAssertFalse(app.buttons["Info"].exists, "Info shows before its sheet lands")
+      let onPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
+      XCTAssertEqual(
+        app.buttons["downloads.remove-menu.441"].firstMatch.label,
+        onPad ? "Remove from this iPad" : "Remove from this iPhone")
       try captureBoard("rd-ios-dl-03-long-press")
       app.buttons["downloads.play.441"].firstMatch.tap()
       XCTAssertTrue(element("video.ready").appears(within: 20), "Play did not play the download")
@@ -212,6 +216,25 @@ final class BoardCaptureTests: XCTestCase {
       try captureBoard("rd-ios-dl-14-long-press-failed")
       app.buttons["downloads.retry.444"].firstMatch.tap()
       XCTAssertTrue(settles(failed) { $0 == "queued" }, "Try again did not restart the download")
+    case "missing":
+      let missing = element("downloads.item.441")
+      openRowMenu(441, ["retry", "select", "remove-menu"])
+      try captureBoard("downloads-long-press-missing")
+      app.buttons["downloads.remove-menu.441"].firstMatch.tap()
+      let removeLocal = app.buttons["downloads.remove-local"].firstMatch
+      XCTAssertTrue(removeLocal.appears(within: 5), "Remove asked for no confirmation")
+      let cancel = app.buttons["Cancel"].firstMatch
+      if cancel.exists, cancel.isHittable {
+        cancel.tap()
+      } else {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
+      }
+      XCTAssertTrue(removeLocal.disappears(within: 5), "Cancel kept the confirmation open")
+      XCTAssertEqual(missing.value as? String, "missing", "Cancel removed the missing download")
+      openRowMenu(441, ["retry", "select", "remove-menu"])
+      app.buttons["downloads.retry.441"].firstMatch.tap()
+      XCTAssertTrue(
+        settles(missing) { $0 == "queued" }, "Download again did not restart the download")
     case "more", "resume-all":
       let queued = element("downloads.item.443")
       openDownloadsMore(["downloads.select", "downloads.pause-all"])
