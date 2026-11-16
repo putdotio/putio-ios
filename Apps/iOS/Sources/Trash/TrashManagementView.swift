@@ -12,6 +12,7 @@ struct TrashManagementView: View {
   @State private var editMode: EditMode = .inactive
   @Environment(\.locale) private var locale
   @Environment(\.calendar) private var calendar
+  @PutioScaledMetric private var rowMinHeight: CGFloat
 
   init(
     runtime: PutioRuntime,
@@ -21,7 +22,10 @@ struct TrashManagementView: View {
     _model = State(
       initialValue: PutioTrashModel(
         runtime: runtime, reconciliation: reconciliation, onRestored: onRestored))
+    _rowMinHeight = PutioScaledMetric(Self.rowMinHeight)
   }
+
+  private static let rowMinHeight = PutioMetricRole(value: 60, relativeTo: .body)
 
   var body: some View {
     Group {
@@ -98,7 +102,7 @@ struct TrashManagementView: View {
             }
             .accessibilityIdentifier("trash.empty")
           } label: {
-            Label("Trash Actions", systemImage: "ellipsis.circle")
+            Label("Trash Actions", systemImage: "ellipsis")
           }
           .disabled(!model.canMutate)
           .accessibilityLabel("Trash Actions")
@@ -203,6 +207,7 @@ struct TrashManagementView: View {
       List(selection: isEditing ? $selectedIDs : nil) {
         if !page.items.isEmpty {
           header(page)
+            .listRowInsets(.vertical, PutioTheme.Spacing.space2)
             .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
             .selectionDisabled()
@@ -225,7 +230,13 @@ struct TrashManagementView: View {
         }
         ForEach(page.items) { item in
           PutioFileRow(rowModel(for: item))
+            .frame(minHeight: rowMinHeight)
             .tag(item.id)
+            .listRowInsets(.vertical, PutioTheme.Spacing.space0)
+            .listRowSeparator(
+              item.id == page.items.last?.id && page.nextCursor == nil ? .hidden : .automatic,
+              edges: .bottom
+            )
             .listRowBackground(PutioTheme.Colors.background)
             .swipeActions(edge: .leading) {
               Button("Restore") {
@@ -272,6 +283,7 @@ struct TrashManagementView: View {
         }
       }
       .listStyle(.plain)
+      .environment(\.defaultMinListRowHeight, PutioTheme.Spacing.space0)
       .refreshable { await model.refresh() }
       .tint(PutioTheme.Colors.accent)
       .accessibilityIdentifier("trash.list")
