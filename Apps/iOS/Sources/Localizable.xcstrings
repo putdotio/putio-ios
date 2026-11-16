@@ -601,6 +601,17 @@
         }
       }
     },
+    "Cancel download" : {
+      "comment" : "android: mobile_downloads_ring_cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel download"
+          }
+        }
+      }
+    },
     "Cannot open link" : {
       "comment" : "ios-only: no Android string for the iOS link and cast shell",
       "localizations" : {
@@ -1561,17 +1572,6 @@
         }
       }
     },
-    "Details" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Details"
-          }
-        }
-      }
-    },
     "Device" : {
       "comment" : "android: mobile_settings_about_device",
       "localizations" : {
@@ -2317,6 +2317,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "OpenSubtitles"
+          }
+        }
+      }
+    },
+    "Pause all" : {
+      "comment" : "android: mobile_downloads_pause_all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause all"
+          }
+        }
+      }
+    },
+    "Remove from this iPad" : {
+      "comment" : "android: mobile_downloads_remove | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this iPad"
+          }
+        }
+      }
+    },
+    "Remove from this iPhone" : {
+      "comment" : "android: mobile_downloads_remove | differs: names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this iPhone"
           }
         }
       }
@@ -3683,6 +3716,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Resume %@, %@ left"
+          }
+        }
+      }
+    },
+    "Resume all" : {
+      "comment" : "android: mobile_downloads_resume_all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume all"
           }
         }
       }

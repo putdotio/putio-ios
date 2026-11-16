@@ -1717,6 +1717,37 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 80))?.stage, .downloading(progress: 0))
   }
 
+  func testPauseAllHoldsEveryDownloadAndResumeAllRestartsThemWithinTheLimit() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(1)
+    let ids = (1...3).map { PutioFileID(rawValue: $0) }
+    for id in ids {
+      queue.enqueue(fileID: id, parentID: .root, name: "\(id.rawValue)", kind: .video)
+    }
+    await settle()
+    engine.onProgress?(ids[0], 0.5)
+    XCTAssertEqual(queue.bulkAction, .pauseAll)
+
+    queue.pauseAll()
+    await settle()
+    XCTAssertEqual(
+      ids.map { queue.item(for: $0)?.stage },
+      [.paused(progress: 0.5), .paused(progress: 0), .paused(progress: 0)])
+    XCTAssertEqual(engine.started.map(\.0), [ids[0]], "a paused row started a download")
+    XCTAssertEqual(queue.bulkAction, .resumeAll)
+
+    queue.resumeAll()
+    await settle()
+    XCTAssertEqual(engine.resumed, [ids[0]], "the suspended task did not resume in place")
+    XCTAssertEqual(
+      ids.map { queue.item(for: $0)?.stage },
+      [.downloading(progress: 0.5), .queued, .queued])
+    XCTAssertEqual(queue.bulkAction, .pauseAll)
+
+    await queue.remove(fileIDs: ids).value
+    XCTAssertNil(queue.bulkAction, "an empty Downloading section still offers a bulk action")
+  }
+
   func testCancelledWorkerFailureDoesNotFailItsReplacement() async throws {
     let failures: [Error] = [
       URLError(.cancelled), PutioRuntimeError.transient, PutioOfflineConversionError(),

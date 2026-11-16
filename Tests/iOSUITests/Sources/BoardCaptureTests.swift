@@ -121,20 +121,7 @@ final class BoardCaptureTests: XCTestCase {
     let notificationsOff =
       ProcessInfo.processInfo.environment["PUTIO_NOTIFICATIONS_DENIED"] == "1"
     if fixture == "attention-states" { orient(.portrait) } else { orientForBoardDevice() }
-    app.launchArguments += ["--putio-harness-downloads", fixture]
-    if notificationsOff { app.launchArguments.append("--putio-harness-notifications-denied") }
-    app.launch()
-    let downloads = tabButton("Downloads")
-    let signIn = element("auth.sign-in")
-    let deadline = Date.now.addingTimeInterval(15)
-    while !downloads.exists, !signIn.exists, Date.now < deadline {
-      _ = downloads.appears(within: 0.5)
-    }
-    if signIn.exists { signIn.tap() }
-    if !downloads.appears(within: 15) { sidebarToggle().tap() }
-    XCTAssertTrue(downloads.appears(within: 5), "the Downloads tab is missing")
-    downloads.tap()
-    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+    openDownloads(fixture, notificationsDenied: notificationsOff)
     if rows.isEmpty {
       XCTAssertTrue(
         app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
@@ -177,20 +164,111 @@ final class BoardCaptureTests: XCTestCase {
       "the offline fixture left the network up")
   }
 
-  private func exerciseAttentionRows() {
-    func becomesQueued(_ row: XCUIElement) -> Bool { settles(row) { $0 == "queued" } }
-    let storage = element("downloads.storage-used")
-    app.scrollDown(toHit: storage)
-    XCTAssertTrue(
-      storage.label.hasPrefix("1.14 GB "), "the missing package still counts: \(storage.label)")
-    let network = element("downloads.item.442")
-    app.bringIntoView(network)
-    app.buttons["Retry download, \(episode(2))"].tap()
-    XCTAssertTrue(becomesQueued(network), "retry did not move the row to Downloading")
-    let missing = element("downloads.item.441")
-    app.bringIntoView(missing)
-    app.buttons["Download again, \(episode(1))"].tap()
-    XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
+  func testDownloadsMenu() throws {
+    let menu = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_MENU"])
+    orient(.portrait)
+    openDownloads("list")
+    let downloading = element("downloads.item.442")
+    switch menu {
+    case "finished":
+      let finished = element("downloads.item.441")
+      openRowMenu(441, ["play", "select", "remove-menu"])
+      XCTAssertFalse(app.buttons["Info"].exists, "Info shows before its sheet lands")
+      try captureBoard("rd-ios-dl-03-long-press")
+      app.buttons["downloads.play.441"].firstMatch.tap()
+      XCTAssertTrue(element("video.ready").appears(within: 20), "Play did not play the download")
+      app.revealVideoControls(showing: app.videoClose)
+      app.videoClose.tap()
+      openRowMenu(441, ["play", "select", "remove-menu"])
+      app.buttons["downloads.select.441"].firstMatch.tap()
+      XCTAssertTrue(settles(finished) { $0 == "Selected" }, "Select did not tick the row")
+      app.buttons["downloads.select-done"].tap()
+      openRowMenu(441, ["play", "select", "remove-menu"])
+      app.buttons["downloads.remove-menu.441"].firstMatch.tap()
+      let removeLocal = app.buttons["downloads.remove-local"].firstMatch
+      XCTAssertTrue(removeLocal.appears(within: 5), "Remove asked for no confirmation")
+      removeLocal.tap()
+      XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    case "active":
+      openRowMenu(442, ["pause", "select", "cancel"])
+      try captureBoard("rd-ios-dl-04-long-press-active")
+      app.buttons["downloads.pause.442"].firstMatch.tap()
+      XCTAssertTrue(settles(downloading) { $0 == "paused;42" }, "Pause did not pause")
+      let queued = element("downloads.item.443")
+      openRowMenu(443, ["pause", "select", "cancel"])
+      app.buttons["downloads.cancel.443"].firstMatch.tap()
+      XCTAssertTrue(queued.disappears(within: 5), "Cancel download kept the row")
+    case "paused":
+      app.bringIntoView(downloading)
+      app.buttons["Pause download, \(episode(2))"].tap()
+      XCTAssertTrue(settles(downloading) { $0 == "paused;42" }, "the ring did not pause")
+      openRowMenu(442, ["resume", "select", "cancel"])
+      try captureBoard("rd-ios-dl-13-long-press-paused")
+      app.buttons["downloads.resume.442"].firstMatch.tap()
+      XCTAssertTrue(settles(downloading) { $0 == "downloading;42" }, "Resume did not resume")
+    case "failed":
+      let failed = element("downloads.item.444")
+      openRowMenu(444, ["retry", "select", "remove-menu"])
+      try captureBoard("rd-ios-dl-14-long-press-failed")
+      app.buttons["downloads.retry.444"].firstMatch.tap()
+      XCTAssertTrue(settles(failed) { $0 == "queued" }, "Try again did not restart the download")
+    case "more", "resume-all":
+      let queued = element("downloads.item.443")
+      openDownloadsMore(["downloads.select", "downloads.pause-all"])
+      if menu == "more" { try captureBoard("rd-ios-dl-05-more") }
+      app.buttons["downloads.pause-all"].firstMatch.tap()
+      XCTAssertTrue(settles(downloading) { $0 == "paused;42" }, "Pause all left a download running")
+      XCTAssertTrue(settles(queued) { $0 == "paused;0" }, "Pause all left a download queued")
+      openDownloadsMore(["downloads.select", "downloads.resume-all"])
+      XCTAssertFalse(app.buttons["downloads.pause-all"].exists, "More offers both bulk actions")
+      if menu == "resume-all" { try captureBoard("rd-ios-dl-29-more-resume-all") }
+      app.buttons["downloads.resume-all"].firstMatch.tap()
+      XCTAssertTrue(
+        settles(downloading) { $0 == "downloading;42" }, "Resume all did not resume the download")
+      XCTAssertTrue(
+        settles(queued) { !$0.hasPrefix("paused") }, "Resume all left the queued row paused")
+    default:
+      XCTFail("unknown Downloads menu \(menu)")
+    }
+  }
+
+  private func openDownloads(_ fixture: String, notificationsDenied: Bool = false) {
+    app.launchArguments += ["--putio-harness-downloads", fixture]
+    if notificationsDenied { app.launchArguments.append("--putio-harness-notifications-denied") }
+    app.launch()
+    let downloads = tabButton("Downloads")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !downloads.exists, !signIn.exists, Date.now < deadline {
+      _ = downloads.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !downloads.appears(within: 15) { sidebarToggle().tap() }
+    XCTAssertTrue(downloads.appears(within: 5), "the Downloads tab is missing")
+    downloads.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+  }
+
+  private func openRowMenu(_ id: Int, _ actions: [String]) {
+    let row = element("downloads.item.\(id)")
+    app.bringIntoView(row)
+    row.press(forDuration: 1)
+    assertMenu(actions.map { "downloads.\($0).\(id)" }, named: "row \(id)")
+  }
+
+  private func openDownloadsMore(_ identifiers: [String]) {
+    app.buttons["downloads.more"].tap()
+    assertMenu(identifiers, named: "More")
+  }
+
+  private func assertMenu(_ identifiers: [String], named menu: String) {
+    let items = identifiers.map { app.buttons[$0].firstMatch }
+    XCTAssertTrue(items[0].appears(within: 5), "the \(menu) menu never opened")
+    for (identifier, item) in zip(identifiers, items) {
+      XCTAssertTrue(item.exists, "the \(menu) menu has no \(identifier)")
+    }
+    let tops = items.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "the \(menu) menu is out of order")
   }
 
   private func episode(_ number: Int) -> String {
@@ -261,6 +339,32 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["Pause download, \(episode(1))"].exists, "the removing row offers a control")
   }
 
+  private func exerciseAttentionRows() {
+    func becomesQueued(_ row: XCUIElement) -> Bool { settles(row) { $0 == "queued" } }
+    openDownloadsMore(["downloads.select"])
+    XCTAssertFalse(
+      app.buttons["downloads.pause-all"].exists || app.buttons["downloads.resume-all"].exists,
+      "More offers a bulk action with nothing downloading")
+    app.buttons["downloads.select"].tap()
+    app.buttons["downloads.select-done"].tap()
+    let gone = element("downloads.item.441")
+    openRowMenu(441, ["retry", "select", "remove-menu"])
+    app.buttons["downloads.select.441"].firstMatch.tap()
+    XCTAssertTrue(settles(gone) { $0 == "Selected" }, "Select did not tick the missing row")
+    app.buttons["downloads.select-done"].tap()
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    XCTAssertTrue(
+      storage.label.hasPrefix("1.14 GB "), "the missing package still counts: \(storage.label)")
+    let network = element("downloads.item.442")
+    app.bringIntoView(network)
+    app.buttons["Retry download, \(episode(2))"].tap()
+    XCTAssertTrue(becomesQueued(network), "retry did not move the row to Downloading")
+    let missing = element("downloads.item.441")
+    app.bringIntoView(missing)
+    app.buttons["Download again, \(episode(1))"].tap()
+    XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
+  }
   private func exerciseDownloadsList() {
     let downloading = element("downloads.item.442")
     app.bringIntoView(downloading)

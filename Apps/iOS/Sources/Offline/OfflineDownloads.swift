@@ -404,7 +404,52 @@ final class PutioOfflineQueue {
   // MARK: Controls
 
   func pause(fileID: PutioFileID) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    guard hold(fileID) else { return }
+    persist()
+    schedule()
+  }
+
+  /// A suspended engine task resumes in place; anything else re-queues and
+  /// goes through resolution again.
+  func resume(fileID: PutioFileID) {
+    guard release(fileID) else { return }
+    persist()
+    schedule()
+  }
+
+  var bulkAction: PutioOfflineBulkAction? {
+    var held = false
+    for item in items {
+      switch item.stage {
+      case .paused where !isWaitingForSlot(item.id): held = true
+      case .queued, .waitingToConvert, .converting, .downloading, .waitingForNetwork,
+        .waitingForStorage, .paused:
+        return .pauseAll
+      case .completed, .failed, .missing: continue
+      }
+    }
+    return held ? .resumeAll : nil
+  }
+
+  func pauseAll() {
+    let held = items.map(\.id).filter { hold($0) }
+    guard !held.isEmpty else { return }
+    persist()
+    schedule()
+  }
+
+  func resumeAll() {
+    let released = items.map(\.id).filter { fileID in
+      guard !isWaitingForSlot(fileID) else { return false }
+      return release(fileID)
+    }
+    guard !released.isEmpty else { return }
+    persist()
+    schedule()
+  }
+
+  private func hold(_ fileID: PutioFileID) -> Bool {
+    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return false }
     switch items[index].stage {
     case .downloading(let progress), .waitingForNetwork(let progress):
       engine.pause(fileID: fileID)
@@ -421,25 +466,22 @@ final class PutioOfflineQueue {
     case .paused where isWaitingForSlot(fileID):
       resumeWhenFree.removeAll { $0 == fileID }
     default:
-      return
+      return false
     }
-    persist()
-    schedule()
+    return true
   }
 
-  /// A suspended engine task resumes in place; anything else re-queues and
-  /// goes through resolution again.
-  func resume(fileID: PutioFileID) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
-    guard case .paused(let progress) = items[index].stage else { return }
+  private func release(_ fileID: PutioFileID) -> Bool {
+    guard let index = items.firstIndex(where: { $0.id == fileID }),
+      case .paused(let progress) = items[index].stage
+    else { return false }
     completionEpoch[fileID, default: 0] &+= 1
     if suspended.contains(fileID) {
       guard inFlightCount < concurrencyLimit else {
         // Every slot is busy; the item keeps its progress and resumes in
         // place as soon as one frees.
         if !resumeWhenFree.contains(fileID) { resumeWhenFree.append(fileID) }
-        persist()
-        return
+        return true
       }
       suspended.remove(fileID)
       items[index].stage = transferStage(progress: progress)
@@ -447,8 +489,7 @@ final class PutioOfflineQueue {
     } else {
       items[index].stage = .queued
     }
-    persist()
-    schedule()
+    return true
   }
 
   func retry(fileID: PutioFileID) {

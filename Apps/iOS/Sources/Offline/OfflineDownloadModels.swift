@@ -163,6 +163,11 @@ struct PutioOfflineSections: Equatable {
   }
 }
 
+enum PutioOfflineBulkAction: Equatable {
+  case pauseAll
+  case resumeAll
+}
+
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {
   let languageCode: String
   let displayName: String
