@@ -806,18 +806,17 @@ struct MainTabView: View {
       method = await appConfig.resolvePlaybackMethod()
     }
     guard !Task.isCancelled else { return }
-    guard let start, !start.needsConversion || method == .directPlay,
-      PutioVideoStart.asksWhereToStart(
-        savedSeconds: start.savedSeconds, durationSeconds: start.durationSeconds,
-        remembersPosition: account.rememberVideoTime)
-    else {
+    switch PutioVideoStart.opening(
+      route, from: start, method: method, remembersPosition: account.rememberVideoTime)
+    {
+    case .show(let route):
       showVideo(route)
-      return
+    case .ask(let positionSeconds):
+      guard let choice = await resumePrompter.ask(positionSeconds: positionSeconds),
+        !Task.isCancelled
+      else { return }
+      showVideo(route.starting(with: choice))
     }
-    guard let choice = await resumePrompter.ask(positionSeconds: start.savedSeconds),
-      !Task.isCancelled
-    else { return }
-    showVideo(route.starting(with: choice))
   }
 
   private func videoStartPoint(for route: PutioVideoRoute) async -> PutioVideoStartPoint? {

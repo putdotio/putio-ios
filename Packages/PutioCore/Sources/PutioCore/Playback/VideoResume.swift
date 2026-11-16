@@ -72,7 +72,65 @@ public struct PutioVideoStartPoint: Equatable, Sendable {
   }
 }
 
+public enum PutioVideoRouteStart: Equatable, Sendable {
+  case asksAfterConversion
+  case asksInPlayer
+  case chosen(PutioVideoResumePrompt.Choice)
+  case resumes(atSeconds: Int)
+}
+
+public enum PutioVideoOpening: Equatable, Sendable {
+  case show(PutioVideoRoute)
+  case ask(positionSeconds: Int)
+}
+
 public enum PutioVideoStart {
+  public static func opening(
+    _ route: PutioVideoRoute, from start: PutioVideoStartPoint?, method: PutioPlaybackMethod,
+    remembersPosition: Bool
+  ) -> PutioVideoOpening {
+    guard remembersPosition, let start else { return .show(route) }
+    if start.needsConversion, method != .directPlay {
+      return .show(route.starting(.asksInPlayer))
+    }
+    guard
+      asksWhereToStart(
+        savedSeconds: start.savedSeconds, durationSeconds: start.durationSeconds,
+        remembersPosition: true)
+    else { return .show(route) }
+    return .ask(positionSeconds: start.savedSeconds)
+  }
+
+  public static func choice(
+    for routeStart: PutioVideoRouteStart, remembersPosition: Bool,
+    durationSeconds: @escaping @MainActor @Sendable (URL) async -> Double?,
+    ask: @escaping @MainActor @Sendable (Int) async -> PutioVideoResumePrompt.Choice?
+  ) -> PutioVideoStartChoice {
+    { source, afterConversion in
+      switch routeStart {
+      case .resumes(let seconds):
+        return PutioPlaybackSource(
+          url: source.url, startFromSeconds: seconds, resumesAfterFailure: true,
+          original: source.original)
+      case .chosen(let choice):
+        return Self.source(source, startingWith: choice)
+      case .asksAfterConversion where !afterConversion:
+        return source
+      case .asksAfterConversion, .asksInPlayer:
+        break
+      }
+      guard remembersPosition, source.startFromSeconds > 0 else { return source }
+      let duration = await durationSeconds(source.url)
+      guard
+        asksWhereToStart(
+          savedSeconds: source.startFromSeconds, durationSeconds: duration,
+          remembersPosition: true)
+      else { return source }
+      let choice = await ask(source.startFromSeconds)
+      return Self.source(source, startingWith: choice ?? .resume)
+    }
+  }
+
   public static func asksWhereToStart(
     savedSeconds: Int, durationSeconds: Double?, remembersPosition: Bool
   ) -> Bool {

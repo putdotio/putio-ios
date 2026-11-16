@@ -137,12 +137,12 @@ final class PutioVideoStartTests: XCTestCase {
       PutioPlaybackSource(url: url, startFromSeconds: 0))
   }
 
-  func testRouteCarriesStartOverOnly() {
+  func testRouteCarriesTheChoiceMade() {
     let route = PutioVideoRoute(
       id: PutioFileID(rawValue: 7), parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")
-    XCTAssertFalse(route.startsOver)
-    XCTAssertTrue(route.starting(with: .startOver).startsOver)
-    XCTAssertFalse(route.starting(with: .resume).startsOver)
+    XCTAssertEqual(route.start, .asksAfterConversion)
+    XCTAssertEqual(route.starting(with: .startOver).start, .chosen(.startOver))
+    XCTAssertEqual(route.starting(with: .resume).start, .chosen(.resume))
   }
 }
 

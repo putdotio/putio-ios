@@ -757,6 +757,58 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
   }
 
+  func testAVideoThatNeedsConversionAsksWhereToStartExactlyOnce() async {
+    let saved = playbackSource()
+    let route = PutioVideoRoute(id: fileID, parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")
+    let startPoint = PutioVideoStartPoint(
+      savedSeconds: saved.startFromSeconds, durationSeconds: 5400, needsConversion: true)
+    let cases: [(method: PutioPlaybackMethod, converts: Bool, choice: PutioVideoResumePrompt.Choice)] = [
+      (.directPlay, true, .resume),
+      (.directPlay, true, .startOver),
+      (.standard, false, .resume),
+      (.standard, false, .startOver),
+      (.standard, true, .startOver),
+    ]
+    for (method, converts, choice) in cases {
+      let label = "\(method) converts: \(converts) \(choice)"
+      var asked: [Int] = []
+      let opening = PutioVideoStart.opening(
+        route, from: startPoint, method: method, remembersPosition: true)
+      let shown: PutioVideoRoute
+      switch opening {
+      case .show(let route):
+        shown = route
+      case .ask(let positionSeconds):
+        asked.append(positionSeconds)
+        shown = route.starting(with: choice)
+      }
+      let resolver = PlaybackResolverStub(
+        (converts ? [.success(.conversionRequired)] : []) + [.success(.ready(saved))])
+      let conversion = VideoConversionStub(statusResults: [.success(.completed)])
+      let model = PutioVideoPlaybackModel(
+        fileID: fileID,
+        conversionPollInterval: .milliseconds(10),
+        startConversion: { try await conversion.start($0) },
+        loadConversionStatus: { try await conversion.status($0) },
+        sleep: { try await conversion.sleep(for: $0) },
+        chooseStart: PutioVideoStart.choice(
+          for: shown.start, remembersPosition: true,
+          durationSeconds: { _ in 5400 },
+          ask: {
+            asked.append($0)
+            return choice
+          }),
+        resolve: { try await resolver.resolve($0) }
+      )
+
+      await model.loadIfNeeded()
+
+      XCTAssertEqual(asked, [saved.startFromSeconds], label)
+      XCTAssertEqual(
+        model.state, .ready(PutioVideoStart.source(saved, startingWith: choice)), label)
+    }
+  }
+
   func testAConvertedVideoHandsOffOnlyWhenTheReceiverConnectedDuringTheWait() async {
     enum Choice { case startOver, savedPosition, resumeAtSavedSecond }
     let cases: [(atOpen: Int?, afterWait: Int, choice: Choice, handedOff: [Int?])] = [

@@ -143,40 +143,39 @@ public struct PutioVideoRoute: Identifiable, Equatable, Sendable {
   public let parentID: PutioFileID
   public let title: String
   public let initialResolution: PutioPlaybackResolution?
-  public let startsOver: Bool
+  public let start: PutioVideoRouteStart
   /// The method for this one play, from a file menu row; `nil` plays with
   /// the account's Playback method.
   public let method: PutioPlaybackMethod?
-  public let resumesAt: Int?
 
   public init(
     id: PutioFileID,
     parentID: PutioFileID,
     title: String,
     initialResolution: PutioPlaybackResolution? = nil,
-    startsOver: Bool = false,
-    method: PutioPlaybackMethod? = nil,
-    resumesAt: Int? = nil
+    start: PutioVideoRouteStart = .asksAfterConversion,
+    method: PutioPlaybackMethod? = nil
   ) {
     self.id = id
     self.parentID = parentID
     self.title = title
     self.initialResolution = initialResolution
-    self.startsOver = startsOver
+    self.start = start
     self.method = method
-    self.resumesAt = resumesAt
   }
 
   public func resuming(at seconds: Int) -> PutioVideoRoute {
-    PutioVideoRoute(
-      id: id, parentID: parentID, title: title, initialResolution: initialResolution,
-      method: method, resumesAt: seconds)
+    starting(.resumes(atSeconds: seconds))
   }
 
   public func starting(with choice: PutioVideoResumePrompt.Choice) -> PutioVideoRoute {
+    starting(.chosen(choice))
+  }
+
+  public func starting(_ start: PutioVideoRouteStart) -> PutioVideoRoute {
     PutioVideoRoute(
       id: id, parentID: parentID, title: title, initialResolution: initialResolution,
-      startsOver: choice == .startOver, method: method)
+      start: start, method: method)
   }
 
   public init(nextVideo: PutioPlayableNextVideo) {
