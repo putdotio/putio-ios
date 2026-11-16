@@ -16,6 +16,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     case paused(progress: Double)
     case completed
     case failed(PutioOfflineFailure)
+    case missing
   }
 
   let id: PutioFileID
@@ -39,7 +40,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     case .queued: 0
     case .converting(let progress), .downloading(let progress), .paused(let progress): progress
     case .completed: 1
-    case .failed: 0
+    case .failed, .missing: 0
     }
   }
 
@@ -84,7 +85,8 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
       .waiting(.slot, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .paused: .paused(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .completed: .idle
-    case .failed(let failure): .failed(reason: failure.message, canRetry: failure.canRetry)
+    case .failed(let failure): .failed(reason: failure.reason, canRetry: failure.canRetry)
+    case .missing: .missing
     }
   }
 }
@@ -118,7 +120,7 @@ struct PutioOfflineSections: Equatable {
         downloading.append(item)
       case .converting, .downloading, .paused:
         downloading.append(item)
-      case .failed:
+      case .failed, .missing:
         attention.append(item)
       case .completed:
         onDevice.append(item)
@@ -152,12 +154,23 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
     case storage
     case notFound
     case authentication
+    case unexpected
   }
 
   let kind: Kind
   let message: String
 
   var canRetry: Bool { kind != .notFound }
+
+  var reason: String {
+    switch kind {
+    case .resolution: String(localized: "Connection lost")
+    case .authentication: String(localized: "Sign in again")
+    case .notFound: String(localized: "No longer available")
+    case .storage: String(localized: "Not enough storage")
+    case .download, .conversion, .unexpected: String(localized: "Couldn’t download")
+    }
+  }
 
   static let authentication = Self(
     kind: .authentication, message: String(localized: "Sign in again to continue this download."))
@@ -178,17 +191,17 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
     case .notFound: .notFound
     case .rateLimited:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io is receiving too many requests. Try again shortly."))
     case .transient:
       Self(kind: .resolution, message: String(localized: "Check your connection and try again."))
     case .invalidResponse:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io returned an invalid response. Try again."))
     case .unknown, nil:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io could not prepare this file. Try again."))
     }
   }

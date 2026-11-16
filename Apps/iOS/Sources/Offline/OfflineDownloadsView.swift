@@ -246,8 +246,7 @@ struct PutioOfflineDownloadsView: View {
     case .pause: queue.pause(fileID: item.id)
     case .resume: queue.resume(fileID: item.id)
     case .cancel: queue.remove(fileIDs: [item.id])
-    case .retry: queue.retry(fileID: item.id)
-    case .downloadAgain: break
+    case .retry, .downloadAgain: queue.retry(fileID: item.id)
     }
   }
 
@@ -274,6 +273,13 @@ struct PutioOfflineDownloadsView: View {
         queue.retry(fileID: item.id)
       } label: {
         Label("Try again", systemImage: "arrow.counterclockwise")
+      }
+      .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
+    case .missing:
+      Button {
+        queue.retry(fileID: item.id)
+      } label: {
+        Label("Download again", systemImage: "arrow.down.circle")
       }
       .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
     case .completed:
@@ -345,6 +351,7 @@ struct PutioOfflineDownloadsView: View {
     case .failed(let failure):
       item.failedProgress.map { "failed;\(failure.kind.rawValue);\(Int($0 * 100))" }
         ?? "failed;\(failure.kind.rawValue)"
+    case .missing: "missing"
     }
   }
 
@@ -452,7 +459,8 @@ struct PutioOfflineDetailView: View {
     case .downloading: String(localized: "Downloading")
     case .paused: String(localized: "Paused")
     case .completed: String(localized: "Downloaded")
-    case .failed(let failure): failure.message
+    case .failed(let failure): failure.reason
+    case .missing: String(localized: "No longer on this iPhone")
     }
   }
 }

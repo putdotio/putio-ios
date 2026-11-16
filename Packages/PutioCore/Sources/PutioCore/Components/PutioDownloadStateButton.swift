@@ -33,6 +33,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     case play
     case stop
     case again
+    case download
   }
 
   public enum Ring: Equatable, Sendable {
@@ -133,8 +134,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       statusLine = [
         Segment(String(localized: "No longer on this iPhone", bundle: .module, locale: locale))
       ]
-      tone = .destructive
-      ring = .glyph(.again)
+      ring = .glyph(.download)
       action = .downloadAgain
     case .failed(let reason, let canRetry):
       statusLine = [Segment(reason)]
@@ -309,6 +309,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
         case .play: (.playFill, ringGlyphSize, PutioTheme.Colors.textPrimary)
         case .stop: (.stopFill, stopGlyphSize, PutioTheme.Colors.textSecondary)
         case .again: (.arrowCounterClockwise, againGlyphSize, PutioTheme.Colors.textSecondary)
+        case .download: (.arrowCircleDown, againGlyphSize, PutioTheme.Colors.textSecondary)
         }
       return Image(putioIcon: icon)
         .resizable()

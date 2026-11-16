@@ -118,7 +118,7 @@ final class BoardCaptureTests: XCTestCase {
     let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
     let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
     let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
-    orientForBoardDevice()
+    if fixture == "attention-states" { orient(.portrait) } else { orientForBoardDevice() }
     app.launchArguments += ["--putio-harness-downloads", fixture]
     app.launch()
     let downloads = tabButton("Downloads")
@@ -161,11 +161,35 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["audio.collapse"].tap()
       exerciseDownloadsList()
     }
+    if fixture == "attention-states", onPhone { exerciseAttentionRows() }
     guard fixture == "offline" else { return }
     tabButton("Files").tap()
     XCTAssertTrue(
       app.staticTexts["put.io is out of reach"].appears(within: 15),
       "the offline fixture left the network up")
+  }
+
+  private func exerciseAttentionRows() {
+    func episode(_ number: Int) -> String {
+      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+    }
+    func becomesQueued(_ row: XCUIElement) -> Bool {
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate { _, _ in row.value as? String == "queued" }, object: nil)
+      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    XCTAssertTrue(
+      storage.label.hasPrefix("1.1 GB"), "the missing package still counts: \(storage.label)")
+    let network = element("downloads.item.442")
+    app.bringIntoView(network)
+    app.buttons["Retry download, \(episode(2))"].tap()
+    XCTAssertTrue(becomesQueued(network), "retry did not move the row to Downloading")
+    let missing = element("downloads.item.441")
+    app.bringIntoView(missing)
+    app.buttons["Download again, \(episode(1))"].tap()
+    XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
   }
 
   private func exerciseDownloadsList() {
@@ -225,7 +249,7 @@ final class BoardCaptureTests: XCTestCase {
     ],
     "attention-states": [
       (442, "failed;resolution"), (443, "failed;authentication"), (444, "failed;notFound"),
-      (447, "failed;storage"), (448, "failed;download"), (441, "completed"),
+      (447, "failed;storage"), (448, "failed;download"), (441, "missing"),
       (9_001, "completed;watched"), (408, "completed"),
     ],
   ]
