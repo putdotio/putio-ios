@@ -201,10 +201,26 @@ struct HistoryView: View {
         }
       }
       if let before = page.nextBefore, model.refreshFailure == nil {
-        if let failure = model.loadMoreFailure {
-          retryRow(failure.message, identifier: "history.more-retry") { await model.loadMore() }
+        if model.loadMoreFailure != nil {
+          PutioNextPageFailedFooter(
+            message: String(localized: "Couldn’t load more history."),
+            retryIdentifier: "history.more-retry"
+          ) {
+            Task { await model.loadMore() }
+          }
+          .accessibilityElement(children: .contain)
+          .accessibilityIdentifier("history.more-error")
+          .listRowInsets(
+            EdgeInsets(
+              top: 0, leading: PutioTheme.Spacing.space1, bottom: 0,
+              trailing: PutioTheme.Spacing.space1)
+          )
+          .listRowSeparator(.hidden)
+          .listRowBackground(PutioTheme.Colors.background)
         } else {
-          ProgressView("Loading more history")
+          PutioNextPageLoadingFooter(accessibilityLabel: String(localized: "Loading more history"))
+            .accessibilityIdentifier("history.more")
+            .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
             .task(
               id: PageRequest(

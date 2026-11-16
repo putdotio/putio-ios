@@ -8,6 +8,8 @@ import Foundation
       case empty
       case failing
       case offline
+      case moreHeld = "more-held"
+      case moreFails = "more-fails"
     }
 
     static let argument = "--putio-harness-history"
@@ -30,6 +32,24 @@ import Foundation
       guard mode != nil, method == "GET", url.path == listPath else { return false }
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
       return !query.contains { $0.name == "before" }
+    }
+
+    static func handlesPage(method: String, url: URL) -> Bool {
+      guard mode == .moreHeld || mode == .moreFails, method == "GET", url.path == listPath
+      else { return false }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      return query.contains { $0.name == "before" }
+    }
+
+    static func holdsPage(method: String, url: URL) -> Bool {
+      mode == .moreHeld && handlesPage(method: method, url: url)
+    }
+
+    static func pageResponse() -> (Int, String) {
+      (
+        503,
+        #"{"status":"ERROR","status_code":503,"error_type":"HARNESS_HISTORY_RETRY","message":"Retry History continuation"}"#
+      )
     }
 
     static func delaysList(method: String, url: URL) -> Bool {
@@ -120,7 +140,9 @@ import Foundation
           fields: #""file_name":"Old.Episode.S01E01.mkv","file_size":1024"#),
       ]
       let kept = events.filter { !deletedIDs.contains($0.0) }.map(\.1)
-      return #"{"status":"OK","has_more":false,"events":[\#(kept.joined(separator: ","))]}"#
+      let hasMore = mode == .moreHeld || mode == .moreFails
+      return
+        #"{"status":"OK","has_more":\#(hasMore),"events":[\#(kept.joined(separator: ","))]}"#
     }
   }
 #endif

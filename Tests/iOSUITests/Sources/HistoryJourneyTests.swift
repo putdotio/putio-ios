@@ -32,6 +32,10 @@ final class HistoryJourneyTests: XCTestCase {
     let moreRetry = app.buttons["history.more-retry"]
     reveal(moreRetry)
     XCTAssertTrue(folderEvent.exists, "failed continuation removed the first page")
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load more history."].exists, "the failed page has no message")
+    XCTAssertFalse(
+      app.staticTexts["Retry History continuation"].exists, "the footer shows the raw failure")
     moreRetry.tap()
     reveal(element("history.item.806"))
     XCTAssertTrue(app.staticTexts["Yesterday"].exists)
@@ -41,6 +45,8 @@ final class HistoryJourneyTests: XCTestCase {
       if id == 801 { XCTAssertTrue(app.staticTexts[dayTitle(daysAgo: 10)].exists) }
     }
     XCTAssertFalse(app.buttons["history.item.801"].exists, "an event without a file is a button")
+    XCTAssertFalse(element("history.more").exists, "the last page still loads more")
+    XCTAssertFalse(element("history.more-error").exists, "the last page still shows a failure")
     let failedTransfer = element("history.item.806")
     reveal(failedTransfer)
     XCTAssertTrue(failedTransfer.label.contains("Transfer failed"))
