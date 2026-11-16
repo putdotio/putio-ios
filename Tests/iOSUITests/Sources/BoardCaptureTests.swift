@@ -138,9 +138,10 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(
       element("downloads.notifications-off").exists, notificationsOff,
       "the notifications-off row does not follow the permission")
+    let onPhone = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "ipad"
+    if fixture == "empty", !onPhone { assertIPadEmpty() }
     try captureBoard(board)
     guard !notificationsOff else { return }
-    let onPhone = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "ipad"
     if fixture == "list", onPhone {
       let video = app.buttons["downloads.item.9001"].firstMatch
       app.bringIntoView(video)
@@ -428,10 +429,71 @@ final class BoardCaptureTests: XCTestCase {
       assertDetailFacts(["status": "Connection lost"], order: ["size", "status"])
       XCTAssertFalse(element("downloads.detail.audio").exists, "a failed download lists audio")
       try captureBoard("rd-ios-dl-23-ipad-failed")
+    case "selection":
+      selectDownload(441, actions: ["play", "remove"])
+      selectDownloads([442, 443, 441])
+      assertDetailCleared(empty: empty)
+      XCTAssertTrue(tabButton("Files").exists, "selection hid the tab bar")
+      XCTAssertTrue(
+        element("selection.bar").frame.maxX <= element("downloads.item.442").frame.maxX + 1,
+        "the action bar left the list column")
+      assertSelectionSummary(bytes: 1_386_000_000 + 3_240_000_000)
+      try captureBoard("rd-ios-dl-25-ipad-selection")
+      exerciseIPadSelection(empty: empty)
     default:
       exerciseDownloadsDetail(empty: empty)
       try captureBoard("ipad-downloads-detail")
     }
+  }
+
+  private func assertIPadEmpty() {
+    XCTAssertTrue(
+      element("downloads.storage-used").label.hasPrefix("0 B on this iPad"),
+      "the empty storage line does not name the iPad")
+    XCTAssertTrue(
+      element("putio.list-detail.empty").appears(within: 5), "the empty tab has no detail column")
+    XCTAssertFalse(
+      app.staticTexts["No download selected"].exists, "the empty tab shows a detail placeholder")
+    XCTAssertFalse(app.staticTexts["Tap a download to see it here."].exists)
+  }
+
+  private func assertDetailCleared(empty: XCUIElement) {
+    XCTAssertTrue(empty.appears(within: 5), "selection left a detail open")
+    XCTAssertTrue(app.staticTexts["No download selected"].exists)
+    XCTAssertFalse(element("downloads.detail.441").exists, "selection kept the detail of 441")
+  }
+
+  private func exerciseIPadSelection(empty: XCUIElement) {
+    for id in [442, 443] {
+      let row = element("downloads.item.\(id)")
+      row.tap()
+      XCTAssertEqual(row.value as? String, "Not selected", "row \(id) did not untick")
+    }
+    let finished = element("downloads.item.9001")
+    app.bringIntoView(finished)
+    finished.tap()
+    XCTAssertEqual(finished.value as? String, "Selected", "a tap in selection did not tick")
+    XCTAssertFalse(element("downloads.detail.9001").exists, "a tap in selection opened the detail")
+    element("selection.action.remove").tap()
+    let alert = app.putioAlert("Remove 2 downloads from this iPad?")
+    XCTAssertTrue(alert.appears(within: 5), "removing two asked for no confirmation")
+    XCTAssertTrue(
+      alert.staticTexts[
+        "The files stay in your put.io account. Only the copies on this iPad are removed."
+      ].exists, "the alert does not name the iPad")
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
+    XCTAssertTrue(element("downloads.item.441").disappears(within: 5), "441 stayed")
+    XCTAssertTrue(finished.disappears(within: 5), "9001 stayed")
+    XCTAssertTrue(element("selection.bar").disappears(within: 5), "removal kept the selection")
+    XCTAssertTrue(empty.exists, "leaving selection restored a detail")
+
+    selectDownloads([])
+    closeSelection()
+    XCTAssertTrue(empty.exists, "Done restored a detail")
+    let failed = element("downloads.item.444")
+    XCTAssertFalse(failed.isSelected, "Done left a row open")
+    failed.tap()
+    XCTAssertTrue(element("downloads.detail.444").appears(within: 5), "no row opens after Done")
   }
 
   private func exerciseDownloadsDetail(empty: XCUIElement) {

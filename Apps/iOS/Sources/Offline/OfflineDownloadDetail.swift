@@ -70,21 +70,29 @@ private struct PutioOfflineDownloadsLayout: View {
     return queue.item(for: selection) == nil
   }
 
-  private var columns: some View {
-    PutioListDetail(
-      selection: $selection,
-      emptyTitle: String(localized: "No download selected"),
-      emptyMessage: String(localized: "Tap a download to see it here.")
-    ) { _ in
+  private var columns:
+    PutioListDetail<PutioFileID, PutioOfflineDownloadsView, PutioOfflineDownloadDetailView?>
+  {
+    let list: (Binding<PutioFileID?>) -> PutioOfflineDownloadsView = { _ in
       PutioOfflineDownloadsView(
-        queue: queue, onOpen: onOpen, onSelect: { selection = $0.id })
-    } detail: { id in
-      if let item = queue.item(for: id) {
+        queue: queue, onOpen: onOpen, onSelect: { selection = $0.id },
+        onBeginSelection: { selection = nil })
+    }
+    let detail: (PutioFileID) -> PutioOfflineDownloadDetailView? = { id in
+      queue.item(for: id).map { item in
         PutioOfflineDownloadDetailView(
           queue: queue, item: item, loadDetails: loadDetails, onOpen: onOpen,
           onRemoved: { selection = nil })
       }
     }
+    guard queue.items.isEmpty && queue.removing.isEmpty else {
+      return PutioListDetail(
+        selection: $selection,
+        emptyTitle: String(localized: "No download selected"),
+        emptyMessage: String(localized: "Tap a download to see it here."),
+        list: list, detail: detail)
+    }
+    return PutioListDetail(selection: $selection, list: list, detail: detail)
   }
 }
 
