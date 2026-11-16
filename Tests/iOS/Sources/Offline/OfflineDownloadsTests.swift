@@ -1346,6 +1346,40 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(engine.started.map(\.0.rawValue), [10, 11], "the paused item held no slot")
   }
 
+  func testPausingAConversionCountsNoBytesOnTheDevice() async throws {
+    let gate = makeGate()
+    resolutions[12] = [.conversionRequired]
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in
+        await gate.wait()
+        try Task.checkCancellation()
+      },
+      availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if var queued = self.resolutions[fileID.rawValue], !queued.isEmpty {
+          let next = queued.removeFirst()
+          self.resolutions[fileID.rawValue] = queued
+          return next
+        }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in },
+      conversionStatus: { _ in .converting(progress: 0.5) },
+      reportPosition: { _, _ in })
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 12), parentID: .root, name: "l", kind: .video,
+      estimatedBytes: 1_000)
+    try await gate.waitUntilEntered()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.stage, .converting(progress: 0.5))
+    queue.pause(fileID: PutioFileID(rawValue: 12))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.stage, .paused(progress: 0))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.bytesOnDevice, 0)
+  }
+
   func testLateFailureDoesNotOverwriteAPause() async throws {
     let gate = makeGate()
     let queue = PutioOfflineQueue(

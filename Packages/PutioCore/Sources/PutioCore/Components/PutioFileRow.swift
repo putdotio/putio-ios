@@ -65,6 +65,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
 
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
+  private let showsIcon: Bool
   private let presentation: PutioDownloadPresentation
   private let showsDownloadControl: Bool
   private let onDownloadAction: (PutioDownloadAction) -> Void
@@ -87,11 +88,13 @@ public struct PutioFileRow: View {
 
   public init(
     _ model: PutioFileRowModel,
+    showsIcon: Bool = true,
     downloadContext: PutioDownloadPresentation.Context = .downloads,
     showsDownloadControl: Bool = true,
     onDownloadAction: @escaping (PutioDownloadAction) -> Void = { _ in }
   ) {
     self.model = model
+    self.showsIcon = showsIcon
     presentation = PutioDownloadPresentation(model.downloadState, context: downloadContext)
     self.showsDownloadControl = showsDownloadControl
     self.onDownloadAction = onDownloadAction
@@ -148,12 +151,12 @@ public struct PutioFileRow: View {
   @ViewBuilder private var leading: some View {
     #if os(tvOS)
       HStack(spacing: contentGap) {
-        glyph
+        if showsIcon { glyph }
         text
       }
     #else
       HStack(spacing: leadGap) {
-        glyph.frame(width: leadWidth)
+        if showsIcon { glyph.frame(width: leadWidth) }
         text
       }
     #endif

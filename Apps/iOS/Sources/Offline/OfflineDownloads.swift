@@ -442,14 +442,10 @@ final class PutioOfflineQueue {
         suspended.insert(fileID)
       }
       items[index].stage = .paused(progress: progress)
-    case .queued, .waitingToConvert, .waitingForStorage:
+    case .queued, .waitingToConvert, .converting, .waitingForStorage:
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: 0)
-    case .converting(let progress):
-      workers[fileID]?.task.cancel()
-      workers[fileID] = nil
-      items[index].stage = .paused(progress: progress)
     case .paused where isWaitingForSlot(fileID):
       resumeWhenFree.removeAll { $0 == fileID }
     default:

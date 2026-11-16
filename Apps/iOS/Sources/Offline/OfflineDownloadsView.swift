@@ -244,7 +244,7 @@ struct PutioOfflineDownloadsView: View {
       PutioSelectableRow(isSelected: selection.contains(item.id)) {
         selection.toggle(item.id)
       } content: {
-        PutioFileRow(model)
+        PutioFileRow(model, showsIcon: false)
       }
       .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
       .accessibilityValue(Text(selection.contains(item.id) ? "Selected" : "Not selected"))

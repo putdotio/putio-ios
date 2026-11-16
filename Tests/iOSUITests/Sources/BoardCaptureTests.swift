@@ -200,11 +200,11 @@ final class BoardCaptureTests: XCTestCase {
     let step = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_SELECTION"])
     let board = try XCTUnwrap(Self.downloadsSelectionBoards[step], "no board for \(step)")
     if step == "remove-failed" { app.launchArguments.append("--putio-harness-offline-writes-fail") }
-    try openDownloadsFixture("list")
+    try openDownloadsFixture("selection")
     let device =
       ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" ? "iPad" : "iPhone"
     selectDownloads([442, 443, 441])
-    assertSelectionSummary("4.6 GB selected")
+    assertSelectionSummary(bytes: 1_386_000_000 + 1_386_000_000 + 3_240_000_000)
     XCTAssertFalse(
       app.buttons["Pause download, \(episode(2))"].exists, "selection kept the ring")
     switch step {
@@ -260,10 +260,12 @@ final class BoardCaptureTests: XCTestCase {
     app.putioAlert("Could not remove downloads")
   }
 
-  private func assertSelectionSummary(_ size: String) {
+  private func assertSelectionSummary(bytes: Int64) {
     let summary = element("downloads.selection.summary").label
+    let size = bytes.formatted(ByteCountFormatStyle(style: .file))
     XCTAssertTrue(summary.contains("6 items"), "the summary miscounts the rows: \(summary)")
-    XCTAssertTrue(summary.contains(size), "the summary miscounts the size: \(summary)")
+    XCTAssertTrue(
+      summary.contains("\(size) selected"), "the summary miscounts the size: \(summary)")
   }
 
   private func exerciseFailedRemoval(device: String) {
@@ -302,7 +304,8 @@ final class BoardCaptureTests: XCTestCase {
     element("selection.action.pause").tap()
     closeSelection()
     XCTAssertTrue(settles(element("downloads.item.442")) { $0 == "paused;42" }, "442 kept running")
-    XCTAssertTrue(settles(element("downloads.item.443")) { $0 == "paused;0" }, "443 kept its place")
+    XCTAssertTrue(
+      settles(element("downloads.item.443")) { $0 == "paused;42" }, "Pause changed the paused 443")
 
     selectDownloads([442, 443])
     element("selection.action.resume").tap()
@@ -319,7 +322,7 @@ final class BoardCaptureTests: XCTestCase {
     let audio = element("downloads.item.408")
     app.bringIntoView(audio)
     audio.tap()
-    assertSelectionSummary("1.1 GB selected")
+    assertSelectionSummary(bytes: 1_090_000_000 + 48_000_000)
     element("selection.action.remove").tap()
     let alert = app.putioAlert("Remove 2 downloads from this \(device)?")
     XCTAssertTrue(alert.appears(within: 5), "removing two asked for no confirmation")
@@ -689,6 +692,10 @@ final class BoardCaptureTests: XCTestCase {
       (442, "waiting-network;42"), (443, "queued"), (444, "failed;resolution;26"),
       (441, "completed"),
       (9_001, "completed;watched"), (408, "completed"),
+    ],
+    "selection": [
+      (442, "downloading;42"), (443, "paused;42"), (444, "failed;resolution;26"),
+      (441, "completed"), (9_001, "completed;watched"), (408, "completed"),
     ],
     "empty": [],
     "downloading-states": [

@@ -5,6 +5,7 @@
 
   enum HarnessDownloadsFixture: String, CaseIterable {
     case list
+    case selection
     case downloadingStates = "downloading-states"
     case attentionStates = "attention-states"
     case empty
@@ -95,6 +96,15 @@
         return [
           Self.episode(2, .downloading(progress: 0.42), created: today),
           Self.episode(3, .queued, created: today),
+          Self.connectionLostFourthEpisode(created: today),
+          Self.finishedFirstEpisode(created: today),
+          Self.sintel(created: yesterday),
+          Self.treeRings(created: october24),
+        ]
+      case .selection:
+        return [
+          Self.episode(2, .downloading(progress: 0.42), created: today),
+          Self.episode(3, .paused(progress: 0.42), created: today),
           Self.connectionLostFourthEpisode(created: today),
           Self.finishedFirstEpisode(created: today),
           Self.sintel(created: yesterday),
