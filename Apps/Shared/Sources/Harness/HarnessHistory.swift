@@ -17,6 +17,7 @@ import Foundation
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var rootListsServed = 0
+    nonisolated(unsafe) private static var heldList: ObjectIdentifier?
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -36,6 +37,16 @@ import Foundation
       return lock.withLock { rootListsServed == 1 }
     }
 
+    static func hold(_ request: AnyObject) {
+      lock.withLock { heldList = ObjectIdentifier(request) }
+    }
+
+    static func release(_ request: AnyObject) {
+      lock.withLock {
+        if heldList == ObjectIdentifier(request) { heldList = nil }
+      }
+    }
+
     static func consumeOfflineFailure(method: String, url: URL) -> Bool {
       guard mode == .offline, handles(method: method, url: url) else { return false }
       return lock.withLock {
@@ -44,12 +55,17 @@ import Foundation
       }
     }
 
-    static func response() -> (Int, String) {
-      let first = lock.withLock {
+    static func response(excluding deletedIDs: Set<Int>) -> (Int, String) {
+      let (first, overlapsHeldList) = lock.withLock {
         if mode != .offline { rootListsServed += 1 }
-        return rootListsServed == 1
+        return (rootListsServed == 1, heldList != nil)
       }
       switch mode {
+      case .slow where overlapsHeldList:
+        return (
+          409,
+          #"{"status":"ERROR","status_code":409,"error_type":"HARNESS_HISTORY_UNCANCELLED","message":"The held history list was never cancelled"}"#
+        )
       case .empty where first:
         return (200, #"{"status":"OK","has_more":false,"events":[]}"#)
       case .failing where first:
@@ -58,21 +74,23 @@ import Foundation
           #"{"status":"ERROR","status_code":503,"error_type":"HARNESS_HISTORY_LOAD","message":"The first history list fails"}"#
         )
       default:
-        return (200, boardEvents())
+        return (200, boardEvents(excluding: deletedIDs))
       }
     }
 
-    private static func boardEvents() -> String {
+    private static func boardEvents(excluding deletedIDs: Set<Int>) -> String {
       let calendar = Calendar.current
       let today = calendar.startOfDay(for: Date())
       let formatter = ISO8601DateFormatter()
       func event(
         _ id: Int, _ type: String, daysAgo: Int, hour: Int, minute: Int, fields: String
-      ) -> String {
+      ) -> (Int, String) {
         let day = calendar.date(byAdding: .day, value: -daysAgo, to: today) ?? today
         let date = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: day) ?? day
-        return
+        return (
+          id,
           #"{"id":\#(id),"user_id":1,"type":"\#(type)","created_at":"\#(formatter.string(from: date))",\#(fields)}"#
+        )
       }
       let events = [
         event(
@@ -101,7 +119,8 @@ import Foundation
           901, "file_from_rss_deleted_for_space", daysAgo: 2, hour: 3, minute: 10,
           fields: #""file_name":"Old.Episode.S01E01.mkv","file_size":1024"#),
       ]
-      return #"{"status":"OK","has_more":false,"events":[\#(events.joined(separator: ","))]}"#
+      let kept = events.filter { !deletedIDs.contains($0.0) }.map(\.1)
+      return #"{"status":"OK","has_more":false,"events":[\#(kept.joined(separator: ","))]}"#
     }
   }
 #endif

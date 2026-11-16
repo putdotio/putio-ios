@@ -1289,6 +1289,7 @@ import Foundation
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
       } else if HarnessHistory.delaysList(method: request.httpMethod ?? "GET", url: url) {
+        HarnessHistory.hold(self)
         DispatchQueue.global().asyncAfter(
           deadline: .now() + HarnessHistory.slowDelay, execute: deliverResponse)
       } else if HarnessTrash.delaysList(method: request.httpMethod ?? "GET", path: url.path) {
@@ -1405,6 +1406,7 @@ import Foundation
 
     override func stopLoading() {
       deliveryGate.cancel()
+      HarnessHistory.release(self)
     }
 
     private static func pollDeviceCode(_ code: String) -> (Int, String) {
@@ -1558,6 +1560,9 @@ import Foundation
         .first(where: { $0.name == "before" })?.value
       if historyCleared {
         return (200, #"{"status":"OK","has_more":false,"events":[]}"#)
+      }
+      if HarnessHistory.handles(method: "GET", url: url) {
+        return HarnessHistory.response(excluding: historyDeletedIDs)
       }
       if before == nil {
         historyRootLoads += 1
@@ -1928,9 +1933,6 @@ import Foundation
       }
       if HarnessTrash.handles(method: request.httpMethod ?? "GET", path: url.path) {
         return HarnessTrash.response()
-      }
-      if HarnessHistory.handles(method: request.httpMethod ?? "GET", url: url) {
-        return HarnessHistory.response()
       }
       if HarnessPublicLinks.handles(method: request.httpMethod ?? "GET", path: url.path) {
         return HarnessPublicLinks.response(method: request.httpMethod ?? "GET", path: url.path)
