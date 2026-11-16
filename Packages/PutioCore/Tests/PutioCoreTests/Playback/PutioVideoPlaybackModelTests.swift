@@ -762,13 +762,14 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     let route = PutioVideoRoute(id: fileID, parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")
     let startPoint = PutioVideoStartPoint(
       savedSeconds: saved.startFromSeconds, durationSeconds: 5400, needsConversion: true)
-    let cases: [(method: PutioPlaybackMethod, converts: Bool, choice: PutioVideoResumePrompt.Choice)] = [
-      (.directPlay, true, .resume),
-      (.directPlay, true, .startOver),
-      (.standard, false, .resume),
-      (.standard, false, .startOver),
-      (.standard, true, .startOver),
-    ]
+    let cases:
+      [(method: PutioPlaybackMethod, converts: Bool, choice: PutioVideoResumePrompt.Choice)] = [
+        (.directPlay, true, .resume),
+        (.directPlay, true, .startOver),
+        (.standard, false, .resume),
+        (.standard, false, .startOver),
+        (.standard, true, .startOver),
+      ]
     for (method, converts, choice) in cases {
       let label = "\(method) converts: \(converts) \(choice)"
       var asked: [Int] = []
