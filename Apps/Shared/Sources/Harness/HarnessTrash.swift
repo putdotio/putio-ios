@@ -106,16 +106,9 @@ import Foundation
     }
 
     private static func restore(payload: [String: Any]?) -> (Int, String) {
-      let raw = (payload?["file_ids"] as? String)?.split(separator: ",") ?? []
-      let ids = Set(raw.compactMap { Int($0) })
-      let known = Set((boardItems + secondPageItems).map(\.id))
-      let restored = lock.withLock {
-        guard !ids.isEmpty, ids.count == raw.count, ids.isSubset(of: known),
-          ids.isDisjoint(with: restoredIDs)
-        else { return false }
-        restoredIDs.formUnion(ids)
-        return true
-      }
+      let restored =
+        payload?["cursor"] as? String == secondPageCursor
+        ? restoreListing() : restore(fileIDs: payload?["file_ids"] as? String)
       guard restored else {
         return (
           404,
@@ -125,14 +118,49 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    private static func restore(fileIDs: String?) -> Bool {
+      let raw = fileIDs?.split(separator: ",") ?? []
+      let ids = Set(raw.compactMap { Int($0) })
+      let known = Set((boardItems + secondPageItems).map(\.id))
+      return lock.withLock {
+        guard !ids.isEmpty, ids.count == raw.count, ids.isSubset(of: known),
+          ids.isDisjoint(with: restoredIDs)
+        else { return false }
+        restoredIDs.formUnion(ids)
+        return true
+      }
+    }
+
+    private static func restoreListing() -> Bool {
+      guard mode?.isPaged == true else { return false }
+      let listed = Set(seededItems.map(\.id))
+      return lock.withLock {
+        guard !listed.isSubset(of: restoredIDs) else { return false }
+        restoredIDs.formUnion(listed)
+        return true
+      }
+    }
+
     private static func listed(_ items: [Item]) -> [Item] {
       let restored = lock.withLock { restoredIDs }
       return items.filter { !restored.contains($0.id) }
     }
 
-    private static var restoredSize: Int64 {
+    private static var seededItems: [Item] {
+      switch mode {
+      case .empty, nil: []
+      case .moreLoading, .moreFailing: boardItems + secondPageItems
+      default: boardItems
+      }
+    }
+
+    private static var listedItems: [Item] { listed(seededItems) }
+
+    private static var listedSize: Int64 {
+      let pagedSize = seededItems.dropFirst(boardItems.count).reduce(0) { $0 + $1.size }
       let restored = lock.withLock { restoredIDs }
-      return boardItems.filter { restored.contains($0.id) }.reduce(0) { $0 + $1.size }
+      let restoredSize = seededItems.filter { restored.contains($0.id) }.reduce(0) { $0 + $1.size }
+      return listedItems.isEmpty ? 0 : boardSize + pagedSize - restoredSize
     }
 
     private static func continuation(cursor: String?) -> (Int, String) {
@@ -155,7 +183,7 @@ import Foundation
       let rows = listed(secondPageItems).map(json).joined(separator: ",")
       return (
         200,
-        #"{"status":"OK","cursor":"","total":\#(boardItems.count + secondPageItems.count),"trash_size":\#(boardSize),"files":[\#(rows)]}"#
+        #"{"status":"OK","cursor":"","total":\#(listedItems.count),"trash_size":\#(listedSize),"files":[\#(rows)]}"#
       )
     }
 
@@ -172,14 +200,11 @@ import Foundation
         )
       }
       let items = mode == .empty ? [] : listed(boardItems)
-      let size = items.isEmpty ? 0 : boardSize - restoredSize
       let rows = items.map(json).joined(separator: ",")
-      let paged = mode?.isPaged == true
-      let cursor = paged ? secondPageCursor : ""
-      let total = paged ? items.count + secondPageItems.count : items.count
+      let cursor = mode?.isPaged == true ? secondPageCursor : ""
       return (
         200,
-        #"{"status":"OK","cursor":"\#(cursor)","total":\#(total),"trash_size":\#(size),"files":[\#(rows)]}"#
+        #"{"status":"OK","cursor":"\#(cursor)","total":\#(listedItems.count),"trash_size":\#(listedSize),"files":[\#(rows)]}"#
       )
     }
 
