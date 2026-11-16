@@ -5,8 +5,7 @@ import UIKit
 enum PutioOfflineQueueFactory {
   @MainActor
   static func make(
-    runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario,
-    onOriginalsRequested: @escaping @MainActor () -> Void
+    runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario
   ) -> PutioOfflineQueue {
     #if DEBUG
       let harness = scenario == .filesBrowser
@@ -45,7 +44,6 @@ enum PutioOfflineQueueFactory {
         guard !harness else { return }
         PutioOfflineNotifications.notifyFailure(item, failure)
       },
-      notifyOriginalsRequested: { _ in onOriginalsRequested() },
       packageExists: seeded?.packageExists,
       resolve: seeded?.resolve ?? { fileID, kind in
         switch kind {
@@ -70,21 +68,6 @@ enum PutioOfflineQueueFactory {
       },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-      },
-      deleteOriginal: { fileID in
-        // Never run under another account; the original stays owed to this one.
-        guard case .signedIn(let current) = runtime.session.state, current.id == accountID
-        else { throw PutioRuntimeError.transient }
-        try await runtime.deleteFile(fileID: fileID)
-      },
-      trashSetting: {
-        // The cached snapshot can lag another client; ask the server first.
-        guard await runtime.refreshAccount(),
-          case .signedIn(let current) = runtime.session.state,
-          !runtime.session.isAccountPreferencesStale,
-          !runtime.session.isUpdatingAccountPreferences
-        else { return nil }
-        return current.trashEnabled
       },
       isLive: { runtime.session.authenticationGeneration == sessionGeneration },
       playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:),
