@@ -65,7 +65,7 @@ struct HistoryView: View {
             onFileSelected: onFileSelected
           )
         }
-        .task { await model.loadIfNeeded() }
+        .task(id: isLoading) { await model.loadIfNeeded() }
         .task(id: isOffline) { await retryWhileOffline() }
         .onAppear { groupingDate = .now }
         .onDisappear { model.cancelOpen() }
@@ -97,6 +97,11 @@ struct HistoryView: View {
 
   private var isBusy: Bool { model.mutation != nil || model.openingEventID != nil }
 
+  private var isLoading: Bool {
+    if case .loading = model.state { return true }
+    return false
+  }
+
   private var isOffline: Bool {
     if case .failed(let failure) = model.state { return failure.isOffline }
     return false
@@ -111,7 +116,7 @@ struct HistoryView: View {
         return
       }
       guard isOffline else { return }
-      await Task { await model.refresh() }.value
+      await model.refresh()
       attempt += 1
     }
   }
@@ -122,32 +127,41 @@ struct HistoryView: View {
     case .loading:
       PutioLoadingStateView(title: String(localized: "Loading history"), titleVisibility: .hidden)
     case .failed(let failure):
-      PutioErrorStateView(
-        title: failure.isOffline
-          ? PutioScreenErrorKind.offline.title : String(localized: "Couldn’t load history"),
-        message: failure.isOffline
-          ? PutioScreenErrorKind.offline.message : PutioScreenErrorKind.failed.message,
-        retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
-      ) {
-        Task { await model.retryFailedLoad() }
+      scrollableState {
+        PutioErrorStateView(
+          title: failure.isOffline
+            ? PutioScreenErrorKind.offline.title : String(localized: "Couldn’t load history"),
+          message: failure.isOffline
+            ? PutioScreenErrorKind.offline.message : PutioScreenErrorKind.failed.message,
+          retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
+        ) {
+          model.retryFailedLoad()
+        }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextBefore == nil,
         model.refreshFailure == nil, model.mutationFailure == nil,
         model.openFailure.map(\.isNotFound) ?? true
       {
-        GeometryReader { geometry in
-          ScrollView {
-            PutioEmptyStateView.history
-              .frame(minHeight: geometry.size.height)
-              .accessibilityIdentifier("history.empty")
-          }
-          .scrollBounceBehavior(.always)
-          .refreshable { await model.refresh() }
+        scrollableState {
+          PutioEmptyStateView.history
+            .accessibilityIdentifier("history.empty")
         }
       } else {
         historyList(page)
       }
+    }
+  }
+
+  private func scrollableState<Content: View>(@ViewBuilder _ state: () -> Content) -> some View {
+    let content = state()
+    return GeometryReader { geometry in
+      ScrollView {
+        content
+          .frame(minHeight: geometry.size.height)
+      }
+      .scrollBounceBehavior(.always)
+      .refreshable { await model.refresh() }
     }
   }
 

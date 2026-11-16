@@ -104,10 +104,9 @@ public final class PutioHistoryModel {
     await refresh()
   }
 
-  public func retryFailedLoad() async {
+  public func retryFailedLoad() {
     guard case .failed = state else { return }
     state = .loading
-    await refresh()
   }
 
   public func refresh() async {

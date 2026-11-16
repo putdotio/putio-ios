@@ -146,7 +146,9 @@ final class HistoryJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     app.buttons["History"].tap()
-    XCTAssertTrue(firstEvent.appears(within: 10), "returning to History did not reload it")
+    XCTAssertTrue(
+      firstEvent.appears(within: 10),
+      "returning to History did not reload it, or leaving History kept the first list in flight")
     leaveHistory()
 
     openHistory("empty")

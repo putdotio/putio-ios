@@ -267,13 +267,16 @@ final class HistoryTests: XCTestCase {
     await model.loadIfNeeded()
     guard case .failed(let failure) = model.state else { return XCTFail("expected a failure") }
     XCTAssertFalse(failure.isOffline)
-    let retry = Task { await model.retryFailedLoad() }
+    model.retryFailedLoad()
+    XCTAssertEqual(model.state, .loading)
+    let retry = Task { await model.loadIfNeeded() }
     try await pending.waitForRequest()
     XCTAssertEqual(model.state, .loading)
     pending.finish(Self.page([30]))
     await retry.value
     XCTAssertEqual(model.page, Self.page([30]))
-    await model.retryFailedLoad()
+    model.retryFailedLoad()
+    await model.loadIfNeeded()
     XCTAssertEqual(calls, 2)
     XCTAssertEqual(model.page, Self.page([30]))
   }
