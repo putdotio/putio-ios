@@ -731,6 +731,25 @@ extension PutioRuntimeTests {
     XCTAssertFalse(query.contains { $0.name == "mp4_stream_url" })
   }
 
+  func testVideoStartPointAsksForConversionStatusAndReportsIt() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"file":{"id":411,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":true,"is_mp4_available":false,"start_from":300}}
+      """, for: Self.playbackRoute)
+
+    let start = try await runtime.videoStartPoint(fileID: PutioFileID(rawValue: 411))
+
+    XCTAssertTrue(start.needsConversion)
+    let request = try XCTUnwrap(
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/files/411" })
+    let url = try XCTUnwrap(request.url)
+    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    XCTAssertTrue(query.contains { $0.name == "mp4_status" && $0.value == "1" })
+  }
+
   func testMediaURLsLeavingTheAppNeverCarryTheSessionToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
