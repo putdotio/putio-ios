@@ -464,6 +464,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
           PutioScreenStateButton(action: action, size: actionSize)
         }
       }
+      .padding(.top, message == nil ? PutioScreenStateLayout.contentGap : 0)
     }
   }
 }
