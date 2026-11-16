@@ -712,7 +712,7 @@ extension PutioRuntimeTests {
     }
   }
 
-  func testCastMediaRequestsTheConversionFlagTheFilesAPIOmitsByDefault() async throws {
+  func testCastMediaAsksForConversionStatusWithoutSigningAnMP4URL() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
       """
@@ -727,9 +727,8 @@ extension PutioRuntimeTests {
       fixtures.capturedRequests().last { $0.url?.path == "/v2/files/412" })
     let url = try XCTUnwrap(request.url)
     let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-    XCTAssertTrue(
-      query.contains { ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1" },
-      "GET /files/{id} returns need_convert only with mp4_status or mp4_stream_url")
+    XCTAssertTrue(query.contains { $0.name == "mp4_status" && $0.value == "1" })
+    XCTAssertFalse(query.contains { $0.name == "mp4_stream_url" })
   }
 
   func testMediaURLsLeavingTheAppNeverCarryTheSessionToken() async throws {

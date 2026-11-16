@@ -15,7 +15,7 @@ let package = Package(
     .library(name: "PutioCore", targets: ["PutioCore"])
   ],
   dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift", from: "4.8.0")
+    .package(url: "https://github.com/putdotio/putio-sdk-swift", from: "4.9.1")
   ],
   targets: [
     .target(
