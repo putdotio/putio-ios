@@ -61,8 +61,6 @@ final class ShellJourneyTests: XCTestCase {
     searchTab().tap()
     XCTAssertTrue(app.searchFields.firstMatch.appears(within: 5), "Search opened no field")
     app.buttons["Close"].tap()
-    XCTAssertTrue(
-      historyRequests.hasValue("0", within: 2), "History was requested while it was off")
     signOut()
   }
 
@@ -85,8 +83,6 @@ final class ShellJourneyTests: XCTestCase {
     app.showTabBar()
     XCTAssertTrue(
       tabButton("History").disappears(within: 5), "History stayed in the tab bar after turning off")
-    XCTAssertTrue(
-      historyRequests.hasValue("0", within: 2), "turning history off requested History")
     addScreenshot(named: "shell-history-toggle-off")
 
     tapToggle(setting)
@@ -103,7 +99,7 @@ final class ShellJourneyTests: XCTestCase {
     signOut()
   }
 
-  func testHistoryTurnedOffWhileOpenLandsOnFiles() {
+  func testHistoryTurnedOffWhileOpenLandsOnFiles() throws {
     app.launchArguments.append("--putio-harness-history-off-after-load")
     app.launch()
     signIn()
@@ -111,6 +107,8 @@ final class ShellJourneyTests: XCTestCase {
     XCTAssertTrue(history.appears(within: 5))
     history.tap()
     XCTAssertTrue(element("history.item.810").appears(within: 10), "History never loaded")
+    let loadedRequests = try XCTUnwrap(historyRequests.value as? String)
+    XCTAssertNotEqual(loadedRequests, "0", "the History requests probe did not count the load")
 
     XCUIDevice.shared.press(.home)
     app.activate()
@@ -120,6 +118,11 @@ final class ShellJourneyTests: XCTestCase {
       element("files.screen.0").appears(within: 5), "turning History off did not land on Files")
     XCTAssertTrue(tabButton("Files").isSelected, "the Files tab is not selected")
     XCTAssertFalse(element("account.privacy").exists, "turning History off landed on Account")
+    let requestedAgain = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value != %@", loadedRequests), object: historyRequests)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [requestedAgain], timeout: 3), .timedOut,
+      "History was requested after it was turned off")
     addScreenshot(named: "shell-history-off-while-open")
     signOut()
   }
