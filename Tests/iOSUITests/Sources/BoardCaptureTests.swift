@@ -3267,7 +3267,21 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
-    openAccount()
+    orient(.portrait)
+    app.launch()
+    reachFilesRoot()
+    let profile = element("account.profile")
+    tabButton("Account").tap()
+    if !profile.appears(within: 5) {
+      openSidebar()
+      app.cells["Account"].tap()
+      if element("shell.storage").becomesHittable(within: 3) {
+        sidebarToggle().tap()
+        XCTAssertTrue(
+          element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
+      }
+    }
+    XCTAssertTrue(profile.appears(within: 10), "Account never opened")
     let row = app.revealed("account.trash")
     app.bringIntoView(row)
     row.tap()
