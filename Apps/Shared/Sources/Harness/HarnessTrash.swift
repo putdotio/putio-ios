@@ -12,6 +12,7 @@ import Foundation
       case moreFailing = "more-failing"
       case restoreRejected = "restore-rejected"
       case stillMoving = "still-moving"
+      case deleteFails = "delete-fails"
 
       var isPaged: Bool { self == .moreLoading || self == .moreFailing }
 
@@ -38,6 +39,7 @@ import Foundation
     static let listPath = "/v2/trash/list"
     static let continuePath = "/v2/trash/list/continue"
     static let restorePath = "/v2/trash/restore"
+    static let deletePath = "/v2/trash/delete"
     static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
     static let pagedRefreshDelay: TimeInterval = 3
@@ -48,7 +50,7 @@ import Foundation
     nonisolated(unsafe) private static var listsServed = 0
     nonisolated(unsafe) private static var continuesServed = 0
     nonisolated(unsafe) private static var pagedListsRequested = 0
-    nonisolated(unsafe) private static var restoredIDs: Set<Int> = []
+    nonisolated(unsafe) private static var removedIDs: Set<Int> = []
     nonisolated(unsafe) private static var restoresServed = 0
 
     static let mode: Mode? = {
@@ -61,7 +63,7 @@ import Foundation
     static func handles(method: String, path: String) -> Bool {
       guard let mode else { return false }
       if method == "GET", path == listPath { return true }
-      if method == "POST", path == restorePath { return true }
+      if method == "POST", path == restorePath || path == deletePath { return true }
       return mode.isPaged && method == "POST" && path == continuePath
     }
 
@@ -114,6 +116,7 @@ import Foundation
 
     static func response(method: String, path: String, payload: [String: Any]?) -> (Int, String) {
       if method == "POST", path == restorePath { return restore(payload: payload) }
+      if method == "POST", path == deletePath { return delete(payload: payload) }
       guard method == "POST", path == continuePath else { return firstPage() }
       return continuation(cursor: payload?["cursor"] as? String)
     }
@@ -126,7 +129,7 @@ import Foundation
       if isFirst, let refusal = mode?.refusedRestore { return (400, refusal) }
       let restored =
         payload?["cursor"] as? String == secondPageCursor
-        ? restoreListing() : restore(fileIDs: payload?["file_ids"] as? String)
+        ? restoreListing() : remove(fileIDs: payload?["file_ids"] as? String)
       guard restored else {
         return (
           404,
@@ -136,15 +139,31 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
-    private static func restore(fileIDs: String?) -> Bool {
+    private static func delete(payload: [String: Any]?) -> (Int, String) {
+      if mode == .deleteFails {
+        return (
+          500,
+          #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_DELETE","message":"Trash refuses every permanent delete"}"#
+        )
+      }
+      guard remove(fileIDs: payload?["file_ids"] as? String) else {
+        return (
+          404,
+          #"{"status":"ERROR","status_code":404,"error_type":"FILE_NOT_FOUND","message":"Harness Trash deletes only listed items"}"#
+        )
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func remove(fileIDs: String?) -> Bool {
       let raw = fileIDs?.split(separator: ",") ?? []
       let ids = Set(raw.compactMap { Int($0) })
       let known = Set((boardItems + secondPageItems).map(\.id))
       return lock.withLock {
         guard !ids.isEmpty, ids.count == raw.count, ids.isSubset(of: known),
-          ids.isDisjoint(with: restoredIDs)
+          ids.isDisjoint(with: removedIDs)
         else { return false }
-        restoredIDs.formUnion(ids)
+        removedIDs.formUnion(ids)
         return true
       }
     }
@@ -153,15 +172,15 @@ import Foundation
       guard mode?.isPaged == true else { return false }
       let listed = Set(seededItems.map(\.id))
       return lock.withLock {
-        guard !listed.isSubset(of: restoredIDs) else { return false }
-        restoredIDs.formUnion(listed)
+        guard !listed.isSubset(of: removedIDs) else { return false }
+        removedIDs.formUnion(listed)
         return true
       }
     }
 
     private static func listed(_ items: [Item]) -> [Item] {
-      let restored = lock.withLock { restoredIDs }
-      return items.filter { !restored.contains($0.id) }
+      let removed = lock.withLock { removedIDs }
+      return items.filter { !removed.contains($0.id) }
     }
 
     private static var seededItems: [Item] {
@@ -176,9 +195,9 @@ import Foundation
 
     private static var listedSize: Int64 {
       let pagedSize = seededItems.dropFirst(boardItems.count).reduce(0) { $0 + $1.size }
-      let restored = lock.withLock { restoredIDs }
-      let restoredSize = seededItems.filter { restored.contains($0.id) }.reduce(0) { $0 + $1.size }
-      return listedItems.isEmpty ? 0 : boardSize + pagedSize - restoredSize
+      let removed = lock.withLock { removedIDs }
+      let removedSize = seededItems.filter { removed.contains($0.id) }.reduce(0) { $0 + $1.size }
+      return listedItems.isEmpty ? 0 : boardSize + pagedSize - removedSize
     }
 
     private static func continuation(cursor: String?) -> (Int, String) {
