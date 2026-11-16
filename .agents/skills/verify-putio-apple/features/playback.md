@@ -74,6 +74,7 @@ offline playback.
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.
 - `download-start-failed` reports a download that put.io refuses to start.
+- `downloads-method` stores a Direct play original and a Standard HLS package.
 - `large-text-audio` keeps the audio controls usable at the largest text size
   in portrait and landscape.
 
@@ -216,7 +217,7 @@ Preconditions:
   The stub receiver lists "Living Room TV" and "Kitchen speaker" and keeps
   searching. Boards:
   `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
-- **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
+- **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed,downloads-method`.
   Screenshots: `runtime-downloads-queue`, `runtime-downloads-detail`,
   `runtime-downloads-selection`, `runtime-downloads-remove`,
   `runtime-downloads-start-failed`.
