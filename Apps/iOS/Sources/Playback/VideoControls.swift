@@ -1405,7 +1405,7 @@ private struct PutioVideoChipRow: View {
       row(iconOnly: true)
       if let upNext {
         VStack(alignment: .trailing, spacing: PutioVideoMetrics.chipGap) {
-          PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false)
+          PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false, ownsRow: true)
           ViewThatFits(in: .horizontal) {
             chips(iconOnly: false)
             chips(iconOnly: true)

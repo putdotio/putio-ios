@@ -20,6 +20,7 @@ struct PutioVideoUpNext {
 struct PutioVideoUpNextAccessory: View {
   let upNext: PutioVideoUpNext
   let iconOnly: Bool
+  var ownsRow = false
 
   var body: some View {
     switch upNext.offer {
@@ -34,7 +35,8 @@ struct PutioVideoUpNextAccessory: View {
       .accessibilityIdentifier("video.next-episode")
     case .card(let name, let secondsLeft):
       PutioVideoUpNextCard(
-        name: name, secondsLeft: secondsLeft, onPlay: upNext.onPlay, onCancel: upNext.onCancel)
+        name: name, secondsLeft: secondsLeft, ownsRow: ownsRow, onPlay: upNext.onPlay,
+        onCancel: upNext.onCancel)
     }
   }
 }
@@ -42,6 +44,7 @@ struct PutioVideoUpNextAccessory: View {
 private struct PutioVideoUpNextCard: View {
   let name: String
   let secondsLeft: Int
+  let ownsRow: Bool
   let onPlay: () -> Void
   let onCancel: () -> Void
 
@@ -51,7 +54,7 @@ private struct PutioVideoUpNextCard: View {
   var body: some View {
     PutioUpNextCardLayout(
       spacing: PutioTheme.Spacing.space3, rowSpacing: PutioTheme.Spacing.space2,
-      headingMinWidth: headingMinWidth, headingMaxWidth: headingMaxWidth
+      headingMinWidth: headingMinWidth, headingMaxWidth: ownsRow ? .infinity : headingMaxWidth
     ) {
       Text("Up next in \(countdown)")
         .putioFont(PutioTheme.Typography.caption)
@@ -61,7 +64,7 @@ private struct PutioVideoUpNextCard: View {
       Text(name)
         .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
-        .lineLimit(1)
+        .lineLimit(ownsRow ? 2 : 1)
         .truncationMode(.middle)
         .accessibilityIdentifier("video.next-title")
       actions
