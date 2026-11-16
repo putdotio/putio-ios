@@ -1,5 +1,6 @@
 import PutioCore
 import SwiftUI
+import UIKit
 
 enum PutioOfflineQueueFactory {
   @MainActor
@@ -12,14 +13,17 @@ enum PutioOfflineQueueFactory {
     #else
       let harness = false
     #endif
-    let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
-      accountID: accountID)
+    let writesFail = ProcessInfo.processInfo.arguments.contains(
+      "--putio-harness-offline-writes-fail")
+    let seeded = harness ? seededQueue(accountID: accountID, writesFail: writesFail) : nil
+    let seededFreeBytes = seeded?.freeBytes
     var directory: URL?
     if harness {
-      directory = FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+      let scratch = FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+      directory = seeded?.directory ?? scratch
       // `--putio-harness-offline-writes-fail` puts the store under a regular
       // file, so every queue write fails and the shell reports it.
-      if ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-writes-fail") {
+      if writesFail, seeded == nil {
         let blocker = FileManager.default.temporaryDirectory.appending(
           path: "harness-offline-blocked")
         FileManager.default.createFile(atPath: blocker.path, contents: Data())
@@ -30,14 +34,15 @@ enum PutioOfflineQueueFactory {
     let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory, accountID: accountID),
-      engine: engine,
+      engine: seeded?.engine ?? PutioSystemOfflineDownloadEngine(accountID: accountID),
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
+      availableStorage: { seededFreeBytes ?? PutioOfflineQueue.deviceAvailableBytes() },
       notifyCompletion: { item in
         guard !harness else { return }
         PutioOfflineNotifications.notifyCompletion(item)
       },
       notifyOriginalsRequested: { _ in onOriginalsRequested() },
-      resolve: { fileID, kind in
+      resolve: seeded?.resolve ?? { fileID, kind in
         switch kind {
         case .audio:
           let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
@@ -48,8 +53,12 @@ enum PutioOfflineQueueFactory {
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         }
       },
-      startConversion: { fileID in try await runtime.startVideoConversion(fileID: fileID) },
-      conversionStatus: { fileID in try await runtime.videoConversionStatus(fileID: fileID) },
+      startConversion: seeded?.startConversion ?? { fileID in
+        try await runtime.startVideoConversion(fileID: fileID)
+      },
+      conversionStatus: seeded?.conversionStatus ?? { fileID in
+        try await runtime.videoConversionStatus(fileID: fileID)
+      },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       },
@@ -68,8 +77,60 @@ enum PutioOfflineQueueFactory {
         else { return nil }
         return current.trashEnabled
       },
-      isLive: { runtime.session.authenticationGeneration == sessionGeneration }
+      isLive: { runtime.session.authenticationGeneration == sessionGeneration },
+      playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:)
     )
+  }
+
+  private struct SeededQueue {
+    let directory: URL
+    let engine: any PutioOfflineDownloadEngine
+    let freeBytes: Int64
+    let playbackURL: @MainActor (String) -> URL
+    let resolve: PutioOfflineResolve
+    let startConversion: PutioOfflineConversionStart
+    let conversionStatus: PutioOfflineConversionStatus
+  }
+
+  @MainActor
+  private static func seededQueue(accountID: Int, writesFail: Bool) -> SeededQueue? {
+    #if DEBUG
+      guard let fixture = HarnessDownloadsFixture.parse(HarnessLaunch.arguments) else {
+        return nil
+      }
+      let now = Date.now
+      let directory = FileManager.default.temporaryDirectory.appending(
+        path: "harness-offline-fixture")
+      fixture.writeStore(at: directory, accountID: accountID, now: now, locked: writesFail)
+      let conversions = fixture.conversionProgress(now: now)
+      return SeededQueue(
+        directory: directory,
+        engine: HarnessFrozenOfflineEngine(transferring: fixture.transferringIDs(now: now)),
+        freeBytes: fixture.freeBytes(isPad: UIDevice.current.userInterfaceIdiom == .pad),
+        playbackURL: HarnessDownloadsFixture.playbackURL(mediaBaseURL: harnessMediaBaseURL),
+        resolve: { fileID, _ in
+          if conversions[fileID] != nil { return .conversionRequired }
+          while !Task.isCancelled { try await Task.sleep(for: .seconds(3_600)) }
+          throw CancellationError()
+        },
+        startConversion: { _ in },
+        conversionStatus: { fileID in .converting(progress: conversions[fileID] ?? 0) })
+    #else
+      return nil
+    #endif
+  }
+
+  private static var harnessMediaBaseURL: URL? {
+    #if DEBUG
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else { return nil }
+      return baseURL
+    #else
+      return nil
+    #endif
   }
 
   /// The seeded scenario pins preferred languages so the journey is
@@ -94,11 +155,7 @@ enum PutioOfflineQueueFactory {
     -> PutioPlaybackSource
   {
     #if DEBUG
-      guard scenario == .filesBrowser,
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else { return source }
+      guard scenario == .filesBrowser, let baseURL = harnessMediaBaseURL else { return source }
       let path = kind == .audio ? "runtime-proof-audio.m4a" : "multi-audio/multi-subtitles.m3u8"
       return PutioPlaybackSource(
         url: baseURL.appending(path: path), startFromSeconds: source.startFromSeconds)

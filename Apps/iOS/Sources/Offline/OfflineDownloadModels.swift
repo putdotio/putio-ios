@@ -62,6 +62,10 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   }
 
   var estimatedBytes: Int64
+  var failedProgress: Double?
+  var waitingForNetwork: Bool?
+  var isRemoving: Bool?
+  var isWatched: Bool?
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {
