@@ -1,4 +1,4 @@
-import AVFoundation
+import AetherEngine
 import Foundation
 import PutioCore
 
@@ -93,17 +93,15 @@ enum PutioOfflineOriginalPackage {
   nonisolated static func storedTracks(in directory: URL, name: String) async
     -> (audio: [PutioOfflineTrack], subtitles: [PutioOfflineTrack])
   {
-    let asset = AVURLAsset(url: mediaURL(in: directory, name: name))
-    var audio: [PutioOfflineTrack] = []
-    for track in (try? await asset.loadTracks(withMediaType: .audio)) ?? [] {
-      let extended = try? await track.load(.extendedLanguageTag)
-      let plain = try? await track.load(.languageCode)
-      guard let tag = extended ?? plain else { continue }
-      let code = PutioOfflineLanguage.normalize(tag)
-      audio.append(
-        PutioOfflineTrack(
-          languageCode: code,
-          displayName: Locale.current.localizedString(forLanguageCode: code) ?? code))
+    var options = LoadOptions()
+    options.skipsContainerAttachments = true
+    let probe = try? AetherEngine.probe(url: mediaURL(in: directory, name: name), options: options)
+    let audio = (probe?.audioTracks ?? []).compactMap { track -> PutioOfflineTrack? in
+      guard let language = track.language, !language.isEmpty, language != "und" else { return nil }
+      let code = PutioOfflineLanguage.normalize(language)
+      return PutioOfflineTrack(
+        languageCode: code,
+        displayName: Locale.current.localizedString(forLanguageCode: code) ?? track.name)
     }
     let subtitles = subtitles(in: directory).map {
       PutioOfflineTrack(languageCode: $0.languageCode, displayName: $0.displayName)

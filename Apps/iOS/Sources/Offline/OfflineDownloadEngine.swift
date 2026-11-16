@@ -31,13 +31,17 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   func retryPersisting() throws
 }
 
-/// AVAssetDownloadURLSession with a background configuration. The system owns
-/// the transfer, keeps it alive across relaunch, and reports the final
-/// location before completion. Task identity is the put.io file id carried in
-/// `taskDescription`, so restored tasks map back onto queue items.
+/// Two background sessions: AVAssetDownloadURLSession for Standard HLS packages
+/// and a plain URLSession for Direct play originals, which an asset session
+/// cannot download. The system owns each transfer, keeps it alive across
+/// relaunch, and reports the final location before completion. Task identity
+/// is the put.io file id carried in `taskDescription`, so restored tasks map
+/// back onto queue items.
 @MainActor
 final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngine {
   static let sessionIdentifier = "io.put.ios.offline-downloads"
+  static let originalsSessionIdentifier = "io.put.ios.offline-originals"
+  static let sessionIdentifiers: Set<String> = [sessionIdentifier, originalsSessionIdentifier]
   /// put.io file ids are per account, so tasks are keyed by account too and
   /// an engine only ever maps its own account's tasks.
   let accountID: Int
@@ -62,13 +66,14 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
         downloadConfiguration: $0)
     },
     makeFileTask: @escaping @MainActor (URL) -> URLSessionTask = {
-      PutioSystemOfflineDownloadEngine.sharedSession.downloadTask(with: $0)
+      PutioSystemOfflineDownloadEngine.originalsSession.downloadTask(with: $0)
     },
     relay: PutioOfflineDownloadRelay = PutioSystemOfflineDownloadEngine.relay,
     allTasks: @escaping @MainActor () async -> [URLSessionTask] = {
-      await PutioSystemOfflineDownloadEngine.sharedSession.allTasks.filter {
-        $0 is AVAssetDownloadTask || $0 is URLSessionDownloadTask
-      }
+      let packages = await PutioSystemOfflineDownloadEngine.sharedSession.allTasks
+      let originals = await PutioSystemOfflineDownloadEngine.originalsSession.allTasks
+      return packages.filter { $0 is AVAssetDownloadTask }
+        + originals.filter { $0 is URLSessionDownloadTask }
     }
   ) {
     self.accountID = accountID
@@ -110,27 +115,35 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   var onCancelled: ((PutioFileID) -> Void)?
   var onPersistenceFailure: ((Error) -> Void)?
 
-  /// One background session per process. iOS rejects a second session with
+  /// One session of each kind per process. iOS rejects a second session with
   /// the same identifier, and the tab view that owns the engine is rebuilt on
-  /// every sign-in, so the session outlives any single engine and forwards
-  /// to whichever engine is current.
-  private static let sharedSession: AVAssetDownloadURLSession = {
-    let configuration = URLSessionConfiguration.background(withIdentifier: sessionIdentifier)
+  /// every sign-in, so the sessions outlive any single engine and forward to
+  /// whichever engine is current through one relay.
+  private static let sharedSession: AVAssetDownloadURLSession = AVAssetDownloadURLSession(
+    configuration: backgroundConfiguration(sessionIdentifier), assetDownloadDelegate: relay,
+    delegateQueue: .main)
+  private static let originalsSession = URLSession(
+    configuration: backgroundConfiguration(originalsSessionIdentifier), delegate: relay,
+    delegateQueue: .main)
+
+  private static func backgroundConfiguration(_ identifier: String) -> URLSessionConfiguration {
+    let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
     configuration.isDiscretionary = false
     configuration.sessionSendsLaunchEvents = true
-    return AVAssetDownloadURLSession(
-      configuration: configuration, assetDownloadDelegate: relay, delegateQueue: .main)
-  }()
+    return configuration
+  }
+
   static let relay = PutioOfflineDownloadRelay()
   private var tasks: [PutioFileID: URLSessionTask] = [:]
   private var pendingStarts: [PutioFileID: UUID] = [:]
-  /// Set by the app delegate when iOS relaunches us for session events.
-  static var backgroundCompletion: (() -> Void)?
+  /// Set by the app delegate, per session, when iOS relaunches us for its events.
+  static var backgroundCompletions: [String: () -> Void] = [:]
 
-  /// Forces the shared session into existence so a background relaunch that
-  /// never reaches the signed-in shell still receives its events.
-  static func activateBackgroundSession() {
+  /// Forces the sessions into existence so a background relaunch that never
+  /// reaches the signed-in shell still receives their events.
+  static func activateBackgroundSessions() {
     _ = sharedSession
+    _ = originalsSession
   }
 
   /// SwiftUI evaluates `State(initialValue:)` on every parent update, so
@@ -559,8 +572,8 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
       do { try PutioOfflineEventJournal.append(self.buffered) } catch {
         self.engine?.persistenceFailed(error)
       }
-      PutioSystemOfflineDownloadEngine.backgroundCompletion?()
-      PutioSystemOfflineDownloadEngine.backgroundCompletion = nil
+      guard let identifier = session.configuration.identifier else { return }
+      PutioSystemOfflineDownloadEngine.backgroundCompletions.removeValue(forKey: identifier)?()
     }
   }
 }

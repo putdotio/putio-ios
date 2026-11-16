@@ -266,11 +266,33 @@ final class DownloadsJourneyTests: XCTestCase {
       waitForValue(package, "completed", timeout: 90),
       "the Standard download did not complete: \(package.value ?? "")")
 
+    let mediaBaseURL = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"].flatMap {
+        URL(string: $0)
+      })
+    let served = try Data(contentsOf: mediaBaseURL.appending(path: "runtime-proof-direct.mkv"))
+    let originalDirectory = try storedDownload(412)
+    let stored = try XCTUnwrap(
+      FileManager.default.contentsOfDirectory(atPath: originalDirectory.path)
+        .first { $0.hasPrefix("original") },
+      "no original file in \(originalDirectory.path)")
+    XCTAssertEqual(
+      try Data(contentsOf: originalDirectory.appending(path: stored)), served,
+      "the Direct play download is not the original file")
+    let packageDirectory = try storedDownload(442)
+    XCTAssertEqual(packageDirectory.pathExtension, "movpkg", "\(packageDirectory.path)")
+    let packageFiles = try XCTUnwrap(
+      FileManager.default.enumerator(atPath: packageDirectory.path)?.allObjects as? [String])
+    XCTAssertTrue(
+      packageFiles.contains { $0.hasSuffix(".m3u8") }, "the Standard download is not an HLS package"
+    )
+
     original.tap()
     XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.tr").exists)
     XCTAssertTrue(element("downloads.detail.subtitle.en").exists)
     XCTAssertTrue(element("downloads.detail.subtitle.tr").exists)
-    XCTAssertFalse(element("downloads.detail.audio.en").exists)
     screenshot("runtime-downloads-direct-play-original")
     app.buttons["downloads.detail.done"].tap()
     package.tap()
@@ -329,6 +351,35 @@ final class DownloadsJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func storedDownload(_ fileID: Int) throws -> URL {
+    let fileManager = FileManager.default
+    let containers = URL(fileURLWithPath: NSHomeDirectory()).deletingLastPathComponent()
+    var newest: (container: URL, queue: URL, date: Date)?
+    for container in try fileManager.contentsOfDirectory(
+      at: containers, includingPropertiesForKeys: nil)
+    {
+      let root = container.appending(path: "Library/Application Support/OfflineDownloads")
+      let accounts =
+        (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
+      for account in accounts where account.lastPathComponent.hasPrefix("account-") {
+        let queue = account.appending(path: "queue.json")
+        guard
+          let date = try? queue.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate
+        else { continue }
+        if newest.map({ date > $0.date }) ?? true { newest = (container, queue, date) }
+      }
+    }
+    let found = try XCTUnwrap(newest, "no offline queue under \(containers.path)")
+    let document = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: Data(contentsOf: found.queue)) as? [String: Any])
+    let items = try XCTUnwrap(document["items"] as? [[String: Any]])
+    let item = try XCTUnwrap(items.first { $0["id"] as? Int == fileID }, "no queue item \(fileID)")
+    let localPath = try XCTUnwrap(item["localPath"] as? String, "item \(fileID) has no local path")
+    return localPath.hasPrefix("/")
+      ? URL(fileURLWithPath: localPath) : found.container.appending(path: localPath)
   }
 
   private func rowBand(_ row: XCUIElement) -> CGRect {

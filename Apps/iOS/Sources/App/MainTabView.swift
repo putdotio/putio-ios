@@ -543,21 +543,33 @@ struct MainTabView: View {
     }
   }
 
-  private func requestDownloads(_ routes: [PutioFileRoute]) {
-    for route in routes { requestDownload(route) }
+  private func requestDownload(_ route: PutioFileRoute, with method: PutioPlaybackMethod? = nil) {
+    requestDownloads([route], with: method)
   }
 
-  private func requestDownload(_ route: PutioFileRoute, with method: PutioPlaybackMethod? = nil) {
+  private func requestDownloads(
+    _ routes: [PutioFileRoute], with method: PutioPlaybackMethod? = nil
+  ) {
     offlineQueue.refreshStorage()
-    offlineQueue.enqueue(
-      fileID: route.id, parentID: route.item.parentID, name: route.item.name,
-      kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes,
-      playbackMethod: method ?? appConfig.playbackMethod)
     selectedTab = .downloads
-    // The seeded journey proves the queue, not the system prompt; the prompt
-    // would cover the row in its screenshot.
-    guard scenario != .filesBrowser else { return }
-    Task { await PutioOfflineNotifications.requestPermissionIfNeeded() }
+    Task {
+      let playbackMethod: PutioPlaybackMethod
+      if let method {
+        playbackMethod = method
+      } else {
+        playbackMethod = await appConfig.resolvePlaybackMethod()
+      }
+      for route in routes {
+        offlineQueue.enqueue(
+          fileID: route.id, parentID: route.item.parentID, name: route.item.name,
+          kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes,
+          playbackMethod: playbackMethod)
+      }
+      // The seeded journey proves the queue, not the system prompt; the prompt
+      // would cover the row in its screenshot.
+      guard scenario != .filesBrowser else { return }
+      await PutioOfflineNotifications.requestPermissionIfNeeded()
+    }
   }
 
   private func openOffline(_ item: PutioOfflineItem) {
