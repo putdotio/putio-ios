@@ -39,7 +39,8 @@ offline playback.
   menu is open, and puts Picture in Picture first in the route group.
 - `direct-play` plays a Matroska original in the Direct play engine from the
   file menu on Standard, keeps a plain tap on HLS, follows the setting, then
-  seeks, switches to the E-AC-3 track and resumes on Direct play.
+  seeks, switches to the E-AC-3 track and resumes on Direct play. It starts on
+  the put.io default subtitle, then on the last pick, Off included.
 - `audio-speed` switches English to Turkish from the Audio chip and keeps 2.5×
   on the next file and after a relaunch. `speed-landscape` scrolls the speed
   menu to 4× in landscape. `audio-tracks` disables the Audio chip with one track

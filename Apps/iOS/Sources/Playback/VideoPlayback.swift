@@ -536,6 +536,8 @@ struct PutioVideoPlaybackView: View {
             source: source,
             transport: transport,
             remembersPlaybackPosition: remembersPlaybackPosition,
+            subtitlePolicy: subtitlePolicy,
+            subtitleMemory: subtitleMemory,
             positionPipeline: positionPipeline,
             reportPosition: reportPosition,
             callbacks: callbacks
