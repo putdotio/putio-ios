@@ -856,6 +856,7 @@ final class PutioOfflineQueue {
     update(fileID) {
       $0.localPath = relativePath
       $0.stage = .downloading(progress: 0)
+      $0.resumePositionSeconds = original.startFromSeconds
     }
     try await engine.startOriginal(fileID: fileID, url: original.file.url)
     guard isLive() else { return }

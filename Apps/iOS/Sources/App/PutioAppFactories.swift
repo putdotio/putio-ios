@@ -188,7 +188,8 @@ extension PutioOfflineQueueFactory {
             key: $0.key, language: $0.language, languageCode: $0.languageCode, name: $0.name,
             source: $0.source,
             url: baseURL.appending(path: "multi-audio/multi-subtitle-\($0.language).vtt"))
-        })
+        },
+        startFromSeconds: original.startFromSeconds)
     #else
       return original
     #endif
