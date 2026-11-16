@@ -1,6 +1,7 @@
 #if DEBUG
   import Foundation
   import PutioCore
+  import SwiftUI
 
   enum HarnessDownloadsFixture: String, CaseIterable {
     case list
@@ -212,6 +213,46 @@
         return calendar.date(from: DateComponents(year: year - 1, month: 10, day: 24)) ?? date
       }
       return thisYear
+    }
+  }
+
+  @MainActor
+  enum HarnessDownloadsNetwork {
+    static let restoreNotification = "io.put.harness.downloads-network-restore"
+    static let syncedFileID = 441
+    private static weak var queue: PutioOfflineQueue?
+
+    static func cut(_ queue: PutioOfflineQueue) {
+      self.queue = queue
+      queue.setOnline(false)
+      CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(), nil,
+        { _, _, _, _, _ in Task { @MainActor in HarnessDownloadsNetwork.restore() } },
+        restoreNotification as CFString, nil, .deliverImmediately)
+    }
+
+    static func restore() {
+      HarnessSeededAPI.restoreDownloadsNetwork()
+      queue?.setOnline(true)
+    }
+  }
+
+  struct HarnessDownloadsSyncProbe: View {
+    private let isCut = HarnessDownloadsFixture.parse(HarnessLaunch.arguments) == .offline
+
+    var body: some View {
+      if isCut {
+        TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+          Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Download position on put.io")
+            .accessibilityValue(
+              "\(HarnessSeededAPI.playbackPosition(fileID: HarnessDownloadsNetwork.syncedFileID))")
+            .accessibilityIdentifier("downloads.synced-position")
+            .allowsHitTesting(false)
+        }
+      }
     }
   }
 

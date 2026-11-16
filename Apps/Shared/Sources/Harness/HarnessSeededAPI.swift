@@ -788,13 +788,21 @@ import Foundation
     private static var searchesOffline: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-search-offline")
     }
-    private static let downloadsOffline: Bool = {
+    private static let downloadsNetworkLock = NSLock()
+    nonisolated(unsafe) private static var downloadsNetworkCut: Bool = {
       let arguments = HarnessLaunch.arguments
       guard let flag = arguments.firstIndex(of: "--putio-harness-downloads"),
         arguments.indices.contains(flag + 1)
       else { return false }
       return arguments[flag + 1] == "offline"
     }()
+    private static var downloadsOffline: Bool {
+      downloadsNetworkLock.withLock { downloadsNetworkCut }
+    }
+
+    static func restoreDownloadsNetwork() {
+      downloadsNetworkLock.withLock { downloadsNetworkCut = false }
+    }
     private static func reachesOffline(_ url: URL) -> Bool {
       url.path.hasPrefix("/v2/oauth2/") || url.path == "/v2/account/info"
     }
@@ -2988,7 +2996,7 @@ import Foundation
         """
     }
 
-    private static func playbackPosition(fileID: Int) -> Int {
+    static func playbackPosition(fileID: Int) -> Int {
       playbackPositionLock.lock()
       defer { playbackPositionLock.unlock() }
       return playbackPositions[fileID] ?? 0
