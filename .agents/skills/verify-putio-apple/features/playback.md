@@ -77,6 +77,8 @@ offline playback.
 - `downloads-method` stores a Direct play original and a Standard HLS package.
 - `download-notifications-off` shows the notifications-off row and still
   finishes a download with notification permission denied.
+- `download-file-rows` pauses, resumes and retries downloads from Files rows
+  and checks the Downloads tab agrees.
 - `large-text-audio` keeps the audio controls usable at the largest text size
   in portrait and landscape.
 
@@ -220,7 +222,7 @@ Preconditions:
   searching. Boards:
   `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
 - **Downloads.** Run
-  `--only downloads,unsaved-downloads,download-start-failed,downloads-method,download-notifications-off`.
+  `--only downloads,unsaved-downloads,download-start-failed,downloads-method,download-notifications-off,download-file-rows`.
   Screenshots: `runtime-downloads-queue`, `runtime-downloads-selection`,
   `runtime-downloads-remove`, `runtime-downloads-start-failed`,
   `runtime-downloads-notifications-off`.

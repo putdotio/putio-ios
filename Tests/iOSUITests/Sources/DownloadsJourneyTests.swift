@@ -400,6 +400,58 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testFileRowsControlDownloadsAndFollowTheDownloadsTab() throws {
+    app.launchArguments += ["--putio-harness-downloads", "file-states"]
+    app.launch()
+    signIn()
+    let harnessFolder = element("files.item.410")
+    XCTAssertTrue(harnessFolder.appears(within: 10))
+    harnessFolder.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+
+    let downloading = element("files.item.442")
+    XCTAssertTrue(downloading.appears(within: 10))
+    XCTAssertTrue(downloading.label.contains("Downloading"), downloading.label)
+    app.buttons["Pause download, \(episode(2))"].tap()
+    let resume = app.buttons["Resume download, \(episode(2))"]
+    XCTAssertTrue(resume.appears(within: 5), "the row did not pause")
+    XCTAssertTrue(downloading.label.contains("Paused"), downloading.label)
+    resume.tap()
+    XCTAssertTrue(
+      app.buttons["Pause download, \(episode(2))"].appears(within: 5), "the row did not resume")
+
+    let failed = element("files.item.448")
+    app.bringIntoView(failed)
+    XCTAssertTrue(failed.label.contains("Connection lost"), failed.label)
+    app.buttons["Retry download, \(episode(6))"].tap()
+    XCTAssertTrue(
+      app.buttons["Cancel download, \(episode(6))"].appears(within: 5), "retry did not queue")
+    XCTAssertTrue(failed.label.contains("Queued"), failed.label)
+
+    app.buttons["Downloads"].tap()
+    let downloadsRow = app.revealed("downloads.item.442")
+    XCTAssertTrue(waitForValue(downloadsRow, "downloading;42", timeout: 5))
+    XCTAssertTrue(waitForValue(app.revealed("downloads.item.448"), "queued", timeout: 5))
+    app.buttons["Pause download, \(episode(2))"].tap()
+    XCTAssertTrue(waitForValue(downloadsRow, "paused;42", timeout: 5))
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(
+      app.buttons["Resume download, \(episode(2))"].appears(within: 5),
+      "the open folder missed the pause made in Downloads")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    if remove.appears(within: 5) { remove.tap() } else { app.confirmSignOut() }
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
   private func choosePlaybackMethod(_ name: String) {
     app.buttons["Account"].tap()
     let method = app.revealed("playback-settings.method")

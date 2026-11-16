@@ -66,6 +66,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
   private let presentation: PutioDownloadPresentation
+  private let showsDownloadControl: Bool
   private let onDownloadAction: (PutioDownloadAction) -> Void
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   #if !os(tvOS)
@@ -86,10 +87,13 @@ public struct PutioFileRow: View {
 
   public init(
     _ model: PutioFileRowModel,
+    downloadContext: PutioDownloadPresentation.Context = .downloads,
+    showsDownloadControl: Bool = true,
     onDownloadAction: @escaping (PutioDownloadAction) -> Void = { _ in }
   ) {
     self.model = model
-    presentation = PutioDownloadPresentation(model.downloadState)
+    presentation = PutioDownloadPresentation(model.downloadState, context: downloadContext)
+    self.showsDownloadControl = showsDownloadControl
     self.onDownloadAction = onDownloadAction
     _iconSize = PutioScaledMetric(PutioFileRowLayout.iconSize)
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap)
@@ -206,7 +210,7 @@ public struct PutioFileRow: View {
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     #else
-      if !isSelecting {
+      if !isSelecting, showsDownloadControl {
         PutioDownloadStateButton(
           presentation: presentation, fileName: model.name, onAction: onDownloadAction)
       }
@@ -254,7 +258,7 @@ public struct PutioFileRow: View {
           }
           if model.isOnDevice {
             marker(.arrowCircleDownFill)
-              .accessibilityLabel(Text("On this iPhone", bundle: .module))
+              .accessibilityLabel(onDeviceLabel)
           }
           if model.isWatched {
             marker(.eye)
@@ -262,6 +266,15 @@ public struct PutioFileRow: View {
           }
         }
       }
+    }
+
+    private var onDeviceLabel: Text {
+      #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+          return Text("On this iPad", bundle: .module)
+        }
+      #endif
+      return Text("On this iPhone", bundle: .module)
     }
 
     private var statusColor: Color {

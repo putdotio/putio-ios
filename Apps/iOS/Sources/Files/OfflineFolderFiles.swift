@@ -1,5 +1,5 @@
-import Foundation
 import PutioCore
+import UIKit
 
 enum PutioOfflineFileStatus: Equatable {
   case remote
@@ -12,8 +12,15 @@ struct PutioOfflineFolderFiles {
   let items: (PutioFileID) -> [PutioFileItem]
   let open: (PutioFileID) -> Void
   let status: (PutioFileID) -> PutioOfflineFileStatus
+  let downloadState: (PutioFileID) -> PutioDownloadState
+  let isOnDevice: (PutioFileID) -> Bool
+  let perform: (PutioDownloadAction, PutioFileID) -> Void
 
   init(queue: PutioOfflineQueue, open: @escaping (PutioOfflineItem) -> Void) {
+    let device: PutioDownloadDevice = UIDevice.current.userInterfaceIdiom == .pad ? .iPad : .iPhone
+    downloadState = { queue.downloadState(for: $0, on: device) }
+    isOnDevice = { queue.item(for: $0)?.stage == .completed }
+    perform = { queue.perform($0, fileID: $1) }
     items = { folderID in
       queue.items
         .filter { $0.parentID == folderID && $0.isPlayable }

@@ -199,7 +199,7 @@ struct PutioOfflineDownloadsView: View {
         .accessibilityValue(Text(accessibilityValue(item)))
       } else {
         PutioFileRow(model) { action in
-          perform(action, on: item)
+          queue.perform(action, fileID: item.id)
         }
         .accessibilityElement(children: .contain)
         .accessibilityValue(Text(accessibilityValue(item)))
@@ -241,15 +241,6 @@ struct PutioOfflineDownloadsView: View {
       }
       .tint(PutioTheme.Colors.destructive)
       .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
-    }
-  }
-
-  private func perform(_ action: PutioDownloadAction, on item: PutioOfflineItem) {
-    switch action {
-    case .pause: queue.pause(fileID: item.id)
-    case .resume: queue.resume(fileID: item.id)
-    case .cancel: queue.remove(fileIDs: [item.id])
-    case .retry, .downloadAgain: queue.retry(fileID: item.id)
     }
   }
 

@@ -788,14 +788,16 @@ import Foundation
     private static var searchesOffline: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-search-offline")
     }
-    private static let downloadsNetworkLock = NSLock()
-    nonisolated(unsafe) private static var downloadsNetworkCut: Bool = {
+    private static let downloadsFixture: String? = {
       let arguments = HarnessLaunch.arguments
       guard let flag = arguments.firstIndex(of: "--putio-harness-downloads"),
         arguments.indices.contains(flag + 1)
-      else { return false }
-      return arguments[flag + 1] == "offline"
+      else { return nil }
+      return arguments[flag + 1]
     }()
+    private static let listsOnlySeasonVideos = downloadsFixture?.hasPrefix("file-") == true
+    private static let downloadsNetworkLock = NSLock()
+    nonisolated(unsafe) private static var downloadsNetworkCut = downloadsFixture == "offline"
     private static var downloadsOffline: Bool {
       downloadsNetworkLock.withLock { downloadsNetworkCut }
     }
@@ -2466,7 +2468,8 @@ import Foundation
         #"{"next_file":{"id":\#(next.id),"name":\#(jsonString(next.name)),"parent_id":\#(seasonFolderID)}}"#
       )
     }
-    private static let seasonFolderSize: Int64 = 13_100_000_000
+    private static let seasonFolderSize: Int64 =
+      listsOnlySeasonVideos ? seasonEpisodes.map(\.size).reduce(0, +) : 13_100_000_000
     private static let harnessFolderSize: Int64 = 1_073_741_824 + seasonFolderSize
 
     #if os(iOS)
@@ -2475,11 +2478,17 @@ import Foundation
       private static let seasonFolderSeeded = false
     #endif
 
-    private static let seasonEpisodes: [(id: Int, name: String, size: Int64, day: Int)] = [
-      (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13),
-      (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13),
-      (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
-      (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
+    private static let seasonEpisodes: [(id: Int, name: String, size: Int64, day: Int)] =
+      [
+        (441, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", 3_200_000_000, 13),
+        (442, "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 13),
+        (443, "Blue.Lights.S04E03.1080p.HDTV.H264-ORGANiC.mkv", 3_100_000_000, 20),
+        (444, "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
+      ] + (downloadsFixture == "file-states" ? fileStatesEpisodes : [])
+
+    private static let fileStatesEpisodes: [(id: Int, name: String, size: Int64, day: Int)] = [
+      (447, "Blue.Lights.S04E05.1080p.HDTV.H264-ORGANiC.mkv", 3_300_000_000, 20),
+      (448, "Blue.Lights.S04E06.1080p.HDTV.H264-ORGANiC.mkv", 3_400_000_000, 20),
     ]
 
     static func publicLinkFile(id: Int) -> (name: String, fileType: String) {
@@ -2543,7 +2552,7 @@ import Foundation
         )
       }
       let subtitleRows = seasonSubtitles.keys.sorted().filter {
-        !movedAway.contains($0) && !removed.contains($0)
+        !listsOnlySeasonVideos && !movedAway.contains($0) && !removed.contains($0)
       }.compactMap {
         id in
         seasonSubtitles[id].map {

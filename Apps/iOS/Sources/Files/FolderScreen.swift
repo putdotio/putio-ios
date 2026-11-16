@@ -538,7 +538,7 @@ struct PutioFolderScreen: View {
       PutioSelectableRow(isSelected: selection.contains(presentation.id)) {
         selection.toggle(presentation.id)
       } content: {
-        PutioFileRow(presentation.row)
+        PutioFileRow(fileRowModel(presentation), downloadContext: .files)
       }
       .disabled(fileActionPending)
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -557,18 +557,40 @@ struct PutioFolderScreen: View {
       fileActions(
         for: presentation.item,
         preview: sharedPreview(presentation),
-        content: Button {
-          openRow(fileRoute)
-        } label: {
-          PutioFileRow(presentation.row)
+        content: HStack(spacing: 0) {
+          Button {
+            openRow(fileRoute)
+          } label: {
+            PutioFileRow(
+              fileRowModel(presentation), downloadContext: .files, showsDownloadControl: false
+            )
             .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .disabled(navigationLocked)
+          .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+          .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
+          if let offlineFiles {
+            PutioDownloadStateButton(
+              offlineFiles.downloadState(presentation.id), fileName: presentation.item.name
+            ) { action in
+              offlineFiles.perform(action, presentation.id)
+            }
+          }
         }
-        .buttonStyle(.plain)
-        .disabled(navigationLocked)
-        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
-        .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
       )
     }
+  }
+
+  private func fileRowModel(_ presentation: PutioBrowserItemPresentation) -> PutioFileRowModel {
+    let row = presentation.row
+    guard let offlineFiles, presentation.item.kind != .folder else { return row }
+    return PutioFileRowModel(
+      name: row.name, kind: row.kind, locationText: row.locationText, sizeText: row.sizeText,
+      dateText: row.dateText, secondaryText: row.secondaryText,
+      isOnDevice: offlineFiles.isOnDevice(presentation.id), isWatched: row.isWatched,
+      showsDisclosure: row.showsDisclosure,
+      downloadState: offlineFiles.downloadState(presentation.id))
   }
 
   private func openRow(_ route: PutioFileRoute) {

@@ -32,6 +32,15 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertEqual(result.tone, .secondary)
   }
 
+  func testAFileRowNamesTheDownloadInsteadOfItsPercent() {
+    let state = PutioDownloadState.downloading(
+      receivedBytes: 1_400_000_000, totalBytes: 3_300_000_000)
+    let files = PutioDownloadPresentation(state, context: .files, locale: english)
+    XCTAssertEqual(files.statusLine.map(\.text), ["Downloading", "1.4 of 3.3 GB"])
+    XCTAssertEqual(files.ring, presentation(state).ring)
+    XCTAssertEqual(files.action, .pause)
+  }
+
   func testConvertingShowsPercentWithAYellowPauseRing() {
     let state = PutioDownloadState.converting(progress: 0.12)
     XCTAssertEqual(statusLine(state), ["Converting", "12%"])

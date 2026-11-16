@@ -9,6 +9,8 @@
     case attentionStates = "attention-states"
     case empty
     case offline
+    case fileStates = "file-states"
+    case fileWaiting = "file-waiting"
 
     static let launchArgument = "--putio-harness-downloads"
     static let mediaPrefix = "harness-media/"
@@ -40,7 +42,7 @@
 
     func freeBytes(isPad: Bool) -> Int64 {
       switch self {
-      case .downloadingStates: 3_100_000_000
+      case .downloadingStates, .fileWaiting: 3_100_000_000
       case .empty: isPad ? 217_000_000_000 : 149_300_000_000
       default: isPad ? 212_600_000_000 : 144_900_000_000
       }
@@ -124,6 +126,25 @@
           missing,
           Self.sintel(created: yesterday),
           Self.treeRings(created: october24),
+        ]
+      case .fileStates:
+        return [
+          Self.finishedFirstEpisode(created: today),
+          Self.episode(2, .downloading(progress: 0.4243), created: today),
+          Self.episode(3, .converting(progress: 0.12), created: today, bytes: 3_100_000_000),
+          Self.episode(4, .paused(progress: 0.2648), created: today, bytes: 3_400_000_000),
+          Self.episode(5, .queued, created: today),
+          Self.episode(6, .failed(Self.connectionLost), created: today, bytes: 3_400_000_000),
+        ]
+      case .fileWaiting:
+        var missing = Self.episode(4, .completed, created: today, bytes: 3_400_000_000)
+        missing.localPath = Self.missingPackage
+        missing.storedBytes = 3_400_000_000
+        return [
+          Self.finishedFirstEpisode(created: today),
+          Self.episode(2, .waitingForNetwork(progress: 0), created: today),
+          Self.episode(3, .waitingForStorage, created: today, bytes: 3_400_000_000),
+          missing,
         ]
       case .empty:
         return []

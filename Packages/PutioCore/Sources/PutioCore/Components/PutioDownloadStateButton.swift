@@ -33,6 +33,11 @@ public enum PutioDownloadAction: Equatable, Sendable {
 }
 
 public struct PutioDownloadPresentation: Equatable, Sendable {
+  public enum Context: Equatable, Sendable {
+    case downloads
+    case files
+  }
+
   public enum Glyph: Equatable, Sendable {
     case pause
     case play
@@ -70,7 +75,9 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
   public let progress: Double?
   public let dimsRow: Bool
 
-  public init(_ state: PutioDownloadState, locale: Locale = .current) {
+  public init(
+    _ state: PutioDownloadState, context: Context = .downloads, locale: Locale = .current
+  ) {
     var statusLine: [Segment] = []
     var tone = Tone.secondary
     var ring = Ring.hidden
@@ -83,10 +90,15 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       break
     case .downloading(let received, let total):
       let fraction = Self.fraction(received, of: total)
-      statusLine = [
-        Segment(Self.bytesText(received, of: total, locale: locale), isNumeric: true),
-        Segment(Self.percentText(fraction, locale: locale), isNumeric: true),
-      ]
+      let bytes = Segment(Self.bytesText(received, of: total, locale: locale), isNumeric: true)
+      switch context {
+      case .downloads:
+        statusLine = [bytes, Segment(Self.percentText(fraction, locale: locale), isNumeric: true)]
+      case .files:
+        statusLine = [
+          Segment(String(localized: "Downloading", bundle: .module, locale: locale)), bytes,
+        ]
+      }
       ring = .progress(fraction, isActive: true, glyph: .pause)
       action = .pause
       progress = fraction
@@ -232,7 +244,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
 }
 
 #if !os(tvOS)
-  struct PutioDownloadStateButton: View {
+  public struct PutioDownloadStateButton: View {
     private let presentation: PutioDownloadPresentation
     private let fileName: String
     private let onAction: (PutioDownloadAction) -> Void
@@ -254,7 +266,15 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       self.onAction = onAction
     }
 
-    var body: some View {
+    public init(
+      _ state: PutioDownloadState, fileName: String,
+      onAction: @escaping (PutioDownloadAction) -> Void
+    ) {
+      self.init(
+        presentation: PutioDownloadPresentation(state), fileName: fileName, onAction: onAction)
+    }
+
+    public var body: some View {
       if presentation.ring != .hidden, let action = presentation.action {
         Button {
           onAction(action)
