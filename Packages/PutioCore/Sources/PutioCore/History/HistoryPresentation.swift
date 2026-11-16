@@ -84,7 +84,7 @@ public struct PutioHistoryEventPresentation: Equatable {
   public static func time(
     _ date: Date, locale: Locale = .current, timeZone: TimeZone = .current
   ) -> String {
-    date.formatted(
-      Date.FormatStyle(locale: locale, timeZone: timeZone).hour().minute())
+    date.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).hour().minute())
+      .replacingOccurrences(of: "\u{202F}", with: " ")
   }
 }

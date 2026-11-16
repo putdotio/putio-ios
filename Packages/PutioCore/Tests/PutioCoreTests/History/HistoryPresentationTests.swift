@@ -92,7 +92,7 @@ final class HistoryPresentationTests: XCTestCase {
     let zone = try XCTUnwrap(TimeZone(identifier: "UTC"))
     let date = Date(timeIntervalSince1970: 1_793_643_300)
     XCTAssertEqual(
-      PutioHistoryEventPresentation.time(date, locale: english, timeZone: zone), "6:15\u{202F}PM")
+      PutioHistoryEventPresentation.time(date, locale: english, timeZone: zone), "6:15 PM")
   }
 
   private func event(_ id: Int, at date: Date) -> PutioHistoryEventItem {
