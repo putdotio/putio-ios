@@ -57,7 +57,9 @@ final class DirectPlayJourneyTests: XCTestCase {
     startOverIfAsked()
     waitForOriginal()
     let audio = element("video.audio-language")
+    let subtitle = element("video.subtitle")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
+    XCTAssertTrue(keepsValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
     let position = element("video.current-position")
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= 2"), position, timeout: 15),
@@ -92,6 +94,9 @@ final class DirectPlayJourneyTests: XCTestCase {
     turkish.tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(waitForLabel(audioChip, "Audio: Turkish"), audioChip.label)
+    let subtitlesChip = element("video.chip.subtitles")
+    pickSubtitle(app.buttons["video.subtitles.off"], showing: subtitlesChip)
+    XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     let saved = Int(position.value as? String ?? "") ?? 0
     XCTAssertGreaterThan(saved, 0)
     app.closeVideo()
@@ -105,6 +110,21 @@ final class DirectPlayJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= %d", resumedAt), position, timeout: 10),
       "playback did not start at the saved position: \(position.value ?? "")")
+    XCTAssertTrue(keepsValue(subtitle, "off"), "Off was not remembered: \(subtitle.value ?? "")")
+    app.setVideoPlaying(false, with: playPause)
+    XCTAssertTrue(waitForLabel(subtitlesChip, "Subtitles: Off"), subtitlesChip.label)
+    let turkishSubtitle = app.buttons.matching(
+      NSPredicate(
+        format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "video.subtitles.", "Turkish")
+    ).firstMatch
+    pickSubtitle(turkishSubtitle, showing: subtitlesChip)
+    XCTAssertTrue(waitForValue(subtitle, "tr"), "subtitle: \(subtitle.value ?? "")")
+    app.closeVideo()
+
+    openVideo(startingOver: true)
+    waitForOriginal()
+    XCTAssertTrue(
+      keepsValue(subtitle, "tr"), "Turkish was not remembered: \(subtitle.value ?? "")")
     app.closeVideo()
 
     app.showTabBar()
@@ -172,6 +192,20 @@ final class DirectPlayJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(
       waitFor(NSPredicate(format: "label ENDSWITH %@", "Direct play"), method, timeout: 5))
+  }
+
+  private func pickSubtitle(_ row: XCUIElement, showing chip: XCUIElement) {
+    app.revealVideoControls(showing: chip)
+    chip.tap()
+    XCTAssertTrue(row.appears(within: 5), "the Subtitles chip opened no menu")
+    row.tap()
+    XCTAssertTrue(
+      app.buttons["video.subtitles.off"].disappears(within: 5), "the subtitles menu stayed open")
+  }
+
+  private func keepsValue(_ element: XCUIElement, _ value: String) -> Bool {
+    guard waitForValue(element, value) else { return false }
+    return !waitFor(NSPredicate(format: "value != %@", value), element, timeout: 3)
   }
 
   private func element(_ identifier: String) -> XCUIElement {
