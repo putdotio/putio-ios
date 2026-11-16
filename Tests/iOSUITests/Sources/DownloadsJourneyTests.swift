@@ -360,17 +360,12 @@ final class DownloadsJourneyTests: XCTestCase {
     for container in try fileManager.contentsOfDirectory(
       at: containers, includingPropertiesForKeys: nil)
     {
-      let root = container.appending(path: "Library/Application Support/OfflineDownloads")
-      let accounts =
-        (try? fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
-      for account in accounts where account.lastPathComponent.hasPrefix("account-") {
-        let queue = account.appending(path: "queue.json")
-        guard
-          let date = try? queue.resourceValues(forKeys: [.contentModificationDateKey])
-            .contentModificationDate
-        else { continue }
-        if newest.map({ date > $0.date }) ?? true { newest = (container, queue, date) }
-      }
+      let queue = container.appending(path: "tmp/harness-offline/queue.json")
+      guard
+        let date = try? queue.resourceValues(forKeys: [.contentModificationDateKey])
+          .contentModificationDate
+      else { continue }
+      if newest.map({ date > $0.date }) ?? true { newest = (container, queue, date) }
     }
     let found = try XCTUnwrap(newest, "no offline queue under \(containers.path)")
     let document = try XCTUnwrap(
