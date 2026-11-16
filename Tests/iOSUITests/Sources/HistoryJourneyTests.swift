@@ -137,28 +137,32 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertFalse(earlierUpload.exists, "the server kept a deleted event")
     scrollToTop()
 
-    let clear = app.buttons["history.clear"]
-    XCTAssertTrue(waitUntilHittable(clear))
-    clear.tap()
-    XCTAssertTrue(app.staticTexts["Clear all history?"].appears(within: 5))
-    let cancel = app.buttons["Cancel"].firstMatch
-    if cancel.exists {
-      cancel.tap()
-    } else {
-      // Native popovers cancel by tapping outside their content.
-      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
-    }
-    XCTAssertTrue(app.staticTexts["Clear all history?"].disappears(within: 5))
+    let menu = app.buttons["history.menu"]
+    let clearAlert = app.putioAlert("Clear history?")
+    let confirm = app.buttons["confirm-alert.confirm"].firstMatch
+    chooseClearHistory()
+    XCTAssertTrue(clearAlert.appears(within: 5), "Clear history never asked")
+    app.buttons["putio-alert.cancel"].firstMatch.tap()
+    XCTAssertTrue(clearAlert.disappears(within: 5), "Cancel left the clear alert open")
     XCTAssertTrue(folderEvent.exists, "cancel cleared history")
-    clear.tap()
-    let confirm = app.buttons["history.clear-confirm"].firstMatch
+    chooseClearHistory()
     XCTAssertTrue(waitUntilHittable(confirm))
     confirm.tap()
-    XCTAssertTrue(mutationRetry.appears(within: 10))
+    let clearFailed = app.putioAlert("Couldn’t clear history")
+    XCTAssertTrue(
+      clearFailed.appears(within: 10),
+      "the first clear succeeded, so Cancel sent a clear or the seeded failure is gone")
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
     XCTAssertTrue(folderEvent.exists, "failed clear discarded history")
-    mutationRetry.tap()
+    XCTAssertFalse(mutationRetry.exists, "a failed clear offered a retry row")
+    app.buttons["history.clear-failed.ok"].tap()
+    XCTAssertTrue(clearFailed.disappears(within: 5), "OK left the failure alert open")
+    XCTAssertTrue(waitUntilHittable(menu), "More stayed disabled after a failed clear")
+    chooseClearHistory()
+    XCTAssertTrue(waitUntilHittable(confirm))
+    confirm.tap()
     XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 10))
-    XCTAssertFalse(clear.exists)
+    XCTAssertFalse(menu.exists, "the cleared History offers More")
     addScreenshot(named: "runtime-history-empty")
     pullToRefresh()
     XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 5))
@@ -198,7 +202,7 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 10))
     XCTAssertTrue(
       app.staticTexts["Completed transfers and shared files will appear here."].exists)
-    XCTAssertFalse(app.buttons["history.clear"].exists, "the empty History offers Clear")
+    XCTAssertFalse(app.buttons["history.menu"].exists, "the empty History offers More")
     addScreenshot(named: "runtime-history-first-empty")
     pullToRefresh()
     XCTAssertTrue(firstEvent.appears(within: 10), "pull to refresh left History empty")
@@ -209,7 +213,7 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(retry.appears(within: 10), "History never failed")
     XCTAssertTrue(app.staticTexts["Couldn’t load history"].exists)
     XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
-    XCTAssertFalse(app.buttons["history.clear"].exists, "failed History offers Clear")
+    XCTAssertFalse(app.buttons["history.menu"].exists, "failed History offers More")
     addScreenshot(named: "runtime-history-first-error")
     retry.tap()
     XCTAssertTrue(firstEvent.appears(within: 10), "Try again did not load History")
@@ -275,6 +279,15 @@ final class HistoryJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func chooseClearHistory() {
+    let menu = app.buttons["history.menu"]
+    XCTAssertTrue(waitUntilHittable(menu), "History has no More menu")
+    menu.tap()
+    let clear = app.buttons["item-action.clear-history"]
+    XCTAssertTrue(waitUntilHittable(clear), "More has no Clear history")
+    clear.tap()
   }
 
   private func waitUntilHittable(_ element: XCUIElement) -> Bool {

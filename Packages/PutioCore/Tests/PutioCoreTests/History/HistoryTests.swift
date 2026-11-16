@@ -158,6 +158,24 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([]))
   }
 
+  func testDismissingAFailedClearKeepsThePageAndSendsNothing() async {
+    var clears = 0
+    let model = model(
+      list: { _ in Self.page([30, 20], next: 10) },
+      clear: {
+        clears += 1
+        throw PutioRuntimeError.transient
+      })
+    await model.loadIfNeeded()
+    await model.clear()
+    XCTAssertEqual(model.failedMutation, .clear)
+    model.dismissMutationFailure()
+    XCTAssertNil(model.failedMutation)
+    XCTAssertNil(model.mutationFailure)
+    XCTAssertEqual(model.page, Self.page([30, 20], next: 10))
+    XCTAssertEqual(clears, 1)
+  }
+
   func testLateRefreshCannotRestoreADeletedEvent() async throws {
     let refreshing = PendingHistoryPage()
     defer { refreshing.cancel() }

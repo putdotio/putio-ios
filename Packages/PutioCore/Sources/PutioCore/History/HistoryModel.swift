@@ -79,7 +79,7 @@ public final class PutioHistoryModel {
   public private(set) var loadMoreFailure: PutioHistoryFailure?
   public private(set) var paginationEpoch: UInt64 = 0
   public private(set) var mutation: Mutation?
-  private(set) var failedMutation: Mutation?
+  public private(set) var failedMutation: Mutation?
   public private(set) var mutationFailure: PutioHistoryFailure?
   public private(set) var openingEventID: Int?
   public private(set) var openedFile: PutioFileItem?
@@ -143,7 +143,7 @@ public final class PutioHistoryModel {
       }
       state = .loaded(PutioHistoryPage(items: items, nextBefore: page.nextBefore))
       if failedMutation == .clear, page.items.isEmpty, page.nextBefore == nil {
-        clearMutationFailure()
+        dismissMutationFailure()
       }
       if let eventID = openingEventID ?? failedOpen?.id, !ids.contains(eventID) {
         cancelOpen()
@@ -294,7 +294,7 @@ public final class PutioHistoryModel {
   }
 
   public func clearOpenedFile() { openedFile = nil }
-  func clearMutationFailure() {
+  public func dismissMutationFailure() {
     mutationFailure = nil
     failedMutation = nil
   }

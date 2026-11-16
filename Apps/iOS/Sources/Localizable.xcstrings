@@ -733,24 +733,24 @@
         }
       }
     },
-    "Clear all history?" : {
-      "comment" : "android: mobile_history_clear_title | differs: iOS board wording",
+    "Clear history" : {
+      "comment" : "android: mobile_history_clear",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear all history?"
+            "value" : "Clear history"
           }
         }
       }
     },
-    "Clear History" : {
-      "comment" : "android: mobile_history_clear | differs: iOS uses title case",
+    "Clear history?" : {
+      "comment" : "android: mobile_history_clear_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear History"
+            "value" : "Clear history?"
           }
         }
       }
@@ -960,6 +960,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t check your session"
+          }
+        }
+      }
+    },
+    "Couldn’t clear history" : {
+      "comment" : "android: mobile_history_clear_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t clear history"
           }
         }
       }
@@ -1744,17 +1755,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter the code shown on your device to link it to your put.io account."
-          }
-        }
-      }
-    },
-    "Every event will be removed from your history. Your files will stay in place." : {
-      "comment" : "android: mobile_history_clear_message | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every event will be removed from your history. Your files will stay in place."
           }
         }
       }
@@ -3942,6 +3942,17 @@
         }
       }
     },
+    "This removes all activity from your put.io history." : {
+      "comment" : "android: mobile_history_clear_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes all activity from your put.io history."
+          }
+        }
+      }
+    },
     "This video can’t play in its original format, so put.io started a conversion. It keeps going if you leave." : {
       "comment" : "android: mobile_playback_conversion_message",
       "localizations" : {
@@ -5038,17 +5049,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Update storage"
-          }
-        }
-      }
-    },
-    "Updating history" : {
-      "comment" : "ios-only: no Android string for the iOS history screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Updating history"
           }
         }
       }

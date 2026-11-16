@@ -2555,6 +2555,49 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-hist-01-list")
   }
 
+  func testHistoryMore() throws {
+    openHistoryMore()
+    let actions = app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
+    XCTAssertEqual(actions.count, 1, "More lists more than Clear history")
+    try captureBoard("rd-ios-hist-03-more")
+  }
+
+  func testHistoryClearConfirm() throws {
+    openHistoryMore()
+    app.buttons["item-action.clear-history"].tap()
+    XCTAssertTrue(
+      app.putioAlert("Clear history?").appears(within: 5), "Clear history never asked")
+    XCTAssertTrue(
+      app.buttons["confirm-alert.confirm"].exists, "the clear alert has no Clear button")
+    try captureBoard("rd-ios-hist-04-clear")
+  }
+
+  func testHistoryClearFailed() throws {
+    openHistoryMore()
+    app.buttons["item-action.clear-history"].tap()
+    let confirm = app.buttons["confirm-alert.confirm"].firstMatch
+    XCTAssertTrue(confirm.appears(within: 5), "Clear history never asked")
+    confirm.tap()
+    XCTAssertTrue(
+      app.putioAlert("Couldn’t clear history").appears(within: 10), "the clear never failed")
+    XCTAssertTrue(
+      app.buttons["history.clear-failed.ok"].exists, "the clear failure has no OK button")
+    XCTAssertTrue(element("history.item.907").exists, "the failed clear dropped the list")
+    try captureBoard("rd-ios-hist-11-clear-failed")
+  }
+
+  private func openHistoryMore() {
+    openHistory("board")
+    XCTAssertTrue(
+      element("history.item.907").appears(within: 10), "the seeded history never loaded")
+    let menu = app.buttons["history.menu"]
+    XCTAssertTrue(menu.appears(within: 5), "History has no More menu")
+    menu.tap()
+    XCTAssertTrue(
+      app.buttons["item-action.clear-history"].appears(within: 5), "More has no Clear history")
+  }
+
   func testHistorySwipe() throws {
     openHistory("board")
     let event = element("history.item.906")

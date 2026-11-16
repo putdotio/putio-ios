@@ -13,7 +13,7 @@ struct HistoryView: View {
   @State private var groupingDate = Date.now
   @State private var model: PutioHistoryModel
   @State private var path: [PutioFolderRoute] = []
-  @State private var clearConfirmationPresented = false
+  @State private var confirmAlert: PutioConfirmAlert?
   @State private var toast: PutioToast?
 
   init(
@@ -36,22 +36,21 @@ struct HistoryView: View {
         .putioContentBackground()
         .toolbar {
           if let page = model.page, !page.items.isEmpty || page.nextBefore != nil {
-            ToolbarItem(placement: .primaryAction) {
-              Button("Clear", role: .destructive) { clearConfirmationPresented = true }
-                .disabled(isBusy)
-                .accessibilityIdentifier("history.clear")
-            }
+            ToolbarItem(placement: .primaryAction) { moreMenu }
           }
         }
-        .confirmationDialog(
-          "Clear all history?", isPresented: $clearConfirmationPresented, titleVisibility: .visible
-        ) {
-          Button("Clear History", role: .destructive) { Task { await model.clear() } }
-            .accessibilityIdentifier("history.clear-confirm")
-          Button("Cancel", role: .cancel) {}
-        } message: {
-          Text("Every event will be removed from your history. Your files will stay in place.")
-        }
+        .putioConfirmAlert($confirmAlert)
+        .putioAlert(
+          String(localized: "Couldn’t clear history"),
+          isPresented: Binding(
+            get: { model.failedMutation == .clear },
+            set: { if !$0 { model.dismissMutationFailure() } }),
+          message: String(localized: "Check your connection and try again."),
+          actions: [
+            PutioAlertAction(
+              String(localized: "OK"), tier: .neutral, id: "history.clear-failed.ok")
+          ]
+        )
         .navigationDestination(for: PutioFolderRoute.self) { route in
           PutioFolderScreen(
             route: route,
@@ -96,6 +95,39 @@ struct HistoryView: View {
   }
 
   private var isBusy: Bool { model.mutation != nil || model.openingEventID != nil }
+
+  private var moreMenu: some View {
+    Menu {
+      PutioItemMenuContent(
+        PutioItemMenu([
+          [
+            PutioItemAction(
+              id: "clear-history",
+              title: String(localized: "Clear history"),
+              icon: .trash,
+              role: .destructive
+            ) {
+              confirmAlert = clearAlert
+            }
+          ]
+        ])
+      )
+    } label: {
+      Label("More", systemImage: "ellipsis")
+    }
+    .disabled(isBusy)
+    .accessibilityIdentifier("history.menu")
+  }
+
+  private var clearAlert: PutioConfirmAlert {
+    PutioConfirmAlert(
+      title: String(localized: "Clear history?"),
+      message: String(localized: "This removes all activity from your put.io history."),
+      confirmTitle: String(localized: "Clear")
+    ) {
+      Task { await model.clear() }
+    }
+  }
 
   private var isLoading: Bool {
     if case .loading = model.state { return true }
@@ -171,18 +203,8 @@ struct HistoryView: View {
       if let failure = model.refreshFailure {
         retryRow(failure.message, identifier: "history.retry") { await model.refresh() }
       }
-      if let failure = model.mutationFailure {
-        retryRow(failure.message, identifier: "history.mutation-retry") {
-          await model.retryMutation()
-        }
-      }
       if let failure = model.openFailure, !failure.isNotFound {
         retryRow(failure.message, identifier: "history.open-retry") { await model.retryOpen() }
-      }
-      if model.mutation != nil {
-        ProgressView("Updating history")
-          .listRowBackground(PutioTheme.Colors.background)
-          .accessibilityIdentifier("history.progress")
       }
       let days = PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)
       let pageRequest = page.nextBefore.map {
