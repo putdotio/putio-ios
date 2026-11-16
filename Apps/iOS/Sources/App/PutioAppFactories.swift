@@ -53,6 +53,10 @@ enum PutioOfflineQueueFactory {
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         }
       },
+      resolveOriginal: { fileID in
+        let original = try await runtime.resolveOfflineOriginal(fileID: fileID)
+        return PutioOfflineQueueFactory.swap(original, scenario: scenario)
+      },
       startConversion: seeded?.startConversion ?? { fileID in
         try await runtime.startVideoConversion(fileID: fileID)
       },
@@ -161,6 +165,32 @@ enum PutioOfflineQueueFactory {
         url: baseURL.appending(path: path), startFromSeconds: source.startFromSeconds)
     #else
       return source
+    #endif
+  }
+}
+
+extension PutioOfflineQueueFactory {
+  static func swap(_ original: PutioOfflineOriginal, scenario: HarnessScenario)
+    -> PutioOfflineOriginal
+  {
+    #if DEBUG
+      guard scenario == .filesBrowser,
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else { return original }
+      return PutioOfflineOriginal(
+        file: PutioFileDownloadSource(
+          id: original.file.id, kind: original.file.kind, name: original.file.name,
+          url: baseURL.appending(path: "runtime-proof-direct.mkv")),
+        subtitles: original.subtitles.map {
+          PutioCastSubtitle(
+            key: $0.key, language: $0.language, languageCode: $0.languageCode, name: $0.name,
+            source: $0.source,
+            url: baseURL.appending(path: "multi-audio/multi-subtitle-\($0.language).vtt"))
+        })
+    #else
+      return original
     #endif
   }
 }

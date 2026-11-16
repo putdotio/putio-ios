@@ -35,33 +35,38 @@ final class FileMenuTests: XCTestCase {
     XCTAssertEqual(folder.sections, [[.unpin], [.move]])
   }
 
-  func testPlayWithTheOtherMethodSitsAfterPlayForVideosOnly() {
+  func testTheOtherMethodSitsAfterPlayAndAfterDownloadForVideosOnly() {
     var capabilities = everything
     capabilities.otherPlaybackMethod = .directPlay
     XCTAssertEqual(
       PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities).sections.first,
-      [.play, .playWithOtherMethod, .download, .downloadWithDirectPlay, .openInVLC])
+      [.play, .playWithOtherMethod, .download, .downloadWithOtherMethod, .openInVLC])
+    capabilities.otherPlaybackMethod = .standard
+    XCTAssertTrue(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities)
+        .contains(.downloadWithOtherMethod))
     XCTAssertFalse(
       PutioFileMenu(item: item(.audio, resume: 0), capabilities: capabilities)
         .contains(.playWithOtherMethod))
     XCTAssertFalse(
       PutioFileMenu(item: item(.audio, resume: 0), capabilities: capabilities)
-        .contains(.downloadWithDirectPlay))
-    capabilities.otherPlaybackMethod = .standard
+        .contains(.downloadWithOtherMethod))
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: everything)
+        .contains(.playWithOtherMethod))
+    XCTAssertFalse(
+      PutioFileMenu(item: item(.video, resume: 0), capabilities: everything)
+        .contains(.downloadWithOtherMethod))
+    capabilities.canDownload = false
     XCTAssertFalse(
       PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities)
-        .contains(.downloadWithDirectPlay))
+        .contains(.downloadWithOtherMethod))
+    capabilities.canDownload = true
     capabilities.otherPlaybackMethod = .directPlay
-    XCTAssertFalse(
-      PutioFileMenu(item: item(.video, resume: 0), capabilities: everything)
-        .contains(.playWithOtherMethod))
-    XCTAssertFalse(
-      PutioFileMenu(item: item(.video, resume: 0), capabilities: everything)
-        .contains(.downloadWithDirectPlay))
     XCTAssertEqual(
       PutioFileMenu.searchResult(item: item(.video, resume: 0), capabilities: capabilities)
         .sections.first,
-      [.play, .playWithOtherMethod, .download, .downloadWithDirectPlay, .openInVLC])
+      [.play, .playWithOtherMethod, .download, .downloadWithOtherMethod, .openInVLC])
   }
 
   func testWatchedVideoOffersUnwatched() {

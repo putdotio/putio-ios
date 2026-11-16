@@ -4,7 +4,7 @@ public enum PutioFileMenuRow: String, Hashable, Sendable {
   case play
   case playWithOtherMethod
   case download
-  case downloadWithDirectPlay
+  case downloadWithOtherMethod
   case openInVLC
   case share
   case select
@@ -30,8 +30,8 @@ public struct PutioFileMenu: Equatable, Sendable {
     public var canCopy: Bool
     /// Whether the item is pinned; `nil` leaves Pin and Unpin out.
     public var pinned: Bool?
-    /// The method a video's "Play with" row names: the one that is not the
-    /// account's. `nil` leaves the row out.
+    /// The method a video's "Play with" and "Download with" rows name: the
+    /// one that is not the account's. `nil` leaves both rows out.
     public var otherPlaybackMethod: PutioPlaybackMethod?
 
     public init(
@@ -67,8 +67,8 @@ public struct PutioFileMenu: Equatable, Sendable {
       }
       if capabilities.canDownload, route.supportsOfflineDownload {
         playback.append(.download)
-        if capabilities.otherPlaybackMethod == .directPlay, item.kind == .video {
-          playback.append(.downloadWithDirectPlay)
+        if capabilities.otherPlaybackMethod != nil, item.kind == .video {
+          playback.append(.downloadWithOtherMethod)
         }
       }
       if capabilities.vlcInstalled, route.supportsExternalPlayback {

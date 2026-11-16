@@ -229,6 +229,83 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther() throws {
+    app.launch()
+    signIn()
+    choosePlaybackMethod("Direct play")
+
+    let movie = element("files.item.412")
+    XCTAssertTrue(movie.appears(within: 10))
+    movie.press(forDuration: 1)
+    XCTAssertTrue(
+      app.buttons["Download with Standard"].appears(within: 5),
+      "the menu does not offer the other method")
+    app.buttons["Download"].tap()
+    let original = element("downloads.item.412")
+    XCTAssertTrue(original.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(original, "completed", timeout: 90),
+      "the Direct play download did not complete: \(original.value ?? "")")
+
+    app.buttons["Files"].tap()
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
+    let standard = app.buttons["Download with Standard"]
+    XCTAssertTrue(standard.appears(within: 5))
+    standard.tap()
+    let package = element("downloads.item.442")
+    XCTAssertTrue(package.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(package, "completed", timeout: 90),
+      "the Standard download did not complete: \(package.value ?? "")")
+
+    original.tap()
+    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.subtitle.en").exists)
+    XCTAssertTrue(element("downloads.detail.subtitle.tr").exists)
+    XCTAssertFalse(element("downloads.detail.audio.en").exists)
+    screenshot("runtime-downloads-direct-play-original")
+    app.buttons["downloads.detail.done"].tap()
+    package.tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20))
+    app.closeVideo()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func choosePlaybackMethod(_ name: String) {
+    app.buttons["Account"].tap()
+    let method = app.revealed("playback-settings.method")
+    XCTAssertTrue(method.appears(within: 10))
+    method.tap()
+    let choice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
+    XCTAssertTrue(choice.appears(within: 5))
+    choice.tap()
+    let failed = app.staticTexts["Couldn’t save this setting"]
+    if failed.waitForExistence(timeout: 5) {
+      XCTAssertTrue(failed.disappears(within: 10))
+      choice.tap()
+    }
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { method.label.hasSuffix(name) }, "method row read \(method.label)")
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in condition() }, object: nil)

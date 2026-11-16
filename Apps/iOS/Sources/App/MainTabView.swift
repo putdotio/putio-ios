@@ -547,11 +547,12 @@ struct MainTabView: View {
     for route in routes { requestDownload(route) }
   }
 
-  private func requestDownload(_ route: PutioFileRoute) {
+  private func requestDownload(_ route: PutioFileRoute, with method: PutioPlaybackMethod? = nil) {
     offlineQueue.refreshStorage()
     offlineQueue.enqueue(
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
-      kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes)
+      kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes,
+      playbackMethod: method ?? appConfig.playbackMethod)
     selectedTab = .downloads
     // The seeded journey proves the queue, not the system prompt; the prompt
     // would cover the row in its screenshot.
@@ -812,6 +813,14 @@ struct MainTabView: View {
       appConfig.config.map { config in
         PutioPlayWithOtherMethod(method: config.playbackMethod.other) { route, method in
           playVideo(route, with: method)
+        }
+      }
+    )
+    .environment(
+      \.putioDownloadWithOtherMethod,
+      appConfig.config.map { config in
+        PutioDownloadWithOtherMethod(method: config.playbackMethod.other) { route, method in
+          requestDownload(route, with: method)
         }
       })
   }

@@ -1671,6 +1671,17 @@
         }
       }
     },
+    "Download with Standard" : {
+      "comment" : "android: mobile_files_download_with_standard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download with Standard"
+          }
+        }
+      }
+    },
     "Downloaded" : {
       "comment" : "android: mobile_files_downloaded | differs: iOS board wording",
       "localizations" : {

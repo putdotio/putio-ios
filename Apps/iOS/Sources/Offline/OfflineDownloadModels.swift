@@ -51,8 +51,11 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   }
 
   var isPlayable: Bool {
-    stage == .completed && localPath != nil
+    guard stage == .completed, localPath != nil else { return false }
+    return !isOriginal || PutioOfflineOriginalPackage.playsInAVPlayer(name: name)
   }
+
+  var isOriginal: Bool { playbackMethod == .directPlay }
 
   /// The stored size, shown only once the download completes; a partial
   /// package's byte count is not a size the user can act on.
@@ -66,6 +69,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   var waitingForNetwork: Bool?
   var isRemoving: Bool?
   var isWatched: Bool?
+  var playbackMethod: PutioPlaybackMethod? = nil
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {

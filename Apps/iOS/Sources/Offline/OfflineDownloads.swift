@@ -34,6 +34,9 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
   @ObservationIgnored private let resolve: PutioOfflineResolve
+  @ObservationIgnored private let resolveOriginal: PutioOfflineOriginalResolve
+  @ObservationIgnored private let fetchSubtitle: PutioOfflineSubtitleFetch
+  @ObservationIgnored private let readOriginalTracks: PutioOfflineOriginalTrackReader
   @ObservationIgnored private let startConversion: PutioOfflineConversionStart
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
@@ -98,6 +101,15 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
     },
     resolve: @escaping PutioOfflineResolve,
+    resolveOriginal: @escaping PutioOfflineOriginalResolve = { _ in
+      throw PutioRuntimeError.invalidResponse
+    },
+    fetchSubtitle: @escaping PutioOfflineSubtitleFetch = {
+      try await PutioOfflineOriginalPackage.fetchSubtitle($0)
+    },
+    readOriginalTracks: @escaping PutioOfflineOriginalTrackReader = {
+      await PutioOfflineOriginalPackage.storedTracks(in: $0, name: $1)
+    },
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
@@ -117,6 +129,9 @@ final class PutioOfflineQueue {
     self.notifyOriginalsRequested = notifyOriginalsRequested
     self.isPlayable = isPlayable
     self.resolve = resolve
+    self.resolveOriginal = resolveOriginal
+    self.fetchSubtitle = fetchSubtitle
+    self.readOriginalTracks = readOriginalTracks
     self.startConversion = startConversion
     self.conversionStatus = conversionStatus
     self.reportPosition = reportPosition
@@ -213,7 +228,7 @@ final class PutioOfflineQueue {
       }
     }
     for (fileID, localPath) in lostWaiters {
-      let playable = await isPlayable(Self.localURL(for: localPath))
+      let playable = await packageIsFinished(fileID: fileID, localPath: localPath)
       guard isLive() else { return }
       guard isWaitingForSlot(fileID), case .paused = item(for: fileID)?.stage else { continue }
       resumeWhenFree.removeAll { $0 == fileID }
@@ -229,11 +244,17 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  private func finishRestoredIfPlayable(fileID: PutioFileID, localPath: String) {
+  private func packageIsFinished(fileID: PutioFileID, localPath: String) async -> Bool {
     let url = Self.localURL(for: localPath)
-    let isPlayable = isPlayable
+    guard let item = item(for: fileID), item.isOriginal else { return await isPlayable(url) }
+    return PutioOfflineOriginalPackage.finish(
+      directory: url, name: item.name, fileManager: fileManager)
+  }
+
+  private func finishRestoredIfPlayable(fileID: PutioFileID, localPath: String) {
     Task { @MainActor [weak self] in
-      guard await isPlayable(url), let self, self.isLive(),
+      guard let self, await packageIsFinished(fileID: fileID, localPath: localPath),
+        self.isLive(),
         case .paused = self.item(for: fileID)?.stage
       else { return }
       complete(fileID: fileID, localPath: localPath)
@@ -247,9 +268,16 @@ final class PutioOfflineQueue {
     let epoch = completionEpoch[fileID, default: 0]
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
+    let readOriginalTracks = readOriginalTracks
+    let original = item(for: fileID).flatMap { $0.isOriginal ? $0.name : nil }
     let fileManager = fileManager
     Task { @MainActor [weak self] in
-      let tracks = await readTracks(url)
+      let tracks: (audio: [PutioOfflineTrack], subtitles: [PutioOfflineTrack])
+      if let original {
+        tracks = await readOriginalTracks(url, original)
+      } else {
+        tracks = await readTracks(url)
+      }
       let storedBytes = await Self.measuredSize(url, fileManager: fileManager)
       guard let self else { return }
       completing.remove(fileID)
@@ -284,7 +312,7 @@ final class PutioOfflineQueue {
   @discardableResult
   func enqueue(
     fileID: PutioFileID, parentID: PutioFileID, name: String, kind: PutioOfflineItem.Kind,
-    estimatedBytes: Int64 = 0
+    estimatedBytes: Int64 = 0, playbackMethod: PutioPlaybackMethod? = nil
   ) -> PutioOfflineItem {
     if let existing = item(for: fileID) { return existing }
     // Downloading the file again supersedes any debt to remove its original.
@@ -296,7 +324,8 @@ final class PutioOfflineQueue {
     let item = PutioOfflineItem(
       id: fileID, parentID: parentID, name: name, kind: kind, createdAt: .now, stage: .queued,
       localPath: nil, storedBytes: 0, storedAudioTracks: [], storedSubtitleTracks: [],
-      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: estimatedBytes)
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: estimatedBytes,
+      playbackMethod: kind == .video ? playbackMethod ?? .standard : nil)
     items.append(item)
     persist()
     schedule()
@@ -600,7 +629,11 @@ final class PutioOfflineQueue {
       return nil
     }
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
-    return PutioPlaybackSource(url: playbackURL(localPath), startFromSeconds: resume)
+    let url = playbackURL(localPath)
+    return PutioPlaybackSource(
+      url: item.isOriginal
+        ? PutioOfflineOriginalPackage.mediaURL(in: url, name: item.name) : url,
+      startFromSeconds: resume)
   }
 
   /// Records a position locally first, then forwards it. A failed forward
@@ -717,6 +750,10 @@ final class PutioOfflineQueue {
     streamEstimated.remove(fileID)
     do {
       try checkActiveWork()
+      if item.isOriginal {
+        try await downloadOriginal(item)
+        return
+      }
       var resolution = try await resolve(fileID, item.kind)
       try checkActiveWork()
       if case .conversionRequired = resolution {
@@ -780,6 +817,51 @@ final class PutioOfflineQueue {
           ?? PutioOfflineFailure(
             kind: .resolution,
             message: String(localized: "put.io could not prepare this file. Try again.")))
+    }
+  }
+
+  private func downloadOriginal(_ item: PutioOfflineItem) async throws {
+    let fileID = item.id
+    let original = try await resolveOriginal(fileID)
+    try checkActiveWork()
+    var subtitles: [(subtitle: PutioCastSubtitle, data: Data)] = []
+    for subtitle in original.subtitles {
+      let data = try await fetchSubtitle(subtitle.url)
+      try checkActiveWork()
+      subtitles.append((subtitle, data))
+    }
+    guard let current = self.item(for: fileID), !isPaused(current.stage) else { return }
+    streamEstimated.insert(fileID)
+    let free = availableStorage()
+    availableBytes = free
+    guard
+      Self.fits(
+        estimatedBytes: current.estimatedBytes, freeBytes: free - reservedBytes(excluding: fileID))
+    else {
+      fail(fileID, .storage)
+      return
+    }
+    deleteLocalAsset(for: fileID)
+    let directory = engine.originalDirectory(for: fileID)
+    try? fileManager.removeItem(at: directory)
+    do {
+      try PutioOfflineOriginalPackage.store(subtitles, in: directory, fileManager: fileManager)
+    } catch {
+      try? fileManager.removeItem(at: directory)
+      fail(fileID, PutioOfflinePersistenceFailure.isOutOfSpace(error) ? .storage : .download)
+      return
+    }
+    let relativePath = Self.relativePath(for: directory)
+    recordPackages(at: [relativePath])
+    update(fileID) {
+      $0.localPath = relativePath
+      $0.stage = .downloading(progress: 0)
+    }
+    try await engine.startOriginal(fileID: fileID, url: original.file.url)
+    guard isLive() else { return }
+    if Task.isCancelled || self.item(for: fileID).map({ isPaused($0.stage) }) != false {
+      engine.cancel(fileID: fileID)
+      suspended.remove(fileID)
     }
   }
 
@@ -873,7 +955,10 @@ final class PutioOfflineQueue {
   /// already finishing. A success that lands on a paused row is real: the
   /// package exists, so it completes rather than being thrown away.
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    guard let index = items.firstIndex(where: { $0.id == fileID }) else {
+      try? fileManager.removeItem(at: engine.originalDirectory(for: fileID))
+      return
+    }
     suspended.remove(fileID)
     if error != nil, isWaitingForSlot(fileID) {
       resumeWhenFree.removeAll { $0 == fileID }
@@ -900,6 +985,16 @@ final class PutioOfflineQueue {
     switch items[index].stage {
     case .downloading, .paused: break
     default: return
+    }
+    if items[index].isOriginal,
+      !PutioOfflineOriginalPackage.finish(
+        directory: Self.localURL(for: localPath), name: items[index].name,
+        fileManager: fileManager)
+    {
+      deleteLocalAsset(for: fileID)
+      fail(fileID, .download)
+      schedule()
+      return
     }
     complete(fileID: fileID, localPath: localPath)
   }

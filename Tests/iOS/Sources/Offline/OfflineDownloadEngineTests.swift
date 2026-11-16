@@ -41,6 +41,7 @@ struct OfflineDownloadEngineTests {
   private final class Tasks {
     private let session: URLSession
     private(set) var configurations: [AVAssetDownloadConfiguration] = []
+    private(set) var fileTasks: [URLSessionTask] = []
 
     init() {
       let configuration = URLSessionConfiguration.ephemeral
@@ -53,7 +54,55 @@ struct OfflineDownloadEngineTests {
       return session.dataTask(with: URL(string: "https://download.test/task")!)
     }
 
+    func makeFile(_ url: URL) -> URLSessionTask {
+      let task = session.dataTask(with: url)
+      fileTasks.append(task)
+      return task
+    }
+
     func close() { session.invalidateAndCancel() }
+  }
+
+  @Test func anOriginalIsOneFileTransferWithNoAssetConfiguration() async throws {
+    let tasks = Tasks()
+    let original = URL(string: "https://download.test/v2/files/7/download")!
+    let engine = PutioSystemOfflineDownloadEngine(
+      accountID: 3, makeTask: tasks.make, makeFileTask: tasks.makeFile)
+    defer {
+      engine.stop()
+      tasks.close()
+    }
+
+    try await engine.startOriginal(fileID: fileID, url: original)
+
+    #expect(tasks.configurations.isEmpty)
+    #expect(tasks.fileTasks.map(\.originalRequest?.url) == [original])
+    #expect(tasks.fileTasks.first?.taskDescription == "3:7")
+    #expect(
+      engine.originalDirectory(for: fileID)
+        == PutioOfflineOriginalPackage.directory(accountID: 3, fileID: fileID))
+  }
+
+  @Test(arguments: [200, 404])
+  func aFinishedOriginalLandsInItsPackageOnlyWhenPutioServedIt(status: Int) throws {
+    let root = FileManager.default.temporaryDirectory.appending(
+      path: "offline-original-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let location = root.appending(path: "download.tmp")
+    try Data(count: 64).write(to: location)
+    let package = root.appending(path: "package")
+    let response = HTTPURLResponse(
+      url: URL(string: "https://download.test/original")!, statusCode: status, httpVersion: nil,
+      headerFields: nil)
+
+    try PutioOfflineOriginalPackage.adopt(location, response: response, in: package)
+
+    let transfer = PutioOfflineOriginalPackage.transferURL(in: package)
+    #expect(FileManager.default.fileExists(atPath: transfer.path) == (status == 200))
+    #expect(
+      PutioOfflineOriginalPackage.finish(directory: package, name: "Movie.mkv")
+        == (status == 200))
   }
 
   @Test func theMultiAudioFixtureStoresEveryAudioAndSubtitleRendition() async throws {
