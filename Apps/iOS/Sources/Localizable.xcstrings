@@ -986,17 +986,6 @@
         }
       }
     },
-    "Could not load history" : {
-      "comment" : "android: mobile_history_error_title | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not load history"
-          }
-        }
-      }
-    },
     "Could not load more folders" : {
       "comment" : "ios-only: no Android string for the iOS move picker",
       "localizations" : {
@@ -1136,6 +1125,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load account settings"
+          }
+        }
+      }
+    },
+    "Couldn’t load history" : {
+      "comment" : "android: mobile_history_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load history"
           }
         }
       }
@@ -2895,17 +2895,6 @@
         }
       }
     },
-    "New account events will appear here." : {
-      "comment" : "android: mobile_history_empty_message | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New account events will appear here."
-          }
-        }
-      }
-    },
     "New folder" : {
       "comment" : "android: mobile_files_new_folder",
       "localizations" : {
@@ -2979,17 +2968,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No folders here."
-          }
-        }
-      }
-    },
-    "No history" : {
-      "comment" : "android: mobile_history_empty_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No history"
           }
         }
       }

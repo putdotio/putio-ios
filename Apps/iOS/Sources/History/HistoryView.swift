@@ -66,6 +66,7 @@ struct HistoryView: View {
           )
         }
         .task { await model.loadIfNeeded() }
+        .task(id: isOffline) { await retryWhileOffline() }
         .onAppear { groupingDate = .now }
         .onDisappear { model.cancelOpen() }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
@@ -96,17 +97,39 @@ struct HistoryView: View {
 
   private var isBusy: Bool { model.mutation != nil || model.openingEventID != nil }
 
+  private var isOffline: Bool {
+    if case .failed(let failure) = model.state { return failure.isOffline }
+    return false
+  }
+
+  private func retryWhileOffline() async {
+    var attempt = 0
+    while isOffline {
+      do {
+        try await Task.sleep(for: .seconds(min(3 << min(attempt, 4), 30)))
+      } catch {
+        return
+      }
+      guard isOffline else { return }
+      await Task { await model.refresh() }.value
+      attempt += 1
+    }
+  }
+
   @ViewBuilder
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: String(localized: "Loading history"))
+      PutioLoadingStateView(title: String(localized: "Loading history"), titleVisibility: .hidden)
     case .failed(let failure):
       PutioErrorStateView(
-        title: String(localized: "Could not load history"), message: failure.message,
+        title: failure.isOffline
+          ? PutioScreenErrorKind.offline.title : String(localized: "Couldn’t load history"),
+        message: failure.isOffline
+          ? PutioScreenErrorKind.offline.message : PutioScreenErrorKind.failed.message,
         retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
       ) {
-        Task { await model.refresh() }
+        Task { await model.retryFailedLoad() }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextBefore == nil,
@@ -115,11 +138,9 @@ struct HistoryView: View {
       {
         GeometryReader { geometry in
           ScrollView {
-            PutioEmptyStateView(
-              icon: .clockCounterClockwise, title: String(localized: "No history"),
-              message: String(localized: "New account events will appear here.")
-            )
-            .frame(minHeight: geometry.size.height)
+            PutioEmptyStateView.history
+              .frame(minHeight: geometry.size.height)
+              .accessibilityIdentifier("history.empty")
           }
           .scrollBounceBehavior(.always)
           .refreshable { await model.refresh() }

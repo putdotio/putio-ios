@@ -119,11 +119,11 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(mutationRetry.appears(within: 10))
     XCTAssertTrue(folderEvent.exists, "failed clear discarded history")
     mutationRetry.tap()
-    XCTAssertTrue(app.staticTexts["No history"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 10))
     XCTAssertFalse(clear.exists)
     addScreenshot(named: "runtime-history-empty")
     pullToRefresh()
-    XCTAssertTrue(app.staticTexts["No history"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 5))
 
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.item.410").appears(within: 5))
@@ -135,6 +135,69 @@ final class HistoryJourneyTests: XCTestCase {
     signIn()
     XCTAssertFalse(app.buttons["History"].exists, "disabled history remained in the tab bar")
     signOut()
+  }
+
+  func testHistoryFirstLoadStates() {
+    let firstEvent = element("history.item.907")
+
+    openHistory("slow")
+    XCTAssertTrue(labeled("Loading history").appears(within: 5), "History shows no spinner")
+    addScreenshot(named: "runtime-history-loading")
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
+    app.buttons["History"].tap()
+    XCTAssertTrue(firstEvent.appears(within: 10), "returning to History did not reload it")
+    leaveHistory()
+
+    openHistory("empty")
+    XCTAssertTrue(app.staticTexts["No history yet"].appears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Completed transfers and shared files will appear here."].exists)
+    XCTAssertFalse(app.buttons["history.clear"].exists, "the empty History offers Clear")
+    addScreenshot(named: "runtime-history-first-empty")
+    pullToRefresh()
+    XCTAssertTrue(firstEvent.appears(within: 10), "pull to refresh left History empty")
+    leaveHistory()
+
+    openHistory("failing")
+    let retry = app.buttons["history.retry"]
+    XCTAssertTrue(retry.appears(within: 10), "History never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load history"].exists)
+    XCTAssertTrue(app.staticTexts["Check your connection and try again."].exists)
+    XCTAssertFalse(app.buttons["history.clear"].exists, "failed History offers Clear")
+    addScreenshot(named: "runtime-history-first-error")
+    retry.tap()
+    XCTAssertTrue(firstEvent.appears(within: 10), "Try again did not load History")
+    leaveHistory()
+
+    openHistory("offline")
+    XCTAssertTrue(app.staticTexts["put.io is out of reach"].appears(within: 10))
+    XCTAssertTrue(
+      app.staticTexts["Your connection dropped, or we did. Retrying on its own."].exists)
+    addScreenshot(named: "runtime-history-offline")
+    XCTAssertTrue(firstEvent.appears(within: 20), "offline History never retried on its own")
+    leaveHistory()
+  }
+
+  private func openHistory(_ mode: String) {
+    app.launchArguments = [
+      "--putio-harness-scenario", "files-browser", "--putio-harness-history", mode,
+    ]
+    app.launch()
+    signIn()
+    let history = app.buttons["History"]
+    XCTAssertTrue(history.appears(within: 5))
+    history.tap()
+    XCTAssertTrue(app.navigationBars["History"].appears(within: 5), "History never opened")
+  }
+
+  private func leaveHistory() {
+    signOut()
+    app.terminate()
+  }
+
+  private func labeled(_ label: String) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", label)).firstMatch
   }
 
   private let navigationBlocked =
