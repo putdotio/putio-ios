@@ -126,6 +126,10 @@ final class OfflineDownloadsTests: XCTestCase {
 
   private var gates: [AsyncGate] = []
 
+  @MainActor private final class ResolutionCount {
+    var value = 0
+  }
+
   private func makeGate() -> AsyncGate {
     let gate = AsyncGate()
     gates.append(gate)
@@ -1208,6 +1212,36 @@ final class OfflineDownloadsTests: XCTestCase {
     await gate.open()
     await settle()
     XCTAssertEqual(engine.started.map(\.0.rawValue), [2, 1])
+  }
+
+  func testRetriedVideoStopsReservingItsEarlierEstimateWhileItResolvesAgain() async {
+    let gate = makeGate()
+    let resolutions = ResolutionCount()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 5_000_000_000 },
+      resolve: { fileID, _ in
+        if fileID.rawValue == 1 {
+          resolutions.value += 1
+          if resolutions.value > 1 { await gate.wait() }
+        }
+        return .ready(
+          PutioPlaybackSource(
+            url: URL(string: "https://media.test/\(fileID.rawValue)")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    engine.estimates = [1: 6_000_000_000, 2: 1_000_000_000]
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
+    queue.retry(fileID: PutioFileID(rawValue: 1))
+    await settle()
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [2])
+    await gate.open()
+    await settle()
   }
 
   func testReQueueDropsThePreviousPartialPackage() async throws {
