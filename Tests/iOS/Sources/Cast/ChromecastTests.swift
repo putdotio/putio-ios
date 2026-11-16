@@ -810,6 +810,31 @@ final class ChromecastTests: XCTestCase {
     }
   }
 
+  func testAHandOffKeepsTheAudioAndSubtitlePickedOnThePhone() async throws {
+    let cases: [(PutioRememberedSubtitle, load: [Int], switched: [Int])] = [
+      (.off, [], [2]),
+      (.language("tr"), [turkish], [2, turkish]),
+    ]
+    for (subtitle, load, switched) in cases {
+      let controller = CastControllerStub()
+      let (model, box) = makeModel(
+        controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
+        subtitleMemory: try memory())
+      model.cast(
+        route, saves: box.saves, startingAt: 600,
+        tracks: PutioVideoTrackChoice(audioLanguage: "tr", subtitle: subtitle))
+      try await expect({ controller.loads.count == 1 && model.activity == .idle })
+      XCTAssertEqual(controller.loads[0].activeTrackIDs, load, "\(subtitle)")
+
+      controller.report(trackStatus([1] + load))
+      try await expect({ controller.trackSwitches.count == 1 })
+      controller.report(trackStatus(switched))
+      controller.report(trackStatus(switched))
+      XCTAssertEqual(controller.trackSwitches, [switched], "\(subtitle)")
+      XCTAssertEqual(model.selectedAudio, 2)
+    }
+  }
+
   func testChipsFollowTheReceiversActiveTracksAndGroupSubtitlesBySource() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(

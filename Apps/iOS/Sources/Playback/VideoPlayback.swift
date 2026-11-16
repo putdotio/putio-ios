@@ -210,7 +210,8 @@ struct PutioVideoPlaybackView: View {
     .onChange(of: castHandOff?.connection()) { _, connection in
       guard connection != nil, isReady, transport.isPlaying, let castHandOff else { return }
       _ = castHandOff.handOff(
-        PutioVideoPositionReporter.normalizedPosition(seconds: transport.timeline.elapsedSeconds))
+        PutioVideoPositionReporter.normalizedPosition(seconds: transport.timeline.elapsedSeconds),
+        transport.trackChoice)
     }
     .onChange(of: nextVideoFailed) { _, failed in
       if failed, transport.isPlaying { transport.togglePlayPause() }
