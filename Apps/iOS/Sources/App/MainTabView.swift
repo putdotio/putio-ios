@@ -426,7 +426,7 @@ struct MainTabView: View {
         folders: folderRefreshRequests, trash: trashReconciliation)
       if previous.id == current.id, previous.historyEnabled != current.historyEnabled {
         historyRevision &+= 1
-        if !current.historyEnabled, selectedTab == .history { selectedTab = .account }
+        if !current.historyEnabled, selectedTab == .history { selectedTab = .files }
       }
     }
     .task {
@@ -950,6 +950,7 @@ struct MainTabView: View {
         HarnessPreviewRequestsProbe(requests: harnessPreviewRequests)
         HarnessPasteboardProbe()
         HarnessSearchRequestsProbe()
+        HarnessHistoryRequestsProbe()
         HarnessConversionReadsProbe()
         HarnessDownloadsSyncProbe()
         if let reported = cast.reportedPosition {
