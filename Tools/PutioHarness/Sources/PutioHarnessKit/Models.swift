@@ -1046,6 +1046,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-15-load-more-failed", .iphone, "testTrashLoadMoreFailed"),
       BoardCapture("rd-ios-trash-02-long-press", .iphone, "testTrashLongPress"),
       BoardCapture("rd-ios-trash-03-swipe", .iphone, "testTrashSwipeRestore"),
+      BoardCapture("rd-ios-trash-05-restored", .iphone, "testTrashRestored"),
+      BoardCapture("rd-ios-trash-16-restore-failed", .iphone, "testTrashRestoreFailed"),
+      BoardCapture("rd-ios-trash-18-still-moving", .iphone, "testTrashStillMoving"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1581,6 +1584,9 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "trash-row-actions", "FilesBrowserJourneyTests/testTrashRowsRestoreFromMenuAndSwipe",
       attachmentNames: ["runtime-trash-row-menu"], timeAllowance: 90),
+    JourneyPreflight(
+      "trash-restore-refused", "FilesBrowserJourneyTests/testTrashRestoreRefusalsKeepTheRow",
+      timeAllowance: 120),
     JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
     JourneyPreflight(
       "sort-continuation",

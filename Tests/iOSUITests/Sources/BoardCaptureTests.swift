@@ -4467,6 +4467,70 @@ final class BoardCaptureTests: XCTestCase {
     ).firstMatch
   }
 
+  func testTrashRestored() throws {
+    openTrash("board")
+    swipeRestoreBlueVelvet()
+    XCTAssertFalse(element("trash.progress").exists, "restore blocked Trash")
+    XCTAssertTrue(
+      app.staticTexts["Restore started"].appears(within: 10), "no Restore started toast")
+    XCTAssertTrue(
+      element("trash.header").label.contains("1.7 GB"), "the size line kept the restored row")
+    try captureTrashBoard("rd-ios-trash-05-restored")
+  }
+
+  func testTrashRestoreFailed() throws {
+    openTrash("restore-rejected")
+    swipeRestoreBlueVelvet()
+    XCTAssertTrue(
+      app.staticTexts["Restore could not start"].appears(within: 10), "no failed restore toast")
+    let row = element("trash.item.4302").firstMatch
+    XCTAssertTrue(row.appears(within: 5), "the refused restore lost the row")
+    XCTAssertGreaterThan(
+      row.frame.minY, element("trash.item.4301").firstMatch.frame.minY, "the row moved up")
+    XCTAssertLessThan(
+      row.frame.minY, element("trash.item.4303").firstMatch.frame.minY, "the row moved down")
+    XCTAssertTrue(
+      element("trash.header").label.contains("10.4 GB"), "the size line lost the refused row")
+    try captureTrashBoard("rd-ios-trash-16-restore-failed")
+  }
+
+  func testTrashStillMoving() throws {
+    openTrash("still-moving")
+    swipeRestoreBlueVelvet()
+    let alert = app.alerts["Restore could not start"]
+    XCTAssertTrue(alert.appears(within: 10), "the still-moving restore never asked")
+    XCTAssertTrue(
+      alert.staticTexts[
+        "This item is still moving to trash. You can try restoring it later."
+      ].exists, "the alert has no message")
+    XCTAssertEqual(alert.buttons.count, 1, "the alert offers more than OK")
+    XCTAssertTrue(element("trash.item.4302").exists, "the still-moving row left")
+    try captureTrashBoard("rd-ios-trash-18-still-moving")
+    alert.buttons["trash.still-moving.ok"].tap()
+    XCTAssertTrue(alert.disappears(within: 5), "OK kept the alert")
+    XCTAssertTrue(element("trash.item.4302").exists, "OK removed the row")
+  }
+
+  private func swipeRestoreBlueVelvet() {
+    XCTAssertTrue(
+      app.staticTexts["Blue.Velvet.1986.1080p.BluRay.mkv"].appears(within: 10),
+      "Trash never loaded")
+    showSettledTabBar()
+    let start = element("trash.item.4302").firstMatch
+      .coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+    start.press(
+      forDuration: 0.05,
+      thenDragTo: start.withOffset(CGVector(dx: 150, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
+    let restore = app.buttons["trash.restore.4302"]
+    XCTAssertTrue(restore.appears(within: 5), "the leading swipe has no Restore")
+    restore.tap()
+    XCTAssertTrue(
+      element("trash.item.4302").disappears(within: 2), "the restored row waited for the reply")
+  }
+
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     orientForBoardDevice()
