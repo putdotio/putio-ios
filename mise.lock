@@ -91,59 +91,59 @@ url = "https://github.com/peripheryapp/periphery/releases/download/3.8.0/periphe
 url_api = "https://api.github.com/repos/peripheryapp/periphery/releases/assets/489291944"
 
 [[tools.pnpm]]
-version = "12.18.0"
+version = "12.21.0"
 backend = "aqua:pnpm/pnpm"
-specifiers = ["12.18.0"]
+specifiers = ["12.21.0"]
 
 [tools.pnpm."platforms.linux-arm64"]
-checksum = "sha256:700bd1aa4028465b80e62b7c5bec8455be60bbafaf53a3262a4ab8e2057712ac"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505548"
+checksum = "sha256:6c5913a48c93b3a556b71c3bd9bf12c6bf9fbfbbbd2dcbd1d52a85c539751b9e"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357257"
 provenance = "github-attestations"
 
 [tools.pnpm."platforms.linux-x64"]
-checksum = "sha256:3726060e236c0db3e7124c0a5af123c840ba0cb76682149b63ea0baf290017c2"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-linux-x64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505542"
+checksum = "sha256:84c4773bcf4a217f4083cd7b2a91e4cee6103cf42426c1282ef37d308f55a410"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-linux-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357264"
 provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-arm64"]
-checksum = "sha256:9b647f634d7e8f23162c9d3d1d0e0950d1152402ca0f4c331583ed7c75cd3706"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505537"
+checksum = "sha256:5c4d73018e00dd602531ce714625594fb693cbe110e6719df2b043b0ae62ab1a"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357270"
 provenance = "github-attestations"
 
 [tools.pnpm."platforms.macos-x64"]
-checksum = "sha256:34cc90fbaa060c458b587fbdb1f3f9477e97e3fd3f8e9ffb2d43ca45c0c9b005"
-url = "https://github.com/pnpm/pnpm/releases/download/v12.18.0/pnpm-darwin-x64.tar.gz"
-url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/711505550"
+checksum = "sha256:415c05ae4262c89b8f24ca58c693be5d969856ae909c086aa06996951fca30ea"
+url = "https://github.com/pnpm/pnpm/releases/download/v12.21.0/pnpm-darwin-x64.tar.gz"
+url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357251"
 provenance = "github-attestations"
 
 [[tools.tuist]]
-version = "4.216.2"
+version = "4.216.7"
 backend = "aqua:tuist/tuist"
-specifiers = ["4.216.2"]
+specifiers = ["4.216.7"]
 
 [tools.tuist."platforms.linux-arm64"]
-checksum = "sha256:e760cb0e2285dee07fa3cfdf8fab3dd23cc1fc19d26f9f1e92314cc5b4fddcc0"
+checksum = "sha256:0ea77724476e8073112b5ee4685a59bf6db714c2fd52271f6059e4736a266ad1"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.2/tuist-linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/737176283"
+url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist-linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498324"
 
 [tools.tuist."platforms.linux-x64"]
-checksum = "sha256:4578eb8e26c31dae8f1a680695b14982a1c8862444ebb314014206acc077f20c"
+checksum = "sha256:c5c736201aa88d40cd15281ff627e706bab9d51ad9d41baeb6dc123da9b07fb8"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.2/tuist-linux-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/737176278"
+url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist-linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498320"
 
 [tools.tuist."platforms.macos-arm64"]
-checksum = "sha256:747548f3ed623046b16a9b2509e767360c315f12c729a70b8302adb07074ccab"
+checksum = "sha256:e1363ea2b43513824c6e24d03ef7bd75fb1c05fa4d72a0cae393c2e3e9e42b8d"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.2/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/737176279"
+url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498319"
 
 [tools.tuist."platforms.macos-x64"]
-checksum = "sha256:747548f3ed623046b16a9b2509e767360c315f12c729a70b8302adb07074ccab"
+checksum = "sha256:e1363ea2b43513824c6e24d03ef7bd75fb1c05fa4d72a0cae393c2e3e9e42b8d"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.2/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/737176279"
+url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498319"
