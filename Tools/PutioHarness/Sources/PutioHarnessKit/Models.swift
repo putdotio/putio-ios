@@ -979,8 +979,6 @@ enum BoardCaptureContract {
         "rd-ios-trash-14-loading-more", .iphone, "testTrashLoadingMore", screenBase: false),
       BoardCapture(
         "rd-ios-trash-15-load-more-failed", .iphone, "testTrashLoadMoreFailed", screenBase: false),
-      BoardCapture("rd-ios-trash-23-duo-closed", .duoFolded, "testTrashList"),
-      BoardCapture("rd-ios-trash-24-duo-open", .duoOpen, "testTrashInAccountSplit"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(

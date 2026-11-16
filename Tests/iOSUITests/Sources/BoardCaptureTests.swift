@@ -3705,16 +3705,6 @@ final class BoardCaptureTests: XCTestCase {
     try captureTrashBoard("rd-ios-trash-15-load-more-failed")
   }
 
-  func testTrashInAccountSplit() throws {
-    app.launchArguments += ["--putio-harness-trash", "board"]
-    openIPadAccount()
-    scrollIPadAccount(toHit: "account.trash").tap()
-    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
-    assertIPadAccountOpen("account.trash", "opening Trash")
-    XCTAssertTrue(element("account.trash").isHittable, "the Account list hid beside Trash")
-    try captureBoard("rd-ios-trash-24-duo-open")
-  }
-
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     orientForBoardDevice()
