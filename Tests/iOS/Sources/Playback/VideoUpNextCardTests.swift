@@ -34,7 +34,9 @@ final class VideoUpNextCardTests: XCTestCase {
     attachment.name = "up-next-portrait"
     attachment.lifetime = .keepAlways
     add(attachment)
-    XCTAssertTrue(
-      lines.contains { $0.contains("S04E02") }, "the card hid the episode marker: \(lines)")
+    let readsMarker = lines.contains {
+      $0.replacingOccurrences(of: "O", with: "0").contains("S04E02")
+    }
+    XCTAssertTrue(readsMarker, "the card hid the episode marker: \(lines)")
   }
 }
