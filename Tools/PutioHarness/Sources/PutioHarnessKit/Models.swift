@@ -793,6 +793,7 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-dl-25-ipad-selection", .ipad, "testDownloadsDetail", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_DETAIL": "selection"]),
+      BoardCapture(
         "rd-ios-dl-26-duo-open", .duoOpen, "testDownloadsDetail",
         environment: ["PUTIO_DOWNLOADS_DETAIL": "duo"]),
       BoardCapture(

@@ -46,7 +46,6 @@ private struct PutioOfflineDownloadsLayout: View {
         } else {
           NavigationStack {
             PutioOfflineDownloadsView(queue: queue, onOpen: onOpen, openID: selection)
-              .putioListDetailOpenRow(selection)
           }
         }
       } else {

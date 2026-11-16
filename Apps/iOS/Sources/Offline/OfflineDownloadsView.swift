@@ -239,7 +239,8 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .modifier(
-      PutioOfflineColumnRow(id: item.id, inColumns: onSelect != nil || openID == item.id)
+      PutioOfflineColumnRow(
+        id: item.id, inColumns: onSelect != nil, isOpen: !isEditing && openID == item.id)
     )
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipeAction(item) }
@@ -454,10 +455,18 @@ private struct PutioOfflineRowTap: ViewModifier {
 private struct PutioOfflineColumnRow: ViewModifier {
   let id: PutioFileID
   let inColumns: Bool
+  let isOpen: Bool
 
   func body(content: Content) -> some View {
     if inColumns {
       content.putioListDetailRow(id)
+    } else if isOpen {
+      content
+        .listRowBackground(
+          Color(uiColor: .secondarySystemGroupedBackground)
+            .overlay(PutioTheme.Colors.accent.opacity(0.14))
+        )
+        .accessibilityAddTraits(.isSelected)
     } else {
       content
     }
