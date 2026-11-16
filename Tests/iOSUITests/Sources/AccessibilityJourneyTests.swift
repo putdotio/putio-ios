@@ -49,7 +49,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     try super.tearDownWithError()
   }
 
-  func testLongNamesSelectionAndDownloadPickerAtLargestTextSize() {
+  func testLongNamesSelectionAndDownloadsAtLargestTextSize() {
     let name = "Accessible archive with a very long name preserving the final chapter number 12345"
     app.buttons["files.menu"].tap()
     app.buttons["New folder"].tap()
@@ -79,16 +79,6 @@ final class AccessibilityJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
     screenshot("runtime-accessibility-downloads")
     selectTab("Files")
-    reachable(element("files.item.412")).press(forDuration: 1)
-    let download = app.buttons["Download"]
-    XCTAssertTrue(download.appears(within: 5))
-    download.tap()
-    let track = element("downloads.track.en")
-    XCTAssertTrue(track.appears(within: 20))
-    XCTAssertTrue(app.staticTexts["English"].exists)
-    XCTAssertTrue(reachable(app.buttons["downloads.picker.confirm"]).isEnabled)
-    screenshot("runtime-accessibility-download-picker")
-    app.buttons["downloads.picker.cancel"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     signOut()
   }

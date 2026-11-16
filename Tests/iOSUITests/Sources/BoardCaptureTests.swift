@@ -168,6 +168,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.442")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-03-row-actions")
   }
 
@@ -178,6 +180,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openItemMenu("files.item.442")
     XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-64-vlc-menu")
   }
 
@@ -1492,9 +1496,6 @@ final class BoardCaptureTests: XCTestCase {
     selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
     assertFact("folder", "Folder, Files")
     element("files.detail.download").tap()
-    let confirm = app.buttons["downloads.picker.confirm"]
-    XCTAssertTrue(confirm.appears(within: 20), "the track picker never appeared")
-    confirm.tap()
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     tabButton("Files").tap()
     let onDevice = element("files.detail.on-device")

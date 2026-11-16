@@ -16,8 +16,6 @@ typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async 
 final class PutioOfflineQueue {
   static let defaultConcurrencyLimit = 3
   static let concurrencyLimits = [1, 2, 3, 4]
-  /// A single download may not exceed this many bytes of selected tracks.
-  static let maximumSelectedBytes: Int64 = 8 * 1024 * 1024 * 1024
 
   private(set) var items: [PutioOfflineItem] = []
   private(set) var concurrencyLimit: Int
@@ -65,6 +63,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private var workers: [PutioFileID: Worker] = [:]
   /// File ids whose engine task is suspended and can be resumed in place.
   @ObservationIgnored private var suspended: Set<PutioFileID> = []
+  @ObservationIgnored private var streamEstimated: Set<PutioFileID> = []
   /// Suspended tasks the user asked to resume while every slot was busy.
   private var resumeWhenFree: [PutioFileID] = []
   /// Items whose package is being read for completion; a second completion
@@ -279,50 +278,10 @@ final class PutioOfflineQueue {
 
   // MARK: Enqueue
 
-  /// A video that still needs conversion has no stream to inspect, so the
-  /// picker cannot run; `needsConversion` tells the caller the languages
-  /// will be chosen after conversion instead.
-  enum InventoryResult {
-    case ready(PutioOfflineInventory)
-    case needsConversion
-    case notApplicable
-  }
-
-  func inventory(fileID: PutioFileID, kind: PutioOfflineItem.Kind) async throws -> InventoryResult {
-    try checkActiveWork()
-    guard kind == .video else { return .notApplicable }
-    let resolution = try await resolve(fileID, kind)
-    try checkActiveWork()
-    guard case .ready(let source) = resolution else { return .needsConversion }
-    let inventory = try await engine.inventory(url: source.url)
-    try checkActiveWork()
-    return .ready(inventory)
-  }
-
-  /// After conversion the asset is inspectable; the queue keeps every
-  /// language available so the stored asset is complete, and re-estimates
-  /// the size so the storage gate sees the real total. An inventory failure
-  /// is a real failure, not a silent default-only download.
-  private func selectAllLanguagesIfUnset(fileID: PutioFileID, url: URL) async throws {
-    try checkActiveWork()
-    guard let item = item(for: fileID), item.selectedAudioLanguages.isEmpty,
-      item.kind == .video, item.awaitsLanguageSelection
-    else { return }
-    let inventory = try await engine.inventory(url: url)
-    try checkActiveWork()
-    let languages = inventory.audioOptions.map(\.languageCode)
-    update(fileID) {
-      $0.selectedAudioLanguages = languages
-      $0.estimatedBytes = inventory.estimatedBytes(selecting: languages)
-      $0.awaitsLanguageSelection = false
-    }
-  }
-
   @discardableResult
   func enqueue(
     fileID: PutioFileID, parentID: PutioFileID, name: String, kind: PutioOfflineItem.Kind,
-    audioLanguages: [String] = [], estimatedBytes: Int64 = 0,
-    awaitsLanguageSelection: Bool = false
+    estimatedBytes: Int64 = 0
   ) -> PutioOfflineItem {
     if let existing = item(for: fileID) { return existing }
     // Downloading the file again supersedes any debt to remove its original.
@@ -331,12 +290,10 @@ final class PutioOfflineQueue {
     {
       settleOriginalFailures([fileID], givingUp: [fileID])
     }
-    var item = PutioOfflineItem(
+    let item = PutioOfflineItem(
       id: fileID, parentID: parentID, name: name, kind: kind, createdAt: .now, stage: .queued,
-      localPath: nil, storedBytes: 0, selectedAudioLanguages: audioLanguages,
-      storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
-      pendingPositionSeconds: nil, estimatedBytes: estimatedBytes)
-    item.awaitsLanguageSelection = awaitsLanguageSelection
+      localPath: nil, storedBytes: 0, storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: estimatedBytes)
     items.append(item)
     persist()
     schedule()
@@ -406,6 +363,7 @@ final class PutioOfflineQueue {
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       suspended.remove(fileID)
+      streamEstimated.remove(fileID)
       resumeWhenFree.removeAll { $0 == fileID }
       engine.cancel(fileID: fileID)
       deleteLocalAsset(for: fileID)
@@ -753,15 +711,21 @@ final class PutioOfflineQueue {
   private func process(fileID: PutioFileID) async {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     let item = items[index]
+    streamEstimated.remove(fileID)
     do {
       try checkActiveWork()
       var resolution = try await resolve(fileID, item.kind)
       try checkActiveWork()
       if case .conversionRequired = resolution {
         resolution = try await convert(fileID: fileID)
-        if case .ready(let converted) = resolution {
-          try await selectAllLanguagesIfUnset(fileID: fileID, url: converted.url)
-        }
+      }
+      if item.kind == .video, case .ready(let source) = resolution {
+        try checkActiveWork()
+        guard let current = self.item(for: fileID), !isPaused(current.stage) else { return }
+        let estimate = try await engine.estimatedBytes(url: source.url)
+        try checkActiveWork()
+        update(fileID) { $0.estimatedBytes = estimate }
+        streamEstimated.insert(fileID)
       }
       // Every await above may have let pause or remove run; nothing below
       // touches the engine unless this worker still owns a live item.
@@ -787,9 +751,7 @@ final class PutioOfflineQueue {
         $0.stage = .downloading(progress: 0)
         $0.resumePositionSeconds = source.startFromSeconds
       }
-      try await engine.start(
-        fileID: fileID, url: source.url, title: item.name,
-        audioLanguages: current.selectedAudioLanguages)
+      try await engine.start(fileID: fileID, url: source.url, title: item.name)
       guard isLive() else { return }
       // The engine's own awaits may have let pause or remove run; the queue
       // is the owner, so a task it no longer wants is cancelled here.
@@ -804,13 +766,6 @@ final class PutioOfflineQueue {
       // Cancellation before the engine started leaves nothing to cancel; a
       // successor worker may already own a task for this id.
       return
-    } catch PutioOfflineEngineError.missingLanguages {
-      guard isLive(), !Task.isCancelled else { return }
-      fail(
-        fileID,
-        PutioOfflineFailure(
-          kind: .resolution,
-          message: String(localized: "A selected audio language is no longer available.")))
     } catch is PutioOfflineConversionError {
       guard isLive(), !Task.isCancelled else { return }
       fail(fileID, .conversion)
@@ -835,12 +790,10 @@ final class PutioOfflineQueue {
     return false
   }
 
-  /// Free space the device must keep after a download; the picker and the
-  /// start gate apply the same headroom.
   static let minimumFreeBytes: Int64 = 200 * 1024 * 1024
 
   static func fits(estimatedBytes: Int64, freeBytes: Int64) -> Bool {
-    estimatedBytes <= maximumSelectedBytes && estimatedBytes + minimumFreeBytes <= freeBytes
+    estimatedBytes + minimumFreeBytes <= freeBytes
   }
 
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
@@ -993,17 +946,17 @@ final class PutioOfflineQueue {
     recomputeStorage()
   }
 
-  /// Free space after other in-flight downloads take their share: the figure
-  /// both the picker and the start gate compare an estimate against.
-  var unreservedBytes: Int64 {
-    availableBytes - reservedBytes(excluding: nil)
-  }
-
   private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
     inFlightItems
-      .filter { $0.id != fileID }
+      .filter { $0.id != fileID && reservesEstimate($0) }
       .map { max(0, $0.estimatedBytes - $0.storedBytes) }
       .reduce(0, +)
+  }
+
+  private func reservesEstimate(_ item: PutioOfflineItem) -> Bool {
+    if item.kind == .audio { return true }
+    if case .downloading = item.stage { return true }
+    return streamEstimated.contains(item.id)
   }
 
   /// A failure that lands after the user paused keeps the pause; the retry

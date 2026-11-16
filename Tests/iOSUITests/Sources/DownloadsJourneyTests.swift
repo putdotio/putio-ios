@@ -12,7 +12,7 @@ final class DownloadsJourneyTests: XCTestCase {
     ]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
-    // Turkish first so the stored English default is not the pick.
+    // Turkish first so the stream's English default is not the pick.
     app.launchArguments += ["--putio-harness-preferred-languages", "tr,en"]
   }
 
@@ -20,35 +20,23 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // Inventory and bounded multi-select.
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
     let download = app.buttons["Download"]
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    let turkish = element("downloads.track.tr")
-    XCTAssertTrue(turkish.appears(within: 20), "track picker never appeared")
-    XCTAssertTrue(isOn(turkish), "preferred language was not preselected: \(turkish.value ?? "")")
-    let english = element("downloads.track.en")
-    XCTAssertFalse(isOn(english))
-    english.switches.firstMatch.tap()
-    XCTAssertTrue(waitUntil(timeout: 5) { self.isOn(english) })
-    XCTAssertTrue(element("downloads.estimate").exists)
-    XCTAssertFalse(element("downloads.over-budget").exists)
-    screenshot("runtime-downloads-picker")
-    app.buttons["downloads.picker.confirm"].tap()
-
-    // Queue: progress through completion.
     let item = element("downloads.item.412")
     XCTAssertTrue(item.appears(within: 10))
+
+    // Queue: progress through completion.
     XCTAssertTrue(
       waitForValue(item, "completed", timeout: 90),
       "download did not complete: \(item.value ?? "")")
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
 
-    // Details disclose both stored tracks.
+    // Details disclose every stored audio and subtitle track.
     item.press(forDuration: 1)
     let details = app.buttons["downloads.details.412"]
     XCTAssertTrue(details.appears(within: 5))
@@ -56,6 +44,8 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
     XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
     XCTAssertTrue(element("downloads.detail.audio.tr").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.subtitle.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.subtitle.tr").appears(within: 5))
     screenshot("runtime-downloads-detail")
     app.buttons["downloads.detail.done"].tap()
 
@@ -89,6 +79,22 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertEqual(item.value as? String, "completed")
     XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
+
+    app.terminate()
+    let preference = try XCTUnwrap(
+      app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"))
+    app.launchArguments[preference + 1] = "en,tr"
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    app.buttons["Downloads"].tap()
+    XCTAssertTrue(item.appears(within: 10))
+    item.tap()
+    XCTAssertTrue(ready.appears(within: 20))
+    XCTAssertTrue(
+      waitForValue(language, "en", timeout: 10),
+      "offline playback did not switch to English: \(language.value ?? "")")
+    element("video.done").tap()
+    XCTAssertTrue(item.appears(within: 10))
 
     // Multi-select removal: local removal is the default, the original is a
     // separately worded destructive choice, and both are named for VoiceOver.
@@ -207,12 +213,12 @@ final class DownloadsJourneyTests: XCTestCase {
     let download = app.buttons["Download"]
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    let failure = app.putioAlert("Could not start download")
-    XCTAssertTrue(failure.appears(within: 10), "the refused download was not reported")
+    let item = element("downloads.item.412")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(item, "failed;resolution", timeout: 20),
+      "the refused download was not reported: \(item.value ?? "")")
     screenshot("runtime-downloads-start-failed")
-    app.buttons["putio-alert.neutral"].tap()
-    XCTAssertTrue(failure.disappears(within: 5))
-    XCTAssertFalse(element("downloads.track.tr").exists, "the refused download asked for tracks")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -221,12 +227,6 @@ final class DownloadsJourneyTests: XCTestCase {
     signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
-  }
-
-  /// Toggle rows expose the switch value as "1"/"0" on the row or its switch.
-  private func isOn(_ toggle: XCUIElement) -> Bool {
-    let value = (toggle.switches.firstMatch.value ?? toggle.value) as? String
-    return value == "1"
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {

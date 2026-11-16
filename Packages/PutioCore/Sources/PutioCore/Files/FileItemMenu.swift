@@ -4,6 +4,7 @@ public enum PutioFileMenuRow: String, Hashable, Sendable {
   case play
   case playWithOtherMethod
   case download
+  case downloadWithDirectPlay
   case openInVLC
   case share
   case select
@@ -64,7 +65,12 @@ public struct PutioFileMenu: Equatable, Sendable {
       if capabilities.otherPlaybackMethod != nil, item.kind == .video {
         playback.append(.playWithOtherMethod)
       }
-      if capabilities.canDownload, route.supportsOfflineDownload { playback.append(.download) }
+      if capabilities.canDownload, route.supportsOfflineDownload {
+        playback.append(.download)
+        if capabilities.otherPlaybackMethod == .directPlay, item.kind == .video {
+          playback.append(.downloadWithDirectPlay)
+        }
+      }
       if capabilities.vlcInstalled, route.supportsExternalPlayback {
         playback.append(.openInVLC)
       }
