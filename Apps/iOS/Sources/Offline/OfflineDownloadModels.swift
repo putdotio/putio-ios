@@ -75,14 +75,16 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     Int64((Double(estimatedBytes) * progress).rounded(.down))
   }
 
-  func downloadState(queuePosition: Int?) -> PutioDownloadState {
+  func downloadState(queuePosition: Int?, isWaitingForSlot: Bool) -> PutioDownloadState {
     switch stage {
     case .queued: .queued(position: queuePosition ?? 1)
     case .converting(let progress): .converting(progress: progress)
     case .downloading: .downloading(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .paused where isWaitingForSlot:
+      .waiting(.slot, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .paused: .paused(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .completed: .idle
-    case .failed(let failure): .failed(reason: failure.message)
+    case .failed(let failure): .failed(reason: failure.message, canRetry: failure.canRetry)
     }
   }
 }

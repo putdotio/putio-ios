@@ -68,6 +68,7 @@ final class PutioDownloadPresentationTests: XCTestCase {
   func testWaitingWithNothingDownloadedShowsADashedRingThatCancels() {
     for (wait, text) in [
       (PutioDownloadWait.network, "Waiting for network"), (.storage, "Waiting for storage"),
+      (.slot, "Waiting for a slot"),
     ] {
       let state = PutioDownloadState.waiting(wait, receivedBytes: 0, totalBytes: 3_300_000_000)
       XCTAssertEqual(statusLine(state), [text])
@@ -103,6 +104,12 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertEqual(failed.tone, .destructive)
     XCTAssertEqual(failed.ring, .glyph(.again))
     XCTAssertEqual(failed.action, .retry)
+
+    let notFound = presentation(
+      .failed(reason: "It may have been moved or deleted.", canRetry: false))
+    XCTAssertEqual(notFound.tone, .destructive)
+    XCTAssertEqual(notFound.ring, .hidden)
+    XCTAssertNil(notFound.action)
   }
 
   func testActionTitlesMatchTheBoards() {

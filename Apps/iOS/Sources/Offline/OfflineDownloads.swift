@@ -351,6 +351,8 @@ final class PutioOfflineQueue {
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: progress)
+    case .paused where isWaitingForSlot(fileID):
+      resumeWhenFree.removeAll { $0 == fileID }
     default:
       return
     }

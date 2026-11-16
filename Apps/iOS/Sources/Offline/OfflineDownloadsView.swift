@@ -197,7 +197,8 @@ struct PutioOfflineDownloadsView: View {
         ? PutioBrowserItemPresentation.relativeDateText(for: item.createdAt, locale: locale) : nil,
       isWatched: finished && item.isWatched == true,
       showsDisclosure: false,
-      downloadState: item.downloadState(queuePosition: queuePosition))
+      downloadState: item.downloadState(
+        queuePosition: queuePosition, isWaitingForSlot: queue.isWaitingForSlot(item.id)))
   }
 
   @ViewBuilder
@@ -253,7 +254,8 @@ struct PutioOfflineDownloadsView: View {
   @ViewBuilder
   private func controls(_ item: PutioOfflineItem) -> some View {
     switch item.stage {
-    case .queued, .converting, .downloading:
+    case .queued, .converting, .downloading,
+      .paused where queue.isWaitingForSlot(item.id):
       Button {
         queue.pause(fileID: item.id)
       } label: {
@@ -264,10 +266,8 @@ struct PutioOfflineDownloadsView: View {
       Button {
         queue.resume(fileID: item.id)
       } label: {
-        Label(
-          queue.isWaitingForSlot(item.id) ? "Waiting for a slot" : "Resume", systemImage: "play")
+        Label("Resume", systemImage: "play")
       }
-      .disabled(queue.isWaitingForSlot(item.id))
       .accessibilityIdentifier("downloads.resume.\(item.id.rawValue)")
     case .failed(let failure) where failure.canRetry:
       Button {
