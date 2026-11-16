@@ -293,15 +293,15 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
 
   private func castStateChanged() {
     let context = GCKCastContext.sharedInstance()
-    let name =
-      context.sessionManager.currentCastSession?.device.friendlyName
-      ?? String(localized: "Chromecast")
+    let device = context.sessionManager.currentCastSession?.device
+    let name = device?.friendlyName ?? String(localized: "Chromecast")
+    let audioOnly = device.map { !$0.hasCapabilities(.videoOut) } ?? false
     let next: PutioCastConnection =
       switch context.castState {
       case .noDevicesAvailable: localNetworkDenied ? .localNetworkDenied : .unavailable
       case .notConnected: .disconnected
       case .connecting: .connecting(deviceName: name)
-      case .connected: .connected(deviceName: name)
+      case .connected: .connected(deviceName: name, audioOnly: audioOnly)
       @unknown default: .disconnected
       }
     discoveryChanged()

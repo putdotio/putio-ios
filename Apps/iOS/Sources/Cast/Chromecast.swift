@@ -13,17 +13,22 @@ enum PutioCastConnection: Equatable, Sendable {
   case localNetworkDenied
   case disconnected
   case connecting(deviceName: String)
-  case connected(deviceName: String)
+  case connected(deviceName: String, audioOnly: Bool = false)
 
   var deviceName: String? {
     switch self {
-    case .connecting(let name), .connected(let name): name
+    case .connecting(let name), .connected(let name, _): name
     case .unavailable, .localNetworkDenied, .disconnected: nil
     }
   }
 
   var isConnected: Bool {
     if case .connected = self { return true }
+    return false
+  }
+
+  var playsVideo: Bool {
+    if case .connected(_, audioOnly: false) = self { return true }
     return false
   }
 }
@@ -246,7 +251,9 @@ final class PutioCastModel {
 
   var isConnected: Bool { connection.isConnected }
 
-  var connectionID: Int? { isConnected ? connectionsMade : nil }
+  var castsVideo: Bool { connection.playsVideo }
+
+  var connectionID: Int? { castsVideo ? connectionsMade : nil }
 
   #if DEBUG
     var harnessController: PutioHarnessCastController? {
@@ -500,7 +507,7 @@ final class PutioCastModel {
   func cast(
     _ route: PutioVideoRoute, saves: PutioCastPositionSaves, startingAt startSeconds: Int? = nil
   ) {
-    guard isConnected else { return }
+    guard castsVideo else { return }
     audioReceiver = nil
     reporter?.stop()
     reporter = nil

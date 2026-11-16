@@ -59,7 +59,7 @@
       Task { @MainActor [weak self] in
         try? await Task.sleep(for: .milliseconds(300))
         guard let self, case .connecting = connection else { return }
-        set(.connected(deviceName: device.name))
+        set(.connected(deviceName: device.name, audioOnly: device.audioOnly))
       }
     }
 

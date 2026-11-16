@@ -561,7 +561,7 @@ struct MainTabView: View {
 
   private func playVideo(_ route: PutioVideoRoute) {
     stopAudio()
-    if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
+    if cast.castsVideo, offlineQueue.item(for: route.id)?.isPlayable != true {
       castVideo(route)
     } else {
       presentVideo(route)
@@ -795,7 +795,7 @@ struct MainTabView: View {
     await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
     let start = await videoStartPoint(for: route)
     guard !Task.isCancelled else { return }
-    if route.initialResolution == nil, cast.isConnected {
+    if route.initialResolution == nil, cast.castsVideo {
       castVideo(route)
       return
     }
@@ -966,7 +966,7 @@ struct MainTabView: View {
       castHandOff: PutioVideoConvertedHandOff(
         connection: { cast.connectionID },
         handOff: { startOverride in
-          guard cast.isConnected else { return false }
+          guard cast.castsVideo else { return false }
           castVideo(route, startingAt: startOverride)
           return cast.castingRoute != nil
         }),
@@ -1024,7 +1024,7 @@ struct MainTabView: View {
   }
 
   private func playerCastAction(for route: PutioVideoRoute) -> (@MainActor @Sendable () -> Void)? {
-    guard cast.isConnected else { return nil }
+    guard cast.castsVideo else { return nil }
     return {
       presentsCasting = true
       cast.cast(route, saves: castSaves)
