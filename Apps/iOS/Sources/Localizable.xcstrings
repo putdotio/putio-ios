@@ -1174,7 +1174,7 @@
       }
     },
     "Couldn’t load subtitles" : {
-      "comment" : "ios-only: no Android string for a subtitle that fails to load (putio-android#835)",
+      "comment" : "android: mobile_playback_subtitles_failed",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1286,7 +1286,7 @@
       }
     },
     "Couldn’t switch audio track" : {
-      "comment" : "ios-only: Android phone shows no notice for a failed audio switch; Android TV says tv_player_audio_failed (putio-android#835)",
+      "comment" : "android: mobile_playback_audio_failed",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1485,7 +1485,7 @@
       }
     },
     "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days." : {
-      "comment" : "android: mobile_settings_trash_confirm_message",
+      "comment" : "android: mobile_settings_trash_confirm_message | differs: iOS still promises 14 days in Trash until #964",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2113,7 +2113,7 @@
       }
     },
     "Get VLC" : {
-      "comment" : "ios-only: no Android action opens the store page from the VLC notice (putio-android#835)",
+      "comment" : "android: mobile_files_get_vlc",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2608,7 +2608,7 @@
       }
     },
     "Loading on %@" : {
-      "comment" : "ios-only: no Android string for the Cast loading line (putio-android#835)",
+      "comment" : "android: mobile_cast_loading_on",
       "localizations" : {
         "en" : {
           "stringUnit" : {
