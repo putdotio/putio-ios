@@ -513,7 +513,8 @@ struct PutioOfflineInfoView: View {
       }
       fact(
         "downloaded", label: String(localized: "Downloaded"),
-        value: PutioBrowserItemPresentation.relativeDateText(for: item.createdAt, locale: locale))
+        value: PutioBrowserItemPresentation.relativeDateText(
+          for: item.completedAt ?? item.createdAt, locale: locale))
       if let lengthSeconds {
         fact(
           "length", label: String(localized: "Length"),

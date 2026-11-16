@@ -36,7 +36,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
 
-    // Info lists both stored audio tracks and closes by swipe.
+    // Info lists both stored audio tracks, no subtitles, and closes by swipe.
     item.press(forDuration: 1)
     let infoButton = app.buttons["downloads.info.412"].firstMatch
     XCTAssertTrue(infoButton.appears(within: 5), "the finished row offers no Info")
@@ -44,13 +44,8 @@ final class DownloadsJourneyTests: XCTestCase {
     let info = element("downloads.info-sheet.412")
     XCTAssertTrue(info.appears(within: 5), "Info opened no sheet")
     XCTAssertEqual(element("downloads.info.audio").value as? String, "English, Turkish")
-    let subtitles = element("downloads.info.subtitles")
-    if subtitles.exists {
-      let stored = (subtitles.value as? String ?? "").components(separatedBy: ", ")
-      XCTAssertTrue(
-        Set(stored).isSubset(of: ["English", "Turkish"]),
-        "Info lists subtitles the download lacks: \(stored)")
-    }
+    XCTAssertFalse(
+      element("downloads.info.subtitles").exists, "Info lists subtitles the download lacks")
     screenshot("runtime-downloads-info")
     info.swipeDown(velocity: .fast)
     XCTAssertTrue(info.disappears(within: 5), "swiping down left Info open")
