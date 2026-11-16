@@ -2112,6 +2112,17 @@
         }
       }
     },
+    "No download selected" : {
+      "comment" : "ios-only: the iPad Downloads detail empty state, after Android's Files detail empty copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No download selected"
+          }
+        }
+      }
+    },
     "No longer available" : {
       "comment" : "android: mobile_downloads_meta_failed_unavailable",
       "localizations" : {
@@ -2319,6 +2330,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reported player failures"
+          }
+        }
+      }
+    },
+    "Tap a download to see it here." : {
+      "comment" : "ios-only: the iPad Downloads detail empty state, after Android's Files detail empty copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a download to see it here."
           }
         }
       }
@@ -4697,6 +4719,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start over"
+          }
+        }
+      }
+    },
+    "Status" : {
+      "comment" : "ios-only: no Android string for the iOS offline downloads",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
           }
         }
       }

@@ -4,13 +4,13 @@ import SwiftUI
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let onOpen: @MainActor (PutioOfflineItem) -> Void
+  var onSelect: (@MainActor (PutioOfflineItem) -> Void)?
 
   @Environment(\.locale) private var locale
   @Environment(\.scenePhase) private var scenePhase
   @State private var notifications = PutioOfflineNotificationStatus()
   @State private var selection = PutioSelection<PutioFileID>()
   @State private var pendingRemoval: [PutioOfflineItem]?
-  @State private var failedRemoval: [PutioFileID]?
   @State private var infoItem: PutioOfflineItem?
 
   private var removalCopy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(isPad: isPad) }
@@ -32,20 +32,7 @@ struct PutioOfflineDownloadsView: View {
     .onChange(of: queue.items.isEmpty) { _, empty in
       if empty { selection.end() }
     }
-    .putioAlert(
-      removalCopy.title(count: pendingRemoval?.count ?? 1),
-      isPresented: Binding(
-        get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
-      message: pendingRemoval.map { removalCopy.message(names: $0.map(\.name)) },
-      actions: removalActions
-    )
-    .putioAlert(
-      removalCopy.failureTitle(count: failedRemoval?.count ?? 1),
-      isPresented: Binding(
-        get: { failedRemoval != nil }, set: { if !$0 { failedRemoval = nil } }),
-      message: failedRemoval.map { removalCopy.failureMessage(count: $0.count) },
-      actions: removalFailureActions
-    )
+    .putioOfflineRemovalAlert($pendingRemoval, queue: queue, isPad: isPad) { selection.end() }
     .sheet(item: $infoItem) { item in
       PutioOfflineInfoView(
         item: queue.item(for: item.id) ?? item, source: queue.localSource(for: item.id)?.url)
@@ -57,41 +44,6 @@ struct PutioOfflineDownloadsView: View {
     .task(id: scenePhase) {
       guard scenePhase == .active else { return }
       await notifications.refresh()
-    }
-  }
-
-  private var removalActions: [PutioAlertAction] {
-    guard let targets = pendingRemoval else { return [] }
-    let fileIDs = targets.map(\.id)
-    return [
-      PutioAlertAction(String(localized: "Cancel"), tier: .cancel, id: "downloads.remove-cancel"),
-      PutioAlertAction(
-        String(localized: "Remove"), tier: .destructive, id: "downloads.remove-confirm"
-      ) {
-        remove(fileIDs)
-      },
-    ]
-  }
-
-  private var removalFailureActions: [PutioAlertAction] {
-    guard let fileIDs = failedRemoval else { return [] }
-    return [
-      PutioAlertAction(String(localized: "OK"), tier: .cancel, id: "downloads.remove-failed-ok"),
-      PutioAlertAction(
-        String(localized: "Try again"), tier: .primary, id: "downloads.remove-failed-retry"
-      ) {
-        remove(fileIDs)
-      },
-    ]
-  }
-
-  private func remove(_ fileIDs: [PutioFileID]) {
-    let present = fileIDs.filter { queue.item(for: $0) != nil }
-    guard !present.isEmpty else { return }
-    if queue.removeSaved(fileIDs: present) == nil {
-      failedRemoval = present
-    } else {
-      selection.end()
     }
   }
 
@@ -259,7 +211,13 @@ struct PutioOfflineDownloadsView: View {
     Group {
       if item.stage == .completed {
         Button {
-          if item.isPlayable { onOpen(item) } else { infoItem = item }
+          if let onSelect {
+            onSelect(item)
+          } else if item.isPlayable {
+            onOpen(item)
+          } else {
+            infoItem = item
+          }
         } label: {
           PutioFileRow(model)
             .contentShape(Rectangle())
@@ -270,10 +228,12 @@ struct PutioOfflineDownloadsView: View {
         PutioFileRow(model) { action in
           queue.perform(action, fileID: item.id)
         }
+        .modifier(PutioOfflineRowTap(select: onSelect.map { select in { select(item) } }))
         .accessibilityElement(children: .contain)
         .accessibilityValue(Text(accessibilityValue(item)))
       }
     }
+    .modifier(PutioOfflineColumnRow(id: item.id, inColumns: onSelect != nil))
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipeAction(item) }
     .contextMenu {
@@ -322,8 +282,10 @@ struct PutioOfflineDownloadsView: View {
           onOpen(item)
         }
       }
-      menuButton(String(localized: "Info"), systemImage: "info.circle", id: "info", item) {
-        infoItem = item
+      if onSelect == nil {
+        menuButton(String(localized: "Info"), systemImage: "info.circle", id: "info", item) {
+          infoItem = item
+        }
       }
       selectButton(item)
       Divider()
@@ -464,6 +426,34 @@ struct PutioOfflineDownloadsView: View {
 
   private func byteText(_ bytes: Int64) -> String {
     PutioFileRowModel.sizeText(bytes: bytes)
+  }
+}
+
+private struct PutioOfflineRowTap: ViewModifier {
+  let select: (@MainActor () -> Void)?
+
+  func body(content: Content) -> some View {
+    if let select {
+      content
+        .contentShape(Rectangle())
+        .onTapGesture { select() }
+        .accessibilityAction { select() }
+    } else {
+      content
+    }
+  }
+}
+
+private struct PutioOfflineColumnRow: ViewModifier {
+  let id: PutioFileID
+  let inColumns: Bool
+
+  func body(content: Content) -> some View {
+    if inColumns {
+      content.putioListDetailRow(id)
+    } else {
+      content
+    }
   }
 }
 

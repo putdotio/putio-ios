@@ -186,7 +186,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     }
   }
 
-  static func bytesText(_ received: Int64, of total: Int64, locale: Locale) -> String {
+  public static func bytesText(_ received: Int64, of total: Int64, locale: Locale) -> String {
     guard total > 0 else {
       return PutioFileRowModel.sizeText(bytes: received, locale: locale)
     }
@@ -203,7 +203,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     return min(max(Double(received) / Double(total), 0), 1)
   }
 
-  private static func percentText(_ fraction: Double, locale: Locale) -> String {
+  public static func percentText(_ fraction: Double, locale: Locale) -> String {
     fraction.formatted(
       .percent.precision(.fractionLength(0)).rounded(rule: .down).locale(locale))
   }
