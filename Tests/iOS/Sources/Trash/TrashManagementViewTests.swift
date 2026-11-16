@@ -29,4 +29,21 @@ final class TrashManagementViewTests: XCTestCase {
     XCTAssertEqual(row.dateText, "Gone in 12 days")
     XCTAssertNil(row.secondaryText)
   }
+
+  func testARestoringRowLeavesTheShownPageAndItsSize() {
+    let now = Date(timeIntervalSince1970: 1_790_000_000)
+    let rows = [91, 92, 93].map { id in
+      PutioTrashItem(
+        id: PutioFileID(rawValue: id), parentID: .root, name: "\(id).mkv", kind: .video,
+        sizeBytes: 2_048, deletedAt: now, expiresAt: now.addingTimeInterval(86_400))
+    }
+    let page = PutioTrashPage(items: rows, nextCursor: nil, totalCount: 3, sizeBytes: 6_144)
+
+    let shown = TrashManagementView.shownPage(page, restoring: rows[1])
+
+    XCTAssertEqual(shown.items, [rows[0], rows[2]])
+    XCTAssertEqual(shown.sizeBytes, 4_096)
+    XCTAssertEqual(shown.totalCount, 2)
+    XCTAssertEqual(TrashManagementView.shownPage(page, restoring: nil), page)
+  }
 }

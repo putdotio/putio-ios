@@ -45,7 +45,9 @@ struct TrashManagementView: View {
         }
         .modifier(TrashStatePlacement(.failed))
       case .loaded(let page):
-        loadedContent(page)
+        loadedContent(
+          Self.shownPage(page, restoring: restoringItem),
+          isEmpty: page.items.isEmpty && page.nextCursor == nil)
       }
     }
     .navigationTitle("Trash")
@@ -209,8 +211,7 @@ struct TrashManagementView: View {
   }
 
   @ViewBuilder
-  private func loadedContent(_ page: PutioTrashPage) -> some View {
-    let isEmpty = page.items.isEmpty && page.nextCursor == nil
+  private func loadedContent(_ page: PutioTrashPage, isEmpty: Bool) -> some View {
     if isEmpty && model.refreshFailure == nil && model.storageFailure == nil {
       ScrollView {
         emptyState
@@ -220,7 +221,7 @@ struct TrashManagementView: View {
       .refreshable { await model.refresh() }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
-        if !page.items.isEmpty {
+        if !page.items.isEmpty || restoringItem != nil {
           header(page)
             .listRowInsets(.top, PutioTheme.Spacing.space0)
             .listRowInsets(.bottom, PutioTheme.Spacing.space2)
@@ -390,6 +391,21 @@ struct TrashManagementView: View {
     )
   }
 
+  private var restoringItem: PutioTrashItem? {
+    guard case .restore(let item) = model.activeMutation else { return nil }
+    return item
+  }
+
+  static func shownPage(_ page: PutioTrashPage, restoring item: PutioTrashItem?) -> PutioTrashPage {
+    guard let item, page.items.contains(item) else { return page }
+    return PutioTrashPage(
+      items: page.items.filter { $0 != item },
+      nextCursor: page.nextCursor,
+      totalCount: page.totalCount.map { max(0, $0 - 1) },
+      sizeBytes: max(0, page.sizeBytes - item.sizeBytes)
+    )
+  }
+
   private var showsBlockingProgress: Bool {
     switch model.activeMutation {
     case .none, .restore: false
@@ -531,7 +547,7 @@ struct TrashManagementView: View {
     case .emptied:
       toast = PutioToast(
         String(localized: "Trash emptied"))
-    case .failed(.restore, let failure) where failure.isStillMovingToTrash:
+    case .failed(_, let failure) where failure.isStillMovingToTrash:
       stillMovingFailure = failure
     case .failed(.restore, _):
       toast = PutioToast(
