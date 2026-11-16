@@ -218,6 +218,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private var playingStartOverride: Int?
   @ObservationIgnored private var awaitsFirstPlay = false
   @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
+  @ObservationIgnored private let storedResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
   @ObservationIgnored private var recovery: Recovery = .resolve
@@ -242,6 +243,11 @@ public final class PutioVideoPlaybackModel {
   ) {
     self.fileID = fileID
     self.initialResolution = initialResolution
+    if case .ready(let source) = initialResolution, source.isStoredOriginal {
+      storedResolution = initialResolution
+    } else {
+      storedResolution = nil
+    }
     self.conversionPollInterval = conversionPollInterval
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
@@ -306,7 +312,9 @@ public final class PutioVideoPlaybackModel {
   }
 
   public func fallsBack(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {
-    guard case .ready(let source) = state, source.original != nil else { return false }
+    guard case .ready(let source) = state, source.original != nil, !source.isStored else {
+      return false
+    }
     return fault == .playback && beforeFirstFrame && resolveConverted != nil && !resolvesConverted
   }
 
@@ -322,7 +330,7 @@ public final class PutioVideoPlaybackModel {
       await resolveSource()
       return
     }
-    guard fault == .accessExpired, !refreshedExpiredAccess else {
+    guard fault == .accessExpired, !refreshedExpiredAccess, storedResolution == nil else {
       generation &+= 1
       state = .failed(.player(fault))
       return
@@ -343,6 +351,8 @@ public final class PutioVideoPlaybackModel {
       if let initialResolution {
         self.initialResolution = nil
         resolution = initialResolution
+      } else if let storedResolution {
+        resolution = storedResolution
       } else {
         resolution = try await resolveCurrent()
       }

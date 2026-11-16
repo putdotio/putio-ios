@@ -208,6 +208,100 @@ extension PutioRuntimeTests {
     }
   }
 
+  private static func storedSubtitle(_ key: String, _ language: String, _ url: URL)
+    -> PutioCastSubtitle
+  {
+    PutioCastSubtitle(
+      key: key, language: language, languageCode: key == "en" ? "eng" : "tur",
+      name: "\(language).srt", source: PutioSubtitleSource(apiSource: "opensubtitles"), url: url)
+  }
+
+  func testAStoredOriginalStartsWithTwoStoredSubtitlesAndMakesNoNetworkCall() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(Self.directPlayFile(mediaInfo: Self.matroska), for: Self.directPlayRoute)
+    fixtures.setFixture(#"{"default":"en","subtitles":[]}"#, for: Self.directPlaySubtitlesRoute)
+    fixtures.setFixture(
+      #"{"mp4":{"percent_done":100,"status":"COMPLETED"}}"#, for: "GET /v2/files/411/mp4")
+    let baseline = fixtures.capturedRequests().count
+    let folder = URL(fileURLWithPath: "/offline/411", isDirectory: true)
+    let movie = folder.appendingPathComponent("Movie.mkv")
+    let english = Self.storedSubtitle("en", "English", folder.appendingPathComponent("en.srt"))
+    let turkish = Self.storedSubtitle("tr", "Turkish", folder.appendingPathComponent("tr.vtt"))
+    let stored = try XCTUnwrap(
+      PutioPlaybackSource.stored(
+        fileURL: movie, startFromSeconds: 42, subtitles: [english, turkish],
+        defaultSubtitleKey: "tr"))
+    let model = PutioVideoPlaybackModel(
+      fileID: PutioFileID(rawValue: 411),
+      initialResolution: .ready(stored),
+      startConversion: { try await runtime.startVideoConversion(fileID: $0) },
+      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+      resolveConverted: {
+        try await runtime.resolveVideoPlayback(
+          fileID: $0, method: .directPlay, playsConverted: true,
+          isPlayableInAVPlayer: { _ in true })
+      },
+      resolve: {
+        try await runtime.resolveVideoPlayback(
+          fileID: $0, method: .directPlay, isPlayableInAVPlayer: { _ in true })
+      })
+
+    await model.loadIfNeeded()
+
+    guard case .ready(let source) = model.state else { return XCTFail("expected the file") }
+    XCTAssertEqual(source.url, movie)
+    XCTAssertEqual(source.startFromSeconds, 42)
+    let original = try XCTUnwrap(source.original)
+    XCTAssertEqual(original.player, .engine)
+    XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertTrue(original.subtitles.allSatisfy(\.url.isFileURL))
+    XCTAssertEqual(original.defaultSubtitleKey, "tr")
+    XCTAssertFalse(model.fallsBack(after: .playback, beforeFirstFrame: true))
+
+    await model.playerFailed(.playback, heldSeconds: 90, beforeFirstFrame: true)
+    XCTAssertEqual(model.state, .failed(.playback))
+    await model.retry()
+    XCTAssertEqual(
+      model.state,
+      .ready(
+        PutioPlaybackSource(
+          url: movie, startFromSeconds: 90, resumesAfterFailure: true, original: original)))
+
+    await model.playerFailed(.accessExpired, heldSeconds: 90)
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+    let listings: PutioSubtitleListingsLoad = { try await runtime.subtitleListings(fileID: $0) }
+    let storedRoute = PutioVideoRoute(
+      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie",
+      initialResolution: .ready(stored))
+    let storedListings = try await storedRoute.subtitleListings(listings)(storedRoute.id)
+    XCTAssertEqual(storedListings, [])
+    XCTAssertEqual(fixtures.capturedRequests().count, baseline)
+
+    let streamedRoute = PutioVideoRoute(
+      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie")
+    _ = try await streamedRoute.subtitleListings(listings)(streamedRoute.id)
+    XCTAssertEqual(fixtures.capturedRequests().count, baseline + 1)
+  }
+
+  func testAStoredSourceTakesOnlyFilesOnThisDevice() {
+    let movie = URL(fileURLWithPath: "/offline/411/Movie.mkv")
+    let local = Self.storedSubtitle("en", "English", URL(fileURLWithPath: "/offline/411/en.vtt"))
+    let remote = Self.storedSubtitle(
+      "tr", "Turkish", URL(string: "https://api.put.io/v2/files/411/subtitles/tr")!)
+
+    XCTAssertNil(
+      PutioPlaybackSource.stored(
+        fileURL: URL(string: "https://api.put.io/v2/files/411/stream")!, startFromSeconds: 0,
+        subtitles: [local]))
+    XCTAssertNil(
+      PutioPlaybackSource.stored(fileURL: movie, startFromSeconds: 0, subtitles: [local, remote]))
+    let source = PutioPlaybackSource.stored(
+      fileURL: movie, startFromSeconds: 0, subtitles: [local], defaultSubtitleKey: "tr")
+    XCTAssertEqual(source?.original?.subtitles, [local])
+    XCTAssertNil(source?.original?.defaultSubtitleKey)
+    XCTAssertEqual(source?.isStored, true)
+  }
+
   func testStandardStaysOnHLSWithoutAskingForMediaInfo() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(Self.directPlayFile(mediaInfo: Self.matroska), for: Self.directPlayRoute)

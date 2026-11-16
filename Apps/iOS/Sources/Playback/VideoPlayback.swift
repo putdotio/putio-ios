@@ -83,7 +83,7 @@ struct PutioVideoPlaybackView: View {
     self.castButton = castButton
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
-    self.loadSubtitleListings = loadSubtitleListings
+    self.loadSubtitleListings = route.subtitleListings(loadSubtitleListings)
     let transport = PutioVideoTransport()
     transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
     transport.onSubtitleFailed = { subtitleMemory?.forget($0) }

@@ -19,7 +19,7 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
   public let startFromSeconds: Int
   public let resumesAfterFailure: Bool
   /// Set when Direct play opens the original file; `nil` for HLS, a
-  /// converted copy and downloads.
+  /// converted copy and Standard downloads.
   public let original: PutioOriginalPlayback?
 
   public init(
@@ -59,6 +59,24 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
       ],
       displayStyle: .struct
     )
+  }
+}
+
+extension PutioPlaybackSource {
+  public var isStored: Bool { url.isFileURL }
+  public var isStoredOriginal: Bool { isStored && original != nil }
+
+  public static func stored(
+    fileURL: URL, startFromSeconds: Int, subtitles: [PutioCastSubtitle],
+    defaultSubtitleKey: String? = nil, audioStreams: [PutioOriginalAudioStream] = []
+  ) -> PutioPlaybackSource? {
+    guard fileURL.isFileURL, subtitles.allSatisfy(\.url.isFileURL) else { return nil }
+    let defaultKey = subtitles.contains { $0.key == defaultSubtitleKey } ? defaultSubtitleKey : nil
+    return PutioPlaybackSource(
+      url: fileURL, startFromSeconds: startFromSeconds,
+      original: PutioOriginalPlayback(
+        player: .engine, audioStreams: audioStreams, subtitles: subtitles,
+        defaultSubtitleKey: defaultKey))
   }
 }
 
