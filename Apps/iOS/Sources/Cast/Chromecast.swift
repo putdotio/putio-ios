@@ -191,7 +191,7 @@ final class PutioCastModel {
   @ObservationIgnored private var castTask: Task<Void, Never>?
   @ObservationIgnored private var saves: PutioCastPositionSaves?
   @ObservationIgnored private var requestedStart: Int?
-  @ObservationIgnored private var requestedTracks: PutioVideoTrackChoice?
+  @ObservationIgnored private var requestedSubtitle: PutioRememberedSubtitle?
   @ObservationIgnored private var carriedAudioLanguage: String?
   @ObservationIgnored private var reporter: PutioVideoPositionReporter?
   @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
@@ -377,6 +377,7 @@ final class PutioCastModel {
       guard let self else { return }
       if succeeded {
         guard pick == subtitleSwitch else { return }
+        requestedSubtitle = nil
         subtitleMemory?.remember(track)
       } else if latest {
         if let track { subtitleMemory?.forget(track) }
@@ -426,7 +427,7 @@ final class PutioCastModel {
     let policy = PutioSubtitleStartupPolicy(
       showsSubtitles: true, autoSelects: media.defaultSubtitleKey != nil)
     let track = policy.startingTrack(
-      in: subtitleTracks, remembered: requestedTracks?.subtitle ?? subtitleMemory?.remembered)
+      in: subtitleTracks, remembered: requestedSubtitle ?? subtitleMemory?.remembered)
     return track.map { [$0.id] } ?? []
   }
 
@@ -507,7 +508,7 @@ final class PutioCastModel {
     media = nil
     status = nil
     route = nil
-    requestedTracks = nil
+    requestedSubtitle = nil
     carriedAudioLanguage = nil
     pendingTrackIDs = nil
     toast = nil
@@ -536,7 +537,7 @@ final class PutioCastModel {
     self.route = route
     self.saves = saves
     requestedStart = startSeconds
-    requestedTracks = tracks
+    requestedSubtitle = tracks?.subtitle
     carriedAudioLanguage = tracks?.audioLanguage
     handback = nil
     media = nil
@@ -555,7 +556,12 @@ final class PutioCastModel {
   func retry() {
     guard case .failed = phase, let route, let saves else { return }
     let start = wait.state == .stalled ? receiverPosition() : requestedStart
-    cast(route, saves: saves, startingAt: start, tracks: requestedTracks)
+    let audio = carriedAudioLanguage ?? selectedAudio.flatMap { id in
+      status?.audioTracks.first { $0.id == id }?.languageCode
+    }
+    cast(
+      route, saves: saves, startingAt: start,
+      tracks: PutioVideoTrackChoice(audioLanguage: audio, subtitle: requestedSubtitle))
   }
 
   private func run(
@@ -580,7 +586,6 @@ final class PutioCastModel {
         activeTrackIDs: startingTrackIDs(for: media))
       guard request == generation else { return }
       requestedStart = nil
-      requestedTracks = nil
       activity = .idle
       armStallDetection()
       startSaving(media)
