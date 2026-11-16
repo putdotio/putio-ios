@@ -358,6 +358,10 @@ final class DownloadsJourneyTests: XCTestCase {
     RunLoop.current.run(until: .now.addingTimeInterval(2))
     XCTAssertEqual(
       failed.value as? String, "failed;resolution", "an offline retry did not stay Connection lost")
+    XCTAssertTrue(
+      app.descendants(matching: .any)
+        .matching(NSPredicate(format: "label CONTAINS %@", "Connection lost")).firstMatch.exists,
+      "the offline retry row does not read Connection lost")
 
     let finished = app.buttons["downloads.item.441"].firstMatch
     app.bringIntoView(finished)
