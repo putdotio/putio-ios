@@ -116,7 +116,6 @@ final class BoardCaptureTests: XCTestCase {
 
   func testDownloadsFixture() throws {
     let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
-    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
     let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
     let notificationsOff =
       ProcessInfo.processInfo.environment["PUTIO_NOTIFICATIONS_DENIED"] == "1"
@@ -164,6 +163,83 @@ final class BoardCaptureTests: XCTestCase {
       "the offline fixture left the network up")
   }
 
+  func testDownloadsSwipe() throws {
+    let swipe = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_SWIPE"])
+    let board = try XCTUnwrap(Self.downloadsSwipeBoards[swipe], "no board for \(swipe)")
+    orientForBoardDevice()
+    openDownloads("list")
+    let device =
+      ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" ? "iPad" : "iPhone"
+    switch swipe {
+    case "finished":
+      revealSwipe(9_001, "downloads.remove.9001", label: "Remove from this \(device)")
+    case "downloading":
+      revealSwipe(442, "downloads.cancel.442", label: "Cancel download")
+    case "failed":
+      revealSwipe(444, "downloads.remove.444", label: "Remove from this \(device)")
+    default:
+      revealSwipe(441, "downloads.remove.441", label: "Remove from this \(device)")
+      app.buttons["downloads.remove.441"].firstMatch.tap()
+      let alert = app.putioAlert("Remove from this \(device)?")
+      XCTAssertTrue(alert.appears(within: 5), "Remove asked for no confirmation")
+      XCTAssertTrue(
+        alert.staticTexts[
+          "“\(episode(1))” stays in your put.io files. Only the copy on this \(device) is removed."
+        ].exists, "the alert does not keep the file in the account")
+      XCTAssertEqual(
+        alert.buttons.allElementsBoundByIndex.map(\.label), ["Cancel", "Remove"],
+        "the alert offers more than Cancel and Remove")
+    }
+    try captureBoard(board)
+    guard swipe == "remove" else { return }
+    exerciseSwipeRemoval(device: device)
+  }
+
+  private func revealSwipe(_ id: Int, _ action: String, label: String) {
+    let row = element("downloads.item.\(id)")
+    app.bringIntoView(row)
+    row.swipeLeft()
+    let button = app.buttons[action].firstMatch
+    XCTAssertTrue(button.appears(within: 5), "row \(id) showed no swipe action")
+    XCTAssertEqual(button.label, label)
+    let actions = NSPredicate(
+      format:
+        "identifier BEGINSWITH 'downloads.remove.' OR identifier BEGINSWITH 'downloads.cancel.'")
+    XCTAssertEqual(
+      app.buttons.matching(actions).count, 1, "the swipe shows more than one action")
+  }
+
+  private func exerciseSwipeRemoval(device: String) {
+    let finished = element("downloads.item.441")
+    app.buttons["downloads.remove-cancel"].firstMatch.tap()
+    XCTAssertTrue(
+      app.putioAlert("Remove from this \(device)?").disappears(within: 5), "Cancel kept the alert")
+    XCTAssertTrue(finished.exists, "Cancel removed the download")
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    let stored = storage.label
+
+    revealSwipe(441, "downloads.remove.441", label: "Remove from this \(device)")
+    app.buttons["downloads.remove.441"].firstMatch.tap()
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
+    XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    app.scrollDown(toHit: storage)
+    XCTAssertNotEqual(storage.label, stored, "the storage line did not return the bytes")
+
+    let running = element("downloads.item.442")
+    revealSwipe(442, "downloads.cancel.442", label: "Cancel download")
+    app.buttons["downloads.cancel.442"].firstMatch.tap()
+    XCTAssertTrue(running.disappears(within: 5), "the cancelled download stayed")
+    XCTAssertFalse(
+      app.putioAlert("Remove from this \(device)?").exists, "Cancel download asked to confirm")
+
+    let failed = element("downloads.item.444")
+    revealSwipe(444, "downloads.remove.444", label: "Remove from this \(device)")
+    app.buttons["downloads.remove.444"].firstMatch.tap()
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
+    XCTAssertTrue(failed.disappears(within: 5), "the removed failed download stayed")
+  }
+
   func testDownloadsMenu() throws {
     let menu = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_MENU"])
     orient(.portrait)
@@ -189,9 +265,9 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["downloads.select-done"].tap()
       openRowMenu(441, ["play", "select", "remove-menu"])
       app.buttons["downloads.remove-menu.441"].firstMatch.tap()
-      let removeLocal = app.buttons["downloads.remove-local"].firstMatch
-      XCTAssertTrue(removeLocal.appears(within: 5), "Remove asked for no confirmation")
-      removeLocal.tap()
+      let confirm = app.buttons["downloads.remove-confirm"].firstMatch
+      XCTAssertTrue(confirm.appears(within: 5), "Remove asked for no confirmation")
+      confirm.tap()
       XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
     case "active":
       openRowMenu(442, ["pause", "select", "cancel"])
@@ -221,15 +297,10 @@ final class BoardCaptureTests: XCTestCase {
       openRowMenu(441, ["retry", "select", "remove-menu"])
       try captureBoard("downloads-long-press-missing")
       app.buttons["downloads.remove-menu.441"].firstMatch.tap()
-      let removeLocal = app.buttons["downloads.remove-local"].firstMatch
-      XCTAssertTrue(removeLocal.appears(within: 5), "Remove asked for no confirmation")
-      let cancel = app.buttons["Cancel"].firstMatch
-      if cancel.exists, cancel.isHittable {
-        cancel.tap()
-      } else {
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
-      }
-      XCTAssertTrue(removeLocal.disappears(within: 5), "Cancel kept the confirmation open")
+      let confirm = app.buttons["downloads.remove-confirm"].firstMatch
+      XCTAssertTrue(confirm.appears(within: 5), "Remove asked for no confirmation")
+      app.buttons["downloads.remove-cancel"].firstMatch.tap()
+      XCTAssertTrue(confirm.disappears(within: 5), "Cancel kept the confirmation open")
       XCTAssertEqual(missing.value as? String, "missing", "Cancel removed the missing download")
       openRowMenu(441, ["retry", "select", "remove-menu"])
       app.buttons["downloads.retry.441"].firstMatch.tap()
@@ -407,9 +478,9 @@ final class BoardCaptureTests: XCTestCase {
     app.bringIntoView(finished)
     finished.swipeLeft()
     app.buttons["downloads.remove.9001"].firstMatch.tap()
-    let removeLocal = app.buttons["downloads.remove-local"].firstMatch
-    XCTAssertTrue(removeLocal.appears(within: 5), "removal asked for no confirmation")
-    removeLocal.tap()
+    let remove = app.buttons["downloads.remove-confirm"].firstMatch
+    XCTAssertTrue(remove.appears(within: 5), "removal asked for no confirmation")
+    remove.tap()
     XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
     app.scrollDown(toHit: storage)
     XCTAssertNotEqual(storage.label, stored, "the storage line did not update after removal")
@@ -419,6 +490,11 @@ final class BoardCaptureTests: XCTestCase {
     "list": "rd-ios-dl-01-list", "empty": "rd-ios-dl-02-empty",
     "downloading-states": "rd-ios-dl-11-downloading-states",
     "attention-states": "rd-ios-dl-12-attention-states", "offline": "rd-ios-dl-19-offline",
+  ]
+
+  private static let downloadsSwipeBoards = [
+    "remove": "rd-ios-dl-07-remove", "finished": "rd-ios-dl-08-swipe",
+    "downloading": "rd-ios-dl-15-swipe-downloading", "failed": "rd-ios-dl-16-swipe-failed",
   ]
 
   private static let listFixtureRows: [(id: Int, state: String)] = [

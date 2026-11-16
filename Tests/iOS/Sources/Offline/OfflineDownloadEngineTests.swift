@@ -237,7 +237,7 @@ struct OfflineDownloadEngineTests {
       availableStorage: { 10_000_000_000 },
       resolve: { _, _ in .ready(PutioPlaybackSource(url: url, startFromSeconds: 0)) },
       startConversion: { _ in }, conversionStatus: { _ in .queued },
-      reportPosition: { _, _ in }, deleteOriginal: { _ in }, isLive: { live })
+      reportPosition: { _, _ in }, isLive: { live })
     defer {
       gate.open()
       engine.stop()
