@@ -556,9 +556,11 @@ final class PutioCastModel {
   func retry() {
     guard case .failed = phase, let route, let saves else { return }
     let start = wait.state == .stalled ? receiverPosition() : requestedStart
-    let audio = carriedAudioLanguage ?? selectedAudio.flatMap { id in
-      status?.audioTracks.first { $0.id == id }?.languageCode
-    }
+    let audio =
+      carriedAudioLanguage
+      ?? selectedAudio.flatMap { id in
+        status?.audioTracks.first { $0.id == id }?.languageCode
+      }
     cast(
       route, saves: saves, startingAt: start,
       tracks: PutioVideoTrackChoice(audioLanguage: audio, subtitle: requestedSubtitle))
