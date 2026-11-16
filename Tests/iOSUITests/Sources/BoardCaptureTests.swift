@@ -4381,6 +4381,28 @@ final class BoardCaptureTests: XCTestCase {
     try captureTrashBoard("rd-ios-trash-15-load-more-failed")
   }
 
+  func testTrashLongPress() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    element("trash.item.4302").firstMatch.press(forDuration: 1.0)
+    let restore = app.buttons["item-action.trash-restore"]
+    XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
+    XCTAssertEqual(restore.label, "Restore")
+    XCTAssertFalse(
+      app.buttons["Delete permanently"].exists, "the long-press menu offers Delete permanently")
+    try captureBoard("rd-ios-trash-02-long-press")
+  }
+
+  func testTrashSwipeRestore() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    element("trash.item.4304").firstMatch.swipeRight()
+    let restore = app.buttons["trash.restore.4304"]
+    XCTAssertTrue(restore.appears(within: 5), "the leading swipe has no Restore")
+    XCTAssertEqual(restore.label, "Restore")
+    try captureTrashBoard("rd-ios-trash-03-swipe")
+  }
+
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     orientForBoardDevice()

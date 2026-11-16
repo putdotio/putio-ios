@@ -1024,6 +1024,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     restoreRow.swipeRight()
     let restore = app.buttons["trash.restore.419"]
     XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
+    XCTAssertEqual(restore.label, "Restore", "the icon-only Restore swipe has no name")
     restore.tap()
     XCTAssertTrue(element(identifier: "trash.progress").appears(within: 5))
     app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -1190,6 +1191,67 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "trash.load-more").exists, "the page stopped loading")
     addScreenshot(named: "runtime-trash-more-loading")
     leaveTrashAndSignOut()
+  }
+
+  func testTrashRowsRestoreFromMenuAndSwipe() {
+    openSeededTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+
+    let menuRow = element(identifier: "trash.item.4302").firstMatch
+    XCTAssertTrue(waitUntilHittable(menuRow, timeout: 5))
+    menuRow.press(forDuration: 1.0)
+    let menuRestore = app.buttons["item-action.trash-restore"]
+    XCTAssertTrue(waitUntilHittable(menuRestore, timeout: 5), "the long-press menu has no Restore")
+    addScreenshot(named: "runtime-trash-row-menu")
+    menuRestore.tap()
+    XCTAssertTrue(
+      element(identifier: "trash.item.4302").disappears(within: 10), "the menu restore kept the row")
+    XCTAssertTrue(app.staticTexts["Item restored"].appears(within: 5))
+    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+
+    let swipeRow = element(identifier: "trash.item.4303").firstMatch
+    XCTAssertTrue(waitUntilHittable(swipeRow, timeout: 5))
+    swipeRow.swipeRight()
+    let swipeRestore = app.buttons["trash.restore.4303"]
+    XCTAssertTrue(waitUntilHittable(swipeRestore, timeout: 5), "the swipe showed no Restore")
+    XCTAssertEqual(swipeRestore.label, "Restore")
+    swipeRestore.tap()
+    XCTAssertTrue(
+      element(identifier: "trash.item.4303").disappears(within: 10),
+      "the swipe restore kept the row")
+    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+
+    let fullSwipeRow = element(identifier: "trash.item.4305").firstMatch
+    XCTAssertTrue(waitUntilHittable(fullSwipeRow, timeout: 5))
+    fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5)).press(
+      forDuration: 0.05,
+      thenDragTo: fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
+    XCTAssertTrue(
+      element(identifier: "trash.item.4305").disappears(within: 10),
+      "a full leading swipe did not restore the row")
+    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+
+    let trashMenu = app.buttons["trash.menu"]
+    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
+    trashMenu.tap()
+    let select = app.buttons["trash.select"]
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5))
+    select.tap()
+    XCTAssertTrue(app.buttons["trash.selection.done"].appears(within: 5))
+    let selectRow = element(identifier: "trash.item.4306").firstMatch
+    XCTAssertTrue(waitUntilHittable(selectRow, timeout: 5))
+    selectRow.swipeRight()
+    XCTAssertFalse(
+      app.buttons["trash.restore.4306"].appears(within: 2), "Select mode offers a Restore swipe")
+    selectRow.press(forDuration: 1.0)
+    XCTAssertFalse(
+      app.buttons["item-action.trash-restore"].appears(within: 2),
+      "Select mode offers the long-press menu")
+    app.buttons["trash.selection.done"].tap()
+    XCTAssertTrue(element(identifier: "trash.item.4306").exists, "Select mode restored a row")
   }
 
   private func assertRestoreSwipeEnabled(on row: XCUIElement, _ message: String) {
