@@ -51,6 +51,8 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let packageExists: @MainActor (String) -> Bool
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
+  @ObservationIgnored private let notifyFailure:
+    @MainActor (PutioOfflineItem, PutioOfflineFailure) -> Void
   @ObservationIgnored private let notifyOriginalsRequested: @MainActor ([PutioFileID]) -> Void
   /// Bumped by a purge so in-flight original requests stop writing.
   @ObservationIgnored private var originalsGeneration = 0
@@ -97,6 +99,9 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
     notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
+    notifyFailure: @escaping @MainActor (PutioOfflineItem, PutioOfflineFailure) -> Void = {
+      _, _ in
+    },
     notifyOriginalsRequested: @escaping @MainActor ([PutioFileID]) -> Void = { _ in },
     isPlayable: @escaping PutioOfflinePlayabilityCheck = {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
@@ -128,6 +133,7 @@ final class PutioOfflineQueue {
     self.fileManager = fileManager
     self.readTracks = readTracks
     self.notifyCompletion = notifyCompletion
+    self.notifyFailure = notifyFailure
     self.notifyOriginalsRequested = notifyOriginalsRequested
     self.isPlayable = isPlayable
     self.packageExists =
@@ -1079,8 +1085,10 @@ final class PutioOfflineQueue {
   /// A failure that lands after the user paused keeps the pause; the retry
   /// path re-queues from there.
   private func fail(_ fileID: PutioFileID, _ failure: PutioOfflineFailure) {
+    var newlyFailed = false
     update(fileID) {
       if case .paused = $0.stage { return }
+      if case .failed = $0.stage {} else { newlyFailed = true }
       if case .downloading(let progress) = $0.stage {
         $0.failedProgress = progress
       } else {
@@ -1088,6 +1096,8 @@ final class PutioOfflineQueue {
       }
       $0.stage = .failed(failure)
     }
+    guard newlyFailed, isLive(), let failed = item(for: fileID) else { return }
+    notifyFailure(failed, failure)
   }
 
   private func update(

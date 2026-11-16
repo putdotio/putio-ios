@@ -34,17 +34,6 @@
         }
       }
     },
-    "%@ is ready to play." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ is ready to play."
-          }
-        }
-      }
-    },
     "%@ left" : {
       "comment" : "android: mobile_files_continue_watching_left",
       "localizations" : {
@@ -1704,13 +1693,35 @@
         }
       }
     },
-    "Download complete" : {
-      "comment" : "android: mobile_downloads_notification_completed | differs: iOS board wording",
+    "Download failed" : {
+      "comment" : "android: mobile_downloads_notification_failed",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download complete"
+            "value" : "Download failed"
+          }
+        }
+      }
+    },
+    "Download finished" : {
+      "comment" : "android: mobile_downloads_notification_completed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download finished"
+          }
+        }
+      }
+    },
+    "Download notifications are off" : {
+      "comment" : "android: mobile_downloads_notifications_off_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download notifications are off"
           }
         }
       }
@@ -5267,6 +5278,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn off trash?"
+          }
+        }
+      }
+    },
+    "Turn on" : {
+      "comment" : "android: mobile_downloads_notifications_turn_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on"
           }
         }
       }

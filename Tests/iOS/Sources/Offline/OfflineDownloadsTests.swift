@@ -173,6 +173,7 @@ final class OfflineDownloadsTests: XCTestCase {
   /// Holds every original delete until opened.
   private var originalDeleteGate: AsyncGate?
   private var originalsRequested: [[Int]] = []
+  private var failuresNotified: [(Int, PutioOfflineFailure)] = []
   private var currentTrashSetting: Bool?
   private var trashSettingReads = 0
 
@@ -192,6 +193,7 @@ final class OfflineDownloadsTests: XCTestCase {
     onOriginalDelete = nil
     originalDeleteGate = nil
     originalsRequested = []
+    failuresNotified = []
     currentTrashSetting = true
     trashSettingReads = 0
   }
@@ -301,6 +303,7 @@ final class OfflineDownloadsTests: XCTestCase {
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
+      notifyFailure: { self.failuresNotified.append(($0.id.rawValue, $1)) },
       notifyOriginalsRequested: { self.originalsRequested.append($0.map(\.rawValue)) },
       isPlayable: { url in
         !url.lastPathComponent.hasPrefix("partial")
@@ -1240,6 +1243,20 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 21))?.stage, .completed)
     XCTAssertEqual(Set(notified), [20, 21])
     XCTAssertEqual(engine.started.map(\.0.rawValue), [22], "freed slots started the queued item")
+  }
+
+  func testAFailedDownloadNotifiesOnceAndAPausedOneStaysQuiet() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    engine.onFinished?(PutioFileID(rawValue: 1), URLError(.networkConnectionLost))
+    engine.onFinished?(PutioFileID(rawValue: 1), URLError(.networkConnectionLost))
+    queue.pause(fileID: PutioFileID(rawValue: 2))
+    engine.onFinished?(PutioFileID(rawValue: 2), URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.download))
+    XCTAssertEqual(failuresNotified.map(\.0), [1])
+    XCTAssertEqual(failuresNotified.first?.1, .download)
   }
 
   func testSystemCancellationPausesADownloadingRow() async {

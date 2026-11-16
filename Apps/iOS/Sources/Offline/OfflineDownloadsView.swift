@@ -1,6 +1,5 @@
 import PutioCore
 import SwiftUI
-import UserNotifications
 
 /// The Downloads tab: a storage line, then what is downloading, what needs
 /// attention and what is on the device.
@@ -13,6 +12,8 @@ struct PutioOfflineDownloadsView: View {
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
   @Environment(\.locale) private var locale
+  @Environment(\.scenePhase) private var scenePhase
+  @State private var notifications = PutioOfflineNotificationStatus()
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
@@ -106,6 +107,10 @@ struct PutioOfflineDownloadsView: View {
       await queue.restore()
       queue.refreshStorage()
     }
+    .task(id: scenePhase) {
+      guard scenePhase == .active else { return }
+      await notifications.refresh()
+    }
     .accessibilityIdentifier("downloads.screen")
   }
 
@@ -164,6 +169,12 @@ struct PutioOfflineDownloadsView: View {
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .selectionDisabled()
+      if notifications.showsRow(hasDownloads: !queue.items.isEmpty) {
+        PutioOfflineNotificationsOffRow()
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .selectionDisabled()
+      }
       ForEach(sections.sections) { section in
         Section {
           ForEach(section.items) { item in
@@ -462,26 +473,5 @@ struct PutioOfflineDetailView: View {
     case .failed(let failure): failure.reason
     case .missing: String(localized: "No longer on this iPhone")
     }
-  }
-}
-
-/// Completion notifications are requested from the download flow, once, and
-/// only after the first item is queued.
-enum PutioOfflineNotifications {
-  static func requestPermissionIfNeeded(center: UNUserNotificationCenter = .current()) async {
-    let settings = await center.notificationSettings()
-    guard settings.authorizationStatus == .notDetermined else { return }
-    _ = try? await center.requestAuthorization(options: [.alert, .sound])
-  }
-
-  static func notifyCompletion(
-    _ item: PutioOfflineItem, center: UNUserNotificationCenter = .current()
-  ) {
-    let content = UNMutableNotificationContent()
-    content.title = String(localized: "Download complete")
-    content.body = String(localized: "\(item.name) is ready to play.")
-    let request = UNNotificationRequest(
-      identifier: "offline-\(item.id.rawValue)", content: content, trigger: nil)
-    center.add(request)
   }
 }

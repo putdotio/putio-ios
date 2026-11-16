@@ -41,6 +41,10 @@ enum PutioOfflineQueueFactory {
         guard !harness else { return }
         PutioOfflineNotifications.notifyCompletion(item)
       },
+      notifyFailure: { item, failure in
+        guard !harness else { return }
+        PutioOfflineNotifications.notifyFailure(item, failure)
+      },
       notifyOriginalsRequested: { _ in onOriginalsRequested() },
       packageExists: seeded?.packageExists,
       resolve: seeded?.resolve ?? { fileID, kind in
