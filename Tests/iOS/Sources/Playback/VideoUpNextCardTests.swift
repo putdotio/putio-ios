@@ -12,25 +12,50 @@ final class VideoUpNextCardTests: XCTestCase {
     for phoneWidth in portraitPhoneWidths {
       for size in [DynamicTypeSize.large, .xxLarge] {
         let lines = try await readCard(chipRowWidth: phoneWidth - 2 * 16, size: size)
-        let readsMarker = lines.contains {
-          $0.replacingOccurrences(of: "O", with: "0").contains("S04E02")
-        }
         XCTAssertTrue(
-          readsMarker, "\(Int(phoneWidth)) pt at \(size) hid the episode marker: \(lines)")
+          readsMarker(lines), "\(Int(phoneWidth)) pt at \(size) hid the episode marker: \(lines)")
       }
     }
   }
 
+  func testCardBesideTheChipsKeepsTheEpisodeMarkerVisible() async throws {
+    _ = SnapshotEnvironment.registersBrandFonts
+    let chipRowWidths: [(device: String, width: CGFloat)] = [
+      ("iPhone landscape", 874 - 2 * 54), ("iPhone Pro Max landscape", 956 - 2 * 54),
+      ("iPad portrait", 820 - 2 * 16), ("iPad landscape", 1180 - 2 * 16),
+    ]
+    for (device, width) in chipRowWidths {
+      for size in [DynamicTypeSize.large, .xxLarge] {
+        let row = PutioVideoChipRow(
+          transport: PutioVideoTransport(), upNext: upNext, onChange: {}, onMenu: { _ in })
+        let lines = try await read(row, width: width, size: size, name: "up-next-row")
+        XCTAssertTrue(
+          readsMarker(lines), "\(device) at \(size) hid the episode marker: \(lines)")
+      }
+    }
+  }
+
+  private let upNext = PutioVideoUpNext(
+    offer: .card(name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", secondsLeft: 10),
+    onPlay: {}, onCancel: {})
+
+  private func readsMarker(_ lines: [String]) -> Bool {
+    lines.contains { $0.replacingOccurrences(of: "O", with: "0").contains("S04E02") }
+  }
+
   private func readCard(chipRowWidth: CGFloat, size: DynamicTypeSize) async throws -> [String] {
-    let card = PutioVideoUpNextAccessory(
-      upNext: PutioVideoUpNext(
-        offer: .card(name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", secondsLeft: 10),
-        onPlay: {}, onCancel: {}),
-      iconOnly: false, ownsRow: true)
+    try await read(
+      PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false, ownsRow: true),
+      width: chipRowWidth, size: size, name: "up-next-portrait")
+  }
+
+  private func read(
+    _ view: some View, width: CGFloat, size: DynamicTypeSize, name: String
+  ) async throws -> [String] {
     let renderer = ImageRenderer(
       content:
-        card
-        .frame(width: chipRowWidth)
+        view
+        .frame(width: width)
         .padding()
         .background(.black)
         .environment(\.colorScheme, .dark)
@@ -46,7 +71,7 @@ final class VideoUpNextCardTests: XCTestCase {
     }
 
     let attachment = XCTAttachment(image: UIImage(cgImage: image))
-    attachment.name = "up-next-portrait-\(Int(chipRowWidth))-\(size)"
+    attachment.name = "\(name)-\(Int(width))-\(size)"
     attachment.lifetime = .keepAlways
     add(attachment)
     return lines

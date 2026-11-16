@@ -134,10 +134,12 @@ private struct PutioUpNextCardLayout: Layout {
     let countdown = subviews[0].sizeThatFits(.unspecified)
     let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
     let actions = subviews[2].sizeThatFits(.unspecified)
-    let desired = oneRowWidth(subviews)
-    let available = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? desired
+    let widest = oneRowWidth(subviews, headingMaxWidth: .infinity)
+    let available =
+      proposal.width.map { $0.isFinite ? $0 : widest }
+      ?? oneRowWidth(subviews, headingMaxWidth: headingMaxWidth)
     if fitsInOneRow(available, subviews) {
-      let width = min(available, desired)
+      let width = min(available, widest)
       let heading = headingHeight(width - spacing - actions.width, subviews)
       return CGSize(width: width, height: max(heading, actions.height))
     }
@@ -181,7 +183,7 @@ private struct PutioUpNextCardLayout: Layout {
       anchor: .topLeading, proposal: line)
   }
 
-  private func oneRowWidth(_ subviews: Subviews) -> CGFloat {
+  private func oneRowWidth(_ subviews: Subviews, headingMaxWidth: CGFloat) -> CGFloat {
     let countdown = subviews[0].sizeThatFits(.unspecified).width
     let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
     let headingWidth = max(countdown, min(max(headingMinWidth, nameIdeal), headingMaxWidth))
@@ -189,7 +191,7 @@ private struct PutioUpNextCardLayout: Layout {
   }
 
   private func fitsInOneRow(_ width: CGFloat, _ subviews: Subviews) -> Bool {
-    width.rounded(.up) >= oneRowWidth(subviews).rounded(.down)
+    width.rounded(.up) >= oneRowWidth(subviews, headingMaxWidth: headingMaxWidth).rounded(.down)
   }
 }
 
