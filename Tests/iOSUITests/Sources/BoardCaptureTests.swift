@@ -3872,8 +3872,12 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func orientForBoardDevice() {
-    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
-    orient(isPad ? .landscapeLeft : .portrait)
+    let environment = ProcessInfo.processInfo.environment
+    switch environment["PUTIO_BOARD_ORIENTATION"] {
+    case "portrait": orient(.portrait)
+    case "landscape": orient(.landscapeLeft)
+    default: orient(environment["PUTIO_BOARD_DEVICE"] == "ipad" ? .landscapeLeft : .portrait)
+    }
   }
 
   private func downloadHarnessTrack() {
