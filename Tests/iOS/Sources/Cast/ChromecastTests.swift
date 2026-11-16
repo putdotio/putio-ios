@@ -568,6 +568,21 @@ final class ChromecastTests: XCTestCase {
     XCTAssertNotEqual(model.connectionID, atOpen, "a switched receiver is a new connection")
   }
 
+  func testAnAudioOnlyReceiverGetsNoVideo() async throws {
+    let controller = CastControllerStub()
+    controller.connection = .connected(deviceName: "Kitchen speaker", audioOnly: true)
+    let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
+    XCTAssertTrue(model.isConnected, "audio still casts to the speaker")
+    XCTAssertFalse(model.castsVideo)
+    XCTAssertNil(model.connectionID, "the player hands no video to the speaker")
+
+    model.cast(route, saves: box.saves)
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertNil(model.castingRoute)
+    XCTAssertTrue(box.resolveRequests.isEmpty, "the speaker cast resolved a video")
+    XCTAssertTrue(controller.loads.isEmpty, "the speaker got a video load")
+  }
+
   func testLosingTheConnectionHandsBackAndDisconnectEndsTheSession() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(
