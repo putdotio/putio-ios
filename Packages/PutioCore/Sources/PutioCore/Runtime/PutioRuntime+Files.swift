@@ -259,7 +259,8 @@ extension PutioRuntime {
       try await sdk.getFile(
         fileID: fileID.rawValue,
         query: PutioFileDetailsQuery(
-          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false))
+          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false,
+          mp4Status: true))
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     return PutioVideoStartPoint(
