@@ -312,7 +312,8 @@ final class PutioOfflineQueue {
   @discardableResult
   func enqueue(
     fileID: PutioFileID, parentID: PutioFileID, name: String, kind: PutioOfflineItem.Kind,
-    estimatedBytes: Int64 = 0, playbackMethod: PutioPlaybackMethod? = nil
+    estimatedBytes: Int64 = 0, playbackMethod: PutioPlaybackMethod? = nil,
+    isWatched: Bool = false
   ) -> PutioOfflineItem {
     if let existing = item(for: fileID) { return existing }
     // Downloading the file again supersedes any debt to remove its original.
@@ -321,11 +322,12 @@ final class PutioOfflineQueue {
     {
       settleOriginalFailures([fileID], givingUp: [fileID])
     }
-    let item = PutioOfflineItem(
+    var item = PutioOfflineItem(
       id: fileID, parentID: parentID, name: name, kind: kind, createdAt: .now, stage: .queued,
       localPath: nil, storedBytes: 0, storedAudioTracks: [], storedSubtitleTracks: [],
       resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: estimatedBytes,
       playbackMethod: kind == .video ? playbackMethod ?? .standard : nil)
+    item.isWatched = isWatched
     items.append(item)
     persist()
     schedule()

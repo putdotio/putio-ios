@@ -70,6 +70,71 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   var isRemoving: Bool?
   var isWatched: Bool?
   var playbackMethod: PutioPlaybackMethod? = nil
+
+  var receivedBytes: Int64 {
+    Int64((Double(estimatedBytes) * progress).rounded(.down))
+  }
+
+  func downloadState(queuePosition: Int?) -> PutioDownloadState {
+    switch stage {
+    case .queued: .queued(position: queuePosition ?? 1)
+    case .converting(let progress): .converting(progress: progress)
+    case .downloading: .downloading(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .paused: .paused(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .completed: .idle
+    case .failed(let failure): .failed(reason: failure.message)
+    }
+  }
+}
+
+struct PutioOfflineSections: Equatable {
+  enum Kind: CaseIterable {
+    case downloading
+    case attention
+    case onDevice
+  }
+
+  struct Section: Equatable, Identifiable {
+    let kind: Kind
+    let items: [PutioOfflineItem]
+
+    var id: Kind { kind }
+  }
+
+  let sections: [Section]
+  let queuePositions: [PutioFileID: Int]
+
+  init(_ items: [PutioOfflineItem]) {
+    var downloading: [PutioOfflineItem] = []
+    var attention: [PutioOfflineItem] = []
+    var onDevice: [PutioOfflineItem] = []
+    var positions: [PutioFileID: Int] = [:]
+    for item in items {
+      switch item.stage {
+      case .queued:
+        positions[item.id] = positions.count + 1
+        downloading.append(item)
+      case .converting, .downloading, .paused:
+        downloading.append(item)
+      case .failed:
+        attention.append(item)
+      case .completed:
+        onDevice.append(item)
+      }
+    }
+    onDevice = onDevice.enumerated()
+      .sorted { lhs, rhs in
+        lhs.element.createdAt == rhs.element.createdAt
+          ? lhs.offset < rhs.offset : lhs.element.createdAt > rhs.element.createdAt
+      }
+      .map(\.element)
+    sections = [
+      Section(kind: .downloading, items: downloading),
+      Section(kind: .attention, items: attention),
+      Section(kind: .onDevice, items: onDevice),
+    ].filter { !$0.items.isEmpty }
+    queuePositions = positions
+  }
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {

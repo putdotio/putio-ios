@@ -134,7 +134,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     if rows.isEmpty {
       XCTAssertTrue(
-        app.staticTexts["No downloads"].appears(within: 5), "the empty fixture has rows")
+        app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
     }
     for pass in 0..<2 where !rows.isEmpty {
       if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
@@ -159,12 +159,48 @@ final class BoardCaptureTests: XCTestCase {
       audio.tap()
       XCTAssertTrue(element("audio.state").appears(within: 20), "the finished audio did not play")
       app.buttons["audio.collapse"].tap()
+      exerciseDownloadsList()
     }
     guard fixture == "offline" else { return }
     tabButton("Files").tap()
     XCTAssertTrue(
       app.staticTexts["put.io is out of reach"].appears(within: 15),
       "the offline fixture left the network up")
+  }
+
+  private func exerciseDownloadsList() {
+    func episode(_ number: Int) -> String {
+      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+    }
+    func settles(_ row: XCUIElement, _ matches: @escaping (String) -> Bool) -> Bool {
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate { _, _ in matches(row.value as? String ?? "") }, object: nil)
+      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+    let downloading = element("downloads.item.442")
+    app.bringIntoView(downloading)
+    app.buttons["Pause download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { $0.hasPrefix("paused") }, "the ring did not pause")
+    app.buttons["Resume download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { !$0.hasPrefix("paused") }, "the ring did not resume")
+    let failed = element("downloads.item.444")
+    app.bringIntoView(failed)
+    app.buttons["Retry download, \(episode(4))"].tap()
+    XCTAssertTrue(settles(failed) { $0 == "queued" }, "retry did not restart the download")
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    let stored = storage.label
+    XCTAssertTrue(stored.contains("on this iPhone"), "the storage line names no device: \(stored)")
+    let finished = app.buttons["downloads.item.9001"].firstMatch
+    app.bringIntoView(finished)
+    finished.swipeLeft()
+    app.buttons["downloads.remove.9001"].firstMatch.tap()
+    let removeLocal = app.buttons["downloads.remove-local"].firstMatch
+    XCTAssertTrue(removeLocal.appears(within: 5), "removal asked for no confirmation")
+    removeLocal.tap()
+    XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    app.scrollDown(toHit: storage)
+    XCTAssertNotEqual(storage.label, stored, "the storage line did not update after removal")
   }
 
   private static let downloadsFixtureBoards = [

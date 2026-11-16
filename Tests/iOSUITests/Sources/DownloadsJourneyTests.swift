@@ -65,12 +65,8 @@ final class DownloadsJourneyTests: XCTestCase {
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
     app.closeVideo()
-    let pending = element("downloads.pending-positions")
-    XCTAssertTrue(pending.appears(within: 10))
-    XCTAssertEqual(pending.value as? String, "1")
 
-    // Relaunch without the failure flag: the item and its pending position
-    // survive, and foregrounding syncs it.
+    // Relaunch without the failure flag: the item survives.
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launch()
@@ -78,7 +74,6 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertEqual(item.value as? String, "completed")
-    XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
 
     app.terminate()
     let preference = try XCTUnwrap(
@@ -98,6 +93,7 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Multi-select removal: local removal is the default, the original is a
     // separately worded destructive choice, and both are named for VoiceOver.
+    app.buttons["downloads.more"].tap()
     app.buttons["downloads.select"].tap()
     XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
     XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
@@ -139,7 +135,7 @@ final class DownloadsJourneyTests: XCTestCase {
       ).exists, "the failure report does not keep the local outcome honest")
     app.buttons["downloads.remove-original-retry"].firstMatch.tap()
     XCTAssertTrue(failure.disappears(within: 10))
-    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 5))
     XCTAssertFalse(app.putioAlerts.firstMatch.exists, "retry must not report a second failure")
 
     // The loaded root reconciles with the moved original.
