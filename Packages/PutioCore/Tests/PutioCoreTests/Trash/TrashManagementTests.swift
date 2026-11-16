@@ -974,7 +974,9 @@ final class TrashManagementTests: XCTestCase {
 
     await model.loadIfNeeded()
     let restore = Task { await model.restore(item) }
-    await waitUntil("the pagination repair started") { loader.requestCount >= 2 }
+    await waitUntil("the browser refresh while the pagination repair runs") {
+      loader.requestCount >= 2 && !destinations.isEmpty
+    }
 
     XCTAssertEqual(destinations, [PutioFileID(rawValue: 7)], "browser refresh is not blocked")
     loader.fail(with: PutioRuntimeError.transient)
@@ -2274,7 +2276,7 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertTrue(model.canMutate)
   }
 
-  func testRestoreHidesTheRowWhileTheRequestRuns() async {
+  func testRestoreKeepsTheRowListedUntilTheRequestReturns() async {
     let fixture = await gatedRestoreModel()
     let rows = fixture.rows
     let gate = fixture.gate
@@ -2283,18 +2285,19 @@ final class TrashManagementTests: XCTestCase {
     let restore = Task { await model.restore(rows[1]) }
     await waitUntil("the restore request") { gate.requestCount == 1 }
 
-    XCTAssertEqual(model.page?.items, [rows[0], rows[2]])
-    XCTAssertEqual(model.page?.sizeBytes, 4_096)
-    XCTAssertEqual(model.page?.totalCount, 2)
+    XCTAssertEqual(model.page?.items, rows)
     XCTAssertEqual(model.activeMutation, .restore(rows[1]))
 
     gate.resume(with: .restored(destinationID: PutioFileID(rawValue: 7)))
     await restore.value
+    XCTAssertEqual(model.page?.items, [rows[0], rows[2]])
+    XCTAssertEqual(model.page?.sizeBytes, 4_096)
+    XCTAssertEqual(model.page?.totalCount, 2)
     XCTAssertEqual(model.mutationOutcome, .restored(rows[1]))
-    XCTAssertEqual(stub.loadedCursors, [nil, nil])
+    XCTAssertEqual(stub.loadedCursors, [nil])
   }
 
-  func testAFailedRestorePutsTheRowBackWhereItWas() async {
+  func testAFailedRestoreKeepsTheRowWhereItWas() async {
     let fixture = await gatedRestoreModel()
     let rows = fixture.rows
     let gate = fixture.gate
@@ -2333,9 +2336,9 @@ final class TrashManagementTests: XCTestCase {
       failure.message, "This item is still moving to trash. You can try restoring it later.")
   }
 
-  func testARestoreThatFindsTheItemGoneDoesNotPutItBack() async {
-    let fixture = await gatedRestoreModel(
-      refreshes: [page(items: [rows3[0], rows3[2]], totalCount: 2)])
+  func testARestoreThatFindsTheItemGoneDropsTheRowWithoutAFailure() async {
+    var destinations: [PutioFileID?] = []
+    let fixture = await gatedRestoreModel { destinations.append($0) }
     let rows = fixture.rows
     let gate = fixture.gate
     let stub = fixture.stub
@@ -2346,26 +2349,31 @@ final class TrashManagementTests: XCTestCase {
     await restore.value
 
     XCTAssertEqual(model.page?.items, [rows[0], rows[2]])
-    XCTAssertEqual(stub.loadedCursors, [nil, nil], "a missing item reloads Trash")
-    guard case .failed(.restore, _) = model.mutationOutcome else {
-      return XCTFail("expected a restore failure")
-    }
+    XCTAssertEqual(stub.loadedCursors, [nil])
+    XCTAssertNil(model.mutationOutcome, "a missing item reported a failed restore")
+    XCTAssertTrue(destinations.isEmpty)
   }
 
-  func testARestoreReloadsTheOnlyPageAndHidesALaggingRow() async {
-    let fixture = await gatedRestoreModel(
-      refreshes: [page(items: rows3, totalCount: 3)])
-    let rows = fixture.rows
-    let gate = fixture.gate
-    let stub = fixture.stub
-    let model = fixture.model
-    let restore = Task { await model.restore(rows[1]) }
-    await waitUntil("the restore request") { gate.requestCount == 1 }
-    gate.resume(with: .restoredDestinationUnknown)
-    await restore.value
+  func testARestoreKeepsEveryLoadedPageOfACompleteListing() async {
+    let first = trashItem(id: 91, name: "A.mkv")
+    let restored = trashItem(id: 92, name: "B.mkv")
+    let last = trashItem(id: 93, name: "C.mkv")
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [first], cursor: "n1", totalCount: 3)),
+        .success(page(items: [restored, last], totalCount: 3)),
+      ],
+      restoreResults: [.success(.restoredDestinationUnknown)]
+    )
+    let model = model(stub)
 
-    XCTAssertEqual(stub.loadedCursors, [nil, nil], "a restore without a cursor reloads page one")
-    XCTAssertEqual(model.page?.items, [rows[0], rows[2]], "a lagging listing brought the row back")
+    await model.loadIfNeeded()
+    await model.loadMore()
+    await model.restore(restored)
+
+    XCTAssertEqual(stub.loadedCursors, [nil, "n1"], "a restore reloaded a complete listing")
+    XCTAssertEqual(model.page?.items, [first, last])
+    XCTAssertNil(model.page?.nextCursor)
     XCTAssertNil(model.refreshFailure)
   }
 
@@ -2384,12 +2392,10 @@ final class TrashManagementTests: XCTestCase {
   }
 
   private func gatedRestoreModel(
-    refreshes: [PutioTrashPage]? = nil
+    onRestored: @escaping PutioTrashDidRestore = { _ in }
   ) async -> GatedRestoreFixture {
     let rows = rows3
-    let after = refreshes ?? [page(items: [rows[0], rows[2]], totalCount: 2)]
-    let stub = TrashActionsStub(
-      pages: ([page(items: rows, totalCount: 3)] + after).map { .success($0) })
+    let stub = TrashActionsStub(pages: [.success(page(items: rows, totalCount: 3))])
     let gate = GatedTrashRestore()
     let model = PutioTrashModel(
       actions: PutioTrashActions(
@@ -2397,7 +2403,8 @@ final class TrashManagementTests: XCTestCase {
         restore: { try await gate.restore(fileID: $0) },
         permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
         empty: { try await stub.empty() }
-      )
+      ),
+      onRestored: onRestored
     )
     await model.loadIfNeeded()
     return GatedRestoreFixture(rows: rows, gate: gate, stub: stub, model: model)

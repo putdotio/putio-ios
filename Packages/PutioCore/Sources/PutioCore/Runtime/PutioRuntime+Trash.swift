@@ -27,6 +27,10 @@ extension PutioRuntime {
 
   public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioTrashRestoreResult {
     try await sendTrashRestore(fileIDs: [fileID])
+    return await locateRestoredTrashItem(fileID: fileID)
+  }
+
+  func locateRestoredTrashItem(fileID: PutioFileID) async -> PutioTrashRestoreResult {
     do {
       let restoredFile = try await performAuthenticatedOperation {
         try await sdk.getFile(fileID: fileID.rawValue)
@@ -60,7 +64,7 @@ extension PutioRuntime {
     try await sendTrashRestore(fileIDs: fileIDs)
   }
 
-  private func sendTrashRestore(fileIDs: [PutioFileID]) async throws {
+  func sendTrashRestore(fileIDs: [PutioFileID]) async throws {
     let response = try await performAuthenticatedOperation(commits: true) {
       () async throws -> PutioOKResponse? in
       do {

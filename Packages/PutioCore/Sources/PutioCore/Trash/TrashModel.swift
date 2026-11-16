@@ -4,6 +4,9 @@ import Observation
 typealias PutioTrashLoad = @MainActor @Sendable (String?) async throws -> PutioTrashPage
 typealias PutioTrashRestore =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashRestoreResult
+typealias PutioTrashRestoreLookup = @MainActor @Sendable () async -> PutioTrashRestoreResult
+typealias PutioTrashRestoreCommit =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioTrashRestoreLookup
 typealias PutioTrashItemMutation =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashMutationResult
 typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> PutioTrashMutationResult
@@ -176,7 +179,7 @@ public final class PutioTrashReconciliation {
 
 public struct PutioTrashActions: Sendable {
   let load: PutioTrashLoad
-  let restore: PutioTrashRestore
+  let restore: PutioTrashRestoreCommit
   let permanentlyDelete: PutioTrashItemMutation
   let restoreItems: PutioTrashBatchRestore
   let permanentlyDeleteItems: PutioTrashBatchMutation
@@ -190,7 +193,10 @@ public struct PutioTrashActions: Sendable {
 
   init(runtime: PutioRuntime) {
     load = { cursor in try await runtime.listTrash(cursor: cursor) }
-    restore = { fileID in try await runtime.restoreTrashItem(fileID: fileID) }
+    restore = { fileID in
+      try await runtime.sendTrashRestore(fileIDs: [fileID])
+      return { await runtime.locateRestoredTrashItem(fileID: fileID) }
+    }
     permanentlyDelete = { fileID in
       try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
     }
@@ -222,7 +228,10 @@ public struct PutioTrashActions: Sendable {
     isStorageStale: @escaping PutioTrashStorageIsStale = { false }
   ) {
     self.load = load
-    self.restore = restore
+    self.restore = { fileID in
+      let result = try await restore(fileID)
+      return { result }
+    }
     self.permanentlyDelete = permanentlyDelete
     self.restoreItems = restoreItems
     self.permanentlyDeleteItems = permanentlyDeleteItems
@@ -618,29 +627,27 @@ public final class PutioTrashModel {
   }
 
   public func restore(_ item: PutioTrashItem) async {
+    var lookup: Task<Void, Never>?
     await mutate(.restore(item)) {
-      let index = hide(item)
-      let result: PutioTrashRestoreResult
+      let locate: PutioTrashRestoreLookup
       do {
-        result = try await actions.restore(item.id)
+        locate = try await actions.restore(item.id)
       } catch PutioRuntimeError.notFound {
-        await remove(item, refreshesFirstPage: true)
-        throw PutioRuntimeError.notFound
-      } catch {
-        if let index { reinsert(item, at: index) }
-        throw error
+        await remove(item)
+        return
       }
-      // Tell the browser first: the pagination repair below is best effort
-      // and must not delay the restored file appearing in Files.
-      switch result {
-      case .restored(let destinationID):
-        onRestored(destinationID)
-      case .restoredDestinationUnknown, .restoredLookupCancelled:
-        onRestored(nil)
-      }
-      await remove(item, refreshesFirstPage: true)
       mutationOutcome = .restored(item)
+      lookup = Task { [onRestored] in
+        switch await locate() {
+        case .restored(let destinationID):
+          onRestored(destinationID)
+        case .restoredDestinationUnknown, .restoredLookupCancelled:
+          onRestored(nil)
+        }
+      }
+      await remove(item)
     }
+    await lookup?.value
   }
 
   public func permanentlyDelete(_ item: PutioTrashItem) async {
@@ -869,43 +876,12 @@ public final class PutioTrashModel {
   }
 
   // Removes the rows locally, then replaces the page when a continuation was
-  // pending (the pre-mutation cursor is opaque and may skip or resurrect rows)
-  // or when the caller asks for the server's view of Trash.
-  private func remove(_ item: PutioTrashItem, refreshesFirstPage: Bool = false) async {
-    await remove([item], refreshesFirstPage: refreshesFirstPage)
+  // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
+  private func remove(_ item: PutioTrashItem) async {
+    await remove([item])
   }
 
-  private func hide(_ item: PutioTrashItem) -> Int? {
-    guard let currentPage = page,
-      let index = currentPage.items.firstIndex(where: { $0.id == item.id })
-    else { return nil }
-    var items = currentPage.items
-    items.remove(at: index)
-    state = .loaded(
-      PutioTrashPage(
-        items: items,
-        nextCursor: currentPage.nextCursor,
-        totalCount: currentPage.totalCount.map { max(0, $0 - 1) },
-        sizeBytes: max(0, currentPage.sizeBytes - item.sizeBytes)
-      ))
-    return index
-  }
-
-  private func reinsert(_ item: PutioTrashItem, at index: Int) {
-    guard let currentPage = page, !currentPage.items.contains(where: { $0.id == item.id })
-    else { return }
-    var items = currentPage.items
-    items.insert(item, at: min(index, items.count))
-    state = .loaded(
-      PutioTrashPage(
-        items: items,
-        nextCursor: currentPage.nextCursor,
-        totalCount: currentPage.totalCount.map { $0 + 1 },
-        sizeBytes: currentPage.sizeBytes + item.sizeBytes
-      ))
-  }
-
-  private func remove(_ removedItems: [PutioTrashItem], refreshesFirstPage: Bool = false) async {
+  private func remove(_ removedItems: [PutioTrashItem]) async {
     guard let currentPage = page else { return }
     let ids = Set(removedItems.map(\.id))
     for item in removedItems { reconciliation.recordRemoval(of: item) }
@@ -920,7 +896,7 @@ public final class PutioTrashModel {
         sizeBytes: max(0, currentPage.sizeBytes - removedSize)
       )
     )
-    guard refreshesFirstPage || currentPage.nextCursor != nil else { return }
+    guard currentPage.nextCursor != nil else { return }
     do {
       show(try await fetchFirstPage())
       // The fresh listing supersedes any earlier list failure.
