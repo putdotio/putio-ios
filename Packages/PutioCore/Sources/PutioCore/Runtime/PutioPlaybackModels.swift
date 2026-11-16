@@ -64,6 +64,7 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
 
 extension PutioPlaybackSource {
   public var isStored: Bool { url.isFileURL }
+  public var isStoredOriginal: Bool { isStored && original != nil }
 
   public static func stored(
     fileURL: URL, startFromSeconds: Int, subtitles: [PutioCastSubtitle],

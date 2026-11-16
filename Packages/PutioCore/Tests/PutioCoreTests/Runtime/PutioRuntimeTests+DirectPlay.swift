@@ -269,7 +269,18 @@ extension PutioRuntimeTests {
 
     await model.playerFailed(.accessExpired, heldSeconds: 90)
     XCTAssertEqual(model.state, .failed(.accessExpired))
+    let listings: PutioSubtitleListingsLoad = { try await runtime.subtitleListings(fileID: $0) }
+    let storedRoute = PutioVideoRoute(
+      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie",
+      initialResolution: .ready(stored))
+    let storedListings = try await storedRoute.subtitleListings(listings)(storedRoute.id)
+    XCTAssertEqual(storedListings, [])
     XCTAssertEqual(fixtures.capturedRequests().count, baseline)
+
+    let streamedRoute = PutioVideoRoute(
+      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie")
+    _ = try await streamedRoute.subtitleListings(listings)(streamedRoute.id)
+    XCTAssertEqual(fixtures.capturedRequests().count, baseline + 1)
   }
 
   func testAStoredSourceTakesOnlyFilesOnThisDevice() {

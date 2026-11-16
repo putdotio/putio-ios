@@ -243,7 +243,7 @@ public final class PutioVideoPlaybackModel {
   ) {
     self.fileID = fileID
     self.initialResolution = initialResolution
-    if case .ready(let source) = initialResolution, source.isStored {
+    if case .ready(let source) = initialResolution, source.isStoredOriginal {
       storedResolution = initialResolution
     } else {
       storedResolution = nil
