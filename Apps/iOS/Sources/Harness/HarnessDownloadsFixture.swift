@@ -25,6 +25,15 @@
       return Self(rawValue: arguments[flag + 1])
     }
 
+    static let windowWidthArgument = "--putio-harness-downloads-width"
+
+    static func windowWidth(_ arguments: [String]) -> Double? {
+      guard let flag = arguments.firstIndex(of: windowWidthArgument),
+        arguments.indices.contains(flag + 1)
+      else { return nil }
+      return Double(arguments[flag + 1])
+    }
+
     var concurrencyLimit: Int {
       self == .downloadingStates ? 4 : PutioOfflineQueue.defaultConcurrencyLimit
     }

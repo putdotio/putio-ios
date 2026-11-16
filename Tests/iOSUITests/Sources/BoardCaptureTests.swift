@@ -478,7 +478,34 @@ final class BoardCaptureTests: XCTestCase {
     add(portrait)
     rotate(.landscapeLeft)
     XCTAssertTrue(empty.appears(within: 5), "landscape iPad Downloads lost the detail column")
+    exerciseNarrowestSplit()
   }
+
+  private func exerciseNarrowestSplit() {
+    app.terminate()
+    app.launchArguments += [
+      "--putio-harness-downloads-width", String(Int(Self.narrowestRegularSplitWidth)),
+    ]
+    openDownloads("list")
+    let empty = element("putio.list-detail.empty")
+    XCTAssertTrue(
+      empty.appears(within: 5), "a regular-width split taller than wide shows no detail column")
+    selectDownload(442, actions: ["pause", "cancel"])
+    let detail = element("downloads.detail.442")
+    let pause = app.buttons["downloads.detail.pause"]
+    let cancel = app.buttons["downloads.detail.cancel"]
+    XCTAssertEqual(pause.frame.midY, cancel.frame.midY, accuracy: 1, "the split actions wrapped")
+    XCTAssertLessThanOrEqual(
+      cancel.frame.maxX, detail.frame.maxX + 1, "the split actions overflow the detail")
+    let window = app.mainWindow.frame.size
+    let split = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
+    split.name = "ipad-downloads-split"
+    split.lifetime = .keepAlways
+    add(split)
+  }
+
+  private static let narrowestRegularSplitWidth = 678.0
 
   private func selectDownload(_ id: Int, actions: [String]) {
     let row = element("downloads.item.\(id)")

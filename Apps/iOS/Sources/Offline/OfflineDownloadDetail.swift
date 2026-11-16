@@ -1,20 +1,47 @@
 import Foundation
 import PutioCore
 import SwiftUI
+import UIKit
 
 struct PutioOfflineDownloadsScreen: View {
   let queue: PutioOfflineQueue
   let loadDetails: PutioVideoDetailsLoad?
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
+  var body: some View {
+    #if DEBUG
+      if let width = HarnessDownloadsFixture.windowWidth(HarnessLaunch.arguments) {
+        layout
+          .environment(\.horizontalSizeClass, .regular)
+          .frame(width: width)
+          .frame(maxWidth: .infinity)
+      } else {
+        layout
+      }
+    #else
+      layout
+    #endif
+  }
+
+  private var layout: some View {
+    PutioOfflineDownloadsLayout(queue: queue, loadDetails: loadDetails, onOpen: onOpen)
+  }
+}
+
+private struct PutioOfflineDownloadsLayout: View {
+  let queue: PutioOfflineQueue
+  let loadDetails: PutioVideoDetailsLoad?
+  let onOpen: @MainActor (PutioOfflineItem) -> Void
+
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-  @State private var isLandscape: Bool?
+  @State private var windowIsLandscape: Bool?
+  @State private var sceneIsLandscape = false
   @State private var selection: PutioFileID?
 
   var body: some View {
     Group {
-      if let isLandscape {
-        if horizontalSizeClass == .regular && isLandscape {
+      if let windowIsLandscape {
+        if horizontalSizeClass == .regular && (windowIsLandscape || sceneIsLandscape) {
           columns
         } else {
           NavigationStack {
@@ -30,8 +57,9 @@ struct PutioOfflineDownloadsScreen: View {
       return geometry.size.width + insets.leading + insets.trailing
         > geometry.size.height + insets.top + insets.bottom
     } action: { landscape in
-      isLandscape = landscape
+      windowIsLandscape = landscape
     }
+    .background(PutioSceneOrientationReader { sceneIsLandscape = $0 })
     .onChange(of: selectionIsGone) { _, gone in
       if gone { selection = nil }
     }
@@ -56,6 +84,45 @@ struct PutioOfflineDownloadsScreen: View {
           queue: queue, item: item, loadDetails: loadDetails, onOpen: onOpen,
           onRemoved: { selection = nil })
       }
+    }
+  }
+}
+
+private struct PutioSceneOrientationReader: UIViewRepresentable {
+  let onChange: @MainActor (Bool) -> Void
+
+  func makeUIView(context: Context) -> ReaderView { ReaderView(onChange: onChange) }
+
+  func updateUIView(_ view: ReaderView, context: Context) { view.onChange = onChange }
+
+  final class ReaderView: UIView {
+    var onChange: @MainActor (Bool) -> Void
+    private var reported: Bool?
+
+    init(onChange: @escaping @MainActor (Bool) -> Void) {
+      self.onChange = onChange
+      super.init(frame: .zero)
+      isUserInteractionEnabled = false
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
+      report()
+    }
+
+    override func layoutSubviews() {
+      super.layoutSubviews()
+      report()
+    }
+
+    private func report() {
+      guard let scene = window?.windowScene else { return }
+      let landscape = scene.effectiveGeometry.interfaceOrientation.isLandscape
+      guard landscape != reported else { return }
+      reported = landscape
+      Task { @MainActor [onChange] in onChange(landscape) }
     }
   }
 }
