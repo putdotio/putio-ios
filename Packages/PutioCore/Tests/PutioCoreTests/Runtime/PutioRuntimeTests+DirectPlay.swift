@@ -240,11 +240,11 @@ extension PutioRuntimeTests {
         try await runtime.resolveVideoPlayback(
           fileID: $0, method: .directPlay, playsConverted: true,
           isPlayableInAVPlayer: { _ in true })
-      }
-    ) {
-      try await runtime.resolveVideoPlayback(
-        fileID: $0, method: .directPlay, isPlayableInAVPlayer: { _ in true })
-    }
+      },
+      resolve: {
+        try await runtime.resolveVideoPlayback(
+          fileID: $0, method: .directPlay, isPlayableInAVPlayer: { _ in true })
+      })
 
     await model.loadIfNeeded()
 
