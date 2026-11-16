@@ -1496,6 +1496,10 @@ enum BrowserJourneyContract {
       "FilesBrowserJourneyTests/testTrashPagingRetriesTheFailedPageAndRefreshRestarts",
       attachmentNames: ["runtime-trash-more-failed", "runtime-trash-more-loaded"],
       timeAllowance: 90),
+    JourneyPreflight(
+      "trash-paging-usable",
+      "FilesBrowserJourneyTests/testTrashRowsStayUsableWhileAPageLoads",
+      attachmentNames: ["runtime-trash-more-loading"], timeAllowance: 90),
     JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
     JourneyPreflight(
       "sort-continuation",

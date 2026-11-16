@@ -28,6 +28,7 @@ import Foundation
     static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
     static let offlineFailures = 2
+    static let failingContinues: Set<Int> = [1, 3]
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var listsServed = 0
@@ -98,12 +99,12 @@ import Foundation
       }
       let shouldFail = lock.withLock {
         continuesServed += 1
-        return mode == .moreFailing && continuesServed == 1
+        return mode == .moreFailing && failingContinues.contains(continuesServed)
       }
       if shouldFail {
         return (
           500,
-          #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_CONTINUE","message":"The first trash page-two request fails"}"#
+          #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_CONTINUE","message":"The first and third trash page-two requests fail"}"#
         )
       }
       let rows = secondPageItems.map(json).joined(separator: ",")

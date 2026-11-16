@@ -1141,12 +1141,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let pageOneRow = app.staticTexts["Old Season"]
     XCTAssertTrue(waitUntilHittable(pageOneRow, timeout: 5))
-    pageOneRow.swipeRight()
-    let restore = app.buttons["trash.restore.4301"]
-    XCTAssertTrue(waitUntilHittable(restore, timeout: 5), "the swipe showed no Restore")
-    XCTAssertTrue(restore.isEnabled, "a failed page disabled the loaded rows")
-    pageOneRow.swipeLeft()
-    XCTAssertTrue(restore.disappears(within: 5), "the Restore swipe never closed")
+    assertRestoreSwipeEnabled(on: pageOneRow, "a failed page disabled the loaded rows")
 
     XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
     retry.tap()
@@ -1156,19 +1151,52 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(rowCount(named: "poster.jpg"), 1, "Try again duplicated a loaded row")
     addScreenshot(named: "runtime-trash-more-loaded")
 
+    pullToRefresh(from: pageOneRow)
+    XCTAssertTrue(
+      app.staticTexts["Drafts"].disappears(within: 10), "refresh kept the second page")
+    XCTAssertTrue(
+      waitUntilHittable(retry, timeout: 10), "the refreshed first page never asked for page two")
+
+    pullToRefresh(from: pageOneRow)
+    XCTAssertTrue(
+      element(identifier: "trash.more-error").disappears(within: 10),
+      "refresh kept the failed page")
+    XCTAssertTrue(app.staticTexts["Drafts"].appears(within: 10), "refresh never reached page two")
+    for name in ["Old Season", "poster.jpg", "Drafts"] {
+      XCTAssertEqual(rowCount(named: name), 1, "refresh listed \(name) more than once")
+    }
+  }
+
+  func testTrashRowsStayUsableWhileAPageLoads() {
+    openSeededTrash("more-loading")
+
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    XCTAssertTrue(
+      element(identifier: "trash.load-more").appears(within: 10), "Trash never asked for page two")
+    let pageOneRow = app.staticTexts["Old Season"]
     XCTAssertTrue(waitUntilHittable(pageOneRow, timeout: 5))
-    pageOneRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+    assertRestoreSwipeEnabled(on: pageOneRow, "a loading page disabled the loaded rows")
+    XCTAssertTrue(element(identifier: "trash.load-more").exists, "the page stopped loading")
+    addScreenshot(named: "runtime-trash-more-loading")
+  }
+
+  private func assertRestoreSwipeEnabled(on row: XCUIElement, _ message: String) {
+    row.swipeRight()
+    let restore = app.buttons["trash.restore.4301"]
+    XCTAssertTrue(waitUntilHittable(restore, timeout: 5), "the swipe showed no Restore")
+    XCTAssertTrue(restore.isEnabled, message)
+    row.swipeLeft()
+    XCTAssertTrue(restore.disappears(within: 5), "the Restore swipe never closed")
+  }
+
+  private func pullToRefresh(from row: XCUIElement) {
+    XCTAssertTrue(waitUntilHittable(row, timeout: 5))
+    row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
       forDuration: 0.1,
       thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
       withVelocity: .slow,
       thenHoldForDuration: 1
     )
-    XCTAssertTrue(app.staticTexts["Drafts"].appears(within: 10), "refresh lost the second page")
-    XCTAssertTrue(element(identifier: "trash.load-more").disappears(within: 10))
-    for name in ["Old Season", "poster.jpg", "Drafts"] {
-      XCTAssertEqual(rowCount(named: name), 1, "refresh listed \(name) more than once")
-    }
-    XCTAssertFalse(element(identifier: "trash.more-error").exists, "refresh kept a failed page")
   }
 
   private func rowCount(named name: String) -> Int {
