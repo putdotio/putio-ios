@@ -975,6 +975,12 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-06-empty", .iphone, "testTrashEmpty"),
       BoardCapture("rd-ios-trash-12-loading", .iphone, "testTrashLoading"),
       BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed"),
+      BoardCapture(
+        "rd-ios-trash-14-loading-more", .iphone, "testTrashLoadingMore", screenBase: false),
+      BoardCapture(
+        "rd-ios-trash-15-load-more-failed", .iphone, "testTrashLoadMoreFailed", screenBase: false),
+      BoardCapture("rd-ios-trash-23-duo-closed", .duoFolded, "testTrashList"),
+      BoardCapture("rd-ios-trash-24-duo-open", .duoOpen, "testTrashInAccountSplit"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1485,6 +1491,11 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "trash-offline", "FilesBrowserJourneyTests/testOfflineTrashRetriesOnItsOwn",
       attachmentNames: ["runtime-trash-offline"], timeAllowance: 90),
+    JourneyPreflight(
+      "trash-paging",
+      "FilesBrowserJourneyTests/testTrashPagingRetriesTheFailedPageAndRefreshRestarts",
+      attachmentNames: ["runtime-trash-more-failed", "runtime-trash-more-loaded"],
+      timeAllowance: 90),
     JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
     JourneyPreflight(
       "sort-continuation",

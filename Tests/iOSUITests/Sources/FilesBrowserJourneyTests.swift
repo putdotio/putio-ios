@@ -1130,6 +1130,51 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
   }
 
+  func testTrashPagingRetriesTheFailedPageAndRefreshRestarts() {
+    openSeededTrash("more-failing")
+
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    let retry = app.buttons["trash.more-retry"]
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 10), "the next Trash page never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists)
+    addScreenshot(named: "runtime-trash-more-failed")
+
+    let pageOneRow = app.staticTexts["Old Season"]
+    XCTAssertTrue(waitUntilHittable(pageOneRow, timeout: 5))
+    pageOneRow.swipeRight()
+    let restore = app.buttons["trash.restore.4301"]
+    XCTAssertTrue(waitUntilHittable(restore, timeout: 5), "the swipe showed no Restore")
+    XCTAssertTrue(restore.isEnabled, "a failed page disabled the loaded rows")
+    pageOneRow.swipeLeft()
+    XCTAssertTrue(restore.disappears(within: 5), "the Restore swipe never closed")
+
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
+    retry.tap()
+    XCTAssertTrue(app.staticTexts["Drafts"].appears(within: 10), "Try again loaded no rows")
+    XCTAssertTrue(element(identifier: "trash.more-error").disappears(within: 5))
+    XCTAssertFalse(element(identifier: "trash.load-more").exists)
+    XCTAssertEqual(rowCount(named: "poster.jpg"), 1, "Try again duplicated a loaded row")
+    addScreenshot(named: "runtime-trash-more-loaded")
+
+    XCTAssertTrue(waitUntilHittable(pageOneRow, timeout: 5))
+    pageOneRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
+      withVelocity: .slow,
+      thenHoldForDuration: 1
+    )
+    XCTAssertTrue(app.staticTexts["Drafts"].appears(within: 10), "refresh lost the second page")
+    XCTAssertTrue(element(identifier: "trash.load-more").disappears(within: 10))
+    for name in ["Old Season", "poster.jpg", "Drafts"] {
+      XCTAssertEqual(rowCount(named: name), 1, "refresh listed \(name) more than once")
+    }
+    XCTAssertFalse(element(identifier: "trash.more-error").exists, "refresh kept a failed page")
+  }
+
+  private func rowCount(named name: String) -> Int {
+    app.staticTexts.matching(NSPredicate(format: "label == %@", name)).count
+  }
+
   private func openSeededTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     app.launch()

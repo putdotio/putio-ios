@@ -1944,7 +1944,8 @@ import Foundation
         )
       }
       if HarnessTrash.handles(method: request.httpMethod ?? "GET", path: url.path) {
-        return HarnessTrash.response()
+        return HarnessTrash.response(
+          method: request.httpMethod ?? "GET", path: url.path, payload: requestPayload(request))
       }
       if HarnessPublicLinks.handles(method: request.httpMethod ?? "GET", path: url.path) {
         return HarnessPublicLinks.response(method: request.httpMethod ?? "GET", path: url.path)
