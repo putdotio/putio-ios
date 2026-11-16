@@ -1,4 +1,5 @@
 import Foundation
+import PutioSDK
 
 /// What a Direct play download stores: the original file and every put.io
 /// subtitle file for it, as WebVTT.
