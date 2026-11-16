@@ -8,9 +8,9 @@ struct PutioOfflineDownloadsView: View {
   @Environment(\.locale) private var locale
   @Environment(\.scenePhase) private var scenePhase
   @State private var notifications = PutioOfflineNotificationStatus()
-  @State private var isEditing = false
-  @State private var selectedIDs: Set<PutioFileID> = []
+  @State private var selection = PutioSelection<PutioFileID>()
   @State private var pendingRemoval: [PutioOfflineItem]?
+  @State private var failedRemoval: [PutioFileID]?
   @State private var infoItem: PutioOfflineItem?
 
   private var removalCopy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(isPad: isPad) }
@@ -26,14 +26,23 @@ struct PutioOfflineDownloadsView: View {
     .putioContentBackground()
     .navigationTitle("Downloads")
     .toolbar { toolbar }
-    .environment(\.editMode, .constant(isEditing ? .active : .inactive))
-    .environment(\.putioIsSelecting, isEditing)
+    .putioSelectionMode($selection, among: selectableIDs, actions: selectionActions)
+    .onChange(of: queue.items.isEmpty) { _, empty in
+      if empty { selection.end() }
+    }
     .putioAlert(
       removalCopy.title(count: pendingRemoval?.count ?? 1),
       isPresented: Binding(
         get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
       message: pendingRemoval.map { removalCopy.message(names: $0.map(\.name)) },
       actions: removalActions
+    )
+    .putioAlert(
+      removalCopy.failureTitle(count: failedRemoval?.count ?? 1),
+      isPresented: Binding(
+        get: { failedRemoval != nil }, set: { if !$0 { failedRemoval = nil } }),
+      message: failedRemoval.map { removalCopy.failureMessage(count: $0.count) },
+      actions: removalFailureActions
     )
     .sheet(item: $infoItem) { item in
       PutioOfflineInfoView(
@@ -58,15 +67,74 @@ struct PutioOfflineDownloadsView: View {
       PutioAlertAction(
         String(localized: "Remove"), tier: .destructive, id: "downloads.remove-confirm"
       ) {
-        queue.remove(fileIDs: fileIDs)
-        finishSelection()
+        remove(fileIDs)
       },
     ]
   }
 
-  private func finishSelection() {
-    selectedIDs = []
-    isEditing = false
+  private var removalFailureActions: [PutioAlertAction] {
+    guard let fileIDs = failedRemoval else { return [] }
+    return [
+      PutioAlertAction(String(localized: "OK"), tier: .cancel, id: "downloads.remove-failed-ok"),
+      PutioAlertAction(
+        String(localized: "Try again"), tier: .primary, id: "downloads.remove-failed-retry"
+      ) {
+        remove(fileIDs)
+      },
+    ]
+  }
+
+  private func remove(_ fileIDs: [PutioFileID]) {
+    let present = fileIDs.filter { queue.item(for: $0) != nil }
+    guard !present.isEmpty else { return }
+    if queue.removeSaved(fileIDs: present) == nil {
+      failedRemoval = present
+    } else {
+      selection.end()
+    }
+  }
+
+  private var isEditing: Bool { selection.isActive }
+
+  private var selectableIDs: [PutioFileID] {
+    PutioOfflineSections(
+      queue.items, waitingForSlot: queue.slotWaiters, removing: queue.removing
+    ).sections.flatMap(\.items).map(\.id).filter { queue.item(for: $0) != nil }
+  }
+
+  private var selectedItems: [PutioOfflineItem] {
+    queue.items.filter { selection.contains($0.id) }
+  }
+
+  private var selectionActions: [PutioSelectionAction] {
+    [
+      PutioSelectionAction(id: "pause", title: String(localized: "Pause"), icon: .pause) {
+        for item in selectedItems { queue.pause(fileID: item.id) }
+      },
+      PutioSelectionAction(id: "resume", title: String(localized: "Resume"), icon: .play) {
+        for item in selectedItems { queue.resume(fileID: item.id) }
+      },
+      PutioSelectionAction(
+        id: "remove", title: String(localized: "Remove"), icon: .minusCircle, isDestructive: true
+      ) {
+        pendingRemoval = selectedItems
+      },
+    ]
+  }
+
+  private var selectionSummary: some View {
+    HStack(alignment: .firstTextBaseline) {
+      Text("\(selectableIDs.count) items")
+      Spacer(minLength: PutioTheme.Spacing.space2)
+      if !selectedItems.isEmpty {
+        let bytes = selectedItems.reduce(Int64(0)) { $0 + $1.bytesOnDevice }
+        Text("\(byteText(bytes)) selected")
+      }
+    }
+    .putioFont(PutioTheme.Typography.numeric)
+    .foregroundStyle(PutioTheme.Colors.textSecondary)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("downloads.selection.summary")
   }
 
   private var isPad: Bool {
@@ -111,22 +179,21 @@ struct PutioOfflineDownloadsView: View {
   private var list: some View {
     let sections = PutioOfflineSections(
       queue.items, waitingForSlot: queue.slotWaiters, removing: queue.removing)
-    return List(selection: isEditing ? $selectedIDs : nil) {
-      storageLine
-        .listRowBackground(Color.clear)
-        .listRowSeparator(.hidden)
-        .selectionDisabled()
+    return List {
+      Group {
+        if isEditing { selectionSummary } else { storageLine }
+      }
+      .listRowBackground(Color.clear)
+      .listRowSeparator(.hidden)
       if notifications.showsRow(hasDownloads: !queue.items.isEmpty) {
         PutioOfflineNotificationsOffRow()
           .listRowBackground(Color.clear)
           .listRowSeparator(.hidden)
-          .selectionDisabled()
       }
       ForEach(sections.sections) { section in
         Section {
           ForEach(section.items) { item in
             row(item, queuePosition: sections.queuePositions[item.id])
-              .tag(item.id)
           }
         } header: {
           Text(title(section.kind))
@@ -173,7 +240,14 @@ struct PutioOfflineDownloadsView: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue(Text(verbatim: "removing"))
         .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
-        .selectionDisabled()
+    } else if isEditing {
+      PutioSelectableRow(isSelected: selection.contains(item.id)) {
+        selection.toggle(item.id)
+      } content: {
+        PutioFileRow(model)
+      }
+      .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
+      .accessibilityValue(Text(selection.contains(item.id) ? "Selected" : "Not selected"))
     } else {
       controlledRow(item, model: model)
     }
@@ -182,13 +256,7 @@ struct PutioOfflineDownloadsView: View {
   @ViewBuilder
   private func controlledRow(_ item: PutioOfflineItem, model: PutioFileRowModel) -> some View {
     Group {
-      if isEditing {
-        PutioFileRow(model)
-          .contentShape(Rectangle())
-          .accessibilityElement(children: .combine)
-          .accessibilityValue(
-            Text(selectedIDs.contains(item.id) ? "Selected" : "Not selected"))
-      } else if item.stage == .completed {
+      if item.stage == .completed {
         Button {
           if item.isPlayable { onOpen(item) } else { infoItem = item }
         } label: {
@@ -208,7 +276,7 @@ struct PutioOfflineDownloadsView: View {
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipeAction(item) }
     .contextMenu {
-      if !isEditing { menu(item) }
+      menu(item)
     }
   }
 
@@ -309,8 +377,8 @@ struct PutioOfflineDownloadsView: View {
 
   private func selectButton(_ item: PutioOfflineItem) -> some View {
     menuButton(String(localized: "Select"), systemImage: "checkmark.circle", id: "select", item) {
-      selectedIDs = [item.id]
-      isEditing = true
+      selection.begin()
+      selection.toggle(item.id)
     }
   }
 
@@ -334,51 +402,37 @@ struct PutioOfflineDownloadsView: View {
 
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
-    if !queue.items.isEmpty {
-      if isEditing {
-        ToolbarItem(placement: .primaryAction) {
-          Button("Done") { finishSelection() }
-            .accessibilityIdentifier("downloads.select-done")
-        }
-        ToolbarItem(placement: .topBarLeading) {
-          Button("Remove \(selectedIDs.count)", role: .destructive) {
-            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }
-          }
-          .disabled(selectedIDs.isEmpty)
-          .accessibilityIdentifier("downloads.remove-selected")
-        }
-      } else {
-        ToolbarItem(placement: .primaryAction) {
-          Menu {
-            Button {
-              isEditing = true
-            } label: {
-              Label("Select", systemImage: "checkmark.circle")
-            }
-            .accessibilityIdentifier("downloads.select")
-            switch queue.bulkAction {
-            case .pauseAll:
-              Button {
-                queue.pauseAll()
-              } label: {
-                Label("Pause all", systemImage: "pause")
-              }
-              .accessibilityIdentifier("downloads.pause-all")
-            case .resumeAll:
-              Button {
-                queue.resumeAll()
-              } label: {
-                Label("Resume all", systemImage: "play")
-              }
-              .accessibilityIdentifier("downloads.resume-all")
-            case nil:
-              EmptyView()
-            }
+    if !queue.items.isEmpty, !isEditing {
+      ToolbarItem(placement: .primaryAction) {
+        Menu {
+          Button {
+            selection.begin()
           } label: {
-            Label("More", systemImage: "ellipsis")
+            Label("Select", systemImage: "checkmark.circle")
           }
-          .accessibilityIdentifier("downloads.more")
+          .accessibilityIdentifier("downloads.select")
+          switch queue.bulkAction {
+          case .pauseAll:
+            Button {
+              queue.pauseAll()
+            } label: {
+              Label("Pause all", systemImage: "pause")
+            }
+            .accessibilityIdentifier("downloads.pause-all")
+          case .resumeAll:
+            Button {
+              queue.resumeAll()
+            } label: {
+              Label("Resume all", systemImage: "play")
+            }
+            .accessibilityIdentifier("downloads.resume-all")
+          case nil:
+            EmptyView()
+          }
+        } label: {
+          Label("More", systemImage: "ellipsis")
         }
+        .accessibilityIdentifier("downloads.more")
       }
     }
   }

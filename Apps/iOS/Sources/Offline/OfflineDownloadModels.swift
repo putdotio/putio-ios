@@ -80,6 +80,14 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     Int64((Double(estimatedBytes) * progress).rounded(.down))
   }
 
+  var bytesOnDevice: Int64 {
+    switch stage {
+    case .completed: storedBytes
+    case .downloading, .waitingForNetwork, .paused: receivedBytes
+    case .queued, .waitingToConvert, .converting, .waitingForStorage, .failed, .missing: 0
+    }
+  }
+
   func downloadState(queuePosition: Int?) -> PutioDownloadState {
     if let queuePosition { return .queued(position: queuePosition) }
     return switch stage {

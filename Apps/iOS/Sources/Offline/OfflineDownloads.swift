@@ -497,6 +497,21 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// Removes only once the queue without these downloads is on disk, so a
+  /// failed write leaves every download, file, and control as it was.
+  func removeSaved(fileIDs: [PutioFileID]) -> Task<Void, Never>? {
+    if isLive() {
+      do {
+        try store.save(
+          items: items.filter { !fileIDs.contains($0.id) }, concurrencyLimit: concurrencyLimit,
+          waitingForSlot: resumeWhenFree.filter { !fileIDs.contains($0) })
+      } catch {
+        return nil
+      }
+    }
+    return remove(fileIDs: fileIDs)
+  }
+
   @discardableResult
   func remove(fileIDs: [PutioFileID]) -> Task<Void, Never> {
     var leaving: [PutioOfflineItem] = []

@@ -95,20 +95,21 @@ final class DownloadsJourneyTests: XCTestCase {
 
     app.buttons["downloads.more"].tap()
     app.buttons["downloads.select"].tap()
-    XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
-    XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
+    let removeSelected = app.buttons["selection.action.remove"]
+    XCTAssertTrue(removeSelected.appears(within: 5))
+    XCTAssertFalse(removeSelected.isEnabled)
     XCTAssertEqual(item.value as? String, "Not selected")
     RunLoop.current.run(until: Date.now.addingTimeInterval(1))
     let rowAccent = app.accentPixelCount(in: rowBand(item))
     item.tap()
-    XCTAssertTrue(waitUntil(timeout: 5) { self.app.buttons["downloads.remove-selected"].isEnabled })
+    XCTAssertTrue(waitUntil(timeout: 5) { removeSelected.isEnabled })
     XCTAssertEqual(item.value as? String, "Selected")
     RunLoop.current.run(until: Date.now.addingTimeInterval(1))
     screenshot("runtime-downloads-selection")
     XCTAssertGreaterThan(
       app.accentPixelCount(in: rowBand(item)), rowAccent + 1_000,
       "the selection checkmark is not yellow")
-    app.buttons["downloads.remove-selected"].tap()
+    removeSelected.tap()
     let confirmation = app.putioAlert("Remove from this iPhone?")
     XCTAssertTrue(confirmation.appears(within: 5), "removal asked for no confirmation")
     XCTAssertTrue(

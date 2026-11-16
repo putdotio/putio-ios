@@ -931,6 +931,28 @@
         }
       }
     },
+    "Could not remove download" : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not remove download"
+          }
+        }
+      }
+    },
+    "Could not remove downloads" : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not remove downloads"
+          }
+        }
+      }
+    },
     "Could not save downloads" : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -2974,6 +2996,50 @@
         }
       }
     },
+    "Nothing was removed because this iPad could not save the change. Remove the download again." : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was removed because this iPad could not save the change. Remove the download again."
+          }
+        }
+      }
+    },
+    "Nothing was removed because this iPad could not save the change. Remove the downloads again." : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was removed because this iPad could not save the change. Remove the downloads again."
+          }
+        }
+      }
+    },
+    "Nothing was removed because this iPhone could not save the change. Remove the download again." : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was removed because this iPhone could not save the change. Remove the download again."
+          }
+        }
+      }
+    },
+    "Nothing was removed because this iPhone could not save the change. Remove the downloads again." : {
+      "comment" : "ios-only: Android removes downloads without writing a queue first, so it has no removal-failure copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was removed because this iPhone could not save the change. Remove the downloads again."
+          }
+        }
+      }
+    },
     "Nothing was saved, so you can try again." : {
       "comment" : "android: mobile_welcome_failed",
       "localizations" : {
@@ -4136,17 +4202,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove"
-          }
-        }
-      }
-    },
-    "Remove %lld" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %lld"
           }
         }
       }
