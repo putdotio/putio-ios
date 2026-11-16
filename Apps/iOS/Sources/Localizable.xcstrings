@@ -756,7 +756,7 @@
       }
     },
     "Chromecast" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
+      "comment" : "ios-only: no Android string for the fallback Cast receiver name (putio-android#847)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2212,7 +2212,7 @@
       }
     },
     "Local network access is off" : {
-      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
+      "comment" : "ios-only: Apple-only Local Network permission prompt",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2256,7 +2256,7 @@
       }
     },
     "Open Settings" : {
-      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
+      "comment" : "ios-only: Apple-only Local Network permission prompt",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2333,7 +2333,7 @@
       }
     },
     "It may have been moved or deleted." : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
+      "comment" : "android: mobile_downloads_status_failed_unavailable | differs: iOS board wording",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4051,7 +4051,7 @@
       }
     },
     "Turn it on in Settings to find Cast devices." : {
-      "comment" : "ios-only: Android asks for local network access in the system permission dialog; iOS sends people to Settings",
+      "comment" : "ios-only: Apple-only Local Network permission prompt",
       "localizations" : {
         "en" : {
           "stringUnit" : {
