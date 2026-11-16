@@ -232,6 +232,7 @@ final class PutioOfflineQueue {
     }
     if changed { persist() }
     schedule()
+    if online { Task { await syncPendingPositions() } }
   }
 
   /// Reconnects tasks the system kept alive and re-queues everything else
@@ -498,6 +499,11 @@ final class PutioOfflineQueue {
     case .failed(let failure) where failure.canRetry: break
     case .missing: break
     default: return
+    }
+    guard isOnline else {
+      let connectionLost = PutioOfflineFailure.resolving(PutioRuntimeError.transient) ?? .download
+      update(fileID) { $0.stage = .failed(connectionLost) }
+      return
     }
     completionEpoch[fileID, default: 0] &+= 1
     items[index].stage = .queued
