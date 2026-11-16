@@ -155,7 +155,9 @@ struct HistoryView: View {
               .padding(.trailing, PutioTheme.Spacing.space1)
               .listRowInsets(.vertical, PutioTheme.Spacing.space2)
               .listRowInsets(.trailing, 0)
-              .listRowSeparator(event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom)
+              .listRowSeparator(
+                event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
+              )
               .listRowBackground(PutioTheme.Colors.background)
           }
         } header: {
