@@ -73,54 +73,152 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([40, 30], next: 20))
   }
 
-  func testDeleteAndClearFailuresRetainPageAndRetryExactOperation() async {
-    var failDelete = true
-    var failClear = true
-    var deleted: [Int] = []
+  func testDeleteHidesTheEventWhileTheRequestIsPending() async throws {
+    let pending = PendingHistoryPage()
+    defer { pending.cancel() }
     let model = model(
       list: { _ in Self.page([30, 20], next: 10) },
+      delete: { _ in _ = try await pending.load() })
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.beginDelete(eventID: 30))
+    XCTAssertEqual(model.page, Self.page([20], next: 10))
+    let deletion = Task { await model.finishDelete(eventID: 30) }
+    defer { deletion.cancel() }
+    try await pending.waitForRequest()
+    XCTAssertEqual(model.page, Self.page([20], next: 10))
+    XCTAssertEqual(model.deletingEventIDs, [30])
+    pending.finish(Self.page([]))
+    let failure = await deletion.value
+    XCTAssertNil(failure)
+    XCTAssertEqual(model.page, Self.page([20], next: 10))
+    XCTAssertEqual(model.deletingEventIDs, [])
+  }
+
+  func testFailedDeleteRestoresTheEventInPlaceAndReportsTheFailure() async {
+    var deleted: [Int] = []
+    let model = model(
+      list: { _ in Self.page([30, 20, 10], next: 5) },
       delete: { id in
         deleted.append(id)
-        if failDelete { throw PutioRuntimeError.transient }
-      },
+        throw PutioRuntimeError.transient
+      })
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.beginDelete(eventID: 20))
+    XCTAssertEqual(model.page, Self.page([30, 10], next: 5))
+    let failure = await model.finishDelete(eventID: 20)
+    XCTAssertNotNil(failure)
+    XCTAssertEqual(deleted, [20])
+    XCTAssertEqual(model.page, Self.page([30, 20, 10], next: 5))
+    XCTAssertNil(model.mutationFailure)
+    XCTAssertNil(model.failedMutation)
+  }
+
+  func testExpiredSessionRestoresTheEventWithoutAFailure() async {
+    let model = model(
+      list: { _ in Self.page([30, 20]) },
+      delete: { _ in throw PutioRuntimeError.sessionExpired })
+    await model.loadIfNeeded()
+    model.beginDelete(eventID: 30)
+    let failure = await model.finishDelete(eventID: 30)
+    XCTAssertNil(failure)
+    XCTAssertEqual(model.page, Self.page([30, 20]))
+  }
+
+  func testClearFailureRetainsPageAndRetriesTheClear() async {
+    var failClear = true
+    let model = model(
+      list: { _ in Self.page([30, 20], next: 10) },
       clear: { if failClear { throw PutioRuntimeError.transient } })
     await model.loadIfNeeded()
-    await model.delete(eventID: 30)
-    XCTAssertEqual(model.page, Self.page([30, 20], next: 10))
-    XCTAssertEqual(model.failedMutation, .delete(30))
-    failDelete = false
-    await model.retryMutation()
-    XCTAssertEqual(deleted, [30, 30])
-    XCTAssertEqual(model.page, Self.page([20], next: 10))
     await model.clear()
     XCTAssertEqual(model.failedMutation, .clear)
-    XCTAssertEqual(model.page, Self.page([20], next: 10))
+    XCTAssertEqual(model.page, Self.page([30, 20], next: 10))
     failClear = false
     await model.retryMutation()
     XCTAssertEqual(model.page, Self.page([]))
   }
 
-  func testRefreshDiscardsFailedDeletionOnlyWhenItsTargetIsNoLongerLoaded() async {
-    var items = [30, 20]
-    var deleteCalls = 0
-    let model = model(
-      list: { _ in Self.page(items) },
-      delete: { _ in
-        deleteCalls += 1
-        throw PutioRuntimeError.transient
-      })
+  func testLateRefreshCannotRestoreADeletedEvent() async throws {
+    let refreshing = PendingHistoryPage()
+    defer { refreshing.cancel() }
+    var calls = 0
+    let model = model(list: { _ in
+      calls += 1
+      if calls == 1 { return Self.page([30, 20]) }
+      return try await refreshing.load()
+    })
     await model.loadIfNeeded()
-    await model.delete(eventID: 30)
+    let refresh = Task { await model.refresh() }
+    defer { refresh.cancel() }
+    try await refreshing.waitForRequest()
+    model.beginDelete(eventID: 30)
+    let failure = await model.finishDelete(eventID: 30)
+    XCTAssertNil(failure)
+    refreshing.finish(Self.page([40, 30, 20]))
+    await refresh.value
+    XCTAssertEqual(model.page, Self.page([40, 20]))
+  }
+
+  func testDeletesRunTogetherAndLeavePagingAndRefreshUsable() async throws {
+    let first = PendingHistoryPage()
+    let second = PendingHistoryPage()
+    defer {
+      first.cancel()
+      second.cancel()
+    }
+    var cursors: [Int?] = []
+    let model = model(
+      list: { before in
+        cursors.append(before)
+        return before == nil ? Self.page([30, 20], next: 15) : Self.page([10])
+      },
+      delete: { id in _ = try await (id == 30 ? first : second).load() })
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.beginDelete(eventID: 30))
+    XCTAssertFalse(model.beginDelete(eventID: 30))
+    XCTAssertTrue(model.beginDelete(eventID: 20))
+    let deleteFirst = Task { await model.finishDelete(eventID: 30) }
+    let deleteSecond = Task { await model.finishDelete(eventID: 20) }
+    defer {
+      deleteFirst.cancel()
+      deleteSecond.cancel()
+    }
+    try await first.waitForRequest()
+    try await second.waitForRequest()
+    XCTAssertEqual(model.page, Self.page([], next: 15))
+    await model.loadMore()
+    XCTAssertEqual(model.page, Self.page([10]))
     await model.refresh()
-    XCTAssertEqual(model.failedMutation, .delete(30))
-    XCTAssertNotNil(model.mutationFailure)
-    items = []
-    await model.refresh()
-    XCTAssertEqual(model.page?.items, [])
-    XCTAssertNil(model.failedMutation)
-    XCTAssertNil(model.mutationFailure)
-    await model.retryMutation()
-    XCTAssertEqual(deleteCalls, 1)
+    XCTAssertEqual(cursors, [nil, 15, nil])
+    XCTAssertEqual(model.page, Self.page([], next: 15))
+    first.finish(Self.page([]))
+    second.finish(Self.page([]))
+    let results = [await deleteFirst.value, await deleteSecond.value]
+    XCTAssertEqual(results, [nil, nil])
+    XCTAssertEqual(model.page, Self.page([], next: 15))
+  }
+
+  func testDeletingTheOnlyEventOfADayRemovesItsSectionAndTheLastEventEmptiesHistory()
+    async throws
+  {
+    let calendar = Calendar(identifier: .gregorian)
+    let now = try XCTUnwrap(
+      calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 9)))
+    let older = try XCTUnwrap(calendar.date(byAdding: .day, value: -10, to: now))
+    let model = model(list: { _ in
+      PutioHistoryPage(items: [Self.event(30, at: now), Self.event(20, at: older)], nextBefore: nil)
+    })
+    await model.loadIfNeeded()
+    func days() -> Int {
+      PutioHistoryDay.group(model.page?.items ?? [], now: now, calendar: calendar).count
+    }
+    XCTAssertEqual(days(), 2)
+    model.beginDelete(eventID: 20)
+    _ = await model.finishDelete(eventID: 20)
+    XCTAssertEqual(days(), 1)
+    model.beginDelete(eventID: 30)
+    _ = await model.finishDelete(eventID: 30)
+    XCTAssertEqual(model.page, Self.page([]))
   }
 
   func testRefreshDiscardsFailedLookupOnlyWhenItsEventIsNoLongerLoaded() async {
@@ -198,25 +296,25 @@ final class HistoryTests: XCTestCase {
         listCalls += 1
         return Self.page([30, 20])
       },
-      delete: { id in
-        deletes.append(id)
+      delete: { deletes.append($0) },
+      clear: {
+        clears += 1
         _ = try await pending.load()
-      },
-      clear: { clears += 1 })
+      })
     await model.loadIfNeeded()
-    let task = Task { await model.delete(eventID: 30) }
+    let task = Task { await model.clear() }
     defer { task.cancel() }
     try await pending.waitForRequest()
     task.cancel()
     await model.refresh()
-    await model.delete(eventID: 20)
+    XCTAssertFalse(model.beginDelete(eventID: 20))
     await model.clear()
     XCTAssertEqual(listCalls, 1)
-    XCTAssertEqual(deletes, [30])
-    XCTAssertEqual(clears, 0)
+    XCTAssertEqual(deletes, [])
+    XCTAssertEqual(clears, 1)
     pending.finish(Self.page([]))
     await task.value
-    XCTAssertEqual(model.page, Self.page([20]))
+    XCTAssertEqual(model.page, Self.page([]))
     XCTAssertNil(model.mutation)
   }
 
@@ -351,10 +449,12 @@ final class HistoryTests: XCTestCase {
     })
     await model.loadIfNeeded()
     await model.openFile(event: event)
-    await model.delete(eventID: 20)
+    model.beginDelete(eventID: 20)
+    _ = await model.finishDelete(eventID: 20)
     XCTAssertNotNil(model.openFailure)
-    await model.delete(eventID: 30)
+    model.beginDelete(eventID: 30)
     XCTAssertNil(model.openFailure)
+    _ = await model.finishDelete(eventID: 30)
     await model.retryOpen()
     XCTAssertNil(model.openFailure)
   }

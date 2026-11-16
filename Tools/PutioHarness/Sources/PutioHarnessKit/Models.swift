@@ -670,6 +670,7 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-47-search-more-failed", .iphone, "testSearchMoreFailed"),
       BoardCapture("rd-ios-71-search-long-query", .iphone, "testSearchLongQuery"),
       BoardCapture("rd-ios-hist-01-list", .iphone, "testHistoryList"),
+      BoardCapture("rd-ios-hist-05-swipe", .iphone, "testHistorySwipe", screenBase: false),
       BoardCapture("rd-ios-hist-09-loading-more", .iphone, "testHistoryLoadingMore"),
       BoardCapture("rd-ios-hist-10-load-more-failed", .iphone, "testHistoryLoadMoreFailed"),
       BoardCapture("rd-ios-hist-02-empty", .iphone, "testHistoryEmpty"),
@@ -1534,7 +1535,8 @@ enum BrowserJourneyContract {
       "history", "HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate",
       attachmentNames: [
         "runtime-history-loaded", "runtime-history-error",
-        "runtime-history-navigation-blocked", "runtime-history-empty",
+        "runtime-history-navigation-blocked", "runtime-history-delete-failed",
+        "runtime-history-empty",
       ],
       timeAllowance: 180),
     JourneyPreflight(

@@ -138,7 +138,8 @@ struct HistoryView: View {
           model.retryFailedLoad()
         }
       }
-    case .loaded(let page):
+    case .loaded:
+      let page = model.page ?? PutioHistoryPage(items: [], nextBefore: nil)
       if page.items.isEmpty, page.nextBefore == nil,
         model.refreshFailure == nil, model.mutationFailure == nil,
         model.openFailure.map(\.isNotFound) ?? true
@@ -281,13 +282,30 @@ struct HistoryView: View {
       }
     }
     .accessibilityIdentifier("history.item.\(event.id)")
-    .contextMenu {
-      Button("Delete Event", role: .destructive) { Task { await model.delete(eventID: event.id) } }
+    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+      Button(role: .destructive) {
+        delete(event)
+      } label: {
+        Label {
+          Text("Delete")
+        } icon: {
+          Image(putioIcon: .trash)
+        }
+        .labelStyle(.iconOnly)
+      }
+      .tint(PutioTheme.Colors.destructive)
+      .accessibilityIdentifier("history.swipe.delete")
     }
-    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button("Delete", role: .destructive) { Task { await model.delete(eventID: event.id) } }
+    .accessibilityAction(named: Text("Delete")) { delete(event) }
+  }
+
+  private func delete(_ event: PutioHistoryEventItem) {
+    let started = withAnimation { model.beginDelete(eventID: event.id) }
+    guard started else { return }
+    Task {
+      guard await model.finishDelete(eventID: event.id) != nil else { return }
+      toast = PutioToast(String(localized: "Couldn’t delete"), icon: .warning, width: .fit)
     }
-    .accessibilityAction(named: "Delete Event") { Task { await model.delete(eventID: event.id) } }
   }
 
   private static let prefetchDistance = 5
