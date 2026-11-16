@@ -124,6 +124,26 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([30, 20]))
   }
 
+  func testDeleteThatFailsAfterAClearReportsNothing() async throws {
+    let pending = PendingHistoryPage()
+    defer { pending.cancel() }
+    let model = model(
+      list: { _ in Self.page([30, 20], next: 10) },
+      delete: { _ in _ = try await pending.load() })
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.beginDelete(eventID: 30))
+    let deletion = Task { await model.finishDelete(eventID: 30) }
+    defer { deletion.cancel() }
+    try await pending.waitForRequest()
+    await model.clear()
+    XCTAssertEqual(model.page, Self.page([]))
+    pending.fail(PutioRuntimeError.notFound)
+    let failure = await deletion.value
+    XCTAssertNil(failure)
+    XCTAssertEqual(model.page, Self.page([]))
+    XCTAssertEqual(model.deletingEventIDs, [])
+  }
+
   func testClearFailureRetainsPageAndRetriesTheClear() async {
     var failClear = true
     let model = model(
@@ -206,7 +226,8 @@ final class HistoryTests: XCTestCase {
       calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 9)))
     let older = try XCTUnwrap(calendar.date(byAdding: .day, value: -10, to: now))
     let model = model(list: { _ in
-      PutioHistoryPage(items: [Self.event(30, at: now), Self.event(20, at: older)], nextBefore: nil)
+      PutioHistoryPage(
+        items: [Self.event(30, at: now), Self.event(20, at: older)], nextBefore: nil)
     })
     await model.loadIfNeeded()
     func days() -> Int {
@@ -645,6 +666,11 @@ private final class PendingHistoryPage {
 
   func finish(_ page: PutioHistoryPage) {
     continuation?.resume(returning: page)
+    continuation = nil
+  }
+
+  func fail(_ error: any Error) {
+    continuation?.resume(throwing: error)
     continuation = nil
   }
 

@@ -1963,6 +1963,11 @@ import Foundation
       if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
         return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
       }
+      if request.httpMethod == "POST", url.path.hasPrefix("/v2/events/delete/"),
+        let eventID = Int(url.path.dropFirst("/v2/events/delete/".count))
+      {
+        return deleteHistory(id: eventID)
+      }
       switch routeKey {
       case "GET /v2/oauth2/oob/code":
         return deviceCodeLock.withLock {
@@ -2183,8 +2188,6 @@ import Foundation
         return listHistory(url: url)
       case "POST /v2/events/delete":
         return clearHistory()
-      case "POST /v2/events/delete/808":
-        return deleteHistory(id: 808)
       case "GET /v2/files/410":
         fileActionsLock.lock()
         let failLookup =

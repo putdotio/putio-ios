@@ -108,7 +108,8 @@ final class HistoryJourneyTests: XCTestCase {
     reveal(videoEvent)
     let rowStart = videoEvent.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
     let rowEnd = videoEvent.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5))
-    rowStart.press(forDuration: 0.05, thenDragTo: rowEnd, withVelocity: .fast, thenHoldForDuration: 0)
+    rowStart.press(
+      forDuration: 0.05, thenDragTo: rowEnd, withVelocity: .fast, thenHoldForDuration: 0)
     XCTAssertTrue(videoEvent.disappears(within: 5), "a full swipe did not delete the event")
 
     let earlierUpload = element("history.item.801")
@@ -127,6 +128,13 @@ final class HistoryJourneyTests: XCTestCase {
     reveal(element("history.item.802"))
     XCTAssertFalse(videoEvent.exists, "refresh restored a deleted event")
     XCTAssertFalse(earlierUpload.exists, "refresh restored a deleted event")
+    signOut()
+    signIn()
+    history.tap()
+    XCTAssertTrue(folderEvent.appears(within: 10))
+    reveal(element("history.item.802"))
+    XCTAssertFalse(videoEvent.exists, "the server kept a deleted event")
+    XCTAssertFalse(earlierUpload.exists, "the server kept a deleted event")
     scrollToTop()
 
     let clear = app.buttons["history.clear"]

@@ -86,6 +86,7 @@ public final class PutioHistoryModel {
   public private(set) var openFailure: PutioHistoryFailure?
   public private(set) var deletingEventIDs: Set<Int> = []
   @ObservationIgnored private var deletedEventIDs: Set<Int> = []
+  @ObservationIgnored private var clearCount: UInt64 = 0
   @ObservationIgnored private let actions: PutioHistoryActions
   public private(set) var generation: UInt64 = 0
   @ObservationIgnored private var failedOpen: PutioHistoryEventItem?
@@ -203,6 +204,7 @@ public final class PutioHistoryModel {
 
   public func finishDelete(eventID: Int) async -> PutioHistoryFailure? {
     guard deletingEventIDs.contains(eventID) else { return nil }
+    let clears = clearCount
     let task = Task { @MainActor in
       do {
         try await actions.delete(eventID)
@@ -211,6 +213,7 @@ public final class PutioHistoryModel {
         return nil as PutioHistoryFailure?
       } catch {
         deletingEventIDs.remove(eventID)
+        guard clears == clearCount else { return nil }
         return PutioHistoryFailure(error: error)
       }
     }
@@ -229,6 +232,7 @@ public final class PutioHistoryModel {
     let task = Task { @MainActor in
       do {
         try await actions.clear()
+        clearCount &+= 1
         cancelOpen()
         deletingEventIDs = []
         state = .loaded(PutioHistoryPage(items: [], nextBefore: nil))

@@ -296,7 +296,6 @@ struct HistoryView: View {
       .tint(PutioTheme.Colors.destructive)
       .accessibilityIdentifier("history.swipe.delete")
     }
-    .accessibilityAction(named: Text("Delete")) { delete(event) }
   }
 
   private func delete(_ event: PutioHistoryEventItem) {
