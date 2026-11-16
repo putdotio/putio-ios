@@ -114,6 +114,86 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-43-offline")
   }
 
+  func testDownloadsFixture() throws {
+    let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
+    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
+    let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
+    orientForBoardDevice()
+    app.launchArguments += ["--putio-harness-downloads", fixture]
+    app.launch()
+    let downloads = tabButton("Downloads")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !downloads.exists, !signIn.exists, Date.now < deadline {
+      _ = downloads.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !downloads.appears(within: 15) { sidebarToggle().tap() }
+    XCTAssertTrue(downloads.appears(within: 5), "the Downloads tab is missing")
+    downloads.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+    if rows.isEmpty {
+      XCTAssertTrue(
+        app.staticTexts["No downloads"].appears(within: 5), "the empty fixture has rows")
+    }
+    for pass in 0..<2 where !rows.isEmpty {
+      if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
+      for (id, state) in rows {
+        let row = app.revealed("downloads.item.\(id)")
+        XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
+        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
+      }
+      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+    }
+    try captureBoard(board)
+    let onPhone = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "ipad"
+    if fixture == "list", onPhone {
+      let video = app.buttons["downloads.item.9001"].firstMatch
+      app.bringIntoView(video)
+      video.tap()
+      XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
+      app.revealVideoControls(showing: app.videoClose)
+      app.videoClose.tap()
+      let audio = app.buttons["downloads.item.408"].firstMatch
+      app.bringIntoView(audio)
+      audio.tap()
+      XCTAssertTrue(element("audio.state").appears(within: 20), "the finished audio did not play")
+      app.buttons["audio.collapse"].tap()
+    }
+    guard fixture == "offline" else { return }
+    tabButton("Files").tap()
+    XCTAssertTrue(
+      app.staticTexts["put.io is out of reach"].appears(within: 15),
+      "the offline fixture left the network up")
+  }
+
+  private static let downloadsFixtureBoards = [
+    "list": "rd-ios-dl-01-list", "empty": "rd-ios-dl-02-empty",
+    "downloading-states": "rd-ios-dl-11-downloading-states",
+    "attention-states": "rd-ios-dl-12-attention-states", "offline": "rd-ios-dl-19-offline",
+  ]
+
+  private static let listFixtureRows: [(id: Int, state: String)] = [
+    (442, "downloading;42"), (443, "queued"), (444, "failed;resolution;26"), (441, "completed"),
+    (9_001, "completed;watched"), (408, "completed"),
+  ]
+
+  private static let downloadsFixtureRows: [String: [(id: Int, state: String)]] = [
+    "list": listFixtureRows,
+    "offline": listFixtureRows,
+    "empty": [],
+    "downloading-states": [
+      (442, "downloading;42"), (447, "converting;12"), (443, "paused;42"),
+      (448, "downloading;42;network"), (444, "downloading;6"), (449, "queued"),
+      (441, "completed;removing"), (9_001, "completed;watched"),
+    ],
+    "attention-states": [
+      (442, "failed;resolution"), (443, "failed;authentication"), (444, "failed;notFound"),
+      (447, "failed;storage"), (448, "failed;download"), (441, "completed"),
+      (9_001, "completed;watched"), (408, "completed"),
+    ],
+  ]
+
   func testFolderLoading() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")

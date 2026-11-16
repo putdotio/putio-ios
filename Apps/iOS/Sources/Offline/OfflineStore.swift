@@ -75,7 +75,10 @@ struct PutioOfflineStore: Sendable {
       version: Self.version, items: items, concurrencyLimit: concurrencyLimit,
       pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals,
       waitingForSlot: waitingForSlot.isEmpty ? nil : waitingForSlot)
-    let data = try JSONEncoder().encode(document)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .sortedKeys
+    let data = try encoder.encode(document)
+    guard (try? Data(contentsOf: fileURL)) != data else { return }
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try data.write(to: fileURL, options: .atomic)
   }

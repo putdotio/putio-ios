@@ -53,6 +53,7 @@ final class PutioOfflineQueue {
   /// False once the owning shell's session ended; originals paths then neither
   /// start work nor write.
   @ObservationIgnored private let isLive: @MainActor () -> Bool
+  @ObservationIgnored private let playbackURL: @MainActor (String) -> URL
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -102,7 +103,8 @@ final class PutioOfflineQueue {
     reportPosition: @escaping PutioOfflinePositionReport,
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
     trashSetting: @escaping @MainActor () async -> Bool? = { nil },
-    isLive: @escaping @MainActor () -> Bool = { true }
+    isLive: @escaping @MainActor () -> Bool = { true },
+    playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:)
   ) {
     self.store = store
     self.engine = engine
@@ -121,6 +123,7 @@ final class PutioOfflineQueue {
     self.deleteOriginal = deleteOriginal
     self.trashSetting = trashSetting
     self.isLive = isLive
+    self.playbackURL = playbackURL
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -597,7 +600,7 @@ final class PutioOfflineQueue {
       return nil
     }
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
-    return PutioPlaybackSource(url: Self.localURL(for: localPath), startFromSeconds: resume)
+    return PutioPlaybackSource(url: playbackURL(localPath), startFromSeconds: resume)
   }
 
   /// Records a position locally first, then forwards it. A failed forward
@@ -964,6 +967,11 @@ final class PutioOfflineQueue {
   private func fail(_ fileID: PutioFileID, _ failure: PutioOfflineFailure) {
     update(fileID) {
       if case .paused = $0.stage { return }
+      if case .downloading(let progress) = $0.stage {
+        $0.failedProgress = progress
+      } else {
+        $0.failedProgress = nil
+      }
       $0.stage = .failed(failure)
     }
   }
@@ -1036,7 +1044,7 @@ final class PutioOfflineQueue {
   }
 
   private func recomputeStorage() {
-    storedBytes = items.map(\.storedBytes).reduce(0, +)
+    storedBytes = items.filter { $0.isRemoving != true }.map(\.storedBytes).reduce(0, +)
     availableBytes = availableStorage()
   }
 

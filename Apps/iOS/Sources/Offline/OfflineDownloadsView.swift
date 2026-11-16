@@ -275,13 +275,24 @@ struct PutioOfflineDownloadsView: View {
   }
 
   private func accessibilityValue(_ item: PutioOfflineItem) -> String {
+    let marks = [
+      item.waitingForNetwork == true ? "network" : nil,
+      item.isRemoving == true ? "removing" : nil,
+      item.isWatched == true ? "watched" : nil,
+    ].compactMap(\.self)
+    return ([stageValue(item)] + marks).joined(separator: ";")
+  }
+
+  private func stageValue(_ item: PutioOfflineItem) -> String {
     switch item.stage {
     case .queued: "queued"
     case .converting(let progress): "converting;\(Int(progress * 100))"
     case .downloading(let progress): "downloading;\(Int(progress * 100))"
     case .paused(let progress): "paused;\(Int(progress * 100))"
     case .completed: "completed"
-    case .failed(let failure): "failed;\(failure.kind.rawValue)"
+    case .failed(let failure):
+      item.failedProgress.map { "failed;\(failure.kind.rawValue);\(Int($0 * 100))" }
+        ?? "failed;\(failure.kind.rawValue)"
     }
   }
 
