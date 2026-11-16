@@ -208,10 +208,16 @@ struct PutioVideoPlaybackView: View {
       onPlayNext(nextVideo)
     }
     .onChange(of: castHandOff?.connection()) { _, connection in
-      guard connection != nil, isReady, transport.isPlaying, let castHandOff else { return }
-      _ = castHandOff.handOff(
-        PutioVideoPositionReporter.normalizedPosition(seconds: transport.timeline.elapsedSeconds),
-        transport.trackChoice)
+      guard connection != nil else { return }
+      model.receiverConnected(
+        preparing: transport.wait.state == .preparing,
+        playingAtSeconds: transport.isPlaying
+          ? PutioVideoPositionReporter.normalizedPosition(
+            seconds: transport.timeline.elapsedSeconds) : nil,
+        tracks: transport.trackChoice)
+    }
+    .onChange(of: transport.wait.state) { _, wait in
+      if wait != .preparing { model.playbackStarted() }
     }
     .onChange(of: nextVideoFailed) { _, failed in
       if failed, transport.isPlaying { transport.togglePlayPause() }
