@@ -839,8 +839,6 @@ import Foundation
     nonisolated(unsafe) private static var restoreOfflinePending = ProcessInfo.processInfo
       .arguments.contains("--putio-harness-restore-offline-once")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
-    /// A delete of the seeded root video drops it from the root listing, so the
-    /// downloads journey sees any request that reaches the original.
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false

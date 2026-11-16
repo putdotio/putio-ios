@@ -53,8 +53,6 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
   @ObservationIgnored private let notifyFailure:
     @MainActor (PutioOfflineItem, PutioOfflineFailure) -> Void
-  /// False once the owning shell's session ended; the queue then neither
-  /// starts work nor writes.
   @ObservationIgnored private let isLive: @MainActor () -> Bool
   @ObservationIgnored private let playbackURL: @MainActor (String) -> URL
   @ObservationIgnored private let deletePackages: PutioOfflinePackageDeletion?

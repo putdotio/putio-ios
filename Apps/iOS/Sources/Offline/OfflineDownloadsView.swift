@@ -1,8 +1,6 @@
 import PutioCore
 import SwiftUI
 
-/// The Downloads tab: a storage line, then what is downloading, what needs
-/// attention and what is on the device.
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let onOpen: @MainActor (PutioOfflineItem) -> Void

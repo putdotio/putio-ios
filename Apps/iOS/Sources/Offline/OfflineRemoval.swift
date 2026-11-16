@@ -1,7 +1,5 @@
 import Foundation
 
-/// Wording for removing downloads from this device. Removal never reaches the
-/// account's files, so the copy names only the device.
 struct PutioOfflineRemovalCopy: Equatable {
   let isPad: Bool
 

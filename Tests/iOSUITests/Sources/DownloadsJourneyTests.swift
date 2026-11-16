@@ -55,7 +55,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
     app.closeVideo()
 
-    // Relaunch without the failure flag: the item survives.
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launch()
@@ -81,8 +80,6 @@ final class DownloadsJourneyTests: XCTestCase {
     app.closeVideo()
     XCTAssertTrue(item.appears(within: 10))
 
-    // Multi-select removal asks once, removes only the copy on this iPhone,
-    // and leaves the original in the account.
     app.buttons["downloads.more"].tap()
     app.buttons["downloads.select"].tap()
     XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
@@ -110,7 +107,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(item.disappears(within: 10))
     XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 5))
 
-    // No request reached the original: the seeded root drops 412 on any delete.
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25)).press(

@@ -2417,7 +2417,6 @@ final class OfflineDownloadsTests: XCTestCase {
       "The files stay in your put.io account. Only the copies on this iPad are removed.")
   }
 
-  /// A non-empty directory where the queue document goes fails every write.
   private func blockQueueWrites() throws {
     try? FileManager.default.removeItem(at: directory.appending(path: "queue.json"))
     try FileManager.default.createDirectory(

@@ -736,6 +736,10 @@ enum BoardCaptureContract {
         "rd-ios-dl-07-remove", .iphone, "testDownloadsSwipe",
         environment: ["PUTIO_DOWNLOADS_SWIPE": "remove"]),
       BoardCapture(
+        "rd-ios-dl-07-remove-ipad", .ipad, "testDownloadsSwipe",
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "remove"]
+      ).held(.portrait),
+      BoardCapture(
         "rd-ios-dl-08-swipe", .iphone, "testDownloadsSwipe", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_SWIPE": "finished"]),
       BoardCapture(
