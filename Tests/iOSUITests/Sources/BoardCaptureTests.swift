@@ -1362,6 +1362,10 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(app.buttons["video.stalled.retry"].label, "Try again")
     XCTAssertTrue(app.videoClose.exists, "the stall offers no Close")
     XCTAssertFalse(element("video.play-pause").exists, "the stall shows the transport")
+    let retry = app.buttons["video.stalled.retry"].frame
+    XCTAssertLessThan(
+      screenLuminance(at: CGPoint(x: retry.midX, y: retry.maxY + 32)), 0.02,
+      "the last video frame shows behind the stall")
     try captureBoard("rd-ios-pb-27-stalled")
   }
 
@@ -3388,8 +3392,22 @@ final class BoardCaptureTests: XCTestCase {
 
   private static func fillLuminance(of row: XCUIElement) -> Double {
     guard let image = row.screenshot().image.cgImage else { return 0 }
-    let patch = CGRect(x: image.width - 8, y: image.height / 5, width: 6, height: 6)
-    guard let corner = image.cropping(to: patch) else { return 0 }
+    return averageLuminance(
+      of: image, in: CGRect(x: image.width - 8, y: image.height / 5, width: 6, height: 6)) ?? 0
+  }
+
+  private func screenLuminance(at point: CGPoint) -> Double {
+    let window = app.mainWindow.frame
+    let screen = Self.oriented(Self.screenshot(showing: window.size), toMatch: window.size)
+    guard let image = screen.cgImage else { return 1 }
+    let scale = CGFloat(image.width) / window.width
+    let center = CGPoint(x: (point.x - window.minX) * scale, y: (point.y - window.minY) * scale)
+    return Self.averageLuminance(
+      of: image, in: CGRect(x: center.x - 3, y: center.y - 3, width: 6, height: 6)) ?? 1
+  }
+
+  private static func averageLuminance(of image: CGImage, in patch: CGRect) -> Double? {
+    guard let corner = image.cropping(to: patch) else { return nil }
     let side = 6
     var pixels = [UInt8](repeating: 0, count: side * side * 4)
     let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
@@ -3402,7 +3420,7 @@ final class BoardCaptureTests: XCTestCase {
       context.draw(corner, in: CGRect(x: 0, y: 0, width: side, height: side))
       return true
     }
-    guard drawn else { return 0 }
+    guard drawn else { return nil }
     var total = 0.0
     for offset in stride(from: 0, to: pixels.count, by: 4) {
       total +=

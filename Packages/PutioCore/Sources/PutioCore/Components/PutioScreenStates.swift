@@ -438,6 +438,10 @@ private struct PutioScreenStateContent<Glyph: View>: View {
     #endif
   }
 
+  private var spacesActionsFromTitle: Bool {
+    message == nil && (action != nil || secondary != nil)
+  }
+
   var body: some View {
     ContentUnavailableView {
       VStack(spacing: PutioScreenStateLayout.contentGap) {
@@ -464,6 +468,7 @@ private struct PutioScreenStateContent<Glyph: View>: View {
           PutioScreenStateButton(action: action, size: actionSize)
         }
       }
+      .padding(.top, spacesActionsFromTitle ? PutioScreenStateLayout.contentGap : 0)
     }
   }
 }

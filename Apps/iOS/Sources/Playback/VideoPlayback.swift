@@ -365,17 +365,20 @@ struct PutioVideoPlaybackView: View {
       PutioLoadingStateView(title: String(localized: "Preparing video"))
         .accessibilityIdentifier("video.preparing")
     case .stalled:
-      PutioErrorStateView(
-        icon: .warningCircle, title: String(localized: "Playback stalled"), message: nil,
-        retryIdentifier: "video.stalled.retry"
-      ) {
-        transport.reload()
+      ZStack {
+        Color.black.ignoresSafeArea()
+        PutioErrorStateView(
+          icon: .warningCircle, title: String(localized: "Playback stalled"), message: nil,
+          retryIdentifier: "video.stalled.retry"
+        ) {
+          transport.reload()
+        }
+        .secondaryAction(
+          String(localized: "Back"), identifier: "video.stalled.back", perform: onDismiss
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("video.stalled")
       }
-      .secondaryAction(
-        String(localized: "Back"), identifier: "video.stalled.back", perform: onDismiss
-      )
-      .accessibilityElement(children: .contain)
-      .accessibilityIdentifier("video.stalled")
     case .clear, .buffering, .bufferingLong:
       EmptyView()
     }
