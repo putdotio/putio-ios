@@ -234,15 +234,21 @@ public struct PutioTrashActions: Sendable {
   }
 }
 
+public struct PutioTrashStillMoving: Error, Equatable, Sendable {}
+
 public struct PutioTrashErrorPresentation: Equatable, Sendable {
   public let title: String
   public let message: String
   public let isOffline: Bool
+  public let isStillMovingToTrash: Bool
 
-  init(title: String, message: String, isOffline: Bool = false) {
+  init(
+    title: String, message: String, isOffline: Bool = false, isStillMovingToTrash: Bool = false
+  ) {
     self.title = title
     self.message = message
     self.isOffline = isOffline
+    self.isStillMovingToTrash = isStillMovingToTrash
   }
 
   public static let staleStorage = PutioTrashErrorPresentation(
@@ -268,6 +274,13 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
   init?(title: String, error: Error) {
     self.title = title
     isOffline = false
+    isStillMovingToTrash = error is PutioTrashStillMoving
+    if isStillMovingToTrash {
+      message = String(
+        localized: "This item is still moving to trash. You can try restoring it later.",
+        bundle: .module)
+      return
+    }
     if error as? PutioFolderLoadError == .offline {
       message = PutioScreenErrorKind.failed.message
       return
@@ -606,8 +619,17 @@ public final class PutioTrashModel {
 
   public func restore(_ item: PutioTrashItem) async {
     await mutate(.restore(item)) {
-      // Any result means the restore committed; a throw means it did not.
-      let result = try await actions.restore(item.id)
+      let index = hide(item)
+      let result: PutioTrashRestoreResult
+      do {
+        result = try await actions.restore(item.id)
+      } catch PutioRuntimeError.notFound {
+        await remove(item, refreshesFirstPage: true)
+        throw PutioRuntimeError.notFound
+      } catch {
+        if let index { reinsert(item, at: index) }
+        throw error
+      }
       // Tell the browser first: the pagination repair below is best effort
       // and must not delay the restored file appearing in Files.
       switch result {
@@ -616,7 +638,7 @@ public final class PutioTrashModel {
       case .restoredDestinationUnknown, .restoredLookupCancelled:
         onRestored(nil)
       }
-      await remove(item)
+      await remove(item, refreshesFirstPage: true)
       mutationOutcome = .restored(item)
     }
   }
@@ -847,12 +869,43 @@ public final class PutioTrashModel {
   }
 
   // Removes the rows locally, then replaces the page when a continuation was
-  // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
-  private func remove(_ item: PutioTrashItem) async {
-    await remove([item])
+  // pending (the pre-mutation cursor is opaque and may skip or resurrect rows)
+  // or when the caller asks for the server's view of Trash.
+  private func remove(_ item: PutioTrashItem, refreshesFirstPage: Bool = false) async {
+    await remove([item], refreshesFirstPage: refreshesFirstPage)
   }
 
-  private func remove(_ removedItems: [PutioTrashItem]) async {
+  private func hide(_ item: PutioTrashItem) -> Int? {
+    guard let currentPage = page,
+      let index = currentPage.items.firstIndex(where: { $0.id == item.id })
+    else { return nil }
+    var items = currentPage.items
+    items.remove(at: index)
+    state = .loaded(
+      PutioTrashPage(
+        items: items,
+        nextCursor: currentPage.nextCursor,
+        totalCount: currentPage.totalCount.map { max(0, $0 - 1) },
+        sizeBytes: max(0, currentPage.sizeBytes - item.sizeBytes)
+      ))
+    return index
+  }
+
+  private func reinsert(_ item: PutioTrashItem, at index: Int) {
+    guard let currentPage = page, !currentPage.items.contains(where: { $0.id == item.id })
+    else { return }
+    var items = currentPage.items
+    items.insert(item, at: min(index, items.count))
+    state = .loaded(
+      PutioTrashPage(
+        items: items,
+        nextCursor: currentPage.nextCursor,
+        totalCount: currentPage.totalCount.map { $0 + 1 },
+        sizeBytes: currentPage.sizeBytes + item.sizeBytes
+      ))
+  }
+
+  private func remove(_ removedItems: [PutioTrashItem], refreshesFirstPage: Bool = false) async {
     guard let currentPage = page else { return }
     let ids = Set(removedItems.map(\.id))
     for item in removedItems { reconciliation.recordRemoval(of: item) }
@@ -867,7 +920,7 @@ public final class PutioTrashModel {
         sizeBytes: max(0, currentPage.sizeBytes - removedSize)
       )
     )
-    guard currentPage.nextCursor != nil else { return }
+    guard refreshesFirstPage || currentPage.nextCursor != nil else { return }
     do {
       show(try await fetchFirstPage())
       // The fresh listing supersedes any earlier list failure.

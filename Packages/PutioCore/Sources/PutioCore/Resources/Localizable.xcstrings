@@ -2057,6 +2057,17 @@
         }
       }
     },
+    "This item is still moving to trash. You can try restoring it later." : {
+      "comment" : "android: mobile_trash_incomplete",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item is still moving to trash. You can try restoring it later."
+          }
+        }
+      }
+    },
     "This item is no longer available." : {
       "comment" : "ios-only: no Android string for the shared history day groups",
       "localizations" : {

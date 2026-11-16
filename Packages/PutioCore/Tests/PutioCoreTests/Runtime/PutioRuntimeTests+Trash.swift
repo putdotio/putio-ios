@@ -149,6 +149,37 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testARestoreOfAnItemStillMovingToTrashThrowsStillMoving() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":400,"error_type":"TRASH_INCOMPLETE_TRASH","error_message":"Item is still being trashed"}"#,
+      statusCode: 400, for: Self.trashRestoreRoute)
+    let fileID = PutioFileID(rawValue: 91)
+
+    do {
+      _ = try await runtime.restoreTrashItem(fileID: fileID)
+      XCTFail("a refused restore read as restored")
+    } catch {
+      XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
+    }
+    do {
+      try await runtime.restoreTrashItems(fileIDs: [fileID])
+      XCTFail("a refused bulk restore read as restored")
+    } catch {
+      XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
+    }
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":400,"error_type":"TRASH_RESTORE_REJECTED"}"#,
+      statusCode: 400, for: Self.trashRestoreRoute)
+    do {
+      _ = try await runtime.restoreTrashItem(fileID: fileID)
+      XCTFail("a refused restore read as restored")
+    } catch {
+      XCTAssertFalse(error is PutioTrashStillMoving, "another refusal read as still moving")
+    }
+  }
+
   func testBatchTrashMutationsSendEveryIDInOneRequest() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
