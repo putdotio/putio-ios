@@ -183,7 +183,16 @@ struct HistoryView: View {
           .listRowBackground(PutioTheme.Colors.background)
           .accessibilityIdentifier("history.progress")
       }
-      ForEach(PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)) { day in
+      let days = PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)
+      let pageRequest = page.nextBefore.map {
+        PageRequest(
+          before: $0, generation: model.generation,
+          isRefreshing: model.isRefreshing, epoch: model.paginationEpoch)
+      }
+      let prefetchIDs: Set<PutioHistoryEventItem.ID> =
+        pageRequest == nil
+        ? [] : Set(days.flatMap(\.items).suffix(Self.prefetchDistance).map(\.id))
+      ForEach(days) { day in
         PutioHistoryDayHeader(title: day.title)
           .listRowInsets(.vertical, 0)
           .listRowSeparator(.hidden)
@@ -198,9 +207,13 @@ struct HistoryView: View {
               event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
             )
             .listRowBackground(PutioTheme.Colors.background)
+            .task(id: prefetchIDs.contains(event.id) ? pageRequest : nil) {
+              guard prefetchIDs.contains(event.id), model.loadMoreFailure == nil else { return }
+              await model.loadMore()
+            }
         }
       }
-      if let before = page.nextBefore, model.refreshFailure == nil {
+      if let pageRequest, model.refreshFailure == nil {
         if model.loadMoreFailure != nil {
           PutioNextPageFailedFooter(
             message: String(localized: "Couldn’t load more history."),
@@ -212,21 +225,22 @@ struct HistoryView: View {
           .accessibilityIdentifier("history.more-error")
           .listRowInsets(
             EdgeInsets(
-              top: 0, leading: PutioTheme.Spacing.space1, bottom: 0,
-              trailing: PutioTheme.Spacing.space1)
+              top: PutioTheme.Spacing.space1, leading: 0, bottom: PutioTheme.Spacing.space1,
+              trailing: 0)
           )
           .listRowSeparator(.hidden)
           .listRowBackground(PutioTheme.Colors.background)
         } else {
-          PutioNextPageLoadingFooter(accessibilityLabel: String(localized: "Loading more history"))
+          ProgressView()
+            .tint(PutioTheme.Colors.textSecondary)
+            .accessibilityLabel(String(localized: "Loading more history"))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, PutioTheme.Spacing.space3)
             .accessibilityIdentifier("history.more")
+            .listRowInsets(.vertical, 0)
             .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
-            .task(
-              id: PageRequest(
-                before: before, generation: model.generation,
-                isRefreshing: model.isRefreshing, epoch: model.paginationEpoch)
-            ) {
+            .task(id: pageRequest) {
               await model.loadMore()
             }
         }
@@ -275,6 +289,8 @@ struct HistoryView: View {
     }
     .accessibilityAction(named: "Delete Event") { Task { await model.delete(eventID: event.id) } }
   }
+
+  private static let prefetchDistance = 5
 
   private struct PageRequest: Equatable {
     let before: Int
