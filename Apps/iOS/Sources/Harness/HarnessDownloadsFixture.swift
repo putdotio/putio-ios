@@ -214,6 +214,11 @@
 
     func estimatedBytes(url: URL) async throws -> Int64 { 0 }
     func start(fileID: PutioFileID, url: URL, title: String) async throws {}
+    func startOriginal(fileID: PutioFileID, url: URL) async throws {}
+    func originalDirectory(for fileID: PutioFileID) -> URL {
+      FileManager.default.temporaryDirectory.appending(
+        path: "harness-frozen-originals/\(fileID.rawValue)", directoryHint: .isDirectory)
+    }
     func pause(fileID: PutioFileID) {}
     func resume(fileID: PutioFileID) {}
     func cancel(fileID: PutioFileID) {}

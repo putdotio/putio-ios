@@ -14,6 +14,9 @@ final class OfflineDownloadsTests: XCTestCase {
     var onCancelled: ((PutioFileID) -> Void)?
     var onPersistenceFailure: ((Error) -> Void)?
     var started: [(PutioFileID, URL)] = []
+    var startedOriginals: [(PutioFileID, URL)] = []
+    var originalsRoot = FileManager.default.temporaryDirectory.appending(
+      path: "offline-originals-\(UUID().uuidString)")
     var paused: [PutioFileID] = []
     var resumed: [PutioFileID] = []
     var cancelled: [PutioFileID] = []
@@ -32,6 +35,13 @@ final class OfflineDownloadsTests: XCTestCase {
     func start(fileID: PutioFileID, url: URL, title: String) async throws {
       started.append((fileID, url))
       attached.insert(fileID)
+    }
+    func startOriginal(fileID: PutioFileID, url: URL) async throws {
+      startedOriginals.append((fileID, url))
+      attached.insert(fileID)
+    }
+    func originalDirectory(for fileID: PutioFileID) -> URL {
+      originalsRoot.appending(path: "\(fileID.rawValue)", directoryHint: .isDirectory)
     }
     func pause(fileID: PutioFileID) {
       paused.append(fileID)
@@ -56,6 +66,12 @@ final class OfflineDownloadsTests: XCTestCase {
       try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
       try Data(count: 512).write(to: location.appending(path: "segment.bin"))
       onLocation?(id, location)
+      onFinished?(id, nil)
+    }
+
+    func finishOriginal(_ id: PutioFileID) throws {
+      try Data(count: 2_048).write(
+        to: PutioOfflineOriginalPackage.transferURL(in: originalDirectory(for: id)))
       onFinished?(id, nil)
     }
   }
@@ -113,6 +129,13 @@ final class OfflineDownloadsTests: XCTestCase {
       await gate.wait()
       started.append(fileID)
     }
+    func startOriginal(fileID: PutioFileID, url: URL) async throws {
+      await gate.wait()
+      started.append(fileID)
+    }
+    func originalDirectory(for fileID: PutioFileID) -> URL {
+      FileManager.default.temporaryDirectory.appending(path: "slow-original-\(fileID.rawValue)")
+    }
     func pause(fileID: PutioFileID) {}
     func resume(fileID: PutioFileID) { resumed.append(fileID) }
     func cancel(fileID: PutioFileID) {
@@ -158,6 +181,7 @@ final class OfflineDownloadsTests: XCTestCase {
       path: "offline-tests-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     engine = FakeEngine()
+    engine.originalsRoot = directory.appending(path: "originals", directoryHint: .isDirectory)
     reports = []
     reportShouldFail = false
     resolutions = [:]
@@ -277,6 +301,92 @@ final class OfflineDownloadsTests: XCTestCase {
     for _ in 0..<40 { await Task.yield() }
     try? await Task.sleep(for: .milliseconds(50))
     for _ in 0..<40 { await Task.yield() }
+  }
+
+  func testEachMethodDownloadsItsOwnSourceAndKeepsItAcrossRelaunch() async throws {
+    let original = URL(string: "https://api.test/v2/files/412/download")!
+    let subtitles = [("en", "English", "eng"), ("tr", "Turkish", "tur")].map {
+      PutioCastSubtitle(
+        key: $0.0, language: $0.1, languageCode: $0.2, name: "\($0.1).srt",
+        source: .openSubtitles, url: URL(string: "https://api.test/v2/files/412/subtitles/\($0.0)")!
+      )
+    }
+    func makeQueue() -> PutioOfflineQueue {
+      PutioOfflineQueue(
+        store: PutioOfflineStore(directory: directory), engine: engine,
+        conversionPollInterval: .zero, sleep: { _ in }, availableStorage: { 10_000_000_000 },
+        readTracks: { _ in ([PutioOfflineTrack(languageCode: "en", displayName: "English")], []) },
+        isPlayable: { _ in true },
+        resolve: { fileID, _ in
+          .ready(
+            PutioPlaybackSource(
+              url: URL(string: "https://media.test/\(fileID.rawValue).m3u8")!, startFromSeconds: 0))
+        },
+        resolveOriginal: { fileID in
+          PutioOfflineOriginal(
+            file: PutioFileDownloadSource(
+              id: fileID, kind: .video, name: "Movie.mp4", url: original),
+            subtitles: subtitles, startFromSeconds: 734)
+        },
+        fetchSubtitle: { Data("WEBVTT \($0.lastPathComponent)".utf8) },
+        startConversion: { _ in }, conversionStatus: { _ in .completed },
+        reportPosition: { _, _ in }, deleteOriginal: { _ in })
+    }
+    let standard = PutioFileID(rawValue: 411)
+    let directPlay = PutioFileID(rawValue: 412)
+    let audio = PutioFileID(rawValue: 408)
+    let queue = makeQueue()
+    queue.enqueue(
+      fileID: standard, parentID: .root, name: "Episode.mkv", kind: .video, estimatedBytes: 1_000,
+      playbackMethod: .standard)
+    queue.enqueue(
+      fileID: directPlay, parentID: .root, name: "Movie.mp4", kind: .video,
+      estimatedBytes: 2_048, playbackMethod: .directPlay)
+    queue.enqueue(
+      fileID: audio, parentID: .root, name: "Song.mp3", kind: .audio, playbackMethod: .directPlay)
+    await settle()
+
+    XCTAssertEqual(Set(engine.started.map(\.0)), [standard, audio])
+    XCTAssertEqual(engine.started.first { $0.0 == standard }?.1.pathExtension, "m3u8")
+    XCTAssertEqual(engine.startedOriginals.map(\.0), [directPlay])
+    XCTAssertEqual(engine.startedOriginals.first?.1, original)
+    let package = engine.originalDirectory(for: directPlay)
+    let stored = PutioOfflineOriginalPackage.subtitles(in: package)
+    XCTAssertEqual(stored.map(\.languageCode), ["en", "tr"])
+    XCTAssertEqual(
+      try stored.map {
+        try String(contentsOf: package.appending(path: $0.fileName), encoding: .utf8)
+      },
+      ["WEBVTT en", "WEBVTT tr"])
+
+    try engine.finishOriginal(directPlay)
+    await settle()
+    let downloaded = try XCTUnwrap(queue.item(for: directPlay))
+    XCTAssertEqual(downloaded.stage, .completed)
+    XCTAssertEqual(downloaded.storedSubtitleTracks.map(\.languageCode), ["en", "tr"])
+    let source = try XCTUnwrap(queue.localSource(for: directPlay))
+    XCTAssertEqual(source.url.lastPathComponent, "original.mp4")
+    XCTAssertEqual(source.startFromSeconds, 734)
+    XCTAssertEqual(try Data(contentsOf: source.url).count, 2_048)
+
+    let relaunched = makeQueue()
+    XCTAssertEqual(relaunched.item(for: standard)?.playbackMethod, .standard)
+    XCTAssertEqual(relaunched.item(for: directPlay)?.playbackMethod, .directPlay)
+    XCTAssertNil(relaunched.item(for: audio)?.playbackMethod)
+    XCTAssertEqual(relaunched.localSource(for: directPlay)?.url, source.url)
+  }
+
+  func testOnlyAnOriginalAVPlayerOpensIsPlayableBeforeOfflineDirectPlay() {
+    func finished(_ name: String, _ method: PutioPlaybackMethod) -> PutioOfflineItem {
+      PutioOfflineItem(
+        id: PutioFileID(rawValue: 412), parentID: .root, name: name, kind: .video,
+        createdAt: .now, stage: .completed, localPath: "/tmp/412", storedBytes: 1,
+        storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+        pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method)
+    }
+    XCTAssertFalse(finished("Movie.mkv", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.MP4", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.mkv", .standard).isPlayable)
   }
 
   func testConcurrencyLimitBoundsActiveDownloadsAcrossMixedKinds() async throws {

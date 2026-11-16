@@ -229,6 +229,105 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther() throws {
+    app.launch()
+    signIn()
+    choosePlaybackMethod("Direct play")
+
+    let movie = element("files.item.412")
+    XCTAssertTrue(movie.appears(within: 10))
+    movie.press(forDuration: 1)
+    XCTAssertTrue(
+      app.buttons["Download with Standard"].appears(within: 5),
+      "the menu does not offer the other method")
+    app.buttons["Download"].tap()
+    let original = element("downloads.item.412")
+    XCTAssertTrue(original.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(original, "completed", timeout: 90),
+      "the Direct play download did not complete: \(original.value ?? "")")
+
+    app.buttons["Files"].tap()
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
+    let standard = app.buttons["Download with Standard"]
+    XCTAssertTrue(standard.appears(within: 5))
+    standard.tap()
+    let package = element("downloads.item.442")
+    XCTAssertTrue(package.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(package, "completed", timeout: 90),
+      "the Standard download did not complete: \(package.value ?? "")")
+
+    let mediaBaseURL = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"].flatMap {
+        URL(string: $0)
+      })
+    let served = try Data(contentsOf: mediaBaseURL.appending(path: "runtime-proof-direct.mkv"))
+    let originalDirectory = try storedDownload(412)
+    let stored = try XCTUnwrap(
+      FileManager.default.contentsOfDirectory(atPath: originalDirectory.path)
+        .first { $0.hasPrefix("original") },
+      "no original file in \(originalDirectory.path)")
+    XCTAssertEqual(
+      try Data(contentsOf: originalDirectory.appending(path: stored)), served,
+      "the Direct play download is not the original file")
+    let packageDirectory = try storedDownload(442)
+    XCTAssertEqual(packageDirectory.pathExtension, "movpkg", "\(packageDirectory.path)")
+    let packageFiles = try XCTUnwrap(
+      FileManager.default.enumerator(atPath: packageDirectory.path)?.allObjects as? [String])
+    XCTAssertTrue(
+      packageFiles.contains { $0.hasSuffix(".m3u8") }, "the Standard download is not an HLS package"
+    )
+
+    original.tap()
+    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.tr").exists)
+    XCTAssertTrue(element("downloads.detail.subtitle.en").exists)
+    XCTAssertTrue(element("downloads.detail.subtitle.tr").exists)
+    screenshot("runtime-downloads-direct-play-original")
+    app.buttons["downloads.detail.done"].tap()
+    package.tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20))
+    app.closeVideo()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func choosePlaybackMethod(_ name: String) {
+    app.buttons["Account"].tap()
+    let method = app.revealed("playback-settings.method")
+    XCTAssertTrue(method.appears(within: 10))
+    method.tap()
+    let choice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
+    XCTAssertTrue(choice.appears(within: 5))
+    choice.tap()
+    let failed = app.staticTexts["Couldn’t save this setting"]
+    if failed.waitForExistence(timeout: 5) {
+      XCTAssertTrue(failed.disappears(within: 10))
+      choice.tap()
+    }
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { method.label.hasSuffix(name) }, "method row read \(method.label)")
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in condition() }, object: nil)
@@ -252,6 +351,30 @@ final class DownloadsJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func storedDownload(_ fileID: Int) throws -> URL {
+    let fileManager = FileManager.default
+    let containers = URL(fileURLWithPath: NSHomeDirectory()).deletingLastPathComponent()
+    var newest: (container: URL, queue: URL, date: Date)?
+    for container in try fileManager.contentsOfDirectory(
+      at: containers, includingPropertiesForKeys: nil)
+    {
+      let queue = container.appending(path: "tmp/harness-offline/queue.json")
+      guard
+        let date = try? queue.resourceValues(forKeys: [.contentModificationDateKey])
+          .contentModificationDate
+      else { continue }
+      if newest.map({ date > $0.date }) ?? true { newest = (container, queue, date) }
+    }
+    let found = try XCTUnwrap(newest, "no offline queue under \(containers.path)")
+    let document = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: Data(contentsOf: found.queue)) as? [String: Any])
+    let items = try XCTUnwrap(document["items"] as? [[String: Any]])
+    let item = try XCTUnwrap(items.first { $0["id"] as? Int == fileID }, "no queue item \(fileID)")
+    let localPath = try XCTUnwrap(item["localPath"] as? String, "item \(fileID) has no local path")
+    return localPath.hasPrefix("/")
+      ? URL(fileURLWithPath: localPath) : found.container.appending(path: localPath)
   }
 
   private func rowBand(_ row: XCUIElement) -> CGRect {

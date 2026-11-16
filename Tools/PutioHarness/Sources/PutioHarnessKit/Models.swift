@@ -1273,6 +1273,10 @@ enum BrowserJourneyContract {
       "download-start-failed", "DownloadsJourneyTests/testADownloadThatCannotStartIsReported",
       attachmentNames: ["runtime-downloads-start-failed"], timeAllowance: 90),
     JourneyPreflight(
+      "downloads-method",
+      "DownloadsJourneyTests/testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther",
+      attachmentNames: ["runtime-downloads-direct-play-original"], timeAllowance: 240),
+    JourneyPreflight(
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",
       attachmentNames: [
