@@ -1118,7 +1118,7 @@
       }
     },
     "It may have been moved or deleted." : {
-      "comment" : "ios-only: no Android message under the file browser and player not-found titles (putio-android#835)",
+      "comment" : "ios-only: no Android message under the file browser and player not-found titles (putio-android#847)",
       "localizations" : {
         "en" : {
           "stringUnit" : {

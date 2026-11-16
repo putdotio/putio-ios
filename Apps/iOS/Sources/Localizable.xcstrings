@@ -756,7 +756,7 @@
       }
     },
     "Chromecast" : {
-      "comment" : "ios-only: no Android string for the fallback Cast receiver name (putio-android#835)",
+      "comment" : "ios-only: no Android string for the fallback Cast receiver name (putio-android#847)",
       "localizations" : {
         "en" : {
           "stringUnit" : {
