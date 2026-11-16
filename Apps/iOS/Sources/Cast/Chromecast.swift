@@ -580,6 +580,7 @@ final class PutioCastModel {
         activeTrackIDs: startingTrackIDs(for: media))
       guard request == generation else { return }
       requestedStart = nil
+      requestedTracks = nil
       activity = .idle
       armStallDetection()
       startSaving(media)
