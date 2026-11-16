@@ -20,6 +20,7 @@ struct PutioVideoUpNext {
 struct PutioVideoUpNextAccessory: View {
   let upNext: PutioVideoUpNext
   let iconOnly: Bool
+  var ownsRow = false
 
   var body: some View {
     switch upNext.offer {
@@ -34,7 +35,8 @@ struct PutioVideoUpNextAccessory: View {
       .accessibilityIdentifier("video.next-episode")
     case .card(let name, let secondsLeft):
       PutioVideoUpNextCard(
-        name: name, secondsLeft: secondsLeft, onPlay: upNext.onPlay, onCancel: upNext.onCancel)
+        name: name, secondsLeft: secondsLeft, ownsRow: ownsRow, onPlay: upNext.onPlay,
+        onCancel: upNext.onCancel)
     }
   }
 }
@@ -42,6 +44,7 @@ struct PutioVideoUpNextAccessory: View {
 private struct PutioVideoUpNextCard: View {
   let name: String
   let secondsLeft: Int
+  let ownsRow: Bool
   let onPlay: () -> Void
   let onCancel: () -> Void
 
@@ -51,7 +54,7 @@ private struct PutioVideoUpNextCard: View {
   var body: some View {
     PutioUpNextCardLayout(
       spacing: PutioTheme.Spacing.space3, rowSpacing: PutioTheme.Spacing.space2,
-      headingMinWidth: headingMinWidth, headingMaxWidth: headingMaxWidth
+      headingMinWidth: headingMinWidth, headingMaxWidth: ownsRow ? .infinity : headingMaxWidth
     ) {
       Text("Up next in \(countdown)")
         .putioFont(PutioTheme.Typography.caption)
@@ -61,7 +64,7 @@ private struct PutioVideoUpNextCard: View {
       Text(name)
         .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
-        .lineLimit(1)
+        .lineLimit(ownsRow ? 2 : 1)
         .truncationMode(.middle)
         .accessibilityIdentifier("video.next-title")
       actions
@@ -131,11 +134,9 @@ private struct PutioUpNextCardLayout: Layout {
     let countdown = subviews[0].sizeThatFits(.unspecified)
     let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
     let actions = subviews[2].sizeThatFits(.unspecified)
-    let headingWidth = max(
-      countdown.width, min(max(headingMinWidth, nameIdeal), headingMaxWidth))
-    let desired = headingWidth + spacing + actions.width
+    let desired = oneRowWidth(subviews)
     let available = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? desired
-    if fitsInOneRow(available, countdown: countdown, actions: actions) {
+    if fitsInOneRow(available, subviews) {
       let width = min(available, desired)
       let heading = headingHeight(width - spacing - actions.width, subviews)
       return CGSize(width: width, height: max(heading, actions.height))
@@ -149,9 +150,8 @@ private struct PutioUpNextCardLayout: Layout {
     in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()
   ) {
     guard subviews.count == 3 else { return }
-    let countdown = subviews[0].sizeThatFits(.unspecified)
     let actions = subviews[2].sizeThatFits(.unspecified)
-    if fitsInOneRow(bounds.width, countdown: countdown, actions: actions) {
+    if fitsInOneRow(bounds.width, subviews) {
       let headingWidth = bounds.width - spacing - actions.width
       let height = headingHeight(headingWidth, subviews)
       placeHeading(
@@ -181,8 +181,15 @@ private struct PutioUpNextCardLayout: Layout {
       anchor: .topLeading, proposal: line)
   }
 
-  private func fitsInOneRow(_ width: CGFloat, countdown: CGSize, actions: CGSize) -> Bool {
-    width >= max(headingMinWidth, countdown.width) + spacing + actions.width
+  private func oneRowWidth(_ subviews: Subviews) -> CGFloat {
+    let countdown = subviews[0].sizeThatFits(.unspecified).width
+    let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
+    let headingWidth = max(countdown, min(max(headingMinWidth, nameIdeal), headingMaxWidth))
+    return headingWidth + spacing + subviews[2].sizeThatFits(.unspecified).width
+  }
+
+  private func fitsInOneRow(_ width: CGFloat, _ subviews: Subviews) -> Bool {
+    width.rounded(.up) >= oneRowWidth(subviews).rounded(.down)
   }
 }
 
