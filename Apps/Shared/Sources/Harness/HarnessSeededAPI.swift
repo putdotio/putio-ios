@@ -1574,7 +1574,7 @@ import Foundation
         return HarnessHistory.response(excluding: historyDeletedIDs)
       }
       if HarnessHistory.handlesPage(method: "GET", url: url) {
-        return HarnessHistory.pageResponse()
+        return historyFailure("continuation")
       }
       if before == nil {
         historyRootLoads += 1
