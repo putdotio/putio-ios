@@ -1363,13 +1363,35 @@
         }
       }
     },
-    "Delete “%@” permanently?" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
+    "“%@” will be removed from trash right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_delete_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete “%@” permanently?"
+            "value" : "“%@” will be removed from trash right away. This cannot be undone."
+          }
+        }
+      }
+    },
+    "“%@” is no longer in trash." : {
+      "comment" : "android: mobile_trash_delete_verified",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is no longer in trash."
+          }
+        }
+      }
+    },
+    "The request could not start" : {
+      "comment" : "android: mobile_trash_action_rejected | differs: iOS board wording drops the period",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request could not start"
           }
         }
       }
@@ -4895,17 +4917,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This item cannot be opened right now. Check Files, then try again."
-          }
-        }
-      }
-    },
-    "This item cannot be restored." : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This item cannot be restored."
           }
         }
       }

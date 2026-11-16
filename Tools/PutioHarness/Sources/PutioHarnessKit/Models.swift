@@ -1576,7 +1576,7 @@ enum BrowserJourneyContract {
         "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-selection",
         "runtime-trash-empty",
       ],
-      timeAllowance: 90),
+      timeAllowance: 120),
     JourneyPreflight(
       "trash-offline", "FilesBrowserJourneyTests/testOfflineTrashRetriesOnItsOwn",
       attachmentNames: ["runtime-trash-offline"], timeAllowance: 90),

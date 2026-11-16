@@ -1040,16 +1040,45 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(restoreRow.disappears(within: 5))
 
     let deleteRow = app.staticTexts["Delete Me"]
-    XCTAssertTrue(deleteRow.appears(within: 5))
-    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
+    XCTAssertTrue(waitUntilHittable(deleteRow, timeout: 5))
+    let header = element(identifier: "trash.header")
+    let headerBeforeDelete = header.label
+    let deleteAlert = app.putioAlert("Delete permanently?")
+    element(identifier: "trash.item.420").firstMatch.press(forDuration: 1.0)
+    let menuDelete = app.buttons["item-action.trash-delete"]
+    XCTAssertTrue(waitUntilHittable(menuDelete, timeout: 5), "the menu has no Delete permanently")
+    menuDelete.tap()
+    XCTAssertTrue(deleteAlert.appears(within: 5), "the menu deleted without asking")
     XCTAssertTrue(
-      app.staticTexts["Could not permanently delete item"].appears(within: 5)
+      deleteAlert.staticTexts[
+        "“Delete Me” will be removed from trash right away. This cannot be undone."
+      ].exists)
+    deleteAlert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(deleteAlert.disappears(within: 5))
+    XCTAssertTrue(deleteRow.exists, "Cancel removed the row")
+
+    let fullSwipeRow = element(identifier: "trash.item.420").firstMatch
+    fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).press(
+      forDuration: 0.05,
+      thenDragTo: fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.5)),
+      withVelocity: .fast,
+      thenHoldForDuration: 0
     )
+    XCTAssertTrue(deleteAlert.appears(within: 5), "a full trailing swipe deleted without asking")
+    deleteAlert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(deleteAlert.disappears(within: 5))
+    XCTAssertTrue(deleteRow.exists, "Cancel after a full swipe removed the row")
+
+    permanentlyDeleteTrashItem(id: 420)
+    XCTAssertTrue(
+      app.staticTexts["The request could not start"].appears(within: 5),
+      "an earlier Cancel sent the delete")
     XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
 
-    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
-    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
+    permanentlyDeleteTrashItem(id: 420)
+    XCTAssertTrue(app.staticTexts["“Delete Me” is no longer in trash."].appears(within: 5))
     XCTAssertTrue(deleteRow.disappears(within: 5))
+    XCTAssertNotEqual(header.label, headerBeforeDelete, "the size line kept the deleted row")
 
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     trashMenu.tap()
@@ -2032,19 +2061,25 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(field.value as? String, query)
   }
 
-  private func permanentlyDeleteTrashItem(id: Int, name: String) {
-    let row = app.staticTexts[name]
+  private func permanentlyDeleteTrashItem(id: Int) {
+    let row = element(identifier: "trash.item.\(id)").firstMatch
     XCTAssertTrue(waitUntilHittable(row, timeout: 5))
-    row.swipeLeft()
+    let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+    start.press(
+      forDuration: 0.05,
+      thenDragTo: start.withOffset(CGVector(dx: -150, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
     let delete = app.buttons["trash.delete.\(id)"]
     XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
+    XCTAssertEqual(delete.label, "Delete permanently")
     delete.tap()
-    XCTAssertTrue(
-      app.staticTexts["Delete “\(name)” permanently?"].appears(within: 5)
-    )
-    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
-    let confirm = app.buttons["trash.delete-confirm"].firstMatch
+    let alert = app.putioAlert("Delete permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "the swipe deleted without asking")
+    let confirm = alert.buttons["confirm-alert.confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    XCTAssertEqual(confirm.label, "Delete")
     confirm.tap()
   }
 
