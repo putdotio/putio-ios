@@ -233,6 +233,10 @@ struct TrashManagementView: View {
             .frame(minHeight: rowMinHeight)
             .tag(item.id)
             .listRowInsets(.vertical, PutioTheme.Spacing.space0)
+            .listRowInsets(.trailing, PutioTheme.Spacing.space1)
+            .alignmentGuide(.listRowSeparatorTrailing) {
+              $0[.trailing] + PutioTheme.Spacing.space1
+            }
             .listRowSeparator(
               item.id == page.items.last?.id && page.nextCursor == nil ? .hidden : .automatic,
               edges: .bottom
