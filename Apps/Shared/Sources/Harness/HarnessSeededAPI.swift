@@ -1849,6 +1849,39 @@ import Foundation
     }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
+      let (statusCode, body) = routedFixture(for: request)
+      guard request.httpMethod ?? "GET" == "GET", let url = request.url,
+        isFileDetailsPath(url.path), !requestsConversionStatus(url)
+      else { return (statusCode, body) }
+      return (statusCode, omittingConversionStatus(from: body))
+    }
+
+    private static func isFileDetailsPath(_ path: String) -> Bool {
+      let prefix = "/v2/files/"
+      guard path.hasPrefix(prefix) else { return false }
+      let id = path.dropFirst(prefix.count)
+      return !id.isEmpty && id.allSatisfy(\.isNumber)
+    }
+
+    private static func requestsConversionStatus(_ url: URL) -> Bool {
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      return query.contains {
+        ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1"
+      }
+    }
+
+    private static func omittingConversionStatus(from body: String) -> String {
+      guard
+        var envelope = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
+        var file = envelope["file"] as? [String: Any],
+        file.removeValue(forKey: "need_convert") != nil
+      else { return body }
+      envelope["file"] = file
+      guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return body }
+      return String(decoding: data, as: UTF8.self)
+    }
+
+    private static func routedFixture(for request: URLRequest) -> (Int, String) {
       guard let url = request.url else {
         return (
           400,

@@ -197,7 +197,26 @@ final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
       return
     }
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-    client?.urlProtocol(self, didLoad: Data(fixture.body.utf8))
+    client?.urlProtocol(self, didLoad: Data(Self.filesAPIBody(fixture.body, for: request).utf8))
     client?.urlProtocolDidFinishLoading(self)
+  }
+
+  private static func filesAPIBody(_ body: String, for request: URLRequest) -> String {
+    guard request.httpMethod ?? "GET" == "GET", let url = request.url else { return body }
+    let prefix = "/v2/files/"
+    let id = url.path.hasPrefix(prefix) ? url.path.dropFirst(prefix.count) : ""
+    guard !id.isEmpty, id.allSatisfy(\.isNumber) else { return body }
+    let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    guard
+      !query.contains(where: {
+        ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1"
+      }),
+      var envelope = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
+      var file = envelope["file"] as? [String: Any],
+      file.removeValue(forKey: "need_convert") != nil
+    else { return body }
+    envelope["file"] = file
+    guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return body }
+    return String(decoding: data, as: UTF8.self)
   }
 }
