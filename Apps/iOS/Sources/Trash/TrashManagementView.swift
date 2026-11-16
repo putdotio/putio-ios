@@ -280,9 +280,19 @@ struct TrashManagementView: View {
             }
             .swipeActions(edge: .trailing) {
               if !isEditing {
-                Button("Delete", role: .destructive) { pendingDeletion = item }
-                  .disabled(!model.canMutate)
-                  .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
+                Button {
+                  pendingDeletion = item
+                } label: {
+                  Label {
+                    Text("Delete permanently")
+                  } icon: {
+                    Image(putioIcon: .trash)
+                  }
+                  .labelStyle(.iconOnly)
+                }
+                .disabled(!model.canMutate)
+                .tint(PutioTheme.Colors.destructive)
+                .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
               }
             }
         }
