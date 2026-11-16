@@ -202,6 +202,7 @@ final class PutioVideoTransport {
     let id: Int
     let title: String
     var detail: String?
+    var languageTag: String?
   }
 
   private(set) var isPlaying = false
@@ -273,6 +274,17 @@ final class PutioVideoTransport {
 
   var subtitleMenu: PutioSubtitleMenu {
     PutioSubtitleMenu(tracks: subtitles, listings: engine == nil ? subtitleListings : [])
+  }
+
+  var trackChoice: PutioVideoTrackChoice {
+    let audio = selectedAudio.flatMap { id in audioTracks.first { $0.id == id } }
+    let subtitle: PutioRememberedSubtitle? =
+      if let selectedSubtitle {
+        subtitles.first { $0.id == selectedSubtitle }?.languageTag.map { .language($0) }
+      } else {
+        subtitles.isEmpty ? nil : .off
+      }
+    return PutioVideoTrackChoice(audioLanguage: audio?.languageTag, subtitle: subtitle)
   }
 
   var chipTracks: PutioVideoChipTracks {
@@ -778,7 +790,8 @@ final class PutioVideoTransport {
         id: entry.element.id, title: title,
         detail: PutioTrackLabel.audioDetail(
           codec: entry.element.codec, profile: entry.element.profile,
-          channels: entry.element.channels))
+          channels: entry.element.channels),
+        languageTag: entry.element.language)
     }
     selectedAudio = active.flatMap { id in audioTracks.contains { $0.id == id } ? id : nil }
   }
@@ -904,12 +917,12 @@ final class PutioVideoTransport {
     let renditions = options.enumerated().map { index, option in
       rendition(of: option, at: index, count: options.count, in: renditions)
     }
+    let languages = options.enumerated().map { index, option in
+      option.extendedLanguageTag ?? option.locale?.identifier ?? renditions[index]?.languageTag
+    }
     let titles = PutioTrackLabel.distinct(
-      options.enumerated().map { index, option in
-        PutioTrackLabel.audioTitle(
-          language: option.extendedLanguageTag ?? option.locale?.identifier
-            ?? renditions[index]?.languageTag,
-          name: nil, index: index)
+      languages.enumerated().map { index, language in
+        PutioTrackLabel.audioTitle(language: language, name: nil, index: index)
       })
     return options.enumerated().map { index, option in
       Track(
@@ -917,7 +930,8 @@ final class PutioVideoTransport {
         detail: details[option]
           ?? renditions[index].flatMap {
             PutioTrackLabel.audioDetail(codec: $0.codec, profile: nil, channels: $0.channels)
-          })
+          },
+        languageTag: languages[index])
     }
   }
 

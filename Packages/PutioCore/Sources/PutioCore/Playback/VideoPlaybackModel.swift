@@ -14,13 +14,28 @@ public typealias PutioVideoConversionSleep =
 public typealias PutioVideoStartChoice =
   @MainActor @Sendable (PutioPlaybackSource, _ afterConversion: Bool) async -> PutioPlaybackSource
 
+public struct PutioVideoTrackChoice: Equatable, Sendable {
+  public let audioLanguage: String?
+  public let subtitle: PutioRememberedSubtitle?
+
+  public init(audioLanguage: String?, subtitle: PutioRememberedSubtitle?) {
+    self.audioLanguage = audioLanguage.flatMap {
+      PutioSubtitleLanguage.key($0) == "und" ? nil : $0
+    }
+    self.subtitle = subtitle
+  }
+}
+
 public struct PutioVideoConvertedHandOff: Sendable {
   public let connection: @MainActor @Sendable () -> Int?
-  public let handOff: @MainActor @Sendable (_ startOverride: Int?) -> Bool
+  public let handOff:
+    @MainActor @Sendable (_ startOverride: Int?, _ tracks: PutioVideoTrackChoice?) -> Bool
 
   public init(
     connection: @escaping @MainActor @Sendable () -> Int?,
-    handOff: @escaping @MainActor @Sendable (_ startOverride: Int?) -> Bool
+    handOff:
+      @escaping @MainActor @Sendable (_ startOverride: Int?, _ tracks: PutioVideoTrackChoice?) ->
+      Bool
   ) {
     self.connection = connection
     self.handOff = handOff
@@ -425,7 +440,7 @@ public final class PutioVideoPlaybackModel {
           let choseStart =
             start.resumesAfterFailure || start.startFromSeconds != source.startFromSeconds
           let startOverride = choseStart ? start.startFromSeconds : nil
-          if connectedDuringWait, handOffConverted?.handOff(startOverride) == true { return }
+          if connectedDuringWait, handOffConverted?.handOff(startOverride, nil) == true { return }
           play(start)
           return
         case .conversionRequired:

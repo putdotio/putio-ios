@@ -965,9 +965,9 @@ struct MainTabView: View {
       onCast: playerCastAction(for: route),
       castHandOff: PutioVideoConvertedHandOff(
         connection: { cast.connectionID },
-        handOff: { startOverride in
+        handOff: { startOverride, tracks in
           guard cast.castsVideo else { return false }
-          castVideo(route, startingAt: startOverride)
+          castVideo(route, startingAt: startOverride, tracks: tracks)
           return cast.castingRoute != nil
         }),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
@@ -1032,8 +1032,11 @@ struct MainTabView: View {
     }
   }
 
-  private func castVideo(_ route: PutioVideoRoute, startingAt startSeconds: Int? = nil) {
-    cast.cast(route, saves: castSaves, startingAt: startSeconds)
+  private func castVideo(
+    _ route: PutioVideoRoute, startingAt startSeconds: Int? = nil,
+    tracks: PutioVideoTrackChoice? = nil
+  ) {
+    cast.cast(route, saves: castSaves, startingAt: startSeconds, tracks: tracks)
     openCasting()
   }
 

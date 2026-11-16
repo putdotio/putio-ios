@@ -790,7 +790,7 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
         },
         handOffConverted: PutioVideoConvertedHandOff(
           connection: { connection },
-          handOff: { startOverride in
+          handOff: { startOverride, _ in
             handedOff.append(startOverride)
             return true
           }),
