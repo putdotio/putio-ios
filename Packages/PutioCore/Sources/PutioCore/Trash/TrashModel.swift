@@ -337,6 +337,7 @@ public final class PutioTrashModel {
   public private(set) var isRefreshing = false
   private(set) var isLoadingMore = false
   public private(set) var paginationFailure: PutioTrashErrorPresentation?
+  public private(set) var pageRequestEpoch: UInt64 = 0
   public private(set) var refreshFailure: PutioTrashErrorPresentation?
   public private(set) var isRefreshingStorage = false
 
@@ -396,8 +397,10 @@ public final class PutioTrashModel {
   }
 
   public var canMutate: Bool {
-    activeMutation == nil && !isRefreshing && !isLoadingMore && !isRefreshingStorage
+    activeMutation == nil && !isRefreshing && !isRefreshingStorage
   }
+
+  private var isIdle: Bool { canMutate && !isLoadingMore }
 
   public var hasContents: Bool {
     guard let page else { return false }
@@ -425,7 +428,7 @@ public final class PutioTrashModel {
   /// The stale cursor and any retry bound to it go first, so a failed reload
   /// cannot hand the cursor back to Load More.
   private func repairIfRequested() async {
-    guard repairRequested, canMutate, !Task.isCancelled else { return }
+    guard repairRequested, isIdle, !Task.isCancelled else { return }
     repairRequested = false
     guard let currentPage = page else { return }
     if currentPage.nextCursor != nil {
@@ -521,7 +524,7 @@ public final class PutioTrashModel {
   /// Retries only the account storage snapshot after a committed deletion
   /// could not reload it.
   public func retryStorageRefresh() async {
-    guard canMutate else { return }
+    guard isIdle else { return }
     await reloadStaleStorage()
     await repairIfRequested()
   }
@@ -566,10 +569,12 @@ public final class PutioTrashModel {
             totalCount: fresh.totalCount ?? shownPage.totalCount,
             sizeBytes: shownPage.sizeBytes
           )))
-    } catch is CancellationError {
-      paginationFailure = previousPaginationFailure
-      return
     } catch {
+      guard !(error is CancellationError), !Task.isCancelled else {
+        paginationFailure = previousPaginationFailure
+        pageRequestEpoch &+= 1
+        return
+      }
       paginationFailure = PutioTrashErrorPresentation(
         title: String(localized: "Could not load more Trash items", bundle: .module),
         error: error
