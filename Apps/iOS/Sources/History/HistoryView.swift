@@ -48,7 +48,7 @@ struct HistoryView: View {
           message: String(localized: "Check your connection and try again."),
           actions: [
             PutioAlertAction(
-              String(localized: "OK"), tier: .neutral, id: "history.clear-failed.ok")
+              String(localized: "OK"), tier: .cancel, id: "history.clear-failed.ok")
           ]
         )
         .navigationDestination(for: PutioFolderRoute.self) { route in
@@ -115,7 +115,7 @@ struct HistoryView: View {
     } label: {
       Label("More", systemImage: "ellipsis")
     }
-    .disabled(isBusy)
+    .disabled(isBusy || !model.deletingEventIDs.isEmpty)
     .accessibilityIdentifier("history.menu")
   }
 
