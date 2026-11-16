@@ -45,13 +45,6 @@ import Foundation
       mode == .moreHeld && handlesPage(method: method, url: url)
     }
 
-    static func pageResponse() -> (Int, String) {
-      (
-        503,
-        #"{"status":"ERROR","status_code":503,"error_type":"HARNESS_HISTORY_RETRY","message":"Retry History continuation"}"#
-      )
-    }
-
     static func delaysList(method: String, url: URL) -> Bool {
       guard mode == .slow, handles(method: method, url: url) else { return false }
       return lock.withLock { rootListsServed == 1 }
