@@ -254,7 +254,7 @@ final class PutioDirectPlayCoordinator {
       return
     }
     guard generation == playbackGeneration, !failureReported else { return }
-    selectStartSubtitle(of: original, in: engine, subtitles: subtitles)
+    selectStartSubtitle(in: engine, subtitles: subtitles)
     readyReported = true
     if callbacks.observesPlaybackState {
       reportSubtitle(engine.subtitleTracks, active: engine.activeSubtitleTrackIndex)
@@ -280,21 +280,20 @@ final class PutioDirectPlayCoordinator {
     engine.play()
   }
 
-  private func selectStartSubtitle(
-    of original: PutioOriginalPlayback?, in engine: AetherEngine, subtitles: SubtitleStart
-  ) {
-    let defaultName = original?.defaultSubtitleKey.flatMap { key in
-      original?.subtitles.first { $0.key == key }?.name
-    }
-    let tracks = engine.subtitleTracks.map { track in
-      PutioSubtitleTrack(
-        id: track.id, title: track.name, languageTag: track.language,
-        isDefault: track.isExternal && track.name == defaultName)
-    }
+  private func selectStartSubtitle(in engine: AetherEngine, subtitles: SubtitleStart) {
     guard
-      let start = subtitles.policy.startingTrack(in: tracks, remembered: subtitles.remembered())
+      let start = subtitles.policy.startingTrack(
+        in: Self.startCandidates(engine.subtitleTracks), remembered: subtitles.remembered())
     else { return }
     engine.selectSubtitleTrack(index: start.id)
+  }
+
+  static func startCandidates(_ tracks: [TrackInfo]) -> [PutioSubtitleTrack] {
+    tracks.filter { !$0.isForced }.map { track in
+      PutioSubtitleTrack(
+        id: track.id, title: track.name, languageTag: track.language,
+        isDefault: track.isExternal && track.isDefault)
+    }
   }
 
   private func reload() {
