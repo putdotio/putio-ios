@@ -25,6 +25,7 @@ import Foundation
     static let argument = "--putio-harness-trash"
     static let listPath = "/v2/trash/list"
     static let continuePath = "/v2/trash/list/continue"
+    static let restorePath = "/v2/trash/restore"
     static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
     static let pagedRefreshDelay: TimeInterval = 3
@@ -35,6 +36,7 @@ import Foundation
     nonisolated(unsafe) private static var listsServed = 0
     nonisolated(unsafe) private static var continuesServed = 0
     nonisolated(unsafe) private static var pagedListsRequested = 0
+    nonisolated(unsafe) private static var restoredIDs: Set<Int> = []
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -46,6 +48,7 @@ import Foundation
     static func handles(method: String, path: String) -> Bool {
       guard let mode else { return false }
       if method == "GET", path == listPath { return true }
+      if method == "POST", path == restorePath { return true }
       return mode.isPaged && method == "POST" && path == continuePath
     }
 
@@ -97,8 +100,39 @@ import Foundation
     private static let boardSize: Int64 = 10_400_000_000
 
     static func response(method: String, path: String, payload: [String: Any]?) -> (Int, String) {
+      if method == "POST", path == restorePath { return restore(payload: payload) }
       guard method == "POST", path == continuePath else { return firstPage() }
       return continuation(cursor: payload?["cursor"] as? String)
+    }
+
+    private static func restore(payload: [String: Any]?) -> (Int, String) {
+      let raw = (payload?["file_ids"] as? String)?.split(separator: ",") ?? []
+      let ids = Set(raw.compactMap { Int($0) })
+      let known = Set((boardItems + secondPageItems).map(\.id))
+      let restored = lock.withLock {
+        guard !ids.isEmpty, ids.count == raw.count, ids.isSubset(of: known),
+          ids.isDisjoint(with: restoredIDs)
+        else { return false }
+        restoredIDs.formUnion(ids)
+        return true
+      }
+      guard restored else {
+        return (
+          404,
+          #"{"status":"ERROR","status_code":404,"error_type":"FILE_NOT_FOUND","message":"Harness Trash restores only listed items"}"#
+        )
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func listed(_ items: [Item]) -> [Item] {
+      let restored = lock.withLock { restoredIDs }
+      return items.filter { !restored.contains($0.id) }
+    }
+
+    private static var restoredSize: Int64 {
+      let restored = lock.withLock { restoredIDs }
+      return boardItems.filter { restored.contains($0.id) }.reduce(0) { $0 + $1.size }
     }
 
     private static func continuation(cursor: String?) -> (Int, String) {
@@ -118,7 +152,7 @@ import Foundation
           #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_CONTINUE","message":"The first and third trash page-two requests fail"}"#
         )
       }
-      let rows = secondPageItems.map(json).joined(separator: ",")
+      let rows = listed(secondPageItems).map(json).joined(separator: ",")
       return (
         200,
         #"{"status":"OK","cursor":"","total":\#(boardItems.count + secondPageItems.count),"trash_size":\#(boardSize),"files":[\#(rows)]}"#
@@ -137,8 +171,8 @@ import Foundation
           #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_LIST","message":"The first trash list fails"}"#
         )
       }
-      let items = mode == .empty ? [] : boardItems
-      let size = items.isEmpty ? 0 : boardSize
+      let items = mode == .empty ? [] : listed(boardItems)
+      let size = items.isEmpty ? 0 : boardSize - restoredSize
       let rows = items.map(json).joined(separator: ",")
       let paged = mode?.isPaged == true
       let cursor = paged ? secondPageCursor : ""
