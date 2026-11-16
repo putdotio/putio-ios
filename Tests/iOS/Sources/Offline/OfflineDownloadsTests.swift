@@ -957,6 +957,12 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertFalse(PutioOfflineQueue.fits(estimatedBytes: 100, freeBytes: 150 * 1024 * 1024))
   }
 
+  func testALongMultiAudioVideoFitsWhenTheDeviceHasTheSpace() {
+    let estimate = PutioSystemOfflineDownloadEngine.estimatedBytes(
+      seconds: 9_600, videoBitrate: 6_000_000, audioRenditions: 10)
+    XCTAssertTrue(PutioOfflineQueue.fits(estimatedBytes: estimate, freeBytes: 64_000_000_000))
+  }
+
   func testRestoredPackagesRefillSlotsAndNotify() async throws {
     let store = PutioOfflineStore(directory: directory)
     var items: [PutioOfflineItem] = []

@@ -16,7 +16,6 @@ typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async 
 final class PutioOfflineQueue {
   static let defaultConcurrencyLimit = 3
   static let concurrencyLimits = [1, 2, 3, 4]
-  static let maximumDownloadBytes: Int64 = 8 * 1024 * 1024 * 1024
 
   private(set) var items: [PutioOfflineItem] = []
   private(set) var concurrencyLimit: Int
@@ -794,7 +793,7 @@ final class PutioOfflineQueue {
   static let minimumFreeBytes: Int64 = 200 * 1024 * 1024
 
   static func fits(estimatedBytes: Int64, freeBytes: Int64) -> Bool {
-    estimatedBytes <= maximumDownloadBytes && estimatedBytes + minimumFreeBytes <= freeBytes
+    estimatedBytes + minimumFreeBytes <= freeBytes
   }
 
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
