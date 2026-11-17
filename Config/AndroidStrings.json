@@ -1,6 +1,6 @@
 {
   "repository": "putdotio/putio-android",
-  "commit": "5e914a32e6919420bdcf388c3a16c071f8e3813b",
+  "commit": "c318c51f5ec548401ea54990a579af72c4a97986",
   "files": [
     "core/design/src/main/res/values/strings.xml",
     "domain/account/src/main/res/values/strings.xml",
@@ -605,6 +605,12 @@
     "mobile_search_remove_named": "Remove %1$s from recent searches",
     "mobile_search_start_message": "Enter a name or keyword to search your put.io account.",
     "mobile_search_start_title": "Find your files",
+    "mobile_search_total": {
+      "plurals": {
+        "one": "%1$s result",
+        "other": "%1$s results"
+      }
+    },
     "mobile_selection_clear": "Cancel selection",
     "mobile_selection_count": {
       "plurals": {

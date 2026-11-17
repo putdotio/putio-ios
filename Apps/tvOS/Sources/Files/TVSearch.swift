@@ -123,10 +123,14 @@ struct TVSearchView: View {
           await model.refresh(query: query, revision: refreshRequests.revision)
         }
       }
-      Text(page.totalCount == 1 ? "1 result" : "\(page.totalCount) results")
-        .putioFont(PutioTheme.TV.Typography.caption)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        .accessibilityIdentifier("search.count")
+      if let total = PutioFileSearchTotal(
+        page: page, filter: model.filter, hiddenIDs: itemActions.hiddenIDs)
+      {
+        Text(total.label(locale: locale))
+          .putioFont(PutioTheme.TV.Typography.caption)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .accessibilityIdentifier("search.count")
+      }
       ForEach(page.items.filter { !itemActions.hiddenIDs.contains($0.id) }) { item in
         TVFileRowButton(
           presentation: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale),

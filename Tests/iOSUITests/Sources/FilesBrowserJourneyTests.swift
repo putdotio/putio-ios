@@ -1604,11 +1604,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let requests = element(identifier: "search.requests")
     XCTAssertEqual(requests.value as? String, "blue|", "typing sent more than one search")
     XCTAssertEqual(
-      element(identifier: "files.search-group.folders").label, "Folders, 1",
-      "the Folders group lacks its count")
-    XCTAssertEqual(
-      element(identifier: "files.search-group.files").label, "Files, 3",
-      "the Files group lacks its count")
+      element(identifier: "files.search-total").label, "4 results",
+      "the search lacks put.io's match total")
+    XCTAssertEqual(element(identifier: "files.search-group.folders").label, "Folders")
+    XCTAssertEqual(element(identifier: "files.search-group.files").label, "Files")
     XCTAssertTrue(app.staticTexts["in Blue Lights"].firstMatch.appears(within: 10))
     addScreenshot(named: "runtime-search-grouped")
 

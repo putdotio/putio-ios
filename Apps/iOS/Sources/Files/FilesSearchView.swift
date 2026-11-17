@@ -240,6 +240,21 @@ struct FilesSearchView: View {
             }
             .listRowBackground(PutioTheme.Colors.background)
           }
+          if let total = PutioFileSearchTotal(
+            page: page, filter: model.filter, hiddenIDs: itemActions.hiddenIDs)
+          {
+            Text(total.label(locale: locale))
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+              .accessibilityIdentifier("files.search-total")
+              .listRowInsets(
+                EdgeInsets(
+                  top: PutioTheme.Spacing.space2, leading: PutioTheme.Spacing.space4,
+                  bottom: 0, trailing: PutioTheme.Spacing.space4)
+              )
+              .listRowSeparator(.hidden)
+              .listRowBackground(PutioTheme.Colors.background)
+          }
           group(String(localized: "Folders"), id: "folders", items: groups.folders)
           group(String(localized: "Files"), id: "files", items: groups.files)
           if let cursor = page.nextCursor, model.refreshFailure == nil {
@@ -304,24 +319,18 @@ struct FilesSearchView: View {
   @ViewBuilder
   private func group(_ title: String, id: String, items: [PutioFileItem]) -> some View {
     if !items.isEmpty {
-      HStack(alignment: .firstTextBaseline) {
-        Text(title)
-          .putioFont(PutioTheme.Typography.caption)
-          .accessibilityAddTraits(.isHeader)
-        Spacer(minLength: PutioTheme.Spacing.space2)
-        Text(items.count, format: .number)
-          .putioFont(PutioTheme.Typography.numeric)
-      }
-      .foregroundStyle(PutioTheme.Colors.textSecondary)
-      .accessibilityElement(children: .combine)
-      .accessibilityIdentifier("files.search-group.\(id)")
-      .listRowInsets(
-        EdgeInsets(
-          top: PutioTheme.Spacing.space3, leading: PutioTheme.Spacing.space4,
-          bottom: 0, trailing: PutioTheme.Spacing.space4)
-      )
-      .listRowSeparator(.hidden)
-      .listRowBackground(PutioTheme.Colors.background)
+      Text(title)
+        .putioFont(PutioTheme.Typography.caption)
+        .accessibilityAddTraits(.isHeader)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .accessibilityIdentifier("files.search-group.\(id)")
+        .listRowInsets(
+          EdgeInsets(
+            top: PutioTheme.Spacing.space3, leading: PutioTheme.Spacing.space4,
+            bottom: 0, trailing: PutioTheme.Spacing.space4)
+        )
+        .listRowSeparator(.hidden)
+        .listRowBackground(PutioTheme.Colors.background)
       ForEach(items) { item in
         resultRow(item)
       }
