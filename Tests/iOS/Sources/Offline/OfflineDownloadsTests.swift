@@ -1038,10 +1038,12 @@ final class OfflineDownloadsTests: XCTestCase {
       queue.enqueue(fileID: PutioFileID(rawValue: id), parentID: .root, name: "\(id)", kind: .video)
     }
     await settle()
-    XCTAssertEqual(queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 2))
+    XCTAssertEqual(
+      queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 2))
     XCTAssertEqual(queue.downloadState(for: PutioFileID(rawValue: 99), on: .iPhone), .idle)
     queue.perform(.cancel, fileID: PutioFileID(rawValue: 2))
-    XCTAssertEqual(queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 1))
+    XCTAssertEqual(
+      queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 1))
     try engine.finish(PutioFileID(rawValue: 1), at: directory)
     await settle()
     XCTAssertEqual(
