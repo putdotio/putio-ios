@@ -647,14 +647,18 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertTrue(
         app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
     }
+    let list = app.collectionViews.firstMatch
     for pass in 0..<2 where !rows.isEmpty {
       if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
       for (id, state) in rows {
-        let row = app.revealed("downloads.item.\(id)")
+        let row = app.revealed("downloads.item.\(id)", swipingIn: list)
         XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
         XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
       }
-      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+      if let first = rows.first {
+        let top = element("downloads.item.\(first.id)")
+        for _ in 0..<6 where !top.isHittable { list.swipeDown() }
+      }
     }
   }
 
