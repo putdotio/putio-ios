@@ -8,7 +8,8 @@ struct TrashManagementView: View {
   @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
-  @State private var stillMovingFailure: PutioTrashErrorPresentation?
+  @State private var stillMovingMessage = ""
+  @State private var stillMovingAlertPresented = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @Environment(\.locale) private var locale
@@ -162,16 +163,14 @@ struct TrashManagementView: View {
     } message: {
       Text("Every item in Trash will be deleted and cannot be restored.")
     }
-    .alert(
-      "Restore could not start",
-      isPresented: stillMovingAlertPresented,
-      presenting: stillMovingFailure
-    ) { _ in
-      Button("OK") {}
-        .accessibilityIdentifier("trash.still-moving.ok")
-    } message: { failure in
-      Text(failure.message)
-    }
+    .putioAlert(
+      String(localized: "Restore could not start"),
+      isPresented: $stillMovingAlertPresented,
+      message: stillMovingMessage,
+      actions: [
+        PutioAlertAction(String(localized: "OK"), tier: .neutral, id: "trash.still-moving.ok")
+      ]
+    )
     .putioToast($toast)
     .overlay {
       if showsBlockingProgress {
@@ -384,13 +383,6 @@ struct TrashManagementView: View {
     )
   }
 
-  private var stillMovingAlertPresented: Binding<Bool> {
-    Binding(
-      get: { stillMovingFailure != nil },
-      set: { if !$0 { stillMovingFailure = nil } }
-    )
-  }
-
   private var restoringItem: PutioTrashItem? {
     guard case .restore(let item) = model.activeMutation else { return nil }
     return item
@@ -548,7 +540,8 @@ struct TrashManagementView: View {
       toast = PutioToast(
         String(localized: "Trash emptied"))
     case .failed(_, let failure) where failure.isStillMovingToTrash:
-      stillMovingFailure = failure
+      stillMovingMessage = failure.message
+      stillMovingAlertPresented = true
     case .failed(.restore, _):
       toast = PutioToast(
         String(localized: "Restore could not start"), icon: .warning, width: .fit)

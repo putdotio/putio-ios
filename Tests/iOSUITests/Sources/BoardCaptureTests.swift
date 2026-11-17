@@ -4497,13 +4497,14 @@ final class BoardCaptureTests: XCTestCase {
   func testTrashStillMoving() throws {
     openTrash("still-moving")
     swipeRestoreBlueVelvet()
-    let alert = app.alerts["Restore could not start"]
+    let alert = app.putioAlert("Restore could not start")
     XCTAssertTrue(alert.appears(within: 10), "the still-moving restore never asked")
     XCTAssertTrue(
       alert.staticTexts[
         "This item is still moving to trash. You can try restoring it later."
       ].exists, "the alert has no message")
-    XCTAssertEqual(alert.buttons.count, 1, "the alert offers more than OK")
+    XCTAssertEqual(
+      alert.buttons.allElementsBoundByIndex.map(\.label), ["OK"], "the alert offers more than OK")
     XCTAssertTrue(element("trash.item.4302").exists, "the still-moving row left")
     try captureTrashBoard("rd-ios-trash-18-still-moving")
     alert.buttons["trash.still-moving.ok"].tap()

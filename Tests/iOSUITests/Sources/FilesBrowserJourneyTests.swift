@@ -1268,13 +1268,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.launchArguments = ["--putio-harness-scenario", "files-browser"]
     openSeededTrash("still-moving")
     restoreBlueVelvet()
-    let alert = app.alerts["Restore could not start"]
+    let alert = app.putioAlert("Restore could not start")
     XCTAssertTrue(alert.appears(within: 10), "TRASH_INCOMPLETE_TRASH showed no alert")
     XCTAssertTrue(
       alert.staticTexts[
         "This item is still moving to trash. You can try restoring it later."
       ].exists)
-    XCTAssertEqual(alert.buttons.count, 1, "the still-moving alert offers more than OK")
+    XCTAssertEqual(
+      alert.buttons.allElementsBoundByIndex.map(\.label), ["OK"],
+      "the still-moving alert offers more than OK")
     alert.buttons["trash.still-moving.ok"].tap()
     XCTAssertTrue(alert.disappears(within: 5))
     XCTAssertFalse(app.staticTexts["Restore could not start"].exists, "the alert also toasted")
