@@ -7,7 +7,6 @@ struct TrashManagementView: View {
   @State private var pendingDeletion: PutioTrashItem?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var pendingBulkDeletion: [PutioTrashItem] = []
-  @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
   @State private var stillMovingMessage = ""
   @State private var stillMovingAlertPresented = false
@@ -89,30 +88,11 @@ struct TrashManagementView: View {
       } else if model.hasContents {
         ToolbarItem(placement: .primaryAction) {
           Menu {
-            Button {
-              editMode = .active
-            } label: {
-              Label("Select", systemImage: "checkmark.circle")
-            }
-            .disabled(loadedItems.isEmpty)
-            .accessibilityIdentifier("trash.select")
-            Button {
-              Task { await model.restoreAll() }
-            } label: {
-              Label("Restore All", systemImage: "arrow.uturn.backward")
-            }
-            .accessibilityIdentifier("trash.restore-all")
-            Button(role: .destructive) {
-              emptyConfirmationPresented = true
-            } label: {
-              Label("Empty Trash", systemImage: "trash")
-            }
-            .accessibilityIdentifier("trash.empty")
+            PutioItemMenuContent(moreMenu)
           } label: {
-            Label("Trash Actions", systemImage: "ellipsis")
+            Label("More", systemImage: "ellipsis")
           }
           .disabled(!model.canMutate)
-          .accessibilityLabel("Trash Actions")
           .accessibilityIdentifier("trash.menu")
         }
       }
@@ -137,19 +117,6 @@ struct TrashManagementView: View {
       Button("Cancel", role: .cancel) { pendingBulkDeletion = [] }
     } message: {
       Text("Are you sure to permanently delete those files?")
-    }
-    .confirmationDialog(
-      "Empty Trash permanently?",
-      isPresented: $emptyConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button("Empty Trash", role: .destructive) {
-        Task { await model.empty() }
-      }
-      .accessibilityIdentifier("trash.empty-confirm")
-      Button("Cancel", role: .cancel) {}
-    } message: {
-      Text("Every item in Trash will be deleted and cannot be restored.")
     }
     .putioAlert(
       String(localized: "Restore could not start"),
@@ -182,7 +149,7 @@ struct TrashManagementView: View {
           confirmAlert = nil
         }
         pendingBulkDeletion.removeAll { model.page?.items.contains($0) != true }
-        if !model.hasContents { emptyConfirmationPresented = false }
+        if !model.hasContents { confirmAlert = nil }
       }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
@@ -199,13 +166,14 @@ struct TrashManagementView: View {
 
   @ViewBuilder
   private func loadedContent(_ page: PutioTrashPage, isEmpty: Bool) -> some View {
-    if isEmpty && model.refreshFailure == nil && model.storageFailure == nil {
+    if isEmpty && model.refreshFailure == nil {
       ScrollView {
         emptyState
           .modifier(TrashStatePlacement(.empty))
           .containerRelativeFrame([.horizontal, .vertical])
       }
-      .refreshable { await model.refresh() }
+      .scrollBounceBehavior(.always)
+      .refreshable { await Task { await model.refresh() }.value }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
         if !page.items.isEmpty || restoringItem != nil {
@@ -227,7 +195,6 @@ struct TrashManagementView: View {
             }
           }
         }
-        storageFailureSection
         if isEmpty {
           // The page is still empty; errors above do not change that.
           Section { emptyState }.listRowBackground(Color.clear)
@@ -388,7 +355,7 @@ struct TrashManagementView: View {
 
   private var showsBlockingProgress: Bool {
     switch model.activeMutation {
-    case .none, .restore: false
+    case .none, .restore, .restoreAll, .empty: false
     default: true
     }
   }
@@ -447,21 +414,35 @@ struct TrashManagementView: View {
     }
   }
 
-  @ViewBuilder
-  private var storageFailureSection: some View {
-    if let failure = model.storageFailure {
-      Section {
-        PutioErrorStateView(
-          title: failure.title,
-          message: failure.message,
-          retryTitle: model.isRefreshingStorage
-            ? String(localized: "Updating…") : String(localized: "Update storage")
-        ) {
-          Task { await model.retryStorageRefresh() }
-        }
-        .disabled(model.isRefreshingStorage)
-        .accessibilityIdentifier("trash.storage-retry")
-      }
+  private var moreMenu: PutioItemMenu {
+    PutioItemMenu([
+      [
+        PutioItemAction(
+          id: "trash-select", title: String(localized: "Select"), icon: .checkCircle,
+          isDisabled: loadedItems.isEmpty
+        ) { editMode = .active },
+        PutioItemAction(
+          id: "trash-restore-all", title: String(localized: "Restore all"),
+          icon: .arrowCounterClockwise
+        ) { [model] in Task { await model.restoreAll() } },
+        PutioItemAction(
+          id: "trash-empty", title: String(localized: "Empty trash"), icon: .trash,
+          role: .destructive
+        ) { askToEmpty() },
+      ]
+    ])
+  }
+
+  private func askToEmpty() {
+    pendingDeletion = nil
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Empty trash?"),
+      message: String(
+        localized: "Every item in trash will be removed right away. This cannot be undone."),
+      confirmTitle: String(localized: "Empty trash")
+    ) { [model] in
+      guard model.hasContents else { return }
+      Task { await model.empty() }
     }
   }
 
@@ -527,17 +508,16 @@ struct TrashManagementView: View {
       toast = PutioToast(
         String(localized: "Items deleted"))
     case .restoredAll:
-      toast = PutioToast(String(localized: "Restore started!"))
+      toast = PutioToast(String(localized: "Restore started"))
     case .emptied:
-      toast = PutioToast(
-        String(localized: "Trash emptied"))
+      toast = PutioToast(String(localized: "Trash is empty."))
     case .failed(_, let failure) where failure.isStillMovingToTrash:
       stillMovingMessage = failure.message
       stillMovingAlertPresented = true
-    case .failed(.permanentlyDelete, _):
+    case .failed(.permanentlyDelete, _), .failed(.empty, _):
       toast = PutioToast(
         String(localized: "The request could not start"), icon: .warning, width: .fit)
-    case .failed(.restore, _):
+    case .failed(.restore, _), .failed(.restoreAll, _):
       toast = PutioToast(
         String(localized: "Restore could not start"), icon: .warning, width: .fit)
     case .failed(_, let failure):

@@ -961,6 +961,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   func testTrashManagementRestoreRetryDeleteAndEmpty() {
+    app.launchArguments.append("--putio-harness-trash-empty-fails-once")
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
@@ -1005,10 +1006,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let trashMenu = app.buttons["trash.menu"]
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
-    XCTAssertEqual(trashMenu.label, "Trash Actions")
+    XCTAssertEqual(trashMenu.label, "More")
     trashMenu.tap()
-    XCTAssertTrue(app.buttons["trash.restore-all"].appears(within: 5))
-    let select = app.buttons["trash.select"]
+    XCTAssertTrue(trashMenuItem("Restore all").appears(within: 5))
+    let select = trashMenuItem("Select")
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
     let bulkRestore = app.buttons["trash.bulk.restore"]
@@ -1077,30 +1078,31 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(deleteRow.disappears(within: 5))
     XCTAssertNotEqual(header.label, headerBeforeDelete, "the size line kept the deleted row")
 
-    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
-    trashMenu.tap()
-    let emptyTrash = app.buttons["trash.empty"]
-    XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
-    emptyTrash.tap()
-    XCTAssertTrue(app.staticTexts["Empty Trash permanently?"].appears(within: 5))
+    let emptyAlert = app.putioAlert("Empty trash?")
+    openEmptyTrashAlert(trashMenu, emptyAlert)
     XCTAssertTrue(
-      app.staticTexts["Every item in Trash will be deleted and cannot be restored."].exists
-    )
-    let confirmEmpty = app.buttons["trash.empty-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(confirmEmpty, timeout: 5))
-    confirmEmpty.tap()
+      emptyAlert.staticTexts[
+        "Every item in trash will be removed right away. This cannot be undone."
+      ].exists)
+    emptyAlert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(emptyAlert.disappears(within: 5))
+    XCTAssertTrue(app.staticTexts["Empty Me"].exists, "Cancel emptied Trash")
+
+    openEmptyTrashAlert(trashMenu, emptyAlert)
+    emptyAlert.buttons["confirm-alert.confirm"].firstMatch.tap()
+    XCTAssertTrue(
+      app.staticTexts["The request could not start"].appears(within: 5),
+      "an earlier Cancel sent the empty")
+    XCTAssertTrue(app.staticTexts["Empty Me"].exists, "a failed empty cleared the list")
+
+    openEmptyTrashAlert(trashMenu, emptyAlert)
+    emptyAlert.buttons["confirm-alert.confirm"].firstMatch.tap()
     XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 10))
-    XCTAssertTrue(app.staticTexts["Trash emptied"].appears(within: 5))
-    // The seeded account refresh after emptying fails once: the stale-storage
-    // warning must stay visible with its own retry, alongside the empty state.
-    let staleStorage = app.staticTexts["Storage totals are out of date"]
-    XCTAssertTrue(staleStorage.appears(within: 5), app.debugDescription)
-    XCTAssertTrue(
-      app.staticTexts["Your trash is empty"].exists, "empty state hidden behind the error")
-    let updateStorage = app.buttons["Update storage"]
-    XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
-    updateStorage.tap()
-    XCTAssertTrue(staleStorage.disappears(within: 5), "storage retry did not clear")
+    XCTAssertTrue(app.staticTexts["Trash is empty."].appears(within: 5))
+    XCTAssertFalse(trashMenu.exists, "the emptied Trash offers More")
+    XCTAssertFalse(
+      app.staticTexts["Storage totals are out of date"].exists,
+      "a failed storage refresh showed a warning")
     let emptyRefreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25))
     emptyRefreshStart.press(
       forDuration: 0.1,
@@ -1266,7 +1268,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let trashMenu = app.buttons["trash.menu"]
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     trashMenu.tap()
-    let select = app.buttons["trash.select"]
+    let select = trashMenuItem("Select")
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
     XCTAssertTrue(app.buttons["trash.selection.done"].appears(within: 5))
@@ -1387,6 +1389,51 @@ final class FilesBrowserJourneyTests: XCTestCase {
       NSPredicate(
         format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
     ).firstMatch
+  }
+
+  private func openEmptyTrashAlert(_ trashMenu: XCUIElement, _ alert: XCUIElement) {
+    XCTAssertTrue(trashSettles(), "More stayed disabled")
+    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
+    trashMenu.tap()
+    let emptyTrash = trashMenuItem("Empty trash")
+    XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
+    emptyTrash.tap()
+    XCTAssertTrue(alert.appears(within: 5), "Empty trash emptied without asking")
+  }
+
+  func testTrashRestoreAllReturnsItemsToFiles() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    XCTAssertFalse(element(identifier: "files.item.419").exists, "Restore Me is not in Trash")
+    app.buttons["Account"].tap()
+    let trashEntry = element(identifier: "account.trash")
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    trashEntry.tap()
+
+    XCTAssertTrue(app.staticTexts["Restore Me"].appears(within: 10))
+    let trashMenu = app.buttons["trash.menu"]
+    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
+    trashMenu.tap()
+    let restoreAll = trashMenuItem("Restore all")
+    XCTAssertTrue(waitUntilHittable(restoreAll, timeout: 5))
+    restoreAll.tap()
+    XCTAssertFalse(
+      app.alerts.firstMatch.exists || app.putioAlerts.firstMatch.exists,
+      "Restore all asked first")
+    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
+    addScreenshot(named: "runtime-trash-restore-all")
+
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.buttons["Files"].tap()
+    for id in [419, 421] {
+      XCTAssertTrue(
+        element(identifier: "files.item.\(id)").appears(within: 10),
+        "restored item \(id) did not return to Files")
+    }
   }
 
   private func openSeededTrash(_ mode: String) {

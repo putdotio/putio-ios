@@ -65,10 +65,18 @@ extension PutioRuntime {
   }
 
   func sendTrashRestore(fileIDs: [PutioFileID]) async throws {
+    try await sendTrashRestore {
+      try await sdk.restoreTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+    }
+  }
+
+  private func sendTrashRestore(
+    _ request: () async throws -> PutioOKResponse
+  ) async throws {
     let response = try await performAuthenticatedOperation(commits: true) {
       () async throws -> PutioOKResponse? in
       do {
-        return try await sdk.restoreTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+        return try await request()
       } catch let error as PutioSDKError
         where error.matches(statusCode: 400, errorType: "TRASH_INCOMPLETE_TRASH")
       {
@@ -87,10 +95,7 @@ extension PutioRuntime {
       try await restoreTrashItems(fileIDs: loadedFileIDs)
       return
     }
-    let response = try await performAuthenticatedOperation(commits: true) {
-      try await sdk.restoreTrashFiles(cursor: cursor)
-    }
-    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    try await sendTrashRestore { try await sdk.restoreTrashFiles(cursor: cursor) }
   }
 
   /// Permanently deletes the given trashed files in one request.

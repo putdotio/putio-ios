@@ -4580,6 +4580,60 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-trash-03-swipe-trailing")
   }
 
+  func testTrashMoreMenu() throws {
+    openTrashMoreMenu()
+    let select = trashMenuItem("Select")
+    let restoreAll = trashMenuItem("Restore all")
+    let empty = trashMenuItem("Empty trash")
+    for item in [select, restoreAll, empty] {
+      XCTAssertTrue(item.exists, "More has no \(item.label)")
+    }
+    XCTAssertLessThan(select.frame.minY, restoreAll.frame.minY, "Restore all is above Select")
+    XCTAssertLessThan(restoreAll.frame.minY, empty.frame.minY, "Empty trash is not last")
+    try captureBoard("rd-ios-trash-04-more")
+  }
+
+  func testTrashEmptyConfirm() throws {
+    let alert = openTrashEmptyAlert()
+    XCTAssertTrue(
+      alert.staticTexts[
+        "Every item in trash will be removed right away. This cannot be undone."
+      ].exists, "the alert has no message")
+    XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
+    XCTAssertEqual(alert.buttons["confirm-alert.confirm"].label, "Empty trash")
+    try captureBoard("rd-ios-trash-08-empty-confirm")
+  }
+
+  func testTrashEmptied() throws {
+    let alert = openTrashEmptyAlert()
+    alert.buttons["confirm-alert.confirm"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].appears(within: 10), "Trash never read empty")
+    XCTAssertTrue(app.staticTexts["Trash is empty."].appears(within: 5), "no emptied toast")
+    XCTAssertFalse(element("trash.header").exists, "the emptied Trash shows a header")
+    XCTAssertFalse(app.buttons["trash.menu"].exists, "the emptied Trash offers More")
+    try captureBoard("rd-ios-trash-22-emptied")
+  }
+
+  private func openTrashMoreMenu() {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    showSettledTabBar()
+    let more = app.buttons["trash.menu"]
+    XCTAssertEqual(more.label, "More")
+    more.tap()
+    XCTAssertTrue(
+      trashMenuItem("Empty trash").appears(within: 5), "More opened no menu")
+  }
+
+  private func openTrashEmptyAlert() -> XCUIElement {
+    openTrashMoreMenu()
+    trashMenuItem("Empty trash").tap()
+    let alert = app.putioAlert("Empty trash?")
+    XCTAssertTrue(alert.appears(within: 5), "Empty trash never asked")
+    return alert
+  }
+
   private func confirmTrashDelete(_ id: Int) {
     showSettledTabBar()
     openTrailingTrashSwipe(id)

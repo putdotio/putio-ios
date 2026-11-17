@@ -874,6 +874,7 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-move-folders")
     }
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
+    nonisolated(unsafe) private static var trashEmptyFailureDelivered = false
     private static var trashHitsChildrenLimit: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-limit")
         || trashLimitArrivesLate
@@ -921,7 +922,7 @@ import Foundation
     // Bytes freed by permanent deletions; account storage reflects them.
     nonisolated(unsafe) private static var trashFreedBytes: Int64 = 0
     // The account refresh right after emptying fails once so the journey
-    // proves the stale-storage warning and its retry.
+    // proves storage catches up on the next load.
     nonisolated(unsafe) private static var accountRefreshFailuresRemaining = 0
     private static let trashFolderBytes: Int64 = 1_073_741_824
     private static let diskTotalBytes: Int64 = 1_099_511_627_776
@@ -1174,6 +1175,7 @@ import Foundation
       movedSubtitleParents = [:]
       renamedSeasonSubtitles = [:]
       trashDeleteFailureDelivered = false
+      trashEmptyFailureDelivered = false
       removedSeasonFileIDs = []
       trashedSeasonFileIDs = []
       seasonDeleteFailureDelivered = false
@@ -3489,8 +3491,24 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    private static var trashEmptyFailsOnce: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-empty-fails-once")
+    }
+
     private static func emptyTrash() -> (Int, String) {
       fileActionsLock.lock()
+      if trashEmptyFailsOnce, !trashEmptyFailureDelivered {
+        trashEmptyFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_TRASH_EMPTY_FAILURE",
+            message: "The first Empty trash fails for retry proof"
+          )
+        )
+      }
       trashFreedBytes += Int64(trashFolders.count) * trashFolderBytes
       trashFolders = [:]
       accountRefreshFailuresRemaining = 1

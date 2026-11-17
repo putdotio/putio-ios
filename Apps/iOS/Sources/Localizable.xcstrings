@@ -1737,24 +1737,24 @@
         }
       }
     },
-    "Empty Trash" : {
-      "comment" : "android: mobile_trash_empty_action | differs: iOS uses title case",
+    "Empty trash" : {
+      "comment" : "android: mobile_trash_empty_action",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash"
+            "value" : "Empty trash"
           }
         }
       }
     },
-    "Empty Trash permanently?" : {
-      "comment" : "android: mobile_trash_empty_confirm_title | differs: iOS board wording",
+    "Empty trash?" : {
+      "comment" : "android: mobile_trash_empty_confirm_title",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Empty Trash permanently?"
+            "value" : "Empty trash?"
           }
         }
       }
@@ -1792,13 +1792,13 @@
         }
       }
     },
-    "Every item in Trash will be deleted and cannot be restored." : {
-      "comment" : "android: mobile_trash_empty_confirm_message | differs: iOS board wording",
+    "Every item in trash will be removed right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_empty_confirm_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Every item in Trash will be deleted and cannot be restored."
+            "value" : "Every item in trash will be removed right away. This cannot be undone."
           }
         }
       }
@@ -4305,13 +4305,13 @@
         }
       }
     },
-    "Restore All" : {
-      "comment" : "android: mobile_trash_restore_all | differs: iOS uses title case",
+    "Restore all" : {
+      "comment" : "android: mobile_trash_restore_all",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Restore All"
+            "value" : "Restore all"
           }
         }
       }
@@ -4334,17 +4334,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore started"
-          }
-        }
-      }
-    },
-    "Restore started!" : {
-      "comment" : "android: mobile_trash_started | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restore started!"
           }
         }
       }
@@ -4954,24 +4943,13 @@
         }
       }
     },
-    "Trash Actions" : {
-      "comment" : "android: mobile_trash_more | differs: iOS uses title case",
+    "Trash is empty." : {
+      "comment" : "android: mobile_trash_empty_verified",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trash Actions"
-          }
-        }
-      }
-    },
-    "Trash emptied" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trash emptied"
+            "value" : "Trash is empty."
           }
         }
       }
@@ -5097,17 +5075,6 @@
         }
       }
     },
-    "Update storage" : {
-      "comment" : "ios-only: no Android string for the iOS account screen rows",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update storage"
-          }
-        }
-      }
-    },
     "Updating Trash" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -5126,17 +5093,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating Trash…"
-          }
-        }
-      }
-    },
-    "Updating…" : {
-      "comment" : "android: mobile_transfer_status_updating",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Updating…"
           }
         }
       }
