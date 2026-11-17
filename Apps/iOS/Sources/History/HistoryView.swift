@@ -162,7 +162,6 @@ struct HistoryView: View {
             .listRowSeparator(
               event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
             )
-            .listRowSeparator(.hidden, edges: .top)
             .listRowBackground(PutioTheme.Colors.background)
         }
       }
