@@ -200,7 +200,7 @@ final class BoardCaptureTests: XCTestCase {
     let step = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_SELECTION"])
     let board = try XCTUnwrap(Self.downloadsSelectionBoards[step], "no board for \(step)")
     if step == "remove-failed" { app.launchArguments.append("--putio-harness-offline-writes-fail") }
-    try openDownloadsFixture("selection")
+    openDownloads("selection")
     let device =
       ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" ? "iPad" : "iPhone"
     selectDownloads([442, 443, 441])
@@ -415,7 +415,7 @@ final class BoardCaptureTests: XCTestCase {
       openRowMenu(441, ["play", "info", "select", "remove-menu"])
       app.buttons["downloads.select.441"].firstMatch.tap()
       XCTAssertTrue(settles(finished) { $0 == "Selected" }, "Select did not tick the row")
-      app.buttons["downloads.select-done"].tap()
+      app.buttons["selection.close"].firstMatch.tap()
       openRowMenu(441, ["play", "info", "select", "remove-menu"])
       app.buttons["downloads.remove-menu.441"].firstMatch.tap()
       let confirm = app.buttons["downloads.remove-confirm"].firstMatch
@@ -624,12 +624,12 @@ final class BoardCaptureTests: XCTestCase {
       app.buttons["downloads.pause-all"].exists || app.buttons["downloads.resume-all"].exists,
       "More offers a bulk action with nothing downloading")
     app.buttons["downloads.select"].tap()
-    app.buttons["downloads.select-done"].tap()
+    app.buttons["selection.close"].firstMatch.tap()
     let gone = element("downloads.item.441")
     openRowMenu(441, ["retry", "select", "remove-menu"])
     app.buttons["downloads.select.441"].firstMatch.tap()
     XCTAssertTrue(settles(gone) { $0 == "Selected" }, "Select did not tick the missing row")
-    app.buttons["downloads.select-done"].tap()
+    app.buttons["selection.close"].firstMatch.tap()
     let storage = element("downloads.storage-used")
     app.scrollDown(toHit: storage)
     XCTAssertTrue(
