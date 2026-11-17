@@ -5,6 +5,7 @@ struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let onOpen: @MainActor (PutioOfflineItem) -> Void
   var onSelect: (@MainActor (PutioOfflineItem) -> Void)?
+  var onBeginSelection: (@MainActor () -> Void)?
 
   @Environment(\.locale) private var locale
   @Environment(\.scenePhase) private var scenePhase
@@ -31,6 +32,9 @@ struct PutioOfflineDownloadsView: View {
     .putioSelectionMode($selection, among: selectableIDs, actions: selectionActions)
     .onChange(of: queue.items.isEmpty) { _, empty in
       if empty { selection.end() }
+    }
+    .onChange(of: selection.isActive) { _, active in
+      if active { onBeginSelection?() }
     }
     .putioOfflineRemovalAlert($pendingRemoval, queue: queue, isPad: isPad) { selection.end() }
     .sheet(item: $infoItem) { item in
