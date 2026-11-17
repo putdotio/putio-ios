@@ -26,7 +26,7 @@ final class SelectionGalleryTests: XCTestCase {
     XCTAssertTrue(count.appears(within: 5), "Select did not enter selection")
     XCTAssertEqual(count.label, "0 selected")
     assertTabBarHidden()
-    XCTAssertTrue(element("selection.bar").exists, "the action bar is missing")
+    XCTAssertTrue(app.selectionActions.exists, "the action bar is missing")
     XCTAssertFalse(action("trash").isEnabled, "actions are enabled with nothing selected")
     XCTAssertFalse(
       app.buttons["Pause download, Sintel.2010.1080p.mkv"].exists,
@@ -62,7 +62,7 @@ final class SelectionGalleryTests: XCTestCase {
     XCTAssertTrue(close.appears(within: 5), "the close button is missing")
     close.tap()
     XCTAssertTrue(element("selection.count").disappears(within: 5), "close did not end selection")
-    XCTAssertFalse(element("selection.bar").exists, "the action bar outlived the selection")
+    XCTAssertFalse(app.selectionActions.exists, "the action bar outlived the selection")
     XCTAssertTrue(
       tabButton("Downloads").becomesHittable(within: 5), "the tab bar did not come back")
   }

@@ -685,7 +685,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Moved 3 items to trash"].appears(within: 10), "bulk Trash has no toast")
     XCTAssertTrue(
-      element(identifier: "selection.bar").disappears(within: 5), "bulk Trash kept selection")
+      app.selectionActions.disappears(within: 5), "bulk Trash kept selection")
     for id in episodes {
       XCTAssertTrue(element(identifier: id).disappears(within: 5), "\(id) stayed after Trash")
     }
@@ -703,7 +703,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["Marked as watched"].appears(within: 10), "bulk Watched has no toast")
     XCTAssertTrue(
-      element(identifier: "selection.bar").disappears(within: 5), "bulk Watched kept selection")
+      app.selectionActions.disappears(within: 5), "bulk Watched kept selection")
     for id in episodes {
       XCTAssertTrue(waitForValuePrefix(element(identifier: id), "Watched"), "\(id) is not watched")
     }
@@ -714,14 +714,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let select = app.buttons["Select"].firstMatch
     XCTAssertTrue(waitUntilHittable(select, timeout: 5), "More has no Select")
     select.tap()
-    XCTAssertTrue(element(identifier: "selection.bar").appears(within: 5), "no selection bar")
+    XCTAssertTrue(app.selectionActions.appears(within: 5), "no selection bar")
+    if app.horizontalSizeClass == .compact {
+      XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
+    }
   }
 
   private func endSelection() {
     let close = app.buttons["selection.close"]
     XCTAssertTrue(waitUntilHittable(close, timeout: 5), "selection has no close button")
     close.tap()
-    XCTAssertTrue(element(identifier: "selection.bar").disappears(within: 5), "the bar stayed")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "the bar stayed")
   }
 
   private func toggle(_ identifier: String, to value: String = "Selected") {
