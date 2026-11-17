@@ -1221,9 +1221,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let fullSwipeRow = element(identifier: "trash.item.4305").firstMatch
     XCTAssertTrue(waitUntilHittable(fullSwipeRow, timeout: 5))
-    fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)).press(
+    let fullSwipeStart = fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+    fullSwipeStart.press(
       forDuration: 0.05,
-      thenDragTo: fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.5)),
+      thenDragTo: fullSwipeStart.withOffset(CGVector(dx: app.frame.width * 0.8, dy: 0)),
       withVelocity: .slow,
       thenHoldForDuration: 0.1
     )
