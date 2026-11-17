@@ -1165,6 +1165,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     for name in ["Old Season", "poster.jpg", "Drafts"] {
       XCTAssertEqual(rowCount(named: name), 1, "refresh listed \(name) more than once")
     }
+    leaveTrashAndSignOut()
   }
 
   func testTrashRowsStayUsableWhileAPageLoads() {
@@ -1178,6 +1179,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     assertRestoreSwipeEnabled(on: pageOneRow, "a loading page disabled the loaded rows")
     XCTAssertTrue(element(identifier: "trash.load-more").exists, "the page stopped loading")
     addScreenshot(named: "runtime-trash-more-loading")
+    leaveTrashAndSignOut()
   }
 
   private func assertRestoreSwipeEnabled(on row: XCUIElement, _ message: String) {

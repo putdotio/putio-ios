@@ -27,12 +27,14 @@ import Foundation
     static let continuePath = "/v2/trash/list/continue"
     static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
+    static let pagedRefreshDelay: TimeInterval = 3
     static let offlineFailures = 2
     static let failingContinues: Set<Int> = [1, 3]
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var listsServed = 0
     nonisolated(unsafe) private static var continuesServed = 0
+    nonisolated(unsafe) private static var pagedListsRequested = 0
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -47,11 +49,20 @@ import Foundation
       return mode.isPaged && method == "POST" && path == continuePath
     }
 
-    static func delaysList(method: String, path: String) -> Bool {
+    static func listDelay(method: String, path: String) -> TimeInterval? {
       switch mode {
-      case .slow: handles(method: method, path: path)
-      case .moreLoading: method == "POST" && path == continuePath
-      default: false
+      case .slow: handles(method: method, path: path) ? slowDelay : nil
+      case .moreLoading: method == "POST" && path == continuePath ? slowDelay : nil
+      case .moreFailing: refreshesFirstPage(method: method, path: path) ? pagedRefreshDelay : nil
+      default: nil
+      }
+    }
+
+    private static func refreshesFirstPage(method: String, path: String) -> Bool {
+      guard method == "GET", path == listPath else { return false }
+      return lock.withLock {
+        pagedListsRequested += 1
+        return pagedListsRequested > 1
       }
     }
 

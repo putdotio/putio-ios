@@ -1300,9 +1300,10 @@ import Foundation
         HarnessHistory.hold(self)
         DispatchQueue.global().asyncAfter(
           deadline: .now() + HarnessHistory.slowDelay, execute: deliverResponse)
-      } else if HarnessTrash.delaysList(method: request.httpMethod ?? "GET", path: url.path) {
-        DispatchQueue.global().asyncAfter(
-          deadline: .now() + HarnessTrash.slowDelay, execute: deliverResponse)
+      } else if let delay = HarnessTrash.listDelay(
+        method: request.httpMethod ?? "GET", path: url.path)
+      {
+        DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliverResponse)
       } else if HarnessPublicLinks.delaysList, url.path == HarnessPublicLinks.listPath {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + HarnessPublicLinks.slowDelay, execute: deliverResponse)
