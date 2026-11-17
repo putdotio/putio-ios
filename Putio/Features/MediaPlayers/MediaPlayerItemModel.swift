@@ -39,7 +39,9 @@ struct MediaPlayerItem {
         self.id = file.id
         self.name = file.name
         self.url = PutioE2EPlaybackAsset.url(for: file)
-            ?? (file.type == PutioFileType.video ? file.getHlsStreamURL(downloadToken: api.mediaToken) : file.getAudioStreamURL(downloadToken: api.mediaToken))
+            ?? (file.type == PutioFileType.video
+                ? file.getHlsStreamURL(downloadToken: api.mediaToken).applyingSubtitlePreference(hideSubtitles: Self.hidesSubtitles)
+                : file.getAudioStreamURL(downloadToken: api.mediaToken))
         self.fileType = file.type == PutioFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = file.startFrom
@@ -48,10 +50,17 @@ struct MediaPlayerItem {
     init(file: PutioNextFile) {
         self.id = file.id
         self.name = file.name
-        self.url = file.getStreamURL(downloadToken: api.mediaToken)
+        let streamURL = file.getStreamURL(downloadToken: api.mediaToken)
+        self.url = file.type == PutioNextFileType.video
+            ? streamURL.applyingSubtitlePreference(hideSubtitles: Self.hidesSubtitles)
+            : streamURL
         self.fileType = file.type == PutioNextFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = 0
+    }
+
+    private static var hidesSubtitles: Bool {
+        UserSettings.hidesSubtitles(context: "MediaPlayerItem.hidesSubtitles")
     }
 }
 

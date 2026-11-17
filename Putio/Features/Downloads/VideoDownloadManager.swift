@@ -81,25 +81,17 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         return realm.object(ofType: Download.self, forPrimaryKey: id)
     }
 
-    private func getRemoteStreamURL(for download: Download, completion: @escaping (_ url: URL?) -> Void) {
-        var url = "\(api.config.baseURL)/files/\(download.id)/hls/media.m3u8?oauth_token=\(api.mediaToken)"
+    private func remoteStreamURL(for id: Int) -> URL? {
+        let hideSubtitles = UserSettings.hidesSubtitles(context: "VideoDownloadManager.remoteStreamURL")
+        return api.hlsStreamURL(fileID: id)?.applyingSubtitlePreference(hideSubtitles: hideSubtitles)
+    }
 
-        api.getSubtitles(fileID: download.id) { result in
-            switch result {
-            case .failure:
-                log.verbose(["VDM: getRemoteStreamURL, subtitle fetch failed", url])
-                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.noSubtitles"))
-
-            case .success(let subtitles):
-                guard let firstSubtitle = subtitles.first else {
-                    log.verbose(["VDM: getRemoteStreamURL, no subtitles", url])
-                    return completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.firstSubtitle"))
-                }
-
-                url = "\(url)&subtitle_key=\(firstSubtitle.key)"
-                log.verbose(["VDM: getRemoteStreamURL, with subtitle", url])
-                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.withSubtitle"))
-            }
+    private func mediaSelections(of asset: AVURLAsset) async -> [AVMediaSelection] {
+        do {
+            return try await asset.load(.allMediaSelections)
+        } catch {
+            log.verbose(["VDM: mediaSelections, load failed", error])
+            return []
         }
     }
 
@@ -114,13 +106,15 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         startAttempts[id] = attempt
         startTimings.begin(id: id)
 
-        getRemoteStreamURL(for: download, completion: { url in
+        let asset = remoteStreamURL(for: id).map { AVURLAsset(url: $0) }
+        Task { @MainActor in
+            let mediaSelections = if let asset { await self.mediaSelections(of: asset) } else { [AVMediaSelection]() }
             guard self.startAttempts[id] == attempt else { return }
             self.startAttempts.removeValue(forKey: id)
             guard let currentDownload = self.getDownloadFromDatabase(id: id),
                   currentDownload.state == .starting,
                   let assetDownloadURLSession = self.assetDownloadURLSession,
-                  let url else {
+                  let asset else {
                 if self.getDownloadFromDatabase(id: id)?.state == .starting {
                     self.startTimings.end(id: id, outcome: .failed)
                     DownloadQueueController.sharedInstance.startFailed(id: id)
@@ -130,16 +124,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 return
             }
 
-            guard let task = assetDownloadURLSession.makeAssetDownloadTask(
-                asset: AVURLAsset(url: url),
-                assetTitle: currentDownload.name.slugify(),
-                assetArtworkData: nil,
-                options: nil
-            ) else {
-                self.startTimings.end(id: id, outcome: .failed)
-                DownloadQueueController.sharedInstance.startFailed(id: id)
-                return
+            let configuration = AVAssetDownloadConfiguration(asset: asset, title: currentDownload.name.slugify())
+            if !mediaSelections.isEmpty {
+                configuration.primaryContentConfiguration.mediaSelections = mediaSelections
             }
+            let task = assetDownloadURLSession.makeAssetDownloadTask(downloadConfiguration: configuration)
 
             self.withActiveDownloadsMap { $0[task] = id }
 
@@ -147,7 +136,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             task.resume()
 
             NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
-        })
+        }
     }
 
     @discardableResult

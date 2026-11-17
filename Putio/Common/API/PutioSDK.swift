@@ -82,6 +82,15 @@ extension PutioSDK {
         return components?.url
     }
 
+    func hlsStreamURL(fileID: Int) -> URL? {
+        var components = URLComponents(string: "\(config.baseURL)/files/\(fileID)/hls/media.m3u8")
+        components?.queryItems = [
+            URLQueryItem(name: "subtitle_key", value: "all"),
+            URLQueryItem(name: "oauth_token", value: mediaToken),
+        ]
+        return components?.url
+    }
+
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T
@@ -233,9 +242,9 @@ extension PutioSDK {
         }
     }
 
-    func getSubtitles(fileID: Int, _ completion: @escaping (Result<[PutioSubtitle], PutioSDKError>) -> Void) {
+    func getSubtitles(fileID: Int, _ completion: @escaping (Result<PutioSubtitlesResponse, PutioSDKError>) -> Void) {
         complete(completion) {
-            try await self.getSubtitles(fileID: fileID).subtitles
+            try await self.getSubtitles(fileID: fileID)
         }
     }
 
@@ -395,5 +404,18 @@ extension PutioSDK {
         complete(completion) {
             try await self.regenerateRecoveryCodes()
         }
+    }
+}
+
+extension URL {
+    func applyingSubtitlePreference(hideSubtitles: Bool) -> URL {
+        guard hideSubtitles else { return self }
+        return appending(queryItems: [URLQueryItem(name: "max_subtitle_count", value: "0")])
+    }
+}
+
+extension UserSettings {
+    static func hidesSubtitles(context: String) -> Bool {
+        PutioRealm.open(context: context)?.objects(User.self).first?.settings?.hideSubtitles ?? false
     }
 }
