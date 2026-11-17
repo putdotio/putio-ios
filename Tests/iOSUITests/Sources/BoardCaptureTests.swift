@@ -261,7 +261,9 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func assertSelectionSummary(bytes: Int64) {
-    let summary = element("downloads.selection.summary").label
+    let header = element("downloads.selection.summary")
+    for _ in 0..<4 where !header.exists { app.swipeDown() }
+    let summary = header.label
     let size = bytes.formatted(ByteCountFormatStyle(style: .file))
     XCTAssertTrue(summary.contains("6 items"), "the summary miscounts the rows: \(summary)")
     XCTAssertTrue(
