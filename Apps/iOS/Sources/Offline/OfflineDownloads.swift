@@ -19,7 +19,13 @@ final class PutioOfflineQueue {
   static let concurrencyLimits = [1, 2, 3, 4]
 
   private(set) var items: [PutioOfflineItem] = []
-  private(set) var removing: [PutioOfflineItem] = []
+  private struct Removal {
+    let id = UUID()
+    let item: PutioOfflineItem
+  }
+
+  private var removals: [Removal] = []
+  var removing: [PutioOfflineItem] { removals.map(\.item) }
   private(set) var concurrencyLimit: Int
   private(set) var storedBytes: Int64 = 0
   private(set) var availableBytes: Int64 = 0
@@ -472,7 +478,8 @@ final class PutioOfflineQueue {
       if let item = item(for: fileID) { leaving.append(item) }
     }
     items.removeAll { fileIDs.contains($0.id) }
-    removing.append(contentsOf: leaving)
+    let entries = leaving.map { Removal(item: $0) }
+    removals.append(contentsOf: entries)
     persist()
     recomputeStorage()
     schedule()
@@ -488,8 +495,8 @@ final class PutioOfflineQueue {
         await Self.deletePackages(urls, fileManager: fileManager)
       }
       guard let self else { return }
-      let left = Set(leaving.map(\.id))
-      removing.removeAll { left.contains($0.id) }
+      let finished = Set(entries.map(\.id))
+      removals.removeAll { finished.contains($0.id) }
       guard generation == removalGeneration, isLive() else { return }
       for path in paths where !fileManager.fileExists(atPath: Self.localURL(for: path).path) {
         forgetPackage(at: path)
@@ -654,7 +661,7 @@ final class PutioOfflineQueue {
     resumeWhenFree.removeAll()
     items.removeAll()
     removalGeneration &+= 1
-    removing.removeAll()
+    removals.removeAll()
     // The account-wide operation already covered the originals.
     originalsGeneration &+= 1
     pendingOriginals.removeAll()
@@ -836,7 +843,7 @@ final class PutioOfflineQueue {
         continue
       }
       guard isOnline, item.stage == .queued, workers[item.id] == nil,
-        !removing.contains(where: { $0.id == item.id })
+        !removals.contains(where: { $0.item.id == item.id })
       else { continue }
       slots -= 1
       let token = UUID()
