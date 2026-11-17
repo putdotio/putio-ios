@@ -117,7 +117,12 @@ final class DownloadsJourneyTests: XCTestCase {
       element("files.item.412").appears(within: 10),
       "removing the download took the original from the account")
 
-    app.buttons["Account"].tap()
+    let account = app.buttons["Account"]
+    if !account.exists {
+      app.tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch.tap()
+    }
+    XCTAssertTrue(account.appears(within: 5), "the collapsed tab bar did not expand")
+    account.tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
