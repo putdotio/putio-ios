@@ -31,7 +31,7 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Queue: progress through completion.
     XCTAssertTrue(
-      waitForValue(item, "completed", timeout: 90),
+      waitForStage(item, "completed", timeout: 90),
       "download did not complete: \(item.value ?? "")")
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
@@ -52,6 +52,10 @@ final class DownloadsJourneyTests: XCTestCase {
     // Offline playback; the seeded position endpoint fails, so the
     // position stays pending locally.
     item.tap()
+    let startOver = app.buttons["video.resume.start-over"].firstMatch
+    XCTAssertTrue(
+      startOver.appears(within: 20), "offline playback did not offer the saved position")
+    startOver.tap()
     let ready = element("video.ready")
     XCTAssertTrue(ready.appears(within: 20))
     let language = element("video.audio-language")
@@ -73,7 +77,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
-    XCTAssertEqual(item.value as? String, "completed")
+    XCTAssertEqual(stage(of: item), "completed")
 
     app.terminate()
     let preference = try XCTUnwrap(
@@ -84,6 +88,7 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
     item.tap()
+    if startOver.appears(within: 10) { startOver.tap() }
     XCTAssertTrue(ready.appears(within: 20))
     XCTAssertTrue(
       waitForValue(language, "en", timeout: 10),
@@ -277,7 +282,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let original = element("downloads.item.412")
     XCTAssertTrue(original.appears(within: 10))
     XCTAssertTrue(
-      waitForValue(original, "completed", timeout: 90),
+      waitForStage(original, "completed", timeout: 90),
       "the Direct play download did not complete: \(original.value ?? "")")
 
     app.buttons["Files"].tap()
@@ -296,7 +301,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let package = element("downloads.item.442")
     XCTAssertTrue(package.appears(within: 10))
     XCTAssertTrue(
-      waitForValue(package, "completed", timeout: 90),
+      waitForStage(package, "completed", timeout: 90),
       "the Standard download did not complete: \(package.value ?? "")")
 
     let mediaBaseURL = try XCTUnwrap(
@@ -329,6 +334,8 @@ final class DownloadsJourneyTests: XCTestCase {
     screenshot("runtime-downloads-direct-play-original")
     app.buttons["downloads.detail.done"].tap()
     package.tap()
+    let resume = app.buttons["video.resume.resume"].firstMatch
+    if resume.appears(within: 10) { resume.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 20))
     app.closeVideo()
 
@@ -380,6 +387,16 @@ final class DownloadsJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", value), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func waitForStage(_ element: XCUIElement, _ stage: String, timeout: TimeInterval)
+    -> Bool
+  {
+    waitUntil(timeout: timeout) { self.stage(of: element) == stage }
+  }
+
+  private func stage(of element: XCUIElement) -> String? {
+    (element.value as? String)?.split(separator: ";").first.map(String.init)
   }
 
   private func element(_ identifier: String) -> XCUIElement {
