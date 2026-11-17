@@ -331,6 +331,7 @@ final class PutioOfflineQueue {
       }
       update(fileID) {
         $0.stage = .completed
+        $0.completedAt = .now
         $0.storedBytes = storedBytes
         $0.storedAudioTracks = tracks.audio
         $0.storedSubtitleTracks = tracks.subtitles
@@ -1306,13 +1307,14 @@ final class PutioOfflineQueue {
     -> (audio: [PutioOfflineTrack], subtitles: [PutioOfflineTrack])
   {
     let asset = AVURLAsset(url: url)
+    let cache = asset.assetCache
     var audio: [PutioOfflineTrack] = []
     var subtitles: [PutioOfflineTrack] = []
     if let group = try? await asset.loadMediaSelectionGroup(for: .audible) {
-      audio = group.options.map(Self.track)
+      audio = (cache?.mediaSelectionOptions(in: group) ?? group.options).map(Self.track)
     }
     if let group = try? await asset.loadMediaSelectionGroup(for: .legible) {
-      subtitles = group.options.map(Self.track)
+      subtitles = (cache?.mediaSelectionOptions(in: group) ?? group.options).map(Self.track)
     }
     return (audio, subtitles)
   }

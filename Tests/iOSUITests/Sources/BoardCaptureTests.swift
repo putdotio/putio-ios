@@ -249,8 +249,7 @@ final class BoardCaptureTests: XCTestCase {
     switch menu {
     case "finished":
       let finished = element("downloads.item.441")
-      openRowMenu(441, ["play", "select", "remove-menu"])
-      XCTAssertFalse(app.buttons["Info"].exists, "Info shows before its sheet lands")
+      openRowMenu(441, ["play", "info", "select", "remove-menu"])
       let onPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
       XCTAssertEqual(
         app.buttons["downloads.remove-menu.441"].firstMatch.label,
@@ -260,16 +259,47 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertTrue(element("video.ready").appears(within: 20), "Play did not play the download")
       app.revealVideoControls(showing: app.videoClose)
       app.videoClose.tap()
-      openRowMenu(441, ["play", "select", "remove-menu"])
+      openRowMenu(441, ["play", "info", "select", "remove-menu"])
       app.buttons["downloads.select.441"].firstMatch.tap()
       XCTAssertTrue(settles(finished) { $0 == "Selected" }, "Select did not tick the row")
       app.buttons["downloads.select-done"].tap()
-      openRowMenu(441, ["play", "select", "remove-menu"])
+      openRowMenu(441, ["play", "info", "select", "remove-menu"])
       app.buttons["downloads.remove-menu.441"].firstMatch.tap()
       let confirm = app.buttons["downloads.remove-confirm"].firstMatch
       XCTAssertTrue(confirm.appears(within: 5), "Remove asked for no confirmation")
       confirm.tap()
       XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    case "info":
+      openRowMenu(441, ["play", "info", "select", "remove-menu"])
+      app.buttons["downloads.info.441"].firstMatch.tap()
+      let info = element("downloads.info-sheet.441")
+      XCTAssertTrue(info.appears(within: 5), "Info opened no sheet")
+      XCTAssertTrue(element("downloads.info.length").appears(within: 10), "Info shows no length")
+      let facts = ["size", "downloaded", "length", "audio", "subtitles"].map {
+        element("downloads.info.\($0)")
+      }
+      let tops = facts.map(\.frame.minY)
+      XCTAssertEqual(tops, tops.sorted(), "the Info rows are out of order")
+      XCTAssertEqual(facts[0].value as? String, "3.24 GB")
+      XCTAssertFalse((facts[1].value as? String ?? "").isEmpty, "Info shows no download date")
+      XCTAssertEqual(facts[3].value as? String, "English, Turkish")
+      XCTAssertEqual(facts[4].value as? String, "English, English SDH, Turkish")
+      XCTAssertFalse(app.buttons["Done"].exists, "Info has a Done button")
+      try captureBoard("rd-ios-dl-27-info")
+      info.swipeDown(velocity: .fast)
+      XCTAssertTrue(info.disappears(within: 5), "swiping down left Info open")
+      openRowMenu(408, ["play", "info", "select", "remove-menu"])
+      app.buttons["downloads.info.408"].firstMatch.tap()
+      let audioInfo = element("downloads.info-sheet.408")
+      XCTAssertTrue(audioInfo.appears(within: 5), "audio Info opened no sheet")
+      XCTAssertTrue(
+        element("downloads.info.length").appears(within: 10), "audio Info has no length")
+      XCTAssertFalse(element("downloads.info.audio").exists, "audio Info lists unstored tracks")
+      XCTAssertFalse(element("downloads.info.subtitles").exists, "audio Info lists subtitles")
+      audioInfo.swipeDown(velocity: .fast)
+      XCTAssertTrue(audioInfo.disappears(within: 5), "swiping down left audio Info open")
+      openRowMenu(442, ["pause", "select", "cancel"])
+      XCTAssertFalse(app.buttons["downloads.info.442"].exists, "Info shows on a running download")
     case "active":
       openRowMenu(442, ["pause", "select", "cancel"])
       try captureBoard("rd-ios-dl-04-long-press-active")

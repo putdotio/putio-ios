@@ -11,7 +11,7 @@ struct PutioOfflineDownloadsView: View {
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var pendingRemoval: [PutioOfflineItem]?
-  @State private var detailItem: PutioOfflineItem?
+  @State private var infoItem: PutioOfflineItem?
 
   private var removalCopy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(isPad: isPad) }
 
@@ -35,9 +35,9 @@ struct PutioOfflineDownloadsView: View {
       message: pendingRemoval.map { removalCopy.message(names: $0.map(\.name)) },
       actions: removalActions
     )
-    .sheet(item: $detailItem) { item in
-      PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
-        .preferredColorScheme(.dark)
+    .sheet(item: $infoItem) { item in
+      PutioOfflineInfoView(
+        item: queue.item(for: item.id) ?? item, source: queue.localSource(for: item.id)?.url)
     }
     .task {
       await queue.restore()
@@ -190,7 +190,7 @@ struct PutioOfflineDownloadsView: View {
             Text(selectedIDs.contains(item.id) ? "Selected" : "Not selected"))
       } else if item.stage == .completed {
         Button {
-          if item.isPlayable { onOpen(item) } else { detailItem = item }
+          if item.isPlayable { onOpen(item) } else { infoItem = item }
         } label: {
           PutioFileRow(model)
             .contentShape(Rectangle())
@@ -252,6 +252,9 @@ struct PutioOfflineDownloadsView: View {
         menuButton(String(localized: "Play"), systemImage: "play", id: "play", item) {
           onOpen(item)
         }
+      }
+      menuButton(String(localized: "Info"), systemImage: "info.circle", id: "info", item) {
+        infoItem = item
       }
       selectButton(item)
       Divider()
@@ -452,60 +455,109 @@ struct PutioOfflinePersistenceFailureAlert: ViewModifier {
   }
 }
 
-/// Stored tracks and sizes for one download.
-struct PutioOfflineDetailView: View {
+/// What one finished download stores: its size, when it landed, its length
+/// and the audio and subtitle languages on disk.
+struct PutioOfflineInfoView: View {
   let item: PutioOfflineItem
-  @Environment(\.dismiss) private var dismiss
+  let source: URL?
+  @Environment(\.locale) private var locale
+  @State private var lengthSeconds: Int?
+  @State private var contentHeight: CGFloat = 0
 
   var body: some View {
-    NavigationStack {
-      List {
-        Section {
-          if let size = item.storedSizeText {
-            LabeledContent("Size", value: size)
-          }
-          LabeledContent("Status", value: status)
-        }
-        Section("Audio") {
-          if item.storedAudioTracks.isEmpty {
-            Text("Default track").foregroundStyle(PutioTheme.Colors.textSecondary)
-          }
-          ForEach(item.storedAudioTracks, id: \.self) { track in
-            LabeledContent(track.displayName, value: track.languageCode)
-              .accessibilityIdentifier("downloads.detail.audio.\(track.languageCode)")
-          }
-        }
-        Section("Subtitles") {
-          if item.storedSubtitleTracks.isEmpty {
-            Text("None stored").foregroundStyle(PutioTheme.Colors.textSecondary)
-          }
-          ForEach(item.storedSubtitleTracks, id: \.self) { track in
-            LabeledContent(track.displayName, value: track.languageCode)
-              .accessibilityIdentifier("downloads.detail.subtitle.\(track.languageCode)")
-          }
-        }
+    ScrollView {
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
+        Text(verbatim: item.name)
+          .putioFont(PutioTheme.Typography.subheading)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+          .lineLimit(1)
+          .truncationMode(.middle)
+          .frame(maxWidth: .infinity)
+          .accessibilityAddTraits(.isHeader)
+          .accessibilityIdentifier("downloads.info.title")
+        facts
       }
-      .putioContentBackground()
-      .navigationTitle(item.name)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }.accessibilityIdentifier("downloads.detail.done")
-        }
+      .padding(.horizontal, PutioTheme.Spacing.space3)
+      .padding(.top, PutioTheme.Spacing.space4)
+      .padding(.bottom, PutioTheme.Spacing.space3)
+      .onGeometryChange(for: CGFloat.self) {
+        $0.size.height
+      } action: {
+        contentHeight = $0
       }
-      .accessibilityIdentifier("downloads.detail.\(item.id.rawValue)")
+    }
+    .scrollBounceBehavior(.basedOnSize)
+    .frame(idealHeight: contentHeight > 0 ? contentHeight : nil)
+    .background(PutioTheme.Components.Sheet.background)
+    .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+    .presentationDragIndicator(.visible)
+    .presentationSizing(.form.fitted(horizontal: false, vertical: true))
+    .presentationBackground(PutioTheme.Components.Sheet.background)
+    .task(id: source) {
+      guard let source, let seconds = await PutioVideoLength.seconds(of: source),
+        !Task.isCancelled
+      else { return }
+      lengthSeconds = Int(seconds.rounded())
+    }
+    .accessibilityIdentifier("downloads.info-sheet.\(item.id.rawValue)")
+  }
+
+  private var facts: some View {
+    Grid(
+      alignment: .leading,
+      horizontalSpacing: PutioTheme.Spacing.space3,
+      verticalSpacing: PutioTheme.Spacing.space2
+    ) {
+      if let size = item.storedSizeText {
+        fact("size", label: String(localized: "Size"), value: size, numeric: true)
+      }
+      fact(
+        "downloaded", label: String(localized: "Downloaded"),
+        value: PutioBrowserItemPresentation.relativeDateText(
+          for: item.completedAt ?? item.createdAt, locale: locale))
+      if let lengthSeconds {
+        fact(
+          "length", label: String(localized: "Length"),
+          value: PutioFileDetailText.clock(seconds: lengthSeconds), numeric: true)
+      }
+      if let audio = languages(item.storedAudioTracks) {
+        fact("audio", label: String(localized: "Audio"), value: audio)
+      }
+      if let subtitles = languages(item.storedSubtitleTracks) {
+        fact("subtitles", label: String(localized: "Subtitles"), value: subtitles)
+      }
     }
   }
 
-  private var status: String {
-    switch item.stage {
-    case .queued: String(localized: "Waiting")
-    case .waitingToConvert, .converting: String(localized: "Converting")
-    case .downloading, .waitingForNetwork, .waitingForStorage: String(localized: "Downloading")
-    case .paused: String(localized: "Paused")
-    case .completed: String(localized: "Downloaded")
-    case .failed(let failure): failure.reason
-    case .missing: String(localized: "No longer on this iPhone")
+  private static let labelWidth =
+    PutioTheme.Spacing.space6 - PutioTheme.Spacing.space3 + PutioTheme.Spacing.space1
+
+  private func languages(_ tracks: [PutioOfflineTrack]) -> String? {
+    var seen = Set<String>()
+    let names = tracks.map(\.displayName).filter { !$0.isEmpty && seen.insert($0).inserted }
+    return names.isEmpty ? nil : names.formatted(.list(type: .and, width: .narrow).locale(locale))
+  }
+
+  private func fact(_ id: String, label: String, value: String, numeric: Bool = false)
+    -> some View
+  {
+    GridRow(alignment: .firstTextBaseline) {
+      Text(label)
+        .putioFont(PutioTheme.Typography.body)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .frame(minWidth: Self.labelWidth, alignment: .leading)
+        .accessibilityValue(Text(verbatim: value))
+        .accessibilityIdentifier("downloads.info.\(id)")
+      Group {
+        if numeric {
+          Text(verbatim: value).putioFont(PutioTheme.Typography.numeric)
+        } else {
+          Text(verbatim: value).putioFont(PutioTheme.Typography.body)
+        }
+      }
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .fixedSize(horizontal: false, vertical: true)
+      .accessibilityHidden(true)
     }
   }
 }

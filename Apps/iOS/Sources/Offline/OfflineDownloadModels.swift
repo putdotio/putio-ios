@@ -74,6 +74,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   var failedProgress: Double?
   var isWatched: Bool?
   var playbackMethod: PutioPlaybackMethod? = nil
+  var completedAt: Date?
 
   var receivedBytes: Int64 {
     Int64((Double(estimatedBytes) * progress).rounded(.down))
