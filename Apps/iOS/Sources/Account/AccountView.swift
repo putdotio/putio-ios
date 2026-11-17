@@ -28,10 +28,6 @@ struct AccountView: View {
           guard let open = openDestination else { return }
           Task { proxy.scrollTo(open, anchor: .center) }
         }
-        .onChange(of: openDestination) { _, open in
-          guard let open else { return }
-          withAnimation { proxy.scrollTo(open) }
-        }
     }
     .putioSettingSaveFailures(saveFailures)
   }

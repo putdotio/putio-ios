@@ -31,10 +31,10 @@ struct TrashManagementView: View {
     Group {
       switch model.state {
       case .loading:
-        PutioLoadingStateView(title: String(localized: "Loading Trash"), titleVisibility: .hidden)
+        TrashLoadingView(accessibilityLabel: String(localized: "Loading Trash"))
           .modifier(TrashStatePlacement(.loading))
       case .failed(let failure):
-        PutioErrorStateView(
+        TrashErrorView(
           title: failure.title,
           message: failure.message,
           retryTitle: String(localized: "Try again"),
