@@ -49,7 +49,7 @@ private struct PutioVideoUpNextCard: View {
   let onCancel: () -> Void
 
   @ScaledMetric(relativeTo: .body) private var headingMinWidth: CGFloat = 140
-  @ScaledMetric(relativeTo: .body) private var headingIdealWidth: CGFloat = 272
+  @ScaledMetric(relativeTo: .body) private var headingIdealWidth: CGFloat = 248
 
   var body: some View {
     PutioUpNextCardLayout(
@@ -61,11 +61,9 @@ private struct PutioVideoUpNextCard: View {
         .foregroundStyle(.white.opacity(0.6))
         .monospacedDigit()
         .accessibilityIdentifier("video.next-countdown")
-      Text(name)
+      title
         .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
-        .lineLimit(ownsRow ? 2 : 1)
-        .truncationMode(.middle)
         .accessibilityIdentifier("video.next-title")
       actions
     }
@@ -81,6 +79,24 @@ private struct PutioVideoUpNextCard: View {
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier("video.up-next")
+  }
+
+  @ViewBuilder private var title: some View {
+    if !ownsRow, let marker = name.firstMatch(of: #/[Ss]\d{1,2}[Ee]\d{1,3}/#) {
+      HStack(spacing: 0) {
+        Text(name[..<marker.range.upperBound])
+          .layoutPriority(1)
+        Text(name[marker.range.upperBound...])
+          .truncationMode(.head)
+      }
+      .lineLimit(1)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(Text(verbatim: name))
+    } else {
+      Text(name)
+        .lineLimit(ownsRow ? 2 : 1)
+        .truncationMode(.middle)
+    }
   }
 
   private var actions: some View {
