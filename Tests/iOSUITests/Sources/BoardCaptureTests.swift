@@ -440,6 +440,22 @@ final class BoardCaptureTests: XCTestCase {
       assertSelectionSummary(bytes: 1_386_000_000 + 3_240_000_000)
       try captureBoard("rd-ios-dl-25-ipad-selection")
       exerciseIPadSelection(empty: empty)
+    case "duo":
+      selectDownload(441, actions: ["play", "remove"])
+      let play = app.buttons["downloads.detail.play"]
+      XCTAssertEqual(play.label, "Resume from 18:42")
+      XCTAssertEqual(
+        play.frame.midY, app.buttons["downloads.detail.remove"].frame.midY, accuracy: 1,
+        "Resume and Remove wrapped")
+      assertDetailFacts(
+        [
+          "size": "3.24 GB", "audio": "English, Turkish",
+          "subtitles": "English, English SDH, Turkish",
+        ],
+        order: ["size", "downloaded", "length", "audio", "subtitles"])
+      XCTAssertTrue(app.staticTexts["On this iPhone"].exists, "the open Duo does not say iPhone")
+      try captureBoard("rd-ios-dl-26-duo-open")
+      try exerciseDuoDownloads()
     default:
       exerciseDownloadsDetail(empty: empty)
       try captureBoard("ipad-downloads-detail")
@@ -571,6 +587,34 @@ final class BoardCaptureTests: XCTestCase {
 
   private static let narrowestRegularSplitWidth = 678.0
 
+  private func exerciseDuoDownloads() throws {
+    let row = element("downloads.item.441")
+    let detail = element("downloads.detail.441")
+    try fold()
+    XCTAssertTrue(detail.disappears(within: 10), "the folded Duo kept the detail")
+    XCTAssertTrue(row.appears(within: 5), "folding lost the list")
+    XCTAssertTrue(row.isSelected, "folding dropped the selected row")
+    let window = app.mainWindow.frame.size
+    let folded = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
+    folded.name = "duo-downloads-folded-selected"
+    folded.lifetime = .keepAlways
+    add(folded)
+    try unfold()
+    XCTAssertTrue(detail.appears(within: 10), "unfolding lost the detail")
+    let list = app.collectionViews.firstMatch
+    for _ in 0..<4 where !row.exists { list.swipeDown() }
+    for _ in 0..<6 where !row.exists { list.swipeUp() }
+    XCTAssertTrue(row.isSelected, "unfolding lost the selected row")
+    app.buttons["downloads.detail.remove"].tap()
+    let confirm = app.buttons["downloads.remove-confirm"].firstMatch
+    XCTAssertTrue(confirm.appears(within: 5), "Remove asked for no confirmation")
+    confirm.tap()
+    XCTAssertTrue(row.disappears(within: 5), "the removed download stayed")
+    XCTAssertTrue(
+      element("putio.list-detail.empty").appears(within: 5), "the detail kept the removed download")
+  }
+
   private func selectDownload(_ id: Int, actions: [String]) {
     let row = element("downloads.item.\(id)")
     app.bringIntoView(row)
@@ -606,14 +650,18 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertTrue(
         app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
     }
+    let list = app.collectionViews.firstMatch
     for pass in 0..<2 where !rows.isEmpty {
       if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
       for (id, state) in rows {
-        let row = app.revealed("downloads.item.\(id)")
+        let row = app.revealed("downloads.item.\(id)", swipingIn: list)
         XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
         XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
       }
-      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+      if let first = rows.first {
+        let top = element("downloads.item.\(first.id)")
+        for _ in 0..<6 where !top.isHittable { list.swipeDown() }
+      }
     }
   }
 
