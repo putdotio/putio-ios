@@ -862,6 +862,7 @@ struct MainTabView: View {
           durationSeconds: duration)
       },
       preferredAudioLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
+      selectsAVPlayerAudio: offlineQueue.item(for: route.id)?.isPlayable == true,
       remembersPlaybackPosition: account.rememberVideoTime,
       suggestsNextVideo: account.suggestNextVideo,
       autoplayNextVideo: { await appConfig.resolveAutoplayNextVideo() },
