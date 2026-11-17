@@ -3,6 +3,7 @@
 
   public struct PutioListDetail<Item: Hashable, ListContent: View, DetailContent: View>: View {
     @Binding private var selection: Item?
+    private let columns: PutioListDetailColumns
     private let emptyState: (title: String, message: String)?
     private let list: (Binding<Item?>) -> ListContent
     private let detail: (Item) -> DetailContent
@@ -13,12 +14,14 @@
 
     public init(
       selection: Binding<Item?>,
+      columns: PutioListDetailColumns = .standard,
       emptyTitle: String,
       emptyMessage: String,
       @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
+      self.columns = columns
       self.emptyState = (emptyTitle, emptyMessage)
       self.list = list
       self.detail = detail
@@ -26,10 +29,12 @@
 
     public init(
       selection: Binding<Item?>,
+      columns: PutioListDetailColumns = .standard,
       @ViewBuilder list: @escaping (Binding<Item?>) -> ListContent,
       @ViewBuilder detail: @escaping (Item) -> DetailContent
     ) {
       _selection = selection
+      self.columns = columns
       self.emptyState = nil
       self.list = list
       self.detail = detail
@@ -41,11 +46,12 @@
           .environment(\.putioListDetailSelection, selection.map(AnyHashable.init))
           .environment(\.putioListDetailShowsOpenRow, horizontalSizeClass == .regular)
           .environment(\.putioListDetailOpen, openAction)
-          .background(PutioListColumnWidth())
+          .overlay(alignment: .trailing) { divider }
+          .background(PutioListColumnWidth(columns: columns))
           .toolbar(removing: .sidebarToggle)
       } detail: {
         detailColumn
-          .background(PutioListColumnWidth())
+          .background(PutioListColumnWidth(columns: columns))
       }
       .navigationSplitViewStyle(.balanced)
       .onChange(of: selection) { _, current in
@@ -62,12 +68,22 @@
       }
     }
 
+    @ViewBuilder private var divider: some View {
+      if columns.showsDivider {
+        PutioTheme.Colors.separator
+          .frame(width: PutioListDetailLayout.dividerWidth)
+          .ignoresSafeArea()
+          .accessibilityHidden(true)
+      }
+    }
+
     @ViewBuilder private var detailColumn: some View {
       if let selection {
         NavigationStack {
           detail(selection)
         }
         .id(selection)
+        .modifier(PutioListDetailReadableWidth(maxWidth: columns.detailMaxWidth))
       } else if let emptyState {
         PutioEmptyStateView.textOnly(
           title: emptyState.title, message: emptyState.message
@@ -163,27 +179,74 @@
     @Entry var putioListDetailShowsOpenRow = false
   }
 
+  public struct PutioListDetailColumns: Sendable {
+    let listMinimumWidth: CGFloat
+    let listIdealWidth: CGFloat
+    let detailMaxWidth: CGFloat?
+    let showsDivider: Bool
+
+    public static let standard = PutioListDetailColumns(
+      listMinimumWidth: PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6,
+      listIdealWidth: PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
+        + PutioTheme.Spacing.space5,
+      detailMaxWidth: nil,
+      showsDivider: false)
+
+    public static let readable = PutioListDetailColumns(
+      listMinimumWidth: PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6,
+      listIdealWidth: PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
+        + PutioTheme.Spacing.space4 + PutioTheme.Spacing.space1,
+      detailMaxWidth: PutioTheme.Spacing.space8 + PutioTheme.Spacing.space5
+        + PutioTheme.Spacing.space3 + PutioTheme.Spacing.space2,
+      showsDivider: true)
+  }
+
+  private struct PutioListDetailReadableWidth: ViewModifier {
+    let maxWidth: CGFloat?
+
+    func body(content: Content) -> some View {
+      if let maxWidth {
+        content
+          .frame(maxWidth: maxWidth)
+          .frame(maxWidth: .infinity)
+          .background(PutioTheme.Colors.background)
+      } else {
+        content
+      }
+    }
+  }
+
   private struct PutioListColumnWidth: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> Controller { Controller() }
+    let columns: PutioListDetailColumns
+
+    func makeUIViewController(context: Context) -> Controller { Controller(columns: columns) }
     func updateUIViewController(_ controller: Controller, context: Context) {}
 
     final class Controller: UIViewController {
+      private let columns: PutioListDetailColumns
+
+      init(columns: PutioListDetailColumns) {
+        self.columns = columns
+        super.init(nibName: nil, bundle: nil)
+      }
+
+      @available(*, unavailable)
+      required init?(coder: NSCoder) { nil }
+
       override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
         guard let split = splitViewController,
-          split.minimumPrimaryColumnWidth != PutioListDetailLayout.listMinimumWidth
-            || split.preferredPrimaryColumnWidth != PutioListDetailLayout.listIdealWidth
+          split.minimumPrimaryColumnWidth != columns.listMinimumWidth
+            || split.preferredPrimaryColumnWidth != columns.listIdealWidth
         else { return }
-        split.minimumPrimaryColumnWidth = PutioListDetailLayout.listMinimumWidth
-        split.preferredPrimaryColumnWidth = PutioListDetailLayout.listIdealWidth
+        split.minimumPrimaryColumnWidth = columns.listMinimumWidth
+        split.preferredPrimaryColumnWidth = columns.listIdealWidth
       }
     }
   }
 
   enum PutioListDetailLayout {
-    static let listMinimumWidth = PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6
-    static let listIdealWidth =
-      PutioTheme.Spacing.space7 + PutioTheme.Spacing.space6 + PutioTheme.Spacing.space5
+    static let dividerWidth: CGFloat = 0.5
     static let selectedRowTint = PutioTheme.Colors.accent.opacity(0.14)
     static let selectedRowRadius = PutioTheme.Radius.large
     static let selectedRowInset = PutioTheme.Spacing.space2

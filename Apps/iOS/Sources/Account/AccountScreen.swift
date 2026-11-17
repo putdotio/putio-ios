@@ -82,13 +82,12 @@ struct AccountScreen: View {
   }
 
   private var columns: some View {
-    PutioListDetail(selection: $destination) { _ in
+    PutioListDetail(selection: $destination, columns: .readable) { _ in
       list(open: destination)
         .navigationBarTitleDisplayMode(.inline)
         .contentMargins(.top, PutioTheme.Spacing.space0, for: .scrollContent)
     } detail: { destination in
       destinationView(destination)
-        .modifier(AccountDetailReadableWidth())
     }
   }
 
@@ -153,17 +152,4 @@ struct AccountScreen: View {
       DestroyAccountView()
     }
   }
-}
-
-private struct AccountDetailReadableWidth: ViewModifier {
-  func body(content: Content) -> some View {
-    content
-      .frame(maxWidth: Self.readableWidth)
-      .frame(maxWidth: .infinity)
-      .background(PutioTheme.Colors.background)
-  }
-
-  private static let readableWidth =
-    PutioTheme.Spacing.space8 + PutioTheme.Spacing.space5 + PutioTheme.Spacing.space3
-    + PutioTheme.Spacing.space2
 }
