@@ -169,6 +169,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var failuresNotified: [(Int, PutioOfflineFailure)] = []
   private var runtimeCalls: [String] = []
   private var freeBytes: Int64 = 0
+  private var serverWatched: [Int: Bool] = [:]
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -183,6 +184,7 @@ final class OfflineDownloadsTests: XCTestCase {
     conversionStarts = 0
     failuresNotified = []
     runtimeCalls = []
+    serverWatched = [:]
   }
 
   override func tearDown() async throws {
@@ -278,7 +280,8 @@ final class OfflineDownloadsTests: XCTestCase {
     engine: (any PutioOfflineDownloadEngine)? = nil,
     availableStorage: (@MainActor () -> Int64)? = nil,
     deletePackages: PutioOfflinePackageDeletion? = nil,
-    watchedChanges: AsyncStream<PutioWatchedChange>? = nil
+    watchedChanges: AsyncStream<PutioWatchedChange>? = nil,
+    watchedStatus: PutioOfflineWatchedStatus? = nil
   ) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),
@@ -320,7 +323,8 @@ final class OfflineDownloadsTests: XCTestCase {
       },
       isLive: isLive,
       deletePackages: deletePackages,
-      watchedChanges: watchedChanges
+      watchedChanges: watchedChanges,
+      watchedStatus: watchedStatus
     )
   }
 
@@ -1244,6 +1248,48 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(
       queue.item(for: video)?.isWatched, false, "a stopped queue follows no later change")
+  }
+
+  func testOpeningDownloadsTakesTheWatchStatusPutioStoresAcrossRelaunch() async {
+    serverWatched = [1: true, 2: false, 3: false]
+    let queue = makeQueue(watchedStatus: { fileID in
+      self.runtimeCalls.append("watched \(fileID.rawValue)")
+      guard let watched = self.serverWatched[fileID.rawValue] else {
+        throw PutioRuntimeError.transient
+      }
+      return watched
+    })
+    let watchedElsewhere = PutioFileID(rawValue: 1)
+    let unwatchedElsewhere = PutioFileID(rawValue: 2)
+    let pending = PutioFileID(rawValue: 3)
+    let unreachable = PutioFileID(rawValue: 4)
+    queue.enqueue(
+      fileID: watchedElsewhere, parentID: .root, name: "a", kind: .video, isWatched: false)
+    queue.enqueue(
+      fileID: unwatchedElsewhere, parentID: .root, name: "b", kind: .video, isWatched: true)
+    queue.enqueue(fileID: pending, parentID: .root, name: "c", kind: .video, isWatched: false)
+    queue.enqueue(fileID: unreachable, parentID: .root, name: "d", kind: .video, isWatched: true)
+    queue.enqueue(fileID: PutioFileID(rawValue: 5), parentID: .root, name: "e", kind: .audio)
+    await settle()
+    reportShouldFail = true
+    await queue.recordPosition(fileID: pending, seconds: 30)
+
+    await queue.refreshWatched()
+    XCTAssertEqual(
+      runtimeCalls.filter { $0.hasPrefix("watched") }, ["watched 1", "watched 2", "watched 4"])
+    let relaunched = makeQueue()
+    XCTAssertEqual(relaunched.item(for: watchedElsewhere)?.isWatched, true)
+    XCTAssertEqual(relaunched.item(for: unwatchedElsewhere)?.isWatched, false)
+    XCTAssertEqual(relaunched.item(for: pending)?.isWatched, true)
+    XCTAssertEqual(relaunched.item(for: unreachable)?.isWatched, true)
+
+    serverWatched[1] = false
+    queue.setOnline(false)
+    await queue.refreshWatched()
+    XCTAssertEqual(
+      runtimeCalls.filter { $0.hasPrefix("watched") }, ["watched 1", "watched 2", "watched 4"],
+      "an offline queue asks put.io nothing")
+    XCTAssertEqual(queue.item(for: watchedElsewhere)?.isWatched, true)
   }
 
   func testWatchingTheStoredCopyOfflineMarksItWatchedAcrossRelaunch() async {

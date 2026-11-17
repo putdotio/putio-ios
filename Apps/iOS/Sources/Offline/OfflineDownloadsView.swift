@@ -45,6 +45,7 @@ struct PutioOfflineDownloadsView: View {
     .task {
       await queue.restore()
       queue.refreshStorage()
+      await queue.refreshWatched()
     }
     .task(id: scenePhase) {
       guard scenePhase == .active else { return }
