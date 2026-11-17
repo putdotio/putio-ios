@@ -95,7 +95,7 @@ enum PutioOfflineOriginalPackage {
         key: $0.fileName, language: $0.displayName, languageCode: $0.languageCode,
         name: $0.displayName, source: .openSubtitles, url: directory.appending(path: $0.fileName))
     }
-    let defaultKey = stored.first { $0.isDefault == true }?.fileName ?? stored.first?.fileName
+    let defaultKey = stored.first { $0.isDefault == true }?.fileName
     return (subtitles, defaultKey)
   }
 

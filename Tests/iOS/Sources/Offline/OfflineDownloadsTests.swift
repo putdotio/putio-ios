@@ -415,6 +415,21 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(relaunched.localSource(for: directPlay)?.url, source.url)
   }
 
+  func testAStoredOriginalWithoutADefaultSubtitleStartsWithNone() throws {
+    let subtitles = ["en", "tr"].map {
+      (
+        subtitle: PutioCastSubtitle(
+          key: $0, language: $0, languageCode: $0, name: $0, source: .openSubtitles,
+          url: URL(string: "https://api.test/v2/files/412/subtitles/\($0)")!),
+        data: Data("WEBVTT".utf8)
+      )
+    }
+    try PutioOfflineOriginalPackage.store(subtitles, defaultKey: nil, in: directory)
+    let stored = PutioOfflineOriginalPackage.playbackSubtitles(in: directory)
+    XCTAssertEqual(stored.subtitles.count, 2)
+    XCTAssertNil(stored.defaultKey, "a stored original invented a default subtitle")
+  }
+
   func testEveryFinishedDownloadIsPlayableWhateverItsContainer() {
     func finished(_ name: String, _ method: PutioPlaybackMethod) -> PutioOfflineItem {
       PutioOfflineItem(
