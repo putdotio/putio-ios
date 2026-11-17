@@ -24,12 +24,12 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .accessibilityIdentifier("downloads.screen")
+    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing && !isPad))
     .putioContentBackground()
     .navigationTitle("Downloads")
     .navigationBarTitleDisplayMode(isEditing ? .inline : .large)
     .toolbar { toolbar }
     .putioSelectionMode($selection, among: selectableIDs, actions: selectionActions)
-    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing && !isPad))
     .onChange(of: queue.items.isEmpty) { _, empty in
       if empty { selection.end() }
     }
