@@ -155,6 +155,7 @@ struct HistoryView: View {
               .padding(.trailing, PutioTheme.Spacing.space1)
               .listRowInsets(.vertical, PutioTheme.Spacing.space2)
               .listRowInsets(.trailing, 0)
+              .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] }
               .listRowSeparator(
                 event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
               )
@@ -243,9 +244,19 @@ private struct PutioHistoryRow: View {
 
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.locale) private var locale
-  @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
+  @PutioScaledMetric(PutioMetricRole(value: 32, relativeTo: .body)) private var leadWidth
+  @PutioScaledMetric(PutioMetricRole(value: 12, relativeTo: .body)) private var contentGap
+  @PutioScaledMetric(PutioMetricRole(value: 44, relativeTo: .body)) private var minContentHeight
   @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var textGap
   @PutioScaledMetric(PutioMetricRole(value: 6, relativeTo: .caption)) private var separatorGap
+  @PutioScaledMetric(PutioMetricRole(value: 3, relativeTo: .caption)) private var timeSpaceKern
+
+  private static let timeFont = PutioTabularFontRole(
+    base: PutioFontRole(
+      fontName: PutioTheme.Typography.mono.fontName,
+      size: PutioTheme.Typography.sizeXs,
+      lineHeight: PutioTheme.Typography.mono.lineHeight,
+      textStyle: .caption))
 
   var body: some View {
     let presentation = PutioHistoryEventPresentation(event)
@@ -255,6 +266,7 @@ private struct PutioHistoryRow: View {
         size: PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
       )
       .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .frame(width: leadWidth)
       .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: textGap) {
         Text(presentation.name)
@@ -280,6 +292,7 @@ private struct PutioHistoryRow: View {
       Spacer(minLength: 0)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }
     }
+    .frame(minHeight: minContentHeight)
     .accessibilityElement(children: .combine)
   }
 
@@ -292,9 +305,19 @@ private struct PutioHistoryRow: View {
       )
   }
 
+  private var compactTime: AttributedString {
+    var time = AttributedString(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
+    var start = time.startIndex
+    while let space = time[start...].range(of: " ") {
+      time[space].kern = -timeSpaceKern
+      start = space.upperBound
+    }
+    return time
+  }
+
   private var timeText: some View {
-    Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
-      .putioFont(PutioTheme.Typography.numeric)
+    Text(compactTime)
+      .putioFont(Self.timeFont)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .lineLimit(1)
   }
