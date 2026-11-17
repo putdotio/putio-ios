@@ -1242,6 +1242,13 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: video)?.isWatched, false)
     XCTAssertEqual(makeQueue().item(for: video)?.isWatched, false)
 
+    reportShouldFail = true
+    await queue.recordPosition(fileID: video, seconds: 0)
+    sender.yield(PutioWatchedChange(fileID: video, isWatched: true))
+    await settle()
+    XCTAssertEqual(
+      makeQueue().item(for: video)?.isWatched, false, "a position waiting to sync wins")
+
     queue.stop()
     await settle()
     sender.yield(PutioWatchedChange(fileID: video, isWatched: true))

@@ -405,7 +405,8 @@ final class PutioOfflineQueue {
   func setWatched(fileID: PutioFileID, isWatched: Bool) {
     watchedEpochs[fileID, default: 0] += 1
     guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }),
-      items[index].kind == .video, items[index].isWatched != isWatched
+      items[index].kind == .video, items[index].pendingPositionSeconds == nil,
+      items[index].isWatched != isWatched
     else { return }
     items[index].isWatched = isWatched
     persist()
