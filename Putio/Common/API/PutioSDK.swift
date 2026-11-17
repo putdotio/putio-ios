@@ -415,7 +415,7 @@ extension URL {
 }
 
 extension UserSettings {
-    static func hidesSubtitles(context: String) -> Bool {
+    static func hidesSubtitles(context: PutioRealm.Context) -> Bool {
         PutioRealm.open(context: context)?.objects(User.self).first?.settings?.hideSubtitles ?? false
     }
 }
