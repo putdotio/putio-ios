@@ -1484,7 +1484,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
+        format:
+          "label == %@ AND NOT (identifier BEGINSWITH %@) AND NOT (identifier BEGINSWITH %@)",
+        label, "trash.", "selection.")
     ).firstMatch
   }
 
