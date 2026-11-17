@@ -1417,7 +1417,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let restoreAll = trashMenuItem("Restore all")
     XCTAssertTrue(waitUntilHittable(restoreAll, timeout: 5))
     restoreAll.tap()
-    XCTAssertFalse(app.alerts.firstMatch.exists, "Restore all asked first")
+    XCTAssertFalse(
+      app.alerts.firstMatch.exists || app.putioAlerts.firstMatch.exists,
+      "Restore all asked first")
     XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
     XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
     addScreenshot(named: "runtime-trash-restore-all")

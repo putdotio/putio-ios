@@ -4606,7 +4606,7 @@ final class BoardCaptureTests: XCTestCase {
     alert.buttons["confirm-alert.confirm"].tap()
     XCTAssertTrue(
       app.staticTexts["Your trash is empty"].appears(within: 10), "Trash never read empty")
-    XCTAssertTrue(app.staticTexts["Trash is empty."].exists, "no emptied toast")
+    XCTAssertTrue(app.staticTexts["Trash is empty."].appears(within: 5), "no emptied toast")
     XCTAssertFalse(element("trash.header").exists, "the emptied Trash shows a header")
     XCTAssertFalse(app.buttons["trash.menu"].exists, "the emptied Trash offers More")
     try captureBoard("rd-ios-trash-22-emptied")
