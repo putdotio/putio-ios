@@ -280,7 +280,7 @@ final class BoardCaptureTests: XCTestCase {
       }
       let tops = facts.map(\.frame.minY)
       XCTAssertEqual(tops, tops.sorted(), "the Info rows are out of order")
-      XCTAssertEqual(facts[0].value as? String, "3.2 GB")
+      XCTAssertEqual(facts[0].value as? String, "3.24 GB")
       XCTAssertFalse((facts[1].value as? String ?? "").isEmpty, "Info shows no download date")
       XCTAssertEqual(facts[3].value as? String, "English, Turkish")
       XCTAssertEqual(facts[4].value as? String, "English, English SDH, Turkish")
