@@ -82,17 +82,8 @@ private struct PutioVideoUpNextCard: View {
   }
 
   @ViewBuilder private var title: some View {
-    if !ownsRow, let marker = name.firstMatch(of: #/[Ss]\d{1,2}[Ee]\d{1,3}/#) {
-      HStack(spacing: 0) {
-        Text(name[..<marker.range.upperBound])
-          .truncationMode(.middle)
-          .layoutPriority(1)
-        Text(name[marker.range.upperBound...])
-          .truncationMode(.head)
-      }
-      .lineLimit(1)
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel(Text(verbatim: name))
+    if !ownsRow {
+      PutioVideoFileName(name: name)
     } else {
       Text(name)
         .lineLimit(ownsRow ? 2 : 1)

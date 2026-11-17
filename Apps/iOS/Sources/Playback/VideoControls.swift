@@ -1239,6 +1239,29 @@ struct PutioVideoScrubber: View {
   }
 }
 
+struct PutioVideoFileName: View {
+  let name: String
+
+  var body: some View {
+    if let marker = name.firstMatch(of: #/[Ss]\d{1,2}[Ee]\d{1,3}/#) {
+      HStack(spacing: 0) {
+        Text(name[..<marker.range.upperBound])
+          .truncationMode(.middle)
+          .layoutPriority(1)
+        Text(name[marker.range.upperBound...])
+          .truncationMode(.head)
+      }
+      .lineLimit(1)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(Text(verbatim: name))
+    } else {
+      Text(name)
+        .lineLimit(1)
+        .truncationMode(.middle)
+    }
+  }
+}
+
 struct PutioVideoTopBar<Trailing: View>: View {
   let title: String
   var showsTrailing = true
@@ -1260,11 +1283,9 @@ struct PutioVideoTopBar<Trailing: View>: View {
       : AnyLayout(ZStackLayout())
     layout {
       buttons
-      Text(title)
+      PutioVideoFileName(name: title)
         .putioFont(PutioVideoMetrics.titleFont)
         .foregroundStyle(.white)
-        .lineLimit(1)
-        .truncationMode(.middle)
         .frame(maxWidth: .infinity)
         .padding(
           .horizontal,
