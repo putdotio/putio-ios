@@ -617,6 +617,23 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(item))
   }
 
+  func testAPermanentDeleteDropsTheTrashSizeByTheItemsSize() async {
+    let deleted = trashItem(id: 91, name: "Blue.Velvet.mkv", sizeBytes: 8_700_000_000)
+    let other = trashItem(id: 92, name: "notes.txt", kind: .text, sizeBytes: 2_000)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [deleted, other], totalCount: 2, sizeBytes: 8_700_002_000))],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(deleted)
+
+    XCTAssertEqual(model.page?.items, [other])
+    XCTAssertEqual(model.page?.sizeBytes, 2_000)
+    XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(deleted))
+  }
+
   func testRefreshSerializesMutationAndCannotResurrectRemovedRows() async {
     let item = trashItem(id: 91, name: "Keep.pdf", kind: .pdf)
     let refreshedItem = trashItem(id: 92, name: "Refreshed.pdf", kind: .pdf)
@@ -2467,6 +2484,7 @@ final class TrashManagementTests: XCTestCase {
     name: String,
     kind: PutioFileKind = .video,
     parentID: Int = 7,
+    sizeBytes: Int64 = 2_048,
     deletedAt: Date = Date(timeIntervalSince1970: 1_756_723_200)
   ) -> PutioTrashItem {
     PutioTrashItem(
@@ -2474,7 +2492,7 @@ final class TrashManagementTests: XCTestCase {
       parentID: PutioFileID(rawValue: parentID),
       name: name,
       kind: kind,
-      sizeBytes: 2_048,
+      sizeBytes: sizeBytes,
       deletedAt: deletedAt,
       expiresAt: Date(timeIntervalSince1970: 1_759_315_200)
     )

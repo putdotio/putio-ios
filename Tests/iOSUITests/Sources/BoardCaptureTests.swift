@@ -4436,8 +4436,10 @@ final class BoardCaptureTests: XCTestCase {
     let restore = menuRestore
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
     XCTAssertEqual(restore.label, "Restore")
-    XCTAssertFalse(
-      app.buttons["Delete permanently"].exists, "the long-press menu offers Delete permanently")
+    let delete = menuDelete
+    XCTAssertTrue(delete.exists, "the long-press menu has no Delete permanently")
+    XCTAssertEqual(delete.label, "Delete permanently")
+    XCTAssertGreaterThan(delete.frame.minY, restore.frame.minY, "Delete permanently is not last")
     try captureBoard("rd-ios-trash-02-long-press")
   }
 
@@ -4460,10 +4462,14 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-trash-03-swipe")
   }
 
-  private var menuRestore: XCUIElement {
+  private var menuRestore: XCUIElement { trashMenuItem("Restore") }
+
+  private var menuDelete: XCUIElement { trashMenuItem("Delete permanently") }
+
+  private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
     ).firstMatch
   }
 
@@ -4510,6 +4516,87 @@ final class BoardCaptureTests: XCTestCase {
     alert.buttons["trash.still-moving.ok"].tap()
     XCTAssertTrue(alert.disappears(within: 5), "OK kept the alert")
     XCTAssertTrue(element("trash.item.4302").exists, "OK removed the row")
+  }
+
+  func testTrashDeleteConfirm() throws {
+    openTrash("board")
+    let name = "Blue.Velvet.1986.1080p.BluRay.mkv"
+    XCTAssertTrue(app.staticTexts[name].appears(within: 10), "Trash never loaded")
+    showSettledTabBar()
+    element("trash.item.4302").firstMatch.press(forDuration: 1.0)
+    let delete = menuDelete
+    XCTAssertTrue(delete.appears(within: 5), "the long-press menu has no Delete permanently")
+    delete.tap()
+    let alert = app.putioAlert("Delete permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked")
+    XCTAssertTrue(
+      alert.staticTexts[
+        "“\(name)” will be removed from trash right away. This cannot be undone."
+      ].exists, "the alert has no message")
+    XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
+    XCTAssertEqual(alert.buttons["confirm-alert.confirm"].label, "Delete")
+    try captureBoard("rd-ios-trash-07-delete-confirm")
+  }
+
+  func testTrashDeleteFailed() throws {
+    openTrash("delete-fails")
+    XCTAssertTrue(
+      app.staticTexts["Blue.Velvet.1986.1080p.BluRay.mkv"].appears(within: 10),
+      "Trash never loaded")
+    confirmTrashDelete(4302)
+    XCTAssertTrue(
+      app.staticTexts["The request could not start"].appears(within: 10),
+      "no failed delete toast")
+    XCTAssertTrue(element("trash.item.4302").exists, "the failed delete lost the row")
+    XCTAssertTrue(
+      element("trash.header").label.contains("10.4 GB"), "the size line lost the kept row")
+    try captureTrashBoard("rd-ios-trash-17-delete-failed")
+  }
+
+  func testTrashDeleted() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["notes.txt"].appears(within: 10), "Trash never loaded")
+    confirmTrashDelete(4306)
+    XCTAssertTrue(
+      app.staticTexts["“notes.txt” is no longer in trash."].appears(within: 10),
+      "no deleted toast")
+    XCTAssertTrue(element("trash.item.4306").disappears(within: 5), "the deleted row stayed")
+    XCTAssertTrue(element("trash.item.4307").exists, "the delete removed another row")
+    try captureTrashBoard("rd-ios-trash-21-deleted")
+  }
+
+  func testTrashSwipeTrailing() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    showSettledTabBar()
+    openTrailingTrashSwipe(4302)
+    let delete = app.buttons["trash.delete.4302"]
+    XCTAssertTrue(delete.appears(within: 5), "the trailing swipe has no Delete permanently")
+    XCTAssertEqual(delete.label, "Delete permanently")
+    XCTAssertFalse(app.putioAlert("Delete permanently?").exists, "a partial swipe asked")
+    try captureBoard("rd-ios-trash-03-swipe-trailing")
+  }
+
+  private func confirmTrashDelete(_ id: Int) {
+    showSettledTabBar()
+    openTrailingTrashSwipe(id)
+    let delete = app.buttons["trash.delete.\(id)"]
+    XCTAssertTrue(delete.appears(within: 5), "the trailing swipe has no Delete permanently")
+    delete.tap()
+    let confirm = app.putioAlert("Delete permanently?").buttons["confirm-alert.confirm"]
+    XCTAssertTrue(confirm.appears(within: 5), "Delete permanently never asked")
+    confirm.tap()
+  }
+
+  private func openTrailingTrashSwipe(_ id: Int) {
+    let start = element("trash.item.\(id)").firstMatch
+      .coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+    start.press(
+      forDuration: 0.05,
+      thenDragTo: start.withOffset(CGVector(dx: -150, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
   }
 
   private func swipeRestoreBlueVelvet() {

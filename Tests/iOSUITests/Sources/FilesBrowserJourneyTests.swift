@@ -1040,16 +1040,39 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(restoreRow.disappears(within: 5))
 
     let deleteRow = app.staticTexts["Delete Me"]
-    XCTAssertTrue(deleteRow.appears(within: 5))
+    XCTAssertTrue(waitUntilHittable(deleteRow, timeout: 5))
+    let header = element(identifier: "trash.header")
+    let headerBeforeDelete = header.label
+    let deleteAlert = app.putioAlert("Delete permanently?")
+    element(identifier: "trash.item.420").firstMatch.press(forDuration: 1.0)
+    let menuDelete = trashMenuItem("Delete permanently")
+    XCTAssertTrue(waitUntilHittable(menuDelete, timeout: 5), "the menu has no Delete permanently")
+    menuDelete.tap()
+    XCTAssertTrue(deleteAlert.appears(within: 5), "the menu deleted without asking")
+    XCTAssertTrue(
+      deleteAlert.staticTexts[
+        "“Delete Me” will be removed from trash right away. This cannot be undone."
+      ].exists)
+    deleteAlert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(deleteAlert.disappears(within: 5))
+    XCTAssertTrue(deleteRow.exists, "Cancel removed the row")
+
+    dragTrashRow(named: "Delete Me", from: 0.9, to: 0.05, velocity: .fast)
+    XCTAssertTrue(deleteAlert.appears(within: 5), "a full trailing swipe deleted without asking")
+    deleteAlert.buttons["Cancel"].firstMatch.tap()
+    XCTAssertTrue(deleteAlert.disappears(within: 5))
+    XCTAssertTrue(deleteRow.exists, "Cancel after a full swipe removed the row")
+
     permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
     XCTAssertTrue(
-      app.staticTexts["Could not permanently delete item"].appears(within: 5)
-    )
+      app.staticTexts["The request could not start"].appears(within: 5),
+      "an earlier Cancel sent the delete")
     XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
 
     permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
-    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["“Delete Me” is no longer in trash."].appears(within: 5))
     XCTAssertTrue(deleteRow.disappears(within: 5))
+    XCTAssertNotEqual(header.label, headerBeforeDelete, "the size line kept the deleted row")
 
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     trashMenu.tap()
@@ -1230,15 +1253,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
     XCTAssertTrue(trashSettles(), "the swipe restore never finished")
 
-    let fullSwipeRow = element(identifier: "trash.item.4305").firstMatch
-    XCTAssertTrue(waitUntilHittable(fullSwipeRow, timeout: 5))
-    let fullSwipeStart = fullSwipeRow.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
-    fullSwipeStart.press(
-      forDuration: 0.05,
-      thenDragTo: fullSwipeStart.withOffset(CGVector(dx: app.frame.width * 0.8, dy: 0)),
-      withVelocity: .slow,
-      thenHoldForDuration: 0.1
-    )
+    dragTrashRow(named: "backup-2026-09.zip", from: 0.2, to: 0.98, velocity: .slow)
     XCTAssertTrue(
       element(identifier: "trash.item.4305").disappears(within: 10),
       "a full leading swipe did not restore the row")
@@ -1323,6 +1338,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(restore.disappears(within: 5), "the Restore swipe never closed")
   }
 
+  private func dragTrashRow(
+    named name: String, from start: CGFloat, to end: CGFloat, velocity: XCUIGestureVelocity
+  ) {
+    let label = app.staticTexts[name].firstMatch
+    XCTAssertTrue(waitUntilHittable(label, timeout: 5), "\(name) is not on screen")
+    let origin = app.coordinate(withNormalizedOffset: .zero)
+    let y = label.frame.midY
+    origin.withOffset(CGVector(dx: app.frame.width * start, dy: y)).press(
+      forDuration: 0.05,
+      thenDragTo: origin.withOffset(CGVector(dx: app.frame.width * end, dy: y)),
+      withVelocity: velocity,
+      thenHoldForDuration: 0.1
+    )
+  }
+
   private func openLeadingSwipe(on row: XCUIElement) {
     let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
     start.press(
@@ -1347,10 +1377,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.staticTexts.matching(NSPredicate(format: "label == %@", name)).count
   }
 
-  private var trashMenuRestore: XCUIElement {
+  private var trashMenuRestore: XCUIElement { trashMenuItem("Restore") }
+
+  private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
     ).firstMatch
   }
 
@@ -2033,18 +2065,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func permanentlyDeleteTrashItem(id: Int, name: String) {
-    let row = app.staticTexts[name]
-    XCTAssertTrue(waitUntilHittable(row, timeout: 5))
-    row.swipeLeft()
+    dragTrashRow(named: name, from: 0.8, to: 0.45, velocity: .slow)
     let delete = app.buttons["trash.delete.\(id)"]
     XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
+    XCTAssertEqual(delete.label, "Delete permanently")
     delete.tap()
-    XCTAssertTrue(
-      app.staticTexts["Delete “\(name)” permanently?"].appears(within: 5)
-    )
-    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
-    let confirm = app.buttons["trash.delete-confirm"].firstMatch
+    let alert = app.putioAlert("Delete permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "the swipe deleted without asking")
+    let confirm = alert.buttons["confirm-alert.confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    XCTAssertEqual(confirm.label, "Delete")
     confirm.tap()
   }
 

@@ -5,6 +5,7 @@ import SwiftUI
 struct TrashManagementView: View {
   @State private var model: PutioTrashModel
   @State private var pendingDeletion: PutioTrashItem?
+  @State private var confirmAlert: PutioConfirmAlert?
   @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
@@ -118,22 +119,9 @@ struct TrashManagementView: View {
     }
     .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
     .environment(\.editMode, $editMode)
-    .confirmationDialog(
-      deletionConfirmationTitle,
-      isPresented: deletionConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button("Delete Permanently", role: .destructive) {
-        guard let item = pendingDeletion else { return }
-        pendingDeletion = nil
-        // Another screen may have removed this row while the dialog was up.
-        guard model.page?.items.contains(item) == true else { return }
-        Task { await model.permanentlyDelete(item) }
-      }
-      .accessibilityIdentifier("trash.delete-confirm")
-      Button("Cancel", role: .cancel) { pendingDeletion = nil }
-    } message: {
-      Text("This item cannot be restored.")
+    .putioConfirmAlert($confirmAlert)
+    .onChange(of: confirmAlert?.id) { _, id in
+      if id == nil { pendingDeletion = nil }
     }
     .confirmationDialog(
       "Delete \(pendingBulkDeletion.count) items permanently?",
@@ -189,9 +177,9 @@ struct TrashManagementView: View {
     .onChange(of: model.reconciliationVersion) { _, _ in
       Task {
         await model.applyReconciliation()
-        // Confirmations for rows another screen has since removed are moot.
         if let pending = pendingDeletion, model.page?.items.contains(pending) != true {
           pendingDeletion = nil
+          confirmAlert = nil
         }
         pendingBulkDeletion.removeAll { model.page?.items.contains($0) != true }
         if !model.hasContents { emptyConfirmationPresented = false }
@@ -289,10 +277,10 @@ struct TrashManagementView: View {
                 .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
               }
             }
-            .swipeActions(edge: .trailing) {
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
               if !isEditing {
                 Button {
-                  pendingDeletion = item
+                  askToDelete(item)
                 } label: {
                   Label {
                     Text("Delete permanently")
@@ -405,18 +393,6 @@ struct TrashManagementView: View {
     }
   }
 
-  private var deletionConfirmationPresented: Binding<Bool> {
-    Binding(
-      get: { pendingDeletion != nil },
-      set: { if !$0 { pendingDeletion = nil } }
-    )
-  }
-
-  private var deletionConfirmationTitle: String {
-    guard let pendingDeletion else { return String(localized: "Delete permanently?") }
-    return String(localized: "Delete “\(pendingDeletion.name)” permanently?")
-  }
-
   private var emptyState: some View {
     PutioEmptyStateView(
       kaomoji: .shrug,
@@ -495,9 +471,26 @@ struct TrashManagementView: View {
         PutioItemAction(
           id: "trash-restore", title: String(localized: "Restore"),
           icon: .arrowCounterClockwise, isDisabled: !model.canMutate
-        ) { [model] in Task { await model.restore(item) } }
+        ) { [model] in Task { await model.restore(item) } },
+        PutioItemAction(
+          id: "trash-delete", title: String(localized: "Delete permanently"),
+          icon: .trash, role: .destructive, isDisabled: !model.canMutate
+        ) { askToDelete(item) },
       ]
     ])
+  }
+
+  private func askToDelete(_ item: PutioTrashItem) {
+    pendingDeletion = item
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Delete permanently?"),
+      message: String(
+        localized: "“\(item.name)” will be removed from trash right away. This cannot be undone."),
+      confirmTitle: String(localized: "Delete")
+    ) { [model] in
+      guard model.page?.items.contains(item) == true else { return }
+      Task { await model.permanentlyDelete(item) }
+    }
   }
 
   private func restore(_ item: PutioTrashItem) {
@@ -526,9 +519,8 @@ struct TrashManagementView: View {
     switch outcome {
     case .restored:
       toast = PutioToast(String(localized: "Restore started"))
-    case .permanentlyDeleted:
-      toast = PutioToast(
-        String(localized: "Item deleted"))
+    case .permanentlyDeleted(let item, _):
+      toast = PutioToast(String(localized: "“\(item.name)” is no longer in trash."))
     case .restoredItems:
       toast = PutioToast(String(localized: "Items restored"))
     case .permanentlyDeletedItems:
@@ -542,6 +534,9 @@ struct TrashManagementView: View {
     case .failed(_, let failure) where failure.isStillMovingToTrash:
       stillMovingMessage = failure.message
       stillMovingAlertPresented = true
+    case .failed(.permanentlyDelete, _):
+      toast = PutioToast(
+        String(localized: "The request could not start"), icon: .warning, width: .fit)
     case .failed(.restore, _):
       toast = PutioToast(
         String(localized: "Restore could not start"), icon: .warning, width: .fit)
