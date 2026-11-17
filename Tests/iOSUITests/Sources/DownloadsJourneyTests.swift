@@ -91,7 +91,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForValue(language, "en", timeout: 10),
       "offline playback did not switch to English: \(language.value ?? "")")
-    element("video.done").tap()
+    app.closeVideo()
     XCTAssertTrue(item.appears(within: 10))
 
     // Multi-select removal: local removal is the default, the original is a
