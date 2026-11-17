@@ -450,8 +450,9 @@ extension PutioSubtitle {
         var counts: [String: Int] = [:]
         return subtitles.map { subtitle in
             let label = subtitle.baseTrackLabel
-            counts[label, default: 0] += 1
-            return counts[label] == 1 ? label : "\(label) (\(counts[label] ?? 0))"
+            let count = counts[label, default: 0] + 1
+            counts[label] = count
+            return count == 1 ? label : "\(label) (\(count))"
         }
     }
 
