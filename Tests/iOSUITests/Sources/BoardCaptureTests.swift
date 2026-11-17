@@ -2555,6 +2555,17 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-hist-01-list")
   }
 
+  func testHistorySwipe() throws {
+    openHistory("board")
+    let event = element("history.item.906")
+    XCTAssertTrue(event.appears(within: 10), "the seeded history never loaded")
+    event.swipeLeft()
+    let delete = app.buttons["history.swipe.delete"]
+    XCTAssertTrue(delete.appears(within: 5), "the swipe shows no Delete action")
+    XCTAssertEqual(delete.label, "Delete")
+    try captureBoard("rd-ios-hist-05-swipe")
+  }
+
   func testHistoryLoadingMore() throws {
     openHistory("more-held")
     XCTAssertTrue(

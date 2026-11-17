@@ -27,7 +27,7 @@ public struct PutioHistoryActions: Sendable {
   }
 }
 
-public struct PutioHistoryFailure: Equatable {
+public struct PutioHistoryFailure: Equatable, Sendable {
   public let message: String
   public let isNotFound: Bool
   public let isOffline: Bool
@@ -69,7 +69,6 @@ public final class PutioHistoryModel {
   }
 
   public enum Mutation: Equatable {
-    case delete(Int)
     case clear
   }
 
@@ -85,6 +84,9 @@ public final class PutioHistoryModel {
   public private(set) var openingEventID: Int?
   public private(set) var openedFile: PutioFileItem?
   public private(set) var openFailure: PutioHistoryFailure?
+  public private(set) var deletingEventIDs: Set<Int> = []
+  @ObservationIgnored private var deletedEventIDs: Set<Int> = []
+  @ObservationIgnored private var clearCount: UInt64 = 0
   @ObservationIgnored private let actions: PutioHistoryActions
   public private(set) var generation: UInt64 = 0
   @ObservationIgnored private var failedOpen: PutioHistoryEventItem?
@@ -95,8 +97,11 @@ public final class PutioHistoryModel {
   }
 
   public var page: PutioHistoryPage? {
-    if case .loaded(let page) = state { return page }
-    return nil
+    guard case .loaded(let page) = state else { return nil }
+    let hidden = deletingEventIDs.union(deletedEventIDs)
+    guard !hidden.isEmpty else { return page }
+    return PutioHistoryPage(
+      items: page.items.filter { !hidden.contains($0.id) }, nextBefore: page.nextBefore)
   }
 
   public func loadIfNeeded() async {
@@ -133,13 +138,12 @@ public final class PutioHistoryModel {
         throw PutioRuntimeError.invalidResponse
       }
       var ids: Set<Int> = []
-      state = .loaded(
-        PutioHistoryPage(
-          items: page.items.filter { ids.insert($0.id).inserted }, nextBefore: page.nextBefore))
-      switch failedMutation {
-      case .delete(let id) where !ids.contains(id): clearMutationFailure()
-      case .clear where page.items.isEmpty && page.nextBefore == nil: clearMutationFailure()
-      default: break
+      let items = page.items.filter {
+        !deletedEventIDs.contains($0.id) && ids.insert($0.id).inserted
+      }
+      state = .loaded(PutioHistoryPage(items: items, nextBefore: page.nextBefore))
+      if failedMutation == .clear, page.items.isEmpty, page.nextBefore == nil {
+        clearMutationFailure()
       }
       if let eventID = openingEventID ?? failedOpen?.id, !ids.contains(eventID) {
         cancelOpen()
@@ -177,7 +181,7 @@ public final class PutioHistoryModel {
       guard page.nextBefore.map({ $0 > 0 && $0 < before }) ?? true else {
         throw PutioRuntimeError.invalidResponse
       }
-      var ids = Set(current.items.map(\.id))
+      var ids = Set(current.items.map(\.id)).union(deletedEventIDs)
       let appended = page.items.filter { ids.insert($0.id).inserted }
       state = .loaded(
         PutioHistoryPage(
@@ -188,48 +192,55 @@ public final class PutioHistoryModel {
     }
   }
 
-  public func delete(eventID: Int) async {
-    guard case .loaded(let page) = state, page.items.contains(where: { $0.id == eventID }) else {
-      return
+  @discardableResult
+  public func beginDelete(eventID: Int) -> Bool {
+    guard mutation == nil, !deletingEventIDs.contains(eventID),
+      page?.items.contains(where: { $0.id == eventID }) == true
+    else { return false }
+    deletingEventIDs.insert(eventID)
+    if failedOpen?.id == eventID || openingEventID == eventID { cancelOpen() }
+    return true
+  }
+
+  public func finishDelete(eventID: Int) async -> PutioHistoryFailure? {
+    guard deletingEventIDs.contains(eventID) else { return nil }
+    let clears = clearCount
+    let task = Task { @MainActor in
+      do {
+        try await actions.delete(eventID)
+        deletedEventIDs.insert(eventID)
+        deletingEventIDs.remove(eventID)
+        return nil as PutioHistoryFailure?
+      } catch {
+        deletingEventIDs.remove(eventID)
+        guard clears == clearCount else { return nil }
+        return PutioHistoryFailure(error: error)
+      }
     }
-    await mutate(.delete(eventID), page: page)
+    return await task.value
   }
 
   public func clear() async {
-    guard case .loaded(let page) = state else { return }
-    await mutate(.clear, page: page)
-  }
-
-  private func mutate(_ operation: Mutation, page: PutioHistoryPage) async {
-    guard mutation == nil else { return }
+    guard mutation == nil, case .loaded = state else { return }
     generation &+= 1
     isRefreshing = false
     isLoadingMore = false
-    mutation = operation
+    mutation = .clear
     mutationFailure = nil
     failedMutation = nil
-    // A lookup resolving mid-clear would open a file from the list being
-    // cleared.
-    if operation == .clear { cancelOpen() }
+    cancelOpen()
     let task = Task { @MainActor in
       do {
-        switch operation {
-        case .delete(let id):
-          try await actions.delete(id)
-          if failedOpen?.id == id || openingEventID == id { cancelOpen() }
-          state = .loaded(
-            PutioHistoryPage(
-              items: page.items.filter { $0.id != id }, nextBefore: page.nextBefore))
-        case .clear:
-          try await actions.clear()
-          cancelOpen()
-          state = .loaded(PutioHistoryPage(items: [], nextBefore: nil))
-        }
+        try await actions.clear()
+        clearCount &+= 1
+        cancelOpen()
+        deletingEventIDs = []
+        state = .loaded(PutioHistoryPage(items: [], nextBefore: nil))
         refreshFailure = nil
         loadMoreFailure = nil
       } catch {
         mutationFailure = PutioHistoryFailure(error: error)
-        if mutationFailure != nil { failedMutation = operation }
+        if mutationFailure != nil { failedMutation = .clear }
       }
       mutation = nil
       paginationEpoch &+= 1
@@ -238,11 +249,8 @@ public final class PutioHistoryModel {
   }
 
   public func retryMutation() async {
-    guard let failedMutation else { return }
-    switch failedMutation {
-    case .delete(let id): await delete(eventID: id)
-    case .clear: await clear()
-    }
+    guard failedMutation == .clear else { return }
+    await clear()
   }
 
   public func openFile(event: PutioHistoryEventItem) async {

@@ -975,6 +975,17 @@
         }
       }
     },
+    "Couldn’t delete" : {
+      "comment" : "ios-only: History single-delete failure toast; Android has no key (epic #735 decision)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t delete"
+          }
+        }
+      }
+    },
     "Couldn’t download" : {
       "comment" : "android: mobile_downloads_meta_failed_unexpected",
       "localizations" : {
@@ -1304,17 +1315,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Delete Event" : {
-      "comment" : "ios-only: no Android string for the iOS history screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Event"
           }
         }
       }
