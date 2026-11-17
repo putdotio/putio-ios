@@ -288,7 +288,7 @@ private struct PutioHistoryRow: View {
       .putioFont(PutioTheme.Typography.caption)
       .foregroundStyle(
         presentation.tone == .destructive
-          ? PutioTheme.Colors.destructive : PutioTheme.Colors.textSecondary
+          ? PutioTheme.Colors.destructiveText : PutioTheme.Colors.textSecondary
       )
   }
 

@@ -272,6 +272,17 @@ public enum PutioTheme {
       )
     )
 
+    public static let destructiveText = putioSemanticColor(
+      named: "PutioDestructiveText",
+      fallback: Color(
+        .sRGB,
+        red: 1.0,
+        green: 0.555333,
+        blue: 0.54,
+        opacity: 1.0
+      )
+    )
+
     public static let destructiveForeground = putioSemanticColor(
       named: "PutioDestructiveForeground",
       fallback: Color(
