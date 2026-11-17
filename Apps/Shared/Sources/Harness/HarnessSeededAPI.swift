@@ -839,9 +839,6 @@ import Foundation
     nonisolated(unsafe) private static var restoreOfflinePending = ProcessInfo.processInfo
       .arguments.contains("--putio-harness-restore-offline-once")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
-    /// The seeded root video's original: its first delete fails so the
-    /// downloads journey proves the remote failure report and retry.
-    nonisolated(unsafe) private static var offlineOriginalDeleteFailed = false
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
@@ -1144,7 +1141,6 @@ import Foundation
         galleryRemoved = [:]
       }
       bulkDeleteFailureDelivered = false
-      offlineOriginalDeleteFailed = false
       offlineOriginalTrashed = false
       ambiguousMoveFailureDelivered = false
       partialMoveFailureDelivered = false
@@ -3192,19 +3188,8 @@ import Foundation
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
-        if offlineOriginalDeleteFailed {
-          offlineOriginalTrashed = true
-          return (200, #"{"status":"OK"}"#)
-        }
-        offlineOriginalDeleteFailed = true
-        return (
-          503,
-          fixtureError(
-            statusCode: 503,
-            type: "HARNESS_TRANSIENT_ORIGINAL_DELETE_FAILURE",
-            message: "The first delete of the seeded root video fails for retry proof"
-          )
-        )
+        offlineOriginalTrashed = true
+        return (200, #"{"status":"OK"}"#)
       }
       if fileID == 410, trashHitsChildrenLimit, !requestSkipsTrash(request) {
         fileActionsLock.unlock()

@@ -89,50 +89,6 @@
         }
       }
     },
-    "%@ was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to."
-          }
-        }
-      }
-    },
-    "%@ was removed from this device, but put.io did not confirm the original was removed." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ was removed from this device, but put.io did not confirm the original was removed."
-          }
-        }
-      }
-    },
-    "%@ were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to."
-          }
-        }
-      }
-    },
-    "%@ were removed from this device, but put.io did not confirm the originals were removed." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ were removed from this device, but put.io did not confirm the originals were removed."
-          }
-        }
-      }
-    },
     "%@, %lld pages" : {
       "comment" : "ios-only: no Android string for the iOS image and PDF preview",
       "localizations" : {
@@ -964,28 +920,6 @@
         }
       }
     },
-    "Could not delete original" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not delete original"
-          }
-        }
-      }
-    },
-    "Could not delete originals" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not delete originals"
-          }
-        }
-      }
-    },
     "Could not load more folders" : {
       "comment" : "ios-only: no Android string for the iOS move picker",
       "localizations" : {
@@ -997,28 +931,6 @@
         }
       }
     },
-    "Could not move original to Trash" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not move original to Trash"
-          }
-        }
-      }
-    },
-    "Could not move originals to Trash" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not move originals to Trash"
-          }
-        }
-      }
-    },
     "Could not refresh" : {
       "comment" : "android: mobile_files_refresh_error | differs: iOS spells out “Could not”",
       "localizations" : {
@@ -1026,50 +938,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not refresh"
-          }
-        }
-      }
-    },
-    "Could not remove download" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not remove download"
-          }
-        }
-      }
-    },
-    "Could not remove downloads" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not remove downloads"
-          }
-        }
-      }
-    },
-    "Could not remove original from put.io" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not remove original from put.io"
-          }
-        }
-      }
-    },
-    "Could not remove originals from put.io" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not remove originals from put.io"
           }
         }
       }
@@ -1513,28 +1381,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleted items stay 14 days"
-          }
-        }
-      }
-    },
-    "Deleting the original removes it from every device signed in to your account and cannot be undone." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleting the original removes it from every device signed in to your account and cannot be undone."
-          }
-        }
-      }
-    },
-    "Deleting the originals removes them from every device signed in to your account and cannot be undone." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deleting the originals removes them from every device signed in to your account and cannot be undone."
           }
         }
       }
@@ -2333,7 +2179,7 @@
       }
     },
     "Remove from this iPad" : {
-      "comment" : "android: mobile_downloads_remove | differs: names the iPad",
+      "comment" : "android: mobile_downloads_remove | differs: names the device",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2344,12 +2190,124 @@
       }
     },
     "Remove from this iPhone" : {
-      "comment" : "android: mobile_downloads_remove | differs: names the iPhone",
+      "comment" : "android: mobile_downloads_remove | differs: names the device",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Remove from this iPhone"
+          }
+        }
+      }
+    },
+    "Remove from this iPad?" : {
+      "comment" : "android: mobile_downloads_remove_title | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this iPad?"
+          }
+        }
+      }
+    },
+    "Remove from this iPhone?" : {
+      "comment" : "android: mobile_downloads_remove_title | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this iPhone?"
+          }
+        }
+      }
+    },
+    "Remove %lld downloads from this iPad?" : {
+      "comment" : "android: mobile_downloads_remove_many_title | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Remove %lld download from this iPad?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Remove %lld downloads from this iPad?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Remove %lld downloads from this iPhone?" : {
+      "comment" : "android: mobile_downloads_remove_many_title | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Remove %lld download from this iPhone?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Remove %lld downloads from this iPhone?"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "“%@” stays in your put.io files. Only the copy on this iPad is removed." : {
+      "comment" : "android: mobile_downloads_remove_message | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” stays in your put.io files. Only the copy on this iPad is removed."
+          }
+        }
+      }
+    },
+    "“%@” stays in your put.io files. Only the copy on this iPhone is removed." : {
+      "comment" : "android: mobile_downloads_remove_message | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” stays in your put.io files. Only the copy on this iPhone is removed."
+          }
+        }
+      }
+    },
+    "The files stay in your put.io account. Only the copies on this iPad are removed." : {
+      "comment" : "android: mobile_downloads_remove_many_message | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The files stay in your put.io account. Only the copies on this iPad are removed."
+          }
+        }
+      }
+    },
+    "The files stay in your put.io account. Only the copies on this iPhone are removed." : {
+      "comment" : "android: mobile_downloads_remove_many_message | differs: names the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The files stay in your put.io account. Only the copies on this iPhone are removed."
           }
         }
       }
@@ -2895,28 +2853,6 @@
         }
       }
     },
-    "Moving the original to Trash removes it from every device signed in to your account until you restore it." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moving the original to Trash removes it from every device signed in to your account until you restore it."
-          }
-        }
-      }
-    },
-    "Moving the originals to Trash removes them from every device signed in to your account until you restore them." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moving the originals to Trash removes them from every device signed in to your account until you restore them."
-          }
-        }
-      }
-    },
     "New folder" : {
       "comment" : "android: mobile_files_new_folder",
       "localizations" : {
@@ -3067,50 +3003,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing matches"
-          }
-        }
-      }
-    },
-    "Nothing was removed because this device could not save the change. Remove the download again." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing was removed because this device could not save the change. Remove the download again."
-          }
-        }
-      }
-    },
-    "Nothing was removed because this device could not save the change. Remove the downloads again." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing was removed because this device could not save the change. Remove the downloads again."
-          }
-        }
-      }
-    },
-    "Nothing was removed because this device is out of space. Free up storage and remove the download again." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing was removed because this device is out of space. Free up storage and remove the download again."
-          }
-        }
-      }
-    },
-    "Nothing was removed because this device is out of space. Free up storage and remove the downloads again." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
           }
         }
       }
@@ -4292,116 +4184,6 @@
         }
       }
     },
-    "Remove %lld downloads?" : {
-      "comment" : "android: mobile_downloads_remove_many_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %lld downloads?"
-          }
-        }
-      }
-    },
-    "Remove download" : {
-      "comment" : "android: mobile_downloads_remove | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove download"
-          }
-        }
-      }
-    },
-    "Remove download and delete original" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove download and delete original"
-          }
-        }
-      }
-    },
-    "Remove download and move original to Trash" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove download and move original to Trash"
-          }
-        }
-      }
-    },
-    "Remove downloads" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove downloads"
-          }
-        }
-      }
-    },
-    "Remove downloads and delete originals" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove downloads and delete originals"
-          }
-        }
-      }
-    },
-    "Remove downloads and move originals to Trash" : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove downloads and move originals to Trash"
-          }
-        }
-      }
-    },
-    "Remove “%@”?" : {
-      "comment" : "android: mobile_downloads_remove_title | differs: iOS names the download",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove “%@”?"
-          }
-        }
-      }
-    },
-    "Removing the download frees space on this device only; the file stays on put.io." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Removing the download frees space on this device only; the file stays on put.io."
-          }
-        }
-      }
-    },
-    "Removing the downloads frees space on this device only; the files stay on put.io." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Removing the downloads frees space on this device only; the files stay on put.io."
-          }
-        }
-      }
-    },
     "Rename" : {
       "comment" : "android: mobile_files_rename",
       "localizations" : {
@@ -4875,17 +4657,6 @@
         }
       }
     },
-    "Something went wrong. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Something went wrong. Try again."
-          }
-        }
-      }
-    },
     "Standard" : {
       "comment" : "android: mobile_settings_playback_standard",
       "localizations" : {
@@ -5025,28 +4796,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The download could not finish. Try again."
-          }
-        }
-      }
-    },
-    "The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to."
-          }
-        }
-      }
-    },
-    "The originals were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The originals were not sent to put.io because your Trash setting changed after you confirmed; remove them from Files if you still want to."
           }
         }
       }
@@ -5465,17 +5214,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Works on every device. Converted videos play at up to 1080p, stereo."
-          }
-        }
-      }
-    },
-    "Your account settings could not be confirmed. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS removal of offline originals",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your account settings could not be confirmed. Try again."
           }
         }
       }

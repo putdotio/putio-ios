@@ -1,14 +1,8 @@
 import PutioCore
 import SwiftUI
 
-/// The Downloads tab: a storage line, then what is downloading, what needs
-/// attention and what is on the device.
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
-  let trashEnabled: Bool
-  /// False while account preferences are stale or saving; the runtime would
-  /// refuse the delete.
-  let canDeleteOriginals: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
   @Environment(\.locale) private var locale
@@ -16,35 +10,10 @@ struct PutioOfflineDownloadsView: View {
   @State private var notifications = PutioOfflineNotificationStatus()
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
-  @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
+  @State private var pendingRemoval: [PutioOfflineItem]?
   @State private var detailItem: PutioOfflineItem?
-  @State private var shownOriginalFailure: PutioOfflineOriginalOutcome?
 
-  /// Worded for the mode the presented targets captured, so a preference
-  /// refresh while the dialog is up cannot make the text disagree with the
-  /// action.
-  private var copy: PutioOfflineRemovalCopy {
-    PutioOfflineRemovalCopy(trashEnabled: pendingRemoval?.first?.movesToTrash ?? trashEnabled)
-  }
-
-  private var originalFailureActions: [PutioAlertAction] {
-    guard let outcome = shownOriginalFailure else { return [] }
-    var actions = [
-      PutioAlertAction(String(localized: "OK"), tier: .cancel) { [queue] in
-        queue.dismissOriginalFailure(shown: outcome)
-      }
-    ]
-    if !outcome.retryableTargets.isEmpty {
-      actions.append(
-        PutioAlertAction(
-          String(localized: "Try again"), tier: .primary, id: "downloads.remove-original-retry"
-        ) { [queue] in
-          let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
-          Task { _ = await queue.deleteOriginals(targets) }
-        })
-    }
-    return actions
-  }
+  private var removalCopy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(isPad: isPad) }
 
   var body: some View {
     Group {
@@ -59,45 +28,12 @@ struct PutioOfflineDownloadsView: View {
     .toolbar { toolbar }
     .environment(\.editMode, .constant(isEditing ? .active : .inactive))
     .environment(\.putioIsSelecting, isEditing)
-    .confirmationDialog(
-      copy.title(names: pendingRemoval?.map(\.name) ?? []),
+    .putioAlert(
+      removalCopy.title(count: pendingRemoval?.count ?? 1),
       isPresented: Binding(
         get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
-      titleVisibility: .visible,
-      presenting: pendingRemoval
-    ) { targets in
-      // The targets ride along with the presentation; the binding clears
-      // before the action runs, so reading `pendingRemoval` here would see nil.
-      Button(copy.localActionTitle(count: targets.count)) {
-        queue.remove(fileIDs: targets.map(\.id))
-        finishSelection()
-      }
-      .accessibilityIdentifier("downloads.remove-local")
-      Button(copy.remoteActionTitle(count: targets.count), role: .destructive) {
-        finishSelection()
-        // The request outlives this screen; the queue keeps the outcome.
-        let movesToTrash = targets.first?.movesToTrash ?? trashEnabled
-        Task {
-          _ = await queue.removeDeletingOriginals(
-            fileIDs: targets.map(\.id), movesToTrash: movesToTrash)
-        }
-      }
-      .disabled(!canDeleteOriginals)
-      .accessibilityIdentifier("downloads.remove-original")
-      Button("Cancel", role: .cancel) {}
-    } message: { targets in
-      Text(copy.message(count: targets.count))
-    }
-    .onChange(of: queue.originalFailure, initial: true) {
-      shownOriginalFailure = queue.originalFailure
-    }
-    .putioAlert(
-      copy.failureTitle(outcome: shownOriginalFailure ?? PutioOfflineOriginalOutcome()),
-      isPresented: Binding(
-        get: { shownOriginalFailure != nil && queue.originalFailure != nil },
-        set: { if !$0 { shownOriginalFailure = nil } }),
-      message: shownOriginalFailure.map { copy.failureMessage(outcome: $0) },
-      actions: originalFailureActions
+      message: pendingRemoval.map { removalCopy.message(names: $0.map(\.name)) },
+      actions: removalActions
     )
     .sheet(item: $detailItem) { item in
       PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
@@ -114,13 +50,23 @@ struct PutioOfflineDownloadsView: View {
     .accessibilityIdentifier("downloads.screen")
   }
 
+  private var removalActions: [PutioAlertAction] {
+    guard let targets = pendingRemoval else { return [] }
+    let fileIDs = targets.map(\.id)
+    return [
+      PutioAlertAction(String(localized: "Cancel"), tier: .cancel, id: "downloads.remove-cancel"),
+      PutioAlertAction(
+        String(localized: "Remove"), tier: .destructive, id: "downloads.remove-confirm"
+      ) {
+        queue.remove(fileIDs: fileIDs)
+        finishSelection()
+      },
+    ]
+  }
+
   private func finishSelection() {
     selectedIDs = []
     isEditing = false
-  }
-
-  private func removalTarget(_ item: PutioOfflineItem) -> PutioOfflineRemovalTarget {
-    PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
   }
 
   private var isPad: Bool {
@@ -260,16 +206,41 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
-    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      Button(role: .destructive) {
-        pendingRemoval = [removalTarget(item)]
-      } label: {
-        Label("Remove", systemImage: "trash")
-      }
-      .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
-    }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) { swipeAction(item) }
     .contextMenu {
       if !isEditing { menu(item) }
+    }
+  }
+
+  private func isInFlight(_ item: PutioOfflineItem) -> Bool {
+    switch item.stage {
+    case .completed, .failed, .missing: false
+    case .queued, .waitingToConvert, .converting, .downloading, .waitingForNetwork,
+      .waitingForStorage, .paused:
+      true
+    }
+  }
+
+  @ViewBuilder
+  private func swipeAction(_ item: PutioOfflineItem) -> some View {
+    if isInFlight(item) {
+      Button {
+        queue.remove(fileIDs: [item.id])
+      } label: {
+        Label("Cancel download", systemImage: "xmark.circle")
+          .labelStyle(.iconOnly)
+      }
+      .tint(PutioTheme.Colors.destructive)
+      .accessibilityIdentifier("downloads.cancel.\(item.id.rawValue)")
+    } else {
+      Button {
+        pendingRemoval = [item]
+      } label: {
+        Label(removalCopy.actionTitle, systemImage: "minus.circle")
+          .labelStyle(.iconOnly)
+      }
+      .tint(PutioTheme.Colors.destructive)
+      .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
     }
   }
 
@@ -360,12 +331,10 @@ struct PutioOfflineDownloadsView: View {
 
   private func removeButton(_ item: PutioOfflineItem) -> some View {
     menuButton(
-      isPad
-        ? String(localized: "Remove from this iPad") : String(localized: "Remove from this iPhone"),
-      systemImage: "minus.circle",
-      id: "remove-menu", item, role: .destructive
+      removalCopy.actionTitle, systemImage: "minus.circle", id: "remove-menu", item,
+      role: .destructive
     ) {
-      pendingRemoval = [removalTarget(item)]
+      pendingRemoval = [item]
     }
   }
 
@@ -379,7 +348,7 @@ struct PutioOfflineDownloadsView: View {
         }
         ToolbarItem(placement: .topBarLeading) {
           Button("Remove \(selectedIDs.count)", role: .destructive) {
-            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map(removalTarget)
+            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }
           }
           .disabled(selectedIDs.isEmpty)
           .accessibilityIdentifier("downloads.remove-selected")
@@ -473,26 +442,22 @@ struct PutioOfflinePersistenceFailureAlert: ViewModifier {
   }
 
   private var actions: [PutioAlertAction] {
-    guard let failure = shown else { return [] }
-    var actions = [
+    guard shown != nil else { return [] }
+    return [
       PutioAlertAction(
         String(localized: "OK"), tier: .cancel, id: "downloads.save-dismiss"
       ) { [queue] in
         queue.dismissPersistenceFailure()
-      }
+      },
+      PutioAlertAction(
+        String(localized: "Try again"), tier: .primary, id: "downloads.save-retry"
+      ) { [queue] in
+        Task {
+          try? await Task.sleep(for: .milliseconds(500))
+          queue.retryPersisting()
+        }
+      },
     ]
-    if failure.canRetry {
-      actions.append(
-        PutioAlertAction(
-          String(localized: "Try again"), tier: .primary, id: "downloads.save-retry"
-        ) { [queue] in
-          Task {
-            try? await Task.sleep(for: .milliseconds(500))
-            queue.retryPersisting()
-          }
-        })
-    }
-    return actions
   }
 }
 

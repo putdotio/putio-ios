@@ -733,6 +733,22 @@ enum BoardCaptureContract {
         "rd-ios-dl-29-more-resume-all", .iphone, "testDownloadsMenu", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_MENU": "resume-all"]),
       BoardCapture(
+        "rd-ios-dl-07-remove", .iphone, "testDownloadsSwipe",
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "remove"]),
+      BoardCapture(
+        "rd-ios-dl-07-remove-ipad", .ipad, "testDownloadsSwipe",
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "remove"]
+      ).held(.portrait),
+      BoardCapture(
+        "rd-ios-dl-08-swipe", .iphone, "testDownloadsSwipe", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "finished"]),
+      BoardCapture(
+        "rd-ios-dl-15-swipe-downloading", .iphone, "testDownloadsSwipe", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "downloading"]),
+      BoardCapture(
+        "rd-ios-dl-16-swipe-failed", .iphone, "testDownloadsSwipe", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_SWIPE": "failed"]),
+      BoardCapture(
         "rd-ios-dl-21-ipad-none", .ipad, "testDownloadsFixture",
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
       BoardCapture(

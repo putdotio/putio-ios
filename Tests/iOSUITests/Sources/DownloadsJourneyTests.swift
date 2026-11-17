@@ -55,7 +55,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
     app.closeVideo()
 
-    // Relaunch without the failure flag: the item survives.
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launch()
@@ -81,8 +80,6 @@ final class DownloadsJourneyTests: XCTestCase {
     app.closeVideo()
     XCTAssertTrue(item.appears(within: 10))
 
-    // Multi-select removal: local removal is the default, the original is a
-    // separately worded destructive choice, and both are named for VoiceOver.
     app.buttons["downloads.more"].tap()
     app.buttons["downloads.select"].tap()
     XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
@@ -99,43 +96,33 @@ final class DownloadsJourneyTests: XCTestCase {
       app.accentPixelCount(in: rowBand(item)), rowAccent + 1_000,
       "the selection checkmark is not yellow")
     app.buttons["downloads.remove-selected"].tap()
-    let removeLocal = app.buttons["downloads.remove-local"].firstMatch
-    XCTAssertTrue(removeLocal.appears(within: 5))
-    XCTAssertTrue(app.staticTexts["Remove “Root Movie.mkv”?"].exists, "the title names the file")
+    let confirmation = app.putioAlert("Remove from this iPhone?")
+    XCTAssertTrue(confirmation.appears(within: 5), "removal asked for no confirmation")
     XCTAssertTrue(
-      app.staticTexts.element(
-        matching: NSPredicate(format: "label CONTAINS %@", "every device signed in to your account")
-      ).exists, "the confirmation does not explain that other devices are affected")
-    let removeOriginal = app.buttons["downloads.remove-original"].firstMatch
-    XCTAssertTrue(removeOriginal.exists)
-    XCTAssertEqual(removeLocal.label, "Remove download")
-    XCTAssertEqual(removeOriginal.label, "Remove download and move original to Trash")
+      confirmation.staticTexts[
+        "“Root Movie.mkv” stays in your put.io files. Only the copy on this iPhone is removed."
+      ].exists, "the confirmation does not keep the file in the account")
     screenshot("runtime-downloads-remove")
-
-    // The seeded first delete fails: the local copy is gone, the failure is
-    // reported without claiming success, and retry moves the original.
-    removeOriginal.tap()
+    app.buttons["downloads.remove-confirm"].firstMatch.tap()
     XCTAssertTrue(item.disappears(within: 10))
-    let failure = app.putioAlert("Could not move original to Trash")
-    XCTAssertTrue(failure.appears(within: 10))
-    XCTAssertTrue(
-      failure.staticTexts.element(
-        matching: NSPredicate(
-          format: "label CONTAINS %@", "was removed from this device, but put.io did not confirm")
-      ).exists, "the failure report does not keep the local outcome honest")
-    app.buttons["downloads.remove-original-retry"].firstMatch.tap()
-    XCTAssertTrue(failure.disappears(within: 10))
     XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 5))
-    XCTAssertFalse(app.putioAlerts.firstMatch.exists, "retry must not report a second failure")
 
-    // The loaded root reconciles with the moved original.
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25)).press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
+      withVelocity: .slow, thenHoldForDuration: 1)
     XCTAssertTrue(
-      element("files.item.412").disappears(within: 10),
-      "the root still lists the original after put.io moved it to Trash")
+      element("files.item.412").appears(within: 10),
+      "removing the download took the original from the account")
 
-    app.buttons["Account"].tap()
+    let account = app.buttons["Account"]
+    if !account.exists {
+      app.tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch.tap()
+    }
+    XCTAssertTrue(account.appears(within: 5), "the collapsed tab bar did not expand")
+    account.tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }

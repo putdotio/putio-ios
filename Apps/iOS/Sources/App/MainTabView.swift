@@ -36,9 +36,7 @@ struct MainTabView: View {
     _folderRefreshRequests = State(initialValue: folderRefreshRequests)
     _offlineQueueHolder = State(
       initialValue: PutioOfflineQueueHolder {
-        PutioOfflineQueueFactory.make(
-          runtime: runtime, accountID: account.id, scenario: scenario,
-          onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() })
+        PutioOfflineQueueFactory.make(runtime: runtime, accountID: account.id, scenario: scenario)
       })
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
     _pins = State(
@@ -781,11 +779,7 @@ struct MainTabView: View {
 
   private var downloads: some View {
     NavigationStack {
-      PutioOfflineDownloadsView(
-        queue: offlineQueue, trashEnabled: account.trashEnabled,
-        canDeleteOriginals: !runtime.session.isAccountPreferencesStale
-          && !runtime.session.isUpdatingAccountPreferences,
-        onOpen: { item in openOffline(item) })
+      PutioOfflineDownloadsView(queue: offlineQueue, onOpen: { item in openOffline(item) })
     }
   }
 

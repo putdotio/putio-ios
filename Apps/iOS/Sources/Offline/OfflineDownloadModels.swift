@@ -241,24 +241,14 @@ struct PutioOfflineConversionError: Error {}
 enum PutioOfflinePersistenceFailure: Equatable, Sendable {
   /// The queue or its package record is behind on disk; writing again may fix it.
   case unsaved(outOfSpace: Bool)
-  /// A removal that also takes originals stopped before touching anything,
-  /// because the record of owed originals could not be written.
-  case removalNotStarted(outOfSpace: Bool, count: Int)
 
   static func isOutOfSpace(_ error: Error) -> Bool {
     (error as NSError).code == NSFileWriteOutOfSpaceError
   }
 
-  var canRetry: Bool {
-    if case .unsaved = self { return true }
-    return false
-  }
-
   var title: String {
     switch self {
     case .unsaved: String(localized: "Could not save downloads")
-    case .removalNotStarted(_, 1): String(localized: "Could not remove download")
-    case .removalNotStarted: String(localized: "Could not remove downloads")
     }
   }
 
@@ -272,26 +262,6 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
         )
         : String(
           localized: "Changes to your downloads could not be saved on this device. Try again.")
-    case .removalNotStarted(true, 1):
-      String(
-        localized:
-          "Nothing was removed because this device is out of space. Free up storage and remove the download again."
-      )
-    case .removalNotStarted(true, _):
-      String(
-        localized:
-          "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
-      )
-    case .removalNotStarted(false, 1):
-      String(
-        localized:
-          "Nothing was removed because this device could not save the change. Remove the download again."
-      )
-    case .removalNotStarted(false, _):
-      String(
-        localized:
-          "Nothing was removed because this device could not save the change. Remove the downloads again."
-      )
     }
   }
 }

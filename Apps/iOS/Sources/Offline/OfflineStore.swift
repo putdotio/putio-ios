@@ -9,15 +9,12 @@ struct PutioOfflineStore: Sendable {
     let version: Int
     var items: [PutioOfflineItem]
     var concurrencyLimit: Int
-    /// Originals the user asked put.io to take whose answer is still owed.
-    var pendingOriginals: [PutioOfflineRemovalTarget]?
     var waitingForSlot: [PutioFileID]?
   }
 
   struct Loaded {
     var items: [PutioOfflineItem]
     var concurrencyLimit: Int
-    var pendingOriginals: [PutioOfflineRemovalTarget]
     var waitingForSlot: [PutioFileID] = []
   }
 
@@ -46,7 +43,7 @@ struct PutioOfflineStore: Sendable {
   /// rather than silently replaced, so stored assets can still be recovered.
   func load() -> Loaded {
     let empty = Loaded(
-      items: [], concurrencyLimit: PutioOfflineQueue.defaultConcurrencyLimit, pendingOriginals: [])
+      items: [], concurrencyLimit: PutioOfflineQueue.defaultConcurrencyLimit)
     guard let data = try? Data(contentsOf: fileURL) else { return empty }
     guard let document = try? JSONDecoder().decode(Document.self, from: data),
       document.version == Self.version
@@ -60,7 +57,6 @@ struct PutioOfflineStore: Sendable {
       ? document.concurrencyLimit : PutioOfflineQueue.defaultConcurrencyLimit
     return Loaded(
       items: document.items, concurrencyLimit: limit,
-      pendingOriginals: document.pendingOriginals ?? [],
       waitingForSlot: document.waitingForSlot ?? [])
   }
 
@@ -68,12 +64,10 @@ struct PutioOfflineStore: Sendable {
 
   func save(
     items: [PutioOfflineItem], concurrencyLimit: Int,
-    pendingOriginals: [PutioOfflineRemovalTarget] = [],
     waitingForSlot: [PutioFileID] = []
   ) throws {
     let document = Document(
       version: Self.version, items: items, concurrencyLimit: concurrencyLimit,
-      pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals,
       waitingForSlot: waitingForSlot.isEmpty ? nil : waitingForSlot)
     let encoder = JSONEncoder()
     encoder.outputFormatting = .sortedKeys
