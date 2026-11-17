@@ -23,6 +23,11 @@ final class SubtitlePlaybackTests: XCTestCase {
         XCTAssertEqual(subtitle.castableURL.flatMap { queryValue("format", in: $0) }, "webvtt")
     }
 
+    func testCastTrackLabelDropsOnlyASubtitleExtension() throws {
+        XCTAssertEqual(try sidecar(format: "srt", name: "Sample.Show.S01E01.EN.SRT").trackLabel, "English - Sample.Show.S01E01.EN")
+        XCTAssertEqual(try sidecar(format: "srt", name: "Sample.Show.S01E01.720p").trackLabel, "English - Sample.Show.S01E01.720p")
+    }
+
     func testCastSkipsSidecarsTheReceiverCannotRender() throws {
         XCTAssertNil(try sidecar(format: "ass", name: "Sample.Show.S01E01.en.ass").castableURL)
     }

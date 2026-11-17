@@ -445,8 +445,12 @@ extension ChromecastManager: GCKLoggerDelegate {
 }
 
 extension PutioSubtitle {
+    private static let fileExtensions: Set = ["srt", "vtt", "webvtt", "ass", "ssa", "sub", "smi", "sbv", "ttml", "dfxp", "txt"]
+
     var trackLabel: String {
-        "\(language) - \((name as NSString).deletingPathExtension)"
+        let file = name as NSString
+        let base = Self.fileExtensions.contains(file.pathExtension.lowercased()) ? file.deletingPathExtension : name
+        return "\(language) - \(base)"
     }
 
     var castableURL: URL? {
