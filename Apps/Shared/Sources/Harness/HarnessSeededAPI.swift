@@ -813,16 +813,14 @@ import Foundation
     private static let cutsNetwork = HarnessLaunch.arguments.contains(
       "--putio-harness-network-cut")
     private static let cutRequestLock = NSLock()
-    nonisolated(unsafe) private static var cutFileRequests: [Int: Int] = [:]
+    nonisolated(unsafe) private static var cutRequests = 0
 
-    static func cutFileRequestCount(fileID: Int) -> Int {
-      cutRequestLock.withLock { cutFileRequests[fileID] ?? 0 }
+    static func cutRequestCount() -> Int {
+      cutRequestLock.withLock { cutRequests }
     }
 
-    private static func recordCutRequest(_ url: URL) {
-      let parts = url.path.split(separator: "/")
-      guard parts.count >= 3, parts[1] == "files", let id = Int(parts[2]) else { return }
-      cutRequestLock.withLock { cutFileRequests[id, default: 0] += 1 }
+    private static func recordCutRequest() {
+      cutRequestLock.withLock { cutRequests += 1 }
     }
 
     private static func reachesOffline(_ url: URL) -> Bool {
@@ -1203,6 +1201,7 @@ import Foundation
         }
         return
       }
+      if Self.cutsNetwork { Self.recordCutRequest() }
       if Self.servesAppIcon(request) {
         DispatchQueue.main.async { [weak self] in
           let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }
@@ -1265,7 +1264,6 @@ import Foundation
         return
       }
       if Self.cutsNetwork, !Self.reachesOffline(url) {
-        Self.recordCutRequest(url)
         deliveryGate.deliver(generation: generation) {
           self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         }

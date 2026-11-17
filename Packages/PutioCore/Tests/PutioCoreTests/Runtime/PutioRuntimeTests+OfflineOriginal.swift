@@ -31,6 +31,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(original.file.url.path, "/v2/files/412/download")
     XCTAssertEqual(original.startFromSeconds, 734)
     XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertEqual(original.defaultSubtitleKey, "tr")
     XCTAssertEqual(original.subtitles.map(\.languageCode), ["eng", "tur"])
     for subtitle in original.subtitles {
       let query = URLComponents(url: subtitle.url, resolvingAgainstBaseURL: false)?.queryItems

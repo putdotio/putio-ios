@@ -650,9 +650,10 @@ final class PutioOfflineQueue {
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
     let url = playbackURL(localPath)
     guard item.isOriginal else { return PutioPlaybackSource(url: url, startFromSeconds: resume) }
+    let stored = PutioOfflineOriginalPackage.playbackSubtitles(in: url)
     return PutioPlaybackSource.stored(
       fileURL: PutioOfflineOriginalPackage.mediaURL(in: url, name: item.name),
-      startFromSeconds: resume, subtitles: PutioOfflineOriginalPackage.playbackSubtitles(in: url))
+      startFromSeconds: resume, subtitles: stored.subtitles, defaultSubtitleKey: stored.defaultKey)
   }
 
   /// Records a position locally first, then forwards it. A failed forward
@@ -874,7 +875,9 @@ final class PutioOfflineQueue {
     let directory = engine.originalDirectory(for: fileID)
     try? fileManager.removeItem(at: directory)
     do {
-      try PutioOfflineOriginalPackage.store(subtitles, in: directory, fileManager: fileManager)
+      try PutioOfflineOriginalPackage.store(
+        subtitles, defaultKey: original.defaultSubtitleKey, in: directory,
+        fileManager: fileManager)
     } catch {
       try? fileManager.removeItem(at: directory)
       fail(fileID, PutioOfflinePersistenceFailure.isOutOfSpace(error) ? .storage : .download)

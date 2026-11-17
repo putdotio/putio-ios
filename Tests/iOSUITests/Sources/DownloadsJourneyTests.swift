@@ -477,11 +477,11 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= 8"), position, timeout: 20),
       "the stored original is not playing: \(position.value ?? "")")
-    app.closeVideo()
-    let saved = try reportedSeconds()
     XCTAssertEqual(
       element("downloads.cut-requests").value as? String, requests,
-      "playing the download asked the network for the file")
+      "playing the download made a network request")
+    app.closeVideo()
+    let saved = try reportedSeconds()
     XCTAssertNotEqual(
       element("downloads.seeded-position").value as? String, "\(saved)",
       "the position reached put.io with the network cut")
@@ -494,9 +494,9 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= %d", saved - 1), position, timeout: 10),
       "the download did not resume at \(saved): \(position.value ?? "")")
+    XCTAssertEqual(element("downloads.cut-requests").value as? String, relaunchedRequests)
     app.closeVideo()
     let resumed = try reportedSeconds()
-    XCTAssertEqual(element("downloads.cut-requests").value as? String, relaunchedRequests)
 
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-network-cut" }

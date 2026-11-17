@@ -351,7 +351,7 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioOfflineOriginal(
             file: PutioFileDownloadSource(
               id: fileID, kind: .video, name: "Movie.mp4", url: original),
-            subtitles: subtitles, startFromSeconds: 734)
+            subtitles: subtitles, startFromSeconds: 734, defaultSubtitleKey: "tr")
         },
         fetchSubtitle: { Data("WEBVTT \($0.lastPathComponent)".utf8) },
         startConversion: { _ in }, conversionStatus: { _ in .completed },
@@ -401,6 +401,9 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(
       try original.subtitles.map { try String(contentsOf: $0.url, encoding: .utf8) },
       ["WEBVTT en", "WEBVTT tr"])
+    XCTAssertEqual(
+      original.subtitles.first { $0.key == original.defaultSubtitleKey }?.languageCode, "tr",
+      "a stored original lost put.io's default subtitle")
     let hls = try XCTUnwrap(queue.localSource(for: standard))
     XCTAssertEqual(hls.url.pathExtension, "movpkg")
     XCTAssertNil(hls.original, "a Standard download left AVPlayer")

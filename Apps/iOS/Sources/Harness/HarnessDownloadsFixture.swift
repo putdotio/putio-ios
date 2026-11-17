@@ -263,8 +263,8 @@
       TimelineView(.periodic(from: .now, by: 0.25)) { _ in
         ZStack {
           probe(
-            "Requests for the stored file while the network is cut",
-            value: HarnessSeededAPI.cutFileRequestCount(fileID: Self.fileID),
+            "Requests while the network is cut",
+            value: HarnessSeededAPI.cutRequestCount(),
             identifier: "downloads.cut-requests")
           probe(
             "Stored file position on put.io",

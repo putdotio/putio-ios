@@ -7,13 +7,18 @@ public struct PutioOfflineOriginal: Equatable, Sendable {
   public let file: PutioFileDownloadSource
   public let subtitles: [PutioCastSubtitle]
   public let startFromSeconds: Int
+  public let defaultSubtitleKey: String?
 
   public init(
-    file: PutioFileDownloadSource, subtitles: [PutioCastSubtitle], startFromSeconds: Int = 0
+    file: PutioFileDownloadSource, subtitles: [PutioCastSubtitle], startFromSeconds: Int = 0,
+    defaultSubtitleKey: String? = nil
   ) {
     self.file = file
     self.subtitles = subtitles
     self.startFromSeconds = startFromSeconds
+    self.defaultSubtitleKey =
+      subtitles.contains { $0.key == defaultSubtitleKey }
+      ? defaultSubtitleKey : nil
   }
 }
 
@@ -52,6 +57,8 @@ extension PutioRuntime {
         key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
         name: subtitle.name, source: PutioSubtitleSource(apiSource: subtitle.source), url: url)
     }
-    return PutioOfflineOriginal(file: file, subtitles: subtitles, startFromSeconds: startFrom)
+    return PutioOfflineOriginal(
+      file: file, subtitles: subtitles, startFromSeconds: startFrom,
+      defaultSubtitleKey: response.defaultKey)
   }
 }
