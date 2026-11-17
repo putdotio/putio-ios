@@ -4506,7 +4506,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(
       alert.buttons.allElementsBoundByIndex.map(\.label), ["OK"], "the alert offers more than OK")
     XCTAssertTrue(element("trash.item.4302").exists, "the still-moving row left")
-    try captureTrashBoard("rd-ios-trash-18-still-moving")
+    try captureBoard("rd-ios-trash-18-still-moving")
     alert.buttons["trash.still-moving.ok"].tap()
     XCTAssertTrue(alert.disappears(within: 5), "OK kept the alert")
     XCTAssertTrue(element("trash.item.4302").exists, "OK removed the row")
