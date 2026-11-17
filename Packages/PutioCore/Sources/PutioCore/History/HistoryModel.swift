@@ -30,10 +30,16 @@ public struct PutioHistoryActions: Sendable {
 public struct PutioHistoryFailure: Equatable {
   public let message: String
   public let isNotFound: Bool
+  public let isOffline: Bool
 
   init?(error: Error) {
     guard !(error is CancellationError) else { return nil }
     isNotFound = error as? PutioRuntimeError == .notFound
+    isOffline = error as? PutioFolderLoadError == .offline
+    if isOffline {
+      message = String(localized: "Check your connection and try again.", bundle: .module)
+      return
+    }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
     case .notFound:
@@ -96,6 +102,11 @@ public final class PutioHistoryModel {
   public func loadIfNeeded() async {
     guard case .loading = state else { return }
     await refresh()
+  }
+
+  public func retryFailedLoad() {
+    guard case .failed = state else { return }
+    state = .loading
   }
 
   public func refresh() async {

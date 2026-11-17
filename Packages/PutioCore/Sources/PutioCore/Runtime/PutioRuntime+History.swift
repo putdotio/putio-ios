@@ -5,7 +5,12 @@ extension PutioRuntime {
   public func listHistory(before: Int? = nil) async throws -> PutioHistoryPage {
     if let before, before <= 0 { throw PutioRuntimeError.invalidResponse }
     let response = try await performAuthenticatedOperation {
-      try await sdk.getHistoryEvents(query: PutioHistoryEventsQuery(perPage: 50, before: before))
+      do {
+        return try await sdk.getHistoryEvents(
+          query: PutioHistoryEventsQuery(perPage: 50, before: before))
+      } catch let error as PutioSDKError where Self.folderLoadError(error) == .offline {
+        throw PutioFolderLoadError.offline
+      }
     }
     guard response.status == "OK", response.events.allSatisfy({ $0.id > 0 }) else {
       throw PutioRuntimeError.invalidResponse

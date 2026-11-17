@@ -65,7 +65,8 @@ struct HistoryView: View {
             onFileSelected: onFileSelected
           )
         }
-        .task { await model.loadIfNeeded() }
+        .task(id: isLoading) { await model.loadIfNeeded() }
+        .task(id: isOffline) { await retryWhileOffline() }
         .onAppear { groupingDate = .now }
         .onDisappear { model.cancelOpen() }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
@@ -96,37 +97,71 @@ struct HistoryView: View {
 
   private var isBusy: Bool { model.mutation != nil || model.openingEventID != nil }
 
+  private var isLoading: Bool {
+    if case .loading = model.state { return true }
+    return false
+  }
+
+  private var isOffline: Bool {
+    if case .failed(let failure) = model.state { return failure.isOffline }
+    return false
+  }
+
+  private func retryWhileOffline() async {
+    var attempt = 0
+    while isOffline {
+      do {
+        try await Task.sleep(for: .seconds(min(3 << min(attempt, 4), 30)))
+      } catch {
+        return
+      }
+      guard isOffline else { return }
+      await model.refresh()
+      attempt += 1
+    }
+  }
+
   @ViewBuilder
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: String(localized: "Loading history"))
+      PutioLoadingStateView(title: String(localized: "Loading history"), titleVisibility: .hidden)
     case .failed(let failure):
-      PutioErrorStateView(
-        title: String(localized: "Could not load history"), message: failure.message,
-        retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
-      ) {
-        Task { await model.refresh() }
+      scrollableState {
+        PutioErrorStateView(
+          title: failure.isOffline
+            ? PutioScreenErrorKind.offline.title : String(localized: "Couldn’t load history"),
+          message: failure.isOffline
+            ? PutioScreenErrorKind.offline.message : PutioScreenErrorKind.failed.message,
+          retryTitle: String(localized: "Try again"), retryIdentifier: "history.retry"
+        ) {
+          model.retryFailedLoad()
+        }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextBefore == nil,
         model.refreshFailure == nil, model.mutationFailure == nil,
         model.openFailure.map(\.isNotFound) ?? true
       {
-        GeometryReader { geometry in
-          ScrollView {
-            PutioEmptyStateView(
-              icon: .clockCounterClockwise, title: String(localized: "No history"),
-              message: String(localized: "New account events will appear here.")
-            )
-            .frame(minHeight: geometry.size.height)
-          }
-          .scrollBounceBehavior(.always)
-          .refreshable { await model.refresh() }
+        scrollableState {
+          PutioEmptyStateView.history
+            .accessibilityIdentifier("history.empty")
         }
       } else {
         historyList(page)
       }
+    }
+  }
+
+  private func scrollableState<Content: View>(@ViewBuilder _ state: () -> Content) -> some View {
+    let content = state()
+    return GeometryReader { geometry in
+      ScrollView {
+        content
+          .frame(minHeight: geometry.size.height)
+      }
+      .scrollBounceBehavior(.always)
+      .refreshable { await Task { await model.refresh() }.value }
     }
   }
 

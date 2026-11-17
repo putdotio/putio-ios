@@ -227,6 +227,60 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([30, 15]))
   }
 
+  func testCancelledFirstLoadStaysLoadingAndReloadsOnReturn() async throws {
+    let pending = PendingHistoryPage()
+    defer { pending.cancel() }
+    var calls = 0
+    let model = model(list: { _ in
+      calls += 1
+      if calls == 1 { return try await pending.load() }
+      return Self.page([30])
+    })
+    let first = Task { await model.loadIfNeeded() }
+    try await pending.waitForRequest()
+    first.cancel()
+    pending.cancel()
+    await first.value
+    XCTAssertEqual(model.state, .loading)
+    await model.loadIfNeeded()
+    XCTAssertEqual(calls, 2)
+    XCTAssertEqual(model.page, Self.page([30]))
+  }
+
+  func testOfflineFirstLoadFailsWithTheConnectionMessage() async {
+    let model = model(list: { _ in throw PutioFolderLoadError.offline })
+    await model.loadIfNeeded()
+    guard case .failed(let failure) = model.state else { return XCTFail("expected a failure") }
+    XCTAssertTrue(failure.isOffline)
+    XCTAssertEqual(failure.message, "Check your connection and try again.")
+  }
+
+  func testRetryFailedLoadShowsLoadingThenTheList() async throws {
+    let pending = PendingHistoryPage()
+    defer { pending.cancel() }
+    var calls = 0
+    let model = model(list: { _ in
+      calls += 1
+      if calls == 1 { throw PutioRuntimeError.transient }
+      return try await pending.load()
+    })
+    await model.loadIfNeeded()
+    guard case .failed(let failure) = model.state else { return XCTFail("expected a failure") }
+    XCTAssertFalse(failure.isOffline)
+    model.retryFailedLoad()
+    XCTAssertEqual(model.state, .loading)
+    let retry = Task { await model.loadIfNeeded() }
+    try await pending.waitForRequest()
+    XCTAssertEqual(model.state, .loading)
+    pending.finish(Self.page([30]))
+    await retry.value
+    XCTAssertEqual(model.page, Self.page([30]))
+    model.retryFailedLoad()
+    await model.loadIfNeeded()
+    XCTAssertEqual(calls, 2)
+    XCTAssertEqual(model.page, Self.page([30]))
+  }
+
   func testFileLookupRetriesAndReturnsAuthoritativeSnapshot() async {
     var fail = true
     let item = BrowserTestFixtures.item(id: 10)

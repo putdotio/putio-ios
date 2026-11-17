@@ -53,6 +53,21 @@ extension PutioRuntimeTests {
     XCTAssertEqual(components.queryItems?.first { $0.name == "per_page" }?.value, "50")
   }
 
+  func testHistoryOfflineListKeepsTheSession() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    fixtures.setNetworkFailure(true, for: "GET /v2/events/list")
+    do {
+      _ = try await runtime.listHistory()
+      XCTFail("expected offline")
+    } catch {
+      XCTAssertEqual(error as? PutioFolderLoadError, .offline)
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("an offline history list ended the session")
+    }
+    XCTAssertNotNil(try? tokenStore.read())
+  }
+
   func testHistoryFilteredPageRetainsContinuationAndFinalPageEndsIt() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
