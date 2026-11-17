@@ -2299,7 +2299,7 @@ final class BoardCaptureTests: XCTestCase {
       element("history.item.907").appears(within: 10), "the seeded history never loaded")
     let more = element("history.more")
     app.bringIntoView(more)
-    let filesTab = app.buttons["Files"].frame
+    let filesTab = app.buttons["Files"].firstMatch.frame
     let visibleBottom = filesTab.minY > app.frame.midY ? filesTab.minY : app.frame.maxY
     for _ in 0..<3 where more.frame.maxY > visibleBottom { app.swipeUp() }
     XCTAssertLessThanOrEqual(more.frame.maxY, visibleBottom, "the tab bar covers the spinner")
