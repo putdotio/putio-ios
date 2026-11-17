@@ -670,6 +670,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-47-search-more-failed", .iphone, "testSearchMoreFailed"),
       BoardCapture("rd-ios-71-search-long-query", .iphone, "testSearchLongQuery"),
       BoardCapture("rd-ios-hist-01-list", .iphone, "testHistoryList"),
+      BoardCapture("rd-ios-hist-12-ipad", .ipad, "testHistoryList"),
+      BoardCapture("ipad-history-folder", .ipad, "testHistoryFolderFullWidth"),
       BoardCapture("rd-ios-hist-03-more", .iphone, "testHistoryMore"),
       BoardCapture("rd-ios-hist-04-clear", .iphone, "testHistoryClearConfirm"),
       BoardCapture("rd-ios-hist-11-clear-failed", .iphone, "testHistoryClearFailed"),
