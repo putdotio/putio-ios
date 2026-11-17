@@ -472,7 +472,8 @@ final class DownloadsJourneyTests: XCTestCase {
     app.revealVideoControls(showing: audioChip)
     audioChip.tap()
     XCTAssertTrue(app.buttons["video.audio.1"].appears(within: 5), "the Audio chip opened no menu")
-    XCTAssertTrue(app.buttons["video.audio.2"].exists, "the file's second audio track is not offered")
+    XCTAssertTrue(
+      app.buttons["video.audio.2"].exists, "the file's second audio track is not offered")
     screenshot("runtime-downloads-offline-direct-play-audio")
     let other = preferred == "tr" ? "en" : "tr"
     app.buttons[other == "en" ? "video.audio.1" : "video.audio.2"].tap()
