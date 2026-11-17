@@ -442,14 +442,10 @@ final class PutioOfflineQueue {
         suspended.insert(fileID)
       }
       items[index].stage = .paused(progress: progress)
-    case .queued, .waitingToConvert, .waitingForStorage:
+    case .queued, .waitingToConvert, .converting, .waitingForStorage:
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: 0)
-    case .converting(let progress):
-      workers[fileID]?.task.cancel()
-      workers[fileID] = nil
-      items[index].stage = .paused(progress: progress)
     case .paused where isWaitingForSlot(fileID):
       resumeWhenFree.removeAll { $0 == fileID }
     default:
@@ -495,6 +491,19 @@ final class PutioOfflineQueue {
     items[index].stage = .queued
     persist()
     schedule()
+  }
+
+  func removeSaved(fileIDs: [PutioFileID]) -> Task<Void, Never>? {
+    if isLive() {
+      do {
+        try store.save(
+          items: items.filter { !fileIDs.contains($0.id) }, concurrencyLimit: concurrencyLimit,
+          waitingForSlot: resumeWhenFree.filter { !fileIDs.contains($0) })
+      } catch {
+        return nil
+      }
+    }
+    return remove(fileIDs: fileIDs)
   }
 
   @discardableResult

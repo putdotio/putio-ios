@@ -36,4 +36,35 @@ struct PutioOfflineRemovalCopy: Equatable {
           "The files stay in your put.io account. Only the copies on this iPhone are removed.")
     }
   }
+
+  func failureTitle(count: Int) -> String {
+    count == 1
+      ? String(localized: "Could not remove download")
+      : String(localized: "Could not remove downloads")
+  }
+
+  func failureMessage(count: Int) -> String {
+    switch (count == 1, isPad) {
+    case (true, true):
+      String(
+        localized:
+          "Nothing was removed because this iPad could not save the change. Remove the download again."
+      )
+    case (true, false):
+      String(
+        localized:
+          "Nothing was removed because this iPhone could not save the change. Remove the download again."
+      )
+    case (false, true):
+      String(
+        localized:
+          "Nothing was removed because this iPad could not save the change. Remove the downloads again."
+      )
+    case (false, false):
+      String(
+        localized:
+          "Nothing was removed because this iPhone could not save the change. Remove the downloads again."
+      )
+    }
+  }
 }

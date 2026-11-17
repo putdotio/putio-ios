@@ -1346,6 +1346,40 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(engine.started.map(\.0.rawValue), [10, 11], "the paused item held no slot")
   }
 
+  func testPausingAConversionCountsNoBytesOnTheDevice() async throws {
+    let gate = makeGate()
+    resolutions[12] = [.conversionRequired]
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in
+        await gate.wait()
+        try Task.checkCancellation()
+      },
+      availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if var queued = self.resolutions[fileID.rawValue], !queued.isEmpty {
+          let next = queued.removeFirst()
+          self.resolutions[fileID.rawValue] = queued
+          return next
+        }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in },
+      conversionStatus: { _ in .converting(progress: 0.5) },
+      reportPosition: { _, _ in })
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 12), parentID: .root, name: "l", kind: .video,
+      estimatedBytes: 1_000)
+    try await gate.waitUntilEntered()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.stage, .converting(progress: 0.5))
+    queue.pause(fileID: PutioFileID(rawValue: 12))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.stage, .paused(progress: 0))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.bytesOnDevice, 0)
+  }
+
   func testLateFailureDoesNotOverwriteAPause() async throws {
     let gate = makeGate()
     let queue = PutioOfflineQueue(
@@ -2445,6 +2479,65 @@ final class OfflineDownloadsTests: XCTestCase {
 
   private func unblockQueueWrites() throws {
     try FileManager.default.removeItem(at: directory.appending(path: "queue.json"))
+  }
+
+  func testARemovalThatCannotBeSavedRemovesNothing() async throws {
+    let queue = makeQueue()
+    let running = PutioFileID(rawValue: 1)
+    let finished = PutioFileID(rawValue: 2)
+    queue.enqueue(fileID: running, parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: finished, parentID: .root, name: "b", kind: .video)
+    await settle()
+    try engine.finish(finished, at: directory)
+    await settle()
+    let package = try XCTUnwrap(queue.item(for: finished)?.localPath)
+    try blockQueueWrites()
+
+    XCTAssertNil(queue.removeSaved(fileIDs: [running, finished]))
+    XCTAssertEqual(queue.items.map(\.id), [running, finished])
+    XCTAssertTrue(queue.removing.isEmpty)
+    XCTAssertTrue(engine.cancelled.isEmpty, "a failed removal cancelled the running download")
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: package).path),
+      "a failed removal deleted the package")
+    XCTAssertNil(queue.persistenceFailure, "the removal failure also raised the save alert")
+
+    try unblockQueueWrites()
+    await queue.removeSaved(fileIDs: [running, finished])?.value
+    XCTAssertTrue(queue.items.isEmpty)
+    XCTAssertEqual(engine.cancelled, [running, finished])
+    XCTAssertTrue(PutioOfflineStore(directory: directory).load().items.isEmpty)
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: package).path))
+  }
+
+  func testRemovalFailureCopyCountsAndNamesTheDevice() {
+    let phone = PutioOfflineRemovalCopy(isPad: false)
+    let pad = PutioOfflineRemovalCopy(isPad: true)
+    XCTAssertEqual(phone.failureTitle(count: 3), "Could not remove downloads")
+    XCTAssertEqual(
+      phone.failureMessage(count: 3),
+      "Nothing was removed because this iPhone could not save the change. Remove the downloads again."
+    )
+    XCTAssertEqual(pad.failureTitle(count: 1), "Could not remove download")
+    XCTAssertEqual(
+      pad.failureMessage(count: 1),
+      "Nothing was removed because this iPad could not save the change. Remove the download again.")
+  }
+
+  func testSelectedSizeCountsOnlyBytesOnTheDevice() {
+    func item(_ stage: PutioOfflineItem.Stage, stored: Int64 = 0) -> PutioOfflineItem {
+      PutioOfflineItem(
+        id: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video, createdAt: .now,
+        stage: stage, localPath: nil, storedBytes: stored,
+        storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+        pendingPositionSeconds: nil, estimatedBytes: 1_000)
+    }
+    XCTAssertEqual(item(.completed, stored: 900).bytesOnDevice, 900)
+    XCTAssertEqual(item(.downloading(progress: 0.42)).bytesOnDevice, 420)
+    XCTAssertEqual(item(.paused(progress: 0.5)).bytesOnDevice, 500)
+    XCTAssertEqual(item(.converting(progress: 0.5)).bytesOnDevice, 0)
+    XCTAssertEqual(item(.queued).bytesOnDevice, 0)
   }
 
   func testAFailedQueueWriteStaysReportedUntilARetryWritesIt() async throws {
