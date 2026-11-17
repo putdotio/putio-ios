@@ -4896,9 +4896,13 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(tabButton("Account").isHittable, "Trash hid the top tabs")
     assertInTrashColumn(app.staticTexts["poster.jpg"], "the Trash list")
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-open" {
+      let bar = tabButton("Account").frame
+      XCTAssertEqual(
+        app.buttons["trash.menu"].frame.midX, bar.midX, accuracy: 2,
+        "More is off the trailing bar")
       XCTAssertLessThanOrEqual(
-        app.buttons["trash.menu"].frame.maxX, tabButton("Account").frame.minX,
-        "Trash runs under the trailing bars")
+        app.staticTexts["poster.jpg"].frame.maxX, bar.minX,
+        "the Trash list runs under the trailing bars")
     }
     try captureBoard("rd-ios-trash-19-ipad")
   }
