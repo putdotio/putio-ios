@@ -207,11 +207,45 @@
     func body(content: Content) -> some View {
       if let maxWidth {
         content
-          .frame(maxWidth: maxWidth)
-          .frame(maxWidth: .infinity)
+          .background(PutioReadableColumnInsets(maxWidth: maxWidth))
           .background(PutioTheme.Colors.background)
       } else {
         content
+      }
+    }
+  }
+
+  private struct PutioReadableColumnInsets: UIViewControllerRepresentable {
+    let maxWidth: CGFloat
+
+    func makeUIViewController(context: Context) -> Controller { Controller(maxWidth: maxWidth) }
+    func updateUIViewController(_ controller: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+      private let maxWidth: CGFloat
+
+      init(maxWidth: CGFloat) {
+        self.maxWidth = maxWidth
+        super.init(nibName: nil, bundle: nil)
+      }
+
+      @available(*, unavailable)
+      required init?(coder: NSCoder) { nil }
+
+      override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        guard let column = navigationController else { return }
+        let added = column.additionalSafeAreaInsets
+        let safeArea = column.view.safeAreaInsets
+        let width =
+          column.view.bounds.width - (safeArea.left - added.left) - (safeArea.right - added.right)
+        let inset = max(0, (width - maxWidth) / 2)
+        guard
+          column.additionalSafeAreaInsets.left != inset
+            || column.additionalSafeAreaInsets.right != inset
+        else { return }
+        column.additionalSafeAreaInsets.left = inset
+        column.additionalSafeAreaInsets.right = inset
       }
     }
   }
