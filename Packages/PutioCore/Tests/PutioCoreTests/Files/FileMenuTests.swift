@@ -94,7 +94,9 @@ final class FileMenuTests: XCTestCase {
     let submenu = { (disabled: [Bool]) in
       PutioItemAction(
         submenu: "play-menu", title: "Play", icon: .play,
-        children: disabled.enumerated().map { action("\($0.offset)", isDisabled: $0.element) })
+        children: disabled.enumerated().map {
+          self.action("\($0.offset)", isDisabled: $0.element)
+        })
     }
     XCTAssertFalse(submenu([true, false]).isDisabled)
     XCTAssertTrue(submenu([true, true]).isDisabled)
