@@ -466,6 +466,68 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(account.trashSizeBytes, 4096)
   }
 
+  func testTheTrashSizeReplacesOnlyTheAccountsTrashTotal() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(
+        rememberVideoTime: true, avatarURL: "https://static.put.io/avatar.png",
+        trashSize: 4096)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn(let before) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+
+    store.applyTrashSize(1024)
+
+    guard case .signedIn(let after) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(after.trashSizeBytes, 1024)
+    XCTAssertEqual(
+      PutioAccountSnapshot(
+        id: after.id, username: after.username, email: after.email,
+        suggestNextVideo: after.suggestNextVideo, rememberVideoTime: after.rememberVideoTime,
+        defaultSort: after.defaultSort, historyEnabled: after.historyEnabled,
+        trashEnabled: after.trashEnabled, storage: after.storage, routeName: after.routeName,
+        hideSubtitles: after.hideSubtitles,
+        dontAutoSelectSubtitles: after.dontAutoSelectSubtitles,
+        twoFactorEnabled: after.twoFactorEnabled,
+        diagnosticsEnabled: after.diagnosticsEnabled,
+        productAnalyticsEnabled: after.productAnalyticsEnabled, avatarURL: after.avatarURL,
+        trashSizeBytes: before.trashSizeBytes, status: after.status,
+        isSubAccount: after.isSubAccount, filesDeletionDate: after.filesDeletionDate),
+      before)
+  }
+
+  func testATrashSizeIsIgnoredWhileTrashIsOff() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200, Self.accountInfo(rememberVideoTime: true, trashSize: 4096)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    store.applyAcknowledgedPreferences(trashEnabled: false)
+
+    store.applyTrashSize(0)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.trashSizeBytes, 4096)
+  }
+
+  func testATrashSizeIsIgnoredWhileSignedOut() {
+    let (store, _) = makeStore(token: nil)
+    let before = store.state
+
+    store.applyTrashSize(1024)
+
+    XCTAssertEqual(store.state, before)
+  }
+
   func testNonHTTPSAvatarIsDropped() async {
     fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
     fixtures.fixtures["GET /v2/account/info"] = (
