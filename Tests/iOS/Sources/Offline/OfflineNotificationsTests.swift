@@ -31,8 +31,8 @@ final class OfflineNotificationsTests: XCTestCase {
     let item = PutioOfflineItem(
       id: PutioFileID(rawValue: 9), parentID: .root, name: "Episode 1.mkv", kind: .video,
       createdAt: .now, stage: .failed(failure), localPath: nil, storedBytes: 0,
-      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
-      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 4_000)
+      storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+      pendingPositionSeconds: nil, estimatedBytes: 4_000)
 
     let content = PutioOfflineNotifications.failureContent(item, failure)
 
