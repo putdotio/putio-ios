@@ -116,6 +116,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testDownloadsFixture() throws {
     let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
+    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
     let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
     let notificationsOff =
       ProcessInfo.processInfo.environment["PUTIO_NOTIFICATIONS_DENIED"] == "1"
