@@ -1151,6 +1151,17 @@
         }
       }
     },
+    "Couldn’t load more history." : {
+      "comment" : "android: mobile_history_paging_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load more history."
+          }
+        }
+      }
+    },
     "Couldn’t load more results." : {
       "comment" : "android: mobile_search_paging_error",
       "localizations" : {

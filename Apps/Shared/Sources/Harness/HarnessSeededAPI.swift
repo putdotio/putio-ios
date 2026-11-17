@@ -1326,6 +1326,7 @@ import Foundation
         || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
         || (Self.holdsSearch && url.path == "/v2/files/search")
         || Self.holdsDeviceLink(replayableRequest)
+        || HarnessHistory.holdsPage(method: request.httpMethod ?? "GET", url: url)
         || Self.clearsData(replayableRequest, mode: .hold) || Self.holdsMusic(url)
       {
         return
@@ -1571,6 +1572,9 @@ import Foundation
       }
       if HarnessHistory.handles(method: "GET", url: url) {
         return HarnessHistory.response(excluding: historyDeletedIDs)
+      }
+      if HarnessHistory.handlesPage(method: "GET", url: url) {
+        return historyFailure("continuation")
       }
       if before == nil {
         historyRootLoads += 1

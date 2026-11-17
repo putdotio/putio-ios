@@ -55,6 +55,24 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([30, 15]))
   }
 
+  func testRefreshClearsPageFailureAndStartsFromPageOne() async {
+    var cursors: [Int?] = []
+    var roots = 0
+    let model = model(list: { before in
+      cursors.append(before)
+      guard before == nil else { throw PutioRuntimeError.transient }
+      roots += 1
+      return roots == 1 ? Self.page([30], next: 20) : Self.page([40, 30], next: 20)
+    })
+    await model.loadIfNeeded()
+    await model.loadMore()
+    XCTAssertNotNil(model.loadMoreFailure)
+    await model.refresh()
+    XCTAssertNil(model.loadMoreFailure)
+    XCTAssertEqual(cursors, [nil, 20, nil])
+    XCTAssertEqual(model.page, Self.page([40, 30], next: 20))
+  }
+
   func testDeleteAndClearFailuresRetainPageAndRetryExactOperation() async {
     var failDelete = true
     var failClear = true

@@ -2478,6 +2478,37 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-hist-01-list")
   }
 
+  func testHistoryLoadingMore() throws {
+    openHistory("more-held")
+    XCTAssertTrue(
+      element("history.item.907").appears(within: 10), "the seeded history never loaded")
+    let more = element("history.more")
+    app.bringIntoView(more)
+    let filesTab = app.buttons["Files"].firstMatch.frame
+    let visibleBottom = filesTab.minY > app.frame.midY ? filesTab.minY : app.frame.maxY
+    for _ in 0..<3 where more.frame.maxY > visibleBottom { app.swipeUp() }
+    XCTAssertLessThanOrEqual(more.frame.maxY, visibleBottom, "the tab bar covers the spinner")
+    XCTAssertTrue(
+      labeled("Loading more history").appears(within: 5), "the next page shows no spinner")
+    XCTAssertFalse(element("history.more-error").exists, "the held page already failed")
+    try captureBoard("rd-ios-hist-09-loading-more")
+  }
+
+  func testHistoryLoadMoreFailed() throws {
+    openHistory("more-fails")
+    XCTAssertTrue(
+      element("history.item.907").appears(within: 10), "the seeded history never loaded")
+    app.bringIntoView(element("history.more-retry"))
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load more history."].appears(within: 10),
+      "the next page never failed")
+    XCTAssertTrue(element("history.more-retry").exists, "the failed page offers no retry")
+    XCTAssertTrue(element("history.item.901").exists, "the failed page dropped loaded rows")
+    XCTAssertFalse(
+      app.staticTexts["Retry History continuation"].exists, "the footer shows the raw failure")
+    try captureBoard("rd-ios-hist-10-load-more-failed")
+  }
+
   func testHistoryLoading() throws {
     openHistory("slow")
     XCTAssertTrue(labeled("Loading history").appears(within: 5), "History shows no spinner")
