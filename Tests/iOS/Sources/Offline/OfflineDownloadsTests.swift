@@ -1149,6 +1149,17 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: fileID)?.stage, .downloading(progress: 0))
   }
 
+  func testAFullDiskOfflineStillFailsAsStorage() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    queue.setOnline(false)
+    engine.onFinished?(
+      fileID, NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .failed(.storage))
+  }
+
   func testAPositionSavedOfflineIsSentWhenThePathReturns() async {
     let queue = makeQueue()
     let fileID = PutioFileID(rawValue: 1)

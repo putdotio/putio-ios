@@ -1165,14 +1165,14 @@ final class PutioOfflineQueue {
     if let error {
       if case .paused = items[index].stage { return }
       if (error as? URLError)?.code == .cancelled { return }
-      if !isOnline {
+      let outOfSpace = (error as NSError).code == NSFileWriteOutOfSpaceError
+      if !isOnline, !outOfSpace {
         deleteLocalAsset(for: fileID)
         lostToNetwork.insert(fileID)
         update(fileID) { $0.stage = .waitingForNetwork(progress: $0.progress) }
         return
       }
-      let failure: PutioOfflineFailure =
-        (error as NSError).code == NSFileWriteOutOfSpaceError ? .storage : .download
+      let failure: PutioOfflineFailure = outOfSpace ? .storage : .download
       deleteLocalAsset(for: fileID)
       fail(fileID, failure)
       schedule()
