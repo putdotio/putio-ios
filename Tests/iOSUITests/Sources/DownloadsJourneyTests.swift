@@ -381,6 +381,7 @@ final class DownloadsJourneyTests: XCTestCase {
       "the stored \(target) track did not play: \(audio.value ?? "")")
     let position = element("video.current-position")
     XCTAssertTrue(position.appears(within: 10))
+    app.setVideoPlaying(false, with: element("video.play-pause"))
     app.closeVideo()
 
     let reported = element("video.position-reported")
