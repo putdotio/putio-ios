@@ -203,6 +203,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     let actions: [PutioSelectionAction]
     let isBusy: Bool
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.tabBarPlacement) private var tabBarPlacement
     @Environment(\.putioTabBarHiding) private var tabBarHiding
     @State private var tabBarRequest = UUID()
 
@@ -220,7 +221,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         }
         .toolbarVisibility(usesBottomToolbar ? .hidden : .automatic, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
-          if selection.isActive, !isCompact {
+          if selection.isActive, !tabBarAtBottom {
             PutioSelectionBar(actions: actions)
               .disabled(actionsDisabled)
           }
@@ -238,9 +239,12 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         }
     }
 
-    private var isCompact: Bool { horizontalSizeClass == .compact }
+    private var tabBarAtBottom: Bool {
+      guard let tabBarPlacement else { return horizontalSizeClass == .compact }
+      return tabBarPlacement != .topBar && tabBarPlacement != .sidebar
+    }
 
-    private var usesBottomToolbar: Bool { selection.isActive && isCompact }
+    private var usesBottomToolbar: Bool { selection.isActive && tabBarAtBottom }
 
     private var actionsDisabled: Bool { selection.count == 0 || isBusy }
   }
