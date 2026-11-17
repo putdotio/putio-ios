@@ -2529,7 +2529,7 @@ final class OfflineDownloadsTests: XCTestCase {
     func item(_ stage: PutioOfflineItem.Stage, stored: Int64 = 0) -> PutioOfflineItem {
       PutioOfflineItem(
         id: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video, createdAt: .now,
-        stage: stage, localPath: nil, storedBytes: stored, selectedAudioLanguages: [],
+        stage: stage, localPath: nil, storedBytes: stored,
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
         pendingPositionSeconds: nil, estimatedBytes: 1_000)
     }
