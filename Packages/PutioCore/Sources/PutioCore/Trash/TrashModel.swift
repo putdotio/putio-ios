@@ -658,8 +658,10 @@ public final class PutioTrashModel {
     }
   }
 
-  /// Restores the selected rows in batches. A failed batch stops the run; its
-  /// rows and those never sent stay listed, and the failure names only them.
+  /// Restores the selected rows in batches. A batch the server refuses for
+  /// one of its items goes out again one item at a time; any other failure
+  /// stops the run. Rows that did not leave Trash stay listed, and the failure
+  /// names only them.
   public func restore(_ items: [PutioTrashItem]) async {
     guard !items.isEmpty else { return }
     await mutate(.restoreItems(items)) {
@@ -698,16 +700,45 @@ public final class PutioTrashModel {
     _ send: ([PutioFileID]) async throws -> Void
   ) async -> (committed: [PutioTrashItem], remaining: [PutioTrashItem], failure: Error?) {
     var committed: [PutioTrashItem] = []
+    var refused: [PutioTrashItem] = []
+    var refusal: Error?
     for start in stride(from: 0, to: items.count, by: actions.batchSize) {
-      let batch = Array(items[start..<min(start + actions.batchSize, items.count)])
+      let end = min(start + actions.batchSize, items.count)
+      let batch = Array(items[start..<end])
       do {
         try await send(batch.map(\.id))
         committed += batch
+      } catch  where Self.refusesItems(error) {
+        for (offset, item) in batch.enumerated() {
+          var failure: Error?
+          if batch.count == 1 {
+            failure = error
+          } else {
+            do { try await send([item.id]) } catch { failure = error }
+          }
+          guard let failure, failure as? PutioRuntimeError != .notFound else {
+            committed.append(item)
+            continue
+          }
+          guard Self.refusesItems(failure) else {
+            return (committed, refused + batch[offset...] + items[end...], failure)
+          }
+          refused.append(item)
+          if !(refusal is PutioTrashStillMoving) { refusal = failure }
+        }
       } catch {
-        return (committed, Array(items[start...]), error)
+        return (committed, refused + items[start...], error)
       }
     }
-    return (committed, [], nil)
+    return (committed, refused, refused.isEmpty ? nil : refusal)
+  }
+
+  private static func refusesItems(_ error: Error) -> Bool {
+    if error is PutioTrashStillMoving { return true }
+    switch error as? PutioRuntimeError {
+    case .notFound, .unknown: return true
+    default: return false
+    }
   }
 
   /// Restores every item in Trash, including pages never loaded.
