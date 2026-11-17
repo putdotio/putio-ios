@@ -49,7 +49,7 @@ private struct PutioVideoUpNextCard: View {
   let onCancel: () -> Void
 
   @ScaledMetric(relativeTo: .body) private var headingMinWidth: CGFloat = 140
-  @ScaledMetric(relativeTo: .body) private var headingIdealWidth: CGFloat = 248
+  @ScaledMetric(relativeTo: .body) private var headingIdealWidth: CGFloat = 180
 
   var body: some View {
     PutioUpNextCardLayout(

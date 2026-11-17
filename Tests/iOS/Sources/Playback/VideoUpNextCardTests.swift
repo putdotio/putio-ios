@@ -1,3 +1,4 @@
+import PutioCore
 import SwiftUI
 import Vision
 import XCTest
@@ -54,6 +55,26 @@ final class VideoUpNextCardTests: XCTestCase {
       XCTAssertTrue(
         readsMarker(lines, "S02E05"), "a long series name at \(size) hid the marker: \(lines)")
     }
+  }
+
+  func testLandscapePhoneFitsTheBoardChipLabelsBesideTheCard() throws {
+    _ = SnapshotEnvironment.registersBrandFonts
+    let boardChips = HStack(spacing: PutioTheme.Spacing.space2) {
+      PutioVideoChipLabel(icon: .speakerHigh, title: "English", iconOnly: false)
+      PutioVideoChipLabel(icon: .closedCaptioning, title: "English", iconOnly: false)
+      PutioVideoChipLabel(icon: .gauge, title: "1x", iconOnly: false)
+    }
+    let card = PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false)
+    let rowWidth = try idealWidth(boardChips) + 3 * PutioTheme.Spacing.space2 + idealWidth(card)
+    XCTAssertLessThanOrEqual(
+      rowWidth, 874 - 2 * (62 + 16),
+      "\(rowWidth) pt: the board's labelled chips no longer fit beside the card")
+  }
+
+  private func idealWidth(_ view: some View) throws -> CGFloat {
+    let renderer = ImageRenderer(content: view.fixedSize().dynamicTypeSize(.large))
+    renderer.scale = 1
+    return CGFloat(try XCTUnwrap(renderer.cgImage, "the view did not render").width)
   }
 
   private let upNext = PutioVideoUpNext(
