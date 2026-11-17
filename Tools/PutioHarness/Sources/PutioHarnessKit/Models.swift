@@ -1053,6 +1053,9 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-07-delete-confirm", .iphone, "testTrashDeleteConfirm"),
       BoardCapture("rd-ios-trash-17-delete-failed", .iphone, "testTrashDeleteFailed"),
       BoardCapture("rd-ios-trash-21-deleted", .iphone, "testTrashDeleted"),
+      BoardCapture("rd-ios-trash-04-more", .iphone, "testTrashMoreMenu"),
+      BoardCapture("rd-ios-trash-08-empty-confirm", .iphone, "testTrashEmptyConfirm"),
+      BoardCapture("rd-ios-trash-22-emptied", .iphone, "testTrashEmptied"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1581,6 +1584,9 @@ enum BrowserJourneyContract {
         "runtime-trash-empty",
       ],
       timeAllowance: 120),
+    JourneyPreflight(
+      "trash-restore-all", "FilesBrowserJourneyTests/testTrashRestoreAllReturnsItemsToFiles",
+      attachmentNames: ["runtime-trash-restore-all"], timeAllowance: 90),
     JourneyPreflight(
       "trash-offline", "FilesBrowserJourneyTests/testOfflineTrashRetriesOnItsOwn",
       attachmentNames: ["runtime-trash-offline"], timeAllowance: 90),

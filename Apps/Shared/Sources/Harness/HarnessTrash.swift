@@ -13,6 +13,7 @@ import Foundation
       case restoreRejected = "restore-rejected"
       case stillMoving = "still-moving"
       case deleteFails = "delete-fails"
+      case emptyFails = "empty-fails"
 
       var isPaged: Bool { self == .moreLoading || self == .moreFailing }
 
@@ -40,6 +41,7 @@ import Foundation
     static let continuePath = "/v2/trash/list/continue"
     static let restorePath = "/v2/trash/restore"
     static let deletePath = "/v2/trash/delete"
+    static let emptyPath = "/v2/trash/empty"
     static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
     static let pagedRefreshDelay: TimeInterval = 3
@@ -63,7 +65,7 @@ import Foundation
     static func handles(method: String, path: String) -> Bool {
       guard let mode else { return false }
       if method == "GET", path == listPath { return true }
-      if method == "POST", path == restorePath || path == deletePath { return true }
+      if method == "POST", [restorePath, deletePath, emptyPath].contains(path) { return true }
       return mode.isPaged && method == "POST" && path == continuePath
     }
 
@@ -117,6 +119,7 @@ import Foundation
     static func response(method: String, path: String, payload: [String: Any]?) -> (Int, String) {
       if method == "POST", path == restorePath { return restore(payload: payload) }
       if method == "POST", path == deletePath { return delete(payload: payload) }
+      if method == "POST", path == emptyPath { return empty() }
       guard method == "POST", path == continuePath else { return firstPage() }
       return continuation(cursor: payload?["cursor"] as? String)
     }
@@ -152,6 +155,18 @@ import Foundation
           #"{"status":"ERROR","status_code":404,"error_type":"FILE_NOT_FOUND","message":"Harness Trash deletes only listed items"}"#
         )
       }
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func empty() -> (Int, String) {
+      if mode == .emptyFails {
+        return (
+          500,
+          #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_EMPTY","message":"Trash refuses to empty"}"#
+        )
+      }
+      let listed = Set(seededItems.map(\.id))
+      lock.withLock { removedIDs.formUnion(listed) }
       return (200, #"{"status":"OK"}"#)
     }
 
