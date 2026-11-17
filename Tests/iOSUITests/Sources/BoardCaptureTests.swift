@@ -178,14 +178,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func exerciseAttentionRows() {
-    func episode(_ number: Int) -> String {
-      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
-    }
-    func becomesQueued(_ row: XCUIElement) -> Bool {
-      let expectation = XCTNSPredicateExpectation(
-        predicate: NSPredicate { _, _ in row.value as? String == "queued" }, object: nil)
-      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
-    }
+    func becomesQueued(_ row: XCUIElement) -> Bool { settles(row) { $0 == "queued" } }
     let storage = element("downloads.storage-used")
     app.scrollDown(toHit: storage)
     XCTAssertTrue(
@@ -198,6 +191,8 @@ final class BoardCaptureTests: XCTestCase {
     app.bringIntoView(missing)
     app.buttons["Download again, \(episode(1))"].tap()
     XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
+  }
+
   private func episode(_ number: Int) -> String {
     "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
   }
