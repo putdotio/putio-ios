@@ -212,9 +212,46 @@ final class DownloadsJourneyTests: XCTestCase {
     let item = element("downloads.item.412")
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertTrue(
-      waitForValue(item, "failed;resolution", timeout: 20),
+      waitForValue(item, "failed;resolution;watched", timeout: 20),
       "the refused download was not reported: \(item.value ?? "")")
     screenshot("runtime-downloads-start-failed")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  func testADownloadFinishesWithNotificationsOff() throws {
+    app.launchArguments.append("--putio-harness-notifications-denied")
+    app.launch()
+    signIn()
+
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
+    let download = app.buttons["Download"]
+    XCTAssertTrue(download.appears(within: 5))
+    download.tap()
+    let item = element("downloads.item.442")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      element("downloads.notifications-off").appears(within: 5),
+      "denied notifications showed no row")
+    XCTAssertTrue(app.buttons["downloads.notifications-turn-on"].exists)
+    XCTAssertTrue(
+      waitForValue(item, "completed;watched", timeout: 60),
+      "the download did not finish without notifications: \(item.value ?? "")")
+    screenshot("runtime-downloads-notifications-off")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")

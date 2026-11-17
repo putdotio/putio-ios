@@ -113,7 +113,8 @@ A board state needs one row there and one seeded test step.
 - Downloads boards launch with `--putio-harness-downloads <fixture>`; the
   fixtures live in
   [HarnessDownloadsFixture](../../../../Apps/iOS/Sources/Harness/HarnessDownloadsFixture.swift).
-  Add `--putio-harness-offline-writes-fail` for a failed removal.
+  Add `--putio-harness-offline-writes-fail` for a failed removal and
+  `--putio-harness-notifications-denied` for the notifications-off row.
 - Captures use the seeded fixtures, never the live account. Compare them with
   their boards yourself; the run proves only that the state was reached.
 - Redesign pull requests list each capture in the board table the
