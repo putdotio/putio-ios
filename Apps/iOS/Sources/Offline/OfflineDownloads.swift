@@ -83,6 +83,7 @@ final class PutioOfflineQueue {
   /// File ids whose engine task is suspended and can be resumed in place.
   @ObservationIgnored private var suspended: Set<PutioFileID> = []
   @ObservationIgnored private var streamEstimated: Set<PutioFileID> = []
+  @ObservationIgnored private var lostToNetwork: Set<PutioFileID> = []
   /// Suspended tasks the user asked to resume while every slot was busy.
   private var resumeWhenFree: [PutioFileID] = []
   /// Items whose package is being read for completion; a second completion
@@ -224,7 +225,8 @@ final class PutioOfflineQueue {
         items[index].stage = .waitingForNetwork(progress: progress)
         changed = true
       case .waitingForNetwork(let progress) where online:
-        items[index].stage = .downloading(progress: progress)
+        items[index].stage =
+          lostToNetwork.remove(items[index].id) == nil ? .downloading(progress: progress) : .queued
         changed = true
       default:
         break
@@ -232,6 +234,7 @@ final class PutioOfflineQueue {
     }
     if changed { persist() }
     schedule()
+    if online { Task { await syncPendingPositions() } }
   }
 
   /// Reconnects tasks the system kept alive and re-queues everything else
@@ -452,8 +455,10 @@ final class PutioOfflineQueue {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return false }
     switch items[index].stage {
     case .downloading(let progress), .waitingForNetwork(let progress):
-      engine.pause(fileID: fileID)
-      suspended.insert(fileID)
+      if lostToNetwork.remove(fileID) == nil {
+        engine.pause(fileID: fileID)
+        suspended.insert(fileID)
+      }
       items[index].stage = .paused(progress: progress)
     case .queued, .waitingToConvert, .waitingForStorage:
       workers[fileID]?.task.cancel()
@@ -499,6 +504,11 @@ final class PutioOfflineQueue {
     case .missing: break
     default: return
     }
+    guard isOnline else {
+      let connectionLost = PutioOfflineFailure.resolving(PutioRuntimeError.transient) ?? .download
+      update(fileID) { $0.stage = .failed(connectionLost) }
+      return
+    }
     completionEpoch[fileID, default: 0] &+= 1
     items[index].stage = .queued
     persist()
@@ -514,6 +524,7 @@ final class PutioOfflineQueue {
       workers[fileID] = nil
       suspended.remove(fileID)
       streamEstimated.remove(fileID)
+      lostToNetwork.remove(fileID)
       resumeWhenFree.removeAll { $0 == fileID }
       engine.cancel(fileID: fileID)
       if let item = item(for: fileID) { leaving.append(item) }
@@ -699,6 +710,7 @@ final class PutioOfflineQueue {
       deleteLocalAsset(for: fileID)
     }
     suspended.removeAll()
+    lostToNetwork.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
     removalGeneration &+= 1
@@ -745,6 +757,10 @@ final class PutioOfflineQueue {
   private func yieldSlot(_ fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }), !isPaused(items[index].stage)
     else { return }
+    if lostToNetwork.remove(fileID) != nil {
+      items[index].stage = .queued
+      return
+    }
     switch items[index].stage {
     case .downloading(let progress), .waitingForNetwork(let progress):
       engine.pause(fileID: fileID)
@@ -941,6 +957,7 @@ final class PutioOfflineQueue {
       // A restart never reuses a package from an earlier attempt; the new
       // task writes to a fresh destination and the old bytes would leak.
       deleteLocalAsset(for: fileID)
+      lostToNetwork.remove(fileID)
       update(fileID) {
         $0.stage = .downloading(progress: 0)
         $0.resumePositionSeconds = source.startFromSeconds
@@ -1091,6 +1108,7 @@ final class PutioOfflineQueue {
   /// not leave a downloading row with no task behind it.
   private func engineCancelled(_ fileID: PutioFileID) {
     suspended.remove(fileID)
+    lostToNetwork.remove(fileID)
     // A waiter whose task is gone can no longer resume in place; it goes
     // back through the queue like any other paused item.
     if resumeWhenFree.contains(fileID) {
@@ -1147,8 +1165,14 @@ final class PutioOfflineQueue {
     if let error {
       if case .paused = items[index].stage { return }
       if (error as? URLError)?.code == .cancelled { return }
-      let failure: PutioOfflineFailure =
-        (error as NSError).code == NSFileWriteOutOfSpaceError ? .storage : .download
+      let outOfSpace = (error as NSError).code == NSFileWriteOutOfSpaceError
+      if !isOnline, !outOfSpace {
+        deleteLocalAsset(for: fileID)
+        lostToNetwork.insert(fileID)
+        update(fileID) { $0.stage = .waitingForNetwork(progress: $0.progress) }
+        return
+      }
+      let failure: PutioOfflineFailure = outOfSpace ? .storage : .download
       deleteLocalAsset(for: fileID)
       fail(fileID, failure)
       schedule()

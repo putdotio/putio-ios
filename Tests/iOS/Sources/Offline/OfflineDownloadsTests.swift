@@ -1112,6 +1112,72 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: first)?.stage, .downloading(progress: 0.4))
   }
 
+  func testARetryWithoutNetworkFailsAsALostConnection() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onFinished?(fileID, URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .failed(.download))
+
+    queue.setOnline(false)
+    queue.retry(fileID: fileID)
+    await settle()
+    XCTAssertEqual(
+      queue.item(for: fileID)?.stage,
+      .failed(PutioOfflineFailure.resolving(PutioRuntimeError.transient) ?? .download))
+    XCTAssertEqual(
+      queue.item(for: fileID)?.downloadState(queuePosition: nil),
+      .failed(reason: "Connection lost"))
+    XCTAssertEqual(engine.started.count, 1, "an offline retry starts nothing")
+  }
+
+  func testAConnectionLostOfflineWaitsAndRestartsWhenThePathReturns() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(fileID, 0.4)
+
+    queue.setOnline(false)
+    engine.onFinished?(fileID, URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .waitingForNetwork(progress: 0.4))
+
+    queue.setOnline(true)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 1], "the lost task restarts")
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .downloading(progress: 0))
+  }
+
+  func testAFullDiskOfflineStillFailsAsStorage() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    queue.setOnline(false)
+    engine.onFinished?(
+      fileID, NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .failed(.storage))
+  }
+
+  func testAPositionSavedOfflineIsSentWhenThePathReturns() async {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    queue.setOnline(false)
+    reportShouldFail = true
+    await queue.recordPosition(fileID: fileID, seconds: 42)
+    XCTAssertEqual(queue.pendingPositionCount, 1)
+
+    reportShouldFail = false
+    queue.setOnline(true)
+    await settle()
+    XCTAssertEqual(reports.map(\.0), [1])
+    XCTAssertEqual(reports.map(\.1), [42])
+    XCTAssertEqual(queue.pendingPositionCount, 0)
+  }
+
   func testARemovedRowReadsAsRemovingUntilItsPackageIsGone() async throws {
     let gate = makeGate()
     let queue = makeQueue(deletePackages: { urls in

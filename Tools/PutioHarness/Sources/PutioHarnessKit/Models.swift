@@ -1300,6 +1300,9 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 180),
     JourneyPreflight(
+      "downloads-offline", "DownloadsJourneyTests/testDownloadsTabWorksOffline",
+      attachmentNames: ["runtime-downloads-offline"], timeAllowance: 120),
+    JourneyPreflight(
       "unsaved-downloads",
       "DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads",
       timeAllowance: 90),

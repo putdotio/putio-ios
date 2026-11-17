@@ -91,6 +91,7 @@ enum PutioOfflineQueueFactory {
       deletePackages: seeded?.deletePackages
     )
     if let seeded {
+      seeded.prepare(queue)
       if !seeded.removingIDs.isEmpty {
         Task {
           await queue.restore()
@@ -114,6 +115,7 @@ enum PutioOfflineQueueFactory {
     let conversionStatus: PutioOfflineConversionStatus
     let deletePackages: PutioOfflinePackageDeletion?
     let removingIDs: [PutioFileID]
+    let prepare: @MainActor (PutioOfflineQueue) -> Void
   }
 
   @MainActor
@@ -141,7 +143,10 @@ enum PutioOfflineQueueFactory {
         startConversion: { _ in },
         conversionStatus: { fileID in conversions[fileID] ?? .queued },
         deletePackages: fixture.deletePackages,
-        removingIDs: fixture.removingIDs)
+        removingIDs: fixture.removingIDs,
+        prepare: { queue in
+          if fixture == .offline { HarnessDownloadsNetwork.cut(queue) }
+        })
     #else
       return nil
     #endif

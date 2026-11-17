@@ -333,6 +333,86 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testDownloadsTabWorksOffline() throws {
+    app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
+    app.launchArguments += ["--putio-harness-downloads", "offline"]
+    app.launch()
+    let signIn = element("auth.sign-in")
+    if signIn.appears(within: 10) { signIn.tap() }
+    let downloads = app.buttons["Downloads"]
+    XCTAssertTrue(downloads.appears(within: 15), "the Downloads tab is missing")
+    downloads.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+
+    let waiting = element("downloads.item.442")
+    XCTAssertTrue(
+      waitForValue(waiting, "waiting-network;42", timeout: 10),
+      "the running download did not wait for the network: \(waiting.value ?? "")")
+    XCTAssertEqual(element("downloads.item.443").value as? String, "queued")
+    XCTAssertFalse(app.putioAlerts.firstMatch.exists, "the offline tab reported an error")
+    screenshot("runtime-downloads-offline")
+
+    let failed = element("downloads.item.444")
+    app.bringIntoView(failed)
+    app.buttons["Retry download, \(episode(4))"].tap()
+    RunLoop.current.run(until: .now.addingTimeInterval(2))
+    XCTAssertEqual(
+      failed.value as? String, "failed;resolution;26",
+      "an offline retry did not stay Connection lost")
+    XCTAssertTrue(
+      app.descendants(matching: .any)
+        .matching(NSPredicate(format: "label CONTAINS %@", "Connection lost")).firstMatch.exists,
+      "the offline retry row does not read Connection lost")
+
+    let finished = app.buttons["downloads.item.441"].firstMatch
+    app.bringIntoView(finished)
+    finished.tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
+    let audio = element("video.audio-language")
+    XCTAssertTrue(audio.appears(within: 10))
+    let target = (audio.value as? String) == "tr" ? "English" : "Turkish"
+    openAudioChip()
+    XCTAssertTrue(element("video.audio.1").exists, "the player offers one stored audio track")
+    app.buttons.matching(
+      NSPredicate(format: "identifier BEGINSWITH 'video.audio.' AND label CONTAINS %@", target)
+    ).firstMatch.tap()
+    XCTAssertTrue(
+      waitForValue(audio, target == "English" ? "en" : "tr", timeout: 10),
+      "the stored \(target) track did not play: \(audio.value ?? "")")
+    let position = element("video.current-position")
+    XCTAssertTrue(position.appears(within: 10))
+    app.setVideoPlaying(false, with: element("video.play-pause"))
+    app.closeVideo()
+
+    let reported = element("video.position-reported")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.positionReport(reported)?.id == "441" },
+      "closing the video saved no position")
+    RunLoop.current.run(until: .now.addingTimeInterval(1))
+    let seconds = try XCTUnwrap(positionReport(reported)?.seconds)
+    let synced = element("downloads.synced-position")
+    XCTAssertEqual(synced.value as? String, "0", "the position reached put.io while offline")
+
+    CFNotificationCenterPostNotification(
+      CFNotificationCenterGetDarwinNotifyCenter(),
+      CFNotificationName("io.put.harness.downloads-network-restore" as CFString), nil, nil, true)
+    XCTAssertTrue(
+      waitForValue(waiting, "downloading;42", timeout: 10),
+      "the waiting download did not resume: \(waiting.value ?? "")")
+    XCTAssertTrue(
+      waitForValue(synced, seconds, timeout: 10),
+      "the saved position never reached put.io: \(synced.value ?? "")")
+    XCTAssertEqual(element("downloads.item.443").value as? String, "queued")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
   private func choosePlaybackMethod(_ name: String) {
     app.buttons["Account"].tap()
     let method = app.revealed("playback-settings.method")
@@ -351,6 +431,28 @@ final class DownloadsJourneyTests: XCTestCase {
       waitUntil(timeout: 10) { method.label.hasSuffix(name) }, "method row read \(method.label)")
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
+  }
+
+  private func episode(_ number: Int) -> String {
+    "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+  }
+
+  private func openAudioChip() {
+    let chip = element("video.chip.audio")
+    for _ in 0..<3 {
+      app.revealVideoControls(showing: chip)
+      chip.tap()
+      if element("video.audio.0").waitForExistence(timeout: 3) { return }
+    }
+    XCTFail("the Audio chip opened no menu")
+  }
+
+  private func positionReport(_ probe: XCUIElement) -> (id: String, seconds: String)? {
+    let fields = (probe.value as? String ?? "").split(separator: ";").map {
+      $0.split(separator: "=", maxSplits: 1).last.map(String.init) ?? ""
+    }
+    guard fields.count == 2 else { return nil }
+    return (fields[0], fields[1])
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {
