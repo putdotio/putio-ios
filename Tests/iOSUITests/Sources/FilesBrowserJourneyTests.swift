@@ -1265,7 +1265,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let trashMenu = app.buttons["trash.menu"]
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     trashMenu.tap()
-    let select = app.buttons["trash.select"]
+    let select = trashMenuItem("Select")
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
     XCTAssertTrue(app.buttons["trash.selection.done"].appears(within: 5))

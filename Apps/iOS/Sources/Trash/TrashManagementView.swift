@@ -172,7 +172,8 @@ struct TrashManagementView: View {
           .modifier(TrashStatePlacement(.empty))
           .containerRelativeFrame([.horizontal, .vertical])
       }
-      .refreshable { await model.refresh() }
+      .scrollBounceBehavior(.always)
+      .refreshable { await Task { await model.refresh() }.value }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
         if !page.items.isEmpty || restoringItem != nil {
