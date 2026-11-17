@@ -2249,6 +2249,8 @@ import Foundation
         return startVideoConversion()
       case "GET /v2/files/411/mp4":
         return videoConversionStatus()
+      case "GET /v2/files/411/next-file":
+        return (200, #"{"next_file":null}"#)
       case "GET /v2/files/412":
         fileActionsLock.lock()
         let failExternalPlayback = externalPlaybackFailurePending
