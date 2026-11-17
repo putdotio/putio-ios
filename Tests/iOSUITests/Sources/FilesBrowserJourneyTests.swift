@@ -1269,6 +1269,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     restoreBlueVelvet()
     XCTAssertTrue(app.staticTexts["Restore could not start"].appears(within: 10))
     assertBlueVelvetStays()
+    leaveTrashAndSignOut()
 
     app.terminate()
     app.launchArguments = ["--putio-harness-scenario", "files-browser"]
@@ -1287,6 +1288,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(alert.disappears(within: 5))
     XCTAssertFalse(app.staticTexts["Restore could not start"].exists, "the alert also toasted")
     assertBlueVelvetStays()
+    leaveTrashAndSignOut()
   }
 
   private func restoreBlueVelvet() {
