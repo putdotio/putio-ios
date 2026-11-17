@@ -411,7 +411,7 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertEqual(app.buttons["downloads.detail.play"].label, "Resume from 18:42")
       assertDetailFacts(
         [
-          "size": "3.2 GB", "audio": "English, Turkish",
+          "size": "3.24 GB", "audio": "English, Turkish",
           "subtitles": "English, English SDH, Turkish",
         ],
         order: ["size", "downloaded", "length", "audio", "subtitles"])
@@ -420,7 +420,7 @@ final class BoardCaptureTests: XCTestCase {
     case "downloading":
       selectDownload(442, actions: ["pause", "cancel"])
       assertDetailFacts(
-        ["size": "1.4 of 3.3 GB", "status": "Downloading · 42%"], order: ["size", "status"])
+        ["size": "1.39 of 3.3 GB", "status": "Downloading · 42%"], order: ["size", "status"])
       XCTAssertFalse(element("downloads.detail.audio").exists, "a running download lists audio")
       try captureBoard("rd-ios-dl-22-ipad-downloading")
     case "failed":
