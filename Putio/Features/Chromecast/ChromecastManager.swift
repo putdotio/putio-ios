@@ -27,10 +27,6 @@ class ChromecastManager: NSObject {
 
     var debug: Bool = false
 
-    var userSettings: UserSettings? = {
-        PutioRealm.open(context: "ChromecastManager.userSettings")?.objects(User.self).first?.settings
-    }()
-
     var userConfig: UserConfig? = {
         PutioRealm.open(context: "ChromecastManager.userConfig")?.objects(UserConfig.self).first
     }()
@@ -185,15 +181,14 @@ class ChromecastManager: NSObject {
                     subtitle.castableURL.map { (subtitle: subtitle, url: $0) }
                 }
                 mediaInfo.mediaTracks = sidecars.enumerated().compactMap { index, sidecar in
-                    let subtitle = sidecar.subtitle
-                    return GCKMediaTrack(
+                    GCKMediaTrack(
                         identifier: index,
                         contentIdentifier: sidecar.url.absoluteString,
                         contentType: "text/vtt",
                         type: .text,
                         textSubtype: .captions,
-                        name: subtitle.trackLabel,
-                        languageCode: subtitle.languageCode,
+                        name: sidecar.subtitle.trackLabel,
+                        languageCode: sidecar.subtitle.languageCode,
                         customData: nil
                     )
                 }

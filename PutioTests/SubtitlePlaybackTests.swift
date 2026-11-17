@@ -17,22 +17,21 @@ final class SubtitlePlaybackTests: XCTestCase {
     }
 
     func testCastTrackLabelIsLanguageAndFileNameWithoutExtension() throws {
-        let json = #"""
-        {"format":"srt","key":"k","language":"English","language_code":"eng","name":"Sample.Show.S01E01.en.srt","source":"api","url":"https://api.put.io/v2/files/1/subtitles/k?oauth_token=t"}
-        """#
-        let subtitle = try JSONDecoder().decode(PutioSubtitle.self, from: Data(json.utf8))
+        let subtitle = try sidecar(format: "srt", name: "Sample.Show.S01E01.en.srt")
 
         XCTAssertEqual(subtitle.trackLabel, "English - Sample.Show.S01E01.en")
         XCTAssertEqual(subtitle.castableURL.flatMap { queryValue("format", in: $0) }, "webvtt")
     }
 
     func testCastSkipsSidecarsTheReceiverCannotRender() throws {
-        let json = #"""
-        {"format":"ass","key":"k","language":"English","language_code":"eng","name":"Sample.Show.S01E01.en.ass","source":"mkv","url":"https://api.put.io/v2/files/1/subtitles/k?oauth_token=t"}
-        """#
-        let subtitle = try JSONDecoder().decode(PutioSubtitle.self, from: Data(json.utf8))
+        XCTAssertNil(try sidecar(format: "ass", name: "Sample.Show.S01E01.en.ass").castableURL)
+    }
 
-        XCTAssertNil(subtitle.castableURL)
+    private func sidecar(format: String, name: String) throws -> PutioSubtitle {
+        let json = """
+        {"format":"\(format)","key":"k","language":"English","language_code":"eng","name":"\(name)","source":"mkv","url":"https://api.put.io/v2/files/1/subtitles/k?oauth_token=t"}
+        """
+        return try JSONDecoder().decode(PutioSubtitle.self, from: Data(json.utf8))
     }
 
     private func queryValue(_ name: String, in url: URL) -> String? {
