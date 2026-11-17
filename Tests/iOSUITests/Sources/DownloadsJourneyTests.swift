@@ -357,7 +357,8 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["Retry download, \(episode(4))"].tap()
     RunLoop.current.run(until: .now.addingTimeInterval(2))
     XCTAssertEqual(
-      failed.value as? String, "failed;resolution", "an offline retry did not stay Connection lost")
+      failed.value as? String, "failed;resolution;26",
+      "an offline retry did not stay Connection lost")
     XCTAssertTrue(
       app.descendants(matching: .any)
         .matching(NSPredicate(format: "label CONTAINS %@", "Connection lost")).firstMatch.exists,

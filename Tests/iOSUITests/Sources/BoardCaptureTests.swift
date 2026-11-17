@@ -429,7 +429,8 @@ final class BoardCaptureTests: XCTestCase {
   private static let downloadsFixtureRows: [String: [(id: Int, state: String)]] = [
     "list": listFixtureRows,
     "offline": [
-      (442, "waiting-network;42"), (443, "queued"), (444, "failed;resolution"), (441, "completed"),
+      (442, "waiting-network;42"), (443, "queued"), (444, "failed;resolution;26"),
+      (441, "completed"),
       (9_001, "completed"), (408, "completed"),
     ],
     "empty": [],
