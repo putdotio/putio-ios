@@ -48,7 +48,7 @@ struct PutioOfflineDownloadsView: View {
 
   var body: some View {
     Group {
-      if queue.items.isEmpty {
+      if queue.items.isEmpty && queue.removing.isEmpty {
         empty
       } else {
         list
@@ -163,7 +163,8 @@ struct PutioOfflineDownloadsView: View {
   }
 
   private var list: some View {
-    let sections = PutioOfflineSections(queue.items)
+    let sections = PutioOfflineSections(
+      queue.items, waitingForSlot: queue.slotWaiters, removing: queue.removing)
     return List(selection: isEditing ? $selectedIDs : nil) {
       storageLine
         .listRowBackground(Color.clear)
@@ -199,22 +200,41 @@ struct PutioOfflineDownloadsView: View {
     }
   }
 
+  private func isRemoving(_ item: PutioOfflineItem) -> Bool {
+    queue.item(for: item.id) == nil
+  }
+
   private func rowModel(_ item: PutioOfflineItem, queuePosition: Int?) -> PutioFileRowModel {
     let finished = item.stage == .completed
+    let removing = isRemoving(item)
     return PutioFileRowModel(
       name: item.name, kind: item.kind == .video ? .video : .audio,
-      sizeText: finished ? item.storedSizeText : nil,
-      dateText: finished
+      sizeText: finished && !removing ? item.storedSizeText : nil,
+      dateText: finished && !removing
         ? PutioBrowserItemPresentation.relativeDateText(for: item.createdAt, locale: locale) : nil,
-      isWatched: finished && item.isWatched == true,
+      isWatched: finished && !removing && item.isWatched == true,
       showsDisclosure: false,
-      downloadState: item.downloadState(
-        queuePosition: queuePosition, isWaitingForSlot: queue.isWaitingForSlot(item.id)))
+      downloadState: removing
+        ? .removing(on: isPad ? .iPad : .iPhone)
+        : item.downloadState(queuePosition: queuePosition))
   }
 
   @ViewBuilder
   private func row(_ item: PutioOfflineItem, queuePosition: Int?) -> some View {
     let model = rowModel(item, queuePosition: queuePosition)
+    if isRemoving(item) {
+      PutioFileRow(model)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(Text(verbatim: "removing"))
+        .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
+        .selectionDisabled()
+    } else {
+      controlledRow(item, model: model)
+    }
+  }
+
+  @ViewBuilder
+  private func controlledRow(_ item: PutioOfflineItem, model: PutioFileRowModel) -> some View {
     Group {
       if isEditing {
         PutioFileRow(model)
@@ -264,14 +284,11 @@ struct PutioOfflineDownloadsView: View {
   @ViewBuilder
   private func controls(_ item: PutioOfflineItem) -> some View {
     switch item.stage {
-    case .queued, .converting, .downloading,
-      .paused where queue.isWaitingForSlot(item.id):
-      Button {
-        queue.pause(fileID: item.id)
-      } label: {
-        Label("Pause", systemImage: "pause")
-      }
-      .accessibilityIdentifier("downloads.pause.\(item.id.rawValue)")
+    case .queued, .waitingToConvert, .converting, .downloading, .waitingForNetwork,
+      .waitingForStorage:
+      pauseButton(item)
+    case .paused where queue.isWaitingForSlot(item.id):
+      pauseButton(item)
     case .paused:
       Button {
         queue.resume(fileID: item.id)
@@ -310,6 +327,15 @@ struct PutioOfflineDownloadsView: View {
     }
   }
 
+  private func pauseButton(_ item: PutioOfflineItem) -> some View {
+    Button {
+      queue.pause(fileID: item.id)
+    } label: {
+      Label("Pause", systemImage: "pause")
+    }
+    .accessibilityIdentifier("downloads.pause.\(item.id.rawValue)")
+  }
+
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     if !queue.items.isEmpty {
@@ -344,19 +370,20 @@ struct PutioOfflineDownloadsView: View {
   }
 
   private func accessibilityValue(_ item: PutioOfflineItem) -> String {
-    let marks = [
-      item.waitingForNetwork == true ? "network" : nil,
-      item.isRemoving == true ? "removing" : nil,
-      item.isWatched == true ? "watched" : nil,
-    ].compactMap(\.self)
-    return ([stageValue(item)] + marks).joined(separator: ";")
+    let stage = stageValue(item)
+    return item.isWatched == true ? "\(stage);watched" : stage
   }
 
   private func stageValue(_ item: PutioOfflineItem) -> String {
     switch item.stage {
     case .queued: "queued"
+    case .waitingToConvert: "waiting-to-convert"
     case .converting(let progress): "converting;\(Int(progress * 100))"
     case .downloading(let progress): "downloading;\(Int(progress * 100))"
+    case .waitingForNetwork(let progress): "waiting-network;\(Int(progress * 100))"
+    case .waitingForStorage: "waiting-storage"
+    case .paused(let progress) where queue.isWaitingForSlot(item.id):
+      "queued;\(Int(progress * 100))"
     case .paused(let progress): "paused;\(Int(progress * 100))"
     case .completed: "completed"
     case .failed(let failure):
@@ -466,8 +493,8 @@ struct PutioOfflineDetailView: View {
   private var status: String {
     switch item.stage {
     case .queued: String(localized: "Waiting")
-    case .converting: String(localized: "Converting")
-    case .downloading: String(localized: "Downloading")
+    case .waitingToConvert, .converting: String(localized: "Converting")
+    case .downloading, .waitingForNetwork, .waitingForStorage: String(localized: "Downloading")
     case .paused: String(localized: "Paused")
     case .completed: String(localized: "Downloaded")
     case .failed(let failure): failure.reason

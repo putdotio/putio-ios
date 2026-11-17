@@ -169,6 +169,7 @@ final class BoardCaptureTests: XCTestCase {
       exerciseDownloadsList()
     }
     if fixture == "attention-states", onPhone { exerciseAttentionRows() }
+    if fixture == "downloading-states", onPhone { exerciseDownloadingRings() }
     guard fixture == "offline" else { return }
     tabButton("Files").tap()
     XCTAssertTrue(
@@ -177,14 +178,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func exerciseAttentionRows() {
-    func episode(_ number: Int) -> String {
-      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
-    }
-    func becomesQueued(_ row: XCUIElement) -> Bool {
-      let expectation = XCTNSPredicateExpectation(
-        predicate: NSPredicate { _, _ in row.value as? String == "queued" }, object: nil)
-      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
-    }
+    func becomesQueued(_ row: XCUIElement) -> Bool { settles(row) { $0 == "queued" } }
     let storage = element("downloads.storage-used")
     app.scrollDown(toHit: storage)
     XCTAssertTrue(
@@ -199,15 +193,75 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
   }
 
+  private func episode(_ number: Int) -> String {
+    "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+  }
+
+  private func settles(_ row: XCUIElement, _ matches: @escaping (String) -> Bool) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in matches(row.value as? String ?? "") }, object: nil)
+    return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+  }
+
+  private func exerciseDownloadingRings() {
+    let queued = element("downloads.item.449")
+    app.bringIntoView(queued)
+    app.buttons["Cancel download, \(episode(7))"].tap()
+    XCTAssertTrue(queued.disappears(within: 5), "the queued download was not cancelled")
+
+    let downloading = element("downloads.item.442")
+    app.bringIntoView(downloading)
+    app.buttons["Pause download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { $0 == "paused;42" }, "the download did not pause")
+    app.buttons["Resume download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { $0 == "downloading;42" }, "the download did not resume")
+
+    let network = element("downloads.item.448")
+    app.bringIntoView(network)
+    app.buttons["Pause download, \(episode(6))"].tap()
+    XCTAssertTrue(settles(network) { $0 == "paused;42" }, "the network wait did not pause")
+    app.buttons["Resume download, \(episode(6))"].tap()
+    XCTAssertTrue(settles(network) { $0 == "downloading;42" }, "the network wait did not resume")
+
+    let converting = element("downloads.item.447")
+    app.bringIntoView(converting)
+    app.buttons["Pause download, \(episode(5))"].tap()
+    XCTAssertTrue(settles(converting) { $0 == "paused;12" }, "the conversion did not pause")
+    app.buttons["Resume download, \(episode(5))"].tap()
+    XCTAssertTrue(
+      settles(converting) { $0 == "converting;12" }, "the conversion did not resume")
+
+    let waitingToConvert = element("downloads.item.450")
+    app.bringIntoView(waitingToConvert)
+    app.buttons["Pause download, \(episode(8))"].tap()
+    XCTAssertTrue(
+      settles(waitingToConvert) { $0 == "paused;0" }, "the conversion wait did not pause")
+    app.buttons["Resume download, \(episode(8))"].tap()
+    XCTAssertTrue(
+      settles(waitingToConvert) { $0 == "waiting-to-convert" },
+      "the conversion wait did not resume")
+
+    let storage = element("downloads.item.444")
+    app.bringIntoView(storage)
+    app.buttons["Pause download, \(episode(4))"].tap()
+    XCTAssertTrue(settles(storage) { $0 == "paused;0" }, "the storage wait did not pause")
+
+    let paused = element("downloads.item.443")
+    app.bringIntoView(paused)
+    app.buttons["Resume download, \(episode(3))"].tap()
+    XCTAssertTrue(
+      settles(paused) { $0 == "queued" }, "a resume with every slot busy did not wait in line")
+    XCTAssertTrue(
+      app.buttons["Cancel download, \(episode(3))"].exists, "the queued row cannot be cancelled")
+
+    let removing = element("downloads.item.441")
+    app.bringIntoView(removing)
+    XCTAssertEqual(removing.value as? String, "removing")
+    XCTAssertFalse(
+      app.buttons["Pause download, \(episode(1))"].exists, "the removing row offers a control")
+  }
+
   private func exerciseDownloadsList() {
-    func episode(_ number: Int) -> String {
-      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
-    }
-    func settles(_ row: XCUIElement, _ matches: @escaping (String) -> Bool) -> Bool {
-      let expectation = XCTNSPredicateExpectation(
-        predicate: NSPredicate { _, _ in matches(row.value as? String ?? "") }, object: nil)
-      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
-    }
     let downloading = element("downloads.item.442")
     app.bringIntoView(downloading)
     app.buttons["Pause download, \(episode(2))"].tap()
@@ -250,9 +304,9 @@ final class BoardCaptureTests: XCTestCase {
     "offline": listFixtureRows,
     "empty": [],
     "downloading-states": [
-      (442, "downloading;42"), (447, "converting;12"), (443, "paused;42"),
-      (448, "downloading;42;network"), (444, "downloading;6"), (449, "queued"),
-      (441, "completed;removing"), (9_001, "completed;watched"),
+      (442, "downloading;42"), (447, "converting;12"), (450, "waiting-to-convert"),
+      (443, "paused;42"), (448, "waiting-network;42"), (444, "waiting-storage"), (449, "queued"),
+      (441, "removing"), (9_001, "completed;watched"),
     ],
     "attention-states": [
       (442, "failed;resolution"), (443, "failed;authentication"), (444, "failed;notFound"),

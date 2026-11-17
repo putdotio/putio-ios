@@ -176,6 +176,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var failuresNotified: [(Int, PutioOfflineFailure)] = []
   private var currentTrashSetting: Bool?
   private var trashSettingReads = 0
+  private var freeBytes: Int64 = 0
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -231,17 +232,13 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(sections.queuePositions[PutioFileID(rawValue: 6)], 2)
     XCTAssertEqual(
       item(6, .queued).downloadState(
-        queuePosition: sections.queuePositions[PutioFileID(rawValue: 6)], isWaitingForSlot: false),
+        queuePosition: sections.queuePositions[PutioFileID(rawValue: 6)]),
       .queued(position: 2))
     XCTAssertEqual(
-      item(4, .downloading(progress: 0.42)).downloadState(
-        queuePosition: nil, isWaitingForSlot: false),
+      item(4, .downloading(progress: 0.42)).downloadState(queuePosition: nil),
       .downloading(receivedBytes: 1_386_000_000, totalBytes: 3_300_000_000))
     XCTAssertEqual(
-      item(7, .paused(progress: 0.1)).downloadState(queuePosition: nil, isWaitingForSlot: true),
-      .waiting(.slot, receivedBytes: 330_000_000, totalBytes: 3_300_000_000))
-    XCTAssertEqual(
-      item(3, .failed(.notFound)).downloadState(queuePosition: nil, isWaitingForSlot: false),
+      item(3, .failed(.notFound)).downloadState(queuePosition: nil),
       .failed(reason: "No longer available", canRetry: false))
     XCTAssertEqual(
       PutioOfflineSections([item(1, .completed)]).sections.map(\.kind), [.onDevice])
@@ -292,14 +289,16 @@ final class OfflineDownloadsTests: XCTestCase {
 
   private func makeQueue(
     availableBytes: Int64 = 10_000_000_000, isLive: @escaping @MainActor () -> Bool = { true },
-    engine: (any PutioOfflineDownloadEngine)? = nil
+    engine: (any PutioOfflineDownloadEngine)? = nil,
+    availableStorage: (@MainActor () -> Int64)? = nil,
+    deletePackages: PutioOfflinePackageDeletion? = nil
   ) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),
       engine: engine ?? self.engine,
       conversionPollInterval: .zero,
       sleep: { _ in },
-      availableStorage: { availableBytes },
+      availableStorage: availableStorage ?? { availableBytes },
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
@@ -340,7 +339,8 @@ final class OfflineDownloadsTests: XCTestCase {
         self.trashSettingReads += 1
         return self.currentTrashSetting
       },
-      isLive: isLive
+      isLive: isLive,
+      deletePackages: deletePackages
     )
   }
 
@@ -995,7 +995,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertNil(queue.item(for: gone)?.localPath)
     XCTAssertEqual(queue.storedBytes, 512)
     XCTAssertEqual(
-      queue.item(for: gone)?.downloadState(queuePosition: nil, isWaitingForSlot: false), .missing)
+      queue.item(for: gone)?.downloadState(queuePosition: nil), .missing)
     XCTAssertEqual(
       PutioOfflineSections(queue.items).sections.map(\.kind), [.attention, .onDevice])
     XCTAssertEqual(store.load().items.last?.stage, .missing)
@@ -1040,11 +1040,126 @@ final class OfflineDownloadsTests: XCTestCase {
     queue.resume(fileID: PutioFileID(rawValue: 1))
     XCTAssertTrue(engine.resumed.isEmpty, "no slot was free")
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .paused(progress: 0.5))
+    let waiting = PutioOfflineSections(queue.items, waitingForSlot: queue.slotWaiters)
+    let place = waiting.queuePositions[PutioFileID(rawValue: 1)]
+    XCTAssertEqual(place, 1, "a resumed row waiting for a slot reads as queued")
+    XCTAssertEqual(
+      queue.item(for: PutioFileID(rawValue: 1))?.downloadState(queuePosition: place),
+      .queued(position: 1))
     try engine.finish(PutioFileID(rawValue: 2), at: directory)
     await settle()
     XCTAssertEqual(engine.resumed, [PutioFileID(rawValue: 1)])
     XCTAssertEqual(engine.started.count, 2, "the suspended task resumed without a restart")
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .downloading(progress: 0.5))
+  }
+
+  func testAStorageWaitStartsOnItsOwnOnceSpaceFrees() async {
+    freeBytes = 500_000_000
+    let queue = makeQueue(availableStorage: { self.freeBytes })
+    let fileID = PutioFileID(rawValue: 1)
+    engine.estimates[1] = 900_000_000
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .waitingForStorage)
+    XCTAssertEqual(PutioOfflineSections(queue.items).sections.map(\.kind), [.downloading])
+    XCTAssertTrue(engine.started.isEmpty)
+
+    freeBytes = 2_000_000_000
+    queue.refreshStorage()
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .downloading(progress: 0))
+  }
+
+  func testANetworkWaitResumesOnItsOwnWhenThePathReturns() async {
+    let queue = makeQueue()
+    let first = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: first, parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(first, 0.4)
+
+    queue.setOnline(false)
+    XCTAssertEqual(queue.item(for: first)?.stage, .waitingForNetwork(progress: 0.4))
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1], "nothing new starts offline")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .queued)
+
+    queue.setOnline(true)
+    await settle()
+    XCTAssertEqual(queue.item(for: first)?.stage, .downloading(progress: 0.4))
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 2])
+
+    queue.setOnline(false)
+    engine.onProgress?(first, 0.5)
+    XCTAssertEqual(
+      queue.item(for: first)?.stage, .downloading(progress: 0.5), "arriving bytes end the wait")
+  }
+
+  func testAResumeWhileOfflineWaitsForTheNetwork() async {
+    let queue = makeQueue()
+    let first = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: first, parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(first, 0.4)
+    queue.pause(fileID: first)
+
+    queue.setOnline(false)
+    queue.resume(fileID: first)
+    XCTAssertEqual(queue.item(for: first)?.stage, .waitingForNetwork(progress: 0.4))
+
+    queue.setOnline(true)
+    XCTAssertEqual(queue.item(for: first)?.stage, .downloading(progress: 0.4))
+  }
+
+  func testARemovedRowReadsAsRemovingUntilItsPackageIsGone() async throws {
+    let gate = makeGate()
+    let queue = makeQueue(deletePackages: { urls in
+      await gate.wait()
+      for url in urls { try? FileManager.default.removeItem(at: url) }
+    })
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+    let path = try XCTUnwrap(queue.item(for: fileID)?.localPath)
+
+    let removal = queue.remove(fileIDs: [fileID])
+    XCTAssertNil(queue.item(for: fileID))
+    XCTAssertEqual(queue.removing.map(\.id), [fileID])
+    let sections = PutioOfflineSections(queue.items, removing: queue.removing)
+    XCTAssertEqual(sections.sections.map(\.kind), [.onDevice])
+    XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), [path])
+
+    await gate.open()
+    await removal.value
+    XCTAssertTrue(queue.removing.isEmpty)
+    XCTAssertTrue(PutioOfflineStore(directory: directory).loadPackages().isEmpty)
+  }
+
+  func testADownloadAgainWaitsUntilTheRemovedPackageIsGone() async throws {
+    let gate = makeGate()
+    let queue = makeQueue(deletePackages: { urls in
+      await gate.wait()
+      for url in urls { try? FileManager.default.removeItem(at: url) }
+    })
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+
+    let removal = queue.remove(fileIDs: [fileID])
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    XCTAssertEqual(engine.started.count, 1, "the new download started before the old one was gone")
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .queued)
+
+    await gate.open()
+    await removal.value
+    await settle()
+    XCTAssertEqual(engine.started.count, 2)
   }
 
   func testFailedDownloadsDropTheirPartialPackage() async throws {
@@ -1062,14 +1177,14 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.storedBytes, 0)
   }
 
-  func testStreamEstimateBeyondFreeSpaceFailsBeforeStarting() async {
+  func testStreamEstimateBeyondFreeSpaceWaitsBeforeStarting() async {
     engine.estimates[1] = 900_000_000
     let queue = makeQueue(availableBytes: 500_000_000)
     queue.enqueue(
       fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
       estimatedBytes: 1)
     await settle()
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .waitingForStorage)
     XCTAssertTrue(engine.started.isEmpty)
   }
 
@@ -1156,7 +1271,7 @@ final class OfflineDownloadsTests: XCTestCase {
       reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 9), parentID: .root, name: "i", kind: .video)
     try await gate.waitUntilEntered()
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 9))?.stage, .converting(progress: 0))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 9))?.stage, .waitingToConvert)
     queue.pause(fileID: PutioFileID(rawValue: 9))
     await gate.open()
     await settle()
@@ -1293,7 +1408,7 @@ final class OfflineDownloadsTests: XCTestCase {
       fileID: PutioFileID(rawValue: 32), parentID: .root, name: "p", kind: .video,
       estimatedBytes: 1)
     await settle()
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 32))?.stage, .failed(.storage))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 32))?.stage, .waitingForStorage)
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 32))?.estimatedBytes, 600_000_000)
     XCTAssertTrue(engine.started.isEmpty)
   }
@@ -1395,7 +1510,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     // Item 1's unwritten estimate is reserved, so item 2 no longer fits.
     XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .waitingForStorage)
   }
 
   func testPlaybackMatchKeepsTheAssetDefaultWhenNothingMatches() {
@@ -1505,15 +1620,16 @@ final class OfflineDownloadsTests: XCTestCase {
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
       reportPosition: { _, _ in }, deleteOriginal: { _ in })
-    engine.estimates = [1: 6_000_000_000, 2: 1_000_000_000]
+    engine.estimates = [1: 4_500_000_000, 2: 1_000_000_000]
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     await settle()
-    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
+    engine.onFinished?(PutioFileID(rawValue: 1), URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.download))
     queue.retry(fileID: PutioFileID(rawValue: 1))
     await settle()
     queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
     await settle()
-    XCTAssertEqual(engine.started.map(\.0.rawValue), [2])
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 2])
     await gate.open()
     await settle()
   }
@@ -1659,7 +1775,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(polls, 1, "the retired queue must not poll with the next session")
     XCTAssertTrue(engine.started.isEmpty)
-    XCTAssertEqual(queue.item(for: fileID)?.stage, .converting(progress: 0))
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .waitingToConvert)
   }
 
   func testPositionSyncStopsWhenItsSessionEnds() async throws {
@@ -1996,7 +2112,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     let kept = packages.appending(path: "1.movpkg")
     let removed = packages.appending(path: "2.movpkg")
-    queue.remove(fileIDs: [PutioFileID(rawValue: 2)])
+    await queue.remove(fileIDs: [PutioFileID(rawValue: 2)]).value
     XCTAssertEqual(
       PutioOfflineStore(directory: directory).loadPackages(),
       [PutioOfflineQueue.relativePath(for: kept)])
@@ -2062,7 +2178,7 @@ final class OfflineDownloadsTests: XCTestCase {
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: location) }
     engine.onLocation?(PutioFileID(rawValue: 1), location)
-    queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
+    await queue.remove(fileIDs: [PutioFileID(rawValue: 1)]).value
     let tracked: Set<String> = [PutioOfflineQueue.relativePath(for: location)]
     XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), tracked)
 
@@ -2131,7 +2247,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 6))?.stage, .downloading(progress: 0))
   }
 
-  func testPauseResumeCancelAndStorageFailure() async throws {
+  func testPauseResumeCancelAndStorageWait() async throws {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     await settle()
@@ -2151,7 +2267,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let stored = queue.storedBytes
     XCTAssertGreaterThan(stored, 0)
     let path = try! XCTUnwrap(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
-    queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
+    await queue.remove(fileIDs: [PutioFileID(rawValue: 1)]).value
     XCTAssertEqual(queue.storedBytes, 0)
     XCTAssertTrue(queue.items.isEmpty)
     XCTAssertFalse(
@@ -2160,7 +2276,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let full = makeQueue(availableBytes: 1)
     full.enqueue(fileID: PutioFileID(rawValue: 9), parentID: .root, name: "z", kind: .audio)
     await settle()
-    XCTAssertEqual(full.item(for: PutioFileID(rawValue: 9))?.stage, .failed(.storage))
+    XCTAssertEqual(full.item(for: PutioFileID(rawValue: 9))?.stage, .waitingForStorage)
   }
 
   func testRemoveDeletingOriginalsRemovesLocallyBeforeAskingTheServer() async throws {
@@ -2272,7 +2388,7 @@ final class OfflineDownloadsTests: XCTestCase {
     try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: record)
     defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: record) }
 
-    queue.remove(fileIDs: [fileID])
+    await queue.remove(fileIDs: [fileID]).value
     XCTAssertFalse(
       FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
     XCTAssertEqual(queue.persistenceFailure, .unsaved(outOfSpace: false))

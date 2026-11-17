@@ -20,7 +20,7 @@ final class FileRowGalleryTests: XCTestCase {
       ("Pause download", "05", "pause"),
       ("Resume download", "03", "resume"),
       ("Pause download", "06", "pause"),
-      ("Cancel download", "08", "cancel"),
+      ("Pause download", "08", "pause"),
       ("Cancel download", "07", "cancel"),
       ("Download again", "10", "download-again"),
       ("Retry download", "11", "retry"),

@@ -10,6 +10,7 @@ typealias PutioOfflineConversionStatus =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 typealias PutioOfflinePositionReport = @MainActor @Sendable (PutioFileID, Int) async throws -> Void
 typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async throws -> Void
+typealias PutioOfflinePackageDeletion = @Sendable ([URL]) async -> Void
 
 @MainActor
 @Observable
@@ -18,6 +19,13 @@ final class PutioOfflineQueue {
   static let concurrencyLimits = [1, 2, 3, 4]
 
   private(set) var items: [PutioOfflineItem] = []
+  private struct Removal {
+    let id = UUID()
+    let item: PutioOfflineItem
+  }
+
+  private var removals: [Removal] = []
+  var removing: [PutioOfflineItem] { removals.map(\.item) }
   private(set) var concurrencyLimit: Int
   private(set) var storedBytes: Int64 = 0
   private(set) var availableBytes: Int64 = 0
@@ -60,6 +68,10 @@ final class PutioOfflineQueue {
   /// start work nor write.
   @ObservationIgnored private let isLive: @MainActor () -> Bool
   @ObservationIgnored private let playbackURL: @MainActor (String) -> URL
+  @ObservationIgnored private let deletePackages: PutioOfflinePackageDeletion?
+  @ObservationIgnored private var removalGeneration = 0
+  @ObservationIgnored private(set) var isOnline = true
+  @ObservationIgnored private var networkMonitor: PutioOfflineNetworkMonitor?
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -83,6 +95,8 @@ final class PutioOfflineQueue {
   func isWaitingForSlot(_ fileID: PutioFileID) -> Bool {
     resumeWhenFree.contains(fileID)
   }
+
+  var slotWaiters: Set<PutioFileID> { Set(resumeWhenFree) }
   @ObservationIgnored private var restored = false
   @ObservationIgnored private var awaitsRestore = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
@@ -123,7 +137,8 @@ final class PutioOfflineQueue {
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
     trashSetting: @escaping @MainActor () async -> Bool? = { nil },
     isLive: @escaping @MainActor () -> Bool = { true },
-    playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:)
+    playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:),
+    deletePackages: PutioOfflinePackageDeletion? = nil
   ) {
     self.store = store
     self.engine = engine
@@ -151,6 +166,7 @@ final class PutioOfflineQueue {
     self.trashSetting = trashSetting
     self.isLive = isLive
     self.playbackURL = playbackURL
+    self.deletePackages = deletePackages
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -186,7 +202,36 @@ final class PutioOfflineQueue {
   /// The system keeps the transfers, so the next shell for this account
   /// reclaims them through `restore()`.
   func stop() {
+    networkMonitor?.cancel()
+    networkMonitor = nil
     engine.stop()
+  }
+
+  func observeNetwork() {
+    guard networkMonitor == nil else { return }
+    networkMonitor = PutioOfflineNetworkMonitor { [weak self] online in
+      self?.setOnline(online)
+    }
+  }
+
+  func setOnline(_ online: Bool) {
+    guard online != isOnline else { return }
+    isOnline = online
+    var changed = false
+    for index in items.indices {
+      switch items[index].stage {
+      case .downloading(let progress) where !online:
+        items[index].stage = .waitingForNetwork(progress: progress)
+        changed = true
+      case .waitingForNetwork(let progress) where online:
+        items[index].stage = .downloading(progress: progress)
+        changed = true
+      default:
+        break
+      }
+    }
+    if changed { persist() }
+    schedule()
   }
 
   /// Reconnects tasks the system kept alive and re-queues everything else
@@ -199,15 +244,21 @@ final class PutioOfflineQueue {
       let owed = pendingOriginals
       // A kill between the debt and the removal leaves the row; finish that first.
       let leftover = owed.map(\.id).filter { item(for: $0) != nil }
-      if !leftover.isEmpty { remove(fileIDs: leftover) }
-      Task { _ = await deleteOriginals(owed) }
+      let removal = leftover.isEmpty ? nil : remove(fileIDs: leftover)
+      let generation = originalsGeneration
+      Task {
+        await removal?.value
+        guard isCurrent(generation) else { return }
+        _ = await deleteOriginals(owed.filter { pendingOriginals.contains($0) })
+      }
     }
     let alive = Set(await engine.restoreTasks())
     guard isLive() else { return }
     var lostWaiters: [(PutioFileID, String)] = []
     for index in items.indices {
       switch items[index].stage {
-      case .downloading(let progress) where !alive.contains(items[index].id):
+      case .downloading(let progress) where !alive.contains(items[index].id),
+        .waitingForNetwork(let progress) where !alive.contains(items[index].id):
         // Progress persists in 5% steps, so a whole package can read 0.95
         // while a 40% crash also left bytes on disk. The row pauses first;
         // only a package the player can open then counts as finished.
@@ -233,7 +284,7 @@ final class PutioOfflineQueue {
         // A pause recorded before the task was attached never reached it.
         engine.pause(fileID: items[index].id)
         suspended.insert(items[index].id)
-      case .converting:
+      case .waitingToConvert, .converting:
         items[index].stage = .queued
       case .completed where !(items[index].localPath.map { packageExists($0) } ?? false):
         deleteLocalAsset(for: items[index].id)
@@ -304,7 +355,7 @@ final class PutioOfflineQueue {
         items[index].localPath == localPath, workers[fileID] == nil
       else { return }
       switch items[index].stage {
-      case .downloading, .paused: break
+      case .downloading, .waitingForNetwork, .paused: break
       default: return
       }
       update(fileID) {
@@ -355,11 +406,11 @@ final class PutioOfflineQueue {
   func pause(fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     switch items[index].stage {
-    case .downloading(let progress):
+    case .downloading(let progress), .waitingForNetwork(let progress):
       engine.pause(fileID: fileID)
       suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
-    case .queued:
+    case .queued, .waitingToConvert, .waitingForStorage:
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: 0)
@@ -391,7 +442,7 @@ final class PutioOfflineQueue {
         return
       }
       suspended.remove(fileID)
-      items[index].stage = .downloading(progress: progress)
+      items[index].stage = transferStage(progress: progress)
       engine.resume(fileID: fileID)
     } else {
       items[index].stage = .queued
@@ -413,7 +464,9 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  func remove(fileIDs: [PutioFileID]) {
+  @discardableResult
+  func remove(fileIDs: [PutioFileID]) -> Task<Void, Never> {
+    var leaving: [PutioOfflineItem] = []
     for fileID in fileIDs {
       completionEpoch[fileID, default: 0] &+= 1
       workers[fileID]?.task.cancel()
@@ -422,12 +475,40 @@ final class PutioOfflineQueue {
       streamEstimated.remove(fileID)
       resumeWhenFree.removeAll { $0 == fileID }
       engine.cancel(fileID: fileID)
-      deleteLocalAsset(for: fileID)
+      if let item = item(for: fileID) { leaving.append(item) }
     }
     items.removeAll { fileIDs.contains($0.id) }
+    let entries = leaving.map { Removal(item: $0) }
+    removals.append(contentsOf: entries)
     persist()
     recomputeStorage()
     schedule()
+    let paths = leaving.compactMap(\.localPath)
+    let generation = removalGeneration
+    let deletion = deletePackages
+    let fileManager = fileManager
+    return Task { @MainActor [weak self] in
+      let urls = paths.map(Self.localURL(for:))
+      if let deletion {
+        await deletion(urls)
+      } else {
+        await Self.deletePackages(urls, fileManager: fileManager)
+      }
+      guard let self else { return }
+      let finished = Set(entries.map(\.id))
+      removals.removeAll { finished.contains($0.id) }
+      guard generation == removalGeneration, isLive() else { return }
+      for path in paths where !fileManager.fileExists(atPath: Self.localURL(for: path).path) {
+        forgetPackage(at: path)
+      }
+      recomputeStorage()
+      schedule()
+    }
+  }
+
+  @concurrent
+  nonisolated static func deletePackages(_ urls: [URL], fileManager: FileManager) async {
+    for url in urls { try? fileManager.removeItem(at: url) }
   }
 
   /// Removes the local copies, then asks put.io for each original in turn.
@@ -448,8 +529,10 @@ final class PutioOfflineQueue {
       report(.removalNotStarted(outOfSpace: lastWriteWasOutOfSpace, count: targets.count))
       return PutioOfflineOriginalOutcome()
     }
-    remove(fileIDs: fileIDs)
-    return await deleteOriginals(targets)
+    let generation = originalsGeneration
+    await remove(fileIDs: fileIDs).value
+    guard isCurrent(generation) else { return PutioOfflineOriginalOutcome() }
+    return await deleteOriginals(targets.filter { pendingOriginals.contains($0) })
   }
 
   /// Asks put.io for originals whose local copies are already gone; also the
@@ -577,6 +660,8 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
+    removalGeneration &+= 1
+    removals.removeAll()
     // The account-wide operation already covered the originals.
     originalsGeneration &+= 1
     pendingOriginals.removeAll()
@@ -619,12 +704,13 @@ final class PutioOfflineQueue {
   private func yieldSlot(_ fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }), !isPaused(items[index].stage)
     else { return }
-    if case .downloading(let progress) = items[index].stage {
+    switch items[index].stage {
+    case .downloading(let progress), .waitingForNetwork(let progress):
       engine.pause(fileID: fileID)
       suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
       if !resumeWhenFree.contains(fileID) { resumeWhenFree.append(fileID) }
-    } else {
+    default:
       workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .queued
@@ -746,16 +832,19 @@ final class PutioOfflineQueue {
       return true
     }
     if requeued { persist() }
+    admitStorageWaiters()
     for item in items where slots > 0 {
       if resumeWhenFree.contains(item.id), case .paused(let progress) = item.stage {
         resumeWhenFree.removeAll { $0 == item.id }
         suspended.remove(item.id)
-        update(item.id) { $0.stage = .downloading(progress: progress) }
+        update(item.id) { $0.stage = transferStage(progress: progress) }
         engine.resume(fileID: item.id)
         slots -= 1
         continue
       }
-      guard item.stage == .queued, workers[item.id] == nil else { continue }
+      guard isOnline, item.stage == .queued, workers[item.id] == nil,
+        !removals.contains(where: { $0.item.id == item.id })
+      else { continue }
       slots -= 1
       let token = UUID()
       let task = Task { @MainActor [weak self] in
@@ -805,7 +894,7 @@ final class PutioOfflineQueue {
       // estimates come off the free space before this one is admitted.
       let reserved = reservedBytes(excluding: fileID)
       guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free - reserved) else {
-        fail(fileID, .storage)
+        update(fileID) { $0.stage = .waitingForStorage }
         return
       }
       // A restart never reuses a package from an earlier attempt; the new
@@ -833,6 +922,12 @@ final class PutioOfflineQueue {
     } catch is PutioOfflineConversionError {
       guard isLive(), !Task.isCancelled else { return }
       fail(fileID, .conversion)
+    } catch PutioRuntimeError.transient where !isOnline {
+      guard isLive(), !Task.isCancelled else { return }
+      update(fileID) {
+        if case .paused = $0.stage { return }
+        $0.stage = .queued
+      }
     } catch {
       guard isLive(), !Task.isCancelled else { return }
       fail(
@@ -895,6 +990,10 @@ final class PutioOfflineQueue {
     guard isLive() else { throw CancellationError() }
   }
 
+  private func transferStage(progress: Double) -> PutioOfflineItem.Stage {
+    isOnline ? .downloading(progress: progress) : .waitingForNetwork(progress: progress)
+  }
+
   private func isPaused(_ stage: PutioOfflineItem.Stage) -> Bool {
     if case .paused = stage { return true }
     return false
@@ -908,7 +1007,7 @@ final class PutioOfflineQueue {
 
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
     try checkActiveWork()
-    update(fileID) { $0.stage = .converting(progress: 0) }
+    update(fileID) { $0.stage = .waitingToConvert }
     try await startConversion(fileID)
     while true {
       try checkActiveWork()
@@ -917,7 +1016,7 @@ final class PutioOfflineQueue {
       try checkActiveWork()
       switch status {
       case .queued:
-        update(fileID) { $0.stage = .converting(progress: 0) }
+        update(fileID) { $0.stage = .waitingToConvert }
       case .converting(let progress):
         update(fileID) { $0.stage = .converting(progress: progress) }
       case .completed:
@@ -932,9 +1031,17 @@ final class PutioOfflineQueue {
   /// Progress persists at 5% steps so a kill mid-download restores close to
   /// where it was without rewriting the document on every callback.
   private func engineProgressed(_ fileID: PutioFileID, _ progress: Double) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }),
-      case .downloading(let previous) = items[index].stage
-    else { return }
+    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    let previous: Double
+    switch items[index].stage {
+    case .downloading(let value):
+      previous = value
+    case .waitingForNetwork:
+      update(fileID) { $0.stage = .downloading(progress: progress) }
+      return
+    default:
+      return
+    }
     let persisting = Int(progress * 20) != Int(previous * 20) || progress >= 1
     update(fileID, persisting: persisting) { $0.stage = .downloading(progress: progress) }
   }
@@ -951,10 +1058,14 @@ final class PutioOfflineQueue {
       schedule()
       return
     }
-    guard let index = items.firstIndex(where: { $0.id == fileID }),
-      case .downloading(let progress) = items[index].stage, workers[fileID] == nil
+    guard let index = items.firstIndex(where: { $0.id == fileID }), workers[fileID] == nil
     else { return }
-    items[index].stage = .paused(progress: progress)
+    switch items[index].stage {
+    case .downloading(let progress), .waitingForNetwork(let progress):
+      items[index].stage = .paused(progress: progress)
+    default:
+      return
+    }
     persist()
     schedule()
   }
@@ -1008,7 +1119,7 @@ final class PutioOfflineQueue {
       return
     }
     switch items[index].stage {
-    case .downloading, .paused: break
+    case .downloading, .waitingForNetwork, .paused: break
     default: return
     }
     if items[index].isOriginal,
@@ -1067,6 +1178,23 @@ final class PutioOfflineQueue {
 
   func refreshStorage() {
     recomputeStorage()
+    schedule()
+  }
+
+  private func admitStorageWaiters() {
+    guard items.contains(where: { $0.stage == .waitingForStorage }) else { return }
+    let free = availableStorage()
+    availableBytes = free
+    var room = free - reservedBytes(excluding: nil)
+    var admitted = false
+    for index in items.indices where items[index].stage == .waitingForStorage {
+      let estimate = items[index].estimatedBytes
+      guard Self.fits(estimatedBytes: estimate, freeBytes: room) else { continue }
+      items[index].stage = .queued
+      room -= estimate
+      admitted = true
+    }
+    if admitted { persist() }
   }
 
   private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
@@ -1168,7 +1296,7 @@ final class PutioOfflineQueue {
   }
 
   private func recomputeStorage() {
-    storedBytes = items.filter { $0.isRemoving != true }.map(\.storedBytes).reduce(0, +)
+    storedBytes = items.map(\.storedBytes).reduce(0, +)
     availableBytes = availableStorage()
   }
 
