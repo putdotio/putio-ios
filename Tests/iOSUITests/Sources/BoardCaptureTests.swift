@@ -235,7 +235,7 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["downloads.more"].firstMatch.tap()
     app.buttons["downloads.select"].firstMatch.tap()
     XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
-    if app.horizontalSizeClass == .compact {
+    if UIDevice.current.userInterfaceIdiom == .phone {
       XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
     }
     assertSelectionBar(["pause", "resume", "remove"])
@@ -5436,7 +5436,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(start.appears(within: 5), "More has no Select")
     start.tap()
     XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
-    if app.horizontalSizeClass == .compact {
+    if UIDevice.current.userInterfaceIdiom == .phone {
       XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
     }
     for identifier in identifiers {

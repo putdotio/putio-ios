@@ -715,7 +715,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(select, timeout: 5), "More has no Select")
     select.tap()
     XCTAssertTrue(app.selectionActions.appears(within: 5), "no selection bar")
-    if app.horizontalSizeClass == .compact {
+    if UIDevice.current.userInterfaceIdiom == .phone {
       XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
     }
   }
