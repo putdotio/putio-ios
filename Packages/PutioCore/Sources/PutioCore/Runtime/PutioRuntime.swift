@@ -6,6 +6,7 @@ public final class PutioRuntime {
   public let session: PutioSessionStore
 
   let sdk: PutioSDK
+  private var watchedObservers: [UUID: AsyncStream<PutioWatchedChange>.Continuation] = [:]
 
   public init(
     clientID: String,
@@ -30,6 +31,24 @@ public final class PutioRuntime {
       deviceCodePollInterval: deviceCodePollInterval,
       supportIdentityPlatform: supportIdentityPlatform
     )
+  }
+
+  /// Every watch status put.io stored after this call: a Mark as watched or
+  /// unwatched, and each saved resume position.
+  public func watchedChanges() -> AsyncStream<PutioWatchedChange> {
+    let (stream, continuation) = AsyncStream.makeStream(
+      of: PutioWatchedChange.self, bufferingPolicy: .unbounded)
+    let id = UUID()
+    watchedObservers[id] = continuation
+    continuation.onTermination = { [weak self] _ in
+      Task { @MainActor in self?.watchedObservers[id] = nil }
+    }
+    return stream
+  }
+
+  func publishWatched(fileID: PutioFileID, isWatched: Bool) {
+    let change = PutioWatchedChange(fileID: fileID, isWatched: isWatched)
+    for continuation in watchedObservers.values { continuation.yield(change) }
   }
 
   /// Reloads the account snapshot, for example to retry the refresh that

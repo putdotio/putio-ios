@@ -131,13 +131,17 @@ extension PutioRuntime {
   /// positions off rejects every save as `FEATURE_DISABLED`; that position
   /// has nowhere to go, so it counts as settled rather than as a failure.
   public func reportPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
-    try await performAuthenticatedOperation {
+    let stored = try await performAuthenticatedOperation {
       do {
         _ = try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)
+        return true
       } catch let error as PutioSDKError
         where error.matches(statusCode: 400, errorType: "FEATURE_DISABLED")
-      {}
+      {
+        return false
+      }
     }
+    if stored { publishWatched(fileID: fileID, isWatched: seconds > 0) }
   }
 
   /// The app's config document; unknown or missing values are its defaults.

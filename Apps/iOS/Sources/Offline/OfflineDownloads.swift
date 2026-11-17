@@ -89,6 +89,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private var awaitsRestore = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
   @ObservationIgnored private var syncGeneration: UInt64 = 0
+  @ObservationIgnored private var watchedTask: Task<Void, Never>?
 
   init(
     store: PutioOfflineStore,
@@ -123,7 +124,8 @@ final class PutioOfflineQueue {
     reportPosition: @escaping PutioOfflinePositionReport,
     isLive: @escaping @MainActor () -> Bool = { true },
     playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:),
-    deletePackages: PutioOfflinePackageDeletion? = nil
+    deletePackages: PutioOfflinePackageDeletion? = nil,
+    watchedChanges: AsyncStream<PutioWatchedChange>? = nil
   ) {
     self.store = store
     self.engine = engine
@@ -162,6 +164,13 @@ final class PutioOfflineQueue {
     engine.onCancelled = { [weak self] id in self?.engineCancelled(id) }
     engine.onPersistenceFailure = { [weak self] error in self?.writeFailed(error) }
     recomputeStorage()
+    if let watchedChanges {
+      watchedTask = Task { @MainActor [weak self] in
+        for await change in watchedChanges {
+          self?.setWatched(fileID: change.fileID, isWatched: change.isWatched)
+        }
+      }
+    }
   }
 
   /// Important-usage capacity first; the simulator reports it as zero, so
@@ -183,6 +192,8 @@ final class PutioOfflineQueue {
   /// The system keeps the transfers, so the next shell for this account
   /// reclaims them through `restore()`.
   func stop() {
+    watchedTask?.cancel()
+    watchedTask = nil
     networkMonitor?.cancel()
     networkMonitor = nil
     engine.stop()
@@ -384,6 +395,14 @@ final class PutioOfflineQueue {
     persist()
     schedule()
     return item
+  }
+
+  func setWatched(fileID: PutioFileID, isWatched: Bool) {
+    guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }),
+      items[index].kind == .video, items[index].isWatched != isWatched
+    else { return }
+    items[index].isWatched = isWatched
+    persist()
   }
 
   // MARK: Controls
@@ -666,6 +685,7 @@ final class PutioOfflineQueue {
     guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     items[index].resumePositionSeconds = seconds
     items[index].pendingPositionSeconds = seconds
+    if items[index].kind == .video { items[index].isWatched = seconds > 0 }
     persist()
     do {
       try await reportPosition(fileID, seconds)

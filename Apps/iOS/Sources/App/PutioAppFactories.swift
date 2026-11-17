@@ -71,7 +71,8 @@ enum PutioOfflineQueueFactory {
       },
       isLive: { runtime.session.authenticationGeneration == sessionGeneration },
       playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:),
-      deletePackages: seeded?.deletePackages
+      deletePackages: seeded?.deletePackages,
+      watchedChanges: runtime.watchedChanges()
     )
     if let seeded {
       seeded.prepare(queue)
