@@ -998,8 +998,11 @@ struct PutioVideoControls<Trailing: View>: View {
 
   @State private var visibility = PutioVideoControlsVisibility()
   @State private var airPlayInsets: EdgeInsets?
+  @State private var menuOpen = false
   @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.verticalSizeClass) private var verticalSizeClass
 
   var body: some View {
     ZStack {
@@ -1054,8 +1057,9 @@ struct PutioVideoControls<Trailing: View>: View {
             }
             PutioVideoChipRow(transport: transport, upNext: upNext) {
               visibility.interacted()
-            } onMenu: {
-              visibility.set(.menu, $0)
+            } onMenu: { open in
+              visibility.set(.menu, open)
+              animate { menuOpen = open }
             }
             .padding(.bottom, PutioVideoMetrics.chipGap)
             PutioVideoScrubber(
@@ -1068,7 +1072,7 @@ struct PutioVideoControls<Trailing: View>: View {
             }
           }
           .padding(PutioTheme.Spacing.space3)
-          if transport.airPlay == nil { centre }
+          if transport.airPlay == nil && !(menuOpen && menusReachTransport) { centre }
         }
         .background { PutioVideoScrim().allowsHitTesting(false) }
         .transition(.opacity)
@@ -1119,6 +1123,11 @@ struct PutioVideoControls<Trailing: View>: View {
   }
 
   private static var coordinateSpace: String { "video.controls" }
+
+  private var menusReachTransport: Bool {
+    UIDevice.current.userInterfaceIdiom == .phone && horizontalSizeClass == .regular
+      && verticalSizeClass == .regular
+  }
 
   private func airPlayCentre(_ airPlay: PutioVideoAirPlay, placeholderLayer: Bool) -> some View {
     VStack(spacing: PutioTheme.Spacing.space3) {

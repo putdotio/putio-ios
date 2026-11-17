@@ -1192,7 +1192,24 @@ final class BoardCaptureTests: XCTestCase {
         app.buttons["video.subtitles.\(row)"].label.contains(source), "row \(row) lacks \(source)")
     }
     XCTAssertTrue(app.buttons["video.subtitles.size-and-timing"].exists)
+    requireRegularWindowMenuClearsTransport()
     try captureBoard("rd-ios-pb-03-subtitles")
+  }
+
+  private func requireRegularWindowMenuClearsTransport() {
+    let window = app.mainWindow
+    guard window.horizontalSizeClass == .regular, window.verticalSizeClass == .regular else {
+      return
+    }
+    let menu = ["video.subtitles.off", "video.subtitles.size-and-timing"]
+      .map { app.buttons[$0].frame }
+      .reduce(CGRect.null) { $0.union($1) }
+    for identifier in ["video.skip-back", "video.play-pause", "video.skip-forward"] {
+      let button = app.buttons[identifier]
+      XCTAssertFalse(
+        button.exists && button.frame.intersects(menu),
+        "the Subtitles menu at \(menu) covers \(identifier) at \(button.frame)")
+    }
   }
 
   func testNoSubtitles() throws {
