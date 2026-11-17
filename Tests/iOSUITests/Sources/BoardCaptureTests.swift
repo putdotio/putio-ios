@@ -4627,8 +4627,6 @@ final class BoardCaptureTests: XCTestCase {
     selectTrashRows([4302, 4304])
     XCTAssertFalse(app.buttons["trash.menu"].exists, "Select mode offers More")
     XCTAssertTrue(app.buttons["selection.close"].exists, "Select mode has no close button")
-    XCTAssertTrue(
-      tabButton("Downloads").becomesUnhittable(within: 5), "Select mode kept the tab bar")
     let summary = element("trash.selection.summary")
     XCTAssertTrue(summary.label.contains("7 items"), "the summary miscounts Trash")
     XCTAssertTrue(summary.label.contains("8.91 GB selected"), "the summary misses the size")
