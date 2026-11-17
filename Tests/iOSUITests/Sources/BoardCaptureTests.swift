@@ -3110,23 +3110,33 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(more.appears(within: 5), "History has no More menu")
     let window = app.mainWindow.frame
     let column = list.frame
-    if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" {
+    let device = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"]
+    if device == "ipad" || device == "duo-open" {
       XCTAssertEqual(
         column.width, Self.historyColumnWidth, accuracy: 1,
-        "History is not one readable column on iPad")
-      XCTAssertEqual(column.midX, window.midX, accuracy: 2, "the History column is not centred")
+        "History is not one readable column on \(device ?? "")")
+      if device == "ipad" {
+        XCTAssertEqual(
+          column.midX, window.midX, accuracy: 2, "the History column is not centred")
+      } else {
+        XCTAssertLessThanOrEqual(
+          column.maxX, tabButton("History").frame.minX,
+          "the History column runs under the trailing bars")
+      }
       XCTAssertGreaterThan(
         more.frame.minX, column.midX, "More is not at the column's trailing edge")
       XCTAssertLessThanOrEqual(
         more.frame.maxX, column.maxX + 1, "More sits outside the History column")
       XCTAssertGreaterThan(
-        more.frame.maxX, column.maxX - 32, "More is not at the column's trailing edge")
+        more.frame.maxX, column.maxX - Self.historyMoreInset,
+        "More is not at the column's trailing edge")
     } else if window.width < Self.historyColumnWidth {
       XCTAssertEqual(column.width, window.width, accuracy: 1, "History is not full width")
     }
   }
 
   private static let historyColumnWidth: CGFloat = 640
+  private static let historyMoreInset: CGFloat = 48
 
   func testHistoryMore() throws {
     let more = openHistoryMore()
@@ -4884,6 +4894,16 @@ final class BoardCaptureTests: XCTestCase {
     assertTrashSize(10_400_000_000, "loading Trash")
     XCTAssertTrue(app.buttons["trash.menu"].exists, "Trash has no More button")
     XCTAssertTrue(tabButton("Account").isHittable, "Trash hid the top tabs")
+    assertInTrashColumn(app.staticTexts["poster.jpg"], "the Trash list")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "duo-open" {
+      let bar = tabButton("Account").frame
+      XCTAssertEqual(
+        app.buttons["trash.menu"].frame.midX, bar.midX, accuracy: 2,
+        "More is off the trailing bar")
+      XCTAssertLessThanOrEqual(
+        app.staticTexts["poster.jpg"].frame.maxX, bar.minX,
+        "the Trash list runs under the trailing bars")
+    }
     try captureBoard("rd-ios-trash-19-ipad")
   }
 

@@ -677,6 +677,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-71-search-long-query", .iphone, "testSearchLongQuery"),
       BoardCapture("rd-ios-hist-01-list", .iphone, "testHistoryList"),
       BoardCapture("rd-ios-hist-12-ipad", .ipad, "testHistoryList"),
+      BoardCapture("rd-ios-hist-14-duo-closed", .duoFolded, "testHistoryList"),
+      BoardCapture("rd-ios-hist-15-duo-open", .duoOpen, "testHistoryList"),
       BoardCapture("ipad-history-folder", .ipad, "testHistoryFolderFullWidth"),
       BoardCapture("rd-ios-hist-03-more", .iphone, "testHistoryMore"),
       BoardCapture("rd-ios-hist-04-clear", .iphone, "testHistoryClearConfirm"),
@@ -1039,6 +1041,7 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-pb-44-portrait-converting", .iphone, "testPortraitConversionConverting"),
       BoardCapture("rd-ios-trash-01-list", .iphone, "testTrashList"),
+      BoardCapture("rd-ios-trash-23-duo-closed", .duoFolded, "testTrashList"),
       BoardCapture("rd-ios-trash-06-empty", .iphone, "testTrashEmpty"),
       BoardCapture("rd-ios-trash-12-loading", .iphone, "testTrashLoading"),
       BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed"),
@@ -1061,6 +1064,7 @@ enum BoardCaptureContract {
       BoardCapture(
         "rd-ios-trash-11-restore-partly-failed", .iphone, "testTrashRestorePartlyFailed"),
       BoardCapture("rd-ios-trash-19-ipad", .ipad, "testIPadTrash"),
+      BoardCapture("rd-ios-trash-24-duo-open", .duoOpen, "testIPadTrash"),
       BoardCapture("rd-ios-trash-20-ipad-selection", .ipad, "testIPadTrashSelection"),
       BoardCapture("ipad-trash-long-press", .ipad, "testIPadTrashLongPress"),
       BoardCapture("ipad-trash-more", .ipad, "testIPadTrashMore"),
