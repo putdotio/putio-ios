@@ -102,6 +102,29 @@
         }
       }
     },
+    "%lld results" : {
+      "comment" : "android: mobile_search_total",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld result"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld results"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld selected" : {
       "comment" : "android: mobile_selection_count",
       "localizations" : {
@@ -118,6 +141,29 @@
                 "stringUnit" : {
                   "state" : "translated",
                   "value" : "%lld selected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld+ results" : {
+      "comment" : "android: mobile_search_total | differs: Android appends the plus to the number in code",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld+ result"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld+ results"
                 }
               }
             }
