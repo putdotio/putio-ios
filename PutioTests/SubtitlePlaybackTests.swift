@@ -18,11 +18,11 @@ final class SubtitlePlaybackTests: XCTestCase {
 
     func testCastTrackLabelIsLanguageAndFileNameWithoutExtension() throws {
         let json = #"""
-        {"key":"k","language":"English","language_code":"eng","name":"Mr.Robot.S01E08.HDTV.x264-KILLERS.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/1/subtitles/k?oauth_token=t"}
+        {"key":"k","language":"English","language_code":"eng","name":"Sample.Show.S01E01.en.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/1/subtitles/k?oauth_token=t"}
         """#
         let subtitle = try JSONDecoder().decode(PutioSubtitle.self, from: Data(json.utf8))
 
-        XCTAssertEqual(subtitle.trackLabel, "English - Mr.Robot.S01E08.HDTV.x264-KILLERS")
+        XCTAssertEqual(subtitle.trackLabel, "English - Sample.Show.S01E01.en")
         XCTAssertEqual(subtitle.webVTTURL.flatMap { queryValue("format", in: $0) }, "webvtt")
     }
 
