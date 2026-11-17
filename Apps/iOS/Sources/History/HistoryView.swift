@@ -161,7 +161,7 @@ struct HistoryView: View {
           .frame(minHeight: geometry.size.height)
       }
       .scrollBounceBehavior(.always)
-      .refreshable { await model.refresh() }
+      .refreshable { await Task { await model.refresh() }.value }
     }
   }
 
