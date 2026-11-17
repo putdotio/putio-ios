@@ -18,6 +18,7 @@ enum PutioOfflineOriginalPackage {
 
   static let transferName = "original"
   static let manifestName = "subtitles.json"
+  static let avPlayerExtensions: Set<String> = ["mp4", "m4v", "mov"]
 
   nonisolated static func directory(accountID: Int, fileID: PutioFileID) -> URL {
     FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -34,6 +35,10 @@ enum PutioOfflineOriginalPackage {
     let pathExtension = (name as NSString).pathExtension.lowercased()
     guard !pathExtension.isEmpty else { return transferURL(in: directory) }
     return directory.appending(path: "\(transferName).\(pathExtension)")
+  }
+
+  nonisolated static func playsInAVPlayer(name: String) -> Bool {
+    avPlayerExtensions.contains((name as NSString).pathExtension.lowercased())
   }
 
   nonisolated static func adopt(

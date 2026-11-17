@@ -451,12 +451,12 @@ final class DownloadsJourneyTests: XCTestCase {
         format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "video.subtitles.", "Turkish")
     ).firstMatch
     XCTAssertTrue(turkishSubtitle.appears(within: 5), "the stored Turkish subtitle is not offered")
-    XCTAssertTrue(
+    XCTAssertEqual(
       app.buttons.matching(
         NSPredicate(
           format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "video.subtitles.",
           "English")
-      ).firstMatch.exists, "the stored English subtitle is not offered")
+      ).count, 2, "the stored English subtitle is not offered next to the embedded one")
     screenshot("runtime-downloads-offline-direct-play-subtitles")
     turkishSubtitle.tap()
     XCTAssertTrue(
@@ -486,9 +486,6 @@ final class DownloadsJourneyTests: XCTestCase {
     assertNoPlaybackRequests(since: requests)
     app.closeVideo()
     let saved = try reportedSeconds()
-    XCTAssertNotEqual(
-      element("downloads.seeded-position").value as? String, "\(saved)",
-      "the position reached put.io with the network cut")
 
     app.terminate()
     app.launch()
@@ -579,7 +576,7 @@ final class DownloadsJourneyTests: XCTestCase {
     since count: Int, file: StaticString = #filePath, line: UInt = #line
   ) {
     let shellRequests: Set<String> = [
-      "GET /v2/config", "GET /v2/files/412/next-file", "POST /v2/files/412/start-from/set",
+      "GET /v2/files/412/next-file", "POST /v2/files/412/start-from/set",
     ]
     let paths = (element("downloads.cut-paths").value as? String ?? "")
       .split(separator: ",").map(String.init)

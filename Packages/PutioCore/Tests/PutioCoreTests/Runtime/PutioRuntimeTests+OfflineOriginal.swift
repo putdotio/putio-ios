@@ -32,6 +32,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(original.startFromSeconds, 734)
     XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr"])
     XCTAssertEqual(original.defaultSubtitleKey, "tr")
+    XCTAssertTrue(original.enginePlays)
     XCTAssertEqual(original.subtitles.map(\.languageCode), ["eng", "tur"])
     for subtitle in original.subtitles {
       let query = URLComponents(url: subtitle.url, resolvingAgainstBaseURL: false)?.queryItems
@@ -41,6 +42,18 @@ extension PutioRuntimeTests {
     }
     XCTAssertFalse(String(describing: original).contains("secret"))
     XCTAssertFalse(String(reflecting: original).contains("secret"))
+  }
+
+  func testOfflineOriginalKnowsWhenTheEngineCannotDecodeIt() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"file":{"id":412,"parent_id":0,"name":"Movie.mov","file_type":"VIDEO","size":10,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","media_info":{"format":{"name":"mov,mp4,m4a,3gp,3g2,mj2"},"streams":[{"codec_type":"video","codec_name":"prores"}],"playback_issues":[]}}}"#,
+      for: "GET /v2/files/412")
+    fixtures.setFixture(#"{"subtitles":[]}"#, for: "GET /v2/files/412/subtitles")
+
+    let original = try await runtime.resolveOfflineOriginal(fileID: PutioFileID(rawValue: 412))
+
+    XCTAssertFalse(original.enginePlays)
   }
 
   func testOfflineOriginalRejectsAnythingButAVideo() async {

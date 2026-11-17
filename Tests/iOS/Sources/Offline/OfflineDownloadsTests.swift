@@ -430,17 +430,23 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertNil(stored.defaultKey, "a stored original invented a default subtitle")
   }
 
-  func testEveryFinishedDownloadIsPlayableWhateverItsContainer() {
-    func finished(_ name: String, _ method: PutioPlaybackMethod) -> PutioOfflineItem {
+  func testAFinishedOriginalIsPlayableWhenTheEngineOrAVPlayerDecodesIt() {
+    func finished(_ name: String, _ method: PutioPlaybackMethod, enginePlays: Bool? = nil)
+      -> PutioOfflineItem
+    {
       PutioOfflineItem(
         id: PutioFileID(rawValue: 412), parentID: .root, name: name, kind: .video,
         createdAt: .now, stage: .completed, localPath: "/tmp/412", storedBytes: 1,
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
-        pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method)
+        pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method,
+        enginePlaysOriginal: enginePlays)
     }
     XCTAssertTrue(finished("Movie.mkv", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.mkv", .directPlay, enginePlays: true).isPlayable)
     XCTAssertTrue(finished("Movie.MP4", .directPlay).isPlayable)
     XCTAssertTrue(finished("Movie.mkv", .standard).isPlayable)
+    XCTAssertFalse(finished("Movie.mkv", .directPlay, enginePlays: false).isPlayable)
+    XCTAssertTrue(finished("Movie.MOV", .directPlay, enginePlays: false).isPlayable)
   }
 
   func testConcurrencyLimitBoundsActiveDownloadsAcrossMixedKinds() async throws {

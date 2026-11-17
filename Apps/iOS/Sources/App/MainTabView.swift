@@ -578,7 +578,7 @@ struct MainTabView: View {
       presentVideo(
         PutioVideoRoute(
           id: item.id, parentID: item.parentID, title: item.name,
-          initialResolution: .ready(source)))
+          initialResolution: .ready(source), method: item.playbackMethod ?? .standard))
     case .audio:
       presentAudio(PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name))
     }
