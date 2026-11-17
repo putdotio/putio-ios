@@ -23,7 +23,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
-    let download = app.buttons["Download"]
+    let download = app.submenuAction("Download", in: "Download")
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
     let item = element("downloads.item.412")
@@ -197,7 +197,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
-    let download = app.buttons["Download"]
+    let download = app.submenuAction("Download", in: "Download")
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
     let item = element("downloads.item.412")
@@ -230,7 +230,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let episode = element("files.item.442")
     XCTAssertTrue(episode.appears(within: 10))
     episode.press(forDuration: 1)
-    let download = app.buttons["Download"]
+    let download = app.submenuAction("Download", in: "Download")
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
     let item = element("downloads.item.442")
@@ -261,10 +261,11 @@ final class DownloadsJourneyTests: XCTestCase {
     let movie = element("files.item.412")
     XCTAssertTrue(movie.appears(within: 10))
     movie.press(forDuration: 1)
+    let download = app.submenuAction("Download", in: "Download")
     XCTAssertTrue(
       app.buttons["Download with Standard"].appears(within: 5),
       "the menu does not offer the other method")
-    app.buttons["Download"].tap()
+    download.tap()
     let original = element("downloads.item.412")
     XCTAssertTrue(original.appears(within: 10))
     XCTAssertTrue(
@@ -281,7 +282,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let episode = element("files.item.442")
     XCTAssertTrue(episode.appears(within: 10))
     episode.press(forDuration: 1)
-    let standard = app.buttons["Download with Standard"]
+    let standard = app.submenuAction("Download with Standard", in: "Download")
     XCTAssertTrue(standard.appears(within: 5))
     standard.tap()
     let package = element("downloads.item.442")

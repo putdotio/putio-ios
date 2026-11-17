@@ -1276,11 +1276,20 @@ enum GalleryFixtures {
     static func itemMenu(for name: String, log: GalleryActionLog) -> PutioItemMenu {
       PutioItemMenu([
         [
-          action("play", "Play", .play, on: name, log: log),
-          action("play-direct", "Play with Direct play", .playCircle, on: name, log: log),
-          action("download", "Download", .arrowCircleDown, on: name, log: log),
-          action(
-            "download-direct", "Download with Direct play", .downloadSimple, on: name, log: log),
+          PutioItemAction(
+            submenu: "play-menu", title: "Play", icon: .play,
+            children: [
+              action("play", "Play", .play, on: name, log: log),
+              action("play-direct", "Play with Direct play", .playCircle, on: name, log: log),
+            ]),
+          PutioItemAction(
+            submenu: "download-menu", title: "Download", icon: .arrowCircleDown,
+            children: [
+              action("download", "Download", .arrowCircleDown, on: name, log: log),
+              action(
+                "download-direct", "Download with Direct play", .downloadSimple, on: name,
+                log: log),
+            ]),
           action("share", "Share", .export, on: name, log: log),
         ],
         [

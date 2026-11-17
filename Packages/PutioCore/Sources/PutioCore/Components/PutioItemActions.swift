@@ -17,6 +17,7 @@ public struct PutioItemAction: Identifiable, Sendable {
   public let isDisabled: Bool
   public let subtitle: String?
   public let asksFirst: Bool
+  public let children: [PutioItemAction]
   let perform: @MainActor @Sendable () -> Void
 
   public init(
@@ -36,7 +37,20 @@ public struct PutioItemAction: Identifiable, Sendable {
     self.isDisabled = isDisabled
     self.subtitle = subtitle
     self.asksFirst = asksFirst
+    children = []
     self.perform = perform
+  }
+
+  public init(submenu id: String, title: String, icon: PutioIcon, children: [PutioItemAction]) {
+    self.id = id
+    self.title = title
+    self.icon = icon
+    role = .standard
+    isDisabled = children.allSatisfy(\.isDisabled)
+    subtitle = nil
+    asksFirst = false
+    self.children = children
+    perform = {}
   }
 }
 
@@ -120,17 +134,39 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       ForEach(Array(menu.sections.enumerated()), id: \.offset) { _, section in
         Section {
           ForEach(section) { action in
-            Button(role: action.role == .destructive ? .destructive : nil) {
-              action.perform()
-            } label: {
-              PutioItemActionLabel(action: action)
+            if action.children.isEmpty {
+              PutioItemActionButton(action: action)
+            } else {
+              Menu {
+                ForEach(action.children) { child in
+                  PutioItemActionButton(action: child)
+                }
+              } label: {
+                PutioItemActionLabel(action: action)
+              }
+              .menuOrder(.fixed)
+              .tint(PutioTheme.Colors.textPrimary)
+              .disabled(action.isDisabled)
+              .accessibilityIdentifier("item-action.\(action.id)")
             }
-            .tint(action.role == .destructive ? nil : PutioTheme.Colors.textPrimary)
-            .disabled(action.isDisabled)
-            .accessibilityIdentifier("item-action.\(action.id)")
           }
         }
       }
+    }
+  }
+
+  private struct PutioItemActionButton: View {
+    let action: PutioItemAction
+
+    var body: some View {
+      Button(role: action.role == .destructive ? .destructive : nil) {
+        action.perform()
+      } label: {
+        PutioItemActionLabel(action: action)
+      }
+      .tint(action.role == .destructive ? nil : PutioTheme.Colors.textPrimary)
+      .disabled(action.isDisabled)
+      .accessibilityIdentifier("item-action.\(action.id)")
     }
   }
 

@@ -957,8 +957,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.442")
-    XCTAssertTrue(
-      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
+    XCTAssertTrue(app.buttons["Move to trash"].isHittable, "the menu hides Move to trash")
+    openRowActionsSubmenu()
     try captureBoard("rd-ios-03-row-actions")
   }
 
@@ -969,9 +969,25 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openItemMenu("files.item.442")
     XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
-    XCTAssertTrue(
-      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
+    openRowActionsSubmenu()
     try captureBoard("rd-ios-64-vlc-menu")
+  }
+
+  private func openRowActionsSubmenu() {
+    switch ProcessInfo.processInfo.environment["PUTIO_ROW_ACTIONS_SUBMENU"] {
+    case "play":
+      XCTAssertTrue(
+        app.submenuAction("Play with Direct play", in: "Play").appears(within: 5),
+        "the Play submenu has no Play with Direct play")
+    case "download":
+      XCTAssertTrue(
+        app.submenuAction("Download with Direct play", in: "Download").appears(within: 5),
+        "the Download submenu has no Download with Direct play")
+    case nil:
+      XCTAssertTrue(app.buttons["Download"].exists, "the menu has no Download")
+    case let other?:
+      XCTFail("unknown PUTIO_ROW_ACTIONS_SUBMENU \(other)")
+    }
   }
 
   func testPreviewVLCNotInstalled() throws {
@@ -2201,7 +2217,7 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10), "the root video never appeared")
     row.press(forDuration: 1)
-    let playWith = app.buttons["Play with Direct play"].firstMatch
+    let playWith = app.submenuAction("Play with Direct play", in: "Play")
     XCTAssertTrue(playWith.appears(within: 5), "the menu has no Play with Direct play")
     playWith.tap()
     let startOver = app.buttons["video.resume.start-over"].firstMatch

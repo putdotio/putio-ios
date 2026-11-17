@@ -610,6 +610,12 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-74-rate-limited", .iphone, "testFolderRateLimited"),
       BoardCapture("rd-ios-75-unavailable", .iphone, "testFolderUnavailable"),
       BoardCapture("rd-ios-03-row-actions", .iphone, "testRowActions"),
+      BoardCapture(
+        "row-actions-play-submenu", .iphone, "testRowActions",
+        environment: ["PUTIO_ROW_ACTIONS_SUBMENU": "play"]),
+      BoardCapture(
+        "row-actions-download-submenu", .iphone, "testRowActions",
+        environment: ["PUTIO_ROW_ACTIONS_SUBMENU": "download"]),
       BoardCapture("rd-ios-11-swipe", .iphone, "testSwipeActions"),
       BoardCapture(
         "rd-ios-11-swipe-leading", .iphone, "testSwipeLeading", screenBase: false),

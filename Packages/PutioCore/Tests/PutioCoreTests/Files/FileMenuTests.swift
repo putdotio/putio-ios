@@ -69,6 +69,39 @@ final class FileMenuTests: XCTestCase {
       [.play, .playWithOtherMethod, .download, .downloadWithOtherMethod, .openInVLC])
   }
 
+  func testPlayAndDownloadFoldTheirOtherMethodIntoSubmenus() {
+    var capabilities = everything
+    capabilities.otherPlaybackMethod = .directPlay
+    let menu = PutioFileMenu(item: item(.video, resume: 0), capabilities: capabilities)
+    let actions = Dictionary(
+      uniqueKeysWithValues: menu.sections.joined().map { ($0, action($0.rawValue)) })
+    let grouped = menu.itemMenu(actions).sections.first ?? []
+    XCTAssertEqual(grouped.map(\.id), ["play-menu", "download-menu", "openInVLC"])
+    XCTAssertEqual(grouped.map(\.title), ["play", "download", "openInVLC"])
+    XCTAssertEqual(grouped[0].children.map(\.id), ["play", "playWithOtherMethod"])
+    XCTAssertEqual(grouped[1].children.map(\.id), ["download", "downloadWithOtherMethod"])
+    XCTAssertTrue(grouped[2].children.isEmpty)
+
+    var withoutDownload = actions
+    withoutDownload[.download] = nil
+    withoutDownload[.playWithOtherMethod] = nil
+    XCTAssertEqual(
+      menu.itemMenu(withoutDownload).sections.first?.map(\.id),
+      ["play", "downloadWithOtherMethod", "openInVLC"])
+  }
+
+  func testASubmenuIsDisabledOnlyWhenEveryChildIs() {
+    let submenu = { (disabled: [Bool]) in
+      PutioItemAction(
+        submenu: "play-menu", title: "Play", icon: .play,
+        children: disabled.enumerated().map {
+          self.action("\($0.offset)", isDisabled: $0.element)
+        })
+    }
+    XCTAssertFalse(submenu([true, false]).isDisabled)
+    XCTAssertTrue(submenu([true, true]).isDisabled)
+  }
+
   func testWatchedVideoOffersUnwatched() {
     let menu = PutioFileMenu(item: item(.video, resume: 1_260), capabilities: everything)
     XCTAssertTrue(menu.contains(.markUnwatched))
@@ -245,5 +278,9 @@ final class FileMenuTests: XCTestCase {
       id: PutioFileID(rawValue: 7), parentID: .root, name: "Item", kind: kind, sizeBytes: size,
       createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: resume,
       isShared: shared)
+  }
+
+  private func action(_ id: String, isDisabled: Bool = false) -> PutioItemAction {
+    PutioItemAction(id: id, title: id, icon: .play, isDisabled: isDisabled) {}
   }
 }

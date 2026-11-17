@@ -130,6 +130,28 @@ public struct PutioFileMenu: Equatable, Sendable {
   public func contains(_ row: PutioFileMenuRow) -> Bool {
     sections.contains { $0.contains(row) }
   }
+
+  public func itemMenu(_ actions: [PutioFileMenuRow: PutioItemAction]) -> PutioItemMenu {
+    PutioItemMenu(
+      sections.map { section in
+        section.compactMap { row in
+          if let primary = Self.variants.first(where: { $0.value == row })?.key,
+            actions[primary] != nil
+          {
+            return nil
+          }
+          guard let action = actions[row] else { return nil }
+          guard let variant = Self.variants[row].flatMap({ actions[$0] }) else { return action }
+          return PutioItemAction(
+            submenu: "\(action.id)-menu", title: action.title, icon: action.icon,
+            children: [action, variant])
+        }
+      })
+  }
+
+  private static let variants: [PutioFileMenuRow: PutioFileMenuRow] = [
+    .play: .playWithOtherMethod, .download: .downloadWithOtherMethod,
+  ]
 }
 
 public enum PutioFileSelectionAction: String, Equatable, Sendable {
