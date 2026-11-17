@@ -1406,6 +1406,7 @@ enum BrowserJourneyContract {
       "download-file-rows",
       "DownloadsJourneyTests/testFileRowsControlDownloadsAndFollowTheDownloadsTab",
       timeAllowance: 90),
+    JourneyPreflight(
       "downloads-direct-play-offline",
       "DownloadsJourneyTests/testADirectPlayDownloadPlaysOfflineWithItsSubtitlesAndSyncsItsPosition",
       attachmentNames: [
