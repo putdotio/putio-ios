@@ -41,12 +41,27 @@ final class VideoUpNextCardTests: XCTestCase {
     }
   }
 
+  func testCardBesideTheChipsKeepsTheMarkerOfALongSeriesName() async throws {
+    _ = SnapshotEnvironment.registersBrandFonts
+    let longName = PutioVideoUpNext(
+      offer: .card(
+        name: "Star.Trek.Strange.New.Worlds.Behind.the.Scenes.S02E05.1080p.WEB.H264-GROUP.mkv",
+        secondsLeft: 10),
+      onPlay: {}, onCancel: {})
+    for size in [DynamicTypeSize.large, .xxLarge] {
+      let card = PutioVideoUpNextAccessory(upNext: longName, iconOnly: false).fixedSize()
+      let lines = try await read(card, width: 640, size: size, name: "up-next-long")
+      XCTAssertTrue(
+        readsMarker(lines, "S02E05"), "a long series name at \(size) hid the marker: \(lines)")
+    }
+  }
+
   private let upNext = PutioVideoUpNext(
     offer: .card(name: "Blue.Lights.S04E02.1080p.HDTV.H264-ORGANiC.mkv", secondsLeft: 10),
     onPlay: {}, onCancel: {})
 
-  private func readsMarker(_ lines: [String]) -> Bool {
-    lines.contains { $0.replacingOccurrences(of: "O", with: "0").contains("S04E02") }
+  private func readsMarker(_ lines: [String], _ marker: String = "S04E02") -> Bool {
+    lines.contains { $0.replacingOccurrences(of: "O", with: "0").contains(marker) }
   }
 
   private func readCard(chipRowWidth: CGFloat, size: DynamicTypeSize) async throws -> [String] {
