@@ -351,7 +351,7 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioOfflineOriginal(
             file: PutioFileDownloadSource(
               id: fileID, kind: .video, name: "Movie.mp4", url: original),
-            subtitles: subtitles, startFromSeconds: 734)
+            subtitles: subtitles, startFromSeconds: 734, defaultSubtitleKey: "tr")
         },
         fetchSubtitle: { Data("WEBVTT \($0.lastPathComponent)".utf8) },
         startConversion: { _ in }, conversionStatus: { _ in .completed },
@@ -385,6 +385,7 @@ final class OfflineDownloadsTests: XCTestCase {
       ["WEBVTT en", "WEBVTT tr"])
 
     try engine.finishOriginal(directPlay)
+    try engine.finish(standard, at: directory)
     await settle()
     let downloaded = try XCTUnwrap(queue.item(for: directPlay))
     XCTAssertEqual(downloaded.stage, .completed)
@@ -393,6 +394,19 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(source.url.lastPathComponent, "original.mp4")
     XCTAssertEqual(source.startFromSeconds, 734)
     XCTAssertEqual(try Data(contentsOf: source.url).count, 2_048)
+    let playback = try XCTUnwrap(source.original, "a Direct play download lost the engine")
+    XCTAssertEqual(playback.player, .engine)
+    XCTAssertEqual(playback.subtitles.map(\.languageCode), ["en", "tr"])
+    XCTAssertEqual(playback.subtitles.map(\.language), ["English", "Turkish"])
+    XCTAssertEqual(
+      try playback.subtitles.map { try String(contentsOf: $0.url, encoding: .utf8) },
+      ["WEBVTT en", "WEBVTT tr"])
+    XCTAssertEqual(
+      playback.subtitles.first { $0.key == playback.defaultSubtitleKey }?.languageCode, "tr",
+      "a stored original lost put.io's default subtitle")
+    let hls = try XCTUnwrap(queue.localSource(for: standard))
+    XCTAssertEqual(hls.url.pathExtension, "movpkg")
+    XCTAssertNil(hls.original, "a Standard download left AVPlayer")
 
     let relaunched = makeQueue()
     XCTAssertEqual(relaunched.item(for: standard)?.playbackMethod, .standard)
@@ -401,17 +415,43 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(relaunched.localSource(for: directPlay)?.url, source.url)
   }
 
-  func testOnlyAnOriginalAVPlayerOpensIsPlayableBeforeOfflineDirectPlay() {
-    func finished(_ name: String, _ method: PutioPlaybackMethod) -> PutioOfflineItem {
+  func testAStoredOriginalWithoutADefaultSubtitleStartsWithNone() throws {
+    let subtitles = ["en", "tr"].map {
+      (
+        subtitle: PutioCastSubtitle(
+          key: $0, language: $0, languageCode: $0, name: $0, source: .openSubtitles,
+          url: URL(string: "https://api.test/v2/files/412/subtitles/\($0)")!),
+        data: Data("WEBVTT".utf8)
+      )
+    }
+    try PutioOfflineOriginalPackage.store(subtitles, defaultKey: nil, in: directory)
+    let stored = PutioOfflineOriginalPackage.playbackSubtitles(in: directory)
+    XCTAssertEqual(stored.subtitles.count, 2)
+    XCTAssertNil(stored.defaultKey, "a stored original invented a default subtitle")
+  }
+
+  func testAFinishedOriginalIsPlayableWhenTheEngineOrAVPlayerDecodesIt() {
+    func finished(_ name: String, _ method: PutioPlaybackMethod, enginePlays: Bool? = nil)
+      -> PutioOfflineItem
+    {
       PutioOfflineItem(
         id: PutioFileID(rawValue: 412), parentID: .root, name: name, kind: .video,
         createdAt: .now, stage: .completed, localPath: "/tmp/412", storedBytes: 1,
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
-        pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method)
+        pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method,
+        enginePlaysOriginal: enginePlays)
     }
-    XCTAssertFalse(finished("Movie.mkv", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.mkv", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.mkv", .directPlay, enginePlays: true).isPlayable)
     XCTAssertTrue(finished("Movie.MP4", .directPlay).isPlayable)
     XCTAssertTrue(finished("Movie.mkv", .standard).isPlayable)
+    XCTAssertFalse(finished("Movie.mkv", .directPlay, enginePlays: false).isPlayable)
+    XCTAssertTrue(finished("Movie.MOV", .directPlay, enginePlays: false).isPlayable)
+    XCTAssertTrue(finished("Movie.MOV", .directPlay, enginePlays: false).playsOriginalInAVPlayer)
+    XCTAssertTrue(
+      finished("Movie.mp4", .directPlay).playsOriginalInAVPlayer,
+      "an original stored before the engine check left AVPlayer")
+    XCTAssertFalse(finished("Movie.mp4", .directPlay, enginePlays: true).playsOriginalInAVPlayer)
   }
 
   func testConcurrencyLimitBoundsActiveDownloadsAcrossMixedKinds() async throws {

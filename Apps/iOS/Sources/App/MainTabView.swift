@@ -578,7 +578,7 @@ struct MainTabView: View {
       presentVideo(
         PutioVideoRoute(
           id: item.id, parentID: item.parentID, title: item.name,
-          initialResolution: .ready(source)))
+          initialResolution: .ready(source), method: item.playbackMethod ?? .standard))
     case .audio:
       presentAudio(PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name))
     }
@@ -727,6 +727,7 @@ struct MainTabView: View {
     videoStartTask = Task { await openVideo(route) }
     // The autoplay decision reads the document at playback end; a load that
     // failed at sign-in gets another chance before this video finishes.
+    guard route.initialResolution == nil else { return }
     Task { await appConfig.loadIfNeeded() }
   }
 
@@ -953,6 +954,7 @@ struct MainTabView: View {
         HarnessHistoryRequestsProbe()
         HarnessConversionReadsProbe()
         HarnessDownloadsSyncProbe()
+        HarnessStoredPlaybackProbe()
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }

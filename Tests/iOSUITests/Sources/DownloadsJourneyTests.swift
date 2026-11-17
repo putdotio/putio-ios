@@ -418,6 +418,108 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
+  func testADirectPlayDownloadPlaysOfflineWithItsSubtitlesAndSyncsItsPosition() throws {
+    app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
+    app.launch()
+    signIn()
+    choosePlaybackMethod("Direct play")
+
+    let movie = element("files.item.412")
+    XCTAssertTrue(movie.appears(within: 10))
+    movie.press(forDuration: 1)
+    app.submenuAction("Download", in: "Download").tap()
+    let item = element("downloads.item.412")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(item, "completed;watched", timeout: 90),
+      "the Direct play download did not complete: \(item.value ?? "")")
+
+    app.terminate()
+    app.launchArguments.append("--putio-harness-network-cut")
+    app.launch()
+    let requests = openDownloadsCut(item)
+    item.tap()
+    let source = playStored(startingOver: true)
+    XCTAssertEqual(source, "original-engine", "the Direct play download left the engine")
+
+    let subtitle = element("video.subtitle")
+    let subtitlesChip = element("video.chip.subtitles")
+    app.revealVideoControls(showing: subtitlesChip)
+    subtitlesChip.tap()
+    let turkishSubtitle = app.buttons.matching(
+      NSPredicate(
+        format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "video.subtitles.", "Turkish")
+    ).firstMatch
+    XCTAssertTrue(turkishSubtitle.appears(within: 5), "the stored Turkish subtitle is not offered")
+    XCTAssertEqual(
+      app.buttons.matching(
+        NSPredicate(
+          format: "identifier BEGINSWITH %@ AND label BEGINSWITH %@", "video.subtitles.",
+          "English")
+      ).count, 2, "the stored English subtitle is not offered next to the embedded one")
+    screenshot("runtime-downloads-offline-direct-play-subtitles")
+    turkishSubtitle.tap()
+    XCTAssertTrue(
+      waitForValue(subtitle, "tr", timeout: 10), "subtitle: \(subtitle.value ?? "")")
+
+    let audio = element("video.audio-language")
+    let preferred = try XCTUnwrap(preferredAudioLanguage())
+    XCTAssertTrue(
+      waitForValue(audio, preferred, timeout: 10),
+      "the stored original did not start on the device language \(preferred): \(audio.value ?? "")"
+    )
+    let audioChip = element("video.chip.audio")
+    app.revealVideoControls(showing: audioChip)
+    audioChip.tap()
+    XCTAssertTrue(app.buttons["video.audio.1"].appears(within: 5), "the Audio chip opened no menu")
+    XCTAssertTrue(
+      app.buttons["video.audio.2"].exists, "the file's second audio track is not offered")
+    screenshot("runtime-downloads-offline-direct-play-audio")
+    let other = preferred == "tr" ? "en" : "tr"
+    app.buttons[other == "en" ? "video.audio.1" : "video.audio.2"].tap()
+    XCTAssertTrue(waitForValue(audio, other, timeout: 10), "audio: \(audio.value ?? "")")
+
+    let position = element("video.current-position")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value.intValue >= 8"), position, timeout: 20),
+      "the stored original is not playing: \(position.value ?? "")")
+    assertNoPlaybackRequests(since: requests)
+    app.closeVideo()
+    let saved = try reportedSeconds()
+
+    app.terminate()
+    app.launch()
+    let relaunchedRequests = openDownloadsCut(item)
+    item.tap()
+    _ = playStored(startingOver: false)
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value.intValue >= %d", saved - 1), position, timeout: 10),
+      "the download did not resume at \(saved): \(position.value ?? "")")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value.intValue >= %d", saved + 3), position, timeout: 15),
+      "the resumed download stopped playing: \(position.value ?? "")")
+    assertNoPlaybackRequests(since: relaunchedRequests)
+    app.closeVideo()
+    let resumed = try reportedSeconds()
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-network-cut" }
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(element("downloads.seeded-position"), "\(resumed)", timeout: 15),
+      "the saved position never reached put.io: \(element("downloads.seeded-position").value ?? "")"
+    )
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
   func testFileRowsControlDownloadsAndFollowTheDownloadsTab() throws {
     app.launchArguments += ["--putio-harness-downloads", "file-states"]
     app.launch()
@@ -468,6 +570,63 @@ final class DownloadsJourneyTests: XCTestCase {
     let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
     if remove.appears(within: 5) { remove.tap() } else { app.confirmSignOut() }
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func assertNoPlaybackRequests(
+    since count: Int, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let shellRequests: Set<String> = [
+      "GET /v2/files/412/next-file", "POST /v2/files/412/start-from/set",
+    ]
+    let paths = (element("downloads.cut-paths").value as? String ?? "")
+      .split(separator: ",").map(String.init)
+    let playback = paths.dropFirst(count).filter { !shellRequests.contains($0) }
+    XCTAssertEqual(
+      playback, [], "playing the download asked the network for it", file: file, line: line)
+  }
+
+  private func openDownloadsCut(_ item: XCUIElement) -> Int {
+    let downloads = app.buttons["Downloads"]
+    XCTAssertTrue(downloads.appears(within: 15), "the signed-in shell did not open offline")
+    downloads.tap()
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertEqual(item.value as? String, "completed;watched")
+    RunLoop.current.run(until: .now.addingTimeInterval(2))
+    return Int(element("downloads.cut-requests").value as? String ?? "") ?? 0
+  }
+
+  private func preferredAudioLanguage() -> String? {
+    guard let flag = app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"),
+      app.launchArguments.indices.contains(flag + 1)
+    else { return nil }
+    return app.launchArguments[flag + 1].split(separator: ",").first.map(String.init)
+  }
+
+  private func playStored(startingOver: Bool) -> String? {
+    let choice = app.buttons[startingOver ? "video.resume.start-over" : "video.resume.resume"]
+      .firstMatch
+    if choice.waitForExistence(timeout: 8) { choice.tap() }
+    XCTAssertTrue(element("video.ready").appears(within: 20), "the download did not play")
+    let source = element("video.source")
+    _ = waitForValue(source, "original-engine", timeout: 10)
+    return source.value as? String
+  }
+
+  private func reportedSeconds() throws -> Int {
+    let reported = element("video.position-reported")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value BEGINSWITH 'id=412;'"), reported, timeout: 10),
+      "closing the video saved no position")
+    RunLoop.current.run(until: .now.addingTimeInterval(1))
+    let value = try XCTUnwrap(reported.value as? String)
+    return try XCTUnwrap(value.split(separator: "=").last.flatMap { Int($0) }, value)
+  }
+
+  private func waitFor(_ predicate: NSPredicate, _ element: XCUIElement, timeout: TimeInterval)
+    -> Bool
+  {
+    let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
   private func choosePlaybackMethod(_ name: String) {

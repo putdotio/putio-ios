@@ -13,6 +13,7 @@ enum PutioOfflineOriginalPackage {
     let languageCode: String
     let displayName: String
     let fileName: String
+    var isDefault: Bool? = nil
   }
 
   static let transferName = "original"
@@ -65,8 +66,8 @@ enum PutioOfflineOriginalPackage {
   }
 
   static func store(
-    _ subtitles: [(subtitle: PutioCastSubtitle, data: Data)], in directory: URL,
-    fileManager: FileManager = .default
+    _ subtitles: [(subtitle: PutioCastSubtitle, data: Data)], defaultKey: String?,
+    in directory: URL, fileManager: FileManager = .default
   ) throws {
     try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
     var manifest: [Subtitle] = []
@@ -76,7 +77,8 @@ enum PutioOfflineOriginalPackage {
       try entry.data.write(to: directory.appending(path: fileName), options: .atomic)
       manifest.append(
         Subtitle(
-          languageCode: languageCode, displayName: entry.subtitle.language, fileName: fileName))
+          languageCode: languageCode, displayName: entry.subtitle.language, fileName: fileName,
+          isDefault: entry.subtitle.key == defaultKey))
     }
     try JSONEncoder().encode(manifest).write(
       to: directory.appending(path: manifestName), options: .atomic)
@@ -87,6 +89,19 @@ enum PutioOfflineOriginalPackage {
       return []
     }
     return (try? JSONDecoder().decode([Subtitle].self, from: data)) ?? []
+  }
+
+  nonisolated static func playbackSubtitles(in directory: URL)
+    -> (subtitles: [PutioCastSubtitle], defaultKey: String?)
+  {
+    let stored = subtitles(in: directory)
+    let subtitles = stored.map {
+      PutioCastSubtitle(
+        key: $0.fileName, language: $0.displayName, languageCode: $0.languageCode,
+        name: $0.displayName, source: .openSubtitles, url: directory.appending(path: $0.fileName))
+    }
+    let defaultKey = stored.first { $0.isDefault == true }?.fileName
+    return (subtitles, defaultKey)
   }
 
   @concurrent

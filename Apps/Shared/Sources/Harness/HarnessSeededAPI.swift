@@ -802,7 +802,8 @@ import Foundation
     }()
     private static let listsOnlySeasonVideos = downloadsFixture?.hasPrefix("file-") == true
     private static let downloadsNetworkLock = NSLock()
-    nonisolated(unsafe) private static var downloadsNetworkCut = downloadsFixture == "offline"
+    nonisolated(unsafe) private static var downloadsNetworkCut =
+      downloadsFixture == "offline" || cutsNetwork
     private static var downloadsOffline: Bool {
       downloadsNetworkLock.withLock { downloadsNetworkCut }
     }
@@ -810,6 +811,24 @@ import Foundation
     static func restoreDownloadsNetwork() {
       downloadsNetworkLock.withLock { downloadsNetworkCut = false }
     }
+    private static let cutsNetwork = HarnessLaunch.arguments.contains(
+      "--putio-harness-network-cut")
+    private static let cutRequestLock = NSLock()
+    nonisolated(unsafe) private static var cutRequests: [String] = []
+
+    static func cutRequestCount() -> Int {
+      cutRequestLock.withLock { cutRequests.count }
+    }
+
+    static func cutRequestPaths() -> [String] {
+      cutRequestLock.withLock { cutRequests }
+    }
+
+    private static func recordCutRequest(_ request: URLRequest) {
+      let entry = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
+      cutRequestLock.withLock { cutRequests.append(entry) }
+    }
+
     private static func reachesOffline(_ url: URL) -> Bool {
       url.path.hasPrefix("/v2/oauth2/") || url.path == "/v2/account/info"
     }
@@ -1188,6 +1207,7 @@ import Foundation
         }
         return
       }
+      if Self.cutsNetwork { Self.recordCutRequest(request) }
       if Self.servesAppIcon(request) {
         DispatchQueue.main.async { [weak self] in
           let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }

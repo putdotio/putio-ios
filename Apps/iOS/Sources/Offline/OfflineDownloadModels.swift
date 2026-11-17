@@ -58,7 +58,12 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   var isPlayable: Bool {
     guard stage == .completed, localPath != nil else { return false }
-    return !isOriginal || PutioOfflineOriginalPackage.playsInAVPlayer(name: name)
+    return !isOriginal || enginePlaysOriginal != false || playsOriginalInAVPlayer
+  }
+
+  var playsOriginalInAVPlayer: Bool {
+    isOriginal && enginePlaysOriginal != true
+      && PutioOfflineOriginalPackage.playsInAVPlayer(name: name)
   }
 
   var isOriginal: Bool { playbackMethod == .directPlay }
@@ -74,6 +79,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   var failedProgress: Double?
   var isWatched: Bool?
   var playbackMethod: PutioPlaybackMethod? = nil
+  var enginePlaysOriginal: Bool? = nil
   var completedAt: Date?
 
   var receivedBytes: Int64 {
