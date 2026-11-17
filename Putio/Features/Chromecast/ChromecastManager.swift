@@ -181,12 +181,14 @@ class ChromecastManager: NSObject {
         api.getSubtitles(fileID: file.id) { result in
             switch result {
             case .success(let response):
-                let subtitles = response.subtitles.filter { $0.webVTTURL != nil }
-                mediaInfo.mediaTracks = subtitles.enumerated().compactMap { index, subtitle in
-                    guard let url = subtitle.webVTTURL else { return nil }
+                let sidecars = response.subtitles.compactMap { subtitle in
+                    subtitle.castableURL.map { (subtitle: subtitle, url: $0) }
+                }
+                mediaInfo.mediaTracks = sidecars.enumerated().compactMap { index, sidecar in
+                    let subtitle = sidecar.subtitle
                     return GCKMediaTrack(
                         identifier: index,
-                        contentIdentifier: url.absoluteString,
+                        contentIdentifier: sidecar.url.absoluteString,
                         contentType: "text/vtt",
                         type: .text,
                         textSubtype: .captions,
@@ -197,9 +199,9 @@ class ChromecastManager: NSObject {
                 }
 
                 let autoSelect = !(settings?.dontAutoSelectSubtitles ?? false)
-                let defaultIndex = subtitles.firstIndex { $0.key == response.defaultKey } ?? 0
+                let defaultIndex = sidecars.firstIndex { $0.subtitle.key == response.defaultKey }
                 log.debug("Chromecast: autoSelect subtitle -> \(autoSelect)")
-                mediaLoadOptions.activeTrackIDs = autoSelect && !subtitles.isEmpty ? [NSNumber(value: defaultIndex)] : nil
+                mediaLoadOptions.activeTrackIDs = autoSelect ? defaultIndex.map { [NSNumber(value: $0)] } : nil
 
                 completion(mediaInfo.build(), nil)
 
@@ -452,7 +454,8 @@ extension PutioSubtitle {
         "\(language) - \((name as NSString).deletingPathExtension)"
     }
 
-    var webVTTURL: URL? {
-        URL(string: url)?.appending(queryItems: [URLQueryItem(name: "format", value: "webvtt")])
+    var castableURL: URL? {
+        guard let format = format?.lowercased(), ["srt", "webvtt"].contains(format) else { return nil }
+        return URL(string: url)?.appending(queryItems: [URLQueryItem(name: "format", value: "webvtt")])
     }
 }

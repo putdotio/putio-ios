@@ -82,15 +82,6 @@ extension PutioSDK {
         return components?.url
     }
 
-    func hlsStreamURL(fileID: Int) -> URL? {
-        var components = URLComponents(string: "\(config.baseURL)/files/\(fileID)/hls/media.m3u8")
-        components?.queryItems = [
-            URLQueryItem(name: "subtitle_key", value: "all"),
-            URLQueryItem(name: "oauth_token", value: mediaToken)
-        ]
-        return components?.url
-    }
-
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T
