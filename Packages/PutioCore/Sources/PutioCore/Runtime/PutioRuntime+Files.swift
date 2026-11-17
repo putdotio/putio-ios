@@ -137,6 +137,7 @@ extension PutioRuntime {
       }
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    publishWatched(fileID: fileID, isWatched: watched)
   }
 
   private func folderContents(from result: PutioFilesListResult) -> PutioFolderContents {

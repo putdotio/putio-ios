@@ -10,6 +10,7 @@ typealias PutioOfflineConversionStatus =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 typealias PutioOfflinePositionReport = @MainActor @Sendable (PutioFileID, Int) async throws -> Void
 typealias PutioOfflinePackageDeletion = @Sendable ([URL]) async -> Void
+typealias PutioOfflineWatchedStatus = @MainActor @Sendable (PutioFileID) async throws -> Bool
 
 @MainActor
 @Observable
@@ -56,6 +57,8 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let isLive: @MainActor () -> Bool
   @ObservationIgnored private let playbackURL: @MainActor (String) -> URL
   @ObservationIgnored private let deletePackages: PutioOfflinePackageDeletion?
+  @ObservationIgnored private let watchedStatus: PutioOfflineWatchedStatus?
+  @ObservationIgnored private var watchedEpochs: [PutioFileID: Int] = [:]
   @ObservationIgnored private var removalGeneration = 0
   @ObservationIgnored private(set) var isOnline = true
   @ObservationIgnored private var networkMonitor: PutioOfflineNetworkMonitor?
@@ -89,6 +92,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private var awaitsRestore = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
   @ObservationIgnored private var syncGeneration: UInt64 = 0
+  @ObservationIgnored private var watchedTask: Task<Void, Never>?
 
   init(
     store: PutioOfflineStore,
@@ -123,7 +127,9 @@ final class PutioOfflineQueue {
     reportPosition: @escaping PutioOfflinePositionReport,
     isLive: @escaping @MainActor () -> Bool = { true },
     playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:),
-    deletePackages: PutioOfflinePackageDeletion? = nil
+    deletePackages: PutioOfflinePackageDeletion? = nil,
+    watchedChanges: AsyncStream<PutioWatchedChange>? = nil,
+    watchedStatus: PutioOfflineWatchedStatus? = nil
   ) {
     self.store = store
     self.engine = engine
@@ -149,6 +155,7 @@ final class PutioOfflineQueue {
     self.isLive = isLive
     self.playbackURL = playbackURL
     self.deletePackages = deletePackages
+    self.watchedStatus = watchedStatus
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -162,6 +169,13 @@ final class PutioOfflineQueue {
     engine.onCancelled = { [weak self] id in self?.engineCancelled(id) }
     engine.onPersistenceFailure = { [weak self] error in self?.writeFailed(error) }
     recomputeStorage()
+    if let watchedChanges {
+      watchedTask = Task { @MainActor [weak self] in
+        for await change in watchedChanges {
+          self?.setWatched(fileID: change.fileID, isWatched: change.isWatched)
+        }
+      }
+    }
   }
 
   /// Important-usage capacity first; the simulator reports it as zero, so
@@ -183,6 +197,8 @@ final class PutioOfflineQueue {
   /// The system keeps the transfers, so the next shell for this account
   /// reclaims them through `restore()`.
   func stop() {
+    watchedTask?.cancel()
+    watchedTask = nil
     networkMonitor?.cancel()
     networkMonitor = nil
     engine.stop()
@@ -384,6 +400,32 @@ final class PutioOfflineQueue {
     persist()
     schedule()
     return item
+  }
+
+  func setWatched(fileID: PutioFileID, isWatched: Bool) {
+    watchedEpochs[fileID, default: 0] += 1
+    guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }),
+      items[index].kind == .video, items[index].pendingPositionSeconds == nil,
+      items[index].isWatched != isWatched
+    else { return }
+    items[index].isWatched = isWatched
+    persist()
+  }
+
+  /// Reads put.io's watch status for every stored video, so changes made on
+  /// another client or while the app was closed reach the stored flag. A
+  /// position still waiting to sync, or a change seen meanwhile, wins.
+  func refreshWatched() async {
+    guard isLive(), isOnline, let watchedStatus else { return }
+    let videos = items.filter { $0.kind == .video && $0.pendingPositionSeconds == nil }.map(\.id)
+    for fileID in videos {
+      let epoch = watchedEpochs[fileID, default: 0]
+      guard let isWatched = try? await watchedStatus(fileID) else { continue }
+      guard isLive(), watchedEpochs[fileID, default: 0] == epoch,
+        item(for: fileID)?.pendingPositionSeconds == nil
+      else { continue }
+      setWatched(fileID: fileID, isWatched: isWatched)
+    }
   }
 
   // MARK: Controls
@@ -666,6 +708,8 @@ final class PutioOfflineQueue {
     guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     items[index].resumePositionSeconds = seconds
     items[index].pendingPositionSeconds = seconds
+    if items[index].kind == .video { items[index].isWatched = seconds > 0 }
+    watchedEpochs[fileID, default: 0] += 1
     persist()
     do {
       try await reportPosition(fileID, seconds)

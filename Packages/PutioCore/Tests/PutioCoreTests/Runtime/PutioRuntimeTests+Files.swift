@@ -161,6 +161,43 @@ extension PutioRuntimeTests {
     XCTAssertEqual(unwatched.url?.path, "/v2/files/411/start-from/delete")
   }
 
+  func testStoredWatchStatusesReachEveryWatchedChangesStream() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let setRoute = "POST /v2/files/411/start-from/set"
+    fixtures.setFixture(#"{"status":"OK"}"#, for: setRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "GET /v2/files/411/start-from/delete")
+    let changes = runtime.watchedChanges()
+    let file = PutioFileID(rawValue: 411)
+
+    try await runtime.setFileWatched(fileID: file, watched: true)
+    try await runtime.setFileWatched(fileID: file, watched: false)
+    try await runtime.reportPlaybackPosition(fileID: file, seconds: 91)
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"FEATURE_DISABLED","status_code":400}"#,
+      statusCode: 400, for: setRoute)
+    try await runtime.reportPlaybackPosition(fileID: file, seconds: 42)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: "GET /v2/files/411/start-from/delete")
+    _ = try? await runtime.setFileWatched(fileID: file, watched: false)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: setRoute)
+    try await runtime.reportPlaybackPosition(fileID: file, seconds: 0)
+    let end = PutioWatchedChange(fileID: PutioFileID(rawValue: 0), isWatched: false)
+    runtime.publishWatched(fileID: end.fileID, isWatched: end.isWatched)
+
+    var received: [PutioWatchedChange] = []
+    for await change in changes {
+      if change == end { break }
+      received.append(change)
+    }
+    XCTAssertEqual(
+      received,
+      [
+        PutioWatchedChange(fileID: file, isWatched: true),
+        PutioWatchedChange(fileID: file, isWatched: false),
+        PutioWatchedChange(fileID: file, isWatched: true),
+        PutioWatchedChange(fileID: file, isWatched: false),
+      ])
+  }
+
   func testWatchStatusRejectsASuccessfulResponseThatIsNotOK() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"ERROR"}"#, for: "GET /v2/files/411/start-from/delete")

@@ -36,6 +36,18 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
 
+    app.buttons["Files"].tap()
+    XCTAssertTrue(row.appears(within: 10))
+    row.press(forDuration: 1)
+    let markUnwatched = app.buttons["Mark as unwatched"]
+    XCTAssertTrue(markUnwatched.appears(within: 5))
+    markUnwatched.tap()
+    XCTAssertTrue(app.staticTexts["Marked as unwatched"].appears(within: 5))
+    app.buttons["Downloads"].tap()
+    XCTAssertTrue(
+      waitForValue(item, "completed", timeout: 10),
+      "the eye stayed after Mark as unwatched: \(item.value ?? "")")
+
     // Info lists the fixture's stored audio and subtitle tracks and closes by swipe.
     item.press(forDuration: 1)
     let infoButton = app.buttons["downloads.info.412"].firstMatch
@@ -74,7 +86,8 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
-    XCTAssertEqual(item.value as? String, "completed;watched")
+    XCTAssertEqual(
+      item.value as? String, "completed;watched", "offline playback did not bring the eye back")
 
     app.terminate()
     let preference = try XCTUnwrap(

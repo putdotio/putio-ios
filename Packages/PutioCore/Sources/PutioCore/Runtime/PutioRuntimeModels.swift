@@ -177,6 +177,17 @@ public enum PutioFileKind: Hashable, Sendable {
   case other(String)
 }
 
+/// put.io counts a video as watched while it has a resume position.
+public struct PutioWatchedChange: Equatable, Sendable {
+  public let fileID: PutioFileID
+  public let isWatched: Bool
+
+  public init(fileID: PutioFileID, isWatched: Bool) {
+    self.fileID = fileID
+    self.isWatched = isWatched
+  }
+}
+
 public struct PutioFileItem: Identifiable, Hashable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID

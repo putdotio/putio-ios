@@ -31,6 +31,10 @@ enum PutioOfflineQueueFactory {
     }
     // A queue outlived by its shell must not write to the next shell's document.
     let sessionGeneration = runtime.session.authenticationGeneration
+    var watchedStatus: PutioOfflineWatchedStatus?
+    if seeded == nil {
+      watchedStatus = { fileID in try await runtime.getFile(fileID: fileID).isWatched }
+    }
     let queue = PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory, accountID: accountID),
       engine: seeded?.engine ?? PutioSystemOfflineDownloadEngine(accountID: accountID),
@@ -71,7 +75,9 @@ enum PutioOfflineQueueFactory {
       },
       isLive: { runtime.session.authenticationGeneration == sessionGeneration },
       playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:),
-      deletePackages: seeded?.deletePackages
+      deletePackages: seeded?.deletePackages,
+      watchedChanges: runtime.watchedChanges(),
+      watchedStatus: watchedStatus
     )
     if let seeded {
       seeded.prepare(queue)
