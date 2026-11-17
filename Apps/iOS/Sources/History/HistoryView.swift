@@ -149,25 +149,21 @@ struct HistoryView: View {
           .accessibilityIdentifier("history.progress")
       }
       ForEach(PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)) { day in
-        Section {
-          ForEach(day.items) { event in
-            eventRow(event)
-              .padding(.trailing, PutioTheme.Spacing.space1)
-              .listRowInsets(.vertical, PutioTheme.Spacing.space2)
-              .listRowInsets(.trailing, 0)
-              .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] }
-              .listRowSeparator(
-                event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
-              )
-              .listRowBackground(PutioTheme.Colors.background)
-          }
-        } header: {
-          Text(day.title)
-            .putioFont(PutioTheme.Typography.caption)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .accessibilityAddTraits(.isHeader)
-            .listRowInsets(.top, PutioTheme.Spacing.space3)
-            .listRowInsets(.bottom, PutioTheme.Spacing.space1)
+        PutioHistoryDayHeader(title: day.title)
+          .listRowInsets(.vertical, 0)
+          .listRowSeparator(.hidden)
+          .listRowBackground(PutioTheme.Colors.background)
+        ForEach(day.items) { event in
+          eventRow(event)
+            .padding(.trailing, PutioTheme.Spacing.space1)
+            .listRowInsets(.vertical, PutioTheme.Spacing.space2)
+            .listRowInsets(.trailing, 0)
+            .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] }
+            .listRowSeparator(
+              event.id == day.items.last?.id ? .hidden : .automatic, edges: .bottom
+            )
+            .listRowSeparator(.hidden, edges: .top)
+            .listRowBackground(PutioTheme.Colors.background)
         }
       }
       if let before = page.nextBefore, model.refreshFailure == nil {
@@ -187,7 +183,7 @@ struct HistoryView: View {
       }
     }
     .listStyle(.plain)
-    .environment(\.defaultMinListHeaderHeight, 0)
+    .environment(\.defaultMinListRowHeight, 0)
     .disabled(isBusy)
     .refreshable { await model.refresh() }
   }
@@ -235,6 +231,23 @@ struct HistoryView: View {
     let generation: UInt64
     let isRefreshing: Bool
     let epoch: UInt64
+  }
+}
+
+private struct PutioHistoryDayHeader: View {
+  let title: String
+
+  @PutioScaledMetric(PutioMetricRole(value: 14, relativeTo: .caption)) private var topGap
+  @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var bottomGap
+
+  var body: some View {
+    Text(title)
+      .putioFont(PutioTheme.Typography.caption)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.top, topGap)
+      .padding(.bottom, bottomGap)
+      .accessibilityAddTraits(.isHeader)
   }
 }
 
