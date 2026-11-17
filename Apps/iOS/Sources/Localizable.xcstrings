@@ -12,6 +12,17 @@
         }
       }
     },
+    "%@ free" : {
+      "comment" : "android: mobile_downloads_free",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ free"
+          }
+        }
+      }
+    },
     "%@ is now signed in with your account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -19,17 +30,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ is now signed in with your account."
-          }
-        }
-      }
-    },
-    "%@ is ready to play." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ is ready to play."
           }
         }
       }
@@ -52,6 +52,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ of %@"
+          }
+        }
+      }
+    },
+    "%@ on this iPad" : {
+      "comment" : "android: mobile_downloads_storage | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ on this iPad"
+          }
+        }
+      }
+    },
+    "%@ on this iPhone" : {
+      "comment" : "android: mobile_downloads_storage | differs: names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ on this iPhone"
           }
         }
       }
@@ -292,17 +314,6 @@
         }
       }
     },
-    "A selected audio language is no longer available." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A selected audio language is no longer available."
-          }
-        }
-      }
-    },
     "About" : {
       "comment" : "android: mobile_settings_section_about",
       "localizations" : {
@@ -464,17 +475,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Audio"
-          }
-        }
-      }
-    },
-    "Audio languages" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio languages"
           }
         }
       }
@@ -832,6 +832,17 @@
         }
       }
     },
+    "Connection lost" : {
+      "comment" : "android: mobile_downloads_meta_failed_network",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection lost"
+          }
+        }
+      }
+    },
     "Contact us" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
       "localizations" : {
@@ -894,17 +905,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converting to MP4"
-          }
-        }
-      }
-    },
-    "Converting · %@" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converting · %@"
           }
         }
       }
@@ -1085,17 +1085,6 @@
         }
       }
     },
-    "Could not start download" : {
-      "comment" : "android: mobile_downloads_meta_failed_unexpected | differs: iOS spells out “Could not”",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not start download"
-          }
-        }
-      }
-    },
     "Couldn’t check your session" : {
       "comment" : "android: mobile_auth_unavailable_title",
       "localizations" : {
@@ -1114,6 +1103,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t create folder."
+          }
+        }
+      }
+    },
+    "Couldn’t download" : {
+      "comment" : "android: mobile_downloads_meta_failed_unexpected",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t download"
           }
         }
       }
@@ -1163,7 +1163,7 @@
       }
     },
     "Couldn’t load subtitles" : {
-      "comment" : "ios-only: no Android string for a subtitle that fails to load (putio-android#835)",
+      "comment" : "android: mobile_playback_subtitles_failed",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1275,7 +1275,7 @@
       }
     },
     "Couldn’t switch audio track" : {
-      "comment" : "ios-only: Android phone shows no notice for a failed audio switch; Android TV says tv_player_audio_failed (putio-android#835)",
+      "comment" : "android: mobile_playback_audio_failed",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1474,7 +1474,7 @@
       }
     },
     "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days." : {
-      "comment" : "android: mobile_settings_trash_confirm_message",
+      "comment" : "android: mobile_settings_trash_confirm_message | differs: iOS still promises 14 days in Trash until #964",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1682,13 +1682,68 @@
         }
       }
     },
-    "Download complete" : {
-      "comment" : "android: mobile_downloads_notification_completed | differs: iOS board wording",
+    "Download again" : {
+      "comment" : "android: mobile_downloads_download_again",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Download complete"
+            "value" : "Download again"
+          }
+        }
+      }
+    },
+    "Download failed" : {
+      "comment" : "android: mobile_downloads_notification_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download failed"
+          }
+        }
+      }
+    },
+    "Download finished" : {
+      "comment" : "android: mobile_downloads_notification_completed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download finished"
+          }
+        }
+      }
+    },
+    "Download notifications are off" : {
+      "comment" : "android: mobile_downloads_notifications_off_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download notifications are off"
+          }
+        }
+      }
+    },
+    "Download with Direct play" : {
+      "comment" : "android: mobile_files_download_with_direct_play",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download with Direct play"
+          }
+        }
+      }
+    },
+    "Download with Standard" : {
+      "comment" : "android: mobile_files_download_with_standard",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download with Standard"
           }
         }
       }
@@ -1711,17 +1766,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Downloading"
-          }
-        }
-      }
-    },
-    "Downloading · %@" : {
-      "comment" : "android: mobile_downloads_status_downloading_unknown",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloading · %@"
           }
         }
       }
@@ -1858,17 +1902,6 @@
         }
       }
     },
-    "Estimated size" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estimated size"
-          }
-        }
-      }
-    },
     "Every event will be removed from your history. Your files will stay in place." : {
       "comment" : "android: mobile_history_clear_message | differs: iOS board wording",
       "localizations" : {
@@ -1898,17 +1931,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every item in Trash will be deleted and cannot be restored."
-          }
-        }
-      }
-    },
-    "Every selected language is stored and can be switched while offline." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every selected language is stored and can be switched while offline."
           }
         }
       }
@@ -1986,17 +2008,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files"
-          }
-        }
-      }
-    },
-    "Files you download for offline playback appear here." : {
-      "comment" : "android: mobile_downloads_empty_message | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Files you download for offline playback appear here."
           }
         }
       }
@@ -2101,19 +2112,8 @@
         }
       }
     },
-    "Free on device" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Free on device"
-          }
-        }
-      }
-    },
     "Get VLC" : {
-      "comment" : "ios-only: no Android action opens the store page from the VLC notice (putio-android#835)",
+      "comment" : "android: mobile_files_get_vlc",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2233,6 +2233,17 @@
         }
       }
     },
+    "Needs attention" : {
+      "comment" : "android: mobile_downloads_section_attention",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs attention"
+          }
+        }
+      }
+    },
     "No captions available" : {
       "comment" : "android: mobile_playback_no_captions",
       "localizations" : {
@@ -2240,6 +2251,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No captions available"
+          }
+        }
+      }
+    },
+    "No longer available" : {
+      "comment" : "android: mobile_downloads_meta_failed_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer available"
+          }
+        }
+      }
+    },
+    "No longer on this iPhone" : {
+      "comment" : "android: mobile_files_download_missing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer on this iPhone"
+          }
+        }
+      }
+    },
+    "Nothing downloaded yet" : {
+      "comment" : "android: mobile_downloads_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing downloaded yet"
+          }
+        }
+      }
+    },
+    "Open a video or audio file’s actions and choose Download." : {
+      "comment" : "android: mobile_downloads_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open a video or audio file’s actions and choose Download."
           }
         }
       }
@@ -2597,7 +2652,7 @@
       }
     },
     "Loading on %@" : {
-      "comment" : "ios-only: no Android string for the Cast loading line (putio-android#835)",
+      "comment" : "android: mobile_cast_loading_on",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2873,17 +2928,6 @@
         }
       }
     },
-    "No downloads" : {
-      "comment" : "android: mobile_downloads_empty_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No downloads"
-          }
-        }
-      }
-    },
     "No exclusive links" : {
       "comment" : "android: mobile_public_links_empty_title",
       "localizations" : {
@@ -2957,6 +3001,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not enough space on this device. Free up storage and try again."
+          }
+        }
+      }
+    },
+    "Not enough storage" : {
+      "comment" : "android: mobile_downloads_meta_failed_storage",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough storage"
           }
         }
       }
@@ -3269,17 +3324,6 @@
         }
       }
     },
-    "Paused · %@" : {
-      "comment" : "android: mobile_downloads_status_paused | differs: iOS shows progress, not bytes saved",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paused · %@"
-          }
-        }
-      }
-    },
     "Page %lld of %lld" : {
       "comment" : "android: mobile_viewer_page",
       "localizations" : {
@@ -3485,17 +3529,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Plays the original file, up to 4K and surround, when this iPhone can. Converted otherwise."
-          }
-        }
-      }
-    },
-    "Positions waiting to sync" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Positions waiting to sync"
           }
         }
       }
@@ -4985,17 +5018,6 @@
         }
       }
     },
-    "The file could not be inspected. Try again." : {
-      "comment" : "ios-only: no Android string for the iOS tab shell",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The file could not be inspected. Try again."
-          }
-        }
-      }
-    },
     "The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to." : {
       "comment" : "ios-only: no Android string for the iOS removal of offline originals",
       "localizations" : {
@@ -5080,17 +5102,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This link cannot be opened in this app yet."
-          }
-        }
-      }
-    },
-    "This selection does not fit. Deselect a language or free up space." : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This selection does not fit. Deselect a language or free up space."
           }
         }
       }
@@ -5234,6 +5245,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn off trash?"
+          }
+        }
+      }
+    },
+    "Turn on" : {
+      "comment" : "android: mobile_downloads_notifications_turn_on",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on"
           }
         }
       }
@@ -5388,28 +5410,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting"
-          }
-        }
-      }
-    },
-    "Waiting for a slot" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting for a slot"
-          }
-        }
-      }
-    },
-    "Waiting for a slot · %@" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting for a slot · %@"
           }
         }
       }

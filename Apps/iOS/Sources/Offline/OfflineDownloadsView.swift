@@ -1,9 +1,8 @@
 import PutioCore
 import SwiftUI
-import UserNotifications
 
-/// The Downloads screen: storage accounting, the queue with per-item
-/// progress and controls, and multi-select delete.
+/// The Downloads tab: a storage line, then what is downloading, what needs
+/// attention and what is on the device.
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let trashEnabled: Bool
@@ -12,6 +11,9 @@ struct PutioOfflineDownloadsView: View {
   let canDeleteOriginals: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
+  @Environment(\.locale) private var locale
+  @Environment(\.scenePhase) private var scenePhase
+  @State private var notifications = PutioOfflineNotificationStatus()
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
@@ -47,11 +49,7 @@ struct PutioOfflineDownloadsView: View {
   var body: some View {
     Group {
       if queue.items.isEmpty {
-        PutioEmptyStateView(
-          icon: .arrowCircleDown, title: String(localized: "No downloads"),
-          message: String(localized: "Files you download for offline playback appear here.")
-        )
-        .accessibilityIdentifier("downloads.empty")
+        empty
       } else {
         list
       }
@@ -60,6 +58,7 @@ struct PutioOfflineDownloadsView: View {
     .navigationTitle("Downloads")
     .toolbar { toolbar }
     .environment(\.editMode, .constant(isEditing ? .active : .inactive))
+    .environment(\.putioIsSelecting, isEditing)
     .confirmationDialog(
       copy.title(names: pendingRemoval?.map(\.name) ?? []),
       isPresented: Binding(
@@ -108,6 +107,10 @@ struct PutioOfflineDownloadsView: View {
       await queue.restore()
       queue.refreshStorage()
     }
+    .task(id: scenePhase) {
+      guard scenePhase == .active else { return }
+      await notifications.refresh()
+    }
     .accessibilityIdentifier("downloads.screen")
   }
 
@@ -120,54 +123,119 @@ struct PutioOfflineDownloadsView: View {
     PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
   }
 
-  private var list: some View {
-    List(selection: isEditing ? $selectedIDs : nil) {
-      Section {
-        LabeledContent("Downloaded", value: byteText(queue.storedBytes))
-          .accessibilityElement(children: .combine)
-          .accessibilityIdentifier("downloads.storage-used")
-        LabeledContent("Free on device", value: byteText(queue.availableBytes))
-        if queue.pendingPositionCount > 0 {
-          LabeledContent("Positions waiting to sync", value: "\(queue.pendingPositionCount)")
-            .accessibilityElement(children: .combine)
-            .accessibilityValue("\(queue.pendingPositionCount)")
-            .accessibilityIdentifier("downloads.pending-positions")
-        }
-      } header: {
-        Text("Storage")
+  private var isPad: Bool {
+    UIDevice.current.userInterfaceIdiom == .pad
+  }
+
+  private var storageLine: some View {
+    let stored = Text(byteText(queue.storedBytes)).font(PutioTheme.Typography.mono.font)
+    return HStack(alignment: .firstTextBaseline, spacing: PutioTheme.Spacing.space3) {
+      if isPad {
+        Text("\(stored) on this iPad")
+      } else {
+        Text("\(stored) on this iPhone")
       }
-      Section {
-        ForEach(queue.items) { item in
-          row(item)
-            .tag(item.id)
+      Spacer(minLength: 0)
+      Text("\(byteText(queue.availableBytes)) free")
+    }
+    .putioFont(PutioTheme.Typography.caption)
+    .foregroundStyle(PutioTheme.Colors.textSecondary)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("downloads.storage-used")
+  }
+
+  private var empty: some View {
+    GeometryReader { geometry in
+      ScrollView {
+        VStack(spacing: 0) {
+          storageLine
+            .padding(.horizontal, PutioTheme.Spacing.space3)
+          PutioEmptyStateView(
+            kaomoji: .shrug, title: String(localized: "Nothing downloaded yet"),
+            message: String(localized: "Open a video or audio file’s actions and choose Download.")
+          )
+          .frame(maxHeight: .infinity)
+          .accessibilityIdentifier("downloads.empty")
         }
-      } header: {
-        Text("Queue")
+        .frame(minHeight: geometry.size.height)
+      }
+    }
+  }
+
+  private var list: some View {
+    let sections = PutioOfflineSections(queue.items)
+    return List(selection: isEditing ? $selectedIDs : nil) {
+      storageLine
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .selectionDisabled()
+      if notifications.showsRow(hasDownloads: !queue.items.isEmpty) {
+        PutioOfflineNotificationsOffRow()
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .selectionDisabled()
+      }
+      ForEach(sections.sections) { section in
+        Section {
+          ForEach(section.items) { item in
+            row(item, queuePosition: sections.queuePositions[item.id])
+              .tag(item.id)
+          }
+        } header: {
+          Text(title(section.kind))
+        }
       }
     }
     .listStyle(.insetGrouped)
     .tint(PutioTheme.Colors.accent)
   }
 
-  @ViewBuilder
-  private func row(_ item: PutioOfflineItem) -> some View {
-    let row = PutioFileRowModel(
+  private func title(_ kind: PutioOfflineSections.Kind) -> String {
+    switch kind {
+    case .downloading: String(localized: "Downloading")
+    case .attention: String(localized: "Needs attention")
+    case .onDevice:
+      isPad ? String(localized: "On this iPad") : String(localized: "On this iPhone")
+    }
+  }
+
+  private func rowModel(_ item: PutioOfflineItem, queuePosition: Int?) -> PutioFileRowModel {
+    let finished = item.stage == .completed
+    return PutioFileRowModel(
       name: item.name, kind: item.kind == .video ? .video : .audio,
-      sizeText: subtitle(item))
+      sizeText: finished ? item.storedSizeText : nil,
+      dateText: finished
+        ? PutioBrowserItemPresentation.relativeDateText(for: item.createdAt, locale: locale) : nil,
+      isWatched: finished && item.isWatched == true,
+      showsDisclosure: false,
+      downloadState: item.downloadState(
+        queuePosition: queuePosition, isWaitingForSlot: queue.isWaitingForSlot(item.id)))
+  }
+
+  @ViewBuilder
+  private func row(_ item: PutioOfflineItem, queuePosition: Int?) -> some View {
+    let model = rowModel(item, queuePosition: queuePosition)
     Group {
       if isEditing {
-        rowContent(item, row)
+        PutioFileRow(model)
           .contentShape(Rectangle())
           .accessibilityElement(children: .combine)
           .accessibilityValue(
             Text(selectedIDs.contains(item.id) ? "Selected" : "Not selected"))
-      } else {
+      } else if item.stage == .completed {
         Button {
           if item.isPlayable { onOpen(item) } else { detailItem = item }
         } label: {
-          rowContent(item, row)
+          PutioFileRow(model)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityValue(Text(accessibilityValue(item)))
+      } else {
+        PutioFileRow(model) { action in
+          perform(action, on: item)
+        }
+        .accessibilityElement(children: .contain)
         .accessibilityValue(Text(accessibilityValue(item)))
       }
     }
@@ -184,21 +252,20 @@ struct PutioOfflineDownloadsView: View {
     .swipeActions(edge: .leading, allowsFullSwipe: false) { controls(item) }
   }
 
-  private func rowContent(_ item: PutioOfflineItem, _ row: PutioFileRowModel) -> some View {
-    VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
-      PutioFileRow(row)
-      if item.isActive || item.stage == .queued {
-        ProgressView(value: item.progress)
-          .tint(PutioTheme.Colors.accent)
-          .accessibilityHidden(true)
-      }
+  private func perform(_ action: PutioDownloadAction, on item: PutioOfflineItem) {
+    switch action {
+    case .pause: queue.pause(fileID: item.id)
+    case .resume: queue.resume(fileID: item.id)
+    case .cancel: queue.remove(fileIDs: [item.id])
+    case .retry, .downloadAgain: queue.retry(fileID: item.id)
     }
   }
 
   @ViewBuilder
   private func controls(_ item: PutioOfflineItem) -> some View {
     switch item.stage {
-    case .queued, .converting, .downloading:
+    case .queued, .converting, .downloading,
+      .paused where queue.isWaitingForSlot(item.id):
       Button {
         queue.pause(fileID: item.id)
       } label: {
@@ -209,16 +276,21 @@ struct PutioOfflineDownloadsView: View {
       Button {
         queue.resume(fileID: item.id)
       } label: {
-        Label(
-          queue.isWaitingForSlot(item.id) ? "Waiting for a slot" : "Resume", systemImage: "play")
+        Label("Resume", systemImage: "play")
       }
-      .disabled(queue.isWaitingForSlot(item.id))
       .accessibilityIdentifier("downloads.resume.\(item.id.rawValue)")
     case .failed(let failure) where failure.canRetry:
       Button {
         queue.retry(fileID: item.id)
       } label: {
         Label("Try again", systemImage: "arrow.counterclockwise")
+      }
+      .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
+    case .missing:
+      Button {
+        queue.retry(fileID: item.id)
+      } label: {
+        Label("Download again", systemImage: "arrow.down.circle")
       }
       .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
     case .completed:
@@ -241,14 +313,11 @@ struct PutioOfflineDownloadsView: View {
   @ToolbarContentBuilder
   private var toolbar: some ToolbarContent {
     if !queue.items.isEmpty {
-      ToolbarItem(placement: .primaryAction) {
-        Button(isEditing ? "Done" : "Select") {
-          isEditing.toggle()
-          if !isEditing { selectedIDs = [] }
-        }
-        .accessibilityIdentifier("downloads.select")
-      }
       if isEditing {
+        ToolbarItem(placement: .primaryAction) {
+          Button("Done") { finishSelection() }
+            .accessibilityIdentifier("downloads.select-done")
+        }
         ToolbarItem(placement: .topBarLeading) {
           Button("Remove \(selectedIDs.count)", role: .destructive) {
             pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map(removalTarget)
@@ -256,37 +325,45 @@ struct PutioOfflineDownloadsView: View {
           .disabled(selectedIDs.isEmpty)
           .accessibilityIdentifier("downloads.remove-selected")
         }
+      } else {
+        ToolbarItem(placement: .primaryAction) {
+          Menu {
+            Button {
+              isEditing = true
+            } label: {
+              Label("Select", systemImage: "checkmark.circle")
+            }
+            .accessibilityIdentifier("downloads.select")
+          } label: {
+            Label("More", systemImage: "ellipsis")
+          }
+          .accessibilityIdentifier("downloads.more")
+        }
       }
     }
   }
 
-  private func subtitle(_ item: PutioOfflineItem) -> String {
-    switch item.stage {
-    case .queued: String(localized: "Waiting")
-    case .converting(let progress): String(localized: "Converting · \(percent(progress))")
-    case .downloading(let progress): String(localized: "Downloading · \(percent(progress))")
-    case .paused(let progress):
-      queue.isWaitingForSlot(item.id)
-        ? String(localized: "Waiting for a slot · \(percent(progress))")
-        : String(localized: "Paused · \(percent(progress))")
-    case .completed: item.storedSizeText ?? ""
-    case .failed(let failure): failure.message
-    }
+  private func accessibilityValue(_ item: PutioOfflineItem) -> String {
+    let marks = [
+      item.waitingForNetwork == true ? "network" : nil,
+      item.isRemoving == true ? "removing" : nil,
+      item.isWatched == true ? "watched" : nil,
+    ].compactMap(\.self)
+    return ([stageValue(item)] + marks).joined(separator: ";")
   }
 
-  private func accessibilityValue(_ item: PutioOfflineItem) -> String {
+  private func stageValue(_ item: PutioOfflineItem) -> String {
     switch item.stage {
     case .queued: "queued"
     case .converting(let progress): "converting;\(Int(progress * 100))"
     case .downloading(let progress): "downloading;\(Int(progress * 100))"
     case .paused(let progress): "paused;\(Int(progress * 100))"
     case .completed: "completed"
-    case .failed(let failure): "failed;\(failure.kind.rawValue)"
+    case .failed(let failure):
+      item.failedProgress.map { "failed;\(failure.kind.rawValue);\(Int($0 * 100))" }
+        ?? "failed;\(failure.kind.rawValue)"
+    case .missing: "missing"
     }
-  }
-
-  private func percent(_ value: Double) -> String {
-    value.formatted(.percent.precision(.fractionLength(0)))
   }
 
   private func byteText(_ bytes: Int64) -> String {
@@ -370,6 +447,7 @@ struct PutioOfflineDetailView: View {
           }
           ForEach(item.storedSubtitleTracks, id: \.self) { track in
             LabeledContent(track.displayName, value: track.languageCode)
+              .accessibilityIdentifier("downloads.detail.subtitle.\(track.languageCode)")
           }
         }
       }
@@ -392,133 +470,8 @@ struct PutioOfflineDetailView: View {
     case .downloading: String(localized: "Downloading")
     case .paused: String(localized: "Paused")
     case .completed: String(localized: "Downloaded")
-    case .failed(let failure): failure.message
+    case .failed(let failure): failure.reason
+    case .missing: String(localized: "No longer on this iPhone")
     }
-  }
-}
-
-/// The pre-download sheet: language inventory, bounded multi-select, and the
-/// storage estimate. Audio files and single-track videos skip it.
-struct PutioOfflineTrackPickerView: View {
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  let name: String
-  let inventory: PutioOfflineInventory
-  let availableBytes: Int64
-  let onConfirm: @MainActor ([String]) -> Void
-  let onCancel: @MainActor () -> Void
-
-  @State private var selected: [String]
-
-  init(
-    name: String, inventory: PutioOfflineInventory, availableBytes: Int64,
-    preferredLanguages: [String] = Locale.preferredLanguages,
-    onConfirm: @escaping @MainActor ([String]) -> Void, onCancel: @escaping @MainActor () -> Void
-  ) {
-    self.name = name
-    self.inventory = inventory
-    self.availableBytes = availableBytes
-    self.onConfirm = onConfirm
-    self.onCancel = onCancel
-    let stored = inventory.audioOptions.map {
-      PutioOfflineTrack(languageCode: $0.languageCode, displayName: $0.displayName)
-    }
-    let preferred = PutioOfflineLanguage.preferred(
-      from: stored, preferredLanguages: preferredLanguages)
-    _selected = State(initialValue: preferred.map { [$0.languageCode] } ?? [])
-  }
-
-  private var estimate: Int64 { inventory.estimatedBytes(selecting: selected) }
-  private var overBudget: Bool {
-    !PutioOfflineQueue.fits(estimatedBytes: estimate, freeBytes: availableBytes)
-  }
-
-  var body: some View {
-    NavigationStack {
-      List {
-        Section {
-          ForEach(inventory.audioOptions) { option in
-            Toggle(isOn: binding(option.languageCode)) {
-              if dynamicTypeSize.isAccessibilitySize {
-                VStack(alignment: .leading) {
-                  Text(option.displayName)
-                  Text(PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-              } else {
-                LabeledContent(
-                  option.displayName,
-                  value: PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
-              }
-            }
-            .putioSwitchTint()
-            .accessibilityIdentifier("downloads.track.\(option.languageCode)")
-          }
-        } header: {
-          Text("Audio languages")
-        } footer: {
-          Text("Every selected language is stored and can be switched while offline.")
-        }
-        Section {
-          LabeledContent(
-            "Estimated size", value: PutioFileRowModel.sizeText(bytes: estimate)
-          )
-          .accessibilityIdentifier("downloads.estimate")
-          LabeledContent(
-            "Free on device", value: PutioFileRowModel.sizeText(bytes: availableBytes))
-          if overBudget {
-            Text("This selection does not fit. Deselect a language or free up space.")
-              .foregroundStyle(PutioTheme.Colors.destructive)
-              .accessibilityIdentifier("downloads.over-budget")
-          }
-        }
-      }
-      .putioContentBackground()
-      .navigationTitle(name)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel") { onCancel() }.accessibilityIdentifier("downloads.picker.cancel")
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Download") { onConfirm(selected) }
-            .disabled(selected.isEmpty || overBudget)
-            .accessibilityIdentifier("downloads.picker.confirm")
-        }
-      }
-    }
-  }
-
-  private func binding(_ code: String) -> Binding<Bool> {
-    Binding(
-      get: { selected.contains(code) },
-      set: { on in
-        if on {
-          if !selected.contains(code) { selected.append(code) }
-        } else {
-          selected.removeAll { $0 == code }
-        }
-      })
-  }
-}
-
-/// Completion notifications are requested from the download flow, once, and
-/// only after the first item is queued.
-enum PutioOfflineNotifications {
-  static func requestPermissionIfNeeded(center: UNUserNotificationCenter = .current()) async {
-    let settings = await center.notificationSettings()
-    guard settings.authorizationStatus == .notDetermined else { return }
-    _ = try? await center.requestAuthorization(options: [.alert, .sound])
-  }
-
-  static func notifyCompletion(
-    _ item: PutioOfflineItem, center: UNUserNotificationCenter = .current()
-  ) {
-    let content = UNMutableNotificationContent()
-    content.title = String(localized: "Download complete")
-    content.body = String(localized: "\(item.name) is ready to play.")
-    let request = UNNotificationRequest(
-      identifier: "offline-\(item.id.rawValue)", content: content, trigger: nil)
-    center.add(request)
   }
 }

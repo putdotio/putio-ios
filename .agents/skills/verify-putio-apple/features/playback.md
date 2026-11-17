@@ -39,7 +39,8 @@ offline playback.
   menu is open, and puts Picture in Picture first in the route group.
 - `direct-play` plays a Matroska original in the Direct play engine from the
   file menu on Standard, keeps a plain tap on HLS, follows the setting, then
-  seeks, switches to the E-AC-3 track and resumes on Direct play.
+  seeks, switches to the E-AC-3 track and resumes on Direct play. It starts on
+  the put.io default subtitle, then on the last pick, Off included.
 - `audio-speed` switches English to Turkish from the Audio chip and keeps 2.5×
   on the next file and after a relaunch. `speed-landscape` scrolls the speed
   menu to 4× in landscape. `audio-tracks` disables the Audio chip with one track
@@ -73,6 +74,9 @@ offline playback.
   removes the download.
 - `unsaved-downloads` reports a download that finished outside Downloads.
 - `download-start-failed` reports a download that put.io refuses to start.
+- `downloads-method` stores a Direct play original and a Standard HLS package.
+- `download-notifications-off` shows the notifications-off row and still
+  finishes a download with notification permission denied.
 - `large-text-audio` keeps the audio controls usable at the largest text size
   in portrait and landscape.
 
@@ -215,10 +219,11 @@ Preconditions:
   The stub receiver lists "Living Room TV" and "Kitchen speaker" and keeps
   searching. Boards:
   `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
-- **Downloads.** Run `--only downloads,unsaved-downloads,download-start-failed`.
-  Screenshots: `runtime-downloads-picker`, `runtime-downloads-queue`,
-  `runtime-downloads-detail`, `runtime-downloads-selection`,
-  `runtime-downloads-remove`, `runtime-downloads-start-failed`.
+- **Downloads.** Run
+  `--only downloads,unsaved-downloads,download-start-failed,downloads-method,download-notifications-off`.
+  Screenshots: `runtime-downloads-queue`, `runtime-downloads-detail`,
+  `runtime-downloads-selection`, `runtime-downloads-remove`,
+  `runtime-downloads-start-failed`, `runtime-downloads-notifications-off`.
 - **Large text.** Run `--only accessibility-audio`. Screenshots:
   `runtime-accessibility-audio-portrait`, `runtime-accessibility-audio-landscape`,
   and their `-controls` variants.

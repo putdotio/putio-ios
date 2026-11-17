@@ -109,13 +109,13 @@ final class PutioAppDelegate: NSObject, UIApplicationDelegate {
     handleEventsForBackgroundURLSession identifier: String,
     completionHandler: @escaping () -> Void
   ) {
-    guard identifier == PutioSystemOfflineDownloadEngine.sessionIdentifier else {
+    guard PutioSystemOfflineDownloadEngine.sessionIdentifiers.contains(identifier) else {
       completionHandler()
       return
     }
-    PutioSystemOfflineDownloadEngine.backgroundCompletion = completionHandler
+    PutioSystemOfflineDownloadEngine.backgroundCompletions[identifier] = completionHandler
     // A relaunch for download events may never reach the signed-in shell
-    // that builds an engine; the session itself must exist to drain them.
-    PutioSystemOfflineDownloadEngine.activateBackgroundSession()
+    // that builds an engine; the sessions themselves must exist to drain them.
+    PutioSystemOfflineDownloadEngine.activateBackgroundSessions()
   }
 }

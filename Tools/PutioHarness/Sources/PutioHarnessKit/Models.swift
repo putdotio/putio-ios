@@ -687,6 +687,30 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-duo-04-closed-selection", .duoFolded, "testSelection"),
       BoardCapture("rd-ios-duo-05-open-files", .duoOpen, "testIPadRoot"),
       BoardCapture("rd-ios-duo-06-open-search", .duoOpen, "testSearch"),
+      BoardCapture(
+        "rd-ios-dl-01-list", .iphone, "testDownloadsFixture",
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
+      BoardCapture(
+        "rd-ios-dl-02-empty", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
+      BoardCapture(
+        "rd-ios-dl-11-downloading-states", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "downloading-states"]),
+      BoardCapture(
+        "rd-ios-dl-12-attention-states", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "attention-states"]),
+      BoardCapture(
+        "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
+      BoardCapture(
+        "rd-ios-dl-28-notifications-off", .iphone, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "list", "PUTIO_NOTIFICATIONS_DENIED": "1"]),
+      BoardCapture(
+        "rd-ios-dl-21-ipad-none", .ipad, "testDownloadsFixture",
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
+      BoardCapture(
+        "rd-ios-dl-24-ipad-empty", .ipad, "testDownloadsFixture", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),
@@ -1121,10 +1145,10 @@ enum BrowserJourneyContract {
   static let preflights = [
     JourneyPreflight(
       "accessibility-files",
-      "AccessibilityJourneyTests/testLongNamesSelectionAndDownloadPickerAtLargestTextSize",
+      "AccessibilityJourneyTests/testLongNamesSelectionAndDownloadsAtLargestTextSize",
       attachmentNames: [
         "runtime-accessibility-files", "runtime-accessibility-selection",
-        "runtime-accessibility-downloads", "runtime-accessibility-download-picker",
+        "runtime-accessibility-downloads",
       ],
       timeAllowance: 180),
     JourneyPreflight(
@@ -1244,8 +1268,8 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [
-        "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
-        "runtime-downloads-selection", "runtime-downloads-remove",
+        "runtime-downloads-queue", "runtime-downloads-detail", "runtime-downloads-selection",
+        "runtime-downloads-remove",
       ],
       timeAllowance: 180),
     JourneyPreflight(
@@ -1255,6 +1279,14 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "download-start-failed", "DownloadsJourneyTests/testADownloadThatCannotStartIsReported",
       attachmentNames: ["runtime-downloads-start-failed"], timeAllowance: 90),
+    JourneyPreflight(
+      "downloads-method",
+      "DownloadsJourneyTests/testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther",
+      attachmentNames: ["runtime-downloads-direct-play-original"], timeAllowance: 240),
+    JourneyPreflight(
+      "download-notifications-off",
+      "DownloadsJourneyTests/testADownloadFinishesWithNotificationsOff",
+      attachmentNames: ["runtime-downloads-notifications-off"], timeAllowance: 120),
     JourneyPreflight(
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",

@@ -4,6 +4,7 @@ import SwiftUI
 public enum PutioDownloadWait: Equatable, Sendable {
   case network
   case storage
+  case slot
 }
 
 public enum PutioDownloadState: Equatable, Sendable {
@@ -15,7 +16,7 @@ public enum PutioDownloadState: Equatable, Sendable {
   case queued(position: Int)
   case removing
   case missing
-  case failed(reason: String)
+  case failed(reason: String, canRetry: Bool = true)
 }
 
 public enum PutioDownloadAction: Equatable, Sendable {
@@ -32,6 +33,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     case play
     case stop
     case again
+    case download
   }
 
   public enum Ring: Equatable, Sendable {
@@ -132,14 +134,15 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       statusLine = [
         Segment(String(localized: "No longer on this iPhone", bundle: .module, locale: locale))
       ]
-      tone = .destructive
-      ring = .glyph(.again)
+      ring = .glyph(.download)
       action = .downloadAgain
-    case .failed(let reason):
+    case .failed(let reason, let canRetry):
       statusLine = [Segment(reason)]
       tone = .destructive
-      ring = .glyph(.again)
-      action = .retry
+      if canRetry {
+        ring = .glyph(.again)
+        action = .retry
+      }
     }
 
     self.statusLine = statusLine
@@ -188,6 +191,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     switch wait {
     case .network: String(localized: "Waiting for network", bundle: .module, locale: locale)
     case .storage: String(localized: "Waiting for storage", bundle: .module, locale: locale)
+    case .slot: String(localized: "Waiting for a slot", bundle: .module, locale: locale)
     }
   }
 
@@ -305,6 +309,7 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
         case .play: (.playFill, ringGlyphSize, PutioTheme.Colors.textPrimary)
         case .stop: (.stopFill, stopGlyphSize, PutioTheme.Colors.textSecondary)
         case .again: (.arrowCounterClockwise, againGlyphSize, PutioTheme.Colors.textSecondary)
+        case .download: (.arrowCircleDown, againGlyphSize, PutioTheme.Colors.textSecondary)
         }
       return Image(putioIcon: icon)
         .resizable()

@@ -42,6 +42,7 @@ struct PutioFolderScreen: View {
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioExclusiveLink) private var exclusiveLink
   @Environment(\.putioPlayWithOtherMethod) private var playWithOtherMethod
+  @Environment(\.putioDownloadWithOtherMethod) private var downloadWithOtherMethod
   @State private var linkItem: PutioFileItem?
   @State private var share = PutioFileShareModel()
   @State private var preparingToast: PutioToast.ID?
@@ -680,6 +681,8 @@ struct PutioFolderScreen: View {
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown,
         isDisabled: fileActionPending
       ) { onDownload?(route) }
+    case .downloadWithOtherMethod:
+      return downloadWithOtherMethod?.action(for: route, isDisabled: fileActionPending)
     case .openInVLC:
       return PutioItemAction(
         id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone,

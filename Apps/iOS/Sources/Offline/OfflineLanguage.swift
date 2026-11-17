@@ -1,14 +1,6 @@
 import Foundation
 
 enum PutioOfflineLanguage {
-  /// The track to play: the user's first preferred language present in the
-  /// stored set, else the first stored track.
-  static func preferred(
-    from stored: [PutioOfflineTrack], preferredLanguages: [String] = Locale.preferredLanguages
-  ) -> PutioOfflineTrack? {
-    match(from: stored, preferredLanguages: preferredLanguages) ?? stored.first
-  }
-
   /// The first preferred language present, or nil when none is: playback
   /// uses nil to keep the asset's own default.
   static func match(from stored: [PutioOfflineTrack], preferredLanguages: [String])

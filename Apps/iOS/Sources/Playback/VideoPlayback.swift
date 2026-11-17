@@ -29,6 +29,7 @@ struct PutioVideoPlaybackView: View {
   private let onDismiss: @MainActor @Sendable () -> Void
   private let onDurationKnown: @MainActor @Sendable (Double) -> Void
   private let preferredAudioLanguages: [String]
+  private let selectsAVPlayerAudio: Bool
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
   private let reportFailure: @MainActor @Sendable (PutioVideoPlayerFault) -> Void
@@ -51,6 +52,7 @@ struct PutioVideoPlaybackView: View {
     onDismiss: @escaping @MainActor @Sendable () -> Void,
     onDurationKnown: @escaping @MainActor @Sendable (Double) -> Void = { _ in },
     preferredAudioLanguages: [String] = [],
+    selectsAVPlayerAudio: Bool = false,
     remembersPlaybackPosition: Bool = true,
     suggestsNextVideo: Bool = true,
     autoplayNextVideo: @escaping PutioNextVideoAutoplayPolicy = { false },
@@ -83,7 +85,7 @@ struct PutioVideoPlaybackView: View {
     self.castButton = castButton
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
-    self.loadSubtitleListings = loadSubtitleListings
+    self.loadSubtitleListings = route.subtitleListings(loadSubtitleListings)
     let transport = PutioVideoTransport()
     transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
     transport.onSubtitleFailed = { subtitleMemory?.forget($0) }
@@ -96,6 +98,7 @@ struct PutioVideoPlaybackView: View {
     self.onDismiss = onDismiss
     self.onDurationKnown = onDurationKnown
     self.preferredAudioLanguages = preferredAudioLanguages
+    self.selectsAVPlayerAudio = selectsAVPlayerAudio
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportsPlayerFailures = reportsPlayerFailures
     self.reportFailure = reportFailure
@@ -535,7 +538,10 @@ struct PutioVideoPlaybackView: View {
             fileID: fileID,
             source: source,
             transport: transport,
+            preferredAudioLanguages: preferredAudioLanguages,
             remembersPlaybackPosition: remembersPlaybackPosition,
+            subtitlePolicy: subtitlePolicy,
+            subtitleMemory: subtitleMemory,
             positionPipeline: positionPipeline,
             reportPosition: reportPosition,
             callbacks: callbacks
@@ -545,7 +551,7 @@ struct PutioVideoPlaybackView: View {
             fileID: fileID,
             source: source,
             transport: transport,
-            preferredAudioLanguages: preferredAudioLanguages,
+            preferredAudioLanguages: selectsAVPlayerAudio ? preferredAudioLanguages : [],
             subtitlePolicy: subtitlePolicy,
             subtitleMemory: subtitleMemory,
             remembersPlaybackPosition: remembersPlaybackPosition,

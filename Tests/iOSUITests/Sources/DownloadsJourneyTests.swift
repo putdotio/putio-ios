@@ -12,7 +12,7 @@ final class DownloadsJourneyTests: XCTestCase {
     ]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
-    // Turkish first so the stored English default is not the pick.
+    // Turkish first so the stream's English default is not the pick.
     app.launchArguments += ["--putio-harness-preferred-languages", "tr,en"]
   }
 
@@ -20,35 +20,23 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // Inventory and bounded multi-select.
     let row = element("files.item.412")
     XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
     let download = app.buttons["Download"]
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    let turkish = element("downloads.track.tr")
-    XCTAssertTrue(turkish.appears(within: 20), "track picker never appeared")
-    XCTAssertTrue(isOn(turkish), "preferred language was not preselected: \(turkish.value ?? "")")
-    let english = element("downloads.track.en")
-    XCTAssertFalse(isOn(english))
-    english.switches.firstMatch.tap()
-    XCTAssertTrue(waitUntil(timeout: 5) { self.isOn(english) })
-    XCTAssertTrue(element("downloads.estimate").exists)
-    XCTAssertFalse(element("downloads.over-budget").exists)
-    screenshot("runtime-downloads-picker")
-    app.buttons["downloads.picker.confirm"].tap()
-
-    // Queue: progress through completion.
     let item = element("downloads.item.412")
     XCTAssertTrue(item.appears(within: 10))
+
+    // Queue: progress through completion.
     XCTAssertTrue(
       waitForValue(item, "completed", timeout: 90),
       "download did not complete: \(item.value ?? "")")
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
 
-    // Details disclose both stored tracks.
+    // Details disclose every stored audio and subtitle track.
     item.press(forDuration: 1)
     let details = app.buttons["downloads.details.412"]
     XCTAssertTrue(details.appears(within: 5))
@@ -56,6 +44,8 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
     XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
     XCTAssertTrue(element("downloads.detail.audio.tr").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.subtitle.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.subtitle.tr").appears(within: 5))
     screenshot("runtime-downloads-detail")
     app.buttons["downloads.detail.done"].tap()
 
@@ -75,12 +65,8 @@ final class DownloadsJourneyTests: XCTestCase {
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
     app.closeVideo()
-    let pending = element("downloads.pending-positions")
-    XCTAssertTrue(pending.appears(within: 10))
-    XCTAssertEqual(pending.value as? String, "1")
 
-    // Relaunch without the failure flag: the item and its pending position
-    // survive, and foregrounding syncs it.
+    // Relaunch without the failure flag: the item survives.
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launch()
@@ -88,10 +74,26 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertEqual(item.value as? String, "completed")
-    XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
+
+    app.terminate()
+    let preference = try XCTUnwrap(
+      app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"))
+    app.launchArguments[preference + 1] = "en,tr"
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
+    app.buttons["Downloads"].tap()
+    XCTAssertTrue(item.appears(within: 10))
+    item.tap()
+    XCTAssertTrue(ready.appears(within: 20))
+    XCTAssertTrue(
+      waitForValue(language, "en", timeout: 10),
+      "offline playback did not switch to English: \(language.value ?? "")")
+    element("video.done").tap()
+    XCTAssertTrue(item.appears(within: 10))
 
     // Multi-select removal: local removal is the default, the original is a
     // separately worded destructive choice, and both are named for VoiceOver.
+    app.buttons["downloads.more"].tap()
     app.buttons["downloads.select"].tap()
     XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
     XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
@@ -133,7 +135,7 @@ final class DownloadsJourneyTests: XCTestCase {
       ).exists, "the failure report does not keep the local outcome honest")
     app.buttons["downloads.remove-original-retry"].firstMatch.tap()
     XCTAssertTrue(failure.disappears(within: 10))
-    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 5))
     XCTAssertFalse(app.putioAlerts.firstMatch.exists, "retry must not report a second failure")
 
     // The loaded root reconciles with the moved original.
@@ -207,12 +209,12 @@ final class DownloadsJourneyTests: XCTestCase {
     let download = app.buttons["Download"]
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    let failure = app.putioAlert("Could not start download")
-    XCTAssertTrue(failure.appears(within: 10), "the refused download was not reported")
+    let item = element("downloads.item.412")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(item, "failed;resolution;watched", timeout: 20),
+      "the refused download was not reported: \(item.value ?? "")")
     screenshot("runtime-downloads-start-failed")
-    app.buttons["putio-alert.neutral"].tap()
-    XCTAssertTrue(failure.disappears(within: 5))
-    XCTAssertFalse(element("downloads.track.tr").exists, "the refused download asked for tracks")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -223,10 +225,140 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
-  /// Toggle rows expose the switch value as "1"/"0" on the row or its switch.
-  private func isOn(_ toggle: XCUIElement) -> Bool {
-    let value = (toggle.switches.firstMatch.value ?? toggle.value) as? String
-    return value == "1"
+  func testADownloadFinishesWithNotificationsOff() throws {
+    app.launchArguments.append("--putio-harness-notifications-denied")
+    app.launch()
+    signIn()
+
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
+    let download = app.buttons["Download"]
+    XCTAssertTrue(download.appears(within: 5))
+    download.tap()
+    let item = element("downloads.item.442")
+    XCTAssertTrue(item.appears(within: 10))
+    XCTAssertTrue(
+      element("downloads.notifications-off").appears(within: 5),
+      "denied notifications showed no row")
+    XCTAssertTrue(app.buttons["downloads.notifications-turn-on"].exists)
+    XCTAssertTrue(
+      waitForValue(item, "completed;watched", timeout: 60),
+      "the download did not finish without notifications: \(item.value ?? "")")
+    screenshot("runtime-downloads-notifications-off")
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  func testDownloadsFollowThePlaybackMethodUnlessTheMenuNamesTheOther() throws {
+    app.launch()
+    signIn()
+    choosePlaybackMethod("Direct play")
+
+    let movie = element("files.item.412")
+    XCTAssertTrue(movie.appears(within: 10))
+    movie.press(forDuration: 1)
+    XCTAssertTrue(
+      app.buttons["Download with Standard"].appears(within: 5),
+      "the menu does not offer the other method")
+    app.buttons["Download"].tap()
+    let original = element("downloads.item.412")
+    XCTAssertTrue(original.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(original, "completed", timeout: 90),
+      "the Direct play download did not complete: \(original.value ?? "")")
+
+    app.buttons["Files"].tap()
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
+    let standard = app.buttons["Download with Standard"]
+    XCTAssertTrue(standard.appears(within: 5))
+    standard.tap()
+    let package = element("downloads.item.442")
+    XCTAssertTrue(package.appears(within: 10))
+    XCTAssertTrue(
+      waitForValue(package, "completed", timeout: 90),
+      "the Standard download did not complete: \(package.value ?? "")")
+
+    let mediaBaseURL = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"].flatMap {
+        URL(string: $0)
+      })
+    let served = try Data(contentsOf: mediaBaseURL.appending(path: "runtime-proof-direct.mkv"))
+    let originalDirectory = try storedDownload(412)
+    let stored = try XCTUnwrap(
+      FileManager.default.contentsOfDirectory(atPath: originalDirectory.path)
+        .first { $0.hasPrefix("original") },
+      "no original file in \(originalDirectory.path)")
+    XCTAssertEqual(
+      try Data(contentsOf: originalDirectory.appending(path: stored)), served,
+      "the Direct play download is not the original file")
+    let packageDirectory = try storedDownload(442)
+    XCTAssertEqual(packageDirectory.pathExtension, "movpkg", "\(packageDirectory.path)")
+    let packageFiles = try XCTUnwrap(
+      FileManager.default.enumerator(atPath: packageDirectory.path)?.allObjects as? [String])
+    XCTAssertTrue(
+      packageFiles.contains { $0.hasSuffix(".m3u8") }, "the Standard download is not an HLS package"
+    )
+
+    original.tap()
+    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.tr").exists)
+    XCTAssertTrue(element("downloads.detail.subtitle.en").exists)
+    XCTAssertTrue(element("downloads.detail.subtitle.tr").exists)
+    screenshot("runtime-downloads-direct-play-original")
+    app.buttons["downloads.detail.done"].tap()
+    package.tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20))
+    app.closeVideo()
+
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+  }
+
+  private func choosePlaybackMethod(_ name: String) {
+    app.buttons["Account"].tap()
+    let method = app.revealed("playback-settings.method")
+    XCTAssertTrue(method.appears(within: 10))
+    method.tap()
+    let choice = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", name)).firstMatch
+    XCTAssertTrue(choice.appears(within: 5))
+    choice.tap()
+    let failed = app.staticTexts["Couldn’t save this setting"]
+    if failed.waitForExistence(timeout: 5) {
+      XCTAssertTrue(failed.disappears(within: 10))
+      choice.tap()
+    }
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { method.label.hasSuffix(name) }, "method row read \(method.label)")
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {
@@ -252,6 +384,30 @@ final class DownloadsJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func storedDownload(_ fileID: Int) throws -> URL {
+    let fileManager = FileManager.default
+    let containers = URL(fileURLWithPath: NSHomeDirectory()).deletingLastPathComponent()
+    var newest: (container: URL, queue: URL, date: Date)?
+    for container in try fileManager.contentsOfDirectory(
+      at: containers, includingPropertiesForKeys: nil)
+    {
+      let queue = container.appending(path: "tmp/harness-offline/queue.json")
+      guard
+        let date = try? queue.resourceValues(forKeys: [.contentModificationDateKey])
+          .contentModificationDate
+      else { continue }
+      if newest.map({ date > $0.date }) ?? true { newest = (container, queue, date) }
+    }
+    let found = try XCTUnwrap(newest, "no offline queue under \(containers.path)")
+    let document = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: Data(contentsOf: found.queue)) as? [String: Any])
+    let items = try XCTUnwrap(document["items"] as? [[String: Any]])
+    let item = try XCTUnwrap(items.first { $0["id"] as? Int == fileID }, "no queue item \(fileID)")
+    let localPath = try XCTUnwrap(item["localPath"] as? String, "item \(fileID) has no local path")
+    return localPath.hasPrefix("/")
+      ? URL(fileURLWithPath: localPath) : found.container.appending(path: localPath)
   }
 
   private func rowBand(_ row: XCUIElement) -> CGRect {

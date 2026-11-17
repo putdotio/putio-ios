@@ -68,6 +68,7 @@ final class PutioDownloadPresentationTests: XCTestCase {
   func testWaitingWithNothingDownloadedShowsADashedRingThatCancels() {
     for (wait, text) in [
       (PutioDownloadWait.network, "Waiting for network"), (.storage, "Waiting for storage"),
+      (.slot, "Waiting for a slot"),
     ] {
       let state = PutioDownloadState.waiting(wait, receivedBytes: 0, totalBytes: 3_300_000_000)
       XCTAssertEqual(statusLine(state), [text])
@@ -91,11 +92,11 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertTrue(removing.dimsRow)
   }
 
-  func testMissingAndFailedReadRedAndOfferTheirAction() {
+  func testMissingReadsGreyAndFailedReadsRedWithTheirAction() {
     let missing = presentation(.missing)
     XCTAssertEqual(missing.statusLine.map(\.text), ["No longer on this iPhone"])
-    XCTAssertEqual(missing.tone, .destructive)
-    XCTAssertEqual(missing.ring, .glyph(.again))
+    XCTAssertEqual(missing.tone, .secondary)
+    XCTAssertEqual(missing.ring, .glyph(.download))
     XCTAssertEqual(missing.action, .downloadAgain)
 
     let failed = presentation(.failed(reason: "Connection lost"))
@@ -103,6 +104,12 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertEqual(failed.tone, .destructive)
     XCTAssertEqual(failed.ring, .glyph(.again))
     XCTAssertEqual(failed.action, .retry)
+
+    let notFound = presentation(
+      .failed(reason: "It may have been moved or deleted.", canRetry: false))
+    XCTAssertEqual(notFound.tone, .destructive)
+    XCTAssertEqual(notFound.ring, .hidden)
+    XCTAssertNil(notFound.action)
   }
 
   func testActionTitlesMatchTheBoards() {

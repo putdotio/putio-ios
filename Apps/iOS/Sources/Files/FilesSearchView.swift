@@ -26,6 +26,7 @@ struct FilesSearchView: View {
   @State private var preparingToast: PutioToast.ID?
   @Environment(\.putioFileShare) private var fileShare
   @Environment(\.putioPlayWithOtherMethod) private var playWithOtherMethod
+  @Environment(\.putioDownloadWithOtherMethod) private var downloadWithOtherMethod
   @Environment(\.locale) private var locale
 
   init(
@@ -405,6 +406,8 @@ struct FilesSearchView: View {
       return PutioItemAction(
         id: "download", title: String(localized: "Download"), icon: .arrowCircleDown
       ) { onDownload?(route) }
+    case .downloadWithOtherMethod:
+      return downloadWithOtherMethod?.action(for: route)
     case .openInVLC:
       return PutioItemAction(
         id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone

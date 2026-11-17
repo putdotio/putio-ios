@@ -16,6 +16,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     case paused(progress: Double)
     case completed
     case failed(PutioOfflineFailure)
+    case missing
   }
 
   let id: PutioFileID
@@ -27,8 +28,6 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   /// Relative path under the app's home; AVFoundation picks the final location.
   var localPath: String?
   var storedBytes: Int64
-  /// Audio tracks the user asked for, by language code, in selection order.
-  var selectedAudioLanguages: [String]
   /// Tracks actually present in the stored asset, disclosed in details.
   var storedAudioTracks: [PutioOfflineTrack]
   var storedSubtitleTracks: [PutioOfflineTrack]
@@ -41,7 +40,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     case .queued: 0
     case .converting(let progress), .downloading(let progress), .paused(let progress): progress
     case .completed: 1
-    case .failed: 0
+    case .failed, .missing: 0
     }
   }
 
@@ -53,8 +52,11 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   }
 
   var isPlayable: Bool {
-    stage == .completed && localPath != nil
+    guard stage == .completed, localPath != nil else { return false }
+    return !isOriginal || PutioOfflineOriginalPackage.playsInAVPlayer(name: name)
   }
+
+  var isOriginal: Bool { playbackMethod == .directPlay }
 
   /// The stored size, shown only once the download completes; a partial
   /// package's byte count is not a size the user can act on.
@@ -63,11 +65,80 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     return PutioFileRowModel.sizeText(bytes: storedBytes)
   }
 
-  /// The picker's estimate at enqueue time, enforced again before start.
   var estimatedBytes: Int64
-  /// Set when the item was queued before its asset could be inspected; the
-  /// queue selects every language once conversion finishes.
-  var awaitsLanguageSelection: Bool = false
+  var failedProgress: Double?
+  var waitingForNetwork: Bool?
+  var isRemoving: Bool?
+  var isWatched: Bool?
+  var playbackMethod: PutioPlaybackMethod? = nil
+
+  var receivedBytes: Int64 {
+    Int64((Double(estimatedBytes) * progress).rounded(.down))
+  }
+
+  func downloadState(queuePosition: Int?, isWaitingForSlot: Bool) -> PutioDownloadState {
+    switch stage {
+    case .queued: .queued(position: queuePosition ?? 1)
+    case .converting(let progress): .converting(progress: progress)
+    case .downloading: .downloading(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .paused where isWaitingForSlot:
+      .waiting(.slot, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .paused: .paused(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .completed: .idle
+    case .failed(let failure): .failed(reason: failure.reason, canRetry: failure.canRetry)
+    case .missing: .missing
+    }
+  }
+}
+
+struct PutioOfflineSections: Equatable {
+  enum Kind: CaseIterable {
+    case downloading
+    case attention
+    case onDevice
+  }
+
+  struct Section: Equatable, Identifiable {
+    let kind: Kind
+    let items: [PutioOfflineItem]
+
+    var id: Kind { kind }
+  }
+
+  let sections: [Section]
+  let queuePositions: [PutioFileID: Int]
+
+  init(_ items: [PutioOfflineItem]) {
+    var downloading: [PutioOfflineItem] = []
+    var attention: [PutioOfflineItem] = []
+    var onDevice: [PutioOfflineItem] = []
+    var positions: [PutioFileID: Int] = [:]
+    for item in items {
+      switch item.stage {
+      case .queued:
+        positions[item.id] = positions.count + 1
+        downloading.append(item)
+      case .converting, .downloading, .paused:
+        downloading.append(item)
+      case .failed, .missing:
+        attention.append(item)
+      case .completed:
+        onDevice.append(item)
+      }
+    }
+    onDevice = onDevice.enumerated()
+      .sorted { lhs, rhs in
+        lhs.element.createdAt == rhs.element.createdAt
+          ? lhs.offset < rhs.offset : lhs.element.createdAt > rhs.element.createdAt
+      }
+      .map(\.element)
+    sections = [
+      Section(kind: .downloading, items: downloading),
+      Section(kind: .attention, items: attention),
+      Section(kind: .onDevice, items: onDevice),
+    ].filter { !$0.items.isEmpty }
+    queuePositions = positions
+  }
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {
@@ -83,12 +154,23 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
     case storage
     case notFound
     case authentication
+    case unexpected
   }
 
   let kind: Kind
   let message: String
 
   var canRetry: Bool { kind != .notFound }
+
+  var reason: String {
+    switch kind {
+    case .resolution: String(localized: "Connection lost")
+    case .authentication: String(localized: "Sign in again")
+    case .notFound: String(localized: "No longer available")
+    case .storage: String(localized: "Not enough storage")
+    case .download, .conversion, .unexpected: String(localized: "Couldn’t download")
+    }
+  }
 
   static let authentication = Self(
     kind: .authentication, message: String(localized: "Sign in again to continue this download."))
@@ -109,41 +191,19 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
     case .notFound: .notFound
     case .rateLimited:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io is receiving too many requests. Try again shortly."))
     case .transient:
       Self(kind: .resolution, message: String(localized: "Check your connection and try again."))
     case .invalidResponse:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io returned an invalid response. Try again."))
     case .unknown, nil:
       Self(
-        kind: .resolution,
+        kind: .unexpected,
         message: String(localized: "put.io could not prepare this file. Try again."))
     }
-  }
-}
-
-/// An audio language the asset offers, with the bytes it adds to the download.
-struct PutioOfflineAudioOption: Identifiable, Equatable, Sendable {
-  let languageCode: String
-  let displayName: String
-  let estimatedBytes: Int64
-
-  var id: String { languageCode }
-}
-
-struct PutioOfflineInventory: Equatable, Sendable {
-  let videoBytes: Int64
-  let audioOptions: [PutioOfflineAudioOption]
-  let subtitleTracks: [PutioOfflineTrack]
-
-  /// The bytes the download will take with the given languages selected.
-  func estimatedBytes(selecting languages: [String]) -> Int64 {
-    videoBytes
-      + audioOptions.filter { languages.contains($0.languageCode) }.map(\.estimatedBytes).reduce(
-        0, +)
   }
 }
 

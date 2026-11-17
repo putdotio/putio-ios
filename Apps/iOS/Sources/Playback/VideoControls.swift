@@ -1389,7 +1389,7 @@ private struct PutioVideoAirPlayPlaceholder: View {
   }
 }
 
-private struct PutioVideoChipRow: View {
+struct PutioVideoChipRow: View {
   let transport: PutioVideoTransport
   let upNext: PutioVideoUpNext?
   let onChange: () -> Void
@@ -1399,13 +1399,23 @@ private struct PutioVideoChipRow: View {
   @State private var showsSizeAndTiming = false
   @State private var subtitlesChipFrame = CGRect.zero
 
+  init(
+    transport: PutioVideoTransport, upNext: PutioVideoUpNext?, onChange: @escaping () -> Void,
+    onMenu: @escaping (Bool) -> Void
+  ) {
+    self.transport = transport
+    self.upNext = upNext
+    self.onChange = onChange
+    self.onMenu = onMenu
+  }
+
   var body: some View {
     ViewThatFits(in: .horizontal) {
       row(iconOnly: false)
       row(iconOnly: true)
       if let upNext {
         VStack(alignment: .trailing, spacing: PutioVideoMetrics.chipGap) {
-          PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false)
+          PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false, ownsRow: true)
           ViewThatFits(in: .horizontal) {
             chips(iconOnly: false)
             chips(iconOnly: true)

@@ -114,6 +114,153 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-43-offline")
   }
 
+  func testDownloadsFixture() throws {
+    let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
+    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
+    let board = try XCTUnwrap(Self.downloadsFixtureBoards[fixture], "no board for \(fixture)")
+    let notificationsOff =
+      ProcessInfo.processInfo.environment["PUTIO_NOTIFICATIONS_DENIED"] == "1"
+    if fixture == "attention-states" { orient(.portrait) } else { orientForBoardDevice() }
+    app.launchArguments += ["--putio-harness-downloads", fixture]
+    if notificationsOff { app.launchArguments.append("--putio-harness-notifications-denied") }
+    app.launch()
+    let downloads = tabButton("Downloads")
+    let signIn = element("auth.sign-in")
+    let deadline = Date.now.addingTimeInterval(15)
+    while !downloads.exists, !signIn.exists, Date.now < deadline {
+      _ = downloads.appears(within: 0.5)
+    }
+    if signIn.exists { signIn.tap() }
+    if !downloads.appears(within: 15) { sidebarToggle().tap() }
+    XCTAssertTrue(downloads.appears(within: 5), "the Downloads tab is missing")
+    downloads.tap()
+    XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
+    if rows.isEmpty {
+      XCTAssertTrue(
+        app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
+    }
+    for pass in 0..<2 where !rows.isEmpty {
+      if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
+      for (id, state) in rows {
+        let row = app.revealed("downloads.item.\(id)")
+        XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
+        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
+      }
+      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+    }
+    XCTAssertEqual(
+      element("downloads.notifications-off").exists, notificationsOff,
+      "the notifications-off row does not follow the permission")
+    try captureBoard(board)
+    guard !notificationsOff else { return }
+    let onPhone = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] != "ipad"
+    if fixture == "list", onPhone {
+      let video = app.buttons["downloads.item.9001"].firstMatch
+      app.bringIntoView(video)
+      video.tap()
+      XCTAssertTrue(element("video.ready").appears(within: 20), "the finished video did not play")
+      app.revealVideoControls(showing: app.videoClose)
+      app.videoClose.tap()
+      let audio = app.buttons["downloads.item.408"].firstMatch
+      app.bringIntoView(audio)
+      audio.tap()
+      XCTAssertTrue(element("audio.state").appears(within: 20), "the finished audio did not play")
+      app.buttons["audio.collapse"].tap()
+      exerciseDownloadsList()
+    }
+    if fixture == "attention-states", onPhone { exerciseAttentionRows() }
+    guard fixture == "offline" else { return }
+    tabButton("Files").tap()
+    XCTAssertTrue(
+      app.staticTexts["put.io is out of reach"].appears(within: 15),
+      "the offline fixture left the network up")
+  }
+
+  private func exerciseAttentionRows() {
+    func episode(_ number: Int) -> String {
+      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+    }
+    func becomesQueued(_ row: XCUIElement) -> Bool {
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate { _, _ in row.value as? String == "queued" }, object: nil)
+      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    XCTAssertTrue(
+      storage.label.hasPrefix("1.14 GB "), "the missing package still counts: \(storage.label)")
+    let network = element("downloads.item.442")
+    app.bringIntoView(network)
+    app.buttons["Retry download, \(episode(2))"].tap()
+    XCTAssertTrue(becomesQueued(network), "retry did not move the row to Downloading")
+    let missing = element("downloads.item.441")
+    app.bringIntoView(missing)
+    app.buttons["Download again, \(episode(1))"].tap()
+    XCTAssertTrue(becomesQueued(missing), "Download again did not restart the download")
+  }
+
+  private func exerciseDownloadsList() {
+    func episode(_ number: Int) -> String {
+      "Blue.Lights.S04E0\(number).1080p.HDTV.H264-ORGANiC.mkv"
+    }
+    func settles(_ row: XCUIElement, _ matches: @escaping (String) -> Bool) -> Bool {
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate { _, _ in matches(row.value as? String ?? "") }, object: nil)
+      return XCTWaiter.wait(for: [expectation], timeout: 5) == .completed
+    }
+    let downloading = element("downloads.item.442")
+    app.bringIntoView(downloading)
+    app.buttons["Pause download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { $0.hasPrefix("paused") }, "the ring did not pause")
+    app.buttons["Resume download, \(episode(2))"].tap()
+    XCTAssertTrue(settles(downloading) { !$0.hasPrefix("paused") }, "the ring did not resume")
+    let failed = element("downloads.item.444")
+    app.bringIntoView(failed)
+    app.buttons["Retry download, \(episode(4))"].tap()
+    XCTAssertTrue(settles(failed) { $0 == "queued" }, "retry did not restart the download")
+    let storage = element("downloads.storage-used")
+    app.scrollDown(toHit: storage)
+    let stored = storage.label
+    XCTAssertTrue(stored.contains("on this iPhone"), "the storage line names no device: \(stored)")
+    let finished = app.buttons["downloads.item.9001"].firstMatch
+    app.bringIntoView(finished)
+    finished.swipeLeft()
+    app.buttons["downloads.remove.9001"].firstMatch.tap()
+    let removeLocal = app.buttons["downloads.remove-local"].firstMatch
+    XCTAssertTrue(removeLocal.appears(within: 5), "removal asked for no confirmation")
+    removeLocal.tap()
+    XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    app.scrollDown(toHit: storage)
+    XCTAssertNotEqual(storage.label, stored, "the storage line did not update after removal")
+  }
+
+  private static let downloadsFixtureBoards = [
+    "list": "rd-ios-dl-01-list", "empty": "rd-ios-dl-02-empty",
+    "downloading-states": "rd-ios-dl-11-downloading-states",
+    "attention-states": "rd-ios-dl-12-attention-states", "offline": "rd-ios-dl-19-offline",
+  ]
+
+  private static let listFixtureRows: [(id: Int, state: String)] = [
+    (442, "downloading;42"), (443, "queued"), (444, "failed;resolution;26"), (441, "completed"),
+    (9_001, "completed;watched"), (408, "completed"),
+  ]
+
+  private static let downloadsFixtureRows: [String: [(id: Int, state: String)]] = [
+    "list": listFixtureRows,
+    "offline": listFixtureRows,
+    "empty": [],
+    "downloading-states": [
+      (442, "downloading;42"), (447, "converting;12"), (443, "paused;42"),
+      (448, "downloading;42;network"), (444, "downloading;6"), (449, "queued"),
+      (441, "completed;removing"), (9_001, "completed;watched"),
+    ],
+    "attention-states": [
+      (442, "failed;resolution"), (443, "failed;authentication"), (444, "failed;notFound"),
+      (447, "failed;storage"), (448, "failed;download"), (441, "missing"),
+      (9_001, "completed;watched"), (408, "completed"),
+    ],
+  ]
+
   func testFolderLoading() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")
@@ -168,6 +315,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     openItemMenu("files.item.442")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-03-row-actions")
   }
 
@@ -178,6 +327,8 @@ final class BoardCaptureTests: XCTestCase {
     openSeasonFolder()
     openItemMenu("files.item.442")
     XCTAssertTrue(app.buttons["Open in VLC"].exists, "the menu has no Open in VLC")
+    XCTAssertTrue(
+      app.buttons["Download with Direct play"].exists, "the menu has no Download with Direct play")
     try captureBoard("rd-ios-64-vlc-menu")
   }
 
@@ -1492,9 +1643,6 @@ final class BoardCaptureTests: XCTestCase {
     selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
     assertFact("folder", "Folder, Files")
     element("files.detail.download").tap()
-    let confirm = app.buttons["downloads.picker.confirm"]
-    XCTAssertTrue(confirm.appears(within: 20), "the track picker never appeared")
-    confirm.tap()
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     tabButton("Files").tap()
     let onDevice = element("files.detail.on-device")
@@ -3819,8 +3967,12 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func orientForBoardDevice() {
-    let isPad = ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad"
-    orient(isPad ? .landscapeLeft : .portrait)
+    let environment = ProcessInfo.processInfo.environment
+    switch environment["PUTIO_BOARD_ORIENTATION"] {
+    case "portrait": orient(.portrait)
+    case "landscape": orient(.landscapeLeft)
+    default: orient(environment["PUTIO_BOARD_DEVICE"] == "ipad" ? .landscapeLeft : .portrait)
+    }
   }
 
   private func downloadHarnessTrack() {

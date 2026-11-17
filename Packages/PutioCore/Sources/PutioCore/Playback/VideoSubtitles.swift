@@ -3,6 +3,17 @@ import Foundation
 public typealias PutioSubtitleListingsLoad =
   @MainActor @Sendable (PutioFileID) async throws -> [PutioSubtitleListing]
 
+extension PutioVideoRoute {
+  public func subtitleListings(
+    _ load: @escaping PutioSubtitleListingsLoad
+  ) -> PutioSubtitleListingsLoad {
+    guard case .ready(let source) = initialResolution, source.isStoredOriginal else {
+      return load
+    }
+    return { _ in [] }
+  }
+}
+
 public enum PutioSubtitleSource: Equatable, Sendable {
   case embedded
   case folder
