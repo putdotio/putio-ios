@@ -4485,13 +4485,13 @@ final class BoardCaptureTests: XCTestCase {
       app.staticTexts["Restore could not start"].appears(within: 10), "no failed restore toast")
     let row = element("trash.item.4302").firstMatch
     XCTAssertTrue(row.appears(within: 5), "the refused restore lost the row")
+    try captureBoard("rd-ios-trash-16-restore-failed")
     XCTAssertGreaterThan(
       row.frame.minY, element("trash.item.4301").firstMatch.frame.minY, "the row moved up")
     XCTAssertLessThan(
       row.frame.minY, element("trash.item.4303").firstMatch.frame.minY, "the row moved down")
     XCTAssertTrue(
       element("trash.header").label.contains("10.4 GB"), "the size line lost the refused row")
-    try captureTrashBoard("rd-ios-trash-16-restore-failed")
   }
 
   func testTrashStillMoving() throws {
