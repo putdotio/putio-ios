@@ -285,7 +285,8 @@ final class HistoryJourneyTests: XCTestCase {
     let menu = app.buttons["history.menu"]
     XCTAssertTrue(waitUntilHittable(menu), "History has no More menu")
     menu.tap()
-    let clear = app.buttons["item-action.clear-history"]
+    let clear = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "Clear history")).firstMatch
     XCTAssertTrue(waitUntilHittable(clear), "More has no Clear history")
     clear.tap()
   }

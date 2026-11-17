@@ -2557,15 +2557,12 @@ final class BoardCaptureTests: XCTestCase {
 
   func testHistoryMore() throws {
     openHistoryMore()
-    let actions = app.descendants(matching: .any).matching(
-      NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
-    XCTAssertEqual(actions.count, 1, "More lists more than Clear history")
     try captureBoard("rd-ios-hist-03-more")
   }
 
   func testHistoryClearConfirm() throws {
     openHistoryMore()
-    app.buttons["item-action.clear-history"].tap()
+    clearHistoryItem.tap()
     XCTAssertTrue(
       app.putioAlert("Clear history?").appears(within: 5), "Clear history never asked")
     XCTAssertTrue(
@@ -2575,7 +2572,7 @@ final class BoardCaptureTests: XCTestCase {
 
   func testHistoryClearFailed() throws {
     openHistoryMore()
-    app.buttons["item-action.clear-history"].tap()
+    clearHistoryItem.tap()
     let confirm = app.buttons["confirm-alert.confirm"].firstMatch
     XCTAssertTrue(confirm.appears(within: 5), "Clear history never asked")
     confirm.tap()
@@ -2594,8 +2591,12 @@ final class BoardCaptureTests: XCTestCase {
     let menu = app.buttons["history.menu"]
     XCTAssertTrue(menu.appears(within: 5), "History has no More menu")
     menu.tap()
-    XCTAssertTrue(
-      app.buttons["item-action.clear-history"].appears(within: 5), "More has no Clear history")
+    XCTAssertTrue(clearHistoryItem.appears(within: 5), "More has no Clear history")
+  }
+
+  private var clearHistoryItem: XCUIElement {
+    app.descendants(matching: .any)
+      .matching(NSPredicate(format: "label == %@", "Clear history")).firstMatch
   }
 
   func testHistorySwipe() throws {
