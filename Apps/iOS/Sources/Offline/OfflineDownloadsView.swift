@@ -23,6 +23,7 @@ struct PutioOfflineDownloadsView: View {
         list
       }
     }
+    .accessibilityIdentifier("downloads.screen")
     .putioContentBackground()
     .navigationTitle("Downloads")
     .toolbar { toolbar }
@@ -56,7 +57,6 @@ struct PutioOfflineDownloadsView: View {
       guard scenePhase == .active else { return }
       await notifications.refresh()
     }
-    .accessibilityIdentifier("downloads.screen")
   }
 
   private var removalActions: [PutioAlertAction] {
