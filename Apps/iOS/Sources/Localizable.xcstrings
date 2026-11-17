@@ -180,6 +180,29 @@
         }
       }
     },
+    "%lld items are no longer in trash." : {
+      "comment" : "android: mobile_trash_delete_selected_verified",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item is no longer in trash."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items are no longer in trash."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld items are still in Files." : {
       "comment" : "android: mobile_files_delete_still_present_many | differs: the iOS toast carries Try again in place of the select hint",
       "localizations" : {
@@ -409,17 +432,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App Store"
-          }
-        }
-      }
-    },
-    "Are you sure to permanently delete those files?" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Are you sure to permanently delete those files?"
           }
         }
       }
@@ -1186,6 +1198,29 @@
         }
       }
     },
+    "Couldn’t restore %lld items from trash" : {
+      "comment" : "android: mobile_files_undo_failed_many | differs: the board drops the reason and the period",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t restore %lld item from trash"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Couldn’t restore %lld items from trash"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Couldn’t search" : {
       "comment" : "android: mobile_search_error_title",
       "localizations" : {
@@ -1341,17 +1376,6 @@
         }
       }
     },
-    "Delete Permanently" : {
-      "comment" : "android: mobile_trash_delete | differs: iOS uses title case",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete Permanently"
-          }
-        }
-      }
-    },
     "Delete permanently?" : {
       "comment" : "android: mobile_trash_delete_title",
       "localizations" : {
@@ -1414,17 +1438,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleted items stay 14 days"
-          }
-        }
-      }
-    },
-    "Deselect All" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Deselect All"
           }
         }
       }
@@ -2422,6 +2435,17 @@
         }
       }
     },
+    "It will be removed from trash right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_delete_selected_message | differs: iOS keys each plural form apart because the message prints no count",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "It will be removed from trash right away. This cannot be undone."
+          }
+        }
+      }
+    },
     "Item deleted" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -2429,28 +2453,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item deleted"
-          }
-        }
-      }
-    },
-    "Items deleted" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Items deleted"
-          }
-        }
-      }
-    },
-    "Items restored" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Items restored"
           }
         }
       }
@@ -3898,6 +3900,17 @@
         }
       }
     },
+    "They will be removed from trash right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_delete_selected_message | differs: iOS keys each plural form apart because the message prints no count",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "They will be removed from trash right away. This cannot be undone."
+          }
+        }
+      }
+    },
     "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
       "comment" : "android: mobile_settings_open_source_licenses_description",
       "localizations" : {
@@ -4499,28 +4512,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select"
-          }
-        }
-      }
-    },
-    "Select All" : {
-      "comment" : "android: mobile_selection_select_all | differs: iOS uses title case",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select All"
-          }
-        }
-      }
-    },
-    "Select Items" : {
-      "comment" : "ios-only: no Android string for the iOS file browser",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select Items"
           }
         }
       }

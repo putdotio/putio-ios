@@ -1484,15 +1484,3 @@ private struct PutioBulkProgressSurface: ViewModifier {
     }
   }
 }
-
-struct PutioSelectionTabBarVisibility: ViewModifier {
-  let isEditing: Bool
-
-  @ViewBuilder func body(content: Content) -> some View {
-    if isEditing {
-      content.toolbar(.hidden, for: .tabBar)
-    } else {
-      content
-    }
-  }
-}

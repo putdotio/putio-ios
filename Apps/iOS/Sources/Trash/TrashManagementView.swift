@@ -6,12 +6,10 @@ struct TrashManagementView: View {
   @State private var model: PutioTrashModel
   @State private var pendingDeletion: PutioTrashItem?
   @State private var confirmAlert: PutioConfirmAlert?
-  @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var toast: PutioToast?
   @State private var stillMovingMessage = ""
   @State private var stillMovingAlertPresented = false
-  @State private var selectedIDs: Set<PutioFileID> = []
-  @State private var editMode: EditMode = .inactive
+  @State private var selection = PutioSelection<PutioFileID>()
   @Environment(\.locale) private var locale
   @Environment(\.calendar) private var calendar
   @PutioScaledMetric private var rowMinHeight: CGFloat
@@ -47,45 +45,15 @@ struct TrashManagementView: View {
         .modifier(TrashStatePlacement(.failed))
       case .loaded(let page):
         loadedContent(
-          Self.shownPage(page, restoring: restoringItem),
+          Self.shownPage(page, restoring: restoringItems),
           isEmpty: page.items.isEmpty && page.nextCursor == nil)
       }
     }
     .navigationTitle("Trash")
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
-    .navigationBarBackButtonHidden(isEditing)
     .toolbar {
-      if isEditing {
-        ToolbarItem(placement: .topBarLeading) {
-          Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
-            selectedIDs = allLoadedItemsAreSelected ? [] : Set(loadedItems.map(\.id))
-          }
-          .disabled(loadedItems.isEmpty)
-          .accessibilityIdentifier(
-            allLoadedItemsAreSelected
-              ? "trash.selection.deselect-all" : "trash.selection.select-all")
-        }
-        ToolbarItem(placement: .principal) {
-          Text("Select Items")
-        }
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { editMode = .inactive }
-            .accessibilityIdentifier("trash.selection.done")
-        }
-        ToolbarItemGroup(placement: .bottomBar) {
-          Button("Restore") {
-            let items = selectedItems
-            Task { await model.restore(items) }
-          }
-          .disabled(selectedItems.isEmpty || !model.canMutate)
-          .accessibilityIdentifier("trash.bulk.restore")
-          Spacer()
-          Button("Delete", role: .destructive) { pendingBulkDeletion = selectedItems }
-            .disabled(selectedItems.isEmpty || !model.canMutate)
-            .accessibilityIdentifier("trash.bulk.delete")
-        }
-      } else if model.hasContents {
+      if !selection.isActive && model.hasContents {
         ToolbarItem(placement: .primaryAction) {
           Menu {
             PutioItemMenuContent(moreMenu)
@@ -97,26 +65,13 @@ struct TrashManagementView: View {
         }
       }
     }
-    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
-    .environment(\.editMode, $editMode)
+    .putioSelectionMode(
+      $selection, among: loadedItems.map(\.id), actions: selectionActions,
+      isBusy: !model.canMutate
+    )
     .putioConfirmAlert($confirmAlert)
     .onChange(of: confirmAlert?.id) { _, id in
       if id == nil { pendingDeletion = nil }
-    }
-    .confirmationDialog(
-      "Delete \(pendingBulkDeletion.count) items permanently?",
-      isPresented: bulkDeletionConfirmationPresented,
-      titleVisibility: .visible
-    ) {
-      Button("Delete Permanently", role: .destructive) {
-        let items = pendingBulkDeletion.filter { model.page?.items.contains($0) == true }
-        pendingBulkDeletion = []
-        Task { await model.permanentlyDelete(items) }
-      }
-      .accessibilityIdentifier("trash.bulk.delete-confirm")
-      Button("Cancel", role: .cancel) { pendingBulkDeletion = [] }
-    } message: {
-      Text("Are you sure to permanently delete those files?")
     }
     .putioAlert(
       String(localized: "Restore could not start"),
@@ -148,19 +103,14 @@ struct TrashManagementView: View {
           pendingDeletion = nil
           confirmAlert = nil
         }
-        pendingBulkDeletion.removeAll { model.page?.items.contains($0) != true }
         if !model.hasContents { confirmAlert = nil }
       }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
     }
-    .onChange(of: model.page) { _, page in
-      selectedIDs.formIntersection(page?.items.map(\.id) ?? [])
-      if page?.items.isEmpty != false { editMode = .inactive }
-    }
-    .onChange(of: editMode) { _, mode in
-      if mode != .active { selectedIDs = [] }
+    .onChange(of: model.page?.items.isEmpty) { _, isEmpty in
+      if isEmpty != false { selection.end() }
     }
   }
 
@@ -175,14 +125,19 @@ struct TrashManagementView: View {
       .scrollBounceBehavior(.always)
       .refreshable { await Task { await model.refresh() }.value }
     } else {
-      List(selection: isEditing ? $selectedIDs : nil) {
-        if !page.items.isEmpty || restoringItem != nil {
-          header(page)
-            .listRowInsets(.top, PutioTheme.Spacing.space0)
-            .listRowInsets(.bottom, PutioTheme.Spacing.space2)
-            .listRowSeparator(.hidden)
-            .listRowBackground(PutioTheme.Colors.background)
-            .selectionDisabled()
+      List {
+        if !page.items.isEmpty || !restoringItems.isEmpty {
+          Group {
+            if selection.isActive {
+              selectionSummary(page)
+            } else {
+              header(page)
+            }
+          }
+          .listRowInsets(.top, PutioTheme.Spacing.space0)
+          .listRowInsets(.bottom, PutioTheme.Spacing.space2)
+          .listRowSeparator(.hidden)
+          .listRowBackground(PutioTheme.Colors.background)
         }
         if let failure = model.refreshFailure {
           Section {
@@ -202,9 +157,7 @@ struct TrashManagementView: View {
         let prefetchIDs =
           page.nextCursor == nil ? [] : Set(page.items.suffix(Self.prefetchDistance).map(\.id))
         ForEach(page.items) { item in
-          PutioFileRow(rowModel(for: item))
-            .frame(minHeight: rowMinHeight)
-            .tag(item.id)
+          row(item)
             .listRowInsets(.vertical, PutioTheme.Spacing.space0)
             .listRowInsets(.trailing, PutioTheme.Spacing.space1)
             .alignmentGuide(.listRowSeparatorTrailing) {
@@ -221,53 +174,12 @@ struct TrashManagementView: View {
               else { return }
               await model.loadMore()
             }
-            .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
-            .contextMenu {
-              if !isEditing {
-                PutioItemMenuContent(rowMenu(for: item))
-              }
-            }
-            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-              if !isEditing {
-                Button {
-                  restore(item)
-                } label: {
-                  Label {
-                    Text("Restore")
-                  } icon: {
-                    Image(putioIcon: .arrowCounterClockwise)
-                  }
-                  .labelStyle(.iconOnly)
-                }
-                .disabled(!model.canMutate)
-                .tint(PutioTheme.Components.Button.secondaryBackground)
-                .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
-              }
-            }
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-              if !isEditing {
-                Button {
-                  askToDelete(item)
-                } label: {
-                  Label {
-                    Text("Delete permanently")
-                  } icon: {
-                    Image(putioIcon: .trash)
-                  }
-                  .labelStyle(.iconOnly)
-                }
-                .disabled(!model.canMutate)
-                .tint(PutioTheme.Colors.destructive)
-                .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
-              }
-            }
         }
         if let cursor = page.nextCursor {
           pagingFooter(cursor: cursor)
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
-            .selectionDisabled()
         }
       }
       .listStyle(.plain)
@@ -319,43 +231,42 @@ struct TrashManagementView: View {
     model.activeMutation != nil || model.isRefreshing || model.isRefreshingStorage
   }
 
-  private var isEditing: Bool { editMode == .active }
-
   private var loadedItems: [PutioTrashItem] { model.page?.items ?? [] }
 
   private var selectedItems: [PutioTrashItem] {
-    loadedItems.filter { selectedIDs.contains($0.id) }
+    loadedItems.filter { selection.contains($0.id) }
   }
 
-  private var allLoadedItemsAreSelected: Bool {
-    !loadedItems.isEmpty && selectedIDs == Set(loadedItems.map(\.id))
+  private static func listed(
+    _ items: [PutioTrashItem], in model: PutioTrashModel
+  ) -> [PutioTrashItem] {
+    items.filter { model.page?.items.contains($0) == true }
   }
 
-  private var bulkDeletionConfirmationPresented: Binding<Bool> {
-    Binding(
-      get: { !pendingBulkDeletion.isEmpty },
-      set: { if !$0 { pendingBulkDeletion = [] } }
-    )
+  private var restoringItems: [PutioTrashItem] {
+    switch model.activeMutation {
+    case .restore(let item): [item]
+    case .restoreItems(let items): items
+    default: []
+    }
   }
 
-  private var restoringItem: PutioTrashItem? {
-    guard case .restore(let item) = model.activeMutation else { return nil }
-    return item
-  }
-
-  static func shownPage(_ page: PutioTrashPage, restoring item: PutioTrashItem?) -> PutioTrashPage {
-    guard let item, page.items.contains(item) else { return page }
+  static func shownPage(
+    _ page: PutioTrashPage, restoring items: [PutioTrashItem]
+  ) -> PutioTrashPage {
+    let hidden = page.items.filter { items.contains($0) }
+    guard !hidden.isEmpty else { return page }
     return PutioTrashPage(
-      items: page.items.filter { $0 != item },
+      items: page.items.filter { !hidden.contains($0) },
       nextCursor: page.nextCursor,
-      totalCount: page.totalCount.map { max(0, $0 - 1) },
-      sizeBytes: max(0, page.sizeBytes - item.sizeBytes)
+      totalCount: page.totalCount.map { max(0, $0 - hidden.count) },
+      sizeBytes: max(0, page.sizeBytes - hidden.reduce(Int64(0)) { $0 + $1.sizeBytes })
     )
   }
 
   private var showsBlockingProgress: Bool {
     switch model.activeMutation {
-    case .none, .restore, .restoreAll, .empty: false
+    case .none, .restore, .restoreItems, .restoreAll, .empty: false
     default: true
     }
   }
@@ -389,6 +300,21 @@ struct TrashManagementView: View {
     PutioNumericText(PutioFileRowModel.sizeText(bytes: page.sizeBytes, locale: locale))
   }
 
+  private func selectionSummary(_ page: PutioTrashPage) -> some View {
+    HStack(alignment: .firstTextBaseline) {
+      PutioNumericText(String(localized: "\(page.totalCount ?? page.items.count) items"))
+      Spacer(minLength: PutioTheme.Spacing.space2)
+      if !selectedItems.isEmpty {
+        let bytes = selectedItems.reduce(Int64(0)) { $0 + $1.sizeBytes }
+        PutioNumericText(
+          String(localized: "\(PutioFileRowModel.sizeText(bytes: bytes, locale: locale)) selected"))
+      }
+    }
+    .foregroundStyle(PutioTheme.Colors.textSecondary)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("trash.selection.summary")
+  }
+
   private var headerRetention: some View {
     Text("Deleted items stay 14 days")
       .putioFont(PutioTheme.Typography.caption)
@@ -420,7 +346,7 @@ struct TrashManagementView: View {
         PutioItemAction(
           id: "trash-select", title: String(localized: "Select"), icon: .checkCircle,
           isDisabled: loadedItems.isEmpty
-        ) { editMode = .active },
+        ) { selection.begin() },
         PutioItemAction(
           id: "trash-restore-all", title: String(localized: "Restore all"),
           icon: .arrowCounterClockwise
@@ -446,6 +372,78 @@ struct TrashManagementView: View {
     }
   }
 
+  @ViewBuilder
+  private func row(_ item: PutioTrashItem) -> some View {
+    if selection.isActive {
+      PutioSelectableRow(isSelected: selection.contains(item.id)) {
+        selection.toggle(item.id)
+      } content: {
+        PutioFileRow(rowModel(for: item))
+          .frame(minHeight: rowMinHeight)
+      }
+      .disabled(!model.canMutate)
+      .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
+      .accessibilityValue(
+        Text(
+          selection.contains(item.id)
+            ? String(localized: "Selected") : String(localized: "Not selected")))
+    } else {
+      PutioFileRow(rowModel(for: item))
+        .frame(minHeight: rowMinHeight)
+        .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
+        .contextMenu {
+          PutioItemMenuContent(rowMenu(for: item))
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+          Button {
+            restore(item)
+          } label: {
+            Label {
+              Text("Restore")
+            } icon: {
+              Image(putioIcon: .arrowCounterClockwise)
+            }
+            .labelStyle(.iconOnly)
+          }
+          .disabled(!model.canMutate)
+          .tint(PutioTheme.Components.Button.secondaryBackground)
+          .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+          Button {
+            askToDelete(item)
+          } label: {
+            Label {
+              Text("Delete permanently")
+            } icon: {
+              Image(putioIcon: .trash)
+            }
+            .labelStyle(.iconOnly)
+          }
+          .disabled(!model.canMutate)
+          .tint(PutioTheme.Colors.destructive)
+          .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
+        }
+    }
+  }
+
+  private var selectionActions: [PutioSelectionAction] {
+    guard selection.isActive else { return [] }
+    let items = selectedItems
+    return [
+      PutioSelectionAction(
+        id: "restore", title: String(localized: "Restore"), icon: .arrowCounterClockwise
+      ) {
+        selection.end()
+        restore(items)
+      },
+      PutioSelectionAction(
+        id: "delete", title: String(localized: "Delete permanently"), icon: .trash,
+        isDestructive: true
+      ) { askToDelete(items) },
+    ]
+  }
+
   private func rowMenu(for item: PutioTrashItem) -> PutioItemMenu {
     PutioItemMenu([
       [
@@ -454,10 +452,19 @@ struct TrashManagementView: View {
           icon: .arrowCounterClockwise, isDisabled: !model.canMutate
         ) { [model] in Task { await model.restore(item) } },
         PutioItemAction(
+          id: "trash-row-select", title: String(localized: "Select"), icon: .checkCircle,
+          isDisabled: !model.canMutate
+        ) {
+          selection.begin()
+          selection.toggle(item.id)
+        },
+      ],
+      [
+        PutioItemAction(
           id: "trash-delete", title: String(localized: "Delete permanently"),
           icon: .trash, role: .destructive, isDisabled: !model.canMutate
-        ) { askToDelete(item) },
-      ]
+        ) { askToDelete(item) }
+      ],
     ])
   }
 
@@ -474,8 +481,33 @@ struct TrashManagementView: View {
     }
   }
 
+  private func askToDelete(_ items: [PutioTrashItem]) {
+    pendingDeletion = nil
+    confirmAlert = PutioConfirmAlert(
+      title: String(localized: "Delete \(items.count) items permanently?"),
+      message: items.count == 1
+        ? String(localized: "It will be removed from trash right away. This cannot be undone.")
+        : String(localized: "They will be removed from trash right away. This cannot be undone."),
+      confirmTitle: String(localized: "Delete")
+    ) { [model] in
+      let listed = Self.listed(items, in: model)
+      guard !listed.isEmpty else { return }
+      Task { await model.permanentlyDelete(listed) }
+    }
+  }
+
   private func restore(_ item: PutioTrashItem) {
     Task { await model.restore(item) }
+  }
+
+  private func restore(_ items: [PutioTrashItem]) {
+    Self.restore(items, in: model)
+  }
+
+  private static func restore(_ items: [PutioTrashItem], in model: PutioTrashModel) {
+    let listed = listed(items, in: model)
+    guard !listed.isEmpty else { return }
+    Task { await model.restore(listed) }
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
@@ -503,10 +535,10 @@ struct TrashManagementView: View {
     case .permanentlyDeleted(let item, _):
       toast = PutioToast(String(localized: "“\(item.name)” is no longer in trash."))
     case .restoredItems:
-      toast = PutioToast(String(localized: "Items restored"))
-    case .permanentlyDeletedItems:
-      toast = PutioToast(
-        String(localized: "Items deleted"))
+      toast = PutioToast(String(localized: "Restore started"))
+    case .permanentlyDeletedItems(let items, _):
+      selection.end()
+      toast = PutioToast(String(localized: "\(items.count) items are no longer in trash."))
     case .restoredAll:
       toast = PutioToast(String(localized: "Restore started"))
     case .emptied:
@@ -514,14 +546,23 @@ struct TrashManagementView: View {
     case .failed(_, let failure) where failure.isStillMovingToTrash:
       stillMovingMessage = failure.message
       stillMovingAlertPresented = true
+    case .failed(.restoreItems(let items), _):
+      toast = PutioToast(
+        String(localized: "Couldn’t restore \(items.count) items from trash"),
+        action: PutioToast.Action(String(localized: "Try again")) { [model] in
+          Self.restore(items, in: model)
+        })
+    case .failed(.permanentlyDeleteItems(let items), _):
+      selection = PutioSelection(
+        isActive: true, selectedIDs: Set(Self.listed(items, in: model).map(\.id)))
+      toast = PutioToast(
+        String(localized: "The request could not start"), icon: .warning, width: .fit)
     case .failed(.permanentlyDelete, _), .failed(.empty, _):
       toast = PutioToast(
         String(localized: "The request could not start"), icon: .warning, width: .fit)
     case .failed(.restore, _), .failed(.restoreAll, _):
       toast = PutioToast(
         String(localized: "Restore could not start"), icon: .warning, width: .fit)
-    case .failed(_, let failure):
-      toast = PutioToast(failure.title)
     }
     model.clearMutationOutcome()
   }

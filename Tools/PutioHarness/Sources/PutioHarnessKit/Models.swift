@@ -1056,6 +1056,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-04-more", .iphone, "testTrashMoreMenu"),
       BoardCapture("rd-ios-trash-08-empty-confirm", .iphone, "testTrashEmptyConfirm"),
       BoardCapture("rd-ios-trash-22-emptied", .iphone, "testTrashEmptied"),
+      BoardCapture("rd-ios-trash-09-selection", .iphone, "testTrashSelection"),
+      BoardCapture("rd-ios-trash-10-delete-selected", .iphone, "testTrashDeleteSelected"),
+      BoardCapture(
+        "rd-ios-trash-11-restore-partly-failed", .iphone, "testTrashRestorePartlyFailed"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1606,6 +1610,9 @@ enum BrowserJourneyContract {
       "trash-restore-refused", "FilesBrowserJourneyTests/testTrashRestoreRefusalsKeepTheRow",
       timeAllowance: 120),
     JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
+    JourneyPreflight(
+      "trash-selection", "FilesBrowserJourneyTests/testTrashSelectionRestoresAndDeletes",
+      attachmentNames: ["runtime-trash-selection-partial"], timeAllowance: 150),
     JourneyPreflight(
       "sort-continuation",
       "FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage",
