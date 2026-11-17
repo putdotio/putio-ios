@@ -11,7 +11,6 @@ struct AccountView: View {
   @Environment(\.openURL) private var openURL
   @Environment(\.locale) private var locale
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @State private var isRefreshingStorage = false
   @State private var signOutDownloadedBytes: Int64?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var saveFailures = PutioSettingSaveFailures()
@@ -36,6 +35,9 @@ struct AccountView: View {
     List { settingsRows }
       .modifier(AccountListStyle(preferences: preferences, appConfig: appConfig))
       .putioConfirmAlert($confirmAlert)
+      .task {
+        if runtime.session.isAccountStorageStale { _ = await runtime.refreshAccount() }
+      }
   }
 
   @ViewBuilder private var settingsRows: some View {
@@ -202,23 +204,6 @@ struct AccountView: View {
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityIdentifier("account.storage-full")
         }
-      }
-      if runtime.session.isAccountStorageStale {
-        PutioErrorStateView(
-          title: PutioTrashErrorPresentation.staleStorage.title,
-          message: PutioTrashErrorPresentation.staleStorage.message,
-          retryTitle: isRefreshingStorage
-            ? String(localized: "Updating…") : String(localized: "Update storage")
-        ) {
-          guard !isRefreshingStorage else { return }
-          isRefreshingStorage = true
-          Task {
-            defer { isRefreshingStorage = false }
-            _ = await runtime.refreshAccount()
-          }
-        }
-        .disabled(isRefreshingStorage)
-        .accessibilityIdentifier("account.storage-retry")
       }
     }
   }
