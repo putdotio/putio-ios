@@ -18,6 +18,7 @@ typealias PutioTrashRestoreAll =
   @MainActor @Sendable (String?, [PutioFileID]) async throws -> Void
 typealias PutioTrashStorageRefresh = @MainActor @Sendable () async -> Bool
 typealias PutioTrashStorageIsStale = @MainActor @Sendable () -> Bool
+typealias PutioTrashSizeReport = @MainActor @Sendable (Int64) -> Void
 public typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
 
 /// Committed Trash removals the server may not list consistently yet. Owned
@@ -190,6 +191,7 @@ public struct PutioTrashActions: Sendable {
   let refreshStorage: PutioTrashStorageRefresh
   /// The session owns stale-storage state so it survives leaving Trash.
   let isStorageStale: PutioTrashStorageIsStale
+  let reportSize: PutioTrashSizeReport
 
   init(runtime: PutioRuntime) {
     load = { cursor in try await runtime.listTrash(cursor: cursor) }
@@ -211,6 +213,7 @@ public struct PutioTrashActions: Sendable {
     empty = { try await runtime.emptyTrash() }
     refreshStorage = { await runtime.refreshAccount() }
     isStorageStale = { runtime.session.isAccountStorageStale }
+    reportSize = { runtime.session.applyTrashSize($0) }
   }
 
   init(
@@ -225,7 +228,8 @@ public struct PutioTrashActions: Sendable {
     batchSize: Int = PutioFileActions.defaultBatchSize,
     empty: @escaping PutioTrashEmpty,
     refreshStorage: @escaping PutioTrashStorageRefresh = { true },
-    isStorageStale: @escaping PutioTrashStorageIsStale = { false }
+    isStorageStale: @escaping PutioTrashStorageIsStale = { false },
+    reportSize: @escaping PutioTrashSizeReport = { _ in }
   ) {
     self.load = load
     self.restore = { fileID in
@@ -240,6 +244,7 @@ public struct PutioTrashActions: Sendable {
     self.empty = empty
     self.refreshStorage = refreshStorage
     self.isStorageStale = isStorageStale
+    self.reportSize = reportSize
   }
 }
 
@@ -353,8 +358,12 @@ public enum PutioTrashMutationOutcome: Equatable, Sendable {
 @MainActor
 @Observable
 public final class PutioTrashModel {
-  public private(set) var state: PutioTrashLoadState = .loading
-  public private(set) var activeMutation: PutioTrashMutation?
+  public private(set) var state: PutioTrashLoadState = .loading {
+    didSet { reportShownSize() }
+  }
+  public private(set) var activeMutation: PutioTrashMutation? {
+    didSet { reportShownSize() }
+  }
   public private(set) var mutationOutcome: PutioTrashMutationOutcome?
   public private(set) var isRefreshing = false
   private(set) var isLoadingMore = false
@@ -417,6 +426,31 @@ public final class PutioTrashModel {
   public var page: PutioTrashPage? {
     guard case .loaded(let page) = state else { return nil }
     return page
+  }
+
+  public var restoringItems: [PutioTrashItem] {
+    switch activeMutation {
+    case .restore(let item): [item]
+    case .restoreItems(let items): items
+    default: []
+    }
+  }
+
+  public var shownPage: PutioTrashPage? {
+    guard let page else { return nil }
+    let hidden = page.items.filter { restoringItems.contains($0) }
+    guard !hidden.isEmpty else { return page }
+    return PutioTrashPage(
+      items: page.items.filter { !hidden.contains($0) },
+      nextCursor: page.nextCursor,
+      totalCount: page.totalCount.map { max(0, $0 - hidden.count) },
+      sizeBytes: max(0, page.sizeBytes - hidden.reduce(Int64(0)) { $0 + $1.sizeBytes })
+    )
+  }
+
+  private func reportShownSize() {
+    guard let shownPage else { return }
+    actions.reportSize(shownPage.sizeBytes)
   }
 
   public var canMutate: Bool {

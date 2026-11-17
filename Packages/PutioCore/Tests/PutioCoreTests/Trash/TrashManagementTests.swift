@@ -146,6 +146,7 @@ private final class TrashActionsStub {
   var refusals: [PutioFileID: any Error] = [:]
   private(set) var emptyRequests = 0
   private(set) var storageRefreshRequests = 0
+  private(set) var reportedSizes: [Int64] = []
 
   init(
     pages: [Result<PutioTrashPage, PutioRuntimeError>],
@@ -205,6 +206,10 @@ private final class TrashActionsStub {
     emptyRequests += 1
     guard !emptyResults.isEmpty else { throw PutioRuntimeError.unknown }
     return record(try emptyResults.removeFirst().get())
+  }
+
+  func reportSize(_ bytes: Int64) {
+    reportedSizes.append(bytes)
   }
 
   func refreshStorage() async -> Bool {
@@ -714,6 +719,65 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [other])
     XCTAssertEqual(model.page?.sizeBytes, 2_000)
     XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(deleted))
+  }
+
+  func testTheReportedTrashSizeFollowsEveryRestoreDeleteAndEmpty() async {
+    let gib: Int64 = 1_073_741_824
+    let restored = trashItem(id: 91, name: "Restore Me", kind: .folder, sizeBytes: gib)
+    let deleted = trashItem(id: 92, name: "Delete Me", kind: .folder, sizeBytes: gib)
+    let emptied = trashItem(id: 93, name: "Empty Me", kind: .folder, sizeBytes: gib)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [restored, deleted, emptied], totalCount: 3))],
+      restoreResults: [.success(.restoredDestinationUnknown)],
+      deleteResults: [.success(.refreshed)],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(stub.reportedSizes.last, 3 * gib)
+    await model.restore(restored)
+    XCTAssertEqual(stub.reportedSizes.last, 2 * gib)
+    await model.permanentlyDelete(deleted)
+    XCTAssertEqual(stub.reportedSizes.last, gib)
+    await model.empty()
+    XCTAssertEqual(stub.reportedSizes.last, 0)
+  }
+
+  func testRestoringAllOfAPagedTrashReportsAnEmptyTrash() async {
+    let loaded = trashItem(id: 91, name: "Loaded.mkv", sizeBytes: 2_048)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [loaded], cursor: "next", totalCount: 5, sizeBytes: 9_000))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(stub.reportedSizes.last, 9_000)
+    await model.restoreAll()
+
+    XCTAssertEqual(stub.reportedSizes.last, 0)
+  }
+
+  func testARestoreInFlightReportsTheShownSizeAndAFailureReportsTheRowBack() async {
+    let fixture = await gatedRestoreModel()
+    let rows = fixture.rows
+    let gate = fixture.gate
+    let stub = fixture.stub
+    let model = fixture.model
+    XCTAssertEqual(stub.reportedSizes.last, 6_144)
+
+    let restore = Task { await model.restore(rows[1]) }
+    await waitUntil("the restore request") { gate.requestCount == 1 }
+
+    XCTAssertEqual(model.shownPage?.items, [rows[0], rows[2]])
+    XCTAssertEqual(model.shownPage?.totalCount, 2)
+    XCTAssertEqual(model.shownPage?.sizeBytes, 4_096)
+    XCTAssertEqual(stub.reportedSizes.last, 4_096)
+
+    gate.fail(with: PutioRuntimeError.transient)
+    await restore.value
+
+    XCTAssertEqual(model.shownPage?.items, rows)
+    XCTAssertEqual(stub.reportedSizes.last, 6_144)
   }
 
   func testRefreshSerializesMutationAndCannotResurrectRemovedRows() async {
@@ -2501,7 +2565,8 @@ final class TrashManagementTests: XCTestCase {
         load: { try await stub.load(cursor: $0) },
         restore: { try await gate.restore(fileID: $0) },
         permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
-        empty: { try await stub.empty() }
+        empty: { try await stub.empty() },
+        reportSize: { stub.reportSize($0) }
       ),
       onRestored: onRestored
     )
@@ -2540,7 +2605,8 @@ final class TrashManagementTests: XCTestCase {
         batchSize: batchSize,
         empty: { try await stub.empty() },
         refreshStorage: { await stub.refreshStorage() },
-        isStorageStale: { stub.isStorageStale }
+        isStorageStale: { stub.isStorageStale },
+        reportSize: { stub.reportSize($0) }
       ),
       reconciliation: reconciliation,
       onRestored: onRestored

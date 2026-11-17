@@ -456,6 +456,26 @@ public final class PutioSessionStore {
         filesDeletionDate: account.filesDeletionDate))
   }
 
+  func applyTrashSize(_ bytes: Int64) {
+    guard case .signedIn(let account) = state, account.trashEnabled,
+      account.trashSizeBytes != bytes
+    else { return }
+    state = .signedIn(
+      PutioAccountSnapshot(
+        id: account.id, username: account.username, email: account.email,
+        suggestNextVideo: account.suggestNextVideo, rememberVideoTime: account.rememberVideoTime,
+        defaultSort: account.defaultSort, historyEnabled: account.historyEnabled,
+        trashEnabled: account.trashEnabled, storage: account.storage,
+        routeName: account.routeName, hideSubtitles: account.hideSubtitles,
+        dontAutoSelectSubtitles: account.dontAutoSelectSubtitles,
+        twoFactorEnabled: account.twoFactorEnabled,
+        diagnosticsEnabled: account.diagnosticsEnabled,
+        productAnalyticsEnabled: account.productAnalyticsEnabled,
+        avatarURL: account.avatarURL, trashSizeBytes: bytes,
+        status: account.status, isSubAccount: account.isSubAccount,
+        filesDeletionDate: account.filesDeletionDate))
+  }
+
   @discardableResult
   func refreshAccountAfterPreferencesMutation(storageChanged: Bool) async -> Bool {
     isAccountPreferencesStale = true

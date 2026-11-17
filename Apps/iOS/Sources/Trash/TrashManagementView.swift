@@ -45,7 +45,7 @@ struct TrashManagementView: View {
         .modifier(TrashStatePlacement(.failed))
       case .loaded(let page):
         loadedContent(
-          Self.shownPage(page, restoring: restoringItems),
+          model.shownPage ?? page,
           isEmpty: page.items.isEmpty && page.nextCursor == nil)
       }
     }
@@ -129,7 +129,7 @@ struct TrashManagementView: View {
       .refreshable { await Task { await model.refresh() }.value }
     } else {
       List {
-        if !page.items.isEmpty || !restoringItems.isEmpty {
+        if !page.items.isEmpty || !model.restoringItems.isEmpty {
           Group {
             if selection.isActive {
               selectionSummary(page)
@@ -244,27 +244,6 @@ struct TrashManagementView: View {
     _ items: [PutioTrashItem], in model: PutioTrashModel
   ) -> [PutioTrashItem] {
     items.filter { model.page?.items.contains($0) == true }
-  }
-
-  private var restoringItems: [PutioTrashItem] {
-    switch model.activeMutation {
-    case .restore(let item): [item]
-    case .restoreItems(let items): items
-    default: []
-    }
-  }
-
-  static func shownPage(
-    _ page: PutioTrashPage, restoring items: [PutioTrashItem]
-  ) -> PutioTrashPage {
-    let hidden = page.items.filter { items.contains($0) }
-    guard !hidden.isEmpty else { return page }
-    return PutioTrashPage(
-      items: page.items.filter { !hidden.contains($0) },
-      nextCursor: page.nextCursor,
-      totalCount: page.totalCount.map { max(0, $0 - hidden.count) },
-      sizeBytes: max(0, page.sizeBytes - hidden.reduce(Int64(0)) { $0 + $1.sizeBytes })
-    )
   }
 
   private var showsBlockingProgress: Bool {

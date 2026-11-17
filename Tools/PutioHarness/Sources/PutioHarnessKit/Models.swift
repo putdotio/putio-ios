@@ -1060,6 +1060,15 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-10-delete-selected", .iphone, "testTrashDeleteSelected"),
       BoardCapture(
         "rd-ios-trash-11-restore-partly-failed", .iphone, "testTrashRestorePartlyFailed"),
+      BoardCapture("rd-ios-trash-19-ipad", .ipad, "testIPadTrash"),
+      BoardCapture("rd-ios-trash-20-ipad-selection", .ipad, "testIPadTrashSelection"),
+      BoardCapture("ipad-trash-long-press", .ipad, "testIPadTrashLongPress"),
+      BoardCapture("ipad-trash-more", .ipad, "testIPadTrashMore"),
+      BoardCapture("ipad-trash-delete-confirm", .ipad, "testIPadTrashDeleteConfirm"),
+      BoardCapture("ipad-trash-empty-confirm", .ipad, "testIPadTrashEmptyConfirm"),
+      BoardCapture("ipad-trash-empty", .ipad, "testIPadTrashEmpty"),
+      BoardCapture("ipad-trash-size-follows", .ipad, "testIPadTrashSizeFollowsEveryMutation"),
+      BoardCapture("ipad-trash-off", .ipad, "testIPadTrashOffClosesDetail"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(

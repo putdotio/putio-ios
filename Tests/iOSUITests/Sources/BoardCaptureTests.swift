@@ -4878,6 +4878,250 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("ipad-account-screen")
   }
 
+  func testIPadTrash() throws {
+    openIPadTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    assertTrashSize(10_400_000_000, "loading Trash")
+    XCTAssertTrue(app.buttons["trash.menu"].exists, "Trash has no More button")
+    XCTAssertTrue(tabButton("Account").isHittable, "Trash hid the top tabs")
+    try captureBoard("rd-ios-trash-19-ipad")
+  }
+
+  func testIPadTrashSelection() throws {
+    openIPadTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    selectTrashRows([4302, 4304])
+    XCTAssertTrue(app.buttons["selection.close"].exists, "Select mode has no close button")
+    XCTAssertFalse(app.buttons["trash.menu"].exists, "Select mode offers More")
+    let summary = element("trash.selection.summary")
+    XCTAssertTrue(summary.label.contains("7 items"), "the summary miscounts Trash")
+    XCTAssertTrue(summary.label.contains("8.91 GB selected"), "the summary misses the size")
+    XCTAssertTrue(tabButton("Account").isHittable, "Select mode hid the top tabs")
+    if !isPortraitBoard {
+      let row = element("account.trash")
+      XCTAssertTrue(row.isHittable, "Select mode hid the Account list")
+      XCTAssertTrue(row.isSelected, "Select mode closed the Trash row")
+      XCTAssertGreaterThan(
+        element("selection.action.restore").frame.minX, row.frame.maxX,
+        "the selection bar left the detail column")
+    }
+    try captureBoard("rd-ios-trash-20-ipad-selection")
+  }
+
+  func testIPadTrashLongPress() throws {
+    openIPadTrash("board")
+    let row = element("trash.item.4302").firstMatch
+    XCTAssertTrue(row.appears(within: 10), "Trash never loaded")
+    row.press(forDuration: 1.0)
+    let restore = trashMenuItem("Restore")
+    XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
+    XCTAssertTrue(trashMenuItem("Select").exists, "the menu has no Select")
+    XCTAssertTrue(
+      trashMenuItem("Delete permanently").exists, "the menu has no Delete permanently")
+    assertInTrashColumn(restore, "the long-press menu")
+    try captureBoard("ipad-trash-long-press")
+  }
+
+  func testIPadTrashMore() throws {
+    openIPadTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    app.buttons["trash.menu"].tap()
+    let empty = trashMenuItem("Empty trash")
+    XCTAssertTrue(empty.appears(within: 5), "More opened no menu")
+    XCTAssertTrue(trashMenuItem("Select").exists, "More has no Select")
+    XCTAssertTrue(trashMenuItem("Restore all").exists, "More has no Restore all")
+    assertInTrashColumn(empty, "the More menu")
+    try captureBoard("ipad-trash-more")
+  }
+
+  func testIPadTrashDeleteConfirm() throws {
+    openIPadTrash("board")
+    let row = element("trash.item.4302").firstMatch
+    XCTAssertTrue(row.appears(within: 10), "Trash never loaded")
+    let alert = openIPadTrashDeleteAlert(row)
+    assertCentred(alert, "Delete permanently?")
+    try captureBoard("ipad-trash-delete-confirm")
+  }
+
+  func testIPadTrashEmptyConfirm() throws {
+    openIPadTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    let alert = openIPadTrashEmptyAlert()
+    assertCentred(alert, "Empty trash?")
+    try captureBoard("ipad-trash-empty-confirm")
+  }
+
+  func testIPadTrashEmpty() throws {
+    openIPadTrash("empty")
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].appears(within: 10), "Trash never read empty")
+    XCTAssertFalse(app.buttons["trash.menu"].exists, "the empty Trash offers More")
+    assertAccountTrashSize(0, "loading an empty Trash")
+    try captureBoard("ipad-trash-empty")
+  }
+
+  func testIPadTrashSizeFollowsEveryMutation() throws {
+    openIPadTrash("board")
+    let blueVelvet = element("trash.item.4302").firstMatch
+    XCTAssertTrue(blueVelvet.appears(within: 10), "Trash never loaded")
+    assertTrashSize(10_400_000_000, "loading Trash")
+
+    blueVelvet.press(forDuration: 1.0)
+    let restore = trashMenuItem("Restore")
+    XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
+    restore.tap()
+    let toast = app.staticTexts["Restore started"]
+    XCTAssertTrue(toast.appears(within: 10), "no Restore started toast")
+    assertInTrashColumn(toast, "the restore toast")
+    assertTrashSize(1_700_000_000, "restoring a row")
+    try captureBoard("ipad-trash-size-follows")
+
+    let backup = element("trash.item.4305").firstMatch
+    XCTAssertTrue(backup.appears(within: 5), "the restore removed another row")
+    let alert = openIPadTrashDeleteAlert(backup)
+    alert.buttons["confirm-alert.confirm"].tap()
+    XCTAssertTrue(backup.disappears(within: 10), "the deleted row stayed")
+    assertTrashSize(300_000_000, "deleting a row")
+
+    openIPadTrashEmptyAlert().buttons["confirm-alert.confirm"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].appears(within: 10), "Trash never read empty")
+    if isPortraitBoard {
+      app.navigationBars.buttons["BackButton"].firstMatch.tap()
+      let row = element("account.trash")
+      XCTAssertTrue(row.appears(within: 5), "Back never returned to Account")
+      XCTAssertTrue(reads(row, "0 B", within: 5), "the Account Trash row kept a size")
+    } else {
+      assertAccountTrashSize(0, "emptying Trash")
+    }
+  }
+
+  func testIPadTrashOffClosesDetail() throws {
+    let startsInPortrait = isPortraitBoard
+    openIPadTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    if startsInPortrait {
+      rotate(.landscapeLeft)
+      XCTAssertTrue(
+        element("account.trash").becomesHittable(within: 5), "landscape hid the Account list")
+      XCTAssertTrue(element("trash.header").appears(within: 5), "landscape closed Trash")
+    }
+    _ = scrollIPadAccount(toHit: "settings.trash")
+    let trash = app.switches["settings.trash"]
+    trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    let confirm = app.putioAlert("Turn off trash?").buttons["Turn off"].firstMatch
+    XCTAssertTrue(confirm.appears(within: 5), "the trash alert never showed")
+    confirm.tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t save this setting"].appears(within: 10),
+      "the seeded first settings save did not fail")
+    XCTAssertTrue(element("trash.header").exists, "a failed save closed Trash")
+    trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(confirm.appears(within: 5), "the trash alert never showed again")
+    confirm.tap()
+    XCTAssertTrue(element("trash.header").disappears(within: 10), "Trash stayed open")
+    XCTAssertTrue(
+      element("putio.list-detail.empty").appears(within: 5), "the detail column is not empty")
+    XCTAssertFalse(element("account.trash").exists, "the Trash row stayed in the list")
+    if startsInPortrait {
+      rotate(.portrait)
+      XCTAssertTrue(
+        element("settings.trash").appears(within: 5), "portrait left the Account list")
+      XCTAssertFalse(app.navigationBars["Trash"].exists, "portrait reopened Trash")
+      XCTAssertFalse(element("trash.header").exists, "portrait reopened Trash")
+    }
+    try captureBoard("ipad-trash-off")
+  }
+
+  private var isPortraitBoard: Bool {
+    ProcessInfo.processInfo.environment["PUTIO_BOARD_ORIENTATION"] == "portrait"
+  }
+
+  private func openIPadTrash(_ mode: String) {
+    app.launchArguments += ["--putio-harness-trash", mode]
+    openIPadAccount()
+    scrollIPadAccount(toHit: "account.trash").tap()
+    XCTAssertTrue(app.navigationBars["Trash"].appears(within: 10), "Trash never opened")
+    if isPortraitBoard {
+      XCTAssertTrue(
+        element("account.trash").becomesUnhittable(within: 5),
+        "portrait kept the Account list beside Trash")
+    } else {
+      XCTAssertTrue(
+        element("putio.list-detail.empty").disappears(within: 5), "Trash never filled the detail")
+      assertIPadAccountOpen("account.trash", "opening Trash")
+    }
+  }
+
+  private func openIPadTrashDeleteAlert(_ row: XCUIElement) -> XCUIElement {
+    row.press(forDuration: 1.0)
+    let delete = trashMenuItem("Delete permanently")
+    XCTAssertTrue(delete.appears(within: 5), "the long-press menu has no Delete permanently")
+    delete.tap()
+    let alert = app.putioAlert("Delete permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked")
+    return alert
+  }
+
+  private func openIPadTrashEmptyAlert() -> XCUIElement {
+    let menu = app.buttons["trash.menu"]
+    let settled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == true"), object: menu)
+    XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, "More stayed busy")
+    menu.tap()
+    let empty = trashMenuItem("Empty trash")
+    XCTAssertTrue(empty.appears(within: 5), "More opened no menu")
+    empty.tap()
+    let alert = app.putioAlert("Empty trash?")
+    XCTAssertTrue(alert.appears(within: 5), "Empty trash never asked")
+    return alert
+  }
+
+  private func assertTrashSize(_ bytes: Int64, _ step: String) {
+    let size = Self.trashSizeText(bytes)
+    XCTAssertTrue(
+      reads(element("trash.header"), size, within: 5),
+      "the Trash header does not read \(size) after \(step)")
+    assertAccountTrashSize(bytes, step)
+  }
+
+  private func assertAccountTrashSize(_ bytes: Int64, _ step: String) {
+    guard !isPortraitBoard else { return }
+    let size = Self.trashSizeText(bytes)
+    XCTAssertTrue(
+      reads(element("account.trash"), size, within: 5),
+      "the Account Trash row does not read \(size) after \(step)")
+  }
+
+  private static func trashSizeText(_ bytes: Int64) -> String {
+    bytes > 0 ? bytes.formatted(.byteCount(style: .file)) : "0 B"
+  }
+
+  private func reads(_ element: XCUIElement, _ text: String, within timeout: TimeInterval)
+    -> Bool
+  {
+    let deadline = Date.now.addingTimeInterval(timeout)
+    repeat {
+      if element.exists, element.label.contains(text) || element.staticTexts[text].exists {
+        return true
+      }
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.2))
+    } while Date.now < deadline
+    return false
+  }
+
+  private func assertInTrashColumn(_ element: XCUIElement, _ name: String) {
+    guard !isPortraitBoard else { return }
+    XCTAssertGreaterThan(
+      element.frame.minX, self.element("account.trash").frame.maxX,
+      "\(name) sits over the Account list")
+  }
+
+  private func assertCentred(_ alert: XCUIElement, _ title: String) {
+    XCTAssertEqual(
+      alert.frame.midX, app.mainWindow.frame.midX, accuracy: 2, "\(title) is not centred")
+  }
+
   private func openIPadAccount() {
     orient(.landscapeLeft)
     app.launch()
