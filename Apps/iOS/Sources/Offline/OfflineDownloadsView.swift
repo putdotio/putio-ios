@@ -268,8 +268,9 @@ struct PutioOfflineDownloadsView: View {
       }
       .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
     }
-    .contextMenu { controls(item) }
-    .swipeActions(edge: .leading, allowsFullSwipe: false) { controls(item) }
+    .contextMenu {
+      if !isEditing { menu(item) }
+    }
   }
 
   private func perform(_ action: PutioDownloadAction, on item: PutioOfflineItem) {
@@ -282,58 +283,90 @@ struct PutioOfflineDownloadsView: View {
   }
 
   @ViewBuilder
-  private func controls(_ item: PutioOfflineItem) -> some View {
+  private func menu(_ item: PutioOfflineItem) -> some View {
     switch item.stage {
-    case .queued, .waitingToConvert, .converting, .downloading, .waitingForNetwork,
-      .waitingForStorage:
-      pauseButton(item)
-    case .paused where queue.isWaitingForSlot(item.id):
-      pauseButton(item)
-    case .paused:
-      Button {
-        queue.resume(fileID: item.id)
-      } label: {
-        Label("Resume", systemImage: "play")
-      }
-      .accessibilityIdentifier("downloads.resume.\(item.id.rawValue)")
-    case .failed(let failure) where failure.canRetry:
-      Button {
-        queue.retry(fileID: item.id)
-      } label: {
-        Label("Try again", systemImage: "arrow.counterclockwise")
-      }
-      .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
-    case .missing:
-      Button {
-        queue.retry(fileID: item.id)
-      } label: {
-        Label("Download again", systemImage: "arrow.down.circle")
-      }
-      .accessibilityIdentifier("downloads.retry.\(item.id.rawValue)")
     case .completed:
-      Button {
-        detailItem = item
-      } label: {
-        Label("Details", systemImage: "info.circle")
+      if item.isPlayable {
+        menuButton(String(localized: "Play"), systemImage: "play", id: "play", item) {
+          onOpen(item)
+        }
       }
-      .accessibilityIdentifier("downloads.details.\(item.id.rawValue)")
-    case .failed:
-      Button(role: .destructive) {
-        pendingRemoval = [removalTarget(item)]
-      } label: {
-        Label("Remove", systemImage: "trash")
+      selectButton(item)
+      Divider()
+      removeButton(item)
+    case .failed(let failure):
+      if failure.canRetry {
+        menuButton(
+          String(localized: "Try again"), systemImage: "arrow.counterclockwise", id: "retry", item
+        ) {
+          queue.retry(fileID: item.id)
+        }
       }
-      .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
+      selectButton(item)
+      Divider()
+      removeButton(item)
+    case .missing:
+      menuButton(
+        String(localized: "Download again"), systemImage: "arrow.down.circle", id: "retry", item
+      ) {
+        queue.retry(fileID: item.id)
+      }
+      selectButton(item)
+      Divider()
+      removeButton(item)
+    case .paused where !queue.isWaitingForSlot(item.id):
+      menuButton(String(localized: "Resume"), systemImage: "play", id: "resume", item) {
+        queue.resume(fileID: item.id)
+      }
+      selectButton(item)
+      Divider()
+      cancelButton(item)
+    case .queued, .waitingToConvert, .converting, .downloading, .waitingForNetwork,
+      .waitingForStorage, .paused:
+      menuButton(String(localized: "Pause"), systemImage: "pause", id: "pause", item) {
+        queue.pause(fileID: item.id)
+      }
+      selectButton(item)
+      Divider()
+      cancelButton(item)
     }
   }
 
-  private func pauseButton(_ item: PutioOfflineItem) -> some View {
-    Button {
-      queue.pause(fileID: item.id)
-    } label: {
-      Label("Pause", systemImage: "pause")
+  private func menuButton(
+    _ title: String, systemImage: String, id: String, _ item: PutioOfflineItem,
+    role: ButtonRole? = nil, action: @escaping () -> Void
+  ) -> some View {
+    Button(role: role, action: action) {
+      Label(title, systemImage: systemImage)
     }
-    .accessibilityIdentifier("downloads.pause.\(item.id.rawValue)")
+    .accessibilityIdentifier("downloads.\(id).\(item.id.rawValue)")
+  }
+
+  private func selectButton(_ item: PutioOfflineItem) -> some View {
+    menuButton(String(localized: "Select"), systemImage: "checkmark.circle", id: "select", item) {
+      selectedIDs = [item.id]
+      isEditing = true
+    }
+  }
+
+  private func cancelButton(_ item: PutioOfflineItem) -> some View {
+    menuButton(
+      String(localized: "Cancel download"), systemImage: "xmark.circle", id: "cancel", item,
+      role: .destructive
+    ) {
+      queue.remove(fileIDs: [item.id])
+    }
+  }
+
+  private func removeButton(_ item: PutioOfflineItem) -> some View {
+    menuButton(
+      isPad
+        ? String(localized: "Remove from this iPad") : String(localized: "Remove from this iPhone"),
+      systemImage: "minus.circle",
+      id: "remove-menu", item, role: .destructive
+    ) {
+      pendingRemoval = [removalTarget(item)]
+    }
   }
 
   @ToolbarContentBuilder
@@ -360,6 +393,24 @@ struct PutioOfflineDownloadsView: View {
               Label("Select", systemImage: "checkmark.circle")
             }
             .accessibilityIdentifier("downloads.select")
+            switch queue.bulkAction {
+            case .pauseAll:
+              Button {
+                queue.pauseAll()
+              } label: {
+                Label("Pause all", systemImage: "pause")
+              }
+              .accessibilityIdentifier("downloads.pause-all")
+            case .resumeAll:
+              Button {
+                queue.resumeAll()
+              } label: {
+                Label("Resume all", systemImage: "play")
+              }
+              .accessibilityIdentifier("downloads.resume-all")
+            case nil:
+              EmptyView()
+            }
           } label: {
             Label("More", systemImage: "ellipsis")
           }

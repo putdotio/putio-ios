@@ -695,11 +695,29 @@ enum BoardCaptureContract {
         "rd-ios-dl-02-empty", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
       BoardCapture(
+        "rd-ios-dl-03-long-press", .iphone, "testDownloadsMenu",
+        environment: ["PUTIO_DOWNLOADS_MENU": "finished"]),
+      BoardCapture(
+        "rd-ios-dl-04-long-press-active", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "active"]),
+      BoardCapture(
+        "rd-ios-dl-05-more", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "more"]),
+      BoardCapture(
         "rd-ios-dl-11-downloading-states", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "downloading-states"]),
       BoardCapture(
         "rd-ios-dl-12-attention-states", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "attention-states"]),
+      BoardCapture(
+        "rd-ios-dl-13-long-press-paused", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "paused"]),
+      BoardCapture(
+        "rd-ios-dl-14-long-press-failed", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "failed"]),
+      BoardCapture(
+        "downloads-long-press-missing", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "missing"]),
       BoardCapture(
         "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
@@ -707,11 +725,20 @@ enum BoardCaptureContract {
         "rd-ios-dl-28-notifications-off", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list", "PUTIO_NOTIFICATIONS_DENIED": "1"]),
       BoardCapture(
+        "rd-ios-dl-29-more-resume-all", .iphone, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "resume-all"]),
+      BoardCapture(
         "rd-ios-dl-21-ipad-none", .ipad, "testDownloadsFixture",
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
       BoardCapture(
         "rd-ios-dl-24-ipad-empty", .ipad, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
+      BoardCapture(
+        "ipad-downloads-long-press", .ipad, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "finished"]),
+      BoardCapture(
+        "ipad-downloads-more", .ipad, "testDownloadsMenu", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_MENU": "more"]),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),
@@ -1265,8 +1292,7 @@ enum BrowserJourneyContract {
     JourneyPreflight(
       "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
       attachmentNames: [
-        "runtime-downloads-queue", "runtime-downloads-detail", "runtime-downloads-selection",
-        "runtime-downloads-remove",
+        "runtime-downloads-queue", "runtime-downloads-selection", "runtime-downloads-remove",
       ],
       timeAllowance: 180),
     JourneyPreflight(

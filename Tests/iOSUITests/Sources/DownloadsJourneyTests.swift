@@ -36,19 +36,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
 
-    // Details disclose every stored audio and subtitle track.
-    item.press(forDuration: 1)
-    let details = app.buttons["downloads.details.412"]
-    XCTAssertTrue(details.appears(within: 5))
-    details.tap()
-    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.audio.tr").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.subtitle.en").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.subtitle.tr").appears(within: 5))
-    screenshot("runtime-downloads-detail")
-    app.buttons["downloads.detail.done"].tap()
-
     // Offline playback; the seeded position endpoint fails, so the
     // position stays pending locally.
     item.tap()
