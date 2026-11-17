@@ -381,7 +381,7 @@ struct TrashManagementView: View {
       PutioSelectableRow(isSelected: selection.contains(item.id)) {
         selection.toggle(item.id)
       } content: {
-        PutioFileRow(rowModel(for: item))
+        PutioFileRow(rowModel(for: item), showsIcon: false)
           .frame(minHeight: rowMinHeight)
       }
       .disabled(!model.canMutate)
