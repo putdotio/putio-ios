@@ -212,7 +212,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let item = element("downloads.item.412")
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertTrue(
-      waitForValue(item, "failed;resolution", timeout: 20),
+      waitForValue(item, "failed;resolution;watched", timeout: 20),
       "the refused download was not reported: \(item.value ?? "")")
     screenshot("runtime-downloads-start-failed")
 
@@ -231,7 +231,7 @@ final class DownloadsJourneyTests: XCTestCase {
     signIn()
 
     app.buttons["Downloads"].tap()
-    XCTAssertTrue(element("downloads.empty").appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 10))
     XCTAssertFalse(
       element("downloads.notifications-off").exists, "the row showed on an empty tab")
 
