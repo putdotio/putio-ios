@@ -180,6 +180,7 @@ class ChromecastManager: NSObject {
                 let sidecars = response.subtitles.compactMap { subtitle in
                     subtitle.castableURL.map { (subtitle: subtitle, url: $0) }
                 }
+                let labels = PutioSubtitle.trackLabels(for: sidecars.map(\.subtitle))
                 mediaInfo.mediaTracks = sidecars.enumerated().compactMap { index, sidecar in
                     GCKMediaTrack(
                         identifier: index,
@@ -187,7 +188,7 @@ class ChromecastManager: NSObject {
                         contentType: "text/vtt",
                         type: .text,
                         textSubtype: .captions,
-                        name: sidecar.subtitle.trackLabel,
+                        name: labels[index],
                         languageCode: sidecar.subtitle.languageCode,
                         customData: nil
                     )
@@ -445,12 +446,26 @@ extension ChromecastManager: GCKLoggerDelegate {
 }
 
 extension PutioSubtitle {
-    private static let fileExtensions: Set = ["srt", "vtt", "webvtt", "ass", "ssa", "sub", "smi", "sbv", "ttml", "dfxp", "txt"]
+    static func trackLabels(for subtitles: [PutioSubtitle]) -> [String] {
+        var counts: [String: Int] = [:]
+        return subtitles.map { subtitle in
+            let label = subtitle.baseTrackLabel
+            counts[label, default: 0] += 1
+            return counts[label] == 1 ? label : "\(label) (\(counts[label] ?? 0))"
+        }
+    }
 
-    var trackLabel: String {
-        let file = name as NSString
-        let base = Self.fileExtensions.contains(file.pathExtension.lowercased()) ? file.deletingPathExtension : name
-        return "\(language) - \(base)"
+    private var baseTrackLabel: String {
+        let language = languageCode == "und" ? "Unknown" : self.language
+        guard !name.isEmpty else { return language }
+        return "\(language) - \(Self.removingExtension(name).replacingOccurrences(of: "\"", with: "'"))"
+    }
+
+    private static func removingExtension(_ name: String) -> String {
+        let fileStart = name.lastIndex(of: "/").map(name.index(after:)) ?? name.startIndex
+        guard let dot = name.lastIndex(of: "."), dot > fileStart,
+              name[fileStart..<dot].contains(where: { $0 != "." }) else { return name }
+        return String(name[..<dot])
     }
 
     var castableURL: URL? {
