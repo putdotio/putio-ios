@@ -457,7 +457,7 @@ extension PutioSubtitle {
     }
 
     private var baseTrackLabel: String {
-        let language = languageCode == "und" ? "Unknown" : self.language
+        let language = languageCode == "und" ? NSLocalizedString("Unknown", comment: "Cast subtitle track language when the subtitle has no language code.") : self.language
         guard !name.isEmpty else { return language }
         return "\(language) - \(Self.removingExtension(name).replacingOccurrences(of: "\"", with: "'"))"
     }
