@@ -39,11 +39,11 @@ final class TrashManagementViewTests: XCTestCase {
     }
     let page = PutioTrashPage(items: rows, nextCursor: nil, totalCount: 3, sizeBytes: 6_144)
 
-    let shown = TrashManagementView.shownPage(page, restoring: rows[1])
+    let shown = TrashManagementView.shownPage(page, restoring: [rows[1]])
 
     XCTAssertEqual(shown.items, [rows[0], rows[2]])
     XCTAssertEqual(shown.sizeBytes, 4_096)
     XCTAssertEqual(shown.totalCount, 2)
-    XCTAssertEqual(TrashManagementView.shownPage(page, restoring: nil), page)
+    XCTAssertEqual(TrashManagementView.shownPage(page, restoring: []), page)
   }
 }

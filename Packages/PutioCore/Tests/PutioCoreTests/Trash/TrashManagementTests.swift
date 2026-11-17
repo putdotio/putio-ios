@@ -143,6 +143,7 @@ private final class TrashActionsStub {
   var batchFailure: PutioRuntimeError?
   /// When set, only this 1-based batch request fails with `batchFailure`.
   var failingBatch: Int?
+  var refusals: [PutioFileID: any Error] = [:]
   private(set) var emptyRequests = 0
   private(set) var storageRefreshRequests = 0
 
@@ -180,6 +181,7 @@ private final class TrashActionsStub {
 
   func restoreItems(fileIDs: [PutioFileID]) async throws {
     restoredBatches.append(fileIDs)
+    if let refusal = fileIDs.lazy.compactMap({ self.refusals[$0] }).first { throw refusal }
     if let batchFailure, failingBatch.map({ $0 == restoredBatches.count }) ?? true {
       throw batchFailure
     }
@@ -187,6 +189,7 @@ private final class TrashActionsStub {
 
   func permanentlyDeleteItems(fileIDs: [PutioFileID]) async throws -> PutioTrashMutationResult {
     deletedBatches.append(fileIDs)
+    if let refusal = fileIDs.lazy.compactMap({ self.refusals[$0] }).first { throw refusal }
     if let batchFailure, failingBatch.map({ $0 == deletedBatches.count }) ?? true {
       throw batchFailure
     }
@@ -340,6 +343,85 @@ final class TrashManagementTests: XCTestCase {
 
     XCTAssertEqual(stub.deletedBatches, [Array(ids[2..<4]), [ids[4]]])
     XCTAssertEqual(model.page?.items, [])
+  }
+
+  func testARefusedRowGoesOutAloneAndOnlyItStays() async {
+    let items = [91, 92, 93].map { trashItem(id: $0, name: "\($0).mkv", sizeBytes: Int64($0)) }
+    let ids = items.map(\.id)
+    let stub = TrashActionsStub(pages: [.success(page(items: items, totalCount: 3))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.refusals = [ids[2]: PutioRuntimeError.unknown]
+    await model.restore(items)
+
+    XCTAssertEqual(stub.restoredBatches, [ids, [ids[0]], [ids[1]], [ids[2]]])
+    XCTAssertEqual(model.page?.items, [items[2]])
+    XCTAssertEqual(model.page?.sizeBytes, 93)
+    XCTAssertEqual(model.page?.totalCount, 1)
+    guard case .failed(.restoreItems(let failed), let failure) = model.mutationOutcome else {
+      return XCTFail("expected a partial restore failure")
+    }
+    XCTAssertEqual(failed, [items[2]])
+    XCTAssertFalse(failure.isStillMovingToTrash)
+
+    stub.refusals = [:]
+    await model.restore(failed)
+
+    XCTAssertEqual(stub.restoredBatches.last, [ids[2]])
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertEqual(model.mutationOutcome, .restoredItems([items[2]]))
+  }
+
+  func testARefusedDeleteKeepsOnlyTheRefusedRowAndDropsOneAlreadyGone() async {
+    let items = [91, 92, 93].map { trashItem(id: $0, name: "\($0).mkv") }
+    let ids = items.map(\.id)
+    let stub = TrashActionsStub(pages: [.success(page(items: items))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.refusals = [ids[0]: PutioRuntimeError.unknown, ids[2]: PutioRuntimeError.notFound]
+    await model.permanentlyDelete(items)
+
+    XCTAssertEqual(stub.deletedBatches, [ids, [ids[0]], [ids[1]], [ids[2]]])
+    XCTAssertEqual(model.page?.items, [items[0]])
+    guard case .failed(.permanentlyDeleteItems([items[0]]), _) = model.mutationOutcome else {
+      return XCTFail("expected only the refused row to fail")
+    }
+  }
+
+  func testATransientFailureWhileSendingRowsAloneStopsTheRun() async {
+    let items = [91, 92, 93].map { trashItem(id: $0, name: "\($0).mkv") }
+    let ids = items.map(\.id)
+    let stub = TrashActionsStub(pages: [.success(page(items: items))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.refusals = [ids[0]: PutioRuntimeError.unknown, ids[1]: PutioRuntimeError.transient]
+    await model.restore(items)
+
+    XCTAssertEqual(stub.restoredBatches, [ids, [ids[0]], [ids[1]]])
+    XCTAssertEqual(model.page?.items, items)
+    guard case .failed(.restoreItems(let failed), _) = model.mutationOutcome else {
+      return XCTFail("expected the run to stop")
+    }
+    XCTAssertEqual(Set(failed), Set(items))
+  }
+
+  func testARowStillMovingToTrashNamesTheSelectedRestoreFailure() async {
+    let items = [91, 92].map { trashItem(id: $0, name: "\($0).mkv") }
+    let stub = TrashActionsStub(pages: [.success(page(items: items))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.refusals = [items[1].id: PutioTrashStillMoving()]
+    await model.restore(items)
+
+    XCTAssertEqual(model.page?.items, [items[1]])
+    guard case .failed(.restoreItems([items[1]]), let failure) = model.mutationOutcome else {
+      return XCTFail("expected the still-moving row to fail")
+    }
+    XCTAssertTrue(failure.isStillMovingToTrash)
   }
 
   func testAFailedPageKeepsRowsAndTryAgainSendsTheSameCursor() async {

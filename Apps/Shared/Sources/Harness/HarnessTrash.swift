@@ -14,6 +14,7 @@ import Foundation
       case stillMoving = "still-moving"
       case deleteFails = "delete-fails"
       case emptyFails = "empty-fails"
+      case partlyRefused = "partly-refused"
 
       var isPaged: Bool { self == .moreLoading || self == .moreFailing }
 
@@ -47,6 +48,9 @@ import Foundation
     static let pagedRefreshDelay: TimeInterval = 3
     static let offlineFailures = 2
     static let failingContinues: Set<Int> = [1, 3]
+    static let refusedRestoreID = 4302
+    static let refusedDeleteID = 4305
+    static let refusalsPerItem = 2
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var listsServed = 0
@@ -54,6 +58,7 @@ import Foundation
     nonisolated(unsafe) private static var pagedListsRequested = 0
     nonisolated(unsafe) private static var removedIDs: Set<Int> = []
     nonisolated(unsafe) private static var restoresServed = 0
+    nonisolated(unsafe) private static var itemRefusals: [Int: Int] = [:]
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -130,6 +135,7 @@ import Foundation
         return restoresServed == 1
       }
       if isFirst, let refusal = mode?.refusedRestore { return (400, refusal) }
+      if refuses(refusedRestoreID, in: payload) { return (400, itemRefusal) }
       let restored =
         payload?["cursor"] as? String == secondPageCursor
         ? restoreListing() : remove(fileIDs: payload?["file_ids"] as? String)
@@ -149,6 +155,7 @@ import Foundation
           #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_DELETE","message":"Trash refuses every permanent delete"}"#
         )
       }
+      if refuses(refusedDeleteID, in: payload) { return (400, itemRefusal) }
       guard remove(fileIDs: payload?["file_ids"] as? String) else {
         return (
           404,
@@ -156,6 +163,21 @@ import Foundation
         )
       }
       return (200, #"{"status":"OK"}"#)
+    }
+
+    private static let itemRefusal =
+      #"{"status":"ERROR","status_code":400,"error_type":"HARNESS_TRASH_ITEM_REFUSED","message":"One requested item is refused twice"}"#
+
+    private static func refuses(_ id: Int, in payload: [String: Any]?) -> Bool {
+      guard mode == .partlyRefused else { return false }
+      let raw = (payload?["file_ids"] as? String)?.split(separator: ",") ?? []
+      guard raw.contains(Substring(String(id))) else { return false }
+      return lock.withLock {
+        let served = itemRefusals[id, default: 0]
+        guard served < refusalsPerItem else { return false }
+        itemRefusals[id] = served + 1
+        return true
+      }
     }
 
     private static func empty() -> (Int, String) {

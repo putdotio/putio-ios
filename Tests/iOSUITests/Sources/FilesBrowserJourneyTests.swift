@@ -1012,14 +1012,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let select = trashMenuItem("Select")
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
-    let bulkRestore = app.buttons["trash.bulk.restore"]
+    let bulkRestore = app.buttons["selection.action.restore"]
     XCTAssertTrue(bulkRestore.appears(within: 5))
     XCTAssertFalse(bulkRestore.isEnabled)
     app.staticTexts["Empty Me"].tap()
     XCTAssertTrue(bulkRestore.isEnabled, "selecting a Trash row did not enable Restore")
     addScreenshot(named: "runtime-trash-selection")
-    XCTAssertTrue(app.buttons["trash.bulk.delete"].isEnabled)
-    app.buttons["trash.selection.done"].tap()
+    XCTAssertTrue(app.buttons["selection.action.delete"].isEnabled)
+    app.buttons["selection.close"].tap()
     XCTAssertTrue(bulkRestore.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(restoreRow, timeout: 5))
     openLeadingSwipe(on: restoreRow)
@@ -1271,7 +1271,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let select = trashMenuItem("Select")
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
-    XCTAssertTrue(app.buttons["trash.selection.done"].appears(within: 5))
+    XCTAssertTrue(app.buttons["selection.close"].appears(within: 5))
     let selectRow = element(identifier: "trash.item.4306").firstMatch
     XCTAssertTrue(waitUntilHittable(selectRow, timeout: 5))
     openLeadingSwipe(on: selectRow)
@@ -1284,8 +1284,105 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(
       trashMenuRestore.appears(within: 2),
       "Select mode offers the long-press menu")
-    app.buttons["trash.selection.done"].tap()
+    app.buttons["selection.close"].tap()
     XCTAssertTrue(element(identifier: "trash.item.4306").exists, "Select mode restored a row")
+  }
+
+  func testTrashSelectionRestoresAndDeletes() {
+    openSeededTrash("partly-refused")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    let header = element(identifier: "trash.header")
+
+    selectTrashRows([4301, 4306])
+    app.buttons["selection.action.restore"].tap()
+    XCTAssertTrue(
+      app.selectionActions.disappears(within: 5), "Restore kept Select mode")
+    XCTAssertTrue(element(identifier: "trash.item.4301").disappears(within: 2))
+    XCTAssertTrue(element(identifier: "trash.item.4306").disappears(within: 2))
+    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertTrue(header.label.contains("10.34 GB"), "the size line kept the restored rows")
+
+    selectTrashRows([4302, 4303, 4304])
+    app.buttons["selection.action.restore"].tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t restore 1 item from trash"].appears(within: 30),
+      "no partly failed restore toast")
+    addScreenshot(named: "runtime-trash-selection-partial")
+    XCTAssertTrue(element(identifier: "trash.item.4302").exists, "the refused row left")
+    XCTAssertFalse(element(identifier: "trash.item.4303").exists, "a restored row stayed")
+    XCTAssertFalse(element(identifier: "trash.item.4304").exists, "a restored row stayed")
+    XCTAssertTrue(header.label.contains("10.13 GB"), "the size line kept the restored rows")
+    app.buttons["Try again"].tap()
+    XCTAssertTrue(
+      element(identifier: "trash.item.4302").disappears(within: 2), "Try again kept the row")
+    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertTrue(header.label.contains("1.43 GB"), "the size line kept the retried row")
+
+    XCTAssertTrue(trashSettles(), "the retried restore never finished")
+    let pressedName = app.staticTexts["backup-2026-09.zip"].firstMatch
+    XCTAssertTrue(waitUntilHittable(pressedName, timeout: 5))
+    pressedName.press(forDuration: 1.0)
+    let rowSelect = trashMenuItem("Select")
+    XCTAssertTrue(waitUntilHittable(rowSelect, timeout: 5), "the long-press menu has no Select")
+    rowSelect.tap()
+    let pressed = app.buttons["trash.item.4305"]
+    XCTAssertEqual(pressed.value as? String, "Selected", "Select left the pressed row unchecked")
+    XCTAssertTrue(app.staticTexts["1 selected"].appears(within: 5))
+    element(identifier: "trash.item.4307").tap()
+    XCTAssertTrue(app.staticTexts["2 selected"].appears(within: 5))
+    let summary = element(identifier: "trash.selection.summary")
+    XCTAssertTrue(summary.label.contains("2 items"), "the summary miscounts Trash")
+    XCTAssertTrue(summary.label.contains("1.4 GB selected"), "the summary misses the size")
+
+    app.buttons["selection.action.delete"].tap()
+    let alert = app.putioAlert("Delete 2 items permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked")
+    alert.buttons["Cancel"].tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertTrue(app.staticTexts["2 selected"].exists, "Cancel left Select mode")
+    XCTAssertTrue(element(identifier: "trash.item.4305").exists, "Cancel deleted a row")
+    XCTAssertTrue(element(identifier: "trash.item.4307").exists, "Cancel deleted a row")
+
+    app.buttons["selection.action.delete"].tap()
+    XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked again")
+    alert.buttons["confirm-alert.confirm"].tap()
+    XCTAssertTrue(
+      app.staticTexts["The request could not start"].appears(within: 10),
+      "no partly failed delete toast")
+    XCTAssertTrue(element(identifier: "trash.item.4307").disappears(within: 5))
+    let refused = element(identifier: "trash.item.4305").firstMatch
+    XCTAssertEqual(refused.value as? String, "Selected", "the refused row lost its check")
+    XCTAssertTrue(app.selectionActions.exists, "the failed delete left Select mode")
+    XCTAssertTrue(summary.label.contains("1 item"), "the summary kept the deleted row")
+
+    app.buttons["selection.action.delete"].tap()
+    let last = app.putioAlert("Delete 1 item permanently?")
+    XCTAssertTrue(last.appears(within: 5), "Delete permanently never asked for the last row")
+    XCTAssertTrue(
+      last.staticTexts["It will be removed from trash right away. This cannot be undone."].exists)
+    last.buttons["confirm-alert.confirm"].tap()
+    XCTAssertTrue(app.staticTexts["1 item is no longer in trash."].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
+    XCTAssertFalse(
+      app.selectionActions.exists, "the emptied Trash kept Select mode")
+  }
+
+  private func selectTrashRows(_ ids: [Int]) {
+    let more = app.buttons["trash.menu"]
+    XCTAssertTrue(waitUntilHittable(more, timeout: 10))
+    XCTAssertTrue(trashSettles(), "More stayed disabled")
+    more.tap()
+    let select = trashMenuItem("Select")
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5), "More has no Select")
+    select.tap()
+    XCTAssertFalse(app.buttons["selection.action.restore"].isEnabled)
+    for id in ids {
+      let row = element(identifier: "trash.item.\(id)").firstMatch
+      XCTAssertTrue(waitUntilHittable(row, timeout: 5))
+      row.tap()
+      XCTAssertEqual(row.value as? String, "Selected", "\(id) did not select")
+    }
+    XCTAssertTrue(app.staticTexts["\(ids.count) selected"].exists)
   }
 
   func testTrashRestoreRefusalsKeepTheRow() {
@@ -1387,7 +1484,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
+        format:
+          "label == %@ AND NOT (identifier BEGINSWITH %@) AND NOT (identifier BEGINSWITH %@)",
+        label, "trash.", "selection.")
     ).firstMatch
   }
 

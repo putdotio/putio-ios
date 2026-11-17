@@ -4439,10 +4439,14 @@ final class BoardCaptureTests: XCTestCase {
     let restore = menuRestore
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
     XCTAssertEqual(restore.label, "Restore")
+    let select = trashMenuItem("Select")
+    XCTAssertTrue(select.exists, "the long-press menu has no Select")
+    XCTAssertEqual(select.label, "Select")
+    XCTAssertGreaterThan(select.frame.minY, restore.frame.minY, "Select is above Restore")
     let delete = menuDelete
     XCTAssertTrue(delete.exists, "the long-press menu has no Delete permanently")
     XCTAssertEqual(delete.label, "Delete permanently")
-    XCTAssertGreaterThan(delete.frame.minY, restore.frame.minY, "Delete permanently is not last")
+    XCTAssertGreaterThan(delete.frame.minY, select.frame.minY, "Delete permanently is not last")
     try captureBoard("rd-ios-trash-02-long-press")
   }
 
@@ -4472,7 +4476,9 @@ final class BoardCaptureTests: XCTestCase {
   private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
+        format:
+          "label == %@ AND NOT (identifier BEGINSWITH %@) AND NOT (identifier BEGINSWITH %@)",
+        label, "trash.", "selection.")
     ).firstMatch
   }
 
@@ -4613,6 +4619,74 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertFalse(element("trash.header").exists, "the emptied Trash shows a header")
     XCTAssertFalse(app.buttons["trash.menu"].exists, "the emptied Trash offers More")
     try captureBoard("rd-ios-trash-22-emptied")
+  }
+
+  func testTrashSelection() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    selectTrashRows([4302, 4304])
+    XCTAssertFalse(app.buttons["trash.menu"].exists, "Select mode offers More")
+    XCTAssertTrue(app.buttons["selection.close"].exists, "Select mode has no close button")
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertTrue(app.tabBarHides(), "Select mode kept the tab bar")
+    }
+    let summary = element("trash.selection.summary")
+    XCTAssertTrue(summary.label.contains("7 items"), "the summary miscounts Trash")
+    XCTAssertTrue(summary.label.contains("8.91 GB selected"), "the summary misses the size")
+    try captureBoard("rd-ios-trash-09-selection")
+  }
+
+  func testTrashDeleteSelected() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    selectTrashRows([4302, 4304])
+    element("selection.action.delete").tap()
+    let alert = app.putioAlert("Delete 2 items permanently?")
+    XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked")
+    XCTAssertTrue(
+      alert.staticTexts[
+        "They will be removed from trash right away. This cannot be undone."
+      ].exists, "the alert has no message")
+    XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
+    XCTAssertEqual(alert.buttons["confirm-alert.confirm"].label, "Delete")
+    try captureBoard("rd-ios-trash-10-delete-selected")
+  }
+
+  func testTrashRestorePartlyFailed() throws {
+    openTrash("partly-refused")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    selectTrashRows([4302, 4304])
+    element("selection.action.restore").tap()
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "Restore kept Select mode")
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t restore 1 item from trash"].appears(within: 30),
+      "no partly failed restore toast")
+    XCTAssertTrue(app.buttons["Try again"].exists, "the toast has no Try again")
+    XCTAssertTrue(element("trash.item.4302").exists, "the refused row left")
+    XCTAssertFalse(element("trash.item.4304").exists, "the restored row stayed")
+    XCTAssertTrue(
+      element("trash.header").label.contains("10.19 GB"), "the size line kept the restored row")
+    try captureTrashBoard("rd-ios-trash-11-restore-partly-failed")
+  }
+
+  private func selectTrashRows(_ ids: [Int]) {
+    showSettledTabBar()
+    app.buttons["trash.menu"].tap()
+    let select = trashMenuItem("Select")
+    XCTAssertTrue(select.appears(within: 5), "More has no Select")
+    select.tap()
+    XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
+    assertSelectionBar(["restore", "delete"])
+    XCTAssertFalse(element("selection.action.restore").isEnabled, "an empty selection restores")
+    XCTAssertFalse(element("selection.action.delete").isEnabled, "an empty selection deletes")
+    for id in ids {
+      let row = element("trash.item.\(id)")
+      row.tap()
+      XCTAssertEqual(row.value as? String, "Selected", "\(id) did not select")
+    }
+    XCTAssertTrue(
+      app.staticTexts["\(ids.count) selected"].exists, "the header miscounts the selection")
+    XCTAssertTrue(element("selection.action.restore").isEnabled, "the selection cannot restore")
   }
 
   private func openTrashMoreMenu() {
