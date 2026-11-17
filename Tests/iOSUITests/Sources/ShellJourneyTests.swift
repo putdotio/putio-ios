@@ -80,6 +80,16 @@ final class ShellJourneyTests: XCTestCase {
     let confirm = alert.buttons["Turn off"].firstMatch
     XCTAssertTrue(confirm.appears(within: 5), "turning history off asked for no confirmation")
     confirm.tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t save this setting"].appears(within: 10),
+      "the seeded first settings save did not fail")
+    assertToggle(setting, on: true)
+    app.showTabBar()
+    XCTAssertTrue(tabButton("History").exists, "a failed save removed History")
+    tapToggle(setting)
+    XCTAssertTrue(confirm.appears(within: 5), "turning history off asked for no confirmation")
+    confirm.tap()
+    assertToggle(setting, on: false)
     app.showTabBar()
     XCTAssertTrue(
       tabButton("History").disappears(within: 5), "History stayed in the tab bar after turning off")
@@ -170,6 +180,13 @@ final class ShellJourneyTests: XCTestCase {
       predicate: NSPredicate(format: "hittable == true AND enabled == true"), object: toggle)
     XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+  }
+
+  private func assertToggle(_ toggle: XCUIElement, on: Bool) {
+    let settled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@ AND enabled == true", on ? "1" : "0"),
+      object: toggle)
+    XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed)
   }
 
   private func element(_ identifier: String) -> XCUIElement {
