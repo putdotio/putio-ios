@@ -21,7 +21,7 @@ final class VideoUpNextCardTests: XCTestCase {
   func testCardBesideTheChipsKeepsTheEpisodeMarkerVisible() async throws {
     _ = SnapshotEnvironment.registersBrandFonts
     let chipRowWidths: [(device: String, width: CGFloat)] = [
-      ("iPhone landscape", 874 - 2 * 54), ("iPhone Pro Max landscape", 956 - 2 * 54),
+      ("iPhone landscape", 874 - 2 * (62 + 16)), ("iPhone Pro Max landscape", 956 - 2 * (62 + 16)),
       ("iPad portrait", 820 - 2 * 16), ("iPad landscape", 1180 - 2 * 16),
     ]
     for (device, width) in chipRowWidths {

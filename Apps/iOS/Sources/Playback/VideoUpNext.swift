@@ -49,12 +49,12 @@ private struct PutioVideoUpNextCard: View {
   let onCancel: () -> Void
 
   @ScaledMetric(relativeTo: .body) private var headingMinWidth: CGFloat = 140
-  @ScaledMetric(relativeTo: .body) private var headingMaxWidth: CGFloat = 180
+  @ScaledMetric(relativeTo: .body) private var headingIdealWidth: CGFloat = 248
 
   var body: some View {
     PutioUpNextCardLayout(
       spacing: PutioTheme.Spacing.space3, rowSpacing: PutioTheme.Spacing.space2,
-      headingMinWidth: headingMinWidth, headingMaxWidth: ownsRow ? .infinity : headingMaxWidth
+      headingMinWidth: headingMinWidth, headingIdealWidth: ownsRow ? .infinity : headingIdealWidth
     ) {
       Text("Up next in \(countdown)")
         .putioFont(PutioTheme.Typography.caption)
@@ -126,7 +126,7 @@ private struct PutioUpNextCardLayout: Layout {
   let spacing: CGFloat
   let rowSpacing: CGFloat
   let headingMinWidth: CGFloat
-  let headingMaxWidth: CGFloat
+  let headingIdealWidth: CGFloat
   var lineSpacing = PutioTheme.Spacing.space1
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
@@ -134,10 +134,10 @@ private struct PutioUpNextCardLayout: Layout {
     let countdown = subviews[0].sizeThatFits(.unspecified)
     let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
     let actions = subviews[2].sizeThatFits(.unspecified)
-    let widest = oneRowWidth(subviews, headingMaxWidth: .infinity)
+    let widest = oneRowWidth(subviews, headingIdealWidth: .infinity)
     let available =
       proposal.width.map { $0.isFinite ? $0 : widest }
-      ?? oneRowWidth(subviews, headingMaxWidth: headingMaxWidth)
+      ?? oneRowWidth(subviews, headingIdealWidth: headingIdealWidth)
     if fitsInOneRow(available, subviews) {
       let width = min(available, widest)
       let heading = headingHeight(width - spacing - actions.width, subviews)
@@ -183,15 +183,15 @@ private struct PutioUpNextCardLayout: Layout {
       anchor: .topLeading, proposal: line)
   }
 
-  private func oneRowWidth(_ subviews: Subviews, headingMaxWidth: CGFloat) -> CGFloat {
+  private func oneRowWidth(_ subviews: Subviews, headingIdealWidth: CGFloat) -> CGFloat {
     let countdown = subviews[0].sizeThatFits(.unspecified).width
     let nameIdeal = subviews[1].sizeThatFits(.unspecified).width
-    let headingWidth = max(countdown, min(max(headingMinWidth, nameIdeal), headingMaxWidth))
+    let headingWidth = max(countdown, min(max(headingMinWidth, nameIdeal), headingIdealWidth))
     return headingWidth + spacing + subviews[2].sizeThatFits(.unspecified).width
   }
 
   private func fitsInOneRow(_ width: CGFloat, _ subviews: Subviews) -> Bool {
-    width.rounded(.up) >= oneRowWidth(subviews, headingMaxWidth: headingMaxWidth).rounded(.down)
+    width.rounded(.up) >= oneRowWidth(subviews, headingIdealWidth: headingIdealWidth).rounded(.down)
   }
 }
 
