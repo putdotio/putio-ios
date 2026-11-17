@@ -861,8 +861,7 @@ struct MainTabView: View {
           fileID: route.id, parentID: route.parentID, name: route.title,
           durationSeconds: duration)
       },
-      preferredAudioLanguages: offlineQueue.item(for: route.id)?.isPlayable == true
-        ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
+      preferredAudioLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
       remembersPlaybackPosition: account.rememberVideoTime,
       suggestsNextVideo: account.suggestNextVideo,
       autoplayNextVideo: { await appConfig.resolveAutoplayNextVideo() },

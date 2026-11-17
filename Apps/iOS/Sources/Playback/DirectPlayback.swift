@@ -47,6 +47,7 @@ struct PutioDirectPlayerView: UIViewRepresentable {
   let fileID: PutioFileID
   let source: PutioPlaybackSource
   let transport: PutioVideoTransport
+  let preferredAudioLanguages: [String]
   let remembersPlaybackPosition: Bool
   let subtitlePolicy: PutioSubtitleStartupPolicy
   let subtitleMemory: PutioSubtitleMemory?
@@ -63,6 +64,7 @@ struct PutioDirectPlayerView: UIViewRepresentable {
     view.backgroundColor = .black
     context.coordinator.start(
       fileID: fileID, source: source, transport: transport,
+      preferredAudioLanguages: preferredAudioLanguages,
       remembersPlaybackPosition: remembersPlaybackPosition,
       subtitles: PutioDirectPlayCoordinator.SubtitleStart(
         policy: subtitlePolicy, remembered: { subtitleMemory?.remembered }),
@@ -117,7 +119,8 @@ final class PutioDirectPlayCoordinator {
 
   func start(
     fileID: PutioFileID, source: PutioPlaybackSource, transport: PutioVideoTransport,
-    remembersPlaybackPosition: Bool, subtitles: SubtitleStart,
+    preferredAudioLanguages: [String], remembersPlaybackPosition: Bool,
+    subtitles: SubtitleStart,
     reportPosition: @escaping PutioPlaybackPositionReport,
     in view: AetherPlayerView, callbacks: PutioVideoPlayerCallbacks
   ) {
@@ -158,8 +161,9 @@ final class PutioDirectPlayCoordinator {
 
     loading = Task { @MainActor [weak self] in
       await self?.load(
-        source, in: engine, remembersPlaybackPosition: remembersPlaybackPosition,
-        subtitles: subtitles, generation: playbackGeneration)
+        source, in: engine, preferredAudioLanguages: preferredAudioLanguages,
+        remembersPlaybackPosition: remembersPlaybackPosition, subtitles: subtitles,
+        generation: playbackGeneration)
     }
   }
 
@@ -231,12 +235,14 @@ final class PutioDirectPlayCoordinator {
   }
 
   private func load(
-    _ source: PutioPlaybackSource, in engine: AetherEngine, remembersPlaybackPosition: Bool,
-    subtitles: SubtitleStart, generation playbackGeneration: UInt64
+    _ source: PutioPlaybackSource, in engine: AetherEngine, preferredAudioLanguages: [String],
+    remembersPlaybackPosition: Bool, subtitles: SubtitleStart,
+    generation playbackGeneration: UInt64
   ) async {
     let original = source.original
     var options = LoadOptions()
     options.autoplay = false
+    options.preferredAudioLanguages = preferredAudioLanguages
     options.prepareNativeSubtitles = true
     options.externalSubtitles = (original?.subtitles ?? []).map { subtitle in
       ExternalSubtitleTrack(

@@ -535,6 +535,7 @@ struct PutioVideoPlaybackView: View {
             fileID: fileID,
             source: source,
             transport: transport,
+            preferredAudioLanguages: preferredAudioLanguages,
             remembersPlaybackPosition: remembersPlaybackPosition,
             subtitlePolicy: subtitlePolicy,
             subtitleMemory: subtitleMemory,
