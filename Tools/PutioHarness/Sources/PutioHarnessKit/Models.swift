@@ -731,7 +731,7 @@ enum BoardCaptureContract {
         "rd-ios-dl-19-offline", .iphone, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "offline"]),
       BoardCapture(
-        "rd-ios-dl-27-info", .iphone, "testDownloadsMenu", screenBase: false,
+        "rd-ios-dl-27-info", .iphone, "testDownloadsMenu",
         environment: ["PUTIO_DOWNLOADS_MENU": "info"]),
       BoardCapture(
         "rd-ios-dl-28-notifications-off", .iphone, "testDownloadsFixture", screenBase: false,
