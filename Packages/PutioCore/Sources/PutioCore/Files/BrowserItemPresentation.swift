@@ -50,7 +50,9 @@ public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     case .audio: .audio
     case .image: .image
     case .pdf: .pdf
-    case .text, .other: .file
+    case .text: .text
+    case .other("ARCHIVE"): .archive
+    case .other: .file
     }
   }
 

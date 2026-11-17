@@ -966,6 +966,10 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-pb-43-portrait-video", .iphone, "testPortraitVideoPlayer"),
       BoardCapture(
         "rd-ios-pb-44-portrait-converting", .iphone, "testPortraitConversionConverting"),
+      BoardCapture("rd-ios-trash-01-list", .iphone, "testTrashList"),
+      BoardCapture("rd-ios-trash-06-empty", .iphone, "testTrashEmpty"),
+      BoardCapture("rd-ios-trash-12-loading", .iphone, "testTrashLoading"),
+      BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
@@ -1470,6 +1474,10 @@ enum BrowserJourneyContract {
         "runtime-trash-empty",
       ],
       timeAllowance: 90),
+    JourneyPreflight(
+      "trash-offline", "FilesBrowserJourneyTests/testOfflineTrashRetriesOnItsOwn",
+      attachmentNames: ["runtime-trash-offline"], timeAllowance: 90),
+    JourneyPreflight("trash-failed", "FilesBrowserJourneyTests/testFailedTrashLoadTriesAgain"),
     JourneyPreflight(
       "sort-continuation",
       "FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage",

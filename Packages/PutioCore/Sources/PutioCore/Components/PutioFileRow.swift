@@ -8,6 +8,8 @@ public struct PutioFileRowModel: Equatable, Sendable {
     case audio
     case image
     case pdf
+    case text
+    case archive
     case file
   }
 
@@ -78,6 +80,8 @@ public struct PutioFileRow: View {
   #else
     @PutioScaledMetric private var markerSize: CGFloat
     @PutioScaledMetric private var separatorGap: CGFloat
+    @PutioScaledMetric private var leadWidth: CGFloat
+    @PutioScaledMetric private var leadGap: CGFloat
   #endif
 
   public init(
@@ -95,6 +99,8 @@ public struct PutioFileRow: View {
     #else
       _markerSize = PutioScaledMetric(PutioFileRowLayout.markerSize)
       _separatorGap = PutioScaledMetric(PutioFileRowLayout.separatorGap)
+      _leadWidth = PutioScaledMetric(PutioFileRowLayout.leadWidth)
+      _leadGap = PutioScaledMetric(PutioFileRowLayout.leadGap)
     #endif
   }
 
@@ -127,59 +133,84 @@ public struct PutioFileRow: View {
       .fixedSize(horizontal: false, vertical: true)
   }
 
+  private var glyph: some View {
+    Image(putioIcon: model.icon)
+      .resizable()
+      .scaledToFit()
+      .frame(width: iconSize, height: iconSize)
+      .foregroundStyle(PutioTheme.Components.FileRow.icon)
+  }
+
+  @ViewBuilder private var leading: some View {
+    #if os(tvOS)
+      HStack(spacing: contentGap) {
+        glyph
+        text
+      }
+    #else
+      HStack(spacing: leadGap) {
+        glyph.frame(width: leadWidth)
+        text
+      }
+    #endif
+  }
+
   private var content: some View {
     HStack(spacing: contentGap) {
-      Image(putioIcon: model.icon)
-        .resizable()
-        .scaledToFit()
-        .frame(width: iconSize, height: iconSize)
-        .foregroundStyle(PutioTheme.Components.FileRow.icon)
-      VStack(alignment: .leading, spacing: textGap) {
-        Text(model.name)
-          .putioFont(PutioFileRowLayout.nameFont)
-          .foregroundStyle(PutioTheme.Colors.textPrimary)
-          .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
-          .truncationMode(.middle)
-          .fixedSize(horizontal: false, vertical: true)
-        #if os(tvOS)
-          if let detailText = model.detailText {
-            detail(detailText)
-          }
-        #else
-          secondLine
-        #endif
-        if let secondaryText = model.secondaryText {
-          detail(secondaryText)
-        }
-      }
-      .frame(
-        maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
+      leading
       if !dynamicTypeSize.isAccessibilitySize {
         Spacer(minLength: contentGap)
       }
+      trailing
+    }
+  }
+
+  private var text: some View {
+    VStack(alignment: .leading, spacing: textGap) {
+      Text(model.name)
+        .putioFont(PutioFileRowLayout.nameFont)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+        .truncationMode(.middle)
+        .fixedSize(horizontal: false, vertical: true)
       #if os(tvOS)
-        if model.isWatched {
-          Image(putioIcon: .eye)
-            .resizable()
-            .scaledToFit()
-            .frame(width: indicatorSize, height: indicatorSize)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .accessibilityLabel(Text("Watched", bundle: .module))
-        }
-        if model.kind == .folder, model.showsDisclosure {
-          Image(putioIcon: .caretRight)
-            .resizable()
-            .scaledToFit()
-            .frame(width: indicatorSize, height: indicatorSize)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        if let detailText = model.detailText {
+          detail(detailText)
         }
       #else
-        if !isSelecting {
-          PutioDownloadStateButton(
-            presentation: presentation, fileName: model.name, onAction: onDownloadAction)
-        }
+        secondLine
       #endif
+      if let secondaryText = model.secondaryText {
+        detail(secondaryText)
+      }
     }
+    .frame(
+      maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
+  }
+
+  @ViewBuilder private var trailing: some View {
+    #if os(tvOS)
+      if model.isWatched {
+        Image(putioIcon: .eye)
+          .resizable()
+          .scaledToFit()
+          .frame(width: indicatorSize, height: indicatorSize)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .accessibilityLabel(Text("Watched", bundle: .module))
+      }
+      if model.kind == .folder, model.showsDisclosure {
+        Image(putioIcon: .caretRight)
+          .resizable()
+          .scaledToFit()
+          .frame(width: indicatorSize, height: indicatorSize)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
+    #else
+      if !isSelecting {
+        PutioDownloadStateButton(
+          presentation: presentation, fileName: model.name, onAction: onDownloadAction)
+      }
+    #endif
   }
 
   #if !os(tvOS)
@@ -243,8 +274,7 @@ public struct PutioFileRow: View {
     @ViewBuilder
     private func segmentText(_ text: String, isNumeric: Bool, color: Color) -> some View {
       if isNumeric {
-        Text(text)
-          .putioFont(PutioFileRowLayout.detailFont)
+        numericText(text)
           .foregroundStyle(color)
           .lineLimit(wrapsDetails ? nil : 1)
           .fixedSize(horizontal: false, vertical: true)
@@ -255,6 +285,15 @@ public struct PutioFileRow: View {
           .lineLimit(wrapsDetails ? nil : 1)
           .fixedSize(horizontal: false, vertical: true)
       }
+    }
+
+    @ViewBuilder
+    private func numericText(_ text: String) -> some View {
+      #if os(iOS) || os(watchOS)
+        PutioNumericText(text)
+      #else
+        Text(text).putioFont(PutioFileRowLayout.detailFont)
+      #endif
     }
 
     private func separator(_ color: Color) -> some View {
@@ -297,7 +336,9 @@ enum PutioFileRowLayout {
     #else
       static let detailFont = PutioTheme.Typography.caption
     #endif
-    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
+    static let iconSize = PutioMetricRole(value: 28, relativeTo: .body)
+    static let leadWidth = PutioMetricRole(value: 32, relativeTo: .body)
+    static let leadGap = PutioMetricRole(value: 12, relativeTo: .body)
     static let markerSize = PutioMetricRole(
       value: PutioTheme.Typography.sizeSm, relativeTo: .caption)
     static let separatorGap = PutioMetricRole(value: 6, relativeTo: .caption)
@@ -314,15 +355,17 @@ extension PutioFileRowModel.Kind {
       case .video: .fileVideo
       case .audio: .fileAudio
       case .image: .image
-      case .pdf, .file: .file
+      case .pdf, .text, .archive, .file: .file
       }
     #else
       switch self {
       case .folder: .folderFill
       case .video: .fileVideoFill
       case .audio: .fileAudioFill
-      case .image: .imageFill
+      case .image: .fileImageFill
       case .pdf: .filePdfFill
+      case .text: .fileTextFill
+      case .archive: .fileZipFill
       case .file: .fileFill
       }
     #endif

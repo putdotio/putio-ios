@@ -3577,6 +3577,70 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-acc-39-links-failed")
   }
 
+  func testTrashList() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    XCTAssertTrue(element("trash.header").exists, "Trash has no size and retention line")
+    for expiry in ["Gone in 14 days", "Gone in 12 days", "Gone tomorrow", "Gone today"] {
+      XCTAssertTrue(app.staticTexts[expiry].exists, "no row says \(expiry)")
+    }
+    XCTAssertTrue(app.buttons["trash.menu"].exists, "Trash has no More button")
+    try captureTrashBoard("rd-ios-trash-01-list")
+  }
+
+  func testTrashEmpty() throws {
+    openTrash("empty")
+    XCTAssertTrue(
+      app.staticTexts["Your trash is empty"].appears(within: 10), "Trash never read empty")
+    XCTAssertFalse(element("trash.header").exists, "the empty Trash shows a header")
+    XCTAssertFalse(app.buttons["trash.menu"].exists, "the empty Trash offers More")
+    try captureTrashBoard("rd-ios-trash-06-empty")
+  }
+
+  func testTrashLoading() throws {
+    openTrash("slow")
+    XCTAssertTrue(labeled("Loading Trash").appears(within: 5), "Trash shows no spinner")
+    try captureTrashBoard("rd-ios-trash-12-loading")
+  }
+
+  func testTrashLoadFailed() throws {
+    openTrash("failing")
+    XCTAssertTrue(app.buttons["trash.retry"].appears(within: 10), "Trash never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists, "the failure has no title")
+    XCTAssertTrue(
+      app.staticTexts["Check your connection and try again."].exists,
+      "the failure has no message")
+    try captureTrashBoard("rd-ios-trash-13-error")
+  }
+
+  private func openTrash(_ mode: String) {
+    app.launchArguments += ["--putio-harness-trash", mode]
+    orientForBoardDevice()
+    app.launch()
+    reachFilesRoot()
+    let profile = element("account.profile")
+    tabButton("Account").tap()
+    if !profile.appears(within: 5) {
+      openSidebar()
+      app.cells["Account"].tap()
+      if element("shell.storage").becomesHittable(within: 3) {
+        sidebarToggle().tap()
+        XCTAssertTrue(
+          element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
+      }
+    }
+    XCTAssertTrue(profile.appears(within: 10), "Account never opened")
+    let row = app.revealed("account.trash")
+    app.bringIntoView(row)
+    row.tap()
+    XCTAssertTrue(app.navigationBars["Trash"].appears(within: 5), "Trash never opened")
+  }
+
+  private func captureTrashBoard(_ board: String) throws {
+    showSettledTabBar()
+    try captureBoard(board)
+  }
+
   func testAccountPublicLinkMenu() throws {
     openPublicLinks("ready")
     let sintel = element("public-links.item.902")

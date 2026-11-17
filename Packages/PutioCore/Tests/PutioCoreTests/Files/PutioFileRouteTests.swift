@@ -102,8 +102,9 @@ final class PutioFileRouteTests: XCTestCase {
       (.audio, .audio),
       (.image, .image),
       (.pdf, .pdf),
-      (.text, .file),
-      (.other("ARCHIVE"), .file),
+      (.text, .text),
+      (.other("ARCHIVE"), .archive),
+      (.other("SWF"), .file),
     ]
 
     for (index, testCase) in cases.enumerated() {

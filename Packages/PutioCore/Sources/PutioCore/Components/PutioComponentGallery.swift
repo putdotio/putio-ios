@@ -1095,9 +1095,14 @@ enum GalleryFixtures {
     ),
     PutioFileRowModel(name: "IMG_2041.HEIC", kind: .image, sizeText: "3.1 MB", dateText: "Oct 20"),
     PutioFileRowModel(
-      name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+      name: "Blue.Lights.S04E01.en.srt", kind: .text, sizeText: "41 kB", dateText: "Oct 13"),
     PutioFileRowModel(
       name: "document-scan-march-2026.pdf", kind: .pdf, sizeText: "1.1 MB", dateText: "Mar 18"),
+    PutioFileRowModel(
+      name: "backup-2026-09.zip", kind: .archive, sizeText: "1.4 GB", dateText: "Sep 30"),
+    PutioFileRowModel(
+      name: "ubuntu-24.04.1-desktop-amd64.iso", kind: .file, sizeText: "6.1 GB",
+      dateText: "Sep 2"),
   ]
 
   private static let downloadStates: [(episode: String, state: PutioDownloadState)] = [
@@ -1157,7 +1162,7 @@ enum GalleryFixtures {
         sizeText: "3.3 GB",
         isWatched: true
       ),
-      PutioFileRowModel(name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB"),
+      PutioFileRowModel(name: "Blue.Lights.S04E01.en.srt", kind: .text, sizeText: "41 kB"),
     ]
   #endif
 
@@ -1231,9 +1236,9 @@ enum GalleryFixtures {
         dateText: "Oct 20"
       ),
       PutioFileRowModel(
-        name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+        name: "Blue.Lights.S04E01.en.srt", kind: .text, sizeText: "41 kB", dateText: "Oct 13"),
       PutioFileRowModel(
-        name: "Blue.Lights.S04E02.en.srt", kind: .file, sizeText: "39 kB", dateText: "Oct 13"),
+        name: "Blue.Lights.S04E02.en.srt", kind: .text, sizeText: "39 kB", dateText: "Oct 13"),
     ]
 
     static let listDetailRows: [PutioFileRowModel] = [
@@ -1250,9 +1255,9 @@ enum GalleryFixtures {
         name: "Blue.Lights.S04E04.1080p.HDTV.H264-ORGANiC.mkv", kind: .video, sizeText: "3.4 GB",
         dateText: "Oct 20"),
       PutioFileRowModel(
-        name: "Blue.Lights.S04E01.en.srt", kind: .file, sizeText: "41 kB", dateText: "Oct 13"),
+        name: "Blue.Lights.S04E01.en.srt", kind: .text, sizeText: "41 kB", dateText: "Oct 13"),
       PutioFileRowModel(
-        name: "Blue.Lights.S04E02.en.srt", kind: .file, sizeText: "39 kB", dateText: "Oct 13"),
+        name: "Blue.Lights.S04E02.en.srt", kind: .text, sizeText: "39 kB", dateText: "Oct 13"),
     ]
 
     private static func action(
