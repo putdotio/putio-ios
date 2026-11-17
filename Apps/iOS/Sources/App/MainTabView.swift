@@ -727,6 +727,7 @@ struct MainTabView: View {
     videoStartTask = Task { await openVideo(route) }
     // The autoplay decision reads the document at playback end; a load that
     // failed at sign-in gets another chance before this video finishes.
+    guard route.initialResolution == nil else { return }
     Task { await appConfig.loadIfNeeded() }
   }
 
