@@ -427,11 +427,11 @@ final class DownloadsJourneyTests: XCTestCase {
     let movie = element("files.item.412")
     XCTAssertTrue(movie.appears(within: 10))
     movie.press(forDuration: 1)
-    app.buttons["Download"].tap()
+    app.submenuAction("Download", in: "Download").tap()
     let item = element("downloads.item.412")
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertTrue(
-      waitForValue(item, "completed", timeout: 90),
+      waitForValue(item, "completed;watched", timeout: 90),
       "the Direct play download did not complete: \(item.value ?? "")")
 
     app.terminate()
@@ -463,15 +463,20 @@ final class DownloadsJourneyTests: XCTestCase {
       waitForValue(subtitle, "tr", timeout: 10), "subtitle: \(subtitle.value ?? "")")
 
     let audio = element("video.audio-language")
+    let preferred = try XCTUnwrap(preferredAudioLanguage())
+    XCTAssertTrue(
+      waitForValue(audio, preferred, timeout: 10),
+      "the stored original did not start on the device language \(preferred): \(audio.value ?? "")"
+    )
     let audioChip = element("video.chip.audio")
     app.revealVideoControls(showing: audioChip)
     audioChip.tap()
-    let turkishAudio = app.buttons["video.audio.2"]
-    XCTAssertTrue(turkishAudio.appears(within: 5), "the file's second audio track is not offered")
-    XCTAssertTrue(app.buttons["video.audio.1"].exists)
+    XCTAssertTrue(app.buttons["video.audio.1"].appears(within: 5), "the Audio chip opened no menu")
+    XCTAssertTrue(app.buttons["video.audio.2"].exists, "the file's second audio track is not offered")
     screenshot("runtime-downloads-offline-direct-play-audio")
-    turkishAudio.tap()
-    XCTAssertTrue(waitForValue(audio, "tr", timeout: 10), "audio: \(audio.value ?? "")")
+    let other = preferred == "tr" ? "en" : "tr"
+    app.buttons[other == "en" ? "video.audio.1" : "video.audio.2"].tap()
+    XCTAssertTrue(waitForValue(audio, other, timeout: 10), "audio: \(audio.value ?? "")")
 
     let position = element("video.current-position")
     XCTAssertTrue(
@@ -573,9 +578,16 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(downloads.appears(within: 15), "the signed-in shell did not open offline")
     downloads.tap()
     XCTAssertTrue(item.appears(within: 10))
-    XCTAssertEqual(item.value as? String, "completed")
+    XCTAssertEqual(item.value as? String, "completed;watched")
     RunLoop.current.run(until: .now.addingTimeInterval(2))
     return element("downloads.cut-requests").value as? String
+  }
+
+  private func preferredAudioLanguage() -> String? {
+    guard let flag = app.launchArguments.firstIndex(of: "--putio-harness-preferred-languages"),
+      app.launchArguments.indices.contains(flag + 1)
+    else { return nil }
+    return app.launchArguments[flag + 1].split(separator: ",").first.map(String.init)
   }
 
   private func playStored(startingOver: Bool) -> String? {

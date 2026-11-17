@@ -802,7 +802,8 @@ import Foundation
     }()
     private static let listsOnlySeasonVideos = downloadsFixture?.hasPrefix("file-") == true
     private static let downloadsNetworkLock = NSLock()
-    nonisolated(unsafe) private static var downloadsNetworkCut = downloadsFixture == "offline"
+    nonisolated(unsafe) private static var downloadsNetworkCut =
+      downloadsFixture == "offline" || cutsNetwork
     private static var downloadsOffline: Bool {
       downloadsNetworkLock.withLock { downloadsNetworkCut }
     }
@@ -1258,12 +1259,6 @@ import Foundation
         || HarnessTrash.consumeOfflineFailure(method: request.httpMethod ?? "GET", path: url.path)
         || HarnessHistory.consumeOfflineFailure(method: request.httpMethod ?? "GET", url: url)
       {
-        deliveryGate.deliver(generation: generation) {
-          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
-        }
-        return
-      }
-      if Self.cutsNetwork, !Self.reachesOffline(url) {
         deliveryGate.deliver(generation: generation) {
           self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         }
