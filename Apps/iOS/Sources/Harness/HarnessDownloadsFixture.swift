@@ -248,7 +248,8 @@
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Download position on put.io")
             .accessibilityValue(
-              "\(HarnessSeededAPI.playbackPosition(fileID: HarnessDownloadsNetwork.syncedFileID))")
+              "\(HarnessSeededAPI.playbackPosition(fileID: HarnessDownloadsNetwork.syncedFileID))"
+            )
             .accessibilityIdentifier("downloads.synced-position")
             .allowsHitTesting(false)
         }
