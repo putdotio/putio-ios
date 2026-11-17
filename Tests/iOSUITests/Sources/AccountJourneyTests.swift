@@ -176,7 +176,8 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 15), "Sign out and remove downloads never reached Welcome")
     signIn.tap()
     openDownloads(in: app)
-    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 10), "the download survived")
+    XCTAssertTrue(
+      app.staticTexts["Nothing downloaded yet"].appears(within: 10), "the download survived")
 
     tapSignOut(in: app)
     let alert = app.putioAlert("Sign out of put.io?")

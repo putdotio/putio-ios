@@ -76,7 +76,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.buttons["selection.close"].tap()
 
     selectTab("Downloads")
-    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
+    XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 5))
     screenshot("runtime-accessibility-downloads")
     selectTab("Files")
     XCTAssertTrue(element("files.screen.0").appears(within: 5))

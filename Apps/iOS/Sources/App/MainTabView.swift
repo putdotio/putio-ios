@@ -563,7 +563,7 @@ struct MainTabView: View {
         offlineQueue.enqueue(
           fileID: route.id, parentID: route.item.parentID, name: route.item.name,
           kind: route.item.kind == .audio ? .audio : .video, estimatedBytes: route.item.sizeBytes,
-          playbackMethod: playbackMethod)
+          playbackMethod: playbackMethod, isWatched: route.item.isWatched)
       }
       // The seeded journey proves the queue, not the system prompt; the prompt
       // would cover the row in its screenshot.

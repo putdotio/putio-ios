@@ -2054,6 +2054,17 @@
         }
       }
     },
+    "Waiting for a slot" : {
+      "comment" : "ios-only: no Android string for the iOS offline downloads",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for a slot"
+          }
+        }
+      }
+    },
     "Waiting for network" : {
       "comment" : "android: mobile_files_download_waiting",
       "localizations" : {
