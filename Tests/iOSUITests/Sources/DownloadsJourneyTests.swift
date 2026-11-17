@@ -498,6 +498,9 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= %d", saved - 1), position, timeout: 10),
       "the download did not resume at \(saved): \(position.value ?? "")")
+    XCTAssertTrue(
+      waitFor(NSPredicate(format: "value.intValue >= %d", saved + 3), position, timeout: 15),
+      "the resumed download stopped playing: \(position.value ?? "")")
     assertNoPlaybackRequests(since: relaunchedRequests)
     app.closeVideo()
     let resumed = try reportedSeconds()
