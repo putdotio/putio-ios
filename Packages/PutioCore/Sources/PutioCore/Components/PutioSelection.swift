@@ -169,6 +169,22 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     }
   }
 
+  @MainActor @Observable public final class PutioTabBarHiding {
+    private var requests: Set<UUID> = []
+
+    public init() {}
+
+    public var hidesTabBar: Bool { !requests.isEmpty }
+
+    func request(_ id: UUID, hidden: Bool) {
+      if hidden { requests.insert(id) } else { requests.remove(id) }
+    }
+  }
+
+  extension EnvironmentValues {
+    @Entry public var putioTabBarHiding: PutioTabBarHiding? = nil
+  }
+
   extension View {
     public func putioSelectionMode<ID: Hashable & Sendable>(
       _ selection: Binding<PutioSelection<ID>>,
@@ -187,6 +203,9 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
     let actions: [PutioSelectionAction]
     let isBusy: Bool
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.tabBarPlacement) private var tabBarPlacement
+    @Environment(\.putioTabBarHiding) private var tabBarHiding
+    @State private var tabBarRequest = UUID()
 
     func body(content: Content) -> some View {
       content
@@ -196,26 +215,38 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           if selection.isActive {
             PutioSelectionHeader(selection: $selection, ids: ids, isBusy: isBusy)
           }
-        }
-        .toolbarVisibility(hidesTabBar ? .hidden : .automatic, for: .tabBar)
-        .safeAreaInset(edge: .bottom) {
-          if selection.isActive {
-            PutioSelectionBar(actions: actions)
-              .disabled(selection.count == 0 || isBusy)
+          if usesBottomToolbar {
+            PutioSelectionToolbar(actions: actions, isDisabled: actionsDisabled)
           }
+        }
+        .toolbarVisibility(usesBottomToolbar ? .hidden : .automatic, for: .tabBar)
+        .safeAreaInset(edge: .bottom) {
+          if selection.isActive, !tabBarAtBottom {
+            PutioSelectionBar(actions: actions)
+              .disabled(actionsDisabled)
+          }
+        }
+        .onChange(of: usesBottomToolbar, initial: true) { _, hides in
+          tabBarHiding?.request(tabBarRequest, hidden: hides)
         }
         .onChange(of: ids) { _, current in
           guard !isBusy else { return }
           selection.retain(current)
         }
         .onDisappear {
+          tabBarHiding?.request(tabBarRequest, hidden: false)
           selection.end()
         }
     }
 
-    private var hidesTabBar: Bool {
-      selection.isActive && horizontalSizeClass == .compact
+    private var tabBarAtBottom: Bool {
+      guard let tabBarPlacement else { return horizontalSizeClass == .compact }
+      return tabBarPlacement != .topBar && tabBarPlacement != .sidebar
     }
+
+    private var usesBottomToolbar: Bool { selection.isActive && tabBarAtBottom }
+
+    private var actionsDisabled: Bool { selection.count == 0 || isBusy }
   }
 
   private struct PutioSelectionHeader<ID: Hashable & Sendable>: ToolbarContent {
@@ -250,6 +281,52 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         .disabled(ids.isEmpty || isBusy)
         .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.toggle-all")
+      }
+    }
+  }
+
+  private struct PutioSelectionToolbar: ToolbarContent {
+    let actions: [PutioSelectionAction]
+    let isDisabled: Bool
+
+    var body: some ToolbarContent {
+      let layout = PutioSelectionBarLayout(actions)
+      ToolbarItemGroup(placement: .bottomBar) {
+        ForEach(Array(layout.visible.enumerated()), id: \.element.id) { index, action in
+          if index > 0 { Spacer() }
+          Button(role: action.isDestructive ? .destructive : nil, action: action.perform) {
+            Label {
+              Text(action.title)
+            } icon: {
+              Image(putioIcon: action.icon)
+            }
+          }
+          .disabled(isDisabled || action.isDisabled)
+          .accessibilityIdentifier("selection.action.\(action.id)")
+        }
+        if !layout.overflow.isEmpty {
+          Spacer()
+          Menu {
+            ForEach(layout.overflow) { action in
+              Button(role: action.isDestructive ? .destructive : nil, action: action.perform) {
+                Label {
+                  Text(action.title)
+                } icon: {
+                  Image(putioIcon: action.icon)
+                }
+              }
+              .disabled(action.isDisabled)
+            }
+          } label: {
+            Label {
+              Text("More", bundle: .module)
+            } icon: {
+              Image(putioIcon: .dotsThreeCircle)
+            }
+          }
+          .disabled(isDisabled)
+          .accessibilityIdentifier("selection.action.more")
+        }
       }
     }
   }

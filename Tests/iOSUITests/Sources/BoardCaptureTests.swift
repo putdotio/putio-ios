@@ -234,7 +234,10 @@ final class BoardCaptureTests: XCTestCase {
   private func selectDownloads(_ ids: [Int]) {
     app.buttons["downloads.more"].firstMatch.tap()
     app.buttons["downloads.select"].firstMatch.tap()
-    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
+    XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
+    }
     assertSelectionBar(["pause", "resume", "remove"])
     if ids.isEmpty {
       for action in ["pause", "resume", "remove"] {
@@ -254,7 +257,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func closeSelection() {
     app.buttons["selection.close"].firstMatch.tap()
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "Done kept the selection")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "Done kept the selection")
   }
 
   private var removalFailure: XCUIElement {
@@ -333,7 +336,7 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["downloads.remove-confirm"].firstMatch.tap()
     XCTAssertTrue(finished.disappears(within: 5), "the removed video stayed")
     XCTAssertTrue(audio.disappears(within: 5), "the removed audio stayed")
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "removal kept the selection")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "removal kept the selection")
 
     selectDownloads([])
     app.buttons["selection.toggle-all"].tap()
@@ -345,7 +348,7 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["downloads.remove-confirm"].firstMatch.tap()
     XCTAssertTrue(
       app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the running rows stayed")
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "the empty list kept selecting")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "the empty list kept selecting")
   }
 
   private static let downloadsSelectionBoards = [
@@ -500,7 +503,7 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["downloads.remove-confirm"].firstMatch.tap()
     XCTAssertTrue(element("downloads.item.441").disappears(within: 5), "441 stayed")
     XCTAssertTrue(finished.disappears(within: 5), "9001 stayed")
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "removal kept the selection")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "removal kept the selection")
     XCTAssertTrue(empty.exists, "leaving selection restored a detail")
 
     selectDownloads([])
@@ -1627,7 +1630,7 @@ final class BoardCaptureTests: XCTestCase {
     element("selection.action.trash").tap()
     XCTAssertTrue(
       app.staticTexts["Moved 3 items to trash"].appears(within: 10), "no bulk trash toast")
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "bulk Trash kept selection")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "bulk Trash kept selection")
     XCTAssertTrue(app.buttons["Undo"].exists, "the bulk trash toast has no Undo")
     try captureBoard("rd-ios-60-selection-trashed")
   }
@@ -5432,7 +5435,10 @@ final class BoardCaptureTests: XCTestCase {
     let start = app.buttons["Select"].firstMatch
     XCTAssertTrue(start.appears(within: 5), "More has no Select")
     start.tap()
-    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
+    XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertTrue(app.tabBarHides(), "selection kept the tab bar")
+    }
     for identifier in identifiers {
       let row = element(identifier)
       XCTAssertTrue(row.appears(within: 5), "\(identifier) never appeared")

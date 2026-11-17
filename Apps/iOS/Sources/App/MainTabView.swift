@@ -1246,7 +1246,19 @@ extension View {
   ) -> some View {
     putioToast(toast)
       .tint(PutioTheme.Colors.textPrimary)
-      .toolbarVisibility(tabBar, for: .tabBar)
+      .modifier(ShellTabBarVisibility(visibility: tabBar))
       .modifier(PutioAudioMiniPlayerInset(slot: miniPlayer))
+  }
+}
+
+private struct ShellTabBarVisibility: ViewModifier {
+  let visibility: Visibility
+  @State private var hiding = PutioTabBarHiding()
+
+  func body(content: Content) -> some View {
+    content
+      .environment(\.putioTabBarHiding, hiding)
+      .toolbarVisibility(
+        visibility == .hidden || hiding.hidesTabBar ? .hidden : visibility, for: .tabBar)
   }
 }
