@@ -70,6 +70,10 @@ struct AccountScreen: View {
     }
     .onChange(of: destination) { _, current in
       if current != .linkDevice, showsLinkDevice { showsLinkDevice = false }
+      if current == .trash, !account.trashEnabled { destination = nil }
+    }
+    .onChange(of: account.trashEnabled) { _, enabled in
+      if !enabled, destination == .trash { destination = nil }
     }
   }
 
