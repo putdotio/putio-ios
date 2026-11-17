@@ -2748,11 +2748,20 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   func testHistoryTabHidden() throws {
-    orient(.portrait)
-    app.launchArguments.append("--putio-harness-history-disabled")
+    orientForBoardDevice()
+    app.launchArguments += [
+      "--putio-harness-history-disabled", "--putio-harness-continue-watching", "three",
+    ]
     app.launch()
     reachFilesRoot()
     XCTAssertFalse(tabButton("History").exists, "disabled history remained in the tab bar")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" {
+      openSidebar()
+      XCTAssertFalse(labeled("History").exists, "disabled history remained in the sidebar")
+      sidebarToggle().tap()
+      XCTAssertTrue(
+        element("shell.storage").becomesUnhittable(within: 5), "the sidebar did not close")
+    }
     try captureBoard("rd-ios-hist-13-tab-hidden")
   }
 

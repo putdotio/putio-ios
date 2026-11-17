@@ -338,6 +338,10 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled-after-clear")
     }
 
+    private static var historyDisablesAfterLoad: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-history-off-after-load")
+    }
+
     private enum AccountSettingsMode: String {
       case slowLoad = "slow-load"
       case failLoad = "fail-load"
@@ -721,6 +725,7 @@ import Foundation
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var historyRootLoads = 0
+    nonisolated(unsafe) private static var historyListRequests = 0
     nonisolated(unsafe) private static var historyPageFailed = false
     nonisolated(unsafe) private static var historyDeleteFailed = false
     nonisolated(unsafe) private static var historyClearFailed = false
@@ -1117,6 +1122,7 @@ import Foundation
       trashFolders = initialTrashFolders
       nextActionFolderID = 415
       historyRootLoads = 0
+      historyListRequests = 0
       historyPageFailed = false
       historyDeleteFailed = false
       historyClearFailed = false
@@ -1561,9 +1567,14 @@ import Foundation
       )
     }
 
+    static func historyListRequestCount() -> Int {
+      fileActionsLock.withLock { historyListRequests }
+    }
+
     private static func listHistory(url: URL) -> (Int, String) {
       fileActionsLock.lock()
       defer { fileActionsLock.unlock() }
+      historyListRequests += 1
       let before = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
         .first(where: { $0.name == "before" })?.value
       if historyCleared {
@@ -3615,6 +3626,7 @@ import Foundation
         ? filePreferences?.historyEnabled ?? true
         : !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled")
           && !(historyDisablesAfterClear && historyCleared)
+          && !(historyDisablesAfterLoad && historyListRequests > 0)
       let defaultSort = usesFilePreferences ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC"
       let usedBytes =
         storageFull ? diskTotalBytes - trashFreedBytes : diskUsedBytes - trashFreedBytes

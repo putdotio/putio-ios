@@ -1272,7 +1272,15 @@ enum BrowserJourneyContract {
       attachmentNames: ["shell-folder-open"]),
     JourneyPreflight(
       "shell-history-off", "ShellJourneyTests/testHistoryOffHidesTheHistoryTab",
-      attachmentNames: ["shell-history-off"]),
+      attachmentNames: ["shell-history-off"], timeAllowance: 90),
+    JourneyPreflight(
+      "shell-history-toggle", "ShellJourneyTests/testHistorySettingTogglesTheTabWithoutRequests",
+      attachmentNames: ["shell-history-toggle-off", "shell-history-toggle-on"],
+      timeAllowance: 150),
+    JourneyPreflight(
+      "shell-history-off-while-open",
+      "ShellJourneyTests/testHistoryTurnedOffWhileOpenLandsOnFiles",
+      attachmentNames: ["shell-history-off-while-open"], timeAllowance: 90),
     JourneyPreflight(
       "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
       attachmentNames: ["runtime-account-rating"], timeAllowance: 120),
