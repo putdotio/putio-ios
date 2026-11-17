@@ -239,9 +239,11 @@ final class PutioOfflineQueue {
       // A kill between the debt and the removal leaves the row; finish that first.
       let leftover = owed.map(\.id).filter { item(for: $0) != nil }
       let removal = leftover.isEmpty ? nil : remove(fileIDs: leftover)
+      let generation = originalsGeneration
       Task {
         await removal?.value
-        _ = await deleteOriginals(owed)
+        guard isCurrent(generation) else { return }
+        _ = await deleteOriginals(owed.filter { pendingOriginals.contains($0) })
       }
     }
     let alive = Set(await engine.restoreTasks())
@@ -520,8 +522,10 @@ final class PutioOfflineQueue {
       report(.removalNotStarted(outOfSpace: lastWriteWasOutOfSpace, count: targets.count))
       return PutioOfflineOriginalOutcome()
     }
+    let generation = originalsGeneration
     await remove(fileIDs: fileIDs).value
-    return await deleteOriginals(targets)
+    guard isCurrent(generation) else { return PutioOfflineOriginalOutcome() }
+    return await deleteOriginals(targets.filter { pendingOriginals.contains($0) })
   }
 
   /// Asks put.io for originals whose local copies are already gone; also the
@@ -831,7 +835,9 @@ final class PutioOfflineQueue {
         slots -= 1
         continue
       }
-      guard isOnline, item.stage == .queued, workers[item.id] == nil else { continue }
+      guard isOnline, item.stage == .queued, workers[item.id] == nil,
+        !removing.contains(where: { $0.id == item.id })
+      else { continue }
       slots -= 1
       let token = UUID()
       let task = Task { @MainActor [weak self] in

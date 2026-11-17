@@ -1138,6 +1138,30 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(PutioOfflineStore(directory: directory).loadPackages().isEmpty)
   }
 
+  func testADownloadAgainWaitsUntilTheRemovedPackageIsGone() async throws {
+    let gate = makeGate()
+    let queue = makeQueue(deletePackages: { urls in
+      await gate.wait()
+      for url in urls { try? FileManager.default.removeItem(at: url) }
+    })
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+
+    let removal = queue.remove(fileIDs: [fileID])
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    XCTAssertEqual(engine.started.count, 1, "the new download started before the old one was gone")
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .queued)
+
+    await gate.open()
+    await removal.value
+    await settle()
+    XCTAssertEqual(engine.started.count, 2)
+  }
+
   func testFailedDownloadsDropTheirPartialPackage() async throws {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
