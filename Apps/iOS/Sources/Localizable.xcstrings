@@ -1530,17 +1530,6 @@
         }
       }
     },
-    "Done" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        }
-      }
-    },
     "Done. The selected data has been cleared." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
