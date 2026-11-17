@@ -198,7 +198,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: unwatched),
       [
-        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Play", "Download",
         "Select", "Mark as watched", "Rename", "Move",
         "Exclusive link",
         "Move to trash",
@@ -212,7 +212,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: watched),
       [
-        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Play", "Download",
         "Select", "Mark as unwatched", "Rename",
         "Move", "Exclusive link",
         "Move to trash",
@@ -246,7 +246,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       menuLabels(),
       [
-        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Play", "Download",
         "Select", "Mark as watched", "Rename", "Move",
         "Exclusive link",
         "Move to trash",
@@ -281,13 +281,23 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(
       itemMenu(for: element(identifier: "files.item.444")),
       [
-        "Play", "Play with Direct play", "Download", "Download with Direct play",
+        "Play", "Download",
         "Open in VLC", "Select", "Mark as watched",
         "Rename", "Move",
         "Exclusive link",
+        "Move to trash",
       ])
-    XCTAssertTrue(app.buttons["Move to trash"].exists, "the scrolling menu lost Move to trash")
     addScreenshot(named: "runtime-item-menu-vlc")
+    XCTAssertTrue(
+      app.submenuAction("Play with Direct play", in: "Play").appears(within: 5),
+      "the Play submenu has no Play with Direct play")
+    addScreenshot(named: "runtime-item-menu-play-submenu")
+    dismissMenu()
+    _ = itemMenu(for: element(identifier: "files.item.444"))
+    XCTAssertTrue(
+      app.submenuAction("Download with Direct play", in: "Download").appears(within: 5),
+      "the Download submenu has no Download with Direct play")
+    addScreenshot(named: "runtime-item-menu-download-submenu")
     dismissMenu()
     let root = element(identifier: "files.screen.0")
     for _ in 0..<2 where !root.exists {

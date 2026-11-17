@@ -72,6 +72,25 @@ extension XCUIApplication {
     ).firstMatch
   }
 
+  func submenuAction(
+    _ title: String, in submenu: String, file: StaticString = #filePath, line: UInt = #line
+  ) -> XCUIElement {
+    let submenuID = "item-action.\(submenu.lowercased())-menu"
+    let row = buttons.matching(
+      NSPredicate(format: "identifier == %@ OR label == %@", submenuID, submenu)
+    ).firstMatch
+    XCTAssertTrue(
+      row.appears(within: 5), "the menu has no \(submenu) submenu", file: file, line: line)
+    row.tap()
+    let matches = buttons.matching(
+      NSPredicate(format: "label == %@ AND identifier != %@", title, submenuID))
+    let child = matches.matching(NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
+      .firstMatch
+    if child.appears(within: 5) { return child }
+    return matches.allElementsBoundByIndex.filter(\.isHittable)
+      .max { $0.frame.minY < $1.frame.minY } ?? matches.firstMatch
+  }
+
   /// Sign out asks once: an alert with no downloads, otherwise a dialog
   /// whose plain Sign out keeps them.
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {

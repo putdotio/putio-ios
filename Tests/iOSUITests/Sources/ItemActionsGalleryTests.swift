@@ -4,8 +4,7 @@ final class ItemActionsGalleryTests: XCTestCase {
   private var app: XCUIApplication!
 
   private let boardMenu = [
-    "Play", "Play with Direct play", "Download", "Download with Direct play", "Share",
-    "Select", "Pin", "Mark as unwatched",
+    "Play", "Download", "Share", "Select", "Pin", "Mark as unwatched",
     "Rename", "Move", "Exclusive link",
     "Move to trash",
   ]

@@ -395,7 +395,7 @@ struct FilesSearchView: View {
           menuAction(menuRow, for: item).map { (menuRow, $0) }
         })
       row.putioItemActions(
-        PutioItemMenu(menu.sections.map { $0.compactMap { actions[$0] } }),
+        menu.itemMenu(actions),
         leading: menu.leadingSwipe.compactMap { actions[$0] },
         trailing: menu.trailingSwipe.compactMap { actions[$0] })
     }

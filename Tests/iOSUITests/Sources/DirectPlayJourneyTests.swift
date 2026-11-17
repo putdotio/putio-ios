@@ -27,7 +27,7 @@ final class DirectPlayJourneyTests: XCTestCase {
     XCTAssertTrue(account.appears(within: 5), "the app never reached Files")
 
     openMenu()
-    let playWith = app.buttons["Play with Direct play"].firstMatch
+    let playWith = app.submenuAction("Play with Direct play", in: "Play")
     XCTAssertTrue(playWith.appears(within: 5), "the menu has no Play with Direct play")
     XCTAssertFalse(app.buttons["Play with Standard"].exists)
     screenshot("runtime-direct-play-menu")
@@ -42,7 +42,7 @@ final class DirectPlayJourneyTests: XCTestCase {
 
     setDirectPlay()
     openMenu()
-    let playWithStandard = app.buttons["Play with Standard"].firstMatch
+    let playWithStandard = app.submenuAction("Play with Standard", in: "Play")
     XCTAssertTrue(playWithStandard.appears(within: 5), "the row did not follow the setting")
     XCTAssertFalse(app.buttons["Play with Direct play"].exists)
     playWithStandard.tap()
