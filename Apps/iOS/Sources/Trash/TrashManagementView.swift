@@ -109,6 +109,9 @@ struct TrashManagementView: View {
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
     }
+    .onChange(of: model.activeMutation == nil) { _, isIdle in
+      if isIdle { selection.retain(loadedItems.map(\.id)) }
+    }
     .onChange(of: model.page?.items.isEmpty) { _, isEmpty in
       if isEmpty != false { selection.end() }
     }
