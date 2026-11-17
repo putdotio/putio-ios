@@ -91,6 +91,9 @@ struct HistoryView: View {
           }
         }
     }
+    .frame(maxWidth: path.isEmpty ? HistoryLayout.readableWidth : .infinity)
+    .frame(maxWidth: .infinity)
+    .background(PutioTheme.Colors.background)
     .putioToast($toast)
   }
 
@@ -273,6 +276,7 @@ struct HistoryView: View {
     .environment(\.defaultMinListRowHeight, 0)
     .disabled(isBusy)
     .refreshable { await model.refresh() }
+    .accessibilityIdentifier("history.list")
   }
 
   private func retryRow(
@@ -354,6 +358,10 @@ private struct PutioHistoryDayHeader: View {
       .padding(.bottom, bottomGap)
       .accessibilityAddTraits(.isHeader)
   }
+}
+
+private enum HistoryLayout {
+  static let readableWidth = PutioTheme.Spacing.space8 + PutioTheme.Spacing.space6
 }
 
 private struct PutioHistoryRow: View {
