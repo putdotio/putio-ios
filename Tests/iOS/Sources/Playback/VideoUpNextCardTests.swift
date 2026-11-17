@@ -19,6 +19,25 @@ final class VideoUpNextCardTests: XCTestCase {
     }
   }
 
+  func testPortraitTopBarKeepsTheEpisodeMarkerVisible() async throws {
+    _ = SnapshotEnvironment.registersBrandFonts
+    for phoneWidth: CGFloat in [402, 430, 440] {
+      for size in [DynamicTypeSize.large, .xxLarge] {
+        let topBar = PutioVideoTopBar(
+          title: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", onClose: {}
+        ) { EmptyView() }
+        .environment(\.horizontalSizeClass, .compact)
+        .environment(\.verticalSizeClass, .regular)
+        let lines = try await read(
+          topBar, width: phoneWidth - 2 * PutioTheme.Spacing.space3, size: size,
+          name: "top-bar-portrait")
+        XCTAssertTrue(
+          readsMarker(lines, "S04E01"),
+          "\(Int(phoneWidth)) pt at \(size) hid the episode marker: \(lines)")
+      }
+    }
+  }
+
   func testCardBesideTheChipsKeepsTheEpisodeMarkerVisible() async throws {
     _ = SnapshotEnvironment.registersBrandFonts
     let chipRowWidths: [(device: String, width: CGFloat)] = [
