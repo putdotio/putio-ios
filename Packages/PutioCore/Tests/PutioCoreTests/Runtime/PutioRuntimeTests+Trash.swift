@@ -168,6 +168,12 @@ extension PutioRuntimeTests {
     } catch {
       XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
     }
+    do {
+      try await runtime.restoreAllTrash(cursor: "trash-listing", loadedFileIDs: [fileID])
+      XCTFail("a refused Restore all read as restored")
+    } catch {
+      XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
+    }
 
     fixtures.setFixture(
       #"{"status":"ERROR","status_code":400,"error_type":"TRASH_RESTORE_REJECTED"}"#,
