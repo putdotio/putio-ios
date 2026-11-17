@@ -230,13 +230,19 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    let track = element("files.item.408")
-    XCTAssertTrue(track.appears(within: 10))
-    track.press(forDuration: 1)
+    let harness = element("files.item.410")
+    XCTAssertTrue(harness.appears(within: 10))
+    harness.tap()
+    let season = element("files.item.440")
+    XCTAssertTrue(season.appears(within: 10))
+    season.tap()
+    let episode = element("files.item.442")
+    XCTAssertTrue(episode.appears(within: 10))
+    episode.press(forDuration: 1)
     let download = app.buttons["Download"]
     XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    let item = element("downloads.item.408")
+    let item = element("downloads.item.442")
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertTrue(
       element("downloads.notifications-off").appears(within: 5),
