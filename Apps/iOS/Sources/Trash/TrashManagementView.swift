@@ -252,6 +252,7 @@ struct TrashManagementView: View {
                 Task { await model.restore(item) }
               }
               .disabled(!model.canMutate)
+              .disabled(!model.canMutate)
               .tint(PutioTheme.Colors.success)
               .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
             }
