@@ -1109,7 +1109,7 @@ enum GalleryFixtures {
     ("08", .waiting(.network, receivedBytes: 0, totalBytes: 3_300_000_000)),
     ("09", .waiting(.storage, receivedBytes: 0, totalBytes: 3_400_000_000)),
     ("07", .queued(position: 1)),
-    ("01", .removing),
+    ("01", .removing(on: .iPhone)),
     ("10", .missing),
     ("11", .failed(reason: "Connection lost")),
   ]

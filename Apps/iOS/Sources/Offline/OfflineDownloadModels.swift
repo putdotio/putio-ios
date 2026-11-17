@@ -11,8 +11,11 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   enum Stage: Codable, Equatable, Sendable {
     case queued
+    case waitingToConvert
     case converting(progress: Double)
     case downloading(progress: Double)
+    case waitingForNetwork(progress: Double)
+    case waitingForStorage
     case paused(progress: Double)
     case completed
     case failed(PutioOfflineFailure)
@@ -37,8 +40,10 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   var progress: Double {
     switch stage {
-    case .queued: 0
-    case .converting(let progress), .downloading(let progress), .paused(let progress): progress
+    case .queued, .waitingToConvert, .waitingForStorage: 0
+    case .converting(let progress), .downloading(let progress), .waitingForNetwork(let progress),
+      .paused(let progress):
+      progress
     case .completed: 1
     case .failed, .missing: 0
     }
@@ -46,7 +51,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   var isActive: Bool {
     switch stage {
-    case .converting, .downloading: true
+    case .waitingToConvert, .converting, .downloading, .waitingForNetwork: true
     default: false
     }
   }
@@ -67,8 +72,6 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   var estimatedBytes: Int64
   var failedProgress: Double?
-  var waitingForNetwork: Bool?
-  var isRemoving: Bool?
   var isWatched: Bool?
   var playbackMethod: PutioPlaybackMethod? = nil
 
@@ -76,13 +79,17 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     Int64((Double(estimatedBytes) * progress).rounded(.down))
   }
 
-  func downloadState(queuePosition: Int?, isWaitingForSlot: Bool) -> PutioDownloadState {
-    switch stage {
-    case .queued: .queued(position: queuePosition ?? 1)
+  func downloadState(queuePosition: Int?) -> PutioDownloadState {
+    if let queuePosition { return .queued(position: queuePosition) }
+    return switch stage {
+    case .queued: .queued(position: 1)
+    case .waitingToConvert: .waitingToConvert
     case .converting(let progress): .converting(progress: progress)
     case .downloading: .downloading(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
-    case .paused where isWaitingForSlot:
-      .waiting(.slot, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .waitingForNetwork:
+      .waiting(.network, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
+    case .waitingForStorage:
+      .waiting(.storage, receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .paused: .paused(receivedBytes: receivedBytes, totalBytes: estimatedBytes)
     case .completed: .idle
     case .failed(let failure): .failed(reason: failure.reason, canRetry: failure.canRetry)
@@ -108,7 +115,10 @@ struct PutioOfflineSections: Equatable {
   let sections: [Section]
   let queuePositions: [PutioFileID: Int]
 
-  init(_ items: [PutioOfflineItem]) {
+  init(
+    _ items: [PutioOfflineItem], waitingForSlot: Set<PutioFileID> = [],
+    removing: [PutioOfflineItem] = []
+  ) {
     var downloading: [PutioOfflineItem] = []
     var attention: [PutioOfflineItem] = []
     var onDevice: [PutioOfflineItem] = []
@@ -118,12 +128,24 @@ struct PutioOfflineSections: Equatable {
       case .queued:
         positions[item.id] = positions.count + 1
         downloading.append(item)
-      case .converting, .downloading, .paused:
+      case .paused where waitingForSlot.contains(item.id):
+        positions[item.id] = positions.count + 1
+        downloading.append(item)
+      case .waitingToConvert, .converting, .downloading, .waitingForNetwork, .waitingForStorage,
+        .paused:
         downloading.append(item)
       case .failed, .missing:
         attention.append(item)
       case .completed:
         onDevice.append(item)
+      }
+    }
+    let listed = Set(items.map(\.id))
+    for item in removing where !listed.contains(item.id) {
+      switch item.stage {
+      case .completed: onDevice.append(item)
+      case .failed, .missing: attention.append(item)
+      default: downloading.append(item)
       }
     }
     onDevice = onDevice.enumerated()

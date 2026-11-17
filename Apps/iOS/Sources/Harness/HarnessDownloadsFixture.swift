@@ -12,6 +12,7 @@
     static let launchArgument = "--putio-harness-downloads"
     static let mediaPrefix = "harness-media/"
     static let missingPackage = mediaPrefix + "missing.movpkg"
+    static let removingPackage = mediaPrefix + "removing.movpkg"
 
     static func parse(_ arguments: [String]) -> Self? {
       guard let flag = arguments.firstIndex(of: launchArgument),
@@ -21,9 +22,19 @@
     }
 
     var concurrencyLimit: Int {
-      self == .downloadingStates
-        ? PutioOfflineQueue.concurrencyLimits.max() ?? PutioOfflineQueue.defaultConcurrencyLimit
-        : PutioOfflineQueue.defaultConcurrencyLimit
+      self == .downloadingStates ? 4 : PutioOfflineQueue.defaultConcurrencyLimit
+    }
+
+    var removingIDs: [PutioFileID] {
+      self == .downloadingStates ? [Self.firstEpisodeID] : []
+    }
+
+    var deletePackages: PutioOfflinePackageDeletion? {
+      guard self == .downloadingStates else { return nil }
+      return { urls in
+        guard urls.contains(where: { $0.lastPathComponent == "removing.movpkg" }) else { return }
+        while !Task.isCancelled { try? await Task.sleep(for: .seconds(3_600)) }
+      }
     }
 
     func freeBytes(isPad: Bool) -> Int64 {
@@ -51,9 +62,13 @@
       items(now: now).filter(\.isActive).map(\.id)
     }
 
-    func conversionProgress(now: Date) -> [PutioFileID: Double] {
-      items(now: now).reduce(into: [:]) { progress, item in
-        if case .converting(let value) = item.stage { progress[item.id] = value }
+    func conversions(now: Date) -> [PutioFileID: PutioVideoConversionStatus] {
+      items(now: now).reduce(into: [:]) { statuses, item in
+        switch item.stage {
+        case .waitingToConvert: statuses[item.id] = .queued
+        case .converting(let value): statuses[item.id] = .converting(progress: value)
+        default: break
+        }
       }
     }
 
@@ -83,17 +98,15 @@
           Self.treeRings(created: october24),
         ]
       case .downloadingStates:
-        var waitingForNetwork = Self.episode(6, .downloading(progress: 0.42), created: today)
-        waitingForNetwork.waitingForNetwork = true
         var removing = Self.finishedFirstEpisode(created: today)
-        removing.isRemoving = true
+        removing.localPath = Self.removingPackage
         return [
           Self.episode(2, .downloading(progress: 0.42), created: today),
           Self.episode(5, .converting(progress: 0.12), created: today),
+          Self.episode(8, .waitingToConvert, created: today),
           Self.episode(3, .paused(progress: 0.42), created: today),
-          waitingForNetwork,
-          Self.episode(
-            4, .downloading(progress: 0.06), created: today, bytes: Self.fourthEpisodeBytes),
+          Self.episode(6, .waitingForNetwork(progress: 0.42), created: today),
+          Self.episode(4, .waitingForStorage, created: today, bytes: Self.fourthEpisodeBytes),
           Self.episode(7, .queued, created: today),
           removing,
           Self.sintel(created: yesterday),
@@ -117,8 +130,11 @@
     }
 
     private static let seasonFolderID = PutioFileID(rawValue: 440)
-    private static let episodeIDs = [1: 441, 2: 442, 3: 443, 4: 444, 5: 447, 6: 448, 7: 449]
+    private static let firstEpisodeID = PutioFileID(rawValue: 441)
     private static let fourthEpisodeBytes: Int64 = 3_400_000_000
+    private static let episodeIDs = [
+      1: 441, 2: 442, 3: 443, 4: 444, 5: 447, 6: 448, 7: 449, 8: 450,
+    ]
     private static let connectionLost =
       PutioOfflineFailure.resolving(PutioRuntimeError.transient) ?? .download
     private static let english = PutioOfflineTrack(languageCode: "en", displayName: "English")

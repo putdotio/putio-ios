@@ -1592,6 +1592,17 @@
         }
       }
     },
+    "Removing from this iPad…" : {
+      "comment" : "android: mobile_downloads_status_removing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removing from this iPad…"
+          }
+        }
+      }
+    },
     "Removing from this iPhone…" : {
       "comment" : "android: mobile_downloads_status_removing | differs: iOS board wording",
       "localizations" : {
@@ -2142,17 +2153,6 @@
         }
       }
     },
-    "Waiting for a slot" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting for a slot"
-          }
-        }
-      }
-    },
     "Waiting for network" : {
       "comment" : "android: mobile_files_download_waiting",
       "localizations" : {
@@ -2171,6 +2171,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting for storage"
+          }
+        }
+      }
+    },
+    "Waiting to convert" : {
+      "comment" : "android: mobile_playback_conversion_queued | differs: a download row drops the ellipsis",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting to convert"
           }
         }
       }

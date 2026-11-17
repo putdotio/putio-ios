@@ -4,17 +4,22 @@ import SwiftUI
 public enum PutioDownloadWait: Equatable, Sendable {
   case network
   case storage
-  case slot
+}
+
+public enum PutioDownloadDevice: Equatable, Sendable {
+  case iPhone
+  case iPad
 }
 
 public enum PutioDownloadState: Equatable, Sendable {
   case idle
   case downloading(receivedBytes: Int64, totalBytes: Int64)
   case converting(progress: Double)
+  case waitingToConvert
   case paused(receivedBytes: Int64, totalBytes: Int64)
   case waiting(PutioDownloadWait, receivedBytes: Int64, totalBytes: Int64)
   case queued(position: Int)
-  case removing
+  case removing(on: PutioDownloadDevice)
   case missing
   case failed(reason: String, canRetry: Bool = true)
 }
@@ -94,6 +99,13 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       ring = .progress(fraction, isActive: true, glyph: .pause)
       action = .pause
       progress = fraction
+    case .waitingToConvert:
+      statusLine = [
+        Segment(String(localized: "Waiting to convert", bundle: .module, locale: locale))
+      ]
+      ring = .progress(0, isActive: true, glyph: .pause)
+      action = .pause
+      progress = 0
     case .paused(let received, let total):
       let fraction = Self.fraction(received, of: total)
       statusLine = [
@@ -104,31 +116,28 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
       action = .resume
       progress = fraction
     case .waiting(let wait, let received, let total):
-      let reason = Self.waitText(wait, locale: locale)
-      if received > 0 {
-        let fraction = Self.fraction(received, of: total)
-        statusLine = [
-          Segment(reason),
-          Segment(Self.bytesText(received, of: total, locale: locale), isNumeric: true),
-        ]
-        ring = .progress(fraction, isActive: false, glyph: .pause)
-        action = .pause
-        progress = fraction
-      } else {
-        statusLine = [Segment(reason)]
-        ring = .dashed(glyph: nil)
-        action = .cancel
-      }
+      let fraction = Self.fraction(received, of: total)
+      statusLine = [
+        Segment(Self.waitText(wait, locale: locale)),
+        Segment(Self.bytesText(received, of: total, locale: locale), isNumeric: true),
+      ]
+      ring = .progress(fraction, isActive: false, glyph: .pause)
+      action = .pause
+      progress = fraction
     case .queued(let position):
       statusLine = [
         Segment(String(localized: "Queued · #\(position) in line", bundle: .module, locale: locale))
       ]
       ring = .dashed(glyph: .stop)
       action = .cancel
-    case .removing:
-      statusLine = [
-        Segment(String(localized: "Removing from this iPhone…", bundle: .module, locale: locale))
-      ]
+    case .removing(let device):
+      let text =
+        switch device {
+        case .iPhone:
+          String(localized: "Removing from this iPhone…", bundle: .module, locale: locale)
+        case .iPad: String(localized: "Removing from this iPad…", bundle: .module, locale: locale)
+        }
+      statusLine = [Segment(text)]
       dimsRow = true
     case .missing:
       statusLine = [
@@ -191,7 +200,6 @@ public struct PutioDownloadPresentation: Equatable, Sendable {
     switch wait {
     case .network: String(localized: "Waiting for network", bundle: .module, locale: locale)
     case .storage: String(localized: "Waiting for storage", bundle: .module, locale: locale)
-    case .slot: String(localized: "Waiting for a slot", bundle: .module, locale: locale)
     }
   }
 
