@@ -3765,6 +3765,23 @@ final class BoardCaptureTests: XCTestCase {
     try captureTrashBoard("rd-ios-trash-13-error")
   }
 
+  func testTrashLoadingMore() throws {
+    openTrash("more-loading")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    XCTAssertTrue(element("trash.load-more").exists, "Trash shows no loading-more footer")
+    XCTAssertFalse(element("trash.more-error").exists, "the loading footer shows a failure")
+    try captureTrashBoard("rd-ios-trash-14-loading-more")
+  }
+
+  func testTrashLoadMoreFailed() throws {
+    openTrash("more-failing")
+    XCTAssertTrue(
+      app.buttons["trash.more-retry"].appears(within: 10), "the next Trash page never failed")
+    XCTAssertTrue(app.staticTexts["Couldn’t load this"].exists, "the failed footer has no title")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].exists, "the failed page hid the loaded rows")
+    try captureTrashBoard("rd-ios-trash-15-load-more-failed")
+  }
+
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     orientForBoardDevice()

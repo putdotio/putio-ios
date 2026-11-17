@@ -233,6 +233,8 @@ struct TrashManagementView: View {
           // The page is still empty; errors above do not change that.
           Section { emptyState }.listRowBackground(Color.clear)
         }
+        let prefetchIDs =
+          page.nextCursor == nil ? [] : Set(page.items.suffix(Self.prefetchDistance).map(\.id))
         ForEach(page.items) { item in
           PutioFileRow(rowModel(for: item))
             .frame(minHeight: rowMinHeight)
@@ -247,6 +249,12 @@ struct TrashManagementView: View {
               edges: .bottom
             )
             .listRowBackground(PutioTheme.Colors.background)
+            .task(id: prefetchRequest(item.id, in: prefetchIDs)) {
+              guard prefetchIDs.contains(item.id), model.paginationFailure == nil,
+                !isBusyOutsidePaging
+              else { return }
+              await model.loadMore()
+            }
             .swipeActions(edge: .leading) {
               Button("Restore") {
                 Task { await model.restore(item) }
@@ -263,33 +271,11 @@ struct TrashManagementView: View {
             }
         }
         if let cursor = page.nextCursor {
-          if let failure = model.paginationFailure {
-            Section {
-              PutioErrorStateView(
-                title: failure.title,
-                message: failure.message,
-                retryTitle: String(localized: "Try again")
-              ) {
-                Task { await model.loadMore() }
-              }
-            }
-          } else {
-            HStack {
-              Spacer()
-              ProgressView()
-              Spacer()
-            }
-            .listRowBackground(Color.clear)
-            .accessibilityLabel("Loading more Trash items")
-            .accessibilityIdentifier("trash.load-more")
-            // Re-keyed when blocking work settles, so a page the model
-            // refused while busy is requested again. Its own load is not part
-            // of the key, so starting it cannot cancel it.
-            .task(id: PageRequest(cursor: cursor, isBusy: isBusyOutsidePaging)) {
-              guard !isBusyOutsidePaging else { return }
-              await model.loadMore()
-            }
-          }
+          pagingFooter(cursor: cursor)
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(PutioTheme.Colors.background)
+            .selectionDisabled()
         }
       }
       .listStyle(.plain)
@@ -300,9 +286,41 @@ struct TrashManagementView: View {
     }
   }
 
+  @ViewBuilder
+  private func pagingFooter(cursor: String) -> some View {
+    if model.paginationFailure != nil {
+      PutioNextPageFailedFooter(
+        message: PutioScreenErrorKind.failed.title, retryIdentifier: "trash.more-retry"
+      ) {
+        Task { await model.loadMore() }
+      }
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("trash.more-error")
+    } else {
+      PutioNextPageLoadingFooter(accessibilityLabel: String(localized: "Loading more Trash items"))
+        .accessibilityIdentifier("trash.load-more")
+        .task(id: pageRequest(cursor: cursor)) {
+          guard !isBusyOutsidePaging else { return }
+          await model.loadMore()
+        }
+    }
+  }
+
+  private func prefetchRequest(_ id: PutioFileID, in ids: Set<PutioFileID>) -> PageRequest? {
+    guard ids.contains(id), let cursor = model.page?.nextCursor else { return nil }
+    return pageRequest(cursor: cursor)
+  }
+
+  private func pageRequest(cursor: String) -> PageRequest {
+    PageRequest(cursor: cursor, isBusy: isBusyOutsidePaging, epoch: model.pageRequestEpoch)
+  }
+
+  private static let prefetchDistance = 5
+
   private struct PageRequest: Equatable {
     let cursor: String
     let isBusy: Bool
+    let epoch: UInt64
   }
 
   private var isBusyOutsidePaging: Bool {

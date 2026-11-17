@@ -337,6 +337,7 @@ public final class PutioTrashModel {
   public private(set) var isRefreshing = false
   private(set) var isLoadingMore = false
   public private(set) var paginationFailure: PutioTrashErrorPresentation?
+  public private(set) var pageRequestEpoch: UInt64 = 0
   public private(set) var refreshFailure: PutioTrashErrorPresentation?
   public private(set) var isRefreshingStorage = false
 
@@ -367,6 +368,7 @@ public final class PutioTrashModel {
   // Identifies the listing the current page belongs to, so its
   // continuations reconcile against the same accumulator.
   @ObservationIgnored private var listingID = UUID()
+  @ObservationIgnored private var pageTask: Task<Void, Never>?
 
   public init(
     actions: PutioTrashActions,
@@ -396,8 +398,10 @@ public final class PutioTrashModel {
   }
 
   public var canMutate: Bool {
-    activeMutation == nil && !isRefreshing && !isLoadingMore && !isRefreshingStorage
+    activeMutation == nil && !isRefreshing && !isRefreshingStorage
   }
+
+  private var isIdle: Bool { canMutate && !isLoadingMore }
 
   public var hasContents: Bool {
     guard let page else { return false }
@@ -425,7 +429,7 @@ public final class PutioTrashModel {
   /// The stale cursor and any retry bound to it go first, so a failed reload
   /// cannot hand the cursor back to Load More.
   private func repairIfRequested() async {
-    guard repairRequested, canMutate, !Task.isCancelled else { return }
+    guard repairRequested, isIdle, !Task.isCancelled else { return }
     repairRequested = false
     guard let currentPage = page else { return }
     if currentPage.nextCursor != nil {
@@ -474,6 +478,7 @@ public final class PutioTrashModel {
   /// The screen is leaving; a partially walked listing will not complete.
   public func abandonListing() {
     isVisible = false
+    pageTask?.cancel()
     reconciliation.abandonListing(listingID)
   }
 
@@ -505,6 +510,9 @@ public final class PutioTrashModel {
   }
 
   public func refresh() async {
+    if activeMutation == nil, !isRefreshing, !isRefreshingStorage {
+      await cancelPageRequest()
+    }
     await load(initial: false, supersedesRefresh: false)
   }
 
@@ -521,14 +529,31 @@ public final class PutioTrashModel {
   /// Retries only the account storage snapshot after a committed deletion
   /// could not reload it.
   public func retryStorageRefresh() async {
-    guard canMutate else { return }
+    guard isIdle else { return }
     await reloadStaleStorage()
     await repairIfRequested()
   }
 
   public func loadMore() async {
-    await loadNextPage()
-    await repairIfRequested()
+    let task = pageTask ?? startPageRequest()
+    await task.value
+  }
+
+  private func startPageRequest() -> Task<Void, Never> {
+    let task = Task { [weak self] in
+      guard let self else { return }
+      await loadNextPage()
+      await repairIfRequested()
+      pageTask = nil
+    }
+    pageTask = task
+    return task
+  }
+
+  private func cancelPageRequest() async {
+    guard let pageTask else { return }
+    pageTask.cancel()
+    await pageTask.value
   }
 
   private func loadNextPage() async {
@@ -566,10 +591,12 @@ public final class PutioTrashModel {
             totalCount: fresh.totalCount ?? shownPage.totalCount,
             sizeBytes: shownPage.sizeBytes
           )))
-    } catch is CancellationError {
-      paginationFailure = previousPaginationFailure
-      return
     } catch {
+      guard !Task.isCancelled else {
+        paginationFailure = previousPaginationFailure
+        pageRequestEpoch &+= 1
+        return
+      }
       paginationFailure = PutioTrashErrorPresentation(
         title: String(localized: "Could not load more Trash items", bundle: .module),
         error: error

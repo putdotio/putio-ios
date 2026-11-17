@@ -8,6 +8,10 @@ import Foundation
       case slow
       case failing
       case offline
+      case moreLoading = "more-loading"
+      case moreFailing = "more-failing"
+
+      var isPaged: Bool { self == .moreLoading || self == .moreFailing }
     }
 
     private struct Item {
@@ -20,11 +24,17 @@ import Foundation
 
     static let argument = "--putio-harness-trash"
     static let listPath = "/v2/trash/list"
+    static let continuePath = "/v2/trash/list/continue"
+    static let secondPageCursor = "harness-trash-page-2"
     static let slowDelay: TimeInterval = 600
+    static let pagedRefreshDelay: TimeInterval = 3
     static let offlineFailures = 2
+    static let failingContinues: Set<Int> = [1, 3]
 
     private static let lock = NSLock()
     nonisolated(unsafe) private static var listsServed = 0
+    nonisolated(unsafe) private static var continuesServed = 0
+    nonisolated(unsafe) private static var pagedListsRequested = 0
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -34,11 +44,26 @@ import Foundation
     }()
 
     static func handles(method: String, path: String) -> Bool {
-      mode != nil && method == "GET" && path == listPath
+      guard let mode else { return false }
+      if method == "GET", path == listPath { return true }
+      return mode.isPaged && method == "POST" && path == continuePath
     }
 
-    static func delaysList(method: String, path: String) -> Bool {
-      mode == .slow && handles(method: method, path: path)
+    static func listDelay(method: String, path: String) -> TimeInterval? {
+      switch mode {
+      case .slow: handles(method: method, path: path) ? slowDelay : nil
+      case .moreLoading: method == "POST" && path == continuePath ? slowDelay : nil
+      case .moreFailing: refreshesFirstPage(method: method, path: path) ? pagedRefreshDelay : nil
+      default: nil
+      }
+    }
+
+    private static func refreshesFirstPage(method: String, path: String) -> Bool {
+      guard method == "GET", path == listPath else { return false }
+      return lock.withLock {
+        pagedListsRequested += 1
+        return pagedListsRequested > 1
+      }
     }
 
     static func consumeOfflineFailure(method: String, path: String) -> Bool {
@@ -63,9 +88,44 @@ import Foundation
       Item(id: 4307, name: "poster.jpg", fileType: "IMAGE", size: 2_400_000, daysLeft: 0),
     ]
 
+    private static let secondPageItems = [
+      Item(id: 4308, name: "Drafts", fileType: "FOLDER", size: 3_200_000, daysLeft: 8),
+      Item(id: 4309, name: "trailer-cut.mp4", fileType: "VIDEO", size: 48_000_000, daysLeft: 6),
+      Item(id: 4310, name: "invoice-2026-08.pdf", fileType: "PDF", size: 180_000, daysLeft: 2),
+    ]
+
     private static let boardSize: Int64 = 10_400_000_000
 
-    static func response() -> (Int, String) {
+    static func response(method: String, path: String, payload: [String: Any]?) -> (Int, String) {
+      guard method == "POST", path == continuePath else { return firstPage() }
+      return continuation(cursor: payload?["cursor"] as? String)
+    }
+
+    private static func continuation(cursor: String?) -> (Int, String) {
+      guard cursor == secondPageCursor else {
+        return (
+          400,
+          #"{"status":"ERROR","status_code":400,"error_type":"HARNESS_TRASH_CURSOR","message":"Trash continues only from its second-page cursor"}"#
+        )
+      }
+      let shouldFail = lock.withLock {
+        continuesServed += 1
+        return mode == .moreFailing && failingContinues.contains(continuesServed)
+      }
+      if shouldFail {
+        return (
+          500,
+          #"{"status":"ERROR","status_code":500,"error_type":"HARNESS_TRASH_CONTINUE","message":"The first and third trash page-two requests fail"}"#
+        )
+      }
+      let rows = secondPageItems.map(json).joined(separator: ",")
+      return (
+        200,
+        #"{"status":"OK","cursor":"","total":\#(boardItems.count + secondPageItems.count),"trash_size":\#(boardSize),"files":[\#(rows)]}"#
+      )
+    }
+
+    private static func firstPage() -> (Int, String) {
       let shouldFail = lock.withLock {
         guard mode == .failing else { return false }
         listsServed += 1
@@ -80,9 +140,12 @@ import Foundation
       let items = mode == .empty ? [] : boardItems
       let size = items.isEmpty ? 0 : boardSize
       let rows = items.map(json).joined(separator: ",")
+      let paged = mode?.isPaged == true
+      let cursor = paged ? secondPageCursor : ""
+      let total = paged ? items.count + secondPageItems.count : items.count
       return (
         200,
-        #"{"status":"OK","cursor":"","total":\#(items.count),"trash_size":\#(size),"files":[\#(rows)]}"#
+        #"{"status":"OK","cursor":"\#(cursor)","total":\#(total),"trash_size":\#(size),"files":[\#(rows)]}"#
       )
     }
 
