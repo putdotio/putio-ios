@@ -181,7 +181,7 @@ final class BoardCaptureTests: XCTestCase {
     let storage = element("downloads.storage-used")
     app.scrollDown(toHit: storage)
     XCTAssertTrue(
-      storage.label.hasPrefix("1.1 GB"), "the missing package still counts: \(storage.label)")
+      storage.label.hasPrefix("1.14 GB "), "the missing package still counts: \(storage.label)")
     let network = element("downloads.item.442")
     app.bringIntoView(network)
     app.buttons["Retry download, \(episode(2))"].tap()
