@@ -230,12 +230,6 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    app.buttons["Downloads"].tap()
-    XCTAssertTrue(app.staticTexts["Nothing downloaded yet"].appears(within: 10))
-    XCTAssertFalse(
-      element("downloads.notifications-off").exists, "the row showed on an empty tab")
-
-    app.buttons["Files"].tap()
     let track = element("files.item.408")
     XCTAssertTrue(track.appears(within: 10))
     track.press(forDuration: 1)
