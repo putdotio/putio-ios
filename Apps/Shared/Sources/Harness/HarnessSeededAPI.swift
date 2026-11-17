@@ -1364,7 +1364,7 @@ import Foundation
       } else if Self.trashLimitArrivesLate, Self.trashLimitRefuses(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
-        // Long enough for the journey to observe the in-flight progress overlay
+        // Long enough for the journey to see the row leave before the reply
         // and leave the screen, short enough that the destination refresh has
         // margin inside the journey's wait.
         DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)

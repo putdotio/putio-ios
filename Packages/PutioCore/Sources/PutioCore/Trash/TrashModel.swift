@@ -4,6 +4,9 @@ import Observation
 typealias PutioTrashLoad = @MainActor @Sendable (String?) async throws -> PutioTrashPage
 typealias PutioTrashRestore =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashRestoreResult
+typealias PutioTrashRestoreLookup = @MainActor @Sendable () async -> PutioTrashRestoreResult
+typealias PutioTrashRestoreCommit =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioTrashRestoreLookup
 typealias PutioTrashItemMutation =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashMutationResult
 typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> PutioTrashMutationResult
@@ -176,7 +179,7 @@ public final class PutioTrashReconciliation {
 
 public struct PutioTrashActions: Sendable {
   let load: PutioTrashLoad
-  let restore: PutioTrashRestore
+  let restore: PutioTrashRestoreCommit
   let permanentlyDelete: PutioTrashItemMutation
   let restoreItems: PutioTrashBatchRestore
   let permanentlyDeleteItems: PutioTrashBatchMutation
@@ -190,7 +193,10 @@ public struct PutioTrashActions: Sendable {
 
   init(runtime: PutioRuntime) {
     load = { cursor in try await runtime.listTrash(cursor: cursor) }
-    restore = { fileID in try await runtime.restoreTrashItem(fileID: fileID) }
+    restore = { fileID in
+      try await runtime.sendTrashRestore(fileIDs: [fileID])
+      return { await runtime.locateRestoredTrashItem(fileID: fileID) }
+    }
     permanentlyDelete = { fileID in
       try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
     }
@@ -222,7 +228,10 @@ public struct PutioTrashActions: Sendable {
     isStorageStale: @escaping PutioTrashStorageIsStale = { false }
   ) {
     self.load = load
-    self.restore = restore
+    self.restore = { fileID in
+      let result = try await restore(fileID)
+      return { result }
+    }
     self.permanentlyDelete = permanentlyDelete
     self.restoreItems = restoreItems
     self.permanentlyDeleteItems = permanentlyDeleteItems
@@ -234,15 +243,21 @@ public struct PutioTrashActions: Sendable {
   }
 }
 
+public struct PutioTrashStillMoving: Error, Equatable, Sendable {}
+
 public struct PutioTrashErrorPresentation: Equatable, Sendable {
   public let title: String
   public let message: String
   public let isOffline: Bool
+  public let isStillMovingToTrash: Bool
 
-  init(title: String, message: String, isOffline: Bool = false) {
+  init(
+    title: String, message: String, isOffline: Bool = false, isStillMovingToTrash: Bool = false
+  ) {
     self.title = title
     self.message = message
     self.isOffline = isOffline
+    self.isStillMovingToTrash = isStillMovingToTrash
   }
 
   public static let staleStorage = PutioTrashErrorPresentation(
@@ -268,6 +283,13 @@ public struct PutioTrashErrorPresentation: Equatable, Sendable {
   init?(title: String, error: Error) {
     self.title = title
     isOffline = false
+    isStillMovingToTrash = error is PutioTrashStillMoving
+    if isStillMovingToTrash {
+      message = String(
+        localized: "This item is still moving to trash. You can try restoring it later.",
+        bundle: .module)
+      return
+    }
     if error as? PutioFolderLoadError == .offline {
       message = PutioScreenErrorKind.failed.message
       return
@@ -605,20 +627,27 @@ public final class PutioTrashModel {
   }
 
   public func restore(_ item: PutioTrashItem) async {
+    var lookup: Task<Void, Never>?
     await mutate(.restore(item)) {
-      // Any result means the restore committed; a throw means it did not.
-      let result = try await actions.restore(item.id)
-      // Tell the browser first: the pagination repair below is best effort
-      // and must not delay the restored file appearing in Files.
-      switch result {
-      case .restored(let destinationID):
-        onRestored(destinationID)
-      case .restoredDestinationUnknown, .restoredLookupCancelled:
-        onRestored(nil)
+      let locate: PutioTrashRestoreLookup
+      do {
+        locate = try await actions.restore(item.id)
+      } catch PutioRuntimeError.notFound {
+        await remove(item)
+        return
+      }
+      mutationOutcome = .restored(item)
+      lookup = Task { [onRestored] in
+        switch await locate() {
+        case .restored(let destinationID):
+          onRestored(destinationID)
+        case .restoredDestinationUnknown, .restoredLookupCancelled:
+          onRestored(nil)
+        }
       }
       await remove(item)
-      mutationOutcome = .restored(item)
     }
+    await lookup?.value
   }
 
   public func permanentlyDelete(_ item: PutioTrashItem) async {

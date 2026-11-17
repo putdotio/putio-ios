@@ -2411,17 +2411,6 @@
         }
       }
     },
-    "Item restored" : {
-      "comment" : "ios-only: no Android string for the iOS trash screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item restored"
-          }
-        }
-      }
-    },
     "Items deleted" : {
       "comment" : "ios-only: no Android string for the iOS trash screen",
       "localizations" : {
@@ -4301,6 +4290,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore All"
+          }
+        }
+      }
+    },
+    "Restore could not start" : {
+      "comment" : "android: mobile_trash_rejected | differs: board drops the period",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore could not start"
+          }
+        }
+      }
+    },
+    "Restore started" : {
+      "comment" : "android: mobile_trash_started | differs: board drops the period",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore started"
           }
         }
       }

@@ -8,6 +8,8 @@ struct TrashManagementView: View {
   @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
+  @State private var stillMovingMessage = ""
+  @State private var stillMovingAlertPresented = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @Environment(\.locale) private var locale
@@ -44,7 +46,9 @@ struct TrashManagementView: View {
         }
         .modifier(TrashStatePlacement(.failed))
       case .loaded(let page):
-        loadedContent(page)
+        loadedContent(
+          Self.shownPage(page, restoring: restoringItem),
+          isEmpty: page.items.isEmpty && page.nextCursor == nil)
       }
     }
     .navigationTitle("Trash")
@@ -159,9 +163,17 @@ struct TrashManagementView: View {
     } message: {
       Text("Every item in Trash will be deleted and cannot be restored.")
     }
+    .putioAlert(
+      String(localized: "Restore could not start"),
+      isPresented: $stillMovingAlertPresented,
+      message: stillMovingMessage,
+      actions: [
+        PutioAlertAction(String(localized: "OK"), tier: .neutral, id: "trash.still-moving.ok")
+      ]
+    )
     .putioToast($toast)
     .overlay {
-      if model.activeMutation != nil {
+      if showsBlockingProgress {
         ProgressView("Updating Trash…")
           .controlSize(.large)
           .padding(PutioTheme.Spacing.space4)
@@ -198,8 +210,7 @@ struct TrashManagementView: View {
   }
 
   @ViewBuilder
-  private func loadedContent(_ page: PutioTrashPage) -> some View {
-    let isEmpty = page.items.isEmpty && page.nextCursor == nil
+  private func loadedContent(_ page: PutioTrashPage, isEmpty: Bool) -> some View {
     if isEmpty && model.refreshFailure == nil && model.storageFailure == nil {
       ScrollView {
         emptyState
@@ -209,7 +220,7 @@ struct TrashManagementView: View {
       .refreshable { await model.refresh() }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
-        if !page.items.isEmpty {
+        if !page.items.isEmpty || restoringItem != nil {
           header(page)
             .listRowInsets(.top, PutioTheme.Spacing.space0)
             .listRowInsets(.bottom, PutioTheme.Spacing.space2)
@@ -372,6 +383,28 @@ struct TrashManagementView: View {
     )
   }
 
+  private var restoringItem: PutioTrashItem? {
+    guard case .restore(let item) = model.activeMutation else { return nil }
+    return item
+  }
+
+  static func shownPage(_ page: PutioTrashPage, restoring item: PutioTrashItem?) -> PutioTrashPage {
+    guard let item, page.items.contains(item) else { return page }
+    return PutioTrashPage(
+      items: page.items.filter { $0 != item },
+      nextCursor: page.nextCursor,
+      totalCount: page.totalCount.map { max(0, $0 - 1) },
+      sizeBytes: max(0, page.sizeBytes - item.sizeBytes)
+    )
+  }
+
+  private var showsBlockingProgress: Bool {
+    switch model.activeMutation {
+    case .none, .restore: false
+    default: true
+    }
+  }
+
   private var deletionConfirmationPresented: Binding<Bool> {
     Binding(
       get: { pendingDeletion != nil },
@@ -492,7 +525,7 @@ struct TrashManagementView: View {
     guard let outcome else { return }
     switch outcome {
     case .restored:
-      toast = PutioToast(String(localized: "Item restored"))
+      toast = PutioToast(String(localized: "Restore started"))
     case .permanentlyDeleted:
       toast = PutioToast(
         String(localized: "Item deleted"))
@@ -506,6 +539,12 @@ struct TrashManagementView: View {
     case .emptied:
       toast = PutioToast(
         String(localized: "Trash emptied"))
+    case .failed(_, let failure) where failure.isStillMovingToTrash:
+      stillMovingMessage = failure.message
+      stillMovingAlertPresented = true
+    case .failed(.restore, _):
+      toast = PutioToast(
+        String(localized: "Restore could not start"), icon: .warning, width: .fit)
     case .failed(_, let failure):
       toast = PutioToast(failure.title)
     }

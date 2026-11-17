@@ -149,6 +149,37 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testARestoreOfAnItemStillMovingToTrashThrowsStillMoving() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":400,"error_type":"TRASH_INCOMPLETE_TRASH","error_message":"Item is still being trashed"}"#,
+      statusCode: 400, for: Self.trashRestoreRoute)
+    let fileID = PutioFileID(rawValue: 91)
+
+    do {
+      _ = try await runtime.restoreTrashItem(fileID: fileID)
+      XCTFail("a refused restore read as restored")
+    } catch {
+      XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
+    }
+    do {
+      try await runtime.restoreTrashItems(fileIDs: [fileID])
+      XCTFail("a refused bulk restore read as restored")
+    } catch {
+      XCTAssertTrue(error is PutioTrashStillMoving, "unexpected error \(error)")
+    }
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","status_code":400,"error_type":"TRASH_RESTORE_REJECTED"}"#,
+      statusCode: 400, for: Self.trashRestoreRoute)
+    do {
+      _ = try await runtime.restoreTrashItem(fileID: fileID)
+      XCTFail("a refused restore read as restored")
+    } catch {
+      XCTAssertFalse(error is PutioTrashStillMoving, "another refusal read as still moving")
+    }
+  }
+
   func testBatchTrashMutationsSendEveryIDInOneRequest() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
@@ -190,6 +221,36 @@ extension PutioRuntimeTests {
     XCTAssertNil(bodies[0]["file_ids"], "a cursor restore must not narrow to loaded rows")
     XCTAssertEqual(bodies[1]["file_ids"] as? String, "91,92")
     XCTAssertNil(bodies[1]["cursor"])
+  }
+
+  func testATrashRestoreReportsItStartedBeforeTheDestinationLookupReturns() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"total":1,"trash_size":2048,"files":[{"id":91,"name":"Old episode.mkv","file_type":"VIDEO","parent_id":7,"size":2048,"created_at":"2026-08-28T10:00:00Z","deleted_at":"2026-09-01T11:00:00Z","expiration_date":"2026-10-01T11:00:00Z"}]}"#,
+      for: Self.trashListRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.gateFixture(
+      #"{"file":{"id":91,"name":"Old episode.mkv","file_type":"VIDEO","parent_id":7,"size":2048,"created_at":"2026-08-28T10:00:00Z"}}"#,
+      for: Self.restoredTrashFileRoute)
+    var destinations: [PutioFileID?] = []
+    let model = PutioTrashModel(runtime: runtime, reconciliation: PutioTrashReconciliation()) {
+      destinations.append($0)
+    }
+    await model.refreshOnAppear()
+    guard let item = model.page?.items.first else { return XCTFail("Trash did not load") }
+
+    let restore = Task { await model.restore(item) }
+    guard await waitForRequest(Self.restoredTrashFileRoute) else {
+      fixtures.releaseFixture(for: Self.restoredTrashFileRoute)
+      return XCTFail("the destination lookup did not start")
+    }
+    XCTAssertEqual(model.mutationOutcome, .restored(item), "the toast waited for the lookup")
+    XCTAssertTrue(model.canMutate, "the lookup held Trash busy")
+    XCTAssertEqual(model.page?.items, [])
+    fixtures.releaseFixture(for: Self.restoredTrashFileRoute)
+    await restore.value
+
+    XCTAssertEqual(destinations.count, 1)
   }
 
   func testRestoreSurfacesCancellationDuringDestinationLookup() async throws {

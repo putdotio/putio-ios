@@ -10,8 +10,20 @@ import Foundation
       case offline
       case moreLoading = "more-loading"
       case moreFailing = "more-failing"
+      case restoreRejected = "restore-rejected"
+      case stillMoving = "still-moving"
 
       var isPaged: Bool { self == .moreLoading || self == .moreFailing }
+
+      var refusedRestore: String? {
+        switch self {
+        case .restoreRejected:
+          #"{"status":"ERROR","status_code":400,"error_type":"HARNESS_TRASH_RESTORE_REJECTED","message":"The first restore is refused"}"#
+        case .stillMoving:
+          #"{"status":"ERROR","status_code":400,"error_type":"TRASH_INCOMPLETE_TRASH","error_message":"Item is still being trashed"}"#
+        default: nil
+        }
+      }
     }
 
     private struct Item {
@@ -37,6 +49,7 @@ import Foundation
     nonisolated(unsafe) private static var continuesServed = 0
     nonisolated(unsafe) private static var pagedListsRequested = 0
     nonisolated(unsafe) private static var restoredIDs: Set<Int> = []
+    nonisolated(unsafe) private static var restoresServed = 0
 
     static let mode: Mode? = {
       let arguments = ProcessInfo.processInfo.arguments
@@ -106,6 +119,11 @@ import Foundation
     }
 
     private static func restore(payload: [String: Any]?) -> (Int, String) {
+      let isFirst = lock.withLock {
+        restoresServed += 1
+        return restoresServed == 1
+      }
+      if isFirst, let refusal = mode?.refusedRestore { return (400, refusal) }
       let restored =
         payload?["cursor"] as? String == secondPageCursor
         ? restoreListing() : restore(fileIDs: payload?["file_ids"] as? String)

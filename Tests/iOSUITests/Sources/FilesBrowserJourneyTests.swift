@@ -1023,7 +1023,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
     XCTAssertEqual(restore.label, "Restore", "the icon-only Restore swipe has no name")
     restore.tap()
-    XCTAssertTrue(element(identifier: "trash.progress").appears(within: 5))
+    XCTAssertTrue(restoreRow.disappears(within: 2), "the restored row waited for the reply")
+    XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
+    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
     app.navigationBars.buttons.element(boundBy: 0).tap()
 
     app.buttons["Files"].tap()
@@ -1190,6 +1192,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     leaveTrashAndSignOut()
   }
 
+  private func trashSettles() -> Bool {
+    XCTWaiter.wait(
+      for: [
+        XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "enabled == true"), object: app.buttons["trash.menu"])
+      ], timeout: 15) == .completed
+  }
+
   func testTrashRowsRestoreFromMenuAndSwipe() {
     openSeededTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
@@ -1202,10 +1212,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-trash-row-menu")
     menuRestore.tap()
     XCTAssertTrue(
-      element(identifier: "trash.item.4302").disappears(within: 10), "the menu restore kept the row"
+      element(identifier: "trash.item.4302").disappears(within: 2), "the menu restore kept the row"
     )
-    XCTAssertTrue(app.staticTexts["Item restored"].appears(within: 5))
-    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
 
     let swipeRow = element(identifier: "trash.item.4303").firstMatch
     XCTAssertTrue(waitUntilHittable(swipeRow, timeout: 5))
@@ -1217,7 +1227,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       element(identifier: "trash.item.4303").disappears(within: 10),
       "the swipe restore kept the row")
-    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+    XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
+    XCTAssertTrue(trashSettles(), "the swipe restore never finished")
 
     let fullSwipeRow = element(identifier: "trash.item.4305").firstMatch
     XCTAssertTrue(waitUntilHittable(fullSwipeRow, timeout: 5))
@@ -1231,7 +1242,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       element(identifier: "trash.item.4305").disappears(within: 10),
       "a full leading swipe did not restore the row")
-    XCTAssertTrue(element(identifier: "trash.progress").disappears(within: 5))
+    XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
+    XCTAssertTrue(trashSettles(), "the full swipe restore never finished")
 
     let trashMenu = app.buttons["trash.menu"]
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
@@ -1254,6 +1266,52 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "Select mode offers the long-press menu")
     app.buttons["trash.selection.done"].tap()
     XCTAssertTrue(element(identifier: "trash.item.4306").exists, "Select mode restored a row")
+  }
+
+  func testTrashRestoreRefusalsKeepTheRow() {
+    openSeededTrash("restore-rejected")
+    restoreBlueVelvet()
+    XCTAssertTrue(app.staticTexts["Restore could not start"].appears(within: 10))
+    assertBlueVelvetStays()
+    leaveTrashAndSignOut()
+
+    app.terminate()
+    app.launchArguments = ["--putio-harness-scenario", "files-browser"]
+    openSeededTrash("still-moving")
+    restoreBlueVelvet()
+    let alert = app.putioAlert("Restore could not start")
+    XCTAssertTrue(alert.appears(within: 10), "TRASH_INCOMPLETE_TRASH showed no alert")
+    XCTAssertTrue(
+      alert.staticTexts[
+        "This item is still moving to trash. You can try restoring it later."
+      ].exists)
+    XCTAssertEqual(
+      alert.buttons.allElementsBoundByIndex.map(\.label), ["OK"],
+      "the still-moving alert offers more than OK")
+    alert.buttons["trash.still-moving.ok"].tap()
+    XCTAssertTrue(alert.disappears(within: 5))
+    XCTAssertFalse(app.staticTexts["Restore could not start"].exists, "the alert also toasted")
+    assertBlueVelvetStays()
+    leaveTrashAndSignOut()
+  }
+
+  private func restoreBlueVelvet() {
+    let row = element(identifier: "trash.item.4302").firstMatch
+    XCTAssertTrue(waitUntilHittable(row, timeout: 10), "Trash never loaded")
+    openLeadingSwipe(on: row)
+    let restore = app.buttons["trash.restore.4302"]
+    XCTAssertTrue(waitUntilHittable(restore, timeout: 5), "the swipe showed no Restore")
+    restore.tap()
+    XCTAssertTrue(row.disappears(within: 2), "the restored row waited for the reply")
+  }
+
+  private func assertBlueVelvetStays() {
+    let row = element(identifier: "trash.item.4302").firstMatch
+    XCTAssertTrue(row.appears(within: 5), "a refused restore lost the row")
+    let header = element(identifier: "trash.header")
+    XCTAssertTrue(header.label.contains("10.4 GB"), "a refused restore kept the size down")
+    _ = XCTWaiter.wait(for: [XCTestExpectation(description: "no retry")], timeout: 8)
+    XCTAssertTrue(row.exists, "a refused restore was sent again")
   }
 
   private func assertRestoreSwipeEnabled(on row: XCUIElement, _ message: String) {

@@ -26,10 +26,11 @@ extension PutioRuntime {
   }
 
   public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioTrashRestoreResult {
-    let response = try await performAuthenticatedOperation(commits: true) {
-      try await sdk.restoreTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
-    }
-    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    try await sendTrashRestore(fileIDs: [fileID])
+    return await locateRestoredTrashItem(fileID: fileID)
+  }
+
+  func locateRestoredTrashItem(fileID: PutioFileID) async -> PutioTrashRestoreResult {
     do {
       let restoredFile = try await performAuthenticatedOperation {
         try await sdk.getFile(fileID: fileID.rawValue)
@@ -60,9 +61,21 @@ extension PutioRuntime {
   /// Restores the given trashed files in one request.
   public func restoreTrashItems(fileIDs: [PutioFileID]) async throws {
     guard !fileIDs.isEmpty else { return }
+    try await sendTrashRestore(fileIDs: fileIDs)
+  }
+
+  func sendTrashRestore(fileIDs: [PutioFileID]) async throws {
     let response = try await performAuthenticatedOperation(commits: true) {
-      try await sdk.restoreTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+      () async throws -> PutioOKResponse? in
+      do {
+        return try await sdk.restoreTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+      } catch let error as PutioSDKError
+        where error.matches(statusCode: 400, errorType: "TRASH_INCOMPLETE_TRASH")
+      {
+        return nil
+      }
     }
+    guard let response else { throw PutioTrashStillMoving() }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
