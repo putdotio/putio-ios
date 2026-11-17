@@ -180,11 +180,13 @@ extension PutioRuntimeTests {
     _ = try? await runtime.setFileWatched(fileID: file, watched: false)
     fixtures.setFixture(#"{"status":"OK"}"#, for: setRoute)
     try await runtime.reportPlaybackPosition(fileID: file, seconds: 0)
+    let end = PutioWatchedChange(fileID: PutioFileID(rawValue: 0), isWatched: false)
+    runtime.publishWatched(fileID: end.fileID, isWatched: end.isWatched)
 
     var received: [PutioWatchedChange] = []
     for await change in changes {
+      if change == end { break }
       received.append(change)
-      if received.count == 4 { break }
     }
     XCTAssertEqual(
       received,
