@@ -4890,30 +4890,19 @@ final class BoardCaptureTests: XCTestCase {
   func testIPadTrashSelection() throws {
     openIPadTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
-    app.buttons["trash.menu"].tap()
-    let select = app.buttons["item-action.trash-select"]
-    XCTAssertTrue(select.appears(within: 5), "More has no Select")
-    select.tap()
-    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
-    for id in [4302, 4304] {
-      let row = element("trash.item.\(id)")
-      row.tap()
-      XCTAssertEqual(row.value as? String, "Selected", "\(id) did not select")
-    }
-    XCTAssertTrue(app.staticTexts["2 selected"].exists, "the header miscounts the selection")
+    selectTrashRows([4302, 4304])
     XCTAssertTrue(app.buttons["selection.close"].exists, "Select mode has no close button")
     XCTAssertFalse(app.buttons["trash.menu"].exists, "Select mode offers More")
     let summary = element("trash.selection.summary")
     XCTAssertTrue(summary.label.contains("7 items"), "the summary miscounts Trash")
     XCTAssertTrue(summary.label.contains("8.91 GB selected"), "the summary misses the size")
-    assertSelectionBar(["restore", "delete"])
     XCTAssertTrue(tabButton("Account").isHittable, "Select mode hid the top tabs")
     if !isPortraitBoard {
       let row = element("account.trash")
       XCTAssertTrue(row.isHittable, "Select mode hid the Account list")
       XCTAssertTrue(row.isSelected, "Select mode closed the Trash row")
       XCTAssertGreaterThan(
-        element("selection.bar").frame.minX, row.frame.maxX,
+        element("selection.action.restore").frame.minX, row.frame.maxX,
         "the selection bar left the detail column")
     }
     try captureBoard("rd-ios-trash-20-ipad-selection")
@@ -4924,11 +4913,11 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("trash.item.4302").firstMatch
     XCTAssertTrue(row.appears(within: 10), "Trash never loaded")
     row.press(forDuration: 1.0)
-    let restore = app.buttons["item-action.trash-restore"]
+    let restore = trashMenuItem("Restore")
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
-    XCTAssertTrue(app.buttons["item-action.trash-row-select"].exists, "the menu has no Select")
+    XCTAssertTrue(trashMenuItem("Select").exists, "the menu has no Select")
     XCTAssertTrue(
-      app.buttons["item-action.trash-delete"].exists, "the menu has no Delete permanently")
+      trashMenuItem("Delete permanently").exists, "the menu has no Delete permanently")
     assertInTrashColumn(restore, "the long-press menu")
     try captureBoard("ipad-trash-long-press")
   }
@@ -4937,10 +4926,10 @@ final class BoardCaptureTests: XCTestCase {
     openIPadTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
     app.buttons["trash.menu"].tap()
-    let empty = app.buttons["item-action.trash-empty"]
+    let empty = trashMenuItem("Empty trash")
     XCTAssertTrue(empty.appears(within: 5), "More opened no menu")
-    XCTAssertTrue(app.buttons["item-action.trash-select"].exists, "More has no Select")
-    XCTAssertTrue(app.buttons["item-action.trash-restore-all"].exists, "More has no Restore all")
+    XCTAssertTrue(trashMenuItem("Select").exists, "More has no Select")
+    XCTAssertTrue(trashMenuItem("Restore all").exists, "More has no Restore all")
     assertInTrashColumn(empty, "the More menu")
     try captureBoard("ipad-trash-more")
   }
@@ -4978,7 +4967,7 @@ final class BoardCaptureTests: XCTestCase {
     assertTrashSize(10_400_000_000, "loading Trash")
 
     blueVelvet.press(forDuration: 1.0)
-    let restore = app.buttons["item-action.trash-restore"]
+    let restore = trashMenuItem("Restore")
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
     restore.tap()
     let toast = app.staticTexts["Restore started"]
@@ -5023,6 +5012,13 @@ final class BoardCaptureTests: XCTestCase {
     let confirm = app.putioAlert("Turn off trash?").buttons["Turn off"].firstMatch
     XCTAssertTrue(confirm.appears(within: 5), "the trash alert never showed")
     confirm.tap()
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t save this setting"].appears(within: 10),
+      "the seeded first settings save did not fail")
+    XCTAssertTrue(element("trash.header").exists, "a failed save closed Trash")
+    trash.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    XCTAssertTrue(confirm.appears(within: 5), "the trash alert never showed again")
+    confirm.tap()
     XCTAssertTrue(element("trash.header").disappears(within: 10), "Trash stayed open")
     XCTAssertTrue(
       element("putio.list-detail.empty").appears(within: 5), "the detail column is not empty")
@@ -5059,7 +5055,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openIPadTrashDeleteAlert(_ row: XCUIElement) -> XCUIElement {
     row.press(forDuration: 1.0)
-    let delete = app.buttons["item-action.trash-delete"]
+    let delete = trashMenuItem("Delete permanently")
     XCTAssertTrue(delete.appears(within: 5), "the long-press menu has no Delete permanently")
     delete.tap()
     let alert = app.putioAlert("Delete permanently?")
@@ -5068,8 +5064,12 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func openIPadTrashEmptyAlert() -> XCUIElement {
-    app.buttons["trash.menu"].tap()
-    let empty = app.buttons["item-action.trash-empty"]
+    let menu = app.buttons["trash.menu"]
+    let settled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == true"), object: menu)
+    XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 10), .completed, "More stayed busy")
+    menu.tap()
+    let empty = trashMenuItem("Empty trash")
     XCTAssertTrue(empty.appears(within: 5), "More opened no menu")
     empty.tap()
     let alert = app.putioAlert("Empty trash?")
