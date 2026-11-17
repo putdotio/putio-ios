@@ -394,15 +394,15 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(source.url.lastPathComponent, "original.mp4")
     XCTAssertEqual(source.startFromSeconds, 734)
     XCTAssertEqual(try Data(contentsOf: source.url).count, 2_048)
-    let original = try XCTUnwrap(source.original, "a Direct play download lost the engine")
-    XCTAssertEqual(original.player, .engine)
-    XCTAssertEqual(original.subtitles.map(\.languageCode), ["en", "tr"])
-    XCTAssertEqual(original.subtitles.map(\.language), ["English", "Turkish"])
+    let playback = try XCTUnwrap(source.original, "a Direct play download lost the engine")
+    XCTAssertEqual(playback.player, .engine)
+    XCTAssertEqual(playback.subtitles.map(\.languageCode), ["en", "tr"])
+    XCTAssertEqual(playback.subtitles.map(\.language), ["English", "Turkish"])
     XCTAssertEqual(
-      try original.subtitles.map { try String(contentsOf: $0.url, encoding: .utf8) },
+      try playback.subtitles.map { try String(contentsOf: $0.url, encoding: .utf8) },
       ["WEBVTT en", "WEBVTT tr"])
     XCTAssertEqual(
-      original.subtitles.first { $0.key == original.defaultSubtitleKey }?.languageCode, "tr",
+      playback.subtitles.first { $0.key == playback.defaultSubtitleKey }?.languageCode, "tr",
       "a stored original lost put.io's default subtitle")
     let hls = try XCTUnwrap(queue.localSource(for: standard))
     XCTAssertEqual(hls.url.pathExtension, "movpkg")

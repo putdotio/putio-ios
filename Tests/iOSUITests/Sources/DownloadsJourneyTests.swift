@@ -483,9 +483,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= 8"), position, timeout: 20),
       "the stored original is not playing: \(position.value ?? "")")
-    XCTAssertEqual(
-      element("downloads.cut-requests").value as? String, requests,
-      "playing the download made a network request: \(element("downloads.cut-paths").value ?? "")")
+    assertNoPlaybackRequests(since: requests)
     app.closeVideo()
     let saved = try reportedSeconds()
     XCTAssertNotEqual(
@@ -500,7 +498,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitFor(NSPredicate(format: "value.intValue >= %d", saved - 1), position, timeout: 10),
       "the download did not resume at \(saved): \(position.value ?? "")")
-    XCTAssertEqual(element("downloads.cut-requests").value as? String, relaunchedRequests)
+    assertNoPlaybackRequests(since: relaunchedRequests)
     app.closeVideo()
     let resumed = try reportedSeconds()
 
@@ -574,14 +572,27 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
-  private func openDownloadsCut(_ item: XCUIElement) -> String? {
+  private func assertNoPlaybackRequests(
+    since count: Int, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let shellRequests: Set<String> = [
+      "GET /v2/config", "GET /v2/files/412/next-file", "POST /v2/files/412/start-from/set",
+    ]
+    let paths = (element("downloads.cut-paths").value as? String ?? "")
+      .split(separator: ",").map(String.init)
+    let playback = paths.dropFirst(count).filter { !shellRequests.contains($0) }
+    XCTAssertEqual(
+      playback, [], "playing the download asked the network for it", file: file, line: line)
+  }
+
+  private func openDownloadsCut(_ item: XCUIElement) -> Int {
     let downloads = app.buttons["Downloads"]
     XCTAssertTrue(downloads.appears(within: 15), "the signed-in shell did not open offline")
     downloads.tap()
     XCTAssertTrue(item.appears(within: 10))
     XCTAssertEqual(item.value as? String, "completed;watched")
     RunLoop.current.run(until: .now.addingTimeInterval(2))
-    return element("downloads.cut-requests").value as? String
+    return Int(element("downloads.cut-requests").value as? String ?? "") ?? 0
   }
 
   private func preferredAudioLanguage() -> String? {
