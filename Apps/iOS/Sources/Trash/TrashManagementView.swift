@@ -255,19 +255,45 @@ struct TrashManagementView: View {
               else { return }
               await model.loadMore()
             }
-            .swipeActions(edge: .leading) {
-              Button("Restore") {
-                Task { await model.restore(item) }
+            .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
+            .contextMenu {
+              if !isEditing {
+                PutioItemMenuContent(rowMenu(for: item))
               }
-              .disabled(!model.canMutate)
-              .disabled(!model.canMutate)
-              .tint(PutioTheme.Colors.success)
-              .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
+            }
+            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+              if !isEditing {
+                Button {
+                  restore(item)
+                } label: {
+                  Label {
+                    Text("Restore")
+                  } icon: {
+                    Image(putioIcon: .arrowCounterClockwise)
+                  }
+                  .labelStyle(.iconOnly)
+                }
+                .disabled(!model.canMutate)
+                .tint(PutioTheme.Components.Button.secondaryBackground)
+                .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
+              }
             }
             .swipeActions(edge: .trailing) {
-              Button("Delete", role: .destructive) { pendingDeletion = item }
+              if !isEditing {
+                Button {
+                  pendingDeletion = item
+                } label: {
+                  Label {
+                    Text("Delete permanently")
+                  } icon: {
+                    Image(putioIcon: .trash)
+                  }
+                  .labelStyle(.iconOnly)
+                }
                 .disabled(!model.canMutate)
+                .tint(PutioTheme.Colors.destructive)
                 .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
+              }
             }
         }
         if let cursor = page.nextCursor {
@@ -428,6 +454,21 @@ struct TrashManagementView: View {
         .accessibilityIdentifier("trash.storage-retry")
       }
     }
+  }
+
+  private func rowMenu(for item: PutioTrashItem) -> PutioItemMenu {
+    PutioItemMenu([
+      [
+        PutioItemAction(
+          id: "trash-restore", title: String(localized: "Restore"),
+          icon: .arrowCounterClockwise, isDisabled: !model.canMutate
+        ) { [model] in Task { await model.restore(item) } }
+      ]
+    ])
+  }
+
+  private func restore(_ item: PutioTrashItem) {
+    Task { await model.restore(item) }
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {

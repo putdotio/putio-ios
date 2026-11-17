@@ -4429,6 +4429,44 @@ final class BoardCaptureTests: XCTestCase {
     try captureTrashBoard("rd-ios-trash-15-load-more-failed")
   }
 
+  func testTrashLongPress() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    element("trash.item.4302").firstMatch.press(forDuration: 1.0)
+    let restore = menuRestore
+    XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
+    XCTAssertEqual(restore.label, "Restore")
+    XCTAssertFalse(
+      app.buttons["Delete permanently"].exists, "the long-press menu offers Delete permanently")
+    try captureBoard("rd-ios-trash-02-long-press")
+  }
+
+  func testTrashSwipeRestore() throws {
+    openTrash("board")
+    XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
+    showSettledTabBar()
+    let start = element("trash.item.4304").firstMatch
+      .coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5))
+    start.press(
+      forDuration: 0.05,
+      thenDragTo: start.withOffset(CGVector(dx: 150, dy: 0)),
+      withVelocity: .slow,
+      thenHoldForDuration: 0.1
+    )
+    let restore = app.buttons["trash.restore.4304"]
+    XCTAssertTrue(restore.appears(within: 5), "the leading swipe has no Restore")
+    XCTAssertEqual(restore.label, "Restore")
+    XCTAssertTrue(element("trash.item.4304").exists, "the partial swipe restored the row")
+    try captureBoard("rd-ios-trash-03-swipe")
+  }
+
+  private var menuRestore: XCUIElement {
+    app.buttons.matching(
+      NSPredicate(
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+    ).firstMatch
+  }
+
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     orientForBoardDevice()
