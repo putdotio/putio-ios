@@ -42,6 +42,7 @@ enum PutioOfflineQueueFactory {
         PutioOfflineNotifications.notifyCompletion(item)
       },
       notifyOriginalsRequested: { _ in onOriginalsRequested() },
+      packageExists: seeded?.packageExists,
       resolve: seeded?.resolve ?? { fileID, kind in
         switch kind {
         case .audio:
@@ -91,6 +92,7 @@ enum PutioOfflineQueueFactory {
     let engine: any PutioOfflineDownloadEngine
     let freeBytes: Int64
     let playbackURL: @MainActor (String) -> URL
+    let packageExists: @MainActor (String) -> Bool
     let resolve: PutioOfflineResolve
     let startConversion: PutioOfflineConversionStart
     let conversionStatus: PutioOfflineConversionStatus
@@ -112,6 +114,7 @@ enum PutioOfflineQueueFactory {
         engine: HarnessFrozenOfflineEngine(transferring: fixture.transferringIDs(now: now)),
         freeBytes: fixture.freeBytes(isPad: UIDevice.current.userInterfaceIdiom == .pad),
         playbackURL: HarnessDownloadsFixture.playbackURL(mediaBaseURL: harnessMediaBaseURL),
+        packageExists: { $0 != HarnessDownloadsFixture.missingPackage },
         resolve: { fileID, _ in
           if conversions[fileID] != nil { return .conversionRequired }
           while !Task.isCancelled { try await Task.sleep(for: .seconds(3_600)) }

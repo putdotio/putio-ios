@@ -49,6 +49,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let fileManager: FileManager
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
+  @ObservationIgnored private let packageExists: @MainActor (String) -> Bool
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
   @ObservationIgnored private let notifyOriginalsRequested: @MainActor ([PutioFileID]) -> Void
   /// Bumped by a purge so in-flight original requests stop writing.
@@ -100,6 +101,7 @@ final class PutioOfflineQueue {
     isPlayable: @escaping PutioOfflinePlayabilityCheck = {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
     },
+    packageExists: (@MainActor (String) -> Bool)? = nil,
     resolve: @escaping PutioOfflineResolve,
     resolveOriginal: @escaping PutioOfflineOriginalResolve = { _ in
       throw PutioRuntimeError.invalidResponse
@@ -128,6 +130,10 @@ final class PutioOfflineQueue {
     self.notifyCompletion = notifyCompletion
     self.notifyOriginalsRequested = notifyOriginalsRequested
     self.isPlayable = isPlayable
+    self.packageExists =
+      packageExists ?? { [fileManager] in
+        fileManager.fileExists(atPath: PutioOfflineQueue.localURL(for: $0).path)
+      }
     self.resolve = resolve
     self.resolveOriginal = resolveOriginal
     self.fetchSubtitle = fetchSubtitle
@@ -223,6 +229,9 @@ final class PutioOfflineQueue {
         suspended.insert(items[index].id)
       case .converting:
         items[index].stage = .queued
+      case .completed where !(items[index].localPath.map { packageExists($0) } ?? false):
+        deleteLocalAsset(for: items[index].id)
+        items[index].stage = .missing
       default:
         break
       }
@@ -241,6 +250,7 @@ final class PutioOfflineQueue {
     for item in inFlightItems.dropFirst(concurrencyLimit) { yieldSlot(item.id) }
     awaitsRestore = false
     persist()
+    recomputeStorage()
     schedule()
   }
 
@@ -385,8 +395,12 @@ final class PutioOfflineQueue {
   }
 
   func retry(fileID: PutioFileID) {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
-    guard case .failed(let failure) = items[index].stage, failure.canRetry else { return }
+    guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    switch items[index].stage {
+    case .failed(let failure) where failure.canRetry: break
+    case .missing: break
+    default: return
+    }
     completionEpoch[fileID, default: 0] &+= 1
     items[index].stage = .queued
     persist()
@@ -819,7 +833,7 @@ final class PutioOfflineQueue {
         fileID,
         PutioOfflineFailure.resolving(error)
           ?? PutioOfflineFailure(
-            kind: .resolution,
+            kind: .unexpected,
             message: String(localized: "put.io could not prepare this file. Try again.")))
     }
   }

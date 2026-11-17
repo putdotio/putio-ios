@@ -240,7 +240,7 @@ final class OfflineDownloadsTests: XCTestCase {
       .waiting(.slot, receivedBytes: 330_000_000, totalBytes: 3_300_000_000))
     XCTAssertEqual(
       item(3, .failed(.notFound)).downloadState(queuePosition: nil, isWaitingForSlot: false),
-      .failed(reason: PutioOfflineFailure.notFound.message, canRetry: false))
+      .failed(reason: "No longer available", canRetry: false))
     XCTAssertEqual(
       PutioOfflineSections([item(1, .completed)]).sections.map(\.kind), [.onDevice])
     XCTAssertTrue(PutioOfflineSections([]).sections.isEmpty)
@@ -920,6 +920,87 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(attempts, 1)
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 3))?.stage, .failed(.authentication))
     XCTAssertTrue(PutioOfflineFailure.authentication.canRetry)
+  }
+
+  func testSignInAgainDoesNotRetryUntilTheSessionIsValid() async {
+    var live = true
+    var attempts = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        attempts += 1
+        throw PutioRuntimeError.sessionExpired
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in }, isLive: { live })
+    let fileID = PutioFileID(rawValue: 3)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "c", kind: .video)
+    await settle()
+    live = false
+    queue.retry(fileID: fileID)
+    await settle()
+    XCTAssertEqual(attempts, 1)
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .failed(.authentication))
+  }
+
+  func testFailuresReadTheirBoardReason() {
+    let reasons = [
+      PutioOfflineFailure.resolving(PutioRuntimeError.transient),
+      .resolving(PutioRuntimeError.sessionExpired),
+      .resolving(PutioRuntimeError.authenticationRequired),
+      .resolving(PutioRuntimeError.notFound),
+      .storage,
+      .download,
+      .conversion,
+      .resolving(PutioRuntimeError.unknown),
+      .resolving(PutioRuntimeError.invalidResponse),
+      .resolving(PutioRuntimeError.rateLimited),
+    ].map { $0?.reason }
+    XCTAssertEqual(
+      reasons,
+      [
+        "Connection lost", "Sign in again", "Sign in again", "No longer available",
+        "Not enough storage", "Couldn’t download", "Couldn’t download", "Couldn’t download",
+        "Couldn’t download", "Couldn’t download",
+      ])
+  }
+
+  func testAFinishedDownloadWhosePackageIsGoneReadsMissingAtLaunch() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    func finished(_ id: Int, at path: String) -> PutioOfflineItem {
+      PutioOfflineItem(
+        id: PutioFileID(rawValue: id), parentID: .root, name: "\(id).mkv", kind: .video,
+        createdAt: .now, stage: .completed, localPath: path, storedBytes: 512,
+        storedAudioTracks: [], storedSubtitleTracks: [],
+        resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 512)
+    }
+    let kept = directory.appending(path: "1.movpkg")
+    try FileManager.default.createDirectory(at: kept, withIntermediateDirectories: true)
+    try Data(count: 512).write(to: kept.appending(path: "segment.bin"))
+    try store.save(
+      items: [
+        finished(1, at: kept.path), finished(2, at: directory.appending(path: "2.movpkg").path),
+      ], concurrencyLimit: 2)
+    let queue = makeQueue()
+    await queue.restore()
+    await settle()
+
+    let gone = PutioFileID(rawValue: 2)
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .completed)
+    XCTAssertEqual(queue.item(for: gone)?.stage, .missing)
+    XCTAssertNil(queue.item(for: gone)?.localPath)
+    XCTAssertEqual(queue.storedBytes, 512)
+    XCTAssertEqual(
+      queue.item(for: gone)?.downloadState(queuePosition: nil, isWaitingForSlot: false), .missing)
+    XCTAssertEqual(
+      PutioOfflineSections(queue.items).sections.map(\.kind), [.attention, .onDevice])
+    XCTAssertEqual(store.load().items.last?.stage, .missing)
+
+    queue.retry(fileID: gone)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0), [gone])
+    XCTAssertEqual(queue.item(for: gone)?.stage, .downloading(progress: 0))
   }
 
   func testPauseDuringResolutionWinsOverTheWorker() async throws {

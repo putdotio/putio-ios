@@ -92,11 +92,11 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertTrue(removing.dimsRow)
   }
 
-  func testMissingAndFailedReadRedAndOfferTheirAction() {
+  func testMissingReadsGreyAndFailedReadsRedWithTheirAction() {
     let missing = presentation(.missing)
     XCTAssertEqual(missing.statusLine.map(\.text), ["No longer on this iPhone"])
-    XCTAssertEqual(missing.tone, .destructive)
-    XCTAssertEqual(missing.ring, .glyph(.again))
+    XCTAssertEqual(missing.tone, .secondary)
+    XCTAssertEqual(missing.ring, .glyph(.download))
     XCTAssertEqual(missing.action, .downloadAgain)
 
     let failed = presentation(.failed(reason: "Connection lost"))

@@ -854,6 +854,17 @@
         }
       }
     },
+    "Connection lost" : {
+      "comment" : "android: mobile_downloads_meta_failed_network",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection lost"
+          }
+        }
+      }
+    },
     "Contact us" : {
       "comment" : "ios-only: no Android string for the iOS account screen rows",
       "localizations" : {
@@ -1114,6 +1125,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t create folder."
+          }
+        }
+      }
+    },
+    "Couldn’t download" : {
+      "comment" : "android: mobile_downloads_meta_failed_unexpected",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t download"
           }
         }
       }
@@ -1671,6 +1693,17 @@
         }
       }
     },
+    "Download again" : {
+      "comment" : "android: mobile_downloads_download_again",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download again"
+          }
+        }
+      }
+    },
     "Download complete" : {
       "comment" : "android: mobile_downloads_notification_completed | differs: iOS board wording",
       "localizations" : {
@@ -2218,6 +2251,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No captions available"
+          }
+        }
+      }
+    },
+    "No longer available" : {
+      "comment" : "android: mobile_downloads_meta_failed_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer available"
+          }
+        }
+      }
+    },
+    "No longer on this iPhone" : {
+      "comment" : "android: mobile_files_download_missing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer on this iPhone"
           }
         }
       }
@@ -2957,6 +3012,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not enough space on this device. Free up storage and try again."
+          }
+        }
+      }
+    },
+    "Not enough storage" : {
+      "comment" : "android: mobile_downloads_meta_failed_storage",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not enough storage"
           }
         }
       }
