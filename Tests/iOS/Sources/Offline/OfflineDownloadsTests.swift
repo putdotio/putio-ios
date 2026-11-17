@@ -1031,6 +1031,26 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .downloading(progress: 0.5))
   }
 
+  func testAFileRowReadsItsPlaceInLineAndControlsTheQueue() async throws {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(1)
+    for id in 1...3 {
+      queue.enqueue(fileID: PutioFileID(rawValue: id), parentID: .root, name: "\(id)", kind: .video)
+    }
+    await settle()
+    XCTAssertEqual(
+      queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 2))
+    XCTAssertEqual(queue.downloadState(for: PutioFileID(rawValue: 99), on: .iPhone), .idle)
+    queue.perform(.cancel, fileID: PutioFileID(rawValue: 2))
+    XCTAssertEqual(
+      queue.downloadState(for: PutioFileID(rawValue: 3), on: .iPhone), .queued(position: 1))
+    try engine.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    XCTAssertEqual(
+      queue.downloadState(for: PutioFileID(rawValue: 1), on: .iPhone), .idle,
+      "a finished download leaves the row to its on-device marker")
+  }
+
   func testAStorageWaitStartsOnItsOwnOnceSpaceFrees() async {
     freeBytes = 500_000_000
     let queue = makeQueue(availableStorage: { self.freeBytes })

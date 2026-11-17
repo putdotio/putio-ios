@@ -761,6 +761,12 @@ enum BoardCaptureContract {
       BoardCapture(
         "ipad-downloads-more", .ipad, "testDownloadsMenu", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_MENU": "more"]),
+      BoardCapture(
+        "rd-ios-23-download-states", .iphone, "testDownloadFileRows",
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "file-states"]),
+      BoardCapture(
+        "rd-ios-65-download-waiting", .iphone, "testDownloadFileRows", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_FIXTURE": "file-waiting"]),
       BoardCapture("rd-ios-ses-01-welcome", .iphone, "testWelcome"),
       BoardCapture(
         "rd-ios-ses-02-welcome-frame-2", .iphone, "testWelcomeSecondFrame", screenBase: false),
@@ -1341,6 +1347,10 @@ enum BrowserJourneyContract {
       "download-notifications-off",
       "DownloadsJourneyTests/testADownloadFinishesWithNotificationsOff",
       attachmentNames: ["runtime-downloads-notifications-off"], timeAllowance: 120),
+    JourneyPreflight(
+      "download-file-rows",
+      "DownloadsJourneyTests/testFileRowsControlDownloadsAndFollowTheDownloadsTab",
+      timeAllowance: 90),
     JourneyPreflight(
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",

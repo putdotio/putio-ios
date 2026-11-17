@@ -1064,6 +1064,17 @@
         }
       }
     },
+    "Downloading" : {
+      "comment" : "android: mobile_files_downloading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading"
+          }
+        }
+      }
+    },
     "Expires in %@" : {
       "comment" : "android: mobile_public_links_expires_in",
       "localizations" : {
@@ -1547,6 +1558,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oldest first"
+          }
+        }
+      }
+    },
+    "On this iPad" : {
+      "comment" : "android: mobile_files_downloaded | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On this iPad"
           }
         }
       }

@@ -523,6 +523,38 @@ final class BoardCaptureTests: XCTestCase {
     ],
   ]
 
+  func testDownloadFileRows() throws {
+    let fixture = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_FIXTURE"])
+    let board = try XCTUnwrap(Self.fileRowBoards[fixture], "no board for \(fixture)")
+    let rows = try XCTUnwrap(Self.fileRowStatus[fixture], "unknown fixture \(fixture)")
+    orientForBoardDevice()
+    app.launchArguments += ["--putio-harness-downloads", fixture]
+    app.launch()
+    openSeasonFolder()
+    for (id, status) in rows {
+      let row = app.revealed("files.item.\(id)")
+      XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
+      XCTAssertTrue(row.label.contains(status), "row \(id) does not say \(status): \(row.label)")
+    }
+    if let first = rows.first { app.scrollDown(toHit: element("files.item.\(first.id)")) }
+    try captureBoard(board)
+  }
+
+  private static let fileRowBoards = [
+    "file-states": "rd-ios-23-download-states", "file-waiting": "rd-ios-65-download-waiting",
+  ]
+
+  private static let fileRowStatus: [String: [(id: Int, status: String)]] = [
+    "file-states": [
+      (441, "On this iP"), (442, "Downloading"), (443, "Converting"), (444, "Paused"),
+      (447, "Queued · #1 in line"), (448, "Connection lost"),
+    ],
+    "file-waiting": [
+      (441, "On this iP"), (442, "Waiting for network"), (443, "Waiting for storage"),
+      (444, "No longer on this iP"),
+    ],
+  ]
+
   func testFolderLoading() throws {
     orient(.portrait)
     app.launchArguments.append("--putio-harness-hold-season-listing")

@@ -345,6 +345,25 @@ final class PutioOfflineQueue {
     items.first { $0.id == fileID }
   }
 
+  func downloadState(for fileID: PutioFileID, on device: PutioDownloadDevice)
+    -> PutioDownloadState
+  {
+    guard let item = item(for: fileID) else {
+      return removals.contains { $0.item.id == fileID } ? .removing(on: device) : .idle
+    }
+    let positions = PutioOfflineSections(items, waitingForSlot: slotWaiters).queuePositions
+    return item.downloadState(queuePosition: positions[fileID])
+  }
+
+  func perform(_ action: PutioDownloadAction, fileID: PutioFileID) {
+    switch action {
+    case .pause: pause(fileID: fileID)
+    case .resume: resume(fileID: fileID)
+    case .cancel: remove(fileIDs: [fileID])
+    case .retry, .downloadAgain: retry(fileID: fileID)
+    }
+  }
+
   // MARK: Enqueue
 
   @discardableResult
