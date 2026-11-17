@@ -1038,9 +1038,8 @@ enum BoardCaptureContract {
       BoardCapture("rd-ios-trash-13-error", .iphone, "testTrashLoadFailed"),
       BoardCapture("rd-ios-trash-14-loading-more", .iphone, "testTrashLoadingMore"),
       BoardCapture("rd-ios-trash-15-load-more-failed", .iphone, "testTrashLoadMoreFailed"),
-      BoardCapture(
-        "rd-ios-trash-02-long-press", .iphone, "testTrashLongPress", screenBase: false),
-      BoardCapture("rd-ios-trash-03-swipe", .iphone, "testTrashSwipeRestore", screenBase: false),
+      BoardCapture("rd-ios-trash-02-long-press", .iphone, "testTrashLongPress"),
+      BoardCapture("rd-ios-trash-03-swipe", .iphone, "testTrashSwipeRestore"),
     ] + galleryPages.flatMap { page in galleryDevices.map { .gallery(page, $0) } }
     + iPadAccountScreens.map { screen, row in
       BoardCapture(
