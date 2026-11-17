@@ -84,12 +84,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     private func remoteStreamURL(for id: Int) async -> URL? {
-        let hideSubtitles = UserSettings.hidesSubtitles(context: "VideoDownloadManager.remoteStreamURL")
         do {
             guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.mediaToken) else {
                 return nil
             }
-            return source.url.applyingSubtitlePreference(hideSubtitles: hideSubtitles)
+            return source.url
         } catch {
             log.verbose(["VDM: remoteStreamURL, resolve failed", error])
             return nil

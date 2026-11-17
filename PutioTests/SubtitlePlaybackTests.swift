@@ -16,6 +16,15 @@ final class SubtitlePlaybackTests: XCTestCase {
         XCTAssertEqual(stream.applyingSubtitlePreference(hideSubtitles: false), stream)
     }
 
+    func testHiddenSubtitlesStartOffOnlyForOfflinePlayback() {
+        let offline = MediaPlayerItem(id: 1, name: "Sample.Show.S01E01.mkv", url: stream, fileType: .video, consumptionType: .offline)
+        let online = MediaPlayerItem(id: 1, name: "Sample.Show.S01E01.mkv", url: stream, fileType: .video, consumptionType: .online)
+
+        XCTAssertTrue(offline.startsWithSubtitlesOff(hideSubtitles: true))
+        XCTAssertFalse(offline.startsWithSubtitlesOff(hideSubtitles: false))
+        XCTAssertFalse(online.startsWithSubtitlesOff(hideSubtitles: true))
+    }
+
     func testCastTrackLabelIsLanguageAndFileNameWithoutExtension() throws {
         let subtitle = try sidecar(format: "srt", name: "Sample.Show.S01E01.en.srt")
 

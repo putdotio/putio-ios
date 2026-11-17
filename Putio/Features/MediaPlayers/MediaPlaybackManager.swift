@@ -19,7 +19,14 @@ class MediaPlaybackManager {
         let videoPlayerVC = VideoPlayerViewController()
 
         videoPlayerVC.item = video
-        videoPlayerVC.player = AVPlayer(url: video.url)
+        let playerItem = AVPlayerItem(url: video.url)
+        if video.startsWithSubtitlesOff(hideSubtitles: UserSettings.hidesSubtitles(context: "MediaPlaybackManager.playVideo")) {
+            Task { @MainActor in
+                guard let legible = try? await playerItem.asset.loadMediaSelectionGroup(for: .legible) else { return }
+                playerItem.select(nil, in: legible)
+            }
+        }
+        videoPlayerVC.player = AVPlayer(playerItem: playerItem)
 
         if (sourceViewController as? AVPlayerViewControllerDelegate) != nil {
             videoPlayerVC.delegate = sourceViewController as? AVPlayerViewControllerDelegate

@@ -59,6 +59,10 @@ struct MediaPlayerItem {
         self.startFrom = 0
     }
 
+    func startsWithSubtitlesOff(hideSubtitles: Bool) -> Bool {
+        consumptionType == .offline && hideSubtitles
+    }
+
     private static var hidesSubtitles: Bool {
         UserSettings.hidesSubtitles(context: "MediaPlayerItem.hidesSubtitles")
     }
