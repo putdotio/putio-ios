@@ -1098,6 +1098,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.staticTexts["poster.jpg"].appears(within: 30), "offline Trash never retried on its own")
     XCTAssertTrue(element(identifier: "trash.header").exists)
+    leaveTrashAndSignOut()
   }
 
   func testFailedTrashLoadTriesAgain() {
@@ -1111,6 +1112,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Gone today"].exists)
     XCTAssertTrue(app.staticTexts["Gone tomorrow"].exists)
     XCTAssertTrue(app.staticTexts["Gone in 14 days"].exists)
+    leaveTrashAndSignOut()
+  }
+
+  private func leaveTrashAndSignOut() {
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(
+      element(identifier: "auth.sign-in").appears(within: 10), "sign-out did not return to sign-in")
   }
 
   private func openSeededTrash(_ mode: String) {
