@@ -602,6 +602,9 @@ final class BoardCaptureTests: XCTestCase {
     add(folded)
     try unfold()
     XCTAssertTrue(detail.appears(within: 10), "unfolding lost the detail")
+    let list = app.collectionViews.firstMatch
+    for _ in 0..<4 where !row.exists { list.swipeDown() }
+    for _ in 0..<6 where !row.exists { list.swipeUp() }
     XCTAssertTrue(row.isSelected, "unfolding lost the selected row")
     app.buttons["downloads.detail.remove"].tap()
     let confirm = app.buttons["downloads.remove-confirm"].firstMatch
