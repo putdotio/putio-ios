@@ -2068,17 +2068,6 @@
         }
       }
     },
-    "Free on device" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Free on device"
-          }
-        }
-      }
-    },
     "Get VLC" : {
       "comment" : "android: mobile_files_get_vlc",
       "localizations" : {
@@ -2245,7 +2234,7 @@
       }
     },
     "Open a video or audio file’s actions and choose Download." : {
-      "comment" : "android: mobile_downloads_empty_message | differs: the board drops \"to this device\"",
+      "comment" : "android: mobile_downloads_empty_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
