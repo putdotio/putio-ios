@@ -2642,6 +2642,17 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(10) { app.mainWindow.frame.width != window.width },
       "the iPad never rotated")
+    let storage = element("shell.storage")
+    let sidebarShows = waitUntil(3) {
+      storage.exists && !storage.frame.isEmpty && app.mainWindow.frame.contains(storage.frame)
+    }
+    if sidebarShows {
+      XCTAssertGreaterThan(
+        element("history.list").frame.minX, storage.frame.maxX,
+        "the History column sits under the sidebar")
+      sidebarToggle().tap()
+      XCTAssertTrue(storage.disappears(within: 5), "the sidebar never closed")
+    }
     assertHistoryColumn()
   }
 
@@ -2671,9 +2682,8 @@ final class BoardCaptureTests: XCTestCase {
   private static let historyColumnWidth: CGFloat = 640
 
   func testHistoryMore() throws {
-    openHistoryMore()
+    let more = openHistoryMore()
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad" {
-      let more = app.buttons["history.menu"].frame
       let action = clearHistoryItem.frame
       XCTAssertLessThan(
         abs(action.maxX - more.maxX), 80, "the More menu does not anchor to its button")
@@ -2710,14 +2720,17 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-hist-11-clear-failed")
   }
 
-  private func openHistoryMore() {
+  @discardableResult
+  private func openHistoryMore() -> CGRect {
     openHistory("board")
     XCTAssertTrue(
       element("history.item.907").appears(within: 10), "the seeded history never loaded")
     let menu = app.buttons["history.menu"]
     XCTAssertTrue(menu.appears(within: 5), "History has no More menu")
+    let frame = menu.frame
     menu.tap()
     XCTAssertTrue(clearHistoryItem.appears(within: 5), "More has no Clear history")
+    return frame
   }
 
   private var clearHistoryItem: XCUIElement {
