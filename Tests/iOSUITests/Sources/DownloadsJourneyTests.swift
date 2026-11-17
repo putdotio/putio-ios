@@ -31,7 +31,7 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Queue: progress through completion.
     XCTAssertTrue(
-      waitForStage(item, "completed", timeout: 90),
+      waitForValue(item, "completed;watched", timeout: 90),
       "download did not complete: \(item.value ?? "")")
     XCTAssertTrue(element("downloads.storage-used").exists)
     screenshot("runtime-downloads-queue")
@@ -75,7 +75,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
-    XCTAssertEqual(stage(of: item), "completed")
+    XCTAssertEqual(item.value as? String, "completed;watched")
 
     app.terminate()
     let preference = try XCTUnwrap(
@@ -280,7 +280,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let original = element("downloads.item.412")
     XCTAssertTrue(original.appears(within: 10))
     XCTAssertTrue(
-      waitForStage(original, "completed", timeout: 90),
+      waitForValue(original, "completed;watched", timeout: 90),
       "the Direct play download did not complete: \(original.value ?? "")")
 
     app.buttons["Files"].tap()
@@ -299,7 +299,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let package = element("downloads.item.442")
     XCTAssertTrue(package.appears(within: 10))
     XCTAssertTrue(
-      waitForStage(package, "completed", timeout: 90),
+      waitForValue(package, "completed;watched", timeout: 90),
       "the Standard download did not complete: \(package.value ?? "")")
 
     let mediaBaseURL = try XCTUnwrap(
@@ -385,16 +385,6 @@ final class DownloadsJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", value), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-  }
-
-  private func waitForStage(_ element: XCUIElement, _ stage: String, timeout: TimeInterval)
-    -> Bool
-  {
-    waitUntil(timeout: timeout) { self.stage(of: element) == stage }
-  }
-
-  private func stage(of element: XCUIElement) -> String? {
-    (element.value as? String)?.split(separator: ";").first.map(String.init)
   }
 
   private func element(_ identifier: String) -> XCUIElement {
