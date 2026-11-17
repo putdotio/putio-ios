@@ -24,7 +24,6 @@ struct PutioOfflineDownloadsView: View {
       }
     }
     .accessibilityIdentifier("downloads.screen")
-    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing && !isPad))
     .putioContentBackground()
     .navigationTitle("Downloads")
     .navigationBarTitleDisplayMode(isEditing ? .inline : .large)

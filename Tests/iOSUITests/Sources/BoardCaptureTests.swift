@@ -320,6 +320,7 @@ final class BoardCaptureTests: XCTestCase {
     app.buttons["downloads.select.9001"].firstMatch.tap()
     XCTAssertEqual(finished.value as? String, "Selected", "the row menu did not tick its row")
     let audio = element("downloads.item.408")
+    app.swipeUp()
     app.bringIntoView(audio)
     audio.tap()
     assertSelectionSummary(bytes: 1_090_000_000 + 48_000_000)
