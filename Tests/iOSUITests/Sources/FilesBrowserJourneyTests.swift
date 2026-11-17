@@ -1192,6 +1192,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     leaveTrashAndSignOut()
   }
 
+  private func trashSettles() -> Bool {
+    XCTWaiter.wait(
+      for: [
+        XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "enabled == true"), object: app.buttons["trash.menu"])
+      ], timeout: 15) == .completed
+  }
+
   func testTrashRowsRestoreFromMenuAndSwipe() {
     openSeededTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
@@ -1220,12 +1228,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "trash.item.4303").disappears(within: 10),
       "the swipe restore kept the row")
     XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
-    XCTAssertTrue(
-      XCTWaiter.wait(
-        for: [
-          XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "enabled == true"), object: app.buttons["trash.menu"])
-        ], timeout: 15) == .completed, "the swipe restore never finished")
+    XCTAssertTrue(trashSettles(), "the swipe restore never finished")
 
     let fullSwipeRow = element(identifier: "trash.item.4305").firstMatch
     XCTAssertTrue(waitUntilHittable(fullSwipeRow, timeout: 5))
@@ -1240,6 +1243,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "trash.item.4305").disappears(within: 10),
       "a full leading swipe did not restore the row")
     XCTAssertFalse(element(identifier: "trash.progress").exists, "restore blocked Trash")
+    XCTAssertTrue(trashSettles(), "the full swipe restore never finished")
 
     let trashMenu = app.buttons["trash.menu"]
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
