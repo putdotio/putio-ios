@@ -312,14 +312,17 @@ final class DownloadsJourneyTests: XCTestCase {
       packageFiles.contains { $0.hasSuffix(".m3u8") }, "the Standard download is not an HLS package"
     )
 
-    original.tap()
-    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
-    XCTAssertTrue(element("downloads.detail.audio.tr").exists)
-    XCTAssertTrue(element("downloads.detail.subtitle.en").exists)
-    XCTAssertTrue(element("downloads.detail.subtitle.tr").exists)
+    original.press(forDuration: 1)
+    let infoButton = app.buttons["downloads.info.412"].firstMatch
+    XCTAssertTrue(infoButton.appears(within: 5), "the finished original offers no Info")
+    infoButton.tap()
+    let info = element("downloads.info-sheet.412")
+    XCTAssertTrue(info.appears(within: 5), "Info opened no sheet")
+    XCTAssertEqual(element("downloads.info.audio").value as? String, "English, Turkish")
+    XCTAssertEqual(element("downloads.info.subtitles").value as? String, "English, Turkish")
     screenshot("runtime-downloads-direct-play-original")
-    app.buttons["downloads.detail.done"].tap()
+    info.swipeDown(velocity: .fast)
+    XCTAssertTrue(info.disappears(within: 5), "swiping down left Info open")
     package.tap()
     let resume = app.buttons["video.resume.resume"].firstMatch
     if resume.appears(within: 10) { resume.tap() }
