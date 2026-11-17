@@ -266,6 +266,13 @@
             "Requests while the network is cut",
             value: HarnessSeededAPI.cutRequestCount(),
             identifier: "downloads.cut-requests")
+          Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Request paths while the network is cut")
+            .accessibilityValue(HarnessSeededAPI.cutRequestPaths().joined(separator: ","))
+            .accessibilityIdentifier("downloads.cut-paths")
+            .allowsHitTesting(false)
           probe(
             "Stored file position on put.io",
             value: HarnessSeededAPI.playbackPosition(fileID: Self.fileID),

@@ -485,7 +485,7 @@ final class DownloadsJourneyTests: XCTestCase {
       "the stored original is not playing: \(position.value ?? "")")
     XCTAssertEqual(
       element("downloads.cut-requests").value as? String, requests,
-      "playing the download made a network request")
+      "playing the download made a network request: \(element("downloads.cut-paths").value ?? "")")
     app.closeVideo()
     let saved = try reportedSeconds()
     XCTAssertNotEqual(

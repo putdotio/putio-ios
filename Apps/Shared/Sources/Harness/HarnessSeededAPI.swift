@@ -814,14 +814,19 @@ import Foundation
     private static let cutsNetwork = HarnessLaunch.arguments.contains(
       "--putio-harness-network-cut")
     private static let cutRequestLock = NSLock()
-    nonisolated(unsafe) private static var cutRequests = 0
+    nonisolated(unsafe) private static var cutRequests: [String] = []
 
     static func cutRequestCount() -> Int {
+      cutRequestLock.withLock { cutRequests.count }
+    }
+
+    static func cutRequestPaths() -> [String] {
       cutRequestLock.withLock { cutRequests }
     }
 
-    private static func recordCutRequest() {
-      cutRequestLock.withLock { cutRequests += 1 }
+    private static func recordCutRequest(_ request: URLRequest) {
+      let entry = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
+      cutRequestLock.withLock { cutRequests.append(entry) }
     }
 
     private static func reachesOffline(_ url: URL) -> Bool {
@@ -1202,7 +1207,7 @@ import Foundation
         }
         return
       }
-      if Self.cutsNetwork { Self.recordCutRequest() }
+      if Self.cutsNetwork { Self.recordCutRequest(request) }
       if Self.servesAppIcon(request) {
         DispatchQueue.main.async { [weak self] in
           let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }
