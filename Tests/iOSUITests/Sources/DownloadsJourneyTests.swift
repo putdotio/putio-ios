@@ -249,7 +249,7 @@ final class DownloadsJourneyTests: XCTestCase {
       "denied notifications showed no row")
     XCTAssertTrue(app.buttons["downloads.notifications-turn-on"].exists)
     XCTAssertTrue(
-      waitForValue(item, "completed", timeout: 60),
+      waitForValue(item, "completed;watched", timeout: 60),
       "the download did not finish without notifications: \(item.value ?? "")")
     screenshot("runtime-downloads-notifications-off")
 
