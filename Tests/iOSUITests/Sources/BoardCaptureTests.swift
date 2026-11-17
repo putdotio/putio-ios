@@ -467,8 +467,9 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(settles(failed) { $0 == "queued" }, "Try again did not restart the download")
 
     rotate(.portrait)
+    let retried = element("downloads.detail.444")
     XCTAssertTrue(
-      empty.disappears(within: 5), "portrait iPad Downloads kept the detail column")
+      retried.disappears(within: 5), "portrait iPad Downloads kept the detail column")
     XCTAssertTrue(element("downloads.item.9001").appears(within: 5), "portrait lost the list")
     let window = app.mainWindow.frame.size
     let portrait = XCTAttachment(
@@ -477,7 +478,8 @@ final class BoardCaptureTests: XCTestCase {
     portrait.lifetime = .keepAlways
     add(portrait)
     rotate(.landscapeLeft)
-    XCTAssertTrue(empty.appears(within: 5), "landscape iPad Downloads lost the detail column")
+    XCTAssertTrue(
+      retried.appears(within: 5), "landscape iPad Downloads lost the selected download")
     exerciseNarrowestSplit()
   }
 

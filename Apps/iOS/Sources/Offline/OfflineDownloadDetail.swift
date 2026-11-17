@@ -433,6 +433,8 @@ struct PutioOfflineDownloadDetailView: View {
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .frame(minWidth: PutioOfflineDetailLayout.factLabelWidth, alignment: .leading)
+        .accessibilityValue(value)
+        .accessibilityIdentifier("downloads.detail.\(id)")
       Group {
         if numeric {
           value.putioFont(PutioTheme.Typography.numeric)
@@ -442,10 +444,8 @@ struct PutioOfflineDownloadDetailView: View {
       }
       .foregroundStyle(isFailure ? PutioTheme.Colors.destructive : PutioTheme.Colors.textPrimary)
       .fixedSize(horizontal: false, vertical: true)
+      .accessibilityHidden(true)
     }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(Text(verbatim: label))
-    .accessibilityIdentifier("downloads.detail.\(id)")
   }
 }
 
