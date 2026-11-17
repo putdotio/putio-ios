@@ -24,6 +24,12 @@ final class VideoUpNextCardTests: XCTestCase {
       ("iPhone landscape", 874 - 2 * (62 + 16)), ("iPhone Pro Max landscape", 956 - 2 * (62 + 16)),
       ("iPad portrait", 820 - 2 * 16), ("iPad landscape", 1180 - 2 * 16),
     ]
+    for size in [DynamicTypeSize.large, .xxLarge] {
+      let card = PutioVideoUpNextAccessory(upNext: upNext, iconOnly: false).fixedSize()
+      let lines = try await read(card, width: 640, size: size, name: "up-next-ideal")
+      XCTAssertTrue(
+        readsMarker(lines), "the card's ideal width at \(size) hid the marker: \(lines)")
+    }
     for (device, width) in chipRowWidths {
       for size in [DynamicTypeSize.large, .xxLarge] {
         let row = PutioVideoChipRow(
