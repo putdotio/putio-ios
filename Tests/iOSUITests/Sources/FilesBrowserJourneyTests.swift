@@ -892,10 +892,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   func testTrashLimitAsksBeforeDeletingAndUnknownSettingBlocksTrash() {
     app.launchArguments += ["--putio-harness-trash-limit", "--putio-harness-unconfirmed-settings"]
     app.launch()
-    let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
-    signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    reachRoot()
 
     let folder = element(identifier: "files.item.410")
     XCTAssertTrue(waitUntilHittable(folder, timeout: 10))
@@ -1200,8 +1197,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let menuRow = element(identifier: "trash.item.4302").firstMatch
     XCTAssertTrue(waitUntilHittable(menuRow, timeout: 5))
     menuRow.press(forDuration: 1.0)
-    let menuRestore = app.buttons["item-action.trash-restore"]
-    XCTAssertTrue(waitUntilHittable(menuRestore, timeout: 5), "the long-press menu has no Restore")
+    let menuRestore = trashMenuRestore
+    XCTAssertTrue(menuRestore.appears(within: 5), "the long-press menu has no Restore")
     addScreenshot(named: "runtime-trash-row-menu")
     menuRestore.tap()
     XCTAssertTrue(
@@ -1252,7 +1249,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.buttons["trash.delete.4306"].appears(within: 2), "Select mode offers a Delete swipe")
     selectRow.press(forDuration: 1.0)
     XCTAssertFalse(
-      app.buttons["item-action.trash-restore"].appears(within: 2),
+      trashMenuRestore.appears(within: 2),
       "Select mode offers the long-press menu")
     app.buttons["trash.selection.done"].tap()
     XCTAssertTrue(element(identifier: "trash.item.4306").exists, "Select mode restored a row")
@@ -1291,13 +1288,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.staticTexts.matching(NSPredicate(format: "label == %@", name)).count
   }
 
+  private var trashMenuRestore: XCUIElement {
+    app.buttons.matching(
+      NSPredicate(
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+    ).firstMatch
+  }
+
   private func openSeededTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
     app.launch()
-    let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.appears(within: 10))
-    signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
+    reachRoot()
     app.buttons["Account"].tap()
     let trashEntry = element(identifier: "account.trash")
     XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))

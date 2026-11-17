@@ -4385,7 +4385,7 @@ final class BoardCaptureTests: XCTestCase {
     openTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
     element("trash.item.4302").firstMatch.press(forDuration: 1.0)
-    let restore = app.buttons["item-action.trash-restore"]
+    let restore = menuRestore
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
     XCTAssertEqual(restore.label, "Restore")
     XCTAssertFalse(
@@ -4410,6 +4410,13 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(restore.label, "Restore")
     XCTAssertTrue(element("trash.item.4304").exists, "the partial swipe restored the row")
     try captureBoard("rd-ios-trash-03-swipe")
+  }
+
+  private var menuRestore: XCUIElement {
+    app.buttons.matching(
+      NSPredicate(
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+    ).firstMatch
   }
 
   private func openTrash(_ mode: String) {
