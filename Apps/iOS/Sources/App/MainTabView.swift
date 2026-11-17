@@ -778,9 +778,9 @@ struct MainTabView: View {
   }
 
   private var downloads: some View {
-    NavigationStack {
-      PutioOfflineDownloadsView(queue: offlineQueue, onOpen: { item in openOffline(item) })
-    }
+    PutioOfflineDownloadsScreen(
+      queue: offlineQueue, loadDetails: { [runtime] in try await runtime.videoDetails(fileID: $0) },
+      onOpen: { item in openOffline(item) })
   }
 
   private var filesBrowser: some View {

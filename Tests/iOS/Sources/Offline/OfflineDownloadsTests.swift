@@ -2737,4 +2737,74 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(PutioOfflineLanguage.normalize("tr-TR"), "tr")
     XCTAssertEqual(PutioOfflineLanguage.normalize("und"), "und")
   }
+
+  func testTheIPadDetailOffersEachStateItsActionsAndFacts() throws {
+    let english = Locale(identifier: "en_US")
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    let tracks = [
+      PutioOfflineTrack(languageCode: "en", displayName: "English"),
+      PutioOfflineTrack(languageCode: "tr", displayName: "Turkish"),
+    ]
+    func item(
+      _ stage: PutioOfflineItem.Stage, kind: PutioOfflineItem.Kind = .video,
+      bytes: Int64 = 3_300_000_000
+    ) -> PutioOfflineItem {
+      PutioOfflineItem(
+        id: PutioFileID(rawValue: 441), parentID: .root, name: "S04E01.mkv", kind: kind,
+        createdAt: now, stage: stage, localPath: stage == .completed ? "a.movpkg" : nil,
+        storedBytes: stage == .completed ? 3_240_000_000 : 0,
+        storedAudioTracks: stage == .completed && kind == .video ? tracks : [],
+        storedSubtitleTracks: stage == .completed && kind == .video
+          ? tracks + [PutioOfflineTrack(languageCode: "en", displayName: "English")] : [],
+        resumePositionSeconds: 18 * 60 + 42, pendingPositionSeconds: nil, estimatedBytes: bytes)
+    }
+    func facts(
+      _ item: PutioOfflineItem, slot: Bool = false, subtitles: [String]? = nil
+    ) -> PutioOfflineDetailFacts {
+      PutioOfflineDetailFacts(
+        item, queuePosition: nil, isWaitingForSlot: slot, remoteSubtitles: subtitles,
+        locale: english, now: now)
+    }
+
+    let finished = facts(item(.completed))
+    XCTAssertEqual(finished.actions, [.play, .remove])
+    XCTAssertEqual(finished.resumeSeconds, 1_122)
+    XCTAssertEqual(finished.size, "3.24 GB")
+    XCTAssertNotNil(finished.downloaded)
+    XCTAssertNil(finished.status)
+    XCTAssertEqual(finished.audio, "English, Turkish")
+    XCTAssertEqual(finished.subtitles, "English, Turkish")
+
+    let audio = facts(item(.completed, kind: .audio))
+    XCTAssertEqual(audio.actions, [.play, .remove])
+    XCTAssertNil(audio.subtitles, "an audio download lists subtitles")
+    XCTAssertNil(audio.audio)
+
+    let running = facts(
+      item(.downloading(progress: 0.42)), subtitles: ["English", "English SDH", "Turkish"])
+    XCTAssertEqual(running.actions, [.pause, .cancel])
+    XCTAssertNil(running.resumeSeconds, "a running download offers to resume playback")
+    XCTAssertEqual(running.size, "1.39 of 3.3 GB")
+    XCTAssertEqual(running.status, .init(text: "Downloading", numeric: "42%", isFailure: false))
+    XCTAssertNil(running.downloaded)
+    XCTAssertNil(running.audio, "a running download names tracks it has not stored")
+    XCTAssertEqual(running.subtitles, "English, English SDH, Turkish")
+
+    let paused = facts(item(.paused(progress: 0.42)))
+    XCTAssertEqual(paused.actions, [.resume, .cancel])
+    XCTAssertEqual(paused.size, "1.39 of 3.3 GB")
+    XCTAssertEqual(paused.status?.text, "Paused")
+    XCTAssertEqual(facts(item(.paused(progress: 0.42)), slot: true).actions, [.pause, .cancel])
+    XCTAssertEqual(facts(item(.queued)).actions, [.pause, .cancel])
+
+    let lost = try XCTUnwrap(PutioOfflineFailure.resolving(PutioRuntimeError.transient))
+    let failed = facts(item(.failed(lost), bytes: 3_400_000_000), subtitles: ["English"])
+    XCTAssertEqual(failed.actions, [.retry, .remove])
+    XCTAssertEqual(failed.size, "3.4 GB")
+    XCTAssertEqual(failed.status, .init(text: "Connection lost", numeric: nil, isFailure: true))
+    XCTAssertNil(failed.audio, "a failed download lists audio")
+    XCTAssertNil(failed.subtitles, "a failed download lists subtitles")
+
+    XCTAssertEqual(facts(item(.missing)).actions, [.downloadAgain, .remove])
+  }
 }

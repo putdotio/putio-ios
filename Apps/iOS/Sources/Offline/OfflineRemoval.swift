@@ -1,4 +1,6 @@
 import Foundation
+import PutioCore
+import SwiftUI
 
 struct PutioOfflineRemovalCopy: Equatable {
   let isPad: Bool
@@ -66,5 +68,76 @@ struct PutioOfflineRemovalCopy: Equatable {
           "Nothing was removed because this iPhone could not save the change. Remove the downloads again."
       )
     }
+  }
+}
+
+private struct PutioOfflineRemovalAlert: ViewModifier {
+  @Binding var pending: [PutioOfflineItem]?
+  let queue: PutioOfflineQueue
+  let copy: PutioOfflineRemovalCopy
+  let onRemoved: @MainActor () -> Void
+
+  @State private var failed: [PutioFileID]?
+
+  func body(content: Content) -> some View {
+    content
+      .putioAlert(
+        copy.title(count: pending?.count ?? 1),
+        isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+        message: pending.map { copy.message(names: $0.map(\.name)) },
+        actions: removalActions
+      )
+      .putioAlert(
+        copy.failureTitle(count: failed?.count ?? 1),
+        isPresented: Binding(get: { failed != nil }, set: { if !$0 { failed = nil } }),
+        message: failed.map { copy.failureMessage(count: $0.count) },
+        actions: failureActions
+      )
+  }
+
+  private var removalActions: [PutioAlertAction] {
+    guard let fileIDs = pending?.map(\.id) else { return [] }
+    return [
+      PutioAlertAction(String(localized: "Cancel"), tier: .cancel, id: "downloads.remove-cancel"),
+      PutioAlertAction(
+        String(localized: "Remove"), tier: .destructive, id: "downloads.remove-confirm"
+      ) {
+        remove(fileIDs)
+      },
+    ]
+  }
+
+  private var failureActions: [PutioAlertAction] {
+    guard let fileIDs = failed else { return [] }
+    return [
+      PutioAlertAction(String(localized: "OK"), tier: .cancel, id: "downloads.remove-failed-ok"),
+      PutioAlertAction(
+        String(localized: "Try again"), tier: .primary, id: "downloads.remove-failed-retry"
+      ) {
+        remove(fileIDs)
+      },
+    ]
+  }
+
+  private func remove(_ fileIDs: [PutioFileID]) {
+    let present = fileIDs.filter { queue.item(for: $0) != nil }
+    guard !present.isEmpty else { return }
+    if queue.removeSaved(fileIDs: present) == nil {
+      failed = present
+    } else {
+      onRemoved()
+    }
+  }
+}
+
+extension View {
+  func putioOfflineRemovalAlert(
+    _ pending: Binding<[PutioOfflineItem]?>, queue: PutioOfflineQueue, isPad: Bool,
+    onRemoved: @escaping @MainActor () -> Void
+  ) -> some View {
+    modifier(
+      PutioOfflineRemovalAlert(
+        pending: pending, queue: queue, copy: PutioOfflineRemovalCopy(isPad: isPad),
+        onRemoved: onRemoved))
   }
 }

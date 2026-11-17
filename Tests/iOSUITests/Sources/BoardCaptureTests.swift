@@ -397,6 +397,164 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(failed.disappears(within: 5), "the removed failed download stayed")
   }
 
+  func testDownloadsDetail() throws {
+    let state = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_DETAIL"])
+    try openDownloadsFixture("list")
+    let empty = element("putio.list-detail.empty")
+    XCTAssertTrue(empty.appears(within: 5), "landscape iPad Downloads shows no detail column")
+    XCTAssertTrue(app.staticTexts["No download selected"].exists)
+    XCTAssertTrue(app.staticTexts["Tap a download to see it here."].exists)
+    switch state {
+    case "finished":
+      selectDownload(441, actions: ["play", "remove"])
+      XCTAssertFalse(element("video.ready").exists, "tapping the row played it")
+      XCTAssertEqual(app.buttons["downloads.detail.play"].label, "Resume from 18:42")
+      assertDetailFacts(
+        [
+          "size": "3.24 GB", "audio": "English, Turkish",
+          "subtitles": "English, English SDH, Turkish",
+        ],
+        order: ["size", "downloaded", "length", "audio", "subtitles"])
+      XCTAssertFalse(element("downloads.detail.status").exists, "a finished download has Status")
+      try captureBoard("rd-ios-dl-10-ipad")
+    case "downloading":
+      selectDownload(442, actions: ["pause", "cancel"])
+      assertDetailFacts(
+        ["size": "1.39 of 3.3 GB", "status": "Downloading · 42%"], order: ["size", "status"])
+      XCTAssertFalse(element("downloads.detail.audio").exists, "a running download lists audio")
+      try captureBoard("rd-ios-dl-22-ipad-downloading")
+    case "failed":
+      selectDownload(444, actions: ["retry", "remove"])
+      assertDetailFacts(["status": "Connection lost"], order: ["size", "status"])
+      XCTAssertFalse(element("downloads.detail.audio").exists, "a failed download lists audio")
+      try captureBoard("rd-ios-dl-23-ipad-failed")
+    default:
+      exerciseDownloadsDetail(empty: empty)
+      try captureBoard("ipad-downloads-detail")
+    }
+  }
+
+  private func exerciseDownloadsDetail(empty: XCUIElement) {
+    let finished = element("downloads.item.441")
+    openRowMenu(441, ["play", "select", "remove-menu"])
+    XCTAssertFalse(
+      app.buttons["downloads.info.441"].exists, "two columns offer Info in the row menu")
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.6)).tap()
+    selectDownload(441, actions: ["play", "remove"])
+    app.buttons["downloads.detail.remove"].tap()
+    let confirm = app.buttons["downloads.remove-confirm"].firstMatch
+    XCTAssertTrue(confirm.appears(within: 5), "Remove asked for no confirmation")
+    confirm.tap()
+    XCTAssertTrue(finished.disappears(within: 5), "the removed download stayed")
+    XCTAssertTrue(empty.appears(within: 5), "the detail kept the removed download")
+
+    let running = element("downloads.item.442")
+    selectDownload(442, actions: ["pause", "cancel"])
+    let pause = app.buttons["downloads.detail.pause"]
+    let cancel = app.buttons["downloads.detail.cancel"]
+    XCTAssertEqual(pause.frame.midY, cancel.frame.midY, accuracy: 1, "the actions wrapped")
+    pause.tap()
+    XCTAssertTrue(settles(running) { $0 == "paused;42" }, "Pause in the detail did not pause")
+    XCTAssertTrue(
+      app.buttons["downloads.detail.resume"].appears(within: 5), "the paused detail has no Resume")
+    cancel.tap()
+    XCTAssertTrue(running.disappears(within: 5), "Cancel download kept the row")
+    XCTAssertTrue(empty.appears(within: 5), "the detail kept the cancelled download")
+
+    let failed = element("downloads.item.444")
+    selectDownload(444, actions: ["retry", "remove"])
+    app.buttons["downloads.detail.retry"].tap()
+    XCTAssertTrue(settles(failed) { $0 == "queued" }, "Try again did not restart the download")
+
+    rotate(.portrait)
+    let retried = element("downloads.detail.444")
+    XCTAssertTrue(
+      retried.disappears(within: 5), "portrait iPad Downloads kept the detail column")
+    XCTAssertTrue(element("downloads.item.9001").appears(within: 5), "portrait lost the list")
+    let window = app.mainWindow.frame.size
+    let portrait = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
+    portrait.name = "ipad-downloads-portrait"
+    portrait.lifetime = .keepAlways
+    add(portrait)
+    rotate(.landscapeLeft)
+    XCTAssertTrue(
+      retried.appears(within: 5), "landscape iPad Downloads lost the selected download")
+    exerciseNarrowestSplit()
+  }
+
+  private func exerciseNarrowestSplit() {
+    app.terminate()
+    app.launchArguments += [
+      "--putio-harness-downloads-width", String(Int(Self.narrowestRegularSplitWidth)),
+    ]
+    openDownloads("list")
+    let empty = element("putio.list-detail.empty")
+    XCTAssertTrue(
+      empty.appears(within: 5), "a regular-width split taller than wide shows no detail column")
+    selectDownload(442, actions: ["pause", "cancel"])
+    let detail = element("downloads.detail.442")
+    let pause = app.buttons["downloads.detail.pause"]
+    let cancel = app.buttons["downloads.detail.cancel"]
+    XCTAssertEqual(pause.frame.midY, cancel.frame.midY, accuracy: 1, "the split actions wrapped")
+    XCTAssertLessThanOrEqual(
+      cancel.frame.maxX, detail.frame.maxX + 1, "the split actions overflow the detail")
+    let window = app.mainWindow.frame.size
+    let split = XCTAttachment(
+      image: Self.oriented(Self.screenshot(showing: window), toMatch: window))
+    split.name = "ipad-downloads-split"
+    split.lifetime = .keepAlways
+    add(split)
+  }
+
+  private static let narrowestRegularSplitWidth = 678.0
+
+  private func selectDownload(_ id: Int, actions: [String]) {
+    let row = element("downloads.item.\(id)")
+    app.bringIntoView(row)
+    row.tap()
+    let detail = element("downloads.detail.\(id)")
+    XCTAssertTrue(detail.appears(within: 5), "row \(id) opened no detail")
+    XCTAssertTrue(row.isSelected, "row \(id) is not marked selected")
+    let buttons = actions.map { app.buttons["downloads.detail.\($0)"] }
+    for (action, button) in zip(actions, buttons) {
+      XCTAssertTrue(button.exists, "the detail of \(id) has no \(action)")
+    }
+    let lefts = buttons.map(\.frame.minX)
+    XCTAssertEqual(lefts, lefts.sorted(), "the detail actions of \(id) are out of order")
+  }
+
+  private func assertDetailFacts(_ values: [String: String], order: [String]) {
+    for (id, value) in values {
+      XCTAssertEqual(element("downloads.detail.\(id)").value as? String, value, "detail \(id)")
+    }
+    let rows = order.map { element("downloads.detail.\($0)") }
+    for (id, row) in zip(order, rows) {
+      XCTAssertTrue(row.appears(within: 10), "the detail has no \(id)")
+    }
+    let tops = rows.map(\.frame.minY)
+    XCTAssertEqual(tops, tops.sorted(), "the detail facts are out of order")
+  }
+
+  private func openDownloadsFixture(_ fixture: String) throws {
+    let rows = try XCTUnwrap(Self.downloadsFixtureRows[fixture], "unknown fixture \(fixture)")
+    if fixture == "attention-states" { orient(.portrait) } else { orientForBoardDevice() }
+    openDownloads(fixture)
+    if rows.isEmpty {
+      XCTAssertTrue(
+        app.staticTexts["Nothing downloaded yet"].appears(within: 5), "the empty fixture has rows")
+    }
+    for pass in 0..<2 where !rows.isEmpty {
+      if pass > 0 { RunLoop.current.run(until: .now.addingTimeInterval(3)) }
+      for (id, state) in rows {
+        let row = app.revealed("downloads.item.\(id)")
+        XCTAssertTrue(row.exists, "\(fixture) has no row \(id)")
+        XCTAssertEqual(row.value as? String, state, "\(fixture) row \(id) moved")
+      }
+      if let first = rows.first { app.scrollDown(toHit: element("downloads.item.\(first.id)")) }
+    }
+  }
+
   func testDownloadsMenu() throws {
     let menu = try XCTUnwrap(ProcessInfo.processInfo.environment["PUTIO_DOWNLOADS_MENU"])
     orient(.portrait)

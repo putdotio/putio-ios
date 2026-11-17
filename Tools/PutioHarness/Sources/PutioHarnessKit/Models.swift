@@ -770,6 +770,18 @@ enum BoardCaptureContract {
         "rd-ios-dl-21-ipad-none", .ipad, "testDownloadsFixture",
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "list"]),
       BoardCapture(
+        "rd-ios-dl-10-ipad", .ipad, "testDownloadsDetail",
+        environment: ["PUTIO_DOWNLOADS_DETAIL": "finished"]),
+      BoardCapture(
+        "rd-ios-dl-22-ipad-downloading", .ipad, "testDownloadsDetail", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_DETAIL": "downloading"]),
+      BoardCapture(
+        "rd-ios-dl-23-ipad-failed", .ipad, "testDownloadsDetail", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_DETAIL": "failed"]),
+      BoardCapture(
+        "ipad-downloads-detail", .ipad, "testDownloadsDetail", screenBase: false,
+        environment: ["PUTIO_DOWNLOADS_DETAIL": "journey"]),
+      BoardCapture(
         "rd-ios-dl-24-ipad-empty", .ipad, "testDownloadsFixture", screenBase: false,
         environment: ["PUTIO_DOWNLOADS_FIXTURE": "empty"]),
       BoardCapture(
