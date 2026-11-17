@@ -79,6 +79,8 @@ offline playback.
   finishes a download with notification permission denied.
 - `download-file-rows` pauses, resumes and retries downloads from Files rows
   and checks the Downloads tab agrees.
+- `downloads-direct-play-offline` plays a Direct play download with the network
+  cut, switches its stored subtitle and audio track, and syncs the position.
 - `large-text-audio` keeps the audio controls usable at the largest text size
   in portrait and landscape.
 
@@ -222,7 +224,7 @@ Preconditions:
   searching. Boards:
   `rd-ios-pb-31-cast-picker`, `rd-ios-pb-33-local-network-off`.
 - **Downloads.** Run
-  `--only downloads,unsaved-downloads,download-start-failed,downloads-method,download-notifications-off,download-file-rows`.
+  `--only downloads,unsaved-downloads,download-start-failed,downloads-method,download-notifications-off,download-file-rows,downloads-direct-play-offline`.
   Screenshots: `runtime-downloads-queue`, `runtime-downloads-info`,
   `runtime-downloads-selection`, `runtime-downloads-remove`,
   `runtime-downloads-start-failed`, `runtime-downloads-notifications-off`.

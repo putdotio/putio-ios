@@ -649,10 +649,10 @@ final class PutioOfflineQueue {
     }
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
     let url = playbackURL(localPath)
-    return PutioPlaybackSource(
-      url: item.isOriginal
-        ? PutioOfflineOriginalPackage.mediaURL(in: url, name: item.name) : url,
-      startFromSeconds: resume)
+    guard item.isOriginal else { return PutioPlaybackSource(url: url, startFromSeconds: resume) }
+    return PutioPlaybackSource.stored(
+      fileURL: PutioOfflineOriginalPackage.mediaURL(in: url, name: item.name),
+      startFromSeconds: resume, subtitles: PutioOfflineOriginalPackage.playbackSubtitles(in: url))
   }
 
   /// Records a position locally first, then forwards it. A failed forward

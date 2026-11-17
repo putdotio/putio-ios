@@ -56,10 +56,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     }
   }
 
-  var isPlayable: Bool {
-    guard stage == .completed, localPath != nil else { return false }
-    return !isOriginal || PutioOfflineOriginalPackage.playsInAVPlayer(name: name)
-  }
+  var isPlayable: Bool { stage == .completed && localPath != nil }
 
   var isOriginal: Bool { playbackMethod == .directPlay }
 

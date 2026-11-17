@@ -1406,6 +1406,13 @@ enum BrowserJourneyContract {
       "download-file-rows",
       "DownloadsJourneyTests/testFileRowsControlDownloadsAndFollowTheDownloadsTab",
       timeAllowance: 90),
+      "downloads-direct-play-offline",
+      "DownloadsJourneyTests/testADirectPlayDownloadPlaysOfflineWithItsSubtitlesAndSyncsItsPosition",
+      attachmentNames: [
+        "runtime-downloads-offline-direct-play-subtitles",
+        "runtime-downloads-offline-direct-play-audio",
+      ],
+      timeAllowance: 300),
     JourneyPreflight(
       "cast",
       "ChromecastJourneyTests/testCastingLoadsFailsRetriesPlaysAndHandsBackTheReceiverPosition",

@@ -256,6 +256,35 @@
     }
   }
 
+  struct HarnessStoredPlaybackProbe: View {
+    static let fileID = 412
+
+    var body: some View {
+      TimelineView(.periodic(from: .now, by: 0.25)) { _ in
+        ZStack {
+          probe(
+            "Requests for the stored file while the network is cut",
+            value: HarnessSeededAPI.cutFileRequestCount(fileID: Self.fileID),
+            identifier: "downloads.cut-requests")
+          probe(
+            "Stored file position on put.io",
+            value: HarnessSeededAPI.playbackPosition(fileID: Self.fileID),
+            identifier: "downloads.seeded-position")
+        }
+      }
+    }
+
+    private func probe(_ label: String, value: Int, identifier: String) -> some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue("\(value)")
+        .accessibilityIdentifier(identifier)
+        .allowsHitTesting(false)
+    }
+  }
+
   @MainActor
   enum HarnessDownloadsNetwork {
     static let restoreNotification = "io.put.harness.downloads-network-restore"

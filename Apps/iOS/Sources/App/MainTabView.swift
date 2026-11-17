@@ -953,6 +953,7 @@ struct MainTabView: View {
         HarnessHistoryRequestsProbe()
         HarnessConversionReadsProbe()
         HarnessDownloadsSyncProbe()
+        HarnessStoredPlaybackProbe()
         if let reported = cast.reportedPosition {
           HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
         }

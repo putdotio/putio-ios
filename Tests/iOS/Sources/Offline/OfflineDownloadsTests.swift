@@ -385,6 +385,7 @@ final class OfflineDownloadsTests: XCTestCase {
       ["WEBVTT en", "WEBVTT tr"])
 
     try engine.finishOriginal(directPlay)
+    try engine.finish(standard, at: directory)
     await settle()
     let downloaded = try XCTUnwrap(queue.item(for: directPlay))
     XCTAssertEqual(downloaded.stage, .completed)
@@ -393,6 +394,16 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(source.url.lastPathComponent, "original.mp4")
     XCTAssertEqual(source.startFromSeconds, 734)
     XCTAssertEqual(try Data(contentsOf: source.url).count, 2_048)
+    let original = try XCTUnwrap(source.original, "a Direct play download lost the engine")
+    XCTAssertEqual(original.player, .engine)
+    XCTAssertEqual(original.subtitles.map(\.languageCode), ["en", "tr"])
+    XCTAssertEqual(original.subtitles.map(\.language), ["English", "Turkish"])
+    XCTAssertEqual(
+      try original.subtitles.map { try String(contentsOf: $0.url, encoding: .utf8) },
+      ["WEBVTT en", "WEBVTT tr"])
+    let hls = try XCTUnwrap(queue.localSource(for: standard))
+    XCTAssertEqual(hls.url.pathExtension, "movpkg")
+    XCTAssertNil(hls.original, "a Standard download left AVPlayer")
 
     let relaunched = makeQueue()
     XCTAssertEqual(relaunched.item(for: standard)?.playbackMethod, .standard)
@@ -401,7 +412,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(relaunched.localSource(for: directPlay)?.url, source.url)
   }
 
-  func testOnlyAnOriginalAVPlayerOpensIsPlayableBeforeOfflineDirectPlay() {
+  func testEveryFinishedDownloadIsPlayableWhateverItsContainer() {
     func finished(_ name: String, _ method: PutioPlaybackMethod) -> PutioOfflineItem {
       PutioOfflineItem(
         id: PutioFileID(rawValue: 412), parentID: .root, name: name, kind: .video,
@@ -409,7 +420,7 @@ final class OfflineDownloadsTests: XCTestCase {
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
         pendingPositionSeconds: nil, estimatedBytes: 1, playbackMethod: method)
     }
-    XCTAssertFalse(finished("Movie.mkv", .directPlay).isPlayable)
+    XCTAssertTrue(finished("Movie.mkv", .directPlay).isPlayable)
     XCTAssertTrue(finished("Movie.MP4", .directPlay).isPlayable)
     XCTAssertTrue(finished("Movie.mkv", .standard).isPlayable)
   }
