@@ -137,6 +137,11 @@ export const semanticColorRoles = [
     token: "component.alias.destructiveDark",
   },
   {
+    assetName: "PutioDestructiveText",
+    swiftName: "destructiveText",
+    token: "color.red.dark.textSecondary",
+  },
+  {
     assetName: "PutioDestructiveForeground",
     swiftName: "destructiveForeground",
     token: "component.alias.destructiveForeground",

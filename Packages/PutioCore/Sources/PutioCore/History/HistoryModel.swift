@@ -29,9 +29,11 @@ public struct PutioHistoryActions: Sendable {
 
 public struct PutioHistoryFailure: Equatable {
   public let message: String
+  public let isNotFound: Bool
 
   init?(error: Error) {
     guard !(error is CancellationError) else { return nil }
+    isNotFound = error as? PutioRuntimeError == .notFound
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired: return nil
     case .notFound:

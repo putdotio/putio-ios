@@ -365,6 +365,7 @@ struct MainTabView: View {
     .onChange(of: scenePhase) { _, phase in
       guard phase == .active else { return }
       externalPlayback.refreshInstallation()
+      offlineQueue.refreshStorage()
       Task { await offlineQueue.syncPendingPositions() }
       Task { await runtime.refreshAccount() }
     }

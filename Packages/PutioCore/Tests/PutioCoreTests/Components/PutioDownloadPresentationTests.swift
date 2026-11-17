@@ -39,6 +39,13 @@ final class PutioDownloadPresentationTests: XCTestCase {
     XCTAssertEqual(presentation(state).action, .pause)
   }
 
+  func testWaitingToConvertNamesTheWaitWithoutAPlaceInLine() {
+    XCTAssertEqual(statusLine(.waitingToConvert), ["Waiting to convert"])
+    XCTAssertEqual(
+      presentation(.waitingToConvert).ring, .progress(0, isActive: true, glyph: .pause))
+    XCTAssertEqual(presentation(.waitingToConvert).action, .pause)
+  }
+
   func testPausedShowsBytesWithAGreyPlayRingThatResumes() {
     let state = PutioDownloadState.paused(receivedBytes: 900_000_000, totalBytes: 3_400_000_000)
     XCTAssertEqual(statusLine(state), ["Paused", "0.9 of 3.4 GB"])
@@ -65,15 +72,14 @@ final class PutioDownloadPresentationTests: XCTestCase {
       .progress(200_000_000.0 / 3_400_000_000.0, isActive: false, glyph: .pause))
   }
 
-  func testWaitingWithNothingDownloadedShowsADashedRingThatCancels() {
+  func testWaitingWithNothingDownloadedStillShowsAPauseRing() {
     for (wait, text) in [
       (PutioDownloadWait.network, "Waiting for network"), (.storage, "Waiting for storage"),
-      (.slot, "Waiting for a slot"),
     ] {
-      let state = PutioDownloadState.waiting(wait, receivedBytes: 0, totalBytes: 3_300_000_000)
-      XCTAssertEqual(statusLine(state), [text])
-      XCTAssertEqual(presentation(state).ring, .dashed(glyph: nil))
-      XCTAssertEqual(presentation(state).action, .cancel)
+      let state = PutioDownloadState.waiting(wait, receivedBytes: 0, totalBytes: 3_400_000_000)
+      XCTAssertEqual(statusLine(state), [text, "0 of 3.4 GB"])
+      XCTAssertEqual(presentation(state).ring, .progress(0, isActive: false, glyph: .pause))
+      XCTAssertEqual(presentation(state).action, .pause)
     }
   }
 
@@ -85,8 +91,10 @@ final class PutioDownloadPresentationTests: XCTestCase {
   }
 
   func testRemovingDimsTheRowWithoutAControl() {
-    let removing = presentation(.removing)
+    let removing = presentation(.removing(on: .iPhone))
     XCTAssertEqual(removing.statusLine.map(\.text), ["Removing from this iPhone…"])
+    XCTAssertEqual(
+      presentation(.removing(on: .iPad)).statusLine.map(\.text), ["Removing from this iPad…"])
     XCTAssertEqual(removing.ring, .hidden)
     XCTAssertNil(removing.action)
     XCTAssertTrue(removing.dimsRow)

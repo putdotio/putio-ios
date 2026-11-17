@@ -32,7 +32,7 @@ enum PutioOfflineQueueFactory {
     }
     // A queue outlived by its shell must not write to the next shell's document.
     let sessionGeneration = runtime.session.authenticationGeneration
-    return PutioOfflineQueue(
+    let queue = PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory, accountID: accountID),
       engine: seeded?.engine ?? PutioSystemOfflineDownloadEngine(accountID: accountID),
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
@@ -87,8 +87,20 @@ enum PutioOfflineQueueFactory {
         return current.trashEnabled
       },
       isLive: { runtime.session.authenticationGeneration == sessionGeneration },
-      playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:)
+      playbackURL: seeded?.playbackURL ?? PutioOfflineQueue.localURL(for:),
+      deletePackages: seeded?.deletePackages
     )
+    if let seeded {
+      if !seeded.removingIDs.isEmpty {
+        Task {
+          await queue.restore()
+          queue.remove(fileIDs: seeded.removingIDs)
+        }
+      }
+    } else {
+      queue.observeNetwork()
+    }
+    return queue
   }
 
   private struct SeededQueue {
@@ -100,6 +112,8 @@ enum PutioOfflineQueueFactory {
     let resolve: PutioOfflineResolve
     let startConversion: PutioOfflineConversionStart
     let conversionStatus: PutioOfflineConversionStatus
+    let deletePackages: PutioOfflinePackageDeletion?
+    let removingIDs: [PutioFileID]
   }
 
   @MainActor
@@ -112,7 +126,7 @@ enum PutioOfflineQueueFactory {
       let directory = FileManager.default.temporaryDirectory.appending(
         path: "harness-offline-fixture")
       fixture.writeStore(at: directory, accountID: accountID, now: now, locked: writesFail)
-      let conversions = fixture.conversionProgress(now: now)
+      let conversions = fixture.conversions(now: now)
       return SeededQueue(
         directory: directory,
         engine: HarnessFrozenOfflineEngine(transferring: fixture.transferringIDs(now: now)),
@@ -125,7 +139,9 @@ enum PutioOfflineQueueFactory {
           throw CancellationError()
         },
         startConversion: { _ in },
-        conversionStatus: { fileID in .converting(progress: conversions[fileID] ?? 0) })
+        conversionStatus: { fileID in conversions[fileID] ?? .queued },
+        deletePackages: fixture.deletePackages,
+        removingIDs: fixture.removingIDs)
     #else
       return nil
     #endif

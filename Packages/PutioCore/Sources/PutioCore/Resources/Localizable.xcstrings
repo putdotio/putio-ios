@@ -224,6 +224,17 @@
         }
       }
     },
+    "Callback failed" : {
+      "comment" : "android: mobile_history_kind_callback_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Callback failed"
+          }
+        }
+      }
+    },
     "Audio track %lld" : {
       "comment" : "android: playback_audio_track_number",
       "localizations" : {
@@ -908,6 +919,17 @@
         }
       }
     },
+    "Deleted to free space" : {
+      "comment" : "android: mobile_history_kind_rss_file_deleted",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted to free space"
+          }
+        }
+      }
+    },
     "Deleting item %lld of %lld…" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -1582,6 +1604,17 @@
         }
       }
     },
+    "RSS filter paused" : {
+      "comment" : "android: mobile_history_kind_rss_filter_paused",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RSS filter paused"
+          }
+        }
+      }
+    },
     "RSS logs" : {
       "comment" : "ios-only: no Android string for the shared account data categories",
       "localizations" : {
@@ -1589,6 +1622,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "RSS logs"
+          }
+        }
+      }
+    },
+    "RSS transfer failed" : {
+      "comment" : "android: mobile_history_kind_rss_transfer_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "RSS transfer failed"
+          }
+        }
+      }
+    },
+    "Removing from this iPad…" : {
+      "comment" : "android: mobile_downloads_status_removing | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removing from this iPad…"
           }
         }
       }
@@ -1644,6 +1699,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select all"
+          }
+        }
+      }
+    },
+    "Shared with you" : {
+      "comment" : "android: mobile_history_kind_shared",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared with you"
           }
         }
       }
@@ -1978,6 +2044,28 @@
         }
       }
     },
+    "Transfer completed" : {
+      "comment" : "android: mobile_history_kind_transfer_completed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transfer completed"
+          }
+        }
+      }
+    },
+    "Transfer failed" : {
+      "comment" : "android: mobile_history_kind_transfer_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transfer failed"
+          }
+        }
+      }
+    },
     "Trash" : {
       "comment" : "android: mobile_files_trash_short",
       "localizations" : {
@@ -2077,6 +2165,17 @@
         }
       }
     },
+    "Uploaded" : {
+      "comment" : "android: mobile_history_kind_uploaded",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uploaded"
+          }
+        }
+      }
+    },
     "Video not found" : {
       "comment" : "android: mobile_files_folder_not_found | differs: the player names the video",
       "localizations" : {
@@ -2099,17 +2198,6 @@
         }
       }
     },
-    "Waiting for a slot" : {
-      "comment" : "ios-only: no Android string for the iOS offline downloads",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting for a slot"
-          }
-        }
-      }
-    },
     "Waiting for network" : {
       "comment" : "android: mobile_files_download_waiting",
       "localizations" : {
@@ -2128,6 +2216,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Waiting for storage"
+          }
+        }
+      }
+    },
+    "Waiting to convert" : {
+      "comment" : "android: mobile_playback_conversion_queued | differs: a download row drops the ellipsis",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting to convert"
           }
         }
       }
