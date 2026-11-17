@@ -4522,6 +4522,7 @@ final class BoardCaptureTests: XCTestCase {
     openTrash("board")
     let name = "Blue.Velvet.1986.1080p.BluRay.mkv"
     XCTAssertTrue(app.staticTexts[name].appears(within: 10), "Trash never loaded")
+    showSettledTabBar()
     element("trash.item.4302").firstMatch.press(forDuration: 1.0)
     let delete = menuDelete
     XCTAssertTrue(delete.appears(within: 5), "the long-press menu has no Delete permanently")
@@ -4534,7 +4535,7 @@ final class BoardCaptureTests: XCTestCase {
       ].exists, "the alert has no message")
     XCTAssertTrue(alert.buttons["Cancel"].exists, "the alert has no Cancel")
     XCTAssertEqual(alert.buttons["confirm-alert.confirm"].label, "Delete")
-    try captureTrashBoard("rd-ios-trash-07-delete-confirm")
+    try captureBoard("rd-ios-trash-07-delete-confirm")
   }
 
   func testTrashDeleteFailed() throws {
