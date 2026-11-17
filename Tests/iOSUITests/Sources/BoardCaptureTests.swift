@@ -4436,7 +4436,7 @@ final class BoardCaptureTests: XCTestCase {
     let restore = menuRestore
     XCTAssertTrue(restore.appears(within: 5), "the long-press menu has no Restore")
     XCTAssertEqual(restore.label, "Restore")
-    let delete = app.buttons["item-action.trash-delete"]
+    let delete = menuDelete
     XCTAssertTrue(delete.exists, "the long-press menu has no Delete permanently")
     XCTAssertEqual(delete.label, "Delete permanently")
     XCTAssertGreaterThan(delete.frame.minY, restore.frame.minY, "Delete permanently is not last")
@@ -4462,10 +4462,14 @@ final class BoardCaptureTests: XCTestCase {
     try captureBoard("rd-ios-trash-03-swipe")
   }
 
-  private var menuRestore: XCUIElement {
+  private var menuRestore: XCUIElement { trashMenuItem("Restore") }
+
+  private var menuDelete: XCUIElement { trashMenuItem("Delete permanently") }
+
+  private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
     ).firstMatch
   }
 
@@ -4519,7 +4523,7 @@ final class BoardCaptureTests: XCTestCase {
     let name = "Blue.Velvet.1986.1080p.BluRay.mkv"
     XCTAssertTrue(app.staticTexts[name].appears(within: 10), "Trash never loaded")
     element("trash.item.4302").firstMatch.press(forDuration: 1.0)
-    let delete = app.buttons["item-action.trash-delete"]
+    let delete = menuDelete
     XCTAssertTrue(delete.appears(within: 5), "the long-press menu has no Delete permanently")
     delete.tap()
     let alert = app.putioAlert("Delete permanently?")

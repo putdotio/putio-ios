@@ -1045,7 +1045,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let headerBeforeDelete = header.label
     let deleteAlert = app.putioAlert("Delete permanently?")
     element(identifier: "trash.item.420").firstMatch.press(forDuration: 1.0)
-    let menuDelete = app.buttons["item-action.trash-delete"]
+    let menuDelete = trashMenuItem("Delete permanently")
     XCTAssertTrue(waitUntilHittable(menuDelete, timeout: 5), "the menu has no Delete permanently")
     menuDelete.tap()
     XCTAssertTrue(deleteAlert.appears(within: 5), "the menu deleted without asking")
@@ -1376,10 +1376,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.staticTexts.matching(NSPredicate(format: "label == %@", name)).count
   }
 
-  private var trashMenuRestore: XCUIElement {
+  private var trashMenuRestore: XCUIElement { trashMenuItem("Restore") }
+
+  private func trashMenuItem(_ label: String) -> XCUIElement {
     app.buttons.matching(
       NSPredicate(
-        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", "Restore", "trash.")
+        format: "label == %@ AND NOT (identifier BEGINSWITH %@)", label, "trash.")
     ).firstMatch
   }
 
