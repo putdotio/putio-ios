@@ -447,6 +447,11 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(finished("Movie.mkv", .standard).isPlayable)
     XCTAssertFalse(finished("Movie.mkv", .directPlay, enginePlays: false).isPlayable)
     XCTAssertTrue(finished("Movie.MOV", .directPlay, enginePlays: false).isPlayable)
+    XCTAssertTrue(finished("Movie.MOV", .directPlay, enginePlays: false).playsOriginalInAVPlayer)
+    XCTAssertTrue(
+      finished("Movie.mp4", .directPlay).playsOriginalInAVPlayer,
+      "an original stored before the engine check left AVPlayer")
+    XCTAssertFalse(finished("Movie.mp4", .directPlay, enginePlays: true).playsOriginalInAVPlayer)
   }
 
   func testConcurrencyLimitBoundsActiveDownloadsAcrossMixedKinds() async throws {
