@@ -24,7 +24,7 @@ final class TrashManagementViewTests: XCTestCase {
     let row = TrashManagementView.rowModel(
       for: item, relativeTo: now, locale: locale, calendar: calendar)
 
-    XCTAssertEqual(row.kind, .file)
+    XCTAssertEqual(row.kind, .text)
     XCTAssertEqual(row.sizeText, PutioFileRowModel.sizeText(bytes: 2_000, locale: locale))
     XCTAssertEqual(row.dateText, "Gone in 12 days")
     XCTAssertNil(row.secondaryText)

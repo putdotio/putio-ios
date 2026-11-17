@@ -3415,7 +3415,7 @@ final class BoardCaptureTests: XCTestCase {
 
   private func openTrash(_ mode: String) {
     app.launchArguments += ["--putio-harness-trash", mode]
-    orient(.portrait)
+    orientForBoardDevice()
     app.launch()
     reachFilesRoot()
     let profile = element("account.profile")

@@ -32,6 +32,7 @@ struct TrashManagementView: View {
       switch model.state {
       case .loading:
         PutioLoadingStateView(title: String(localized: "Loading Trash"), titleVisibility: .hidden)
+          .modifier(TrashStatePlacement(.loading))
       case .failed(let failure):
         PutioErrorStateView(
           title: failure.title,
@@ -41,6 +42,7 @@ struct TrashManagementView: View {
         ) {
           Task { await model.retryFailedLoad() }
         }
+        .modifier(TrashStatePlacement(.failed))
       case .loaded(let page):
         loadedContent(page)
       }
@@ -200,14 +202,17 @@ struct TrashManagementView: View {
     let isEmpty = page.items.isEmpty && page.nextCursor == nil
     if isEmpty && model.refreshFailure == nil && model.storageFailure == nil {
       ScrollView {
-        emptyState.containerRelativeFrame([.horizontal, .vertical])
+        emptyState
+          .modifier(TrashStatePlacement(.empty))
+          .containerRelativeFrame([.horizontal, .vertical])
       }
       .refreshable { await model.refresh() }
     } else {
       List(selection: isEditing ? $selectedIDs : nil) {
         if !page.items.isEmpty {
           header(page)
-            .listRowInsets(.vertical, PutioTheme.Spacing.space2)
+            .listRowInsets(.top, PutioTheme.Spacing.space0)
+            .listRowInsets(.bottom, PutioTheme.Spacing.space2)
             .listRowSeparator(.hidden)
             .listRowBackground(PutioTheme.Colors.background)
             .selectionDisabled()
@@ -360,8 +365,7 @@ struct TrashManagementView: View {
   }
 
   private func headerSize(_ page: PutioTrashPage) -> some View {
-    Text(PutioFileRowModel.sizeText(bytes: page.sizeBytes, locale: locale))
-      .putioFont(PutioTheme.Typography.numeric)
+    PutioNumericText(PutioFileRowModel.sizeText(bytes: page.sizeBytes, locale: locale))
   }
 
   private var headerRetention: some View {
@@ -446,5 +450,36 @@ struct TrashManagementView: View {
       toast = PutioToast(failure.title)
     }
     model.clearMutationOutcome()
+  }
+}
+
+private struct TrashStatePlacement: ViewModifier {
+  enum State {
+    case loading
+    case empty
+    case failed
+
+    var lift: CGFloat {
+      switch self {
+      case .loading: 74
+      case .empty: 51
+      case .failed: 68
+      }
+    }
+  }
+
+  private let state: State
+  @PutioScaledMetric private var width: CGFloat
+
+  init(_ state: State) {
+    self.state = state
+    _width = PutioScaledMetric(PutioMetricRole(value: 370, relativeTo: .body))
+  }
+
+  func body(content: Content) -> some View {
+    content
+      .frame(maxWidth: width)
+      .padding(.bottom, state.lift)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
