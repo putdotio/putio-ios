@@ -1296,7 +1296,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     selectTrashRows([4301, 4306])
     app.buttons["selection.action.restore"].tap()
     XCTAssertTrue(
-      element(identifier: "selection.bar").disappears(within: 5), "Restore kept Select mode")
+      app.selectionActions.disappears(within: 5), "Restore kept Select mode")
     XCTAssertTrue(element(identifier: "trash.item.4301").disappears(within: 2))
     XCTAssertTrue(element(identifier: "trash.item.4306").disappears(within: 2))
     XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
@@ -1352,7 +1352,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "trash.item.4307").disappears(within: 5))
     let refused = element(identifier: "trash.item.4305").firstMatch
     XCTAssertEqual(refused.value as? String, "Selected", "the refused row lost its check")
-    XCTAssertTrue(element(identifier: "selection.bar").exists, "the failed delete left Select mode")
+    XCTAssertTrue(app.selectionActions.exists, "the failed delete left Select mode")
     XCTAssertTrue(summary.label.contains("1 item"), "the summary kept the deleted row")
 
     app.buttons["selection.action.delete"].tap()
@@ -1364,7 +1364,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["1 item is no longer in trash."].appears(within: 10))
     XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
     XCTAssertFalse(
-      element(identifier: "selection.bar").exists, "the emptied Trash kept Select mode")
+      app.selectionActions.exists, "the emptied Trash kept Select mode")
   }
 
   private func selectTrashRows(_ ids: [Int]) {

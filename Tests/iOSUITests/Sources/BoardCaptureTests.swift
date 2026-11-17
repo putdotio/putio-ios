@@ -4627,6 +4627,9 @@ final class BoardCaptureTests: XCTestCase {
     selectTrashRows([4302, 4304])
     XCTAssertFalse(app.buttons["trash.menu"].exists, "Select mode offers More")
     XCTAssertTrue(app.buttons["selection.close"].exists, "Select mode has no close button")
+    if UIDevice.current.userInterfaceIdiom == .phone {
+      XCTAssertTrue(app.tabBarHides(), "Select mode kept the tab bar")
+    }
     let summary = element("trash.selection.summary")
     XCTAssertTrue(summary.label.contains("7 items"), "the summary miscounts Trash")
     XCTAssertTrue(summary.label.contains("8.91 GB selected"), "the summary misses the size")
@@ -4654,7 +4657,7 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
     selectTrashRows([4302, 4304])
     element("selection.action.restore").tap()
-    XCTAssertTrue(element("selection.bar").disappears(within: 5), "Restore kept Select mode")
+    XCTAssertTrue(app.selectionActions.disappears(within: 5), "Restore kept Select mode")
     XCTAssertTrue(
       app.staticTexts["Couldn’t restore 1 item from trash"].appears(within: 30),
       "no partly failed restore toast")
@@ -4672,7 +4675,7 @@ final class BoardCaptureTests: XCTestCase {
     let select = trashMenuItem("Select")
     XCTAssertTrue(select.appears(within: 5), "More has no Select")
     select.tap()
-    XCTAssertTrue(element("selection.bar").appears(within: 5), "the selection bar never appeared")
+    XCTAssertTrue(app.selectionActions.appears(within: 5), "the selection bar never appeared")
     assertSelectionBar(["restore", "delete"])
     XCTAssertFalse(element("selection.action.restore").isEnabled, "an empty selection restores")
     XCTAssertFalse(element("selection.action.delete").isEnabled, "an empty selection deletes")
