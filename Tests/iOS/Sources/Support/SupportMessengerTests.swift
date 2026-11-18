@@ -160,6 +160,19 @@ final class SupportMessengerTests: XCTestCase {
     XCTAssertEqual(client.calls.filter { $0 == .openNotification("7") }.count, 2)
   }
 
+  func testAReplyNotificationTappedDuringAFailedLoginRetriesItOnce() throws {
+    let reply: [AnyHashable: Any] = ["intercom_push_type": "notification", "conversation_id": "7"]
+    let client = RecordingSupportClient(defersCompletions: true)
+    let messenger = try makeMessenger(client)
+
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    messenger.open(notification: reply)
+    client.complete(0, succeeded: false)
+    XCTAssertEqual(client.calls.last, .logIn("1001", "synthetic-hash"), "did not retry")
+    client.complete(1, succeeded: true)
+    XCTAssertEqual(client.calls.last, .openNotification("7"))
+  }
+
   func testAReplyNotificationIsDroppedWhenTheSessionEndsFirst() throws {
     let reply: [AnyHashable: Any] = ["intercom_push_type": "notification", "conversation_id": "7"]
     let client = RecordingSupportClient()

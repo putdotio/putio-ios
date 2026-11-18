@@ -170,6 +170,10 @@ final class PutioSupportMessenger {
     if succeeded {
       login = .loggedIn(userID: wanted.identity.userID)
       if let notification { client.openNotification(notification) }
+    } else if !wanted.retrying, let notification {
+      logOutAttemptedUser()
+      pendingNotification = notification
+      request(wanted.identity, retrying: true)
     } else {
       logOutAttemptedUser()
       login =
