@@ -4831,8 +4831,10 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadAccount() throws {
     openIPadAccount()
-    XCTAssertTrue(
-      element("putio.list-detail.empty").appears(within: 5), "a screen opened before a row")
+    if !isPortraitBoard {
+      XCTAssertTrue(
+        element("putio.list-detail.empty").appears(within: 5), "a screen opened before a row")
+    }
     XCTAssertFalse(element("account.public-links").isSelected, "a row is open before a tap")
     try captureBoard("rd-ios-acc-57-ipad-account")
   }
@@ -4853,22 +4855,34 @@ final class BoardCaptureTests: XCTestCase {
     let proxy = scrollIPadAccount(toHit: "playback-settings.route")
     proxy.tap()
     XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "proxies never loaded")
-    assertIPadAccountOpen("playback-settings.route", "opening Proxy")
-    rotate(.portrait)
+    let (start, turned): (UIDeviceOrientation, UIDeviceOrientation) =
+      isPortraitBoard ? (.portrait, .landscapeLeft) : (.landscapeLeft, .portrait)
+    assertIPadProxyOpen(in: start, "opening Proxy")
+    rotate(turned)
+    assertIPadProxyOpen(in: turned, "rotating away")
+    rotate(start)
+    assertIPadProxyOpen(in: start, "rotating back")
+    try captureBoard("rd-ios-acc-20-ipad-proxy")
+  }
+
+  private func assertIPadProxyOpen(in orientation: UIDeviceOrientation, _ step: String) {
     XCTAssertTrue(
-      app.navigationBars["Choose your proxy"].appears(within: 5), "portrait closed Proxy")
-    XCTAssertTrue(
-      element("playback-settings.route").becomesUnhittable(within: 5),
-      "portrait kept the Account list beside Proxy")
-    rotate(.landscapeLeft)
-    XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "landscape closed Proxy")
+      proxyChoice("Washington, D.C.").appears(within: 10), "Proxy closed after \(step)")
+    guard orientation.isLandscape else {
+      XCTAssertTrue(
+        app.navigationBars["Choose your proxy"].appears(within: 5),
+        "portrait closed Proxy after \(step)")
+      XCTAssertTrue(
+        element("playback-settings.route").becomesUnhittable(within: 5),
+        "portrait kept the Account list beside Proxy after \(step)")
+      return
+    }
     if element("shell.storage").becomesHittable(within: 3) {
       sidebarToggle().tap()
       XCTAssertTrue(
         element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
     }
-    assertIPadAccountOpen("playback-settings.route", "rotating back to landscape")
-    try captureBoard("rd-ios-acc-20-ipad-proxy")
+    assertIPadAccountOpen("playback-settings.route", step)
   }
 
   func testIPadAccountClearData() throws {

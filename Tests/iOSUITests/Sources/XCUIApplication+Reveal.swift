@@ -70,10 +70,16 @@ extension XCUIApplication {
       closeSearch.tap()
       _ = search.disappears(within: 5)
     }
-    if tab.becomesHittable(within: 5), tab.appears(within: 3) { return tab.tap() }
+    if tab.becomesHittable(within: 5), tab.appears(within: 3) {
+      tab.tap()
+      if tab.becomesSelected(within: 3) { return }
+    }
     let selected = tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch
     if selected.exists, selected.label != label { selected.tap() }
-    if tab.becomesHittable(within: 3), tab.appears(within: 3) { return tab.tap() }
+    if tab.becomesHittable(within: 3), tab.appears(within: 3) {
+      tab.tap()
+      if tab.becomesSelected(within: 3) { return }
+    }
     let toggle = buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar"))
       .firstMatch
     XCTAssertTrue(
