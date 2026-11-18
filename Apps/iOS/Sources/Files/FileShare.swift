@@ -7,6 +7,7 @@ import UIKit
 struct PutioFileShareAction {
   let localFile: @MainActor (PutioFileID) -> URL?
   let fetch: PutioPreviewDownload
+  let poster: @MainActor @Sendable (URL) async throws -> Data
 }
 
 extension EnvironmentValues {

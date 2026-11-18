@@ -625,11 +625,20 @@ struct MainTabView: View {
     }
   }
 
-  /// The seeded scenario serves local fixtures instead of api.put.io downloads.
-  private func harnessPreviewURL(for source: PutioFileDownloadSource) throws -> URL? {
+  private func downloadPoster(_ url: URL) async throws -> Data {
     #if DEBUG
-      guard scenario == .filesBrowser else { return nil }
+      if HarnessSeededAPI.isEnabled {
+        return try await PutioPreviewDownloader.download(
+          harnessMediaBaseURL().appending(path: "runtime-proof-image.png"))
+      }
+    #endif
+    return try await PutioPreviewDownloader.download(url)
+  }
+
+  #if DEBUG
+    private func harnessMediaBaseURL() throws -> URL {
       guard
+        scenario == .filesBrowser,
         let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
         let baseURL = URL(string: baseURLString),
         baseURL.scheme == "http",
@@ -637,6 +646,15 @@ struct MainTabView: View {
       else {
         throw HarnessPlaybackFixtureError.missingResource
       }
+      return baseURL
+    }
+  #endif
+
+  /// The seeded scenario serves local fixtures instead of api.put.io downloads.
+  private func harnessPreviewURL(for source: PutioFileDownloadSource) throws -> URL? {
+    #if DEBUG
+      guard scenario == .filesBrowser else { return nil }
+      let baseURL = try harnessMediaBaseURL()
       switch source.kind {
       case .image: return baseURL.appending(path: "runtime-proof-image.png")
       case .pdf where source.id.rawValue == HarnessSeededAPI.corruptDocumentFileID:
@@ -836,7 +854,8 @@ struct MainTabView: View {
   private var fileShare: PutioFileShareAction {
     PutioFileShareAction(
       localFile: { offlineQueue.localSource(for: $0)?.url },
-      fetch: { route, extent in try await downloadPreview(route, extent) })
+      fetch: { route, extent in try await downloadPreview(route, extent) },
+      poster: { url in try await downloadPoster(url) })
   }
 
   private var upNextSleep: PutioNextVideoSleep {
