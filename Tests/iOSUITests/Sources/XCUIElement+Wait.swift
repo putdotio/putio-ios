@@ -21,6 +21,12 @@ extension XCUIElement {
     poll("become hittable", timeout: timeout) { element, _ in element.isHittable }
   }
 
+  func becomesTappable(within timeout: TimeInterval) -> Bool {
+    poll("become tappable", timeout: timeout) { element, _ in
+      element.isHittable && element.isEnabled
+    }
+  }
+
   func becomesUnhittable(within timeout: TimeInterval) -> Bool {
     poll("become unhittable", timeout: timeout) { element, _ in !element.isHittable }
   }

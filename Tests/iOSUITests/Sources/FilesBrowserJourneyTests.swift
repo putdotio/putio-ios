@@ -2282,25 +2282,26 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let currentPosition = element(identifier: "video.current-position")
     XCTAssertTrue(
       waitForPosition(currentPosition, beyond: 90), "playback did not advance beyond the resume")
-    XCTAssertEqual(element(identifier: "video.title").label, "Nested Movie.mkv")
+    XCTAssertEqual(
+      app.readVideoControl(element(identifier: "video.title"))?.label, "Nested Movie.mkv")
 
     let skipForward = element(identifier: "video.skip-forward")
-    XCTAssertTrue(skipForward.appears(within: 5), "the player shows no transport")
+    XCTAssertNotNil(app.readVideoControl(skipForward), "the player shows no transport")
     XCTAssertTrue(
       skipForward.becomesUnhittable(within: 8), "controls stayed on screen while playing")
     addScreenshot(named: "runtime-video-controls-hidden")
     app.revealVideoControls(showing: skipForward)
     addScreenshot(named: "runtime-video-controls")
-    XCTAssertEqual(skipForward.label, "Forward 10 seconds")
-    XCTAssertEqual(element(identifier: "video.skip-back").label, "Back 10 seconds")
+    XCTAssertEqual(app.readVideoControl(skipForward)?.label, "Forward 10 seconds")
+    XCTAssertEqual(
+      app.readVideoControl(element(identifier: "video.skip-back"))?.label, "Back 10 seconds")
     let scrubber = element(identifier: "video.scrubber")
-    XCTAssertEqual(scrubber.label, "Playback position")
+    XCTAssertEqual(app.readVideoControl(scrubber)?.label, "Playback position")
 
     let beforeForward = playbackSeconds(currentPosition)
-    skipForward.tap()
-    XCTAssertTrue(
-      waitForPosition(currentPosition, beyond: beforeForward + 9),
-      "Forward 10 seconds did not move playback ahead")
+    app.tapVideoControl(skipForward, failing: "Forward 10 seconds did not move playback ahead") {
+      playbackSeconds(currentPosition) > beforeForward + 9
+    }
 
     let playPause = element(identifier: "video.play-pause")
     app.setVideoPlaying(false, with: playPause)
