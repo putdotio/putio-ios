@@ -944,7 +944,7 @@ public struct SimulatorHarness {
         var preflightFailures: [(name: String, failure: Error)] = []
         for preflight in preflights {
           do {
-            try resetKeychain(session: session)
+            try resetAppState(platform: platform, session: session)
             preflightScreenshots += try runJourneyPreflightTest(
               identifier: preflight.testIdentifier,
               platform: platform,
@@ -998,7 +998,7 @@ public struct SimulatorHarness {
           )
         }
 
-        try resetKeychain(session: session)
+        try resetAppState(platform: platform, session: session)
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
@@ -1677,6 +1677,19 @@ public struct SimulatorHarness {
     guard output.status == 0 else {
       throw HarnessFailure("simulator keychain reset failed: \(output.combinedOutput)")
     }
+  }
+
+  private func resetAppState(platform: HarnessPlatform, session: SimulatorSession) throws {
+    try resetKeychain(session: session)
+    guard appDataContainer(platform: platform, session: session) != nil else { return }
+    _ = try runner.checked(
+      "xcrun",
+      [
+        "simctl", "uninstall", session.deviceIdentifier,
+        platform.configuration.bundleIdentifier,
+      ],
+      context: "remove the \(platform.rawValue) app and its data before a journey test"
+    )
   }
 
   private func runJourneyPreflightTest(
