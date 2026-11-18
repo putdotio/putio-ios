@@ -35,9 +35,26 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
 
     private func sizeTexts(locale: Locale) -> (used: String, total: String) {
       (
-        PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale),
-        PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)
+        Self.sizeText(bytes: usedBytes, locale: locale),
+        Self.sizeText(bytes: totalBytes, locale: locale)
       )
+    }
+
+    private static func sizeText(bytes: Int64, locale: Locale) -> String {
+      guard bytes >= 1_000 else { return PutioFileRowModel.sizeText(bytes: bytes, locale: locale) }
+      let units: [UnitInformationStorage] = [
+        .kilobytes, .megabytes, .gigabytes, .terabytes, .petabytes,
+      ]
+      let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))
+      var index = 0
+      var value = Double(bytes) / 1_000
+      while index < units.count - 1, (value * 10).rounded() / 10 >= 1_000 {
+        value /= 1_000
+        index += 1
+      }
+      return Measurement(value: value, unit: units[index]).formatted(
+        .measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: style).locale(
+          locale))
     }
 
     public func statusSummary(locale: Locale = .current) -> String {
