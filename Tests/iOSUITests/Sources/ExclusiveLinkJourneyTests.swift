@@ -149,6 +149,10 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
       _ = season.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
+    let landed = Date.now.addingTimeInterval(15)
+    while !season.exists, !seasonRow.isHittable, !harness.isHittable, Date.now < landed {
+      _ = season.appears(within: 0.5)
+    }
     if !season.exists {
       if !seasonRow.exists {
         XCTAssertTrue(harness.becomesHittable(within: 10), "the seeded folder never appeared")
