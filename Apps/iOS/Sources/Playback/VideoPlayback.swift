@@ -149,7 +149,8 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack {
       content
-      PutioVideoSubtitleOverlay(cues: transport.subtitleCues, size: transport.subtitleSize)
+      PutioVideoSubtitleOverlay(
+        cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture)
       if isReady, nextVideoFailed {
         nextVideoFailure
       } else if isReady, !transport.wait.state.hidesControls {
