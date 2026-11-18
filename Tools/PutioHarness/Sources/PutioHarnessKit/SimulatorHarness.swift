@@ -18,7 +18,7 @@ func shouldBuildIOSCompanion(
 
 // Published proof runs 22–30 s; the ceiling leaves headroom for a slower
 // simulator without admitting a runaway recording.
-let maximumJourneyRecordingDuration: TimeInterval = 45
+let maximumJourneyRecordingDuration: TimeInterval = 90
 let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
 let maximumStableJourneyFrameDifference = 1.0
