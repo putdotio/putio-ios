@@ -218,8 +218,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   {
     let asset = AVURLAsset(url: url)
     let configuration = AVAssetDownloadConfiguration(asset: asset, title: title)
-    let selections = try await asset.load(.allMediaSelections)
-    if !selections.isEmpty {
+    let (variants, selections) = try await asset.load(.variants, .allMediaSelections)
+    if !variants.isEmpty, !selections.isEmpty {
       configuration.primaryContentConfiguration.mediaSelections = selections
     }
     return configuration
