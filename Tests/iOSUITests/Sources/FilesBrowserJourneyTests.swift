@@ -596,7 +596,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     endSelection()
 
     let paging = element(identifier: "files.item.460")
-    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    app.bringIntoView(paging)
+    XCTAssertTrue(
+      paging.appears(within: 10) && paging.becomesHittable(within: 10),
+      "the paging folder never appeared")
     paging.tap()
     XCTAssertTrue(app.staticTexts["Paging File 001.txt"].appears(within: 10))
     beginSelection()
@@ -1812,9 +1815,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(created.appears(within: 10), "the created folder never replaced the empty state")
     XCTAssertFalse(empty.exists, "the empty state outlived the new folder")
     app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.423").disappears(within: 10), "Back never left Empty")
 
     let paging = element(identifier: "files.item.460")
-    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    app.bringIntoView(paging)
+    XCTAssertTrue(
+      paging.appears(within: 10) && paging.becomesHittable(within: 10),
+      "the paging folder never appeared")
     paging.tap()
     let firstRow = app.staticTexts["Paging File 001.txt"]
     XCTAssertTrue(firstRow.appears(within: 10), "the paging folder never listed its first page")
