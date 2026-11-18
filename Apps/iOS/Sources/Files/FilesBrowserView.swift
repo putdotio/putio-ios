@@ -150,6 +150,7 @@ struct FilesBrowserView: View {
     .task(id: navigationRequest?.id) {
       if let navigationRequest, appliedNavigationRequest != navigationRequest.id {
         appliedNavigationRequest = navigationRequest.id
+        layout.replacePath()
         if horizontalSizeClass == .compact { selectedFile = nil }
         path = navigationRequest.path
         didRestoreNavigation = true
@@ -331,6 +332,7 @@ struct FilesBrowserView: View {
         }
       }
     }
+    .id(appliedNavigationRequest)
   }
 
   @ViewBuilder
@@ -450,6 +452,10 @@ private final class PutioFilesLayout {
   func show(columns: Bool) {
     guard columns != showsColumns else { return }
     showsColumns = columns
+    switchedAt = .now
+  }
+
+  func replacePath() {
     switchedAt = .now
   }
 
