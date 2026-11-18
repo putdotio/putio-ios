@@ -91,18 +91,20 @@ struct PutioFolderScreen: View {
     self.accountNotice = accountNotice
     self.offlineFiles = offlineFiles
     self.route = route
+    let refreshRegistration = PutioFolderRefreshRegistration(
+      folderID: route.id, requests: refreshRequests)
+    _refreshRegistration = State(initialValue: refreshRegistration)
     _model = State(
       initialValue: PutioFolderModel(
         folderID: route.id,
         load: load,
         continueLoad: continueLoad,
         actions: actions,
-        initialContents: initialContents
+        initialContents: initialContents,
+        refreshRegistration: refreshRegistration
       )
     )
     _copyModel = State(initialValue: actions.map(PutioSharedFileCopyModel.init(actions:)))
-    _refreshRegistration = State(
-      initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     _pinItemActions = State(
       initialValue: route.id == .root
         ? actions.map { PutioFileItemActionModel(actions: $0, refreshRequests: refreshRequests) }
@@ -1136,14 +1138,8 @@ struct PutioFolderScreen: View {
     !isSorting && fileActionPending
   }
 
-  private var actionNotifier: PutioFolderActionNotifier {
-    PutioFolderActionNotifier(
-      folderID: route.id, owner: refreshRegistration.owner, requests: refreshRequests)
-  }
-
   private func renameAlert(for item: PutioFileItem) -> PutioTextAlert {
     let model = model
-    let notifier = actionNotifier
     return PutioTextAlert(
       title: String(localized: "Rename"),
       initialText: item.name,
@@ -1151,7 +1147,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      try notifier.settleNameAction(of: model) { action in
+      try PutioNameActionSettlement.settle(model) { action in
         guard case .rename(let fileID, _, _) = action else { return false }
         return fileID == item.id
       } alreadyApplied: {
@@ -1163,7 +1159,6 @@ struct PutioFolderScreen: View {
 
   private func newFolderAlert() -> PutioTextAlert {
     let model = model
-    let notifier = actionNotifier
     return PutioTextAlert(
       title: String(localized: "New folder"),
       message: String(localized: "In \(folderTitle)"),
@@ -1172,7 +1167,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
-      try notifier.settleNameAction(of: model) { action in
+      try PutioNameActionSettlement.settle(model) { action in
         guard case .createFolder = action else { return false }
         return true
       }
@@ -1259,7 +1254,6 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome(deleting item: PutioFileItem? = nil) {
     guard let outcome = model.actionOutcome else { return }
-    actionNotifier.notify(outcome)
     switch outcome {
     case .succeeded(.delete(_, _, let permanently)) where trashEnabled && !permanently:
       toast = PutioToast(
@@ -1433,17 +1427,9 @@ struct PutioFolderScreen: View {
 }
 
 @MainActor
-private struct PutioFolderActionNotifier {
-  let folderID: PutioFileID
-  let owner: UUID
-  let requests: PutioFolderRefreshRequests
-
-  func notify(_ outcome: PutioFileActionOutcome) {
-    requests.requestRefreshes(after: outcome, in: folderID, owner: owner)
-  }
-
-  func settleNameAction(
-    of model: PutioFolderModel,
+private enum PutioNameActionSettlement {
+  static func settle(
+    _ model: PutioFolderModel,
     matching isNameAction: (PutioFileAction) -> Bool,
     alreadyApplied: () -> Bool = { false }
   ) throws {
@@ -1452,7 +1438,6 @@ private struct PutioFolderActionNotifier {
       throw PutioNameActionFailure()
     }
     model.clearActionOutcome()
-    notify(outcome)
     if case .failed = outcome { throw PutioNameActionFailure() }
   }
 }

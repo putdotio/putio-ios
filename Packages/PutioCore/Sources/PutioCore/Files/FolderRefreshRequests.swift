@@ -110,7 +110,7 @@ public final class PutioFolderRefreshRequests {
 @MainActor
 public final class PutioFolderRefreshRegistration {
   private let folderID: PutioFileID
-  private let requests: PutioFolderRefreshRequests
+  let requests: PutioFolderRefreshRequests
   public let owner = UUID()
   private var isActive = false
 
