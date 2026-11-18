@@ -81,11 +81,14 @@ final class ExclusiveLinkTests: XCTestCase {
       return link
     }
     let first = links.model(for: item, create: server)
+    XCTAssertTrue(links.model(for: item, create: server) === first, "redrawing the sheet lost it")
     let task = Task { await create(first) }
     await fulfillment(of: [started], timeout: 5)
+    links.sheetClosed()
     XCTAssertTrue(links.model(for: item, create: server) === first, "reopening lost the request")
     answer.continuation.yield()
     await task.value
+    links.sheetClosed()
     let reopened = links.model(for: item, create: server)
     XCTAssertTrue(reopened === first, "reopening lost the link")
     XCTAssertEqual(reopened.state, .created(link))
@@ -96,11 +99,11 @@ final class ExclusiveLinkTests: XCTestCase {
       let links = PutioExclusiveLinks()
       let server = LinkServer([.failure(outcome)]).create
       let first = links.model(for: item, create: server)
-      XCTAssertTrue(links.model(for: item, create: server) !== first, "\(outcome)")
-      let second = links.model(for: item, create: server)
-      await create(second)
+      await create(first)
+      XCTAssertTrue(links.model(for: item, create: server) === first, "\(outcome)")
+      links.sheetClosed()
       let reopened = links.model(for: item, create: server)
-      XCTAssertTrue(reopened !== second, "\(outcome)")
+      XCTAssertTrue(reopened !== first, "\(outcome)")
       XCTAssertEqual(reopened.state, .ready, "\(outcome)")
     }
   }

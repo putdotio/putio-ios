@@ -143,9 +143,13 @@ public final class PutioExclusiveLinks {
   public func model(
     for item: PutioFileItem, create: @escaping PutioPublicLinkCreate
   ) -> PutioExclusiveLinkModel {
-    if let model = models[item.id], model.outlivesTheSheet { return model }
+    if let model = models[item.id] { return model }
     let model = PutioExclusiveLinkModel(item: item, create: create)
     models[item.id] = model
     return model
+  }
+
+  public func sheetClosed() {
+    models = models.filter { $0.value.outlivesTheSheet }
   }
 }

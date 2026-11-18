@@ -28,7 +28,7 @@ private struct PutioExclusiveLinkHost: ViewModifier {
   @State private var links = PutioExclusiveLinks()
 
   func body(content: Content) -> some View {
-    content.sheet(item: $item) { item in
+    content.sheet(item: $item, onDismiss: { links.sheetClosed() }) { item in
       if let create {
         PutioExclusiveLinkSheet(model: links.model(for: item, create: create))
       }
