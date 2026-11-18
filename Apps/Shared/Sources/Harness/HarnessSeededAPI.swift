@@ -2245,6 +2245,7 @@ import Foundation
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
           "need_convert":\(episodeNeedsConversion),"start_from":\(failingOriginalStart),
+          "screenshot":"https://put.io/harness/screenshots/441.jpg",
           "video_metadata":\(seasonEpisodeMetadata)\(failingOriginalFields)}}
           """
         )
