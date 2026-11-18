@@ -366,7 +366,8 @@ final class FilePreferencesTests: XCTestCase {
   ) -> PutioAccountPreferencesModel {
     PutioAccountPreferencesModel(
       actions: PutioAccountPreferenceActions(
-        save: save, refresh: refresh, account: { session.account }, isStale: { session.isStale },
+        save: save, refresh: refresh, account: { session.account }, accountRevision: { 0 },
+        isStale: { session.isStale },
         isUpdating: { session.isUpdating }))
   }
 

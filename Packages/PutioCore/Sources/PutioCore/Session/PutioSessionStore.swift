@@ -58,6 +58,7 @@ public final class PutioSessionStore {
   public private(set) var isAccountPreferencesStale = false
   public private(set) var isUpdatingAccountPreferences = false
   public private(set) var folderSortsRevision: UInt64 = 0
+  private(set) var accountSnapshotRevision: UInt64 = 0
   /// The account's download token, which put.io accepts only for media and
   /// download URLs. Anything that leaves the app carries this instead of the
   /// session token. Nil until the signed-in account loads.
@@ -546,6 +547,7 @@ public final class PutioSessionStore {
     downloadToken = account.downloadToken.isEmpty ? nil : account.downloadToken
     supportUserHash = accountQuery.intercom && !account.hash.isEmpty ? account.hash : nil
     state = .signedIn(snapshot(account))
+    accountSnapshotRevision &+= 1
   }
 
   // MARK: - Failure classification

@@ -20,6 +20,7 @@ public struct PutioAccountPreferenceActions: Sendable {
       PutioAccountPreferencesMutationResult
   let refresh: @MainActor @Sendable () async -> Bool
   let account: @MainActor @Sendable () -> PutioAccountSnapshot?
+  let accountRevision: @MainActor @Sendable () -> UInt64
   let isStale: @MainActor @Sendable () -> Bool
   let isUpdating: @MainActor @Sendable () -> Bool
 
@@ -44,6 +45,7 @@ public struct PutioAccountPreferenceActions: Sendable {
       if case .signedIn(let account) = runtime.session.state { return account }
       return nil
     }
+    accountRevision = { runtime.session.accountSnapshotRevision }
     isStale = { runtime.session.isAccountPreferencesStale }
     isUpdating = { runtime.session.isUpdatingAccountPreferences }
   }
@@ -54,12 +56,14 @@ public struct PutioAccountPreferenceActions: Sendable {
       PutioAccountPreferencesMutationResult,
     refresh: @escaping @MainActor @Sendable () async -> Bool,
     account: @escaping @MainActor @Sendable () -> PutioAccountSnapshot?,
+    accountRevision: @escaping @MainActor @Sendable () -> UInt64,
     isStale: @escaping @MainActor @Sendable () -> Bool,
     isUpdating: @escaping @MainActor @Sendable () -> Bool
   ) {
     self.save = save
     self.refresh = refresh
     self.account = account
+    self.accountRevision = accountRevision
     self.isStale = isStale
     self.isUpdating = isUpdating
   }
@@ -92,10 +96,10 @@ public enum PutioAccountSettingsState: Equatable, Sendable {
 @MainActor
 @Observable
 public final class PutioAccountPreferencesModel {
-  private enum SettingsLoad {
+  private enum SettingsLoad: Equatable {
     case notStarted
     case loaded
-    case failed
+    case failed(accountRevision: UInt64)
   }
 
   private(set) var saving: PutioAccountPreferenceMutation?
@@ -116,8 +120,13 @@ public final class PutioAccountPreferencesModel {
 
   public var settingsState: PutioAccountSettingsState {
     if isRefreshing || settingsLoad == .notStarted { return .loading }
-    if settingsLoad == .failed || (isStale && !isSaving) { return .failed }
+    if isSettingsLoadFailed || (isStale && !isSaving) { return .failed }
     return .ready
+  }
+
+  private var isSettingsLoadFailed: Bool {
+    guard case .failed(let revision) = settingsLoad else { return false }
+    return revision == actions.accountRevision()
   }
 
   public func loadSettingsIfNeeded() async {
@@ -127,15 +136,16 @@ public final class PutioAccountPreferencesModel {
 
   public func loadSettings() async {
     guard !isRefreshing else { return }
+    let revision = actions.accountRevision()
     guard account != nil else {
-      settingsLoad = .failed
+      settingsLoad = .failed(accountRevision: revision)
       return
     }
     isRefreshing = true
     failure = nil
     let task = Task { @MainActor in
       defer { isRefreshing = false }
-      settingsLoad = await actions.refresh() ? .loaded : .failed
+      settingsLoad = await actions.refresh() ? .loaded : .failed(accountRevision: revision)
     }
     await task.value
   }

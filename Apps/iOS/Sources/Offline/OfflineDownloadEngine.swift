@@ -133,7 +133,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     return configuration
   }
 
-  static let relay = PutioOfflineDownloadRelay()
+  nonisolated static let relay = PutioOfflineDownloadRelay()
   private var tasks: [PutioFileID: URLSessionTask] = [:]
   private var pendingStarts: [PutioFileID: UUID] = [:]
   /// Set by the app delegate, per session, when iOS relaunches us for its events.
