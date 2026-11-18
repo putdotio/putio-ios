@@ -31,10 +31,10 @@ from a sign-out that did not finish.
   choice once.
 - `analytics-prompt-swipe` swipes the prompt away, signs out and in, and
   meets the prompt again.
-- `inactive-account`, `inactive-family`, `inactive-no-date`, and
-  `active-account` show the inactive-account notice on the Files root and
-  Account, clear it after renewal on return to the foreground, and show
-  nothing to an active account.
+- `inactive-account`, `inactive-playback`, `inactive-family`,
+  `inactive-no-date`, and `active-account` show the inactive-account notice on
+  the Files root, Account, and a refused video, clear it after renewal on
+  return to the foreground, and show nothing to an active account.
 - `storage-full` shows the full storage bar and line on Account.
 - `public-links`, `public-links-slow`, and `public-links-failed` list
   exclusive links, copy, share, and revoke them by menu and swipe, survive a
@@ -127,12 +127,13 @@ Preconditions:
   `rd-ios-ses-17-analytics-saving`, `rd-ios-ses-18-analytics-failed`,
   `rd-ios-ses-25-ipad-analytics`.
 - **Inactive account and full storage.** Run
-  `--only inactive-account,inactive-family,inactive-no-date,active-account,storage-full`.
+  `--only inactive-account,inactive-playback,inactive-family,inactive-no-date,active-account,storage-full`.
   `--putio-harness-account-inactive <owner|owner-no-date|family>` picks the
   fixture; `--putio-harness-account-renews-in-background` turns it active when
   the app leaves the foreground; `--putio-harness-account-storage-full` fills
-  the disk. Screenshots: `runtime-inactive-notice`,
-  `runtime-inactive-account-tab`, `runtime-inactive-renewed`,
+  the disk. An inactive fixture refuses every stream with a 403. Screenshots:
+  `runtime-inactive-notice`, `runtime-inactive-account-tab`,
+  `runtime-inactive-renewed`, `runtime-inactive-playback`,
   `runtime-storage-full`. Boards: `rd-ios-acc-28-storage-full`,
   `rd-ios-acc-29-inactive`, `rd-ios-acc-30-inactive-family`.
 

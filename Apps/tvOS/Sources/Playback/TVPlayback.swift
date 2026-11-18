@@ -61,6 +61,7 @@ struct TVVideoPlaybackView: View {
   @State private var nextVideoTask: Task<Void, Never>?
 
   private let route: PutioVideoRoute
+  private let account: PutioAccountSnapshot
   private let remembersPosition: Bool
   private let pipeline: PutioPlaybackPositionPipeline
   private let runtime: PutioRuntime
@@ -78,6 +79,7 @@ struct TVVideoPlaybackView: View {
   ) {
     let media = TVPlaybackMedia(runtime: runtime, account: account)
     self.route = route
+    self.account = account
     self.remembersPosition = account.rememberVideoTime
     self.pipeline = pipeline
     self.runtime = runtime
@@ -159,11 +161,15 @@ struct TVVideoPlaybackView: View {
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
       TVConversionStatusView(state: model.state)
     case .failed(let failure):
-      PutioErrorStateView(
-        title: failure.title, message: failure.message, retryTitle: "Try again",
-        retryIdentifier: "video.retry"
-      ) {
-        retrySequence &+= 1
+      if let notice = failure.inactiveAccountNotice(for: account) {
+        TVPlaybackAccountNotice(notice: notice)
+      } else {
+        PutioErrorStateView(
+          title: failure.title, message: failure.message, retryTitle: "Try again",
+          retryIdentifier: "video.retry"
+        ) {
+          retrySequence &+= 1
+        }
       }
 
     case .ready:

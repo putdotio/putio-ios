@@ -1267,6 +1267,15 @@ public struct SimulatorHarness {
             TVPlaybackJourneyContract.conversionTestIdentifier,
             TVPlaybackJourneyContract.conversionAttachmentNames, ".tv-playback-conversion"
           ),
+          (
+            TVInactiveAccountJourneyContract.ownerTestIdentifier,
+            TVInactiveAccountJourneyContract.ownerAttachmentNames, ".tv-inactive-owner"
+          ),
+          (
+            TVInactiveAccountJourneyContract.familyTestIdentifier,
+            TVInactiveAccountJourneyContract.familyAttachmentNames, ".tv-inactive-family"
+          ),
+          (TVInactiveAccountJourneyContract.activeTestIdentifier, [], ".tv-active-account"),
         ] {
           let bundle = platformDirectory.appending(path: "\(bundleName).xcresult")
           playbackBundles.append(bundle)
@@ -1319,7 +1328,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifacts + [manifest],
           message:
-            "device sign-in journey passed 8/8 tests in \(context.relativePath(for: platformDirectory))"
+            "device sign-in journey passed 11/11 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {

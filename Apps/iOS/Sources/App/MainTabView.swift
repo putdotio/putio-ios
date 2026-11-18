@@ -946,6 +946,7 @@ struct MainTabView: View {
         hideSubtitles: account.hideSubtitles,
         dontAutoSelectSubtitles: account.dontAutoSelectSubtitles),
       subtitleMemory: subtitleMemory,
+      account: account,
       resolve: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method)
       }
@@ -1136,6 +1137,16 @@ struct MainTabView: View {
     #if DEBUG
       guard scenario == .filesBrowser, case .ready(let source) = resolution else {
         return resolution
+      }
+      if HarnessSeededAPI.refusesPlayback {
+        guard
+          let baseURL = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"].flatMap(
+            URL.init(string:))
+        else { throw HarnessPlaybackFixtureError.missingResource }
+        return .ready(
+          PutioPlaybackSource(
+            url: HarnessVideoFaults.url(for: .forbidden, mediaBaseURL: baseURL),
+            startFromSeconds: source.startFromSeconds))
       }
       if source.original != nil {
         return .ready(try HarnessDirectPlay.source(for: source, fileID: fileID))

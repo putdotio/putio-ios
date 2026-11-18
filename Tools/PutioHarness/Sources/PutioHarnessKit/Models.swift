@@ -1251,6 +1251,20 @@ enum TVPlaybackJourneyContract {
   ]
 }
 
+enum TVInactiveAccountJourneyContract {
+  static let ownerTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testInactiveOwnerSeesTheNoticeAndPlaybackSaysWhyUntilRenewal"
+  static let ownerAttachmentNames = [
+    "runtime-tv-inactive-home", "runtime-tv-inactive-account", "runtime-tv-inactive-playback",
+    "runtime-tv-inactive-renewed",
+  ]
+  static let familyTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testInactiveFamilyMemberSeesTheFamilyNoticeWithoutADate"
+  static let familyAttachmentNames = ["runtime-tv-inactive-family"]
+  static let activeTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"
+}
+
 /// One XCUITest the iOS journey runs on its own before the recorded walk.
 struct JourneyPreflight: Equatable, Sendable {
   /// Names the test's result bundle, `.<name>.xcresult`.
@@ -1809,6 +1823,10 @@ enum BrowserJourneyContract {
         "runtime-inactive-notice", "runtime-inactive-account-tab", "runtime-inactive-renewed",
       ], timeAllowance: 90),
     JourneyPreflight(
+      "inactive-playback",
+      "InactiveAccountJourneyTests/testPlaybackOnAnInactiveAccountShowsTheAccountNotice",
+      attachmentNames: ["runtime-inactive-playback"], timeAllowance: 90),
+    JourneyPreflight(
       "inactive-family",
       "InactiveAccountJourneyTests/testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate"),
     JourneyPreflight(
@@ -1818,7 +1836,8 @@ enum BrowserJourneyContract {
       "storage-full", "InactiveAccountJourneyTests/testFullStorageSaysSoOnAccount",
       attachmentNames: ["runtime-storage-full"]),
     JourneyPreflight(
-      "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
+      "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice",
+      timeAllowance: 90),
     JourneyPreflight(
       "video-wait",
       "VideoWaitJourneyTests/testPlayerSaysWhatItWaitsForAndRecovers",
