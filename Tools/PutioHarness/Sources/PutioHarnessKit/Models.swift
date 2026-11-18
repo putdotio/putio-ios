@@ -1592,6 +1592,10 @@ enum BrowserJourneyContract {
       "ExclusiveLinkJourneyTests/testReopeningWhileCreatingKeepsTheRequest",
       attachmentNames: ["runtime-exclusive-link-creating"]),
     JourneyPreflight(
+      "exclusive-link-existing",
+      "ExclusiveLinkJourneyTests/testReopeningTheFolderShowsTheLinkTheFileAlreadyHas",
+      attachmentNames: ["runtime-exclusive-link-existing"], timeAllowance: 120),
+    JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
     JourneyPreflight(

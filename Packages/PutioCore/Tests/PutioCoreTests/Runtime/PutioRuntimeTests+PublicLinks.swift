@@ -52,6 +52,28 @@ extension PutioRuntimeTests {
     await assertRuntimeError(.invalidResponse) { try await runtime.revokePublicLink(id: 0) }
   }
 
+  func testAnItemsLiveLinkSkipsOtherFilesAndExpiredShares() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"status":"OK","public_shares":[
+        {"id":1,"token":"other","push_token":"p","created_at":"","expiration_date":null,
+         "owner":{"name":"m"},"user_file":{"id":441,"name":"A","file_type":"VIDEO"}},
+        {"id":2,"token":"gone","push_token":"p","created_at":"",
+         "expiration_date":"2026-10-07T19:36:01","owner":{"name":"m"},
+         "user_file":{"id":442,"name":"B","file_type":"VIDEO"}},
+        {"id":3,"token":"live","push_token":"p","created_at":"",
+         "expiration_date":"2026-10-09T19:36:01","owner":{"name":"m"},
+         "user_file":{"id":442,"name":"B","file_type":"VIDEO"}}
+      ]}
+      """, for: "GET /v2/public_share/list")
+    let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-08T00:00:00Z"))
+    let live = try await runtime.livePublicLink(fileID: PutioFileID(rawValue: 442), at: now)
+    XCTAssertEqual(live?.absoluteString, "https://app.put.io/exclusive-access/live")
+    let none = try await runtime.livePublicLink(fileID: PutioFileID(rawValue: 443), at: now)
+    XCTAssertNil(none)
+  }
+
   func testCreatingALinkReturnsTheShareAddressAndRefusalsKeepTheSession() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "POST /v2/public_share/442"

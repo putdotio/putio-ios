@@ -21,10 +21,11 @@ images and documents, and opens put.io links into the same screens.
   only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it from
   the toast, moves by context menu and swipe, and trashes by swipe.
-- `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`, and
-  `exclusive-link-reopen` create a link for a file and a folder, copy and share
-  it, show every refusal and a failure with Try again, keep a request across a
-  reopen, and find the new links on Account.
+- `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`,
+  `exclusive-link-reopen`, and `exclusive-link-existing` create a link for a
+  file and a folder, copy and share it, show every refusal and a failure with
+  Try again, keep a request across a reopen, show a file's live link after its
+  folder reopens, and find the new links on Account.
 - `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
   name, disables the current folder and a folder inside the moved one, and
   moves into a folder made in the sheet.
@@ -138,13 +139,13 @@ Preconditions:
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
 - **Exclusive link.** Run
-  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-reopen`.
+  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-reopen,exclusive-link-existing`.
   `--putio-harness-public-link-create <ready|slow|refusals|failing>` seeds the
   create call; `refusals` returns each refusal once in turn, `failing` fails the
   first call, and `slow` never answers. Screenshots:
   `runtime-exclusive-link-created`, `runtime-exclusive-link-account`,
   `runtime-exclusive-link-refused`, `runtime-exclusive-link-failed`,
-  `runtime-exclusive-link-creating`. Boards: `rd-ios-78-link-create`,
+  `runtime-exclusive-link-creating`, `runtime-exclusive-link-existing`. Boards: `rd-ios-78-link-create`,
   `rd-ios-79-link-created`, `rd-ios-80-link-refused`.
 - **Selection.** Run `--only selection-bar`, `--only selection-trash-off`, and
   `--only bulk-results`. `--putio-harness-bulk-trash-refusal` fails every

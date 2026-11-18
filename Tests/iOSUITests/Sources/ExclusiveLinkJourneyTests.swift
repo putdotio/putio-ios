@@ -132,6 +132,29 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     signOut()
   }
 
+  func testReopeningTheFolderShowsTheLinkTheFileAlreadyHas() {
+    launch(create: "ready")
+    openSeasonFolder()
+    openSheet(for: "files.item.442")
+    app.buttons["files.exclusive-link.create"].tap()
+    XCTAssertTrue(created.appears(within: 10), "the link was never created")
+    closeSheet()
+    app.navigationBars.buttons["BackButton"].tap()
+    let seasonRow = element("files.item.440")
+    XCTAssertTrue(seasonRow.becomesHittable(within: 10), "the season folder never appeared")
+    seasonRow.tap()
+    openSheet(for: "files.item.442", showing: "files.exclusive-link.copy")
+    XCTAssertEqual(
+      element("files.exclusive-link.address").label, "app.put.io/exclusive-access/8f3KxQ2mVt71")
+    XCTAssertFalse(
+      app.buttons["files.exclusive-link.create"].exists, "the sheet offered a second link")
+    attach("runtime-exclusive-link-existing")
+    closeSheet()
+    openSheet(for: "files.item.441")
+    closeSheet()
+    signOut()
+  }
+
   private var created: XCUIElement { element("files.exclusive-link.created") }
 
   private func launch(create mode: String) {

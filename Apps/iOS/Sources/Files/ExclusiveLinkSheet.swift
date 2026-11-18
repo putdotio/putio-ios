@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 
 extension EnvironmentValues {
-  @Entry var putioExclusiveLink: PutioPublicLinkCreate? = nil
+  @Entry var putioExclusiveLink: PutioExclusiveLinkActions? = nil
 }
 
 extension PutioItemAction {
@@ -24,13 +24,13 @@ extension View {
 
 private struct PutioExclusiveLinkHost: ViewModifier {
   @Binding var item: PutioFileItem?
-  @Environment(\.putioExclusiveLink) private var create
+  @Environment(\.putioExclusiveLink) private var actions
   @State private var links = PutioExclusiveLinks()
 
   func body(content: Content) -> some View {
     content.sheet(item: $item, onDismiss: links.sheetClosed) { item in
-      if let create {
-        PutioExclusiveLinkSheet(model: links.model(for: item, create: create))
+      if let actions {
+        PutioExclusiveLinkSheet(model: links.model(for: item, actions: actions))
       }
     }
   }
@@ -65,6 +65,7 @@ struct PutioExclusiveLinkSheet: View {
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
     .putioToast($toast)
+    .task { await model.findExisting() }
     .accessibilityIdentifier("files.exclusive-link")
   }
 
@@ -92,6 +93,8 @@ struct PutioExclusiveLinkSheet: View {
         createButton(String(localized: "Try again"))
       case .ready:
         createButton(String(localized: "Create link"))
+      case .finding:
+        findingButton
       case .creating:
         creatingButton
       }
@@ -184,6 +187,27 @@ struct PutioExclusiveLinkSheet: View {
     .controlSize(.large)
     .tint(PutioTheme.Colors.accent)
     .accessibilityIdentifier("files.exclusive-link.create")
+  }
+
+  private var findingButton: some View {
+    Button {
+    } label: {
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        ProgressView()
+          .tint(PutioTheme.Components.Button.primaryForeground)
+          .controlSize(.regular)
+        Text("Create link")
+      }
+      .putioFont(ExclusiveLinkLayout.buttonFont)
+      .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
+      .frame(maxWidth: .infinity)
+    }
+    .buttonStyle(.borderedProminent)
+    .buttonBorderShape(.capsule)
+    .controlSize(.large)
+    .tint(PutioTheme.Colors.accent)
+    .disabled(true)
+    .accessibilityIdentifier("files.exclusive-link.finding")
   }
 
   private var creatingButton: some View {

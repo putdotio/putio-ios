@@ -44,7 +44,7 @@ struct FilesBrowserView: View {
   @State private var didRestoreNavigation = false
   private let pins: PutioPinnedFilesModel
   @State private var pinToast: PutioToast?
-  private let createLink: PutioPublicLinkCreate
+  private let exclusiveLink: PutioExclusiveLinkActions
   private let loadVideoDetails: PutioVideoDetailsLoad
   private let loadFolderName: PutioFolderNameLoad
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
@@ -82,7 +82,7 @@ struct FilesBrowserView: View {
     }
     actions = PutioFileActions(runtime: runtime)
     self.pins = pins
-    createLink = { try await runtime.createPublicLink(fileID: $0) }
+    exclusiveLink = PutioExclusiveLinkActions(runtime: runtime)
     loadVideoDetails = { try await runtime.videoDetails(fileID: $0) }
     loadFolderName = { try await runtime.getFile(fileID: $0).name }
     self.accountID = accountID
@@ -118,7 +118,7 @@ struct FilesBrowserView: View {
     } action: { landscape in
       isLandscape = landscape
     }
-    .environment(\.putioExclusiveLink, createLink)
+    .environment(\.putioExclusiveLink, exclusiveLink)
     .environment(\.putioFolderScrollAnchors, scrollAnchors)
     .environment(
       \.putioPinnedFiles,

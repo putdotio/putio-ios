@@ -3,13 +3,18 @@ import Observation
 
 public struct PutioPublicLink: Identifiable, Hashable, Sendable {
   public let id: Int
+  public let fileID: PutioFileID
   public let fileName: String
   public let kind: PutioFileKind
   public let expiresAt: Date?
   public let url: URL
 
-  public init(id: Int, fileName: String, kind: PutioFileKind, expiresAt: Date?, url: URL) {
+  public init(
+    id: Int, fileID: PutioFileID, fileName: String, kind: PutioFileKind, expiresAt: Date?,
+    url: URL
+  ) {
     self.id = id
+    self.fileID = fileID
     self.fileName = fileName
     self.kind = kind
     self.expiresAt = expiresAt
