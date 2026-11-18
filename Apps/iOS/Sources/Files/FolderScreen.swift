@@ -400,6 +400,7 @@ struct PutioFolderScreen: View {
           ),
           in: contents.folder
         )
+        .putioFilesRowPitch()
         .task(id: prefetchIDs.contains(item.id) ? model.continuationKey : nil) {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
@@ -539,6 +540,7 @@ struct PutioFolderScreen: View {
         selection.toggle(presentation.id)
       } content: {
         PutioFileRow(fileRowModel(presentation), downloadContext: .files)
+          .putioFilesRowLabel()
       }
       .disabled(fileActionPending)
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -548,6 +550,7 @@ struct PutioFolderScreen: View {
         for: presentation.item,
         content: NavigationLink(value: route.child(presentation.item, in: parent)) {
           PutioFileRow(presentation.row)
+            .putioFilesRowLabel()
         }
         .disabled(navigationLocked)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -564,6 +567,7 @@ struct PutioFolderScreen: View {
             PutioFileRow(
               fileRowModel(presentation), downloadContext: .files, showsDownloadControl: false
             )
+            .putioFilesRowLabel()
             .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
