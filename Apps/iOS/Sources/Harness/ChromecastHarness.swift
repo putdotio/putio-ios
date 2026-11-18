@@ -26,7 +26,8 @@
     private(set) var loaded: PutioCastMedia?
     private(set) var loadedURLs: [URL] = []
     private(set) var activeTrackIDs: [Int] = []
-    @ObservationIgnored private var textTrackIDs: Set<Int> = []
+    @ObservationIgnored private var textTracks: [PutioCastTextTrack] = []
+    static let firstTextTrackID = 1_000
     @ObservationIgnored private var state: PutioCastPlayerState = .idle
     @ObservationIgnored private var position: Double = 0
     @ObservationIgnored private var failuresRemaining: Int
@@ -88,7 +89,12 @@
         throw PutioCastControllerError(failure: .receiver)
       }
       loaded = media
-      textTrackIDs = Set(media.subtitles.indices.map(PutioCastTextTrack.id(at:)))
+      textTracks = media.subtitleRenditions.enumerated().map { index, rendition in
+        PutioCastTextTrack(
+          id: Self.firstTextTrackID + index, languageCode: rendition.languageTag,
+          name: rendition.name)
+      }
+      let textTrackIDs = Set(textTracks.map(\.id))
       let audio = activeTrackIDs.filter { id in Self.audioTracks.contains { $0.id == id } }
       self.activeTrackIDs =
         (audio.isEmpty ? [Self.audioTracks[0].id] : audio)
@@ -100,7 +106,7 @@
     }
 
     func setActiveTrackIDs(_ ids: [Int]) async throws {
-      let known = Set(Self.audioTracks.map(\.id)).union(textTrackIDs)
+      let known = Set(Self.audioTracks.map(\.id) + textTracks.map(\.id))
       guard loaded != nil, ids.allSatisfy(known.contains) else {
         throw PutioCastControllerError(failure: .receiver)
       }
@@ -185,7 +191,7 @@
         PutioCastMediaStatus(
           fileID: loaded.id, playerState: state, positionSeconds: position,
           durationSeconds: loaded.durationSeconds, audioTracks: Self.audioTracks,
-          activeTrackIDs: activeTrackIDs))
+          textTracks: textTracks, activeTrackIDs: activeTrackIDs))
     }
   }
 

@@ -1730,7 +1730,7 @@ enum BrowserJourneyContract {
       timeAllowance: 360),
     JourneyPreflight(
       "subtitle-menu",
-      "SubtitlesJourneyTests/testMenuGroupsTracksBySourceRemembersTheLanguageAndTurnsAFailedTrackOff",
+      "SubtitlesJourneyTests/testMenuListsManifestNamesRemembersTheLanguageAndTurnsAFailedTrackOff",
       attachmentNames: [
         "runtime-subtitles-sources", "runtime-subtitles-none", "runtime-subtitles-failed",
       ],

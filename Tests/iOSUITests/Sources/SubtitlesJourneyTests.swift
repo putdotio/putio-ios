@@ -167,7 +167,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     app.closeVideo()
   }
 
-  func testMenuGroupsTracksBySourceRemembersTheLanguageAndTurnsAFailedTrackOff() throws {
+  func testMenuListsManifestNamesRemembersTheLanguageAndTurnsAFailedTrackOff() throws {
     launch(tracks: "three", signingIn: true)
     openVideo(retryingSeededFailure: true, startingOver: true)
     let audio = element("video.audio-language")
@@ -181,13 +181,11 @@ final class SubtitlesJourneyTests: XCTestCase {
 
     openChip("subtitles")
     XCTAssertTrue(app.buttons["video.subtitles.2"].appears(within: 5), "the menu lacks Turkish")
-    for heading in ["In this file", "Found by put.io"] {
-      XCTAssertTrue(shows(heading), "the menu lacks \(heading)")
-    }
-    for (row, source) in [(0, "Embedded"), (1, "This folder"), (2, "OpenSubtitles")] {
+    for (row, name) in [(0, "English"), (1, "Spanish"), (2, "Turkish")] {
       let label = app.buttons["video.subtitles.\(row)"].label
-      XCTAssertTrue(label.contains(source), "row \(row) reads \(label)")
+      XCTAssertTrue(label.hasPrefix(name), "row \(row) reads \(label)")
     }
+    XCTAssertFalse(shows("In this file"), "the HLS menu grouped tracks by source")
     XCTAssertTrue(
       app.buttons["video.subtitles.size-and-timing"].exists, "the menu lacks Size and timing")
     screenshot("runtime-subtitles-sources")
@@ -229,9 +227,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     openChip("subtitles")
     let english = app.buttons["video.subtitles.0"]
     XCTAssertTrue(english.appears(within: 5))
-    XCTAssertTrue(english.label.contains("Embedded"), english.label)
-    XCTAssertTrue(shows("In this file"), "the menu lacks In this file")
-    XCTAssertFalse(shows("Found by put.io"), "one embedded track shows Found by put.io")
+    XCTAssertTrue(english.label.hasPrefix("English"), english.label)
     XCTAssertFalse(app.buttons["video.subtitles.1"].exists)
     closeMenu()
     app.closeVideo()

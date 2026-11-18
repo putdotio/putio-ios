@@ -7,6 +7,7 @@ public final class PutioRuntime {
 
   let sdk: PutioSDK
   private var watchedObservers: [UUID: AsyncStream<PutioWatchedChange>.Continuation] = [:]
+  nonisolated let urlSession: URLSession
 
   public init(
     clientID: String,
@@ -23,6 +24,7 @@ public final class PutioRuntime {
       urlSession: urlSession
     )
     self.sdk = sdk
+    self.urlSession = urlSession
     self.session = PutioSessionStore(
       sdk: sdk,
       tokenStore: tokenStore,

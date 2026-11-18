@@ -1,19 +1,5 @@
 import Foundation
 
-public typealias PutioSubtitleListingsLoad =
-  @MainActor @Sendable (PutioFileID) async throws -> [PutioSubtitleListing]
-
-extension PutioVideoRoute {
-  public func subtitleListings(
-    _ load: @escaping PutioSubtitleListingsLoad
-  ) -> PutioSubtitleListingsLoad {
-    guard case .ready(let source) = initialResolution, source.isStoredOriginal else {
-      return load
-    }
-    return { _ in [] }
-  }
-}
-
 public enum PutioSubtitleSource: Equatable, Sendable {
   case embedded
   case folder
@@ -28,16 +14,6 @@ public enum PutioSubtitleSource: Equatable, Sendable {
   }
 
   public var isInFile: Bool { self == .embedded }
-}
-
-public struct PutioSubtitleListing: Equatable, Sendable {
-  public let languageCode: String
-  public let source: PutioSubtitleSource
-
-  public init(languageCode: String, source: PutioSubtitleSource) {
-    self.languageCode = languageCode
-    self.source = source
-  }
 }
 
 public struct PutioSubtitleTrack: Equatable, Sendable {
@@ -80,40 +56,16 @@ public enum PutioSubtitleLanguage {
 public struct PutioSubtitleMenu: Equatable, Sendable {
   public struct Row: Equatable, Sendable {
     public let track: PutioSubtitleTrack
-    public let source: PutioSubtitleSource?
+    public let title: String
   }
 
-  public let inFile: [Row]
-  public let found: [Row]
-  public let unsourced: [Row]
+  public let rows: [Row]
 
-  public init(tracks: [PutioSubtitleTrack], listings: [PutioSubtitleListing]) {
-    let sources = Self.sources(of: tracks, from: listings)
-    let rows = tracks.map { Row(track: $0, source: sources[$0.id]) }
-    inFile = rows.filter { $0.source?.isInFile == true }
-    found = rows.filter { $0.source.map { !$0.isInFile } ?? false }
-    unsourced = rows.filter { $0.source == nil }
+  public init(tracks: [PutioSubtitleTrack]) {
+    rows = tracks.map { Row(track: $0, title: $0.title) }
   }
 
-  public var isEmpty: Bool { inFile.isEmpty && found.isEmpty && unsourced.isEmpty }
-
-  static func sources(
-    of tracks: [PutioSubtitleTrack], from listings: [PutioSubtitleListing]
-  ) -> [Int: PutioSubtitleSource] {
-    let listed = Dictionary(grouping: listings) { PutioSubtitleLanguage.key($0.languageCode) }
-    var seen: [String: Int] = [:]
-    var sources: [Int: PutioSubtitleSource] = [:]
-    for track in tracks {
-      let language = PutioSubtitleLanguage.key(track.languageTag)
-      let ordinal = seen[language, default: 0]
-      seen[language] = ordinal + 1
-      guard let candidates = listed[language], candidates.indices.contains(ordinal) else {
-        return [:]
-      }
-      sources[track.id] = candidates[ordinal].source
-    }
-    return sources
-  }
+  public var isEmpty: Bool { rows.isEmpty }
 }
 
 public enum PutioRememberedSubtitle: Equatable, Sendable {
@@ -193,7 +145,31 @@ public final class PutioSubtitleMemory {
   private static let offValue = "off"
 }
 
+public struct PutioSubtitleRendition: Equatable, Sendable {
+  public let name: String?
+  public let languageTag: String?
+  public let isDefault: Bool
+
+  public init(name: String?, languageTag: String?, isDefault: Bool = false) {
+    self.name = name
+    self.languageTag = languageTag
+    self.isDefault = isDefault
+  }
+}
+
 public enum PutioSubtitleRenditions {
+  public static func renditions(inMasterPlaylist text: String) -> [PutioSubtitleRendition] {
+    text.split(whereSeparator: \.isNewline).map(String.init)
+      .filter { $0.hasPrefix("#EXT-X-MEDIA:") }
+      .compactMap { line in
+        let attributes = PutioAudioRendition.attributes(of: line)
+        guard attributes["TYPE"] == "SUBTITLES" else { return nil }
+        return PutioSubtitleRendition(
+          name: attributes["NAME"], languageTag: attributes["LANGUAGE"],
+          isDefault: attributes["DEFAULT"] == "YES")
+      }
+  }
+
   public static func uris(inMasterPlaylist text: String, relativeTo base: URL) -> [URL] {
     var uris: [URL] = []
     for line in text.split(whereSeparator: \.isNewline) where line.hasPrefix("#EXT-X-MEDIA:") {

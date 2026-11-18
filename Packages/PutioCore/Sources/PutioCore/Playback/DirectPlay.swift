@@ -118,13 +118,44 @@ public enum PutioTrackLabel {
     }
   }
 
-  static func languageName(_ code: String?) -> String? {
+  /// Menus name languages in English, as put.io's other apps do.
+  public static let english = Locale(identifier: "en")
+
+  /// put.io's label for each subtitle file, as its HLS manifests name them:
+  /// "English - Movie.720p" for Movie.720p.srt, "Unknown - Movie" for no
+  /// language, and " (2)" on a repeat.
+  public static func fileSubtitleTitles(
+    _ files: [(languageCode: String, language: String, fileName: String)]
+  ) -> [String] {
+    var seen: [String: Int] = [:]
+    return files.map { file in
+      let language =
+        PutioSubtitleLanguage.key(file.languageCode) == "und"
+        ? String(localized: "Unknown", bundle: .module)
+        : languageName(file.languageCode) ?? file.language
+      let label = "\(language) - \(withoutExtension(file.fileName))"
+      let count = seen[label, default: 0] + 1
+      seen[label] = count
+      return count == 1 ? label : "\(label) (\(count))"
+    }
+  }
+
+  /// Python's `os.path.splitext`: the last dot ends the name unless only
+  /// dots come before it.
+  static func withoutExtension(_ name: String) -> String {
+    guard let dot = name.lastIndex(of: "."),
+      name[..<dot].contains(where: { $0 != "." })
+    else { return name }
+    return String(name[..<dot])
+  }
+
+  public static func languageName(_ code: String?) -> String? {
     guard let code = code?.trimmingCharacters(in: .whitespaces), !code.isEmpty,
       code.lowercased() != "und"
     else { return nil }
     let language = Locale.Language(identifier: code)
     let identifier = language.languageCode?.identifier(.alpha2) ?? code
-    guard let name = Locale.current.localizedString(forLanguageCode: identifier),
+    guard let name = english.localizedString(forLanguageCode: identifier),
       name.lowercased() != identifier.lowercased(), name.lowercased() != code.lowercased()
     else { return nil }
     return name

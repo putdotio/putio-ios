@@ -69,7 +69,7 @@
           ]
         }
       let rows = subtitles.map { subtitle in
-        #"{"key":"\#(subtitle.key)","language":"\#(subtitle.language)","language_code":"\#(subtitle.code)","name":"\#(subtitle.language).srt","source":"\#(subtitle.source)","url":"https://api.put.io/v2/files/\#(fileID)/subtitles/\#(subtitle.key)"}"#
+        #"{"key":"\#(subtitle.key)","language":"\#(subtitle.language)","language_code":"\#(subtitle.code)","name":"Sample.Show.S01E01.\#(subtitle.code).srt","format":"srt","source":"\#(subtitle.source)","url":"https://api.put.io/v2/files/\#(fileID)/subtitles/\#(subtitle.key)"}"#
       }
       let defaultKey = subtitles.first.map { #""\#($0.key)""# } ?? "null"
       return #"{"default":\#(defaultKey),"subtitles":[\#(rows.joined(separator: ","))]}"#

@@ -29,4 +29,21 @@ final class PutioDirectPlaySubtitleStartTests: XCTestCase {
 
     XCTAssertEqual(start?.id, 100)
   }
+
+  func testADefaultCopiedFromTheOriginalStartsItsNativeTrack() {
+    let native = tracks.filter { !$0.isExternal }
+    let start = PutioSubtitleStartupPolicy.accountDefault.startingTrack(
+      in: PutioDirectPlayCoordinator.startCandidates(native, embeddedDefault: ("eng", 0)),
+      remembered: nil)
+    let second = PutioSubtitleStartupPolicy.accountDefault.startingTrack(
+      in: PutioDirectPlayCoordinator.startCandidates(native, embeddedDefault: ("tur", 1)),
+      remembered: nil)
+
+    XCTAssertEqual(start?.id, 4)
+    XCTAssertEqual(second?.id, 3, "the second Turkish copy is the file's second Turkish track")
+    XCTAssertNil(
+      PutioSubtitleStartupPolicy.accountDefault.startingTrack(
+        in: PutioDirectPlayCoordinator.startCandidates(native), remembered: nil),
+      "the file's own default flag is not put.io's choice")
+  }
 }

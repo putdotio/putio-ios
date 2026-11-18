@@ -394,6 +394,26 @@ import Foundation
         || ProcessInfo.processInfo.arguments.contains("--putio-harness-playback-preferences")
     }
     nonisolated(unsafe) private static var filePreferences: FilePreferences?
+
+    private static func castMasterPlaylist(url: URL) -> String {
+      let capped =
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+        .contains { $0.name == "max_subtitle_count" && $0.value == "0" } ?? false
+      let hidden = capped || filePreferences?.hideSubtitles == true
+      let defaults = filePreferences?.dontAutoSelectSubtitles == true ? "NO" : "YES"
+      let subtitles =
+        hidden
+        ? []
+        : [
+          #"#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="en",NAME="English",AUTOSELECT=\#(defaults),DEFAULT=\#(defaults),URI="en.m3u8""#,
+          #"#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="tr",NAME="Turkish",AUTOSELECT=NO,DEFAULT=NO,URI="tr.m3u8""#,
+        ]
+      return
+        (["#EXTM3U"] + subtitles + [
+          #"#EXT-X-STREAM-INF:BANDWIDTH=2030,RESOLUTION=320x180,SUBTITLES="subs0""#, "video.m3u8",
+        ]).joined(separator: "\n")
+    }
+
     nonisolated(unsafe) private static var preferencesSaveFailed = false
     nonisolated(unsafe) private static var preferencesRefreshFailed = false
     nonisolated(unsafe) private static var preferencesSortCommitted = false
@@ -2116,13 +2136,15 @@ import Foundation
         "GET /v2/files/443/subtitles", "GET /v2/files/444/subtitles":
         return seasonEpisodeSubtitles(
           id: Int(url.deletingLastPathComponent().lastPathComponent) ?? 0)
+      case "GET /v2/files/412/hls/media.m3u8":
+        return (200, castMasterPlaylist(url: url))
       case "GET /v2/files/412/subtitles":
         return (
           200,
           """
           {"default":"en","subtitles":[
-            {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en"},
-            {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"}
+            {"key":"en","language":"English","language_code":"eng","name":"Nested.Movie.en.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/412/subtitles/en"},
+            {"key":"tr","language":"Turkish","language_code":"tur","name":"Nested.Movie.tr.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/412/subtitles/tr"}
           ]}
           """
         )
@@ -2562,8 +2584,8 @@ import Foundation
         200,
         """
         {"default":"en","subtitles":[
-          {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"folder","url":"https://api.put.io/v2/files/\(id)/subtitles/en"},
-          {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/\(id)/subtitles/tr"}
+          {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"folder","format":"srt","url":"https://api.put.io/v2/files/\(id)/subtitles/en"},
+          {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/\(id)/subtitles/tr"}
         ]}
         """
       )

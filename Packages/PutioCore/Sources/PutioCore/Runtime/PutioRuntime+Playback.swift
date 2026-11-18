@@ -16,8 +16,10 @@ extension PutioRuntime {
     )
   }
 
-  public func resolveVideoPlaybackSource(fileID: PutioFileID) async throws
-    -> PutioPlaybackResolution
+  /// A download keeps every subtitle rendition; playback applies the
+  /// account's subtitle settings, so only streams ask for a manifest without them.
+  public func resolveVideoPlaybackSource(fileID: PutioFileID, forDownload: Bool = false)
+    async throws -> PutioPlaybackResolution
   {
     let resolution = try await performAuthenticatedOperation {
       () -> PutioVideoPlaybackResolution? in
@@ -28,10 +30,23 @@ extension PutioRuntime {
 
     switch resolution {
     case .ready(let source):
-      return .ready(PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom))
+      return .ready(
+        PutioPlaybackSource(
+          url: forDownload ? source.url : try hlsURL(source.url),
+          startFromSeconds: source.startFrom))
     case .conversionRequired:
       return .conversionRequired
     }
+  }
+
+  func hlsURL(_ url: URL) throws -> URL {
+    guard try signedInAccount().hideSubtitles,
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    else { return url }
+    components.queryItems =
+      (components.queryItems ?? []).filter { $0.name != "max_subtitle_count" }
+      + [URLQueryItem(name: "max_subtitle_count", value: "0")]
+    return components.url ?? url
   }
 
   /// Resolves a video under a Playback method. Standard is the HLS source
@@ -176,9 +191,9 @@ extension PutioRuntime {
 
   /// Resolves a video into the HLS stream a Cast receiver plays, behind the
   /// local player's gate: put.io serves HLS for any file that needs no
-  /// conversion or already has its MP4. Subtitles travel as put.io's subtitle
-  /// files instead of in the stream, unless those cannot be read. URLs carry
-  /// the download token, never the session token.
+  /// conversion or already has its MP4. The receiver plays the manifest's
+  /// own subtitle renditions, named and defaulted by the master playlist.
+  /// URLs carry the download token, never the session token.
   public func resolveCastMedia(fileID: PutioFileID) async throws -> PutioCastResolution {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let (file, downloadToken) = try await performAuthenticatedOperation {
@@ -197,25 +212,27 @@ extension PutioRuntime {
     let token = try requireDownloadToken(downloadToken)
     guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
     let duration = file.metaData?.duration ?? 0
-    let sidecars = try? await sidecarSubtitles(fileID: fileID, token: token)
-    let stream = file.getHlsStreamURL(downloadToken: token)
+    let stream = try hlsURL(file.getHlsStreamURL(downloadToken: token))
+    let renditions = await subtitleRenditions(inMasterPlaylist: stream)
     return .ready(
       PutioCastMedia(
         id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-        url: sidecars == nil ? stream : Self.withoutMuxedSubtitles(stream),
+        url: stream,
         artworkURL: Self.screenshotURL(file.screenshot),
         durationSeconds: duration,
         startFromSeconds: PutioPlaybackProgress.startSeconds(
           savedSeconds: file.startFrom, durationSeconds: duration),
-        subtitles: sidecars?.subtitles ?? [], defaultSubtitleKey: sidecars?.defaultKey))
+        subtitleRenditions: renditions))
   }
 
-  private static func withoutMuxedSubtitles(_ url: URL) -> URL {
-    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-      return url
-    }
-    components.queryItems = components.queryItems?.filter { $0.name != "subtitle_key" }
-    return components.url ?? url
+  private nonisolated func subtitleRenditions(inMasterPlaylist url: URL) async
+    -> [PutioSubtitleRendition]
+  {
+    guard let (data, response) = try? await urlSession.data(from: url),
+      (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? false,
+      let text = String(data: data, encoding: .utf8)
+    else { return [] }
+    return PutioSubtitleRenditions.renditions(inMasterPlaylist: text)
   }
 
   public func resolveCastAudio(fileID: PutioFileID) async throws -> PutioCastMedia {
@@ -250,7 +267,7 @@ extension PutioRuntime {
   }
 
   /// put.io's subtitle files for a video as WebVTT, under the account's
-  /// subtitle settings. The receiver and the Direct play engine fetch them
+  /// subtitle settings. The Direct play engine fetches them
   /// without the app's header, so the download token rides on the URL; only
   /// the API host may receive it.
   private func sidecarSubtitles(fileID: PutioFileID, token: String) async throws
@@ -285,17 +302,6 @@ extension PutioRuntime {
       subtitles.contains { $0.key == key } ? key : nil
     }
     return (subtitles, account.dontAutoSelectSubtitles ? nil : defaultKey ?? subtitles.first?.key)
-  }
-
-  public func subtitleListings(fileID: PutioFileID) async throws -> [PutioSubtitleListing] {
-    guard try !signedInAccount().hideSubtitles else { return [] }
-    let response = try await performAuthenticatedOperation {
-      try await sdk.getSubtitles(fileID: fileID.rawValue)
-    }
-    return response.subtitles.map {
-      PutioSubtitleListing(
-        languageCode: $0.languageCode, source: PutioSubtitleSource(apiSource: $0.source))
-    }
   }
 
   private func signedInAccount() throws -> PutioAccountSnapshot {

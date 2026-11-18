@@ -45,7 +45,6 @@ struct PutioVideoPlaybackView: View {
   private let onFallbackPlays: @MainActor @Sendable () -> Void
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let subtitleMemory: PutioSubtitleMemory?
-  private let loadSubtitleListings: PutioSubtitleListingsLoad
 
   init(
     route: PutioVideoRoute,
@@ -77,7 +76,6 @@ struct PutioVideoPlaybackView: View {
     resolveConverted: PutioPlaybackResolve? = nil,
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
-    loadSubtitleListings: @escaping PutioSubtitleListingsLoad = { _ in [] },
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.onFallback = onFallback
@@ -85,7 +83,6 @@ struct PutioVideoPlaybackView: View {
     self.castButton = castButton
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
-    self.loadSubtitleListings = route.subtitleListings(loadSubtitleListings)
     let transport = PutioVideoTransport()
     transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
     transport.onSubtitleFailed = { subtitleMemory?.forget($0) }
@@ -175,9 +172,6 @@ struct PutioVideoPlaybackView: View {
     .putioVideoResumeAlert(resumePrompter)
     .task {
       await model.loadIfNeeded()
-    }
-    .task {
-      transport.subtitleListings = (try? await loadSubtitleListings(fileID)) ?? []
     }
     .task {
       await nextVideoModel.lookUp()

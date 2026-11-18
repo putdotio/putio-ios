@@ -14,6 +14,9 @@ enum PutioOfflineOriginalPackage {
     let displayName: String
     let fileName: String
     var isDefault: Bool? = nil
+    /// put.io's copy of one of the original's own tracks; nil in packages
+    /// stored before this was recorded.
+    var fromOriginal: Bool? = nil
   }
 
   static let transferName = "original"
@@ -78,7 +81,8 @@ enum PutioOfflineOriginalPackage {
       manifest.append(
         Subtitle(
           languageCode: languageCode, displayName: entry.subtitle.language, fileName: fileName,
-          isDefault: entry.subtitle.key == defaultKey))
+          isDefault: entry.subtitle.key == defaultKey,
+          fromOriginal: entry.subtitle.source.isInFile))
     }
     try JSONEncoder().encode(manifest).write(
       to: directory.appending(path: manifestName), options: .atomic)
@@ -98,7 +102,8 @@ enum PutioOfflineOriginalPackage {
     let subtitles = stored.map {
       PutioCastSubtitle(
         key: $0.fileName, language: $0.displayName, languageCode: $0.languageCode,
-        name: $0.displayName, source: .openSubtitles, url: directory.appending(path: $0.fileName))
+        name: $0.displayName, source: $0.fromOriginal == true ? .embedded : .openSubtitles,
+        url: directory.appending(path: $0.fileName))
     }
     let defaultKey = stored.first { $0.isDefault == true }?.fileName
     return (subtitles, defaultKey)
@@ -111,17 +116,29 @@ enum PutioOfflineOriginalPackage {
     var options = LoadOptions()
     options.skipsContainerAttachments = true
     let probe = try? AetherEngine.probe(url: mediaURL(in: directory, name: name), options: options)
-    let audio = (probe?.audioTracks ?? []).compactMap { track -> PutioOfflineTrack? in
+    let named = { (track: TrackInfo) -> PutioOfflineTrack? in
       guard let language = track.language, !language.isEmpty, language != "und" else { return nil }
       let code = PutioOfflineLanguage.normalize(language)
       return PutioOfflineTrack(
         languageCode: code,
-        displayName: Locale.current.localizedString(forLanguageCode: code) ?? track.name)
+        displayName: PutioTrackLabel.english.localizedString(forLanguageCode: code) ?? track.name)
     }
-    let subtitles = subtitles(in: directory).map {
-      PutioOfflineTrack(languageCode: $0.languageCode, displayName: $0.displayName)
+    let audio = (probe?.audioTracks ?? []).compactMap(named)
+    let embedded = (probe?.subtitleTracks ?? []).compactMap(named)
+    var copies = Dictionary(grouping: embedded, by: \.languageCode).mapValues(\.count)
+    let files = subtitles(in: directory).filter { subtitle in
+      if let fromOriginal = subtitle.fromOriginal { return !fromOriginal }
+      guard let remaining = copies[subtitle.languageCode], remaining > 0 else { return true }
+      copies[subtitle.languageCode] = remaining - 1
+      return false
     }
-    return (audio, subtitles)
+    return (
+      audio,
+      embedded
+        + files.map {
+          PutioOfflineTrack(languageCode: $0.languageCode, displayName: $0.displayName)
+        }
+    )
   }
 
   @concurrent
