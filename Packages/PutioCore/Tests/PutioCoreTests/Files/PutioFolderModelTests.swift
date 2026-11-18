@@ -870,6 +870,56 @@ final class PutioFolderModelTests: XCTestCase {
       "a refused rename leaves its screen as it was and must not reload it")
   }
 
+  func testSettledActionsRequestRefreshesAfterTheirScreenCloses() async throws {
+    let folder = PutioFileID(rawValue: 42)
+    let parent = PutioFileID.root
+    let item = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Episode.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
+    let requests = PutioFolderRefreshRequests()
+    let search = UUID()
+    let parentScreen = UUID()
+    requests.register(folderID: folder, owner: search)
+    requests.register(folderID: parent, owner: parentScreen)
+
+    for deleting in [true, false] {
+      let mutation = SuspendedFileMutation()
+      addTeardownBlock { await mutation.cancelPending() }
+      var registration: PutioFolderRefreshRegistration? = PutioFolderRefreshRegistration(
+        folderID: folder, requests: requests)
+      registration?.activate()
+      let model = PutioFolderModel(
+        folderID: folder,
+        load: { _ in original },
+        actions: PutioFileActions(
+          createFolder: { _, _ in throw PutioRuntimeError.unknown },
+          renameFile: { _, _ in throw PutioRuntimeError.unknown },
+          deleteFile: { _ in try await mutation.run() },
+          setWatched: { _, _ in try await mutation.run() }
+        ),
+        initialContents: original,
+        refreshRegistration: registration
+      )
+      let task = Task {
+        deleting ? await model.delete(item) : await model.setWatched(item, true)
+      }
+      try await mutation.waitUntilStarted()
+      let before = requests.sequence(for: folder, owner: search)
+
+      registration = nil
+      await mutation.succeed()
+      _ = await task.value
+
+      let after = try XCTUnwrap(
+        requests.sequence(for: folder, owner: search),
+        "a settled action must reach other screens of its folder after its own closed")
+      XCTAssertNotEqual(after, before)
+      requests.markConsumed(after, for: folder, owner: search)
+    }
+    XCTAssertNotNil(
+      requests.sequence(for: parent, owner: parentScreen),
+      "a delete must reach every loaded folder after its screen closed")
+  }
+
   func testConsumedRefreshRequestsStopRefreshingOnLaterAppearances() {
     let folder = PutioFileID(rawValue: 42)
     let other = PutioFileID(rawValue: 7)
