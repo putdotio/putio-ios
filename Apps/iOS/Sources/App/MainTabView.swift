@@ -927,7 +927,6 @@ struct MainTabView: View {
         hideSubtitles: account.hideSubtitles,
         dontAutoSelectSubtitles: account.dontAutoSelectSubtitles),
       subtitleMemory: subtitleMemory,
-      loadSubtitleListings: { fileID in try await runtime.subtitleListings(fileID: fileID) },
       resolve: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method)
       }

@@ -62,13 +62,14 @@ struct PutioCastMediaStatus: Equatable, Sendable {
   let positionSeconds: Double
   let durationSeconds: Double
   var audioTracks: [PutioCastAudioTrack] = []
+  var textTracks: [PutioCastTextTrack] = []
   var activeTrackIDs: [Int] = []
 }
 
-enum PutioCastTextTrack {
-  static let firstID = 1_000
-
-  static func id(at index: Int) -> Int { firstID + index }
+struct PutioCastTextTrack: Equatable, Sendable {
+  let id: Int
+  let languageCode: String?
+  let name: String?
 }
 
 struct PutioCastDevice: Identifiable, Equatable, Sendable {
@@ -192,6 +193,7 @@ final class PutioCastModel {
   @ObservationIgnored private var saves: PutioCastPositionSaves?
   @ObservationIgnored private var requestedStart: Int?
   @ObservationIgnored private var requestedSubtitle: PutioRememberedSubtitle?
+  @ObservationIgnored private var startsSubtitle = false
   @ObservationIgnored private var carriedAudioLanguage: String?
   @ObservationIgnored private var reporter: PutioVideoPositionReporter?
   @ObservationIgnored private var backgroundObservation: NSObjectProtocol?
@@ -316,13 +318,18 @@ final class PutioCastModel {
   // MARK: Tracks
 
   var subtitleTracks: [PutioSubtitleTrack] {
-    guard let media else { return [] }
-    return media.subtitles.enumerated().map { index, subtitle in
-      PutioSubtitleTrack(
-        id: PutioCastTextTrack.id(at: index),
-        title: PutioTrackLabel.subtitleTitle(
-          language: subtitle.languageCode, name: subtitle.language, index: index),
-        languageTag: subtitle.languageCode, isDefault: subtitle.key == media.defaultSubtitleKey)
+    guard let media, let received = status?.textTracks, !received.isEmpty else { return [] }
+    let renditions =
+      media.subtitleRenditions.count == received.count ? media.subtitleRenditions : []
+    return received.enumerated().map { index, track in
+      let rendition = renditions.indices.contains(index) ? renditions[index] : nil
+      let name = (rendition?.name ?? track.name)?.trimmingCharacters(in: .whitespaces)
+      return PutioSubtitleTrack(
+        id: track.id,
+        title: name.flatMap { $0.isEmpty ? nil : $0 }
+          ?? PutioTrackLabel.subtitleTitle(language: track.languageCode, name: nil, index: index),
+        languageTag: track.languageCode ?? rendition?.languageTag,
+        isDefault: rendition?.isDefault ?? false)
     }
   }
 
@@ -350,15 +357,10 @@ final class PutioCastModel {
   }
 
   var chipTracks: PutioVideoChipTracks {
-    let subtitles = media?.subtitles ?? []
-    return PutioVideoChipTracks(
+    PutioVideoChipTracks(
       audioTracks: audioTracks, selectedAudio: selectedAudio,
       selectAudio: { [weak self] in self?.selectAudio($0) },
-      subtitleMenu: PutioSubtitleMenu(
-        tracks: subtitleTracks,
-        listings: subtitles.map {
-          PutioSubtitleListing(languageCode: $0.languageCode, source: $0.source)
-        }),
+      subtitleMenu: PutioSubtitleMenu(tracks: subtitleTracks),
       selectedSubtitle: selectedSubtitle,
       pickSubtitle: { [weak self] in self?.pickSubtitle($0) },
       enabled: phase == .playing)
@@ -423,12 +425,21 @@ final class PutioCastModel {
     }
   }
 
-  private func startingTrackIDs(for media: PutioCastMedia) -> [Int] {
-    let policy = PutioSubtitleStartupPolicy(
-      showsSubtitles: true, autoSelects: media.defaultSubtitleKey != nil)
-    let track = policy.startingTrack(
-      in: subtitleTracks, remembered: requestedSubtitle ?? subtitleMemory?.remembered)
-    return track.map { [$0.id] } ?? []
+  /// The receiver lists the manifest's subtitles only after it loads them.
+  private func startSubtitle() {
+    guard startsSubtitle else { return }
+    let tracks = subtitleTracks
+    guard !tracks.isEmpty else { return }
+    startsSubtitle = false
+    let policy = PutioSubtitleStartupPolicy(showsSubtitles: true, autoSelects: true)
+    let remembered = requestedSubtitle ?? subtitleMemory?.remembered
+    let track = policy.startingTrack(in: tracks, remembered: remembered)
+    let knowsDefault = media?.subtitleRenditions.count == tracks.count
+    guard track?.id != selectedSubtitle, track != nil || knowsDefault || remembered == .off
+    else { return }
+    let textIDs = Set(tracks.map(\.id))
+    let ids = activeTrackIDs.filter { !textIDs.contains($0) } + [track?.id].compactMap { $0 }
+    switchTracks(to: ids) { _, _ in }
   }
 
   private func carryOverAudio() {
@@ -511,6 +522,7 @@ final class PutioCastModel {
     requestedSubtitle = nil
     carriedAudioLanguage = nil
     pendingTrackIDs = nil
+    startsSubtitle = false
     toast = nil
     wait.restart()
   }
@@ -543,6 +555,7 @@ final class PutioCastModel {
     media = nil
     status = nil
     pendingTrackIDs = nil
+    startsSubtitle = false
     toast = nil
     wait.restart()
     activity = .resolving(route.id)
@@ -583,9 +596,10 @@ final class PutioCastModel {
       guard case .ready(let media) = resolution else { return }
       activity = .loading(route.id)
       self.media = media
+      startsSubtitle = true
       try await controller.load(
         media, startSeconds: startSeconds ?? media.startFromSeconds, autoplay: true,
-        activeTrackIDs: startingTrackIDs(for: media))
+        activeTrackIDs: [])
       guard request == generation else { return }
       requestedStart = nil
       activity = .idle
@@ -713,6 +727,7 @@ final class PutioCastModel {
     statusReceivedAt = .now
     wait.activityChanged(status.playerState.waitActivity)
     if wasPlaying, status.playerState == .paused { reporter?.savePosition() }
+    startSubtitle()
     carryOverAudio()
   }
 

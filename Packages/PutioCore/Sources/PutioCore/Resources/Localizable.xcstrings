@@ -2233,6 +2233,17 @@
         }
       }
     },
+    "Unknown" : {
+      "comment" : "android: playback_subtitle_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        }
+      }
+    },
     "Unwatched first" : {
       "comment" : "android: mobile_files_sort_watch_ascending",
       "localizations" : {

@@ -105,6 +105,22 @@ public struct PutioOriginalPlayback: Equatable, Sendable {
     self.defaultSubtitleKey = defaultSubtitleKey
   }
 
+  /// The engine shows the original's own tracks, so put.io's copies of them stay out.
+  public var fileSubtitles: [PutioCastSubtitle] { subtitles.filter { !$0.source.isInFile } }
+
+  /// put.io's default when it is a copy of one of the original's tracks: its
+  /// language and its position among the copies in that language.
+  public var defaultEmbeddedTrack: (languageCode: String, position: Int)? {
+    guard let index = subtitles.firstIndex(where: { $0.key == defaultSubtitleKey }),
+      subtitles[index].source.isInFile
+    else { return nil }
+    let language = subtitles[index].languageCode
+    let position = subtitles[..<index].filter {
+      $0.source.isInFile && PutioSubtitleLanguage.matches($0.languageCode, language)
+    }.count
+    return (language, position)
+  }
+
   public func subtitles(_ subtitles: [PutioCastSubtitle], defaultKey: String?)
     -> PutioOriginalPlayback
   {
@@ -332,13 +348,12 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   public let durationSeconds: Double
   public let startFromSeconds: Int
   public let kind: Kind
-  public let subtitles: [PutioCastSubtitle]
-  public let defaultSubtitleKey: String?
+  public let subtitleRenditions: [PutioSubtitleRendition]
 
   public init(
     id: PutioFileID, parentID: PutioFileID, title: String, url: URL, artworkURL: URL?,
     durationSeconds: Double, startFromSeconds: Int, kind: Kind = .video,
-    subtitles: [PutioCastSubtitle] = [], defaultSubtitleKey: String? = nil
+    subtitleRenditions: [PutioSubtitleRendition] = []
   ) {
     self.id = id
     self.parentID = parentID
@@ -348,8 +363,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     self.durationSeconds = durationSeconds
     self.startFromSeconds = startFromSeconds
     self.kind = kind
-    self.subtitles = subtitles
-    self.defaultSubtitleKey = defaultSubtitleKey
+    self.subtitleRenditions = subtitleRenditions
   }
 
   public var contentType: String {
@@ -371,7 +385,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
       children: [
         "id": id, "parentID": parentID, "title": title, "url": "<redacted>",
         "durationSeconds": durationSeconds, "startFromSeconds": startFromSeconds,
-        "kind": kind, "subtitles": subtitles, "defaultSubtitleKey": defaultSubtitleKey as Any,
+        "kind": kind, "subtitleRenditions": subtitleRenditions,
       ],
       displayStyle: .struct)
   }

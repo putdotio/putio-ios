@@ -749,26 +749,25 @@ final class ChromecastTests: XCTestCase {
     }
   }
 
-  private func subtitledMedia(defaultKey: String? = "en") -> PutioCastMedia {
-    let subtitle = { (key: String, language: String, code: String, source: PutioSubtitleSource) in
-      PutioCastSubtitle(
-        key: key, language: language, languageCode: code, name: "\(language).srt",
-        source: source,
-        url: URL(string: "https://api.put.io/v2/files/412/subtitles/\(key)?format=webvtt")!)
-    }
-    return PutioCastMedia(
+  private func subtitledMedia(englishIsDefault: Bool = true) -> PutioCastMedia {
+    PutioCastMedia(
       id: PutioFileID(rawValue: 412), parentID: .root, title: "Movie.mkv",
       url: URL(string: "https://api.put.io/v2/files/412/hls/media.m3u8?oauth_token=secret")!,
       artworkURL: nil, durationSeconds: 5400, startFromSeconds: 589,
-      subtitles: [
-        subtitle("en", "English", "eng", .embedded),
-        subtitle("tr", "Turkish", "tur", .openSubtitles),
-      ],
-      defaultSubtitleKey: defaultKey)
+      subtitleRenditions: [
+        PutioSubtitleRendition(name: "English", languageTag: "en", isDefault: englishIsDefault),
+        PutioSubtitleRendition(name: "Turkish", languageTag: "tr"),
+      ])
   }
 
-  private let english = PutioCastTextTrack.id(at: 0)
-  private let turkish = PutioCastTextTrack.id(at: 1)
+  private let english = 1_000
+  private let turkish = 1_001
+  private var receiverText: [PutioCastTextTrack] {
+    [
+      PutioCastTextTrack(id: english, languageCode: "en", name: "English"),
+      PutioCastTextTrack(id: turkish, languageCode: "tr", name: "Turkish"),
+    ]
+  }
   private let receiverAudio = [
     PutioCastAudioTrack(id: 1, languageCode: "en", name: nil),
     PutioCastAudioTrack(id: 2, languageCode: "tr", name: nil),
@@ -779,7 +778,7 @@ final class ChromecastTests: XCTestCase {
   {
     PutioCastMediaStatus(
       fileID: route.id, playerState: .playing, positionSeconds: 600, durationSeconds: 5400,
-      audioTracks: audio ?? receiverAudio, activeTrackIDs: active)
+      audioTracks: audio ?? receiverAudio, textTracks: receiverText, activeTrackIDs: active)
   }
 
   private func memory() throws -> PutioSubtitleMemory {
@@ -789,33 +788,65 @@ final class ChromecastTests: XCTestCase {
     return PutioSubtitleMemory(defaults: defaults)
   }
 
-  func testLoadSideLoadsSubtitlesAndStartsOnTheRememberedOrDefaultTrack() async throws {
-    let cases: [(PutioSubtitleTrack?, String?, [Int])] = [
-      (nil, "en", [english]),
-      (nil, nil, []),
-      (PutioSubtitleTrack(id: 0, title: "Turkish", languageTag: "tr"), "en", [turkish]),
+  func testTheFirstStatusWithManifestSubtitlesStartsTheRememberedOrDefaultTrack() async throws {
+    let cases: [(PutioSubtitleTrack?, Bool, [[Int]])] = [
+      (nil, true, [[1, english]]),
+      (nil, false, []),
+      (PutioSubtitleTrack(id: 0, title: "Turkish", languageTag: "tr"), true, [[1, turkish]]),
     ]
-    for (remembered, defaultKey, expected) in cases {
+    for (remembered, englishIsDefault, expected) in cases {
       let subtitleMemory = try memory()
       if let remembered { subtitleMemory.remember(remembered) }
       let controller = CastControllerStub()
       let (model, box) = makeModel(
         controller: controller,
-        resolutions: [.success(.ready(subtitledMedia(defaultKey: defaultKey)))],
+        resolutions: [.success(.ready(subtitledMedia(englishIsDefault: englishIsDefault)))],
         subtitleMemory: subtitleMemory)
       model.cast(route, saves: box.saves)
-      try await expect({ controller.loads.count == 1 })
-      XCTAssertEqual(
-        controller.loads[0].activeTrackIDs, expected, "\(String(describing: remembered))")
+      try await expect({ controller.loads.count == 1 && model.activity == .idle })
+      XCTAssertEqual(controller.loads[0].activeTrackIDs, [], "the receiver has no tracks yet")
+      controller.report(
+        PutioCastMediaStatus(
+          fileID: route.id, playerState: .loading, positionSeconds: 0, durationSeconds: 5400))
+      XCTAssertEqual(controller.trackSwitches, [], "picked before the manifest loaded")
+
+      controller.report(trackStatus([1]))
+      try await expect({ controller.trackSwitches.count == expected.count })
+      controller.report(trackStatus(expected.last ?? [1]))
+      controller.report(trackStatus(expected.last ?? [1]))
+      XCTAssertEqual(controller.trackSwitches, expected, "\(String(describing: remembered))")
     }
   }
 
+  func testWithoutTheMasterPlaylistTheReceiversOwnPickStays() async throws {
+    let controller = CastControllerStub()
+    let unnamed = subtitledMedia()
+    let (model, box) = makeModel(
+      controller: controller,
+      resolutions: [
+        .success(
+          .ready(
+            PutioCastMedia(
+              id: unnamed.id, parentID: unnamed.parentID, title: unnamed.title, url: unnamed.url,
+              artworkURL: nil, durationSeconds: unnamed.durationSeconds,
+              startFromSeconds: unnamed.startFromSeconds)))
+      ],
+      subtitleMemory: try memory())
+    model.cast(route, saves: box.saves)
+    try await expect({ controller.loads.count == 1 && model.activity == .idle })
+    controller.report(trackStatus([1, turkish]))
+    controller.report(trackStatus([1, turkish]))
+
+    XCTAssertEqual(controller.trackSwitches, [], "an unknown default turned subtitles off")
+    XCTAssertEqual(model.selectedSubtitle, turkish)
+  }
+
   func testAHandOffKeepsTheAudioAndSubtitlePickedOnThePhone() async throws {
-    let cases: [(PutioRememberedSubtitle, load: [Int], switched: [Int])] = [
-      (.off, [], [2]),
-      (.language("tr"), [turkish], [2, turkish]),
+    let cases: [(PutioRememberedSubtitle, switches: [[Int]])] = [
+      (.off, [[2]]),
+      (.language("tr"), [[1, turkish], [2, turkish]]),
     ]
-    for (subtitle, load, switched) in cases {
+    for (subtitle, switches) in cases {
       let controller = CastControllerStub()
       let (model, box) = makeModel(
         controller: controller, resolutions: [.success(.ready(subtitledMedia()))],
@@ -824,13 +855,13 @@ final class ChromecastTests: XCTestCase {
         route, saves: box.saves, startingAt: 600,
         tracks: PutioVideoTrackChoice(audioLanguage: "tr", subtitle: subtitle))
       try await expect({ controller.loads.count == 1 && model.activity == .idle })
-      XCTAssertEqual(controller.loads[0].activeTrackIDs, load, "\(subtitle)")
+      XCTAssertEqual(controller.loads[0].activeTrackIDs, [], "\(subtitle)")
 
-      controller.report(trackStatus([1] + load))
-      try await expect({ controller.trackSwitches.count == 1 })
-      controller.report(trackStatus(switched))
-      controller.report(trackStatus(switched))
-      XCTAssertEqual(controller.trackSwitches, [switched], "\(subtitle)")
+      controller.report(trackStatus([1]))
+      try await expect({ controller.trackSwitches.count == switches.count })
+      controller.report(trackStatus(switches.last ?? []))
+      controller.report(trackStatus(switches.last ?? []))
+      XCTAssertEqual(controller.trackSwitches, switches, "\(subtitle)")
       XCTAssertEqual(model.selectedAudio, 2)
     }
   }
@@ -870,20 +901,22 @@ final class ChromecastTests: XCTestCase {
     }
   }
 
-  func testChipsFollowTheReceiversActiveTracksAndGroupSubtitlesBySource() async throws {
+  func testChipsFollowTheReceiversActiveTracksAndListManifestSubtitles() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(
       controller: controller, resolutions: [.success(.ready(subtitledMedia()))])
     model.cast(route, saves: box.saves)
     try await expect({ model.media != nil && model.activity == .idle })
+    controller.report(trackStatus([1, english]))
     controller.report(trackStatus([2, turkish]))
     let chips = model.chipTracks
     XCTAssertTrue(chips.enabled)
     XCTAssertEqual(chips.audioTracks.map(\.title), ["English", "Turkish"])
     XCTAssertEqual(chips.selectedAudioTitle, "Turkish")
     XCTAssertEqual(chips.selectedSubtitleTitle, "Turkish")
-    XCTAssertEqual(chips.subtitleMenu.inFile.map(\.track.id), [english])
-    XCTAssertEqual(chips.subtitleMenu.found.map(\.track.id), [turkish])
+    XCTAssertEqual(chips.subtitleMenu.rows.map(\.track.id), [english, turkish])
+    XCTAssertEqual(chips.subtitleMenu.rows.map(\.title), ["English", "Turkish"])
+    XCTAssertEqual(controller.trackSwitches, [], "the default was already showing")
 
     controller.report(trackStatus([1]))
     XCTAssertEqual(model.chipTracks.selectedSubtitleTitle, "Off")
@@ -963,7 +996,7 @@ final class ChromecastTests: XCTestCase {
     await audio?.value
 
     XCTAssertEqual(controller.trackSwitches, [[1, turkish], [2, turkish]])
-    XCTAssertEqual(subtitleMemory.remembered, .language("tur"))
+    XCTAssertEqual(subtitleMemory.remembered, .language("tr"))
   }
 
   func testATrackSwitchQueuedBeforeTheReceiverMovesOnIsNotSent() async throws {

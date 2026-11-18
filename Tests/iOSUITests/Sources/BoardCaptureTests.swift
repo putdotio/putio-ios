@@ -2022,12 +2022,9 @@ final class BoardCaptureTests: XCTestCase {
   func testSubtitlesMenu() throws {
     openSubtitledEpisode(tracks: "three")
     openSubtitlesChip()
-    for text in ["In this file", "Found by put.io"] {
-      XCTAssertTrue(menuShows(text), "the menu lacks \(text)")
-    }
-    for (row, source) in [(0, "Embedded"), (1, "This folder"), (2, "OpenSubtitles")] {
+    for (row, name) in [(0, "English"), (1, "Spanish"), (2, "Turkish")] {
       XCTAssertTrue(
-        app.buttons["video.subtitles.\(row)"].label.contains(source), "row \(row) lacks \(source)")
+        app.buttons["video.subtitles.\(row)"].label.hasPrefix(name), "row \(row) lacks \(name)")
     }
     XCTAssertTrue(app.buttons["video.subtitles.size-and-timing"].exists)
     try captureBoard("rd-ios-pb-03-subtitles")
@@ -2102,11 +2099,6 @@ final class BoardCaptureTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: format), object: target)
     return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
-  }
-
-  private func menuShows(_ text: String) -> Bool {
-    app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", text)).firstMatch
-      .exists
   }
 
   func testVideoAccessExpired() throws {

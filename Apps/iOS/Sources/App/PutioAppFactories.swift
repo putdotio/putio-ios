@@ -55,7 +55,8 @@ enum PutioOfflineQueueFactory {
           let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         case .video:
-          let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+          let resolution = try await runtime.resolveVideoPlaybackSource(
+            fileID: fileID, forDownload: true)
           guard case .ready(let source) = resolution else { return resolution }
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         }

@@ -56,7 +56,7 @@ public struct PutioAudioRendition: Equatable, Sendable {
     }
   }
 
-  private static func attributes(of line: String) -> [String: String] {
+  static func attributes(of line: String) -> [String: String] {
     guard let colon = line.firstIndex(of: ":") else { return [:] }
     var result: [String: String] = [:]
     var rest = line[line.index(after: colon)...]

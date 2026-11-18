@@ -49,4 +49,29 @@ final class DirectPlayTests: XCTestCase {
     XCTAssertEqual(PutioTrackLabel.languageCode("eng"), "en")
     XCTAssertNil(PutioTrackLabel.languageCode(nil))
   }
+
+  func testFileSubtitleTitlesFollowPutiosManifestNames() {
+    let titles = PutioTrackLabel.fileSubtitleTitles([
+      ("eng", "English", "Sample.Show.S01E01.srt"),
+      ("eng", "English", "Sample.Show.S01E01.srt"),
+      ("eng", "English", "Sample.Show.S01E01.720p"),
+      ("tur", "Turkish", "Sample.Show.S01E01.srt.txt"),
+      ("und", "Unknown", "Sample.Show.S01E01.ass"),
+      ("pob", "Portuguese (Brazil)", ".hidden"),
+      ("eng", "English", "trailing."),
+    ])
+
+    XCTAssertEqual(
+      titles,
+      [
+        "English - Sample.Show.S01E01",
+        "English - Sample.Show.S01E01 (2)",
+        "English - Sample.Show.S01E01 (3)",
+        "Turkish - Sample.Show.S01E01.srt",
+        "Unknown - Sample.Show.S01E01",
+        "Portuguese (Brazil) - .hidden",
+        "English - trailing",
+      ])
+  }
+
 }
