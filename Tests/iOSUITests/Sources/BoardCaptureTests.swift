@@ -5018,6 +5018,9 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadTrashOffClosesDetail() throws {
     let startsInPortrait = isPortraitBoard
+    app.launchArguments += [
+      "--putio-harness-file-preferences", "--putio-harness-reset-file-preferences",
+    ]
     openIPadTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
     if startsInPortrait {
