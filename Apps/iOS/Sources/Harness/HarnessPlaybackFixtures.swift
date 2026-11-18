@@ -263,14 +263,14 @@ import SwiftUI
   /// exposed.
   final class HarnessExternalURLOpener: PutioExternalURLOpening, @unchecked Sendable {
     private var vlcInstalled: Bool
-    private var removesVLCAfterFirstCheck: Bool
+    private var hidesVLCAtHandoff: Bool
     private var refusesNextHandoff: Bool
     private static var requests: [String] = []
     private static let lock = NSLock()
 
-    init(vlcInstalled: Bool, removesVLCAfterFirstCheck: Bool, refusesFirstHandoff: Bool) {
-      self.vlcInstalled = vlcInstalled || removesVLCAfterFirstCheck
-      self.removesVLCAfterFirstCheck = removesVLCAfterFirstCheck
+    init(vlcInstalled: Bool, hidesVLCAtHandoff: Bool, refusesFirstHandoff: Bool) {
+      self.vlcInstalled = vlcInstalled || hidesVLCAtHandoff
+      self.hidesVLCAtHandoff = hidesVLCAtHandoff
       refusesNextHandoff = refusesFirstHandoff
     }
 
@@ -279,17 +279,18 @@ import SwiftUI
     }
 
     @MainActor func canOpen(_ url: URL) -> Bool {
-      guard url.scheme == PutioVLCHandoff.scheme else { return true }
-      let installed = vlcInstalled
-      if removesVLCAfterFirstCheck {
-        removesVLCAfterFirstCheck = false
-        vlcInstalled = false
-      }
-      return installed
+      url.scheme == PutioVLCHandoff.scheme ? vlcInstalled : true
+    }
+
+    @MainActor func canHandOff(_ url: URL) -> Bool {
+      canOpen(url) && !(url.scheme == PutioVLCHandoff.scheme && hidesVLCAtHandoff)
     }
 
     @MainActor func open(_ url: URL) async -> Bool {
-      if url == PutioVLCHandoff.appStoreURL { vlcInstalled = true }
+      if url == PutioVLCHandoff.appStoreURL {
+        vlcInstalled = true
+        hidesVLCAtHandoff = false
+      }
       let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
       var summary = "\(url.scheme ?? "")://\(components?.host ?? "")\(components?.path ?? "")"
       if let target = components?.queryItems?.first(where: { $0.name == "url" })?.value,
