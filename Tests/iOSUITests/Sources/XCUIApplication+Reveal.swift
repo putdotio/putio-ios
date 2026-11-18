@@ -106,16 +106,19 @@ extension XCUIApplication {
         format: "identifier CONTAINS %@ OR (label == %@ AND identifier != %@)",
         "OverflowBarButtonItem", title, identifier)
     ).firstMatch
-    let deadline = Date.now.addingTimeInterval(15)
+    let deadline = Date.now.addingTimeInterval(15 * XCUIElement.timeoutScale)
     while !item.isHittable, !overflow.isHittable, Date.now < deadline {
       _ = item.becomesHittable(within: 0.5)
     }
     if item.isHittable, item.appears(within: 3) { return item.tap() }
     XCTAssertTrue(overflow.isHittable, "the toolbar has no \(title)", file: file, line: line)
     _ = overflow.appears(within: 3)
+    let opensMenu = overflow.identifier.contains("OverflowBarButtonItem")
     overflow.tap()
+    guard opensMenu else { return }
     let entry = collectionViews.buttons[title].firstMatch
-    if entry.appears(within: 5) { entry.tap() }
+    XCTAssertTrue(entry.appears(within: 5), "the overflow has no \(title)", file: file, line: line)
+    entry.tap()
   }
 
   func sortChoice(_ title: String) -> XCUIElement {
