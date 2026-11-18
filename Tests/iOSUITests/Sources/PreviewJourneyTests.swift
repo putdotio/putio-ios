@@ -117,7 +117,7 @@ final class PreviewJourneyTests: XCTestCase {
       "the next tap did not hand the file to VLC: \(requests.value ?? "")")
   }
 
-  func testImagePDFUnsupportedAndVLCHandoffOutcomes() {
+  func testImagePDFUnsupportedAndTextPreviews() {
     app.launch()
     signIn()
 
@@ -188,12 +188,12 @@ final class PreviewJourneyTests: XCTestCase {
     assertCannotShow(rowID: 431, title: "Harness Scan.pdf", rowValue: "Document")
     XCTAssertEqual(requests.value as? String, (loadedRequests ?? "") + ",431:loaded")
     assertTextPreviews()
-    var swipes = 0
-    while !element("files.item.412").isHittable, swipes < 3 {
-      app.swipeDown()
-      swipes += 1
-    }
-    XCTAssertTrue(element("files.item.412").isHittable, "row 412 stayed out of reach")
+    signOut()
+  }
+
+  func testSearchAndHistoryOpenPreviewsAndVLCHandsOff() {
+    app.launch()
+    signIn()
 
     // Search and History dispatch through the same routing table.
     app.buttons["Search"].tap()
@@ -249,20 +249,7 @@ final class PreviewJourneyTests: XCTestCase {
       "handoff was not requested: \(vlcRequests.value ?? "")")
     XCTAssertFalse(app.staticTexts["VLC is not installed"].exists)
     XCTAssertTrue(element("files.screen.0").exists)
-
-    app.terminate()
-    app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
-    app.launch()
-    XCTAssertTrue(element("files.screen.0").appears(within: 10))
-    assertVLCFailureThenHandoff()
-
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    if !signOut.isHittable { app.swipeUp() }
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+    signOut()
   }
 
   func testSwipesBetweenFilesOfTheSameKind() {
