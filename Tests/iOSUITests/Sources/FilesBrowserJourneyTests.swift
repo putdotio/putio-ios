@@ -596,7 +596,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     endSelection()
 
     let paging = element(identifier: "files.item.460")
-    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    app.bringIntoView(paging)
+    XCTAssertTrue(
+      paging.appears(within: 10) && paging.becomesHittable(within: 10),
+      "the paging folder never appeared")
     paging.tap()
     XCTAssertTrue(app.staticTexts["Paging File 001.txt"].appears(within: 10))
     beginSelection()
@@ -1812,9 +1815,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(created.appears(within: 10), "the created folder never replaced the empty state")
     XCTAssertFalse(empty.exists, "the empty state outlived the new folder")
     app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.423").disappears(within: 10), "Back never left Empty")
 
     let paging = element(identifier: "files.item.460")
-    XCTAssertTrue(waitUntilHittable(paging, timeout: 10), "the paging folder never appeared")
+    app.bringIntoView(paging)
+    XCTAssertTrue(
+      paging.appears(within: 10) && paging.becomesHittable(within: 10),
+      "the paging folder never appeared")
     paging.tap()
     let firstRow = app.staticTexts["Paging File 001.txt"]
     XCTAssertTrue(firstRow.appears(within: 10), "the paging folder never listed its first page")
@@ -2274,25 +2282,26 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let currentPosition = element(identifier: "video.current-position")
     XCTAssertTrue(
       waitForPosition(currentPosition, beyond: 90), "playback did not advance beyond the resume")
-    XCTAssertEqual(element(identifier: "video.title").label, "Nested Movie.mkv")
+    XCTAssertEqual(
+      app.readVideoControl(element(identifier: "video.title"))?.label, "Nested Movie.mkv")
 
     let skipForward = element(identifier: "video.skip-forward")
-    XCTAssertTrue(skipForward.appears(within: 5), "the player shows no transport")
+    XCTAssertNotNil(app.readVideoControl(skipForward), "the player shows no transport")
     XCTAssertTrue(
       skipForward.becomesUnhittable(within: 8), "controls stayed on screen while playing")
     addScreenshot(named: "runtime-video-controls-hidden")
     app.revealVideoControls(showing: skipForward)
     addScreenshot(named: "runtime-video-controls")
-    XCTAssertEqual(skipForward.label, "Forward 10 seconds")
-    XCTAssertEqual(element(identifier: "video.skip-back").label, "Back 10 seconds")
+    XCTAssertEqual(app.readVideoControl(skipForward)?.label, "Forward 10 seconds")
+    XCTAssertEqual(
+      app.readVideoControl(element(identifier: "video.skip-back"))?.label, "Back 10 seconds")
     let scrubber = element(identifier: "video.scrubber")
-    XCTAssertEqual(scrubber.label, "Playback position")
+    XCTAssertEqual(app.readVideoControl(scrubber)?.label, "Playback position")
 
     let beforeForward = playbackSeconds(currentPosition)
-    skipForward.tap()
-    XCTAssertTrue(
-      waitForPosition(currentPosition, beyond: beforeForward + 9),
-      "Forward 10 seconds did not move playback ahead")
+    app.tapVideoControl(skipForward, failing: "Forward 10 seconds did not move playback ahead") {
+      playbackSeconds(currentPosition) > beforeForward + 9
+    }
 
     let playPause = element(identifier: "video.play-pause")
     app.setVideoPlaying(false, with: playPause)
@@ -3054,7 +3063,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     for row: XCUIElement,
     actionLabel: String
   ) -> XCUIElement {
-    XCTAssertTrue(row.isHittable, "file row is not available for its context menu")
+    XCTAssertTrue(
+      row.appears(within: 5) && row.becomesTappable(within: 5),
+      "file row is not available for its context menu")
     row.press(forDuration: 1)
     let action = app.buttons[actionLabel]
     XCTAssertTrue(action.appears(within: 5), "file context-menu action never appeared")

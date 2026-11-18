@@ -22,7 +22,8 @@ private func withFakeXcodebuild(
     try FileManager.default.createDirectory(at: product, withIntermediateDirectories: true)
     try Data("fixture".utf8).write(to: product.appending(path: "executable"))
   }
-  let log = root.appending(path: "calls")
+  let buildLog = root.appending(path: "xcodebuild-calls")
+  let simulatorLog = root.appending(path: "xcrun-calls")
   let executable = bin.appending(path: "xcodebuild")
   try """
   #!/bin/sh
@@ -34,7 +35,7 @@ private func withFakeXcodebuild(
   let simulatorTools = bin.appending(path: "xcrun")
   try """
   #!/bin/sh
-  printf '%s\\n' CALL xcrun "$@" >> "$PUTIO_BUILD_CALL_LOG"
+  printf '%s\\n' CALL xcrun "$@" >> "$PUTIO_SIMULATOR_CALL_LOG"
   exit 1
   """.write(to: simulatorTools, atomically: true, encoding: .utf8)
   try FileManager.default.setAttributes(
@@ -42,12 +43,16 @@ private func withFakeXcodebuild(
   let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
   let runner = ProcessRunner(environment: [
     "PATH": "\(bin.path):\(originalPath)",
-    "PUTIO_BUILD_CALL_LOG": log.path,
+    "PUTIO_BUILD_CALL_LOG": buildLog.path,
+    "PUTIO_SIMULATOR_CALL_LOG": simulatorLog.path,
   ])
-  try body(SimulatorHarness(context: context, runner: runner))
-  return try String(contentsOf: log, encoding: .utf8)
-    .components(separatedBy: "CALL\n").dropFirst()
-    .map { $0.split(separator: "\n").map(String.init) }
+  try body(SimulatorHarness(context: context, runner: runner, lifecycle: SimulatorLifecycle()))
+  func calls(in log: URL) -> [[String]] {
+    ((try? String(contentsOf: log, encoding: .utf8)) ?? "")
+      .components(separatedBy: "CALL\n").dropFirst()
+      .map { $0.split(separator: "\n").map(String.init) }
+  }
+  return calls(in: buildLog) + calls(in: simulatorLog)
 }
 
 @Suite(.serialized)
@@ -141,7 +146,8 @@ struct SimulatorBuildTests {
     let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
     let harness = SimulatorHarness(
       context: RepositoryContext(root: root),
-      runner: ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]))
+      runner: ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]),
+      lifecycle: SimulatorLifecycle())
 
     #expect(throws: HarnessFailure.self) {
       try harness.test(.ios, recordSnapshots: false, environment: [:])

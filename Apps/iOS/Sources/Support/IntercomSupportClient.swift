@@ -1,5 +1,6 @@
 import Intercom
 import PutioCore
+import UIKit
 
 /// The app's only Intercom entry point; `scripts/test.sh` rejects
 /// `import Intercom` anywhere else.
@@ -36,5 +37,24 @@ struct IntercomSupportClient: SupportMessengerClient {
 
   func present() {
     Intercom.present()
+  }
+
+  func registerForRemoteNotifications() {
+    Task {
+      await PutioOfflineNotifications.requestPermissionIfNeeded()
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+  }
+
+  func setDeviceToken(_ token: Data) {
+    Intercom.setDeviceToken(token, completion: nil)
+  }
+
+  func isSupportNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
+    Intercom.isIntercomPushNotification(userInfo)
+  }
+
+  func openNotification(_ userInfo: [AnyHashable: Any]) {
+    Intercom.handlePushNotification(userInfo)
   }
 }

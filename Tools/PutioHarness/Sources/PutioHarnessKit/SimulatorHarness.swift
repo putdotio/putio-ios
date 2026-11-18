@@ -249,6 +249,22 @@ func performJourneyRecordingTrim(
   }
 }
 
+enum HostLoad {
+  static let timeoutScaleEnvironment = "TEST_RUNNER_PUTIO_UI_TIMEOUT_SCALE"
+
+  static func timeoutScale(
+    loadAverage: Double?, processors: Int = ProcessInfo.processInfo.activeProcessorCount
+  ) -> Double {
+    guard let loadAverage, processors > 0 else { return 1 }
+    return min(1 + loadAverage / Double(processors), 4)
+  }
+
+  static func timeoutScale() -> Double {
+    var load = [0.0]
+    return timeoutScale(loadAverage: getloadavg(&load, 1) == 1 ? load[0] : nil)
+  }
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -408,6 +424,45 @@ private struct SimulatorDeviceList: Decodable {
 private struct SimulatorDevice: Decodable {
   let name: String
   let udid: String
+  let state: String?
+  let isAvailable: Bool?
+
+  var isUsableTemplate: Bool { state == "Shutdown" && isAvailable == true }
+}
+
+private func listSimulatorDevices(
+  runner: ProcessRunner, context: String
+) throws -> [String: [SimulatorDevice]] {
+  let output = try runner.checked("xcrun", ["simctl", "list", "devices", "-j"], context: context)
+  return try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8)).devices
+}
+
+private func environmentFlag(_ value: String?) -> Bool? {
+  switch (value ?? "").trimmingCharacters(in: .whitespaces).lowercased() {
+  case "1", "true", "yes", "on": true
+  case "0", "false", "no", "off": false
+  default: nil
+  }
+}
+
+let simulatorTemplateLock = FileManager.default.homeDirectoryForCurrentUser
+  .appending(path: "Library/Developer/CoreSimulator/putio-simulator-template.lock")
+
+private func withExclusiveLock<T>(at url: URL, _ body: () throws -> T) throws -> T {
+  try FileManager.default.createDirectory(
+    at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+  let descriptor = open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
+  guard descriptor >= 0 else {
+    throw HarnessFailure("open \(url.path) failed: \(String(cString: strerror(errno)))")
+  }
+  defer { close(descriptor) }
+  while flock(descriptor, LOCK_EX) != 0 {
+    guard errno == EINTR else {
+      throw HarnessFailure("lock \(url.path) failed: \(String(cString: strerror(errno)))")
+    }
+  }
+  defer { flock(descriptor, LOCK_UN) }
+  return try body()
 }
 
 /// A terminated `simctl create` client does not abort the request already
@@ -420,11 +475,8 @@ private func cleanupSimulators(
   retryDelay: TimeInterval = 0.2
 ) throws {
   for attempt in 1...max(1, attempts) {
-    let output = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
-    let devices = try JSONDecoder().decode(
-      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-    let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }
+    let devices = try listSimulatorDevices(runner: runner, context: "locate owned Simulators")
+    let identifiers = devices.values.flatMap { $0 }.filter { names.contains($0.name) }
       .map(\.udid)
     if !identifiers.isEmpty {
       try cleanupSimulatorIdentifiers(identifiers, runner: runner)
@@ -571,15 +623,18 @@ public struct SimulatorHarness {
   private let context: RepositoryContext
   private let runner: ProcessRunner
   private let fileManager: FileManager
+  private let lifecycle: SimulatorLifecycle
 
   public init(
     context: RepositoryContext,
     runner: ProcessRunner = ProcessRunner(),
-    fileManager: FileManager = .default
+    fileManager: FileManager = .default,
+    lifecycle: SimulatorLifecycle = .shared
   ) {
     self.context = context
     self.runner = runner
     self.fileManager = fileManager
+    self.lifecycle = lifecycle
   }
 
   public func build(_ platform: HarnessPlatform, iosCompanionAvailable: Bool = false) throws
@@ -876,7 +931,7 @@ public struct SimulatorHarness {
         )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
-        try SimulatorLifecycle.shared.register {
+        try lifecycle.register {
           mediaServer.stop()
         }
         let mediaBaseURL = try mediaServer.start()
@@ -889,6 +944,7 @@ public struct SimulatorHarness {
         var preflightFailures: [(name: String, failure: Error)] = []
         for preflight in preflights {
           do {
+            try resetKeychain(session: session)
             preflightScreenshots += try runJourneyPreflightTest(
               identifier: preflight.testIdentifier,
               platform: platform,
@@ -942,6 +998,7 @@ public struct SimulatorHarness {
           )
         }
 
+        try resetKeychain(session: session)
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
@@ -1152,7 +1209,7 @@ public struct SimulatorHarness {
         }
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
-        try SimulatorLifecycle.shared.register {
+        try lifecycle.register {
           mediaServer.stop()
         }
         let mediaBaseURL = try mediaServer.start()
@@ -1283,7 +1340,7 @@ public struct SimulatorHarness {
         // Registered before any approval, so an interrupt from here on either
         // cancels the approval or revokes it before the simulator, and the
         // keychain holding the token, is deleted.
-        try SimulatorLifecycle.shared.register(beforeSimulatorTeardown: true) {
+        try lifecycle.register(beforeSimulatorTeardown: true) {
           try grant.requireRevoked()
         }
         let journey = Result {
@@ -1612,6 +1669,14 @@ public struct SimulatorHarness {
   /// Runs one preflight UI test and exports `attachmentNames` as artifacts.
   /// With attachments the result bundle is left for the caller, which deletes
   /// it only after validating the screenshots.
+  private func resetKeychain(session: SimulatorSession) throws {
+    let output = try runner.run(
+      "xcrun", ["simctl", "keychain", session.deviceIdentifier, "reset"])
+    guard output.status == 0 else {
+      throw HarnessFailure("simulator keychain reset failed: \(output.combinedOutput)")
+    }
+  }
+
   private func runJourneyPreflightTest(
     identifier: String,
     platform: HarnessPlatform,
@@ -1626,6 +1691,8 @@ public struct SimulatorHarness {
     maximumExecutionTimeAllowance: Int = 60,
     whileRunning: ((RunningProcess) throws -> Void)? = nil
   ) throws -> [URL] {
+    let timeoutScale = HostLoad.timeoutScale()
+    let scaled = { (seconds: Int) in String(Int((Double(seconds) * timeoutScale).rounded(.up))) }
     let testArguments = [
       "test-without-building",
       "-quiet",
@@ -1638,11 +1705,12 @@ public struct SimulatorHarness {
       "-parallel-testing-enabled", "NO",
       "-collect-test-diagnostics", "never",
       "-test-timeouts-enabled", "YES",
-      "-default-test-execution-time-allowance", String(defaultExecutionTimeAllowance),
-      "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
+      "-default-test-execution-time-allowance", scaled(defaultExecutionTimeAllowance),
+      "-maximum-test-execution-time-allowance", scaled(maximumExecutionTimeAllowance),
       "-only-testing:\(identifier)",
     ]
     var testEnvironment = environment
+    testEnvironment[HostLoad.timeoutScaleEnvironment] = String(timeoutScale)
     if let mediaBaseURL {
       testEnvironment["TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL"] = mediaBaseURL.absoluteString
     }
@@ -1782,7 +1850,7 @@ public struct SimulatorHarness {
         let mediaServer = try HarnessMediaServer(
           mediaDirectory: appURL(for: platform).appending(path: "HarnessMedia"))
         defer { mediaServer.stop() }
-        try SimulatorLifecycle.shared.register { mediaServer.stop() }
+        try lifecycle.register { mediaServer.stop() }
         let mediaBaseURL = try mediaServer.start()
         try withPostureTool(device) { postureEnvironment in
           for board in group {
@@ -1919,7 +1987,7 @@ public struct SimulatorHarness {
         "xcrun", ["simctl", "ui", device, "content_size", previous],
         context: "restore Simulator text size to \(previous)")
     }
-    try SimulatorLifecycle.shared.register(beforeSimulatorTeardown: true) { try restore() }
+    try lifecycle.register(beforeSimulatorTeardown: true) { try restore() }
     _ = try runner.checked(
       "xcrun", ["simctl", "ui", device, "content_size", category],
       context: "set Simulator text size to \(category)")
@@ -1970,7 +2038,7 @@ public struct SimulatorHarness {
       result = .failure(error)
     }
     do {
-      try SimulatorLifecycle.shared.endSession { try session.cleanup() }
+      try lifecycle.endSession { try session.cleanup() }
     } catch {
       switch result {
       case .success:
@@ -2004,7 +2072,7 @@ public struct SimulatorHarness {
       throw HarnessFailure("\(preparationError)\nSimulator boot also failed: \(bootError)")
     case (.failure(let preparationError), .success(let booted)):
       do {
-        try SimulatorLifecycle.shared.endSession { try booted.cleanup() }
+        try lifecycle.endSession { try booted.cleanup() }
       } catch {
         throw HarnessFailure("\(preparationError)\ncleanup failed: \(error)")
       }
@@ -2096,13 +2164,12 @@ public struct SimulatorHarness {
     let suffix = "\(runID)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
-    let template = try simulatorTemplate(
-      platform: platform, runtime: runtime, deviceType: deviceType)
-
     do {
+      let template = try simulatorTemplate(
+        platform: platform, runtime: runtime, deviceType: deviceType)
       try requireNoSimulator(named: deviceName)
       let ownedDevice = OwnedSimulator(name: deviceName)
-      try SimulatorLifecycle.shared.register {
+      try lifecycle.register {
         try ownedDevice.cleanup(runner: runner)
       }
       let deviceIdentifier =
@@ -2123,7 +2190,7 @@ public struct SimulatorHarness {
         let phoneName = "putio-harness-watch-companion-\(suffix)"
         try requireNoSimulator(named: phoneName)
         let ownedPhone = OwnedSimulator(name: phoneName)
-        try SimulatorLifecycle.shared.register {
+        try lifecycle.register {
           try ownedPhone.cleanup(runner: runner)
         }
         let phoneIdentifier = try createDevice(
@@ -2173,10 +2240,10 @@ public struct SimulatorHarness {
       )
     } catch {
       do {
-        try SimulatorLifecycle.shared.cleanup()
-        SimulatorLifecycle.shared.release()
+        try lifecycle.cleanup()
+        lifecycle.release()
       } catch let cleanupError {
-        SimulatorLifecycle.shared.release()
+        lifecycle.release()
         throw HarnessFailure("\(error)\ncleanup failed: \(cleanupError)")
       }
       throw error
@@ -2193,11 +2260,9 @@ public struct SimulatorHarness {
   }
 
   private func requireNoSimulator(named name: String) throws {
-    let output = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "check Simulator name ownership")
-    let devices = try JSONDecoder().decode(
-      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-    let owners = devices.devices.values.flatMap { $0 }.filter { $0.name == name }
+    let devices = try listSimulatorDevices(
+      runner: runner, context: "check Simulator name ownership")
+    let owners = devices.values.flatMap { $0 }.filter { $0.name == name }
     guard owners.isEmpty else {
       throw HarnessFailure(
         "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); a previous run left it behind. Delete it with xcrun simctl delete <udid>, then retry"
@@ -2207,54 +2272,58 @@ public struct SimulatorHarness {
 
   /// Clones of an iOS device that has already booted once skip first-boot data
   /// migration, which takes one to several minutes and keeps every core busy.
-  /// Local runs use templates unless `PUTIO_SIMULATOR_TEMPLATES=0`; CI opts in
-  /// with `1` only when it restores or saves one. A missing template is created
-  /// here and kept.
+  /// Local runs use templates unless `PUTIO_SIMULATOR_TEMPLATES` is off; CI opts
+  /// in only when it restores or saves one. A missing template is created here
+  /// and kept. One lock serializes find-or-create across runs, so a pending
+  /// device seen under it belongs to a run that was killed.
   func simulatorTemplate(
     platform: HarnessPlatform,
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
-    environment: [String: String] = ProcessInfo.processInfo.environment
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    lock: URL = simulatorTemplateLock
   ) throws -> String? {
-    let onCI = environment["CI"].map { $0 == "true" || $0 == "1" } ?? false
-    let enabled = environment["PUTIO_SIMULATOR_TEMPLATES"].map { $0 != "0" } ?? !onCI
+    let onCI = environmentFlag(environment["CI"]) ?? false
+    let enabled = environmentFlag(environment["PUTIO_SIMULATOR_TEMPLATES"]) ?? !onCI
     guard platform == .ios, enabled else { return nil }
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
-    if let template = try existingTemplate(named: name, runtime: runtime) {
-      return template
-    }
-    // The device takes the template's name only after its first boot, so no run
-    // clones a half-made one; a failed or interrupted one is deleted.
-    let pending = "putio-pending-\(name)-\(String(UUID().uuidString.prefix(8)).lowercased())"
-    try SimulatorLifecycle.shared.register { [runner] in
-      try cleanupSimulators(named: [pending], runner: runner)
-    }
-    let identifier = try createDevice(
-      name: pending, type: deviceType.identifier, runtime: runtime.identifier)
-    do {
-      try boot(identifier, label: "\(platform.rawValue) template")
-      _ = try runner.checked(
-        "xcrun", ["simctl", "shutdown", identifier],
-        context: "shut down \(platform.rawValue) Simulator template")
-      if let template = try existingTemplate(named: name, runtime: runtime) {
-        try cleanupSimulatorIdentifiers([identifier], runner: runner)
-        return template
+    let pendingPrefix = "putio-pending-\(name)-"
+    return try withExclusiveLock(at: lock) {
+      let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
+      let devices = listed[runtime.identifier] ?? []
+      let stale = devices.filter { $0.name.hasPrefix(pendingPrefix) }.map(\.udid)
+      if !stale.isEmpty { try? cleanupSimulatorIdentifiers(stale, runner: runner) }
+      let templates = devices.filter { $0.name == name }
+      if let template = templates.first(where: \.isUsableTemplate) { return template.udid }
+      guard templates.isEmpty else {
+        FileHandle.standardError.write(
+          Data(
+            "putio-harness: Simulator template \(name) is booted or unavailable; using a fresh device\n"
+              .utf8))
+        return nil
       }
-      _ = try runner.checked(
-        "xcrun", ["simctl", "rename", identifier, name],
-        context: "name \(platform.rawValue) Simulator template")
-    } catch {
-      try? cleanupSimulatorIdentifiers([identifier], runner: runner)
-      throw error
+      // The device takes the template's name only after its first boot, so no
+      // run clones a half-made one; a failed or interrupted one is deleted.
+      let pending = "\(pendingPrefix)\(String(UUID().uuidString.prefix(8)).lowercased())"
+      try lifecycle.register { [runner] in
+        try cleanupSimulators(named: [pending], runner: runner)
+      }
+      let identifier = try createDevice(
+        name: pending, type: deviceType.identifier, runtime: runtime.identifier)
+      do {
+        try boot(identifier, label: "\(platform.rawValue) template")
+        _ = try runner.checked(
+          "xcrun", ["simctl", "shutdown", identifier],
+          context: "shut down \(platform.rawValue) Simulator template")
+        _ = try runner.checked(
+          "xcrun", ["simctl", "rename", identifier, name],
+          context: "name \(platform.rawValue) Simulator template")
+      } catch {
+        try? cleanupSimulatorIdentifiers([identifier], runner: runner)
+        throw error
+      }
+      return identifier
     }
-    return identifier
-  }
-
-  private func existingTemplate(named name: String, runtime: RuntimeRecord) throws -> String? {
-    let output = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "list Simulator templates")
-    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-    return devices.devices[runtime.identifier]?.first(where: { $0.name == name })?.udid
   }
 
   private func cloneDevice(_ template: String, name: String) throws -> String {

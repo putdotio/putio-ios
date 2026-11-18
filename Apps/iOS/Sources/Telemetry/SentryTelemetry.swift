@@ -57,6 +57,22 @@ enum SentryTelemetry {
     SentrySDK.capture(event: fallbackEvent())
   }
 
+  static func reportPushRegistrationFailure(_ error: any Error) {
+    guard isCapturing, SentrySDK.isEnabled else { return }
+    SentrySDK.capture(event: pushRegistrationFailureEvent(error))
+  }
+
+  static func pushRegistrationFailureEvent(_ error: any Error) -> Event {
+    let event = Event(level: .warning)
+    let exception = Exception(
+      value: nil, type: "PushRegistrationFailure.\((error as NSError).code)")
+    let mechanism = Mechanism(type: "push-registration")
+    mechanism.handled = true
+    exception.mechanism = mechanism
+    event.exceptions = [exception]
+    return event
+  }
+
   static func fallbackEvent() -> Event {
     let event = Event(level: .warning)
     let exception = Exception(value: nil, type: "VideoPlaybackFallback.decoder_error")
