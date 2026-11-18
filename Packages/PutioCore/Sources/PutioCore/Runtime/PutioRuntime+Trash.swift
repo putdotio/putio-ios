@@ -33,7 +33,7 @@ extension PutioRuntime {
   func locateRestoredTrashItem(fileID: PutioFileID) async -> PutioTrashRestoreResult {
     do {
       let restoredFile = try await performAuthenticatedOperation {
-        try await sdk.getFile(fileID: fileID.rawValue)
+        try await sdk.getFile(fileID: fileID.rawValue, query: Self.fileMetadataQuery)
       }
       return .restored(destinationID: snapshot(restoredFile).parentID)
     } catch is CancellationError {

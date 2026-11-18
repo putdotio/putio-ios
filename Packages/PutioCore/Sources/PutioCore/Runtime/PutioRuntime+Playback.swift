@@ -222,10 +222,7 @@ extension PutioRuntime {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let (file, downloadToken) = try await performAuthenticatedOperation {
       (
-        try await sdk.getFile(
-          fileID: fileID.rawValue,
-          query: PutioFileDetailsQuery(
-            mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)),
+        try await sdk.getFile(fileID: fileID.rawValue, query: Self.fileMetadataQuery),
         session.downloadToken
       )
     }

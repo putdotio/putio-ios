@@ -852,6 +852,27 @@ extension PutioRuntimeTests {
     XCTAssertNil(try? tokenStore.read())
   }
 
+  func testFileLookupsAskForNoSignedStreamURLs() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"file":{"id":443,"parent_id":7,"name":"Movie.mkv","file_type":"VIDEO","size":10,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
+      for: "GET /v2/files/443")
+
+    _ = try await runtime.getFile(fileID: PutioFileID(rawValue: 443))
+    _ = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 443))
+
+    let lookups = fixtures.capturedRequests().filter { $0.url?.path == "/v2/files/443" }
+    XCTAssertEqual(lookups.count, 2)
+    for request in lookups {
+      let url = try XCTUnwrap(request.url)
+      let names = Set(
+        (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []).map(\.name))
+      XCTAssertTrue(
+        names.isDisjoint(with: ["stream_url", "mp4_stream_url", "mp4_size"]),
+        "\(url.query ?? "") asks the API to sign URLs nothing reads")
+    }
+  }
+
   func testFileDownloadSourceCarriesTheTokenedURLAndRedactsIt() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
