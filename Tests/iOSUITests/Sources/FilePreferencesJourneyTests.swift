@@ -109,7 +109,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(trashConfirm.appears(within: 5))
     XCTAssertTrue(
       trashAlert.staticTexts[
-        "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+        "Turning off trash empties it now. Files you delete after that can’t be restored."
       ].exists)
     cancelConfirmation(trashConfirm)
     assertToggle(trash, enabled: true)

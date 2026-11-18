@@ -1420,13 +1420,13 @@
         }
       }
     },
-    "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days." : {
-      "comment" : "android: mobile_settings_trash_confirm_message | differs: iOS still promises 14 days in Trash until #964",
+    "Turning off trash empties it now. Files you delete after that can’t be restored." : {
+      "comment" : "android: mobile_settings_trash_confirm_message",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+            "value" : "Turning off trash empties it now. Files you delete after that can’t be restored."
           }
         }
       }
