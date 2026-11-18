@@ -125,7 +125,7 @@ struct PutioExclusiveLinkSheet: View {
           .truncationMode(.middle)
           .textSelection(.enabled)
           .accessibilityIdentifier("files.exclusive-link.address")
-        Text("Expires within 72 hours")
+        Text(expiryText)
           .putioFont(PutioTheme.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
@@ -158,6 +158,13 @@ struct PutioExclusiveLinkSheet: View {
       .buttonBorderShape(.capsule)
       .controlSize(.large)
     }
+  }
+
+  private var expiryText: String {
+    guard let expiresAt = model.expiresAt else {
+      return String(localized: "Expires within 72 hours")
+    }
+    return PutioPublicLink.expiryText(expiresAt: expiresAt, at: .now)
   }
 
   private func failure(_ message: String) -> some View {

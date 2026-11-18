@@ -118,19 +118,23 @@ final class ExclusiveLinkTests: XCTestCase {
 
   func testOpeningShowsTheItemsLiveLinkInsteadOfCreatingAnother() async {
     let server = LinkServer([.success(link)])
+    let expiresAt = Date(timeIntervalSince1970: 1_791_574_561)
+    let live = PutioPublicLink(
+      id: 3, fileID: item.id, fileName: item.name, kind: .video, expiresAt: expiresAt, url: link)
     var asked: [PutioFileID] = []
     let model = PutioExclusiveLinkModel(
       item: item,
       actions: actions(
-        find: { [link] in
+        find: {
           asked.append($0)
-          return link
+          return live
         }, create: server.create))
     XCTAssertEqual(model.state, .finding)
     XCTAssertFalse(model.start(), "Create ran before the lookup answered")
     await model.findExisting()
     XCTAssertEqual(asked, [item.id])
     XCTAssertEqual(model.state, .created(link))
+    XCTAssertEqual(model.expiresAt, expiresAt, "the sheet dropped the link's real expiry")
     XCTAssertFalse(model.start(), "Create offered a second link")
     XCTAssertEqual(server.calls, [])
   }

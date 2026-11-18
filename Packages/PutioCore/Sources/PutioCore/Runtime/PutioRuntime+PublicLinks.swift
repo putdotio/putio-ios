@@ -19,8 +19,10 @@ extension PutioRuntime {
     }
   }
 
-  public func livePublicLink(fileID: PutioFileID, at now: Date = .now) async throws -> URL? {
-    try await listPublicLinks().first { $0.fileID == fileID && !$0.isExpired(at: now) }?.url
+  public func livePublicLink(
+    fileID: PutioFileID, at now: Date = .now
+  ) async throws -> PutioPublicLink? {
+    try await listPublicLinks().first { $0.fileID == fileID && !$0.isExpired(at: now) }
   }
 
   public func createPublicLink(fileID: PutioFileID) async throws -> URL {

@@ -51,7 +51,8 @@ public enum PutioPublicLinkRefusal: Error, Equatable, Sendable, CaseIterable {
 }
 
 public typealias PutioPublicLinkCreate = @MainActor @Sendable (PutioFileID) async throws -> URL
-public typealias PutioPublicLinkFind = @MainActor @Sendable (PutioFileID) async throws -> URL?
+public typealias PutioPublicLinkFind =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioPublicLink?
 
 public struct PutioExclusiveLinkActions: Sendable {
   let find: PutioPublicLinkFind
@@ -108,6 +109,7 @@ public final class PutioExclusiveLinkModel {
 
   public let item: PutioFileItem
   public private(set) var state: State = .finding
+  public private(set) var expiresAt: Date?
   @ObservationIgnored private let actions: PutioExclusiveLinkActions
   @ObservationIgnored private var findGeneration = 0
 
@@ -137,7 +139,7 @@ public final class PutioExclusiveLinkModel {
     let fallback: State
     if case .created = state { fallback = state } else { fallback = .ready }
     state = .finding
-    let found: URL?
+    let found: PutioPublicLink?
     do {
       found = try await actions.find(item.id)
     } catch {
@@ -146,7 +148,8 @@ public final class PutioExclusiveLinkModel {
       return
     }
     guard generation == findGeneration else { return }
-    state = found.map(State.created) ?? .ready
+    expiresAt = found?.expiresAt
+    state = found.map { .created($0.url) } ?? .ready
   }
 
   public func start() -> Bool {
@@ -158,7 +161,9 @@ public final class PutioExclusiveLinkModel {
   public func create() async {
     guard state == .creating else { return }
     do {
-      state = .created(try await actions.create(item.id))
+      let url = try await actions.create(item.id)
+      expiresAt = nil
+      state = .created(url)
     } catch let refusal as PutioPublicLinkRefusal {
       state = .refused(refusal)
     } catch {

@@ -69,7 +69,8 @@ extension PutioRuntimeTests {
       """, for: "GET /v2/public_share/list")
     let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-08T00:00:00Z"))
     let live = try await runtime.livePublicLink(fileID: PutioFileID(rawValue: 442), at: now)
-    XCTAssertEqual(live?.absoluteString, "https://app.put.io/exclusive-access/live")
+    XCTAssertEqual(live?.url.absoluteString, "https://app.put.io/exclusive-access/live")
+    XCTAssertEqual(live?.expiresAt, PutioPublicLink.expiryDate("2026-10-09T19:36:01"))
     let none = try await runtime.livePublicLink(fileID: PutioFileID(rawValue: 443), at: now)
     XCTAssertNil(none)
   }
