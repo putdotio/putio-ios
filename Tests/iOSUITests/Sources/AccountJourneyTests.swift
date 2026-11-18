@@ -328,6 +328,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertTrue(element(app, "account.trash").exists)
     XCTAssertFalse(element(app, "settings.default-sort").exists)
     attach(app, "runtime-account-settings-loading")
+    app.releaseAccountSettingsLoads()
     XCTAssertTrue(element(app, "settings.default-sort").appears(within: 15))
     XCTAssertFalse(element(app, "account.settings-loading").exists)
     signOut(app)

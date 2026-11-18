@@ -364,6 +364,16 @@ import Foundation
       return AccountSettingsMode(rawValue: arguments[flag + 1])
     }()
     nonisolated(unsafe) private static var accountInfoRequests = 0
+    static let accountSettingsReleaseNotification = "io.put.harness.account-settings-release"
+    static var holdsAccountSettingsLoads: Bool { accountSettingsMode == .slowLoad }
+    nonisolated(unsafe) private static var heldAccountSettingsLoads: [@Sendable () -> Void] = []
+    nonisolated(unsafe) private static var accountSettingsReleased = false
+    private static let accountSettingsReleaseObserver: Void = {
+      CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(), nil,
+        { _, _, _, _, _ in HarnessSeededAPI.releaseAccountSettingsLoads() },
+        accountSettingsReleaseNotification as CFString, nil, .deliverImmediately)
+    }()
 
     enum ProxyMode: String {
       case ready
@@ -390,7 +400,6 @@ import Foundation
       return ProxyMode(rawValue: arguments[flag + 1])
     }()
     nonisolated(unsafe) private static var accountSettingsAutoplaySaves = 0
-    private static let accountSettingsLoadDelay: TimeInterval = 6
 
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
@@ -1365,9 +1374,8 @@ import Foundation
       } else if Self.proxyMode == .slow, url.path == "/v2/tunnel/routes" {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.proxyRoutesDelay, execute: deliverResponse)
-      } else if Self.delaysAccountSettingsLoad(url) {
-        DispatchQueue.global().asyncAfter(
-          deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
+      } else if Self.holdsAccountSettingsLoad(url, deliver: deliverResponse) {
+        return
       } else if Self.clearsData(replayableRequest, mode: .slow) {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.slowClearDelay, execute: deliverResponse)
@@ -1419,9 +1427,30 @@ import Foundation
       }
     }
 
-    private static func delaysAccountSettingsLoad(_ url: URL) -> Bool {
-      guard accountSettingsMode == .slowLoad, url.path == "/v2/account/info" else { return false }
-      return fileActionsLock.withLock { accountInfoRequests > 1 }
+    private static func holdsAccountSettingsLoad(
+      _ url: URL, deliver: @escaping @Sendable () -> Void
+    ) -> Bool {
+      guard holdsAccountSettingsLoads, url.path == "/v2/account/info" else { return false }
+      observeAccountSettingsRelease()
+      return fileActionsLock.withLock {
+        guard accountInfoRequests > 1, !accountSettingsReleased else { return false }
+        heldAccountSettingsLoads.append(deliver)
+        return true
+      }
+    }
+
+    static func observeAccountSettingsRelease() {
+      guard holdsAccountSettingsLoads else { return }
+      _ = accountSettingsReleaseObserver
+    }
+
+    static func releaseAccountSettingsLoads() {
+      let held = fileActionsLock.withLock {
+        accountSettingsReleased = true
+        defer { heldAccountSettingsLoads.removeAll() }
+        return heldAccountSettingsLoads
+      }
+      for deliver in held { deliver() }
     }
 
     private static func holdsDeviceLink(_ request: URLRequest) -> Bool {
