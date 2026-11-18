@@ -11,11 +11,18 @@ extension PutioRuntime {
       else { return nil }
       return PutioPublicLink(
         id: share.id,
+        fileID: PutioFileID(rawValue: share.userFile.id),
         fileName: share.userFile.name,
         kind: kind(for: share.userFile.fileType),
         expiresAt: share.expirationDate.flatMap(PutioPublicLink.expiryDate),
         url: url)
     }
+  }
+
+  public func livePublicLink(
+    fileID: PutioFileID, at now: Date = .now
+  ) async throws -> PutioPublicLink? {
+    try await listPublicLinks().first { $0.fileID == fileID && !$0.isExpired(at: now) }
   }
 
   public func createPublicLink(fileID: PutioFileID) async throws -> URL {

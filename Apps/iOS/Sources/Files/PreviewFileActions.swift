@@ -7,7 +7,7 @@ struct PutioPreviewFileActions {
   let continueLoad: PutioFolderContinue
   let lookUp: @MainActor (PutioFileID) async throws -> PutioFileItem
   let restore: @MainActor (PutioFileID) async throws -> Void
-  let createLink: PutioPublicLinkCreate
+  let exclusiveLink: PutioExclusiveLinkActions
   let trashEnabled: Bool
   let refreshRequests: PutioFolderRefreshRequests
 
@@ -20,7 +20,7 @@ struct PutioPreviewFileActions {
       defer { refreshRequests.requestAllLoadedFolders() }
       try await runtime.restoreTrashItems(fileIDs: [fileID])
     }
-    createLink = { try await runtime.createPublicLink(fileID: $0) }
+    exclusiveLink = PutioExclusiveLinkActions(runtime: runtime)
     self.trashEnabled = trashEnabled
     self.refreshRequests = refreshRequests
   }
