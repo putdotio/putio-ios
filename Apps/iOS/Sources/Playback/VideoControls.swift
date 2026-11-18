@@ -376,8 +376,8 @@ final class PutioVideoTransport {
       .sink { [weak self] cues, time in self?.showCues(cues, at: time) }
       .store(in: &engineObservations)
     engine.$softwareDisplaySize
-      .combineLatest(engine.$sourceVideoWidth, engine.$sourceVideoHeight)
-      .sink { [weak self, weak engine] display, width, height in
+      .combineLatest(engine.$sourceVideoWidth, engine.$sourceVideoHeight, engine.$videoRoute)
+      .sink { [weak self, weak engine] display, width, height, _ in
         guard let self, let engine else { return }
         let coded = CGSize(width: Int(width), height: Int(height))
         picture = PutioVideoPicture(
