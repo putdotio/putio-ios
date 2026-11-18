@@ -303,6 +303,7 @@ private struct ButtonsPage: View {
           Section {
             ForEach(Array(GalleryFixtures.actionRows.enumerated()), id: \.offset) { index, model in
               PutioFileRow(model)
+                .accessibilityElement(children: .combine)
                 .putioItemActions(
                   GalleryFixtures.itemMenu(for: model.name, log: log),
                   leading: [GalleryFixtures.moveAction(for: model.name, log: log)],
