@@ -1022,8 +1022,10 @@ public struct SimulatorHarness {
             "-parallel-testing-enabled", "NO",
             "-collect-test-diagnostics", "never",
             "-test-timeouts-enabled", "YES",
-            "-default-test-execution-time-allowance", "30",
-            "-maximum-test-execution-time-allowance", "60",
+            "-default-test-execution-time-allowance",
+            String(BrowserJourneyContract.timeAllowance),
+            "-maximum-test-execution-time-allowance",
+            String(BrowserJourneyContract.timeAllowance),
             "-only-testing:\(BrowserJourneyContract.testIdentifier)",
           ],
           environment: [
