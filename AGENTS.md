@@ -4,6 +4,9 @@ The put.io iOS app that ships on the App Store: UIKit with Swift packages.
 Feature code lives in `Putio/Features/<Area>`; only genuinely shared code goes
 in `Putio/Common`.
 
+The SwiftUI rewrite of the iOS, watchOS and tvOS apps lives on `next`, with
+its own AGENTS.md. PRs for the rewrite target `next`.
+
 ## Work in this repository
 
 - Setup, brand fonts, and private config: [CONTRIBUTING](CONTRIBUTING.md#setup).
