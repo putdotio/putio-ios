@@ -15,8 +15,8 @@ typealias PutioOfflineWatchedStatus = @MainActor @Sendable (PutioFileID) async t
 @MainActor
 @Observable
 final class PutioOfflineQueue {
-  static let defaultConcurrencyLimit = 3
-  static let concurrencyLimits = [1, 2, 3, 4]
+  nonisolated static let defaultConcurrencyLimit = 3
+  nonisolated static let concurrencyLimits = [1, 2, 3, 4]
 
   private(set) var items: [PutioOfflineItem] = []
   private struct Removal {
