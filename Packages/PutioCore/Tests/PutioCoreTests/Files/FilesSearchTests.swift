@@ -120,8 +120,9 @@ final class FilesSearchTests: XCTestCase {
     let searched = model.resultsRevision
     await model.loadMore()
     XCTAssertEqual(model.resultsRevision, searched, "a continuation page is not a reload")
-    await model.update(query: "movie", debounced: false)
+    await model.refresh(query: "movie", revision: 3)
     XCTAssertGreaterThan(model.resultsRevision, searched)
+    XCTAssertEqual(model.resultsRefreshRevision, 3, "results carry the refresh they reflect")
   }
 
   func testRefreshFailureRetainsResultsAndRetryReplacesThem() async {

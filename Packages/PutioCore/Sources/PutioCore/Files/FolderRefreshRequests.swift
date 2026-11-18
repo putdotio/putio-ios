@@ -79,8 +79,8 @@ public final class PutioFolderRefreshRequests {
   ) {
     let excludedOwner: UUID? =
       switch outcome {
-      case .succeeded: owner
-      case .failed: nil
+      case .failed(.delete, _), .failed(.restore, _), .failed(.setWatched, _): nil
+      case .succeeded, .failed: owner
       }
     switch outcome.action {
     case .delete, .restore:

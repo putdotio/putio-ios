@@ -14,6 +14,7 @@ public final class PutioFileItemActionModel {
   /// tapped, and a committed delete keeps it hidden until the results reload.
   /// A delete that did not commit shows the row again.
   public private(set) var hiddenIDs: Set<PutioFileID> = []
+  private var hiddenUntilRevision: UInt64 = 0
 
   @ObservationIgnored private let actions: PutioFileActions
   @ObservationIgnored private let refreshRequests: PutioFolderRefreshRequests
@@ -26,11 +27,13 @@ public final class PutioFileItemActionModel {
   /// Hides a row in the same transaction as the tap that moves it to Trash.
   public func hideForTrash(_ item: PutioFileItem) {
     hiddenIDs.insert(item.id)
+    hiddenUntilRevision = max(hiddenUntilRevision, refreshRequests.revision &+ 1)
   }
 
-  /// The results reloaded, so they now reflect every settled delete.
-  public func revealHiddenItems() {
-    if case .delete = activeAction { return }
+  /// Shows hidden rows again once the reloaded results reflect every
+  /// settled delete; results that predate one keep its row hidden.
+  public func revealHiddenItems(reflecting refreshRevision: UInt64) {
+    guard refreshRevision >= hiddenUntilRevision else { return }
     hiddenIDs = []
   }
 
@@ -113,6 +116,7 @@ public final class PutioFileItemActionModel {
         }
       }
       requestRefreshes(after: action)
+      hiddenUntilRevision = max(hiddenUntilRevision, refreshRequests.revision)
       outcome = settled
       activeAction = nil
       return settled

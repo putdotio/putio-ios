@@ -861,6 +861,13 @@ final class PutioFolderModelTests: XCTestCase {
     }
     XCTAssertNotNil(
       requests.sequence(for: other, owner: search), "a delete still reaches every loaded folder")
+
+    let rename = PutioFileAction.rename(
+      fileID: PutioFileID(rawValue: 9), oldName: "Episode.mkv", newName: "Taken.mkv")
+    requests.requestRefreshes(after: .failed(rename, failure), in: folder, owner: starter)
+    XCTAssertNil(
+      requests.sequence(for: folder, owner: starter),
+      "a refused rename leaves its screen as it was and must not reload it")
   }
 
   func testConsumedRefreshRequestsStopRefreshingOnLaterAppearances() {
