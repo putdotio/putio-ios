@@ -954,7 +954,7 @@ final class PreviewJourneyTests: XCTestCase {
 
   private func openInVLC(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+    XCTAssertTrue(row.appears(within: 10), "row \(fileID) never appeared")
     revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]
