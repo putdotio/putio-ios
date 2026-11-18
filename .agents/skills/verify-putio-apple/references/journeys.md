@@ -7,6 +7,8 @@ mise run harness -- journey --platform ios --scenario files-browser
 mise run harness -- journey --platform ios --scenario files-browser --only file-actions,history
 ```
 
+The [verify](../../../../scripts/verify.sh) `journeys` lane runs it.
+
 [BrowserJourneyContract](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
 owns the run: an ordered `preflights` table (name, XCUITest, required
 screenshots, time allowance), then the recorded walk `testRunnableAlphaLoop`.
