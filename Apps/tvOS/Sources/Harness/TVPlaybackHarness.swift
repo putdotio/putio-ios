@@ -21,6 +21,12 @@ import SwiftUI
       _ resolution: PutioPlaybackResolution, account: PutioAccountSnapshot
     ) -> PutioPlaybackResolution {
       guard case .ready(let source) = resolution else { return resolution }
+      guard !HarnessSeededAPI.refusesPlayback else {
+        return .ready(
+          PutioPlaybackSource(
+            url: baseURL.appending(path: "forbidden/runtime-proof.m3u8"),
+            startFromSeconds: source.startFromSeconds))
+      }
       let subtitled = HarnessSubtitledStream.path(for: account)
       return .ready(
         PutioPlaybackSource(

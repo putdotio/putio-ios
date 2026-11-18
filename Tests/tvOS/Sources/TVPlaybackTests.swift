@@ -188,7 +188,7 @@ final class TVPlaybackTests: XCTestCase {
         url: base.appending(path: "multi-audio/multi-subtitles-autoselect-audio.m3u8")),
       fileID: Self.fileID, startSeconds: 0, remembersPosition: false,
       pipeline: PutioPlaybackPositionPipeline(), reportPosition: { _, _ in }, in: controller,
-      probes: probes, onFailure: { XCTFail("playback failed") })
+      probes: probes, onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("subtitle default") { probes.subtitle == "en" }
     await waitUntil("preferred audio") { probes.audioLanguage == "tr" }
     XCTAssertEqual(probes.audioLanguage, "tr", "audio no longer follows the preferred language")
@@ -212,7 +212,7 @@ final class TVPlaybackTests: XCTestCase {
       coordinator.start(
         item: item, fileID: Self.fileID, startSeconds: 0, remembersPosition: true,
         pipeline: pipeline, reportPosition: { reported.record($0, $1) }, in: controller,
-        onEnded: { ended = true }, onFailure: { XCTFail("playback failed") })
+        onEnded: { ended = true }, onFailure: { _ in XCTFail("playback failed") })
       await waitUntil("subtitle load started") { gate.entered }
       XCTAssertFalse(controller.showsPlaybackControls, "controls before the subtitle default")
 
@@ -259,7 +259,7 @@ final class TVPlaybackTests: XCTestCase {
       },
       in: controller, probes: probes,
       onReportsSettled: { requests.request(folderID: route.parentID) },
-      onFailure: { XCTFail("playback failed") })
+      onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("player ready") { probes.isReady }
 
     coordinator.stop(controller: controller)
@@ -345,7 +345,7 @@ final class TVPlaybackTests: XCTestCase {
       item: AVPlayerItem(url: base.appending(path: "runtime-proof.m3u8")),
       fileID: Self.fileID, startSeconds: startSeconds, remembersPosition: remembersPosition,
       pipeline: pipeline, reportPosition: { reported.record($0, $1) }, in: controller,
-      probes: probes, onFailure: { XCTFail("playback failed") })
+      probes: probes, onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("player ready") { probes.isReady }
     return (coordinator, controller, probes)
   }

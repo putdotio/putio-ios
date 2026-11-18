@@ -305,10 +305,10 @@ public final class PutioVideoPlaybackModel {
     refreshedExpiredAccess = false
   }
 
-  public func playerFailed() {
+  public func playerFailed(_ fault: PutioVideoPlayerFault = .playback) {
     guard case .ready = state else { return }
     generation &+= 1
-    state = .failed(.playback)
+    state = .failed(.player(fault))
   }
 
   public func fallsBack(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {

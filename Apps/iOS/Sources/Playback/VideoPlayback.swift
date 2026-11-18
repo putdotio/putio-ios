@@ -45,6 +45,7 @@ struct PutioVideoPlaybackView: View {
   private let onFallbackPlays: @MainActor @Sendable () -> Void
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let subtitleMemory: PutioSubtitleMemory?
+  private let account: PutioAccountSnapshot?
 
   init(
     route: PutioVideoRoute,
@@ -76,8 +77,10 @@ struct PutioVideoPlaybackView: View {
     resolveConverted: PutioPlaybackResolve? = nil,
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
+    account: PutioAccountSnapshot? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
+    self.account = account
     self.onFallback = onFallback
     self.onFallbackPlays = onFallbackPlays
     self.castButton = castButton
@@ -582,8 +585,18 @@ struct PutioVideoPlaybackView: View {
       conversionGate(.converting(progress: 1))
         .accessibilityIdentifier("video.conversion-completed")
     case .failed(let failure):
-      failureView(failure)
-        .accessibilityIdentifier("video.error")
+      if let notice = failure.inactiveAccountNotice(for: account) {
+        PutioErrorStateView(
+          title: notice.title,
+          message: notice.daysUntilFilesDeleted().map(
+            PutioInactiveAccountNotice.filesDeletionMessage)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("video.account-notice")
+      } else {
+        failureView(failure)
+          .accessibilityIdentifier("video.error")
+      }
     }
   }
 

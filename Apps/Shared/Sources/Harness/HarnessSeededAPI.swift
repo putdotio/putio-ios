@@ -300,6 +300,10 @@ import Foundation
       #endif
     }
 
+    static var refusesPlayback: Bool {
+      inactiveAccount != nil && !accountRenewalLock.withLock { accountRenewed }
+    }
+
     private static var isAccountDestroyed: Bool {
       accountRenewalLock.withLock { accountDestroyed }
     }

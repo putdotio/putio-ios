@@ -605,6 +605,18 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .failed(.playback))
   }
 
+  func testPlayerFailureKeepsItsTransportFault() async {
+    let resolver = PlaybackResolverStub([.success(.ready(playbackSource()))])
+    let model = PutioVideoPlaybackModel(fileID: fileID) {
+      try await resolver.resolve($0)
+    }
+
+    await model.loadIfNeeded()
+    model.playerFailed(.connectionLost)
+
+    XCTAssertEqual(model.state, .failed(.connectionLost))
+  }
+
   func testAnExpiredStreamRefetchesOnceWithoutAnErrorAndResumesWhereItStopped() async {
     let saved = playbackSource()
     var statesAtResolve: [PutioVideoPlaybackState] = []
