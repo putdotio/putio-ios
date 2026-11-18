@@ -1,5 +1,6 @@
 import PutioCore
 import SwiftUI
+import UserNotifications
 
 @main
 struct PutioApp: App {
@@ -96,8 +97,43 @@ private struct ContentSizeCap: UIViewRepresentable {
 
 /// iOS relaunches the app for background download events and expects the
 /// completion handler back once the session has delivered them. Video
-/// playback narrows the allowed orientations through the same delegate.
-final class PutioAppDelegate: NSObject, UIApplicationDelegate {
+/// playback narrows the allowed orientations through the same delegate, and
+/// remote notifications reach the support messenger through it.
+final class PutioAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+  func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+  ) -> Bool {
+    UNUserNotificationCenter.current().delegate = self
+    return true
+  }
+
+  func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+  ) {
+    PutioSupportMessenger.shared.didRegisterForRemoteNotifications(deviceToken: deviceToken)
+  }
+
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([])
+  }
+
+  nonisolated func userNotificationCenter(
+    _ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    nonisolated(unsafe) let userInfo = response.notification.request.content.userInfo
+    nonisolated(unsafe) let completionHandler = completionHandler
+    Task { @MainActor in
+      PutioSupportMessenger.shared.open(notification: userInfo)
+      completionHandler()
+    }
+  }
+
   func application(
     _ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?
   ) -> UIInterfaceOrientationMask {
