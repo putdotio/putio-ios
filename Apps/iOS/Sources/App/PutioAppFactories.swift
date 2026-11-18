@@ -222,7 +222,7 @@ enum PutioExternalPlaybackOpener {
         let arguments = ProcessInfo.processInfo.arguments
         return HarnessExternalURLOpener(
           vlcInstalled: arguments.contains("--putio-harness-vlc-installed"),
-          removesVLCAfterFirstCheck: arguments.contains("--putio-harness-vlc-removed"),
+          hidesVLCAtHandoff: arguments.contains("--putio-harness-vlc-removed"),
           refusesFirstHandoff: arguments.contains("--putio-harness-vlc-refuses-once"))
       }
     #endif
