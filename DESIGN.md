@@ -1,7 +1,7 @@
 # Design Principles
 
 These rules hold for the iOS redesign on `next`. The shared design package owns
-colors, type, spacing, motion, and Phosphor icons;
+colors, type families and weights, spacing, motion, and Phosphor icons;
 [package.json](package.json) pins it and the
 [generated adapter](Packages/PutioCore/Sources/PutioCore/Generated/PutioTheme+Generated.swift)
 carries its values. The adopted
@@ -22,7 +22,10 @@ sets the platform rules. Change tokens through
   Boards draw it full; a minimized bar in a scrolled capture is not a
   difference.
 - **Type.** GT America for content; Berkeley Mono for sizes, counts, and times.
-  Text stops growing at XX Large through the window override in
+  iOS owns its text sizes in
+  [PutioIOSTypeScale](Packages/PutioCore/Sources/PutioCore/Components/PutioIOSTypeScale.swift):
+  body 17 pt for row names, caption 13 pt for kinds and section headers, mono
+  13 pt for times and sizes. Text stops growing at XX Large through the window override in
   [PutioApp](Apps/iOS/Sources/App/PutioApp.swift).
 - **Layout follows size classes.** Compact width is one pane; regular width
   adds a detail column. No device checks.
