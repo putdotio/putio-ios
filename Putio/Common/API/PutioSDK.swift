@@ -233,9 +233,9 @@ extension PutioSDK {
         }
     }
 
-    func getSubtitles(fileID: Int, _ completion: @escaping (Result<[PutioSubtitle], PutioSDKError>) -> Void) {
+    func getSubtitles(fileID: Int, _ completion: @escaping (Result<PutioSubtitlesResponse, PutioSDKError>) -> Void) {
         complete(completion) {
-            try await self.getSubtitles(fileID: fileID).subtitles
+            try await self.getSubtitles(fileID: fileID)
         }
     }
 

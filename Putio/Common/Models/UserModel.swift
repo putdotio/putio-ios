@@ -72,6 +72,12 @@ class UserSettings: Object {
     }
 }
 
+extension UserSettings {
+    static func hidesSubtitles(context: PutioRealm.Context) -> Bool {
+        PutioRealm.open(context: context)?.objects(User.self).first?.settings?.hideSubtitles ?? false
+    }
+}
+
 class UserConfig: Object {
     @objc dynamic var chromecastPlaybackType: String = "hls"
     @objc dynamic var autoRotateVideo: Bool = true

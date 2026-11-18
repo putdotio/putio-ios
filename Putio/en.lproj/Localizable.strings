@@ -772,6 +772,9 @@
 /* No comment provided by engineer. */
 "Type" = "Type";
 
+/* Cast subtitle track language when the subtitle has no language code. */
+"Unknown" = "Unknown";
+
 /* No comment provided by engineer. */
 "Unsupported File" = "Unsupported File";
 

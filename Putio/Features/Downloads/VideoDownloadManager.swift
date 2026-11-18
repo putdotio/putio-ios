@@ -15,6 +15,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    private var progressObservations = [AVAssetDownloadTask: NSKeyValueObservation]()
     private var reportedUnplayableIDs = Set<Int>()
     private let startTimings = DownloadStartTimings()
 
@@ -57,6 +58,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 }
                 if task.state == .running { task.suspend() }
                 self.withActiveDownloadsMap { $0[task] = id }
+                DispatchQueue.main.async { self.observeProgress(of: task) }
                 restoredIDs.insert(id)
             }
             self.didRestoreTasks = true
@@ -81,26 +83,42 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         return realm.object(ofType: Download.self, forPrimaryKey: id)
     }
 
-    private func getRemoteStreamURL(for download: Download, completion: @escaping (_ url: URL?) -> Void) {
-        var url = "\(api.config.baseURL)/files/\(download.id)/hls/media.m3u8?oauth_token=\(api.mediaToken)"
-
-        api.getSubtitles(fileID: download.id) { result in
-            switch result {
-            case .failure:
-                log.verbose(["VDM: getRemoteStreamURL, subtitle fetch failed", url])
-                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.noSubtitles"))
-
-            case .success(let subtitles):
-                guard let firstSubtitle = subtitles.first else {
-                    log.verbose(["VDM: getRemoteStreamURL, no subtitles", url])
-                    return completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.firstSubtitle"))
-                }
-
-                url = "\(url)&subtitle_key=\(firstSubtitle.key)"
-                log.verbose(["VDM: getRemoteStreamURL, with subtitle", url])
-                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.withSubtitle"))
+    private func remoteStreamURL(for id: Int) async -> URL? {
+        do {
+            guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.mediaToken) else {
+                return nil
             }
+            return source.url
+        } catch {
+            log.verbose(["VDM: remoteStreamURL, resolve failed", error])
+            return nil
         }
+    }
+
+    private func subtitleSelections(of asset: AVURLAsset) async -> [AVMediaSelection] {
+        do {
+            let preferred = try await asset.load(.preferredMediaSelection)
+            guard let legible = try await asset.loadMediaSelectionGroup(for: .legible) else { return [] }
+            return legible.options.compactMap { option in
+                guard let selection = preferred.mutableCopy() as? AVMutableMediaSelection else { return nil }
+                selection.select(option, in: legible)
+                return selection
+            }
+        } catch {
+            log.verbose(["VDM: subtitleSelections, load failed", error])
+            return []
+        }
+    }
+
+    private func observeProgress(of task: AVAssetDownloadTask) {
+        progressObservations[task] = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
+            let fraction = progress.fractionCompleted
+            DispatchQueue.main.async { self?.updateProgress(of: task, fraction: fraction) }
+        }
+    }
+
+    private func stopObservingProgress(of task: AVAssetDownloadTask) {
+        progressObservations.removeValue(forKey: task)?.invalidate()
     }
 
     func beginDownload(id: Int) {
@@ -114,13 +132,15 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         startAttempts[id] = attempt
         startTimings.begin(id: id)
 
-        getRemoteStreamURL(for: download, completion: { url in
+        Task { @MainActor in
+            let asset = await self.remoteStreamURL(for: id).map { AVURLAsset(url: $0) }
+            let mediaSelections = if let asset { await self.subtitleSelections(of: asset) } else { [AVMediaSelection]() }
             guard self.startAttempts[id] == attempt else { return }
             self.startAttempts.removeValue(forKey: id)
             guard let currentDownload = self.getDownloadFromDatabase(id: id),
                   currentDownload.state == .starting,
                   let assetDownloadURLSession = self.assetDownloadURLSession,
-                  let url else {
+                  let asset else {
                 if self.getDownloadFromDatabase(id: id)?.state == .starting {
                     self.startTimings.end(id: id, outcome: .failed)
                     DownloadQueueController.sharedInstance.startFailed(id: id)
@@ -130,24 +150,20 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 return
             }
 
-            guard let task = assetDownloadURLSession.makeAssetDownloadTask(
-                asset: AVURLAsset(url: url),
-                assetTitle: currentDownload.name.slugify(),
-                assetArtworkData: nil,
-                options: nil
-            ) else {
-                self.startTimings.end(id: id, outcome: .failed)
-                DownloadQueueController.sharedInstance.startFailed(id: id)
-                return
+            let configuration = AVAssetDownloadConfiguration(asset: asset, title: currentDownload.name.slugify())
+            if !mediaSelections.isEmpty {
+                configuration.primaryContentConfiguration.mediaSelections = mediaSelections
             }
+            let task = assetDownloadURLSession.makeAssetDownloadTask(downloadConfiguration: configuration)
 
             self.withActiveDownloadsMap { $0[task] = id }
+            self.observeProgress(of: task)
 
             task.taskDescription = String(id)
             task.resume()
 
             NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
-        })
+        }
     }
 
     @discardableResult
@@ -278,6 +294,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             map.removeValue(forKey: task)
             return task
         }
+        if let task { stopObservingProgress(of: task) }
         if let task, let url = willDownloadToURLMap.removeValue(forKey: task) {
             _ = DownloadSupport.deleteItemIfPresent(
                 at: url,
@@ -398,25 +415,11 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: assetDownloadTask-did-resolve: ", resolvedMediaSelection])
     }
 
-    // swiftlint:disable:next line_length
-    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange) {
-        log.verbose(["VDM: assetDownloadTask-progress task: ", assetDownloadTask.taskIdentifier])
-
-        guard let downloadId = withActiveDownloadsMap({ $0[assetDownloadTask] }) else { return }
+    private func updateProgress(of task: AVAssetDownloadTask, fraction: Double) {
+        guard let downloadId = withActiveDownloadsMap({ $0[task] }), fraction > 0 else { return }
         startTimings.end(id: downloadId, outcome: .succeeded)
-        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
-
-        log.verbose(["VDM: assetDownloadTask-progress download: ", downloadId])
-
-        let expectedDuration = CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-        guard expectedDuration.isFinite, expectedDuration > 0 else { return }
-        var currentProgress = 0.0
-        for value in loadedTimeRanges {
-            let loadedTimeRange: CMTimeRange = value.timeRangeValue
-            currentProgress += CMTimeGetSeconds(loadedTimeRange.duration) / expectedDuration
-        }
-        guard currentProgress.isFinite else { return }
-        currentProgress = min(max(currentProgress, 0), 1)
+        guard let download = getDownloadFromDatabase(id: downloadId), fraction.isFinite else { return }
+        let currentProgress = min(max(fraction, 0), 1)
 
         let oldProgress = (download.progress as NSString).doubleValue
         let now = CFAbsoluteTimeGetCurrent()
@@ -441,6 +444,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
 
         guard let task = task as? AVAssetDownloadTask else { return }
         log.verbose(["VDM: didCompleteWithError task: ", task.taskIdentifier])
+        stopObservingProgress(of: task)
 
         guard let id = withActiveDownloadsMap({ $0[task] }) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)

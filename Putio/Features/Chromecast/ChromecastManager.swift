@@ -27,10 +27,6 @@ class ChromecastManager: NSObject {
 
     var debug: Bool = false
 
-    var userSettings: UserSettings? = {
-        PutioRealm.open(context: "ChromecastManager.userSettings")?.objects(User.self).first?.settings
-    }()
-
     var userConfig: UserConfig? = {
         PutioRealm.open(context: "ChromecastManager.userConfig")?.objects(UserConfig.self).first
     }()
@@ -156,9 +152,14 @@ class ChromecastManager: NSObject {
         let mediaInfo = GCKMediaInformationBuilder()
         mediaInfo.metadata = metadata
 
+        let settings = PutioRealm.open(context: "ChromecastManager.createGCKMediaInformation")?.objects(User.self).first?.settings
+        let hideSubtitles = settings?.hideSubtitles ?? false
+
         if userConfig?.chromecastPlaybackType == "hls" {
             log.debug("Chromecast: playing HLS")
-            mediaInfo.contentID = file.getHlsStreamURL(downloadToken: api.mediaToken).absoluteString
+            mediaInfo.contentID = file.getHlsStreamURL(downloadToken: api.mediaToken)
+                .applyingSubtitlePreference(hideSubtitles: hideSubtitles)
+                .absoluteString
             mediaInfo.streamType = .none
             mediaInfo.contentType = "video/m3u"
             return completion(mediaInfo.build(), nil)
@@ -169,34 +170,34 @@ class ChromecastManager: NSObject {
         mediaInfo.contentType = "video/mp4"
         mediaInfo.streamDuration = TimeInterval(fileMetadata.duration)
 
+        guard !hideSubtitles else {
+            return completion(mediaInfo.build(), nil)
+        }
+
         api.getSubtitles(fileID: file.id) { result in
             switch result {
-            case .success(let subtitles):
-                var mediaTracks: [GCKMediaTrack] = []
-
-                if !subtitles.isEmpty {
-                    for (index, subtitle) in subtitles.enumerated() {
-                        let track = GCKMediaTrack(
-                            identifier: index,
-                            contentIdentifier: "\(subtitle.url)&format=webvtt",
-                            contentType: "text/vtt",
-                            type: .text,
-                            textSubtype: .captions,
-                            name: "\(subtitle.language) - \(subtitle.name)",
-                            languageCode: subtitle.languageCode,
-                            customData: nil
-                        )
-
-                        if let mediaTrack = track {
-                            mediaTracks.append(mediaTrack)
-                            mediaInfo.mediaTracks = mediaTracks
-                        }
-                    }
-
-                    let shouldAutoSelectSubtitle = (self.userSettings?.dontAutoSelectSubtitles ?? false) ? false : true
-                    log.debug("Chromecast: shouldAutoSelectSubtitle -> \(shouldAutoSelectSubtitle)")
-                    mediaLoadOptions.activeTrackIDs =  shouldAutoSelectSubtitle ? [0] : nil
+            case .success(let response):
+                let sidecars = response.subtitles.compactMap { subtitle in
+                    subtitle.castableURL.map { (subtitle: subtitle, url: $0) }
                 }
+                let labels = PutioSubtitle.trackLabels(for: sidecars.map(\.subtitle))
+                mediaInfo.mediaTracks = sidecars.enumerated().compactMap { index, sidecar in
+                    GCKMediaTrack(
+                        identifier: index,
+                        contentIdentifier: sidecar.url.absoluteString,
+                        contentType: "text/vtt",
+                        type: .text,
+                        textSubtype: .captions,
+                        name: labels[index],
+                        languageCode: sidecar.subtitle.languageCode,
+                        customData: nil
+                    )
+                }
+
+                let autoSelect = !(settings?.dontAutoSelectSubtitles ?? false)
+                let defaultIndex = sidecars.firstIndex { $0.subtitle.key == response.defaultKey }
+                log.debug("Chromecast: autoSelect subtitle -> \(autoSelect)")
+                mediaLoadOptions.activeTrackIDs = autoSelect ? defaultIndex.map { [NSNumber(value: $0)] } : nil
 
                 completion(mediaInfo.build(), nil)
 
@@ -441,5 +442,35 @@ final class CastPlaybackTracker {
 extension ChromecastManager: GCKLoggerDelegate {
     func logMessage(_ message: String, at level: GCKLoggerLevel, fromFunction function: String, location: String) {
         if debug { log.debug("\(function) - \(message)") }
+    }
+}
+
+extension PutioSubtitle {
+    static func trackLabels(for subtitles: [PutioSubtitle]) -> [String] {
+        var counts: [String: Int] = [:]
+        return subtitles.map { subtitle in
+            let label = subtitle.baseTrackLabel
+            let count = counts[label, default: 0] + 1
+            counts[label] = count
+            return count == 1 ? label : "\(label) (\(count))"
+        }
+    }
+
+    private var baseTrackLabel: String {
+        let language = languageCode == "und" ? NSLocalizedString("Unknown", comment: "Cast subtitle track language when the subtitle has no language code.") : self.language
+        guard !name.isEmpty else { return language }
+        return "\(language) - \(Self.removingExtension(name).replacingOccurrences(of: "\"", with: "'"))"
+    }
+
+    private static func removingExtension(_ name: String) -> String {
+        let fileStart = name.lastIndex(of: "/").map(name.index(after:)) ?? name.startIndex
+        guard let dot = name.lastIndex(of: "."), dot > fileStart,
+              name[fileStart..<dot].contains(where: { $0 != "." }) else { return name }
+        return String(name[..<dot])
+    }
+
+    var castableURL: URL? {
+        guard let format = format?.lowercased(), ["srt", "webvtt"].contains(format) else { return nil }
+        return URL(string: url)?.appending(queryItems: [URLQueryItem(name: "format", value: "webvtt")])
     }
 }
