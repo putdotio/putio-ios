@@ -127,6 +127,7 @@ extension PutioFolderSort {
 
   public var menuLabel: String {
     switch self {
+    case .watchStatusAscending, .watchStatusDescending: orderTitle
     case .nameAscending: String(localized: "Name, A to Z", bundle: .module)
     case .nameDescending: String(localized: "Name, Z to A", bundle: .module)
     case .sizeAscending: String(localized: "Size, smallest first", bundle: .module)
@@ -138,8 +139,6 @@ extension PutioFolderSort {
       String(localized: "Date modified, newest first", bundle: .module)
     case .typeAscending: String(localized: "Type, A to Z", bundle: .module)
     case .typeDescending: String(localized: "Type, Z to A", bundle: .module)
-    case .watchStatusAscending: String(localized: "Unwatched first", bundle: .module)
-    case .watchStatusDescending: String(localized: "Watched first", bundle: .module)
     }
   }
 }
