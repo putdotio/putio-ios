@@ -4,7 +4,7 @@ extension XCUIElement {
   /// XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)`
   /// sleep a full one-second poll before they first look, even when the answer
   /// is already true. These look first, then poll every 100 ms until the
-  /// timeout.
+  /// timeout, stretched by the harness-set `PUTIO_UI_TIMEOUT_SCALE` on a loaded host.
   ///
   /// `appears` also waits until the element stops moving, because a tap lands
   /// where the element is at that instant: a button in a sheet or cover that
@@ -41,10 +41,16 @@ extension XCUIElement {
     poll("disappear", timeout: timeout) { element, _ in !element.exists }
   }
 
+  static let timeoutScale: TimeInterval =
+    ProcessInfo.processInfo.environment["PUTIO_UI_TIMEOUT_SCALE"]
+    .flatMap(TimeInterval.init).map { max($0, 1) } ?? 1
+
   private func poll(
     _ outcome: String, timeout: TimeInterval, until condition: (XCUIElement, Date) -> Bool
   ) -> Bool {
-    XCTContext.runActivity(named: "Waiting up to \(timeout)s for \(self) to \(outcome)") { _ in
+    let timeout = timeout * Self.timeoutScale
+    let activity = "Waiting up to \(timeout)s for \(self) to \(outcome)"
+    return XCTContext.runActivity(named: activity) { _ in
       let deadline = Date.now.addingTimeInterval(timeout)
       while !condition(self, deadline) {
         guard Date.now < deadline else { return false }
