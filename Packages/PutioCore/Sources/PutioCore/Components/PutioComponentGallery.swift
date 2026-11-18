@@ -975,7 +975,12 @@ private struct FormsGallery: View {
   private struct SettingsRowsGallery: View {
     @Binding var name: String
     @Binding var invalid: String
-    @State private var sortOrder = GalleryFixtures.sortOrders[0]
+    #if os(iOS)
+      @State private var defaultSort = PutioFolderSort.nameAscending
+      @State private var downloadLimit = GalleryFixtures.downloadLimits[1]
+    #else
+      @State private var sortOrder = GalleryFixtures.sortOrders[0]
+    #endif
     @State private var movesToTrash = true
     @State private var playbackMethod = GalleryFixtures.playbackMethods[0]
 
@@ -1003,16 +1008,36 @@ private struct FormsGallery: View {
             PutioActionRow("Reset all sort settings", icon: .arrowCounterClockwise) {}
           }
           PutioSettingsSection("Files") {
-            PutioPickerRow(
-              "Default sort order",
-              selection: sortOrder,
-              options: GalleryFixtures.sortOrders,
-              save: { sortOrder = $0 }
-            ) { $0 }
+            #if os(iOS)
+              GallerySortMenuRow(selection: defaultSort) { defaultSort = $0 }
+              GallerySortMenuRow(selection: .dateModifiedDescending) { _ in }
+                .dynamicTypeSize(.xxLarge)
+              GallerySortMenuRow(selection: .dateModifiedDescending) { _ in }
+                .disabled(true)
+              GallerySortMenuRow(selection: .dateModifiedDescending) { _ in }
+                .disabled(true)
+                .dynamicTypeSize(.xxLarge)
+            #else
+              PutioPickerRow(
+                "Default sort order",
+                selection: sortOrder,
+                options: GalleryFixtures.sortOrders,
+                save: { sortOrder = $0 }
+              ) { $0 }
+            #endif
             PutioToggleRow("Move deleted files to trash", isOn: movesToTrash) {
               movesToTrash = $0
             }
           }
+          #if os(iOS)
+            PutioSettingsSection("Downloads") {
+              PutioPickerRow(
+                title: "Downloads at the same time",
+                selection: $downloadLimit,
+                options: GalleryFixtures.downloadLimits
+              ) { $0.formatted() }
+            }
+          #endif
           PutioSettingsSection("Playback") {
             PutioToggleRow(
               title: "Resume where you left off",
@@ -1061,6 +1086,31 @@ private struct FormsGallery: View {
       }
     }
   }
+
+  #if os(iOS)
+    private struct GallerySortMenuRow: View {
+      let selection: PutioFolderSort
+      let save: PutioSettingSave<PutioFolderSort>
+
+      var body: some View {
+        PutioMenuRow(
+          "Default sort order",
+          icon: .sortAscending,
+          selection: selection,
+          save: save,
+          valueLabel: \.menuLabel
+        ) { selection in
+          Picker(selection: selection) {
+            ForEach(PutioFolderSort.allCases, id: \.self) { sort in
+              Text(sort.menuLabel).tag(sort)
+            }
+          } label: {
+            Text(verbatim: "Sort by")
+          }
+        }
+      }
+    }
+  #endif
 
   private struct GalleryDestination: View {
     var body: some View {
@@ -1182,6 +1232,7 @@ enum GalleryFixtures {
   static let routes = ["Frankfurt", "Amsterdam", "New York"]
 
   static let sortOrders = ["Name, A to Z", "Name, Z to A"]
+  static let downloadLimits = [1, 2, 3]
 
   static let playbackMethods = ["Standard", "Direct play"]
 
