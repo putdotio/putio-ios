@@ -2369,6 +2369,8 @@ final class BoardCaptureTests: XCTestCase {
     assertFact("folder", "Folder, Harness Folder / Blue Lights")
     XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
     XCTAssertTrue(element("files.detail.more").exists, "the detail offers no More")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     try captureBoard("rd-ios-12-ipad-split")
 
     rotate(.portrait)
@@ -2400,6 +2402,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     selectVideo(element("files.item.443"), id: 443, primary: "Play")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
     XCTAssertFalse(element("files.detail.on-device").exists, "a remote file shows on device")
     assertFact("size", "Size, 3.1 GB")
@@ -2418,6 +2422,9 @@ final class BoardCaptureTests: XCTestCase {
     }
     selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
     assertFact("folder", "Folder, Files")
+    XCTAssertFalse(
+      element("files.detail.preview-poster").appears(within: 5),
+      "a video without a screenshot shows a poster")
     element("files.detail.download").tap()
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     tabButton("Files").tap()
@@ -2439,6 +2446,8 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("files.item.442")
     selectVideo(row, id: 442, primary: "Resume from 21:00")
     assertFact("folder", "Folder, Harness Folder / Blue Lights")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     try captureBoard("rd-ios-15-duo-open")
 
     try fold()
@@ -2564,6 +2573,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     selectVideo(element("files.item.441"), id: 441, primary: nil)
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     openDetailMore(lacking: ["Play", "Download", "Share", "Select"])
     XCTAssertTrue(
       app.buttons["Mark as watched"].exists || app.buttons["Mark as unwatched"].exists,

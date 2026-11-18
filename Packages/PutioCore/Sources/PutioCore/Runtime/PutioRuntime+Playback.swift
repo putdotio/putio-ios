@@ -203,7 +203,7 @@ extension PutioRuntime {
       PutioCastMedia(
         id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
         url: sidecars == nil ? stream : Self.withoutMuxedSubtitles(stream),
-        artworkURL: URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil },
+        artworkURL: Self.screenshotURL(file.screenshot),
         durationSeconds: duration,
         startFromSeconds: PutioPlaybackProgress.startSeconds(
           savedSeconds: file.startFrom, durationSeconds: duration),
