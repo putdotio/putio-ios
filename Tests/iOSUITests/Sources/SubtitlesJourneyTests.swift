@@ -442,9 +442,14 @@ final class SubtitlesJourneyTests: XCTestCase {
   }
 
   private func openChip(_ name: String) {
-    let chip = element("video.chip.\(name)")
-    app.revealVideoControls(showing: chip)
-    chip.tap()
+    let menu = app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH %@", "video.\(name).")
+    ).firstMatch
+    app.tapVideoControl(
+      element("video.chip.\(name)"), failing: "the \(name) chip opened no menu"
+    ) {
+      menu.exists
+    }
   }
 
   /// The playback-preferences fixture fails the first account save once.

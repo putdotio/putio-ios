@@ -824,6 +824,52 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
+  func testFailedFolderActionsRefreshTheStartingScreenToo() throws {
+    let folder = PutioFileID(rawValue: 42)
+    let other = PutioFileID(rawValue: 7)
+    let requests = PutioFolderRefreshRequests()
+    let starter = UUID()
+    let search = UUID()
+    requests.register(folderID: folder, owner: starter)
+    requests.register(folderID: folder, owner: search)
+    requests.register(folderID: other, owner: search)
+    let failure = try XCTUnwrap(
+      PutioFileActionFailure(
+        action: .delete(fileID: PutioFileID(rawValue: 9), name: "Episode.mkv"),
+        error: PutioRuntimeError.transient))
+    let actions: [PutioFileAction] = [
+      .delete(fileID: PutioFileID(rawValue: 9), name: "Episode.mkv"),
+      .setWatched(
+        fileID: PutioFileID(rawValue: 9), parentID: folder, name: "Episode.mkv", watched: true),
+    ]
+
+    for action in actions {
+      requests.requestRefreshes(after: .succeeded(action), in: folder, owner: starter)
+      XCTAssertNil(
+        requests.sequence(for: folder, owner: starter),
+        "a committed \(action) already shows on the screen that started it")
+      XCTAssertNotNil(requests.sequence(for: folder, owner: search))
+      if let pending = requests.sequence(for: folder, owner: search) {
+        requests.markConsumed(pending, for: folder, owner: search)
+      }
+
+      requests.requestRefreshes(after: .failed(action, failure), in: folder, owner: starter)
+      guard let pending = requests.sequence(for: folder, owner: starter) else {
+        return XCTFail("a failed \(action) may have landed, so its own screen must refresh")
+      }
+      requests.markConsumed(pending, for: folder, owner: starter)
+    }
+    XCTAssertNotNil(
+      requests.sequence(for: other, owner: search), "a delete still reaches every loaded folder")
+
+    let rename = PutioFileAction.rename(
+      fileID: PutioFileID(rawValue: 9), oldName: "Episode.mkv", newName: "Taken.mkv")
+    requests.requestRefreshes(after: .failed(rename, failure), in: folder, owner: starter)
+    XCTAssertNil(
+      requests.sequence(for: folder, owner: starter),
+      "a refused rename leaves its screen as it was and must not reload it")
+  }
+
   func testConsumedRefreshRequestsStopRefreshingOnLaterAppearances() {
     let folder = PutioFileID(rawValue: 42)
     let other = PutioFileID(rawValue: 7)

@@ -500,6 +500,23 @@ extension PutioRuntimeTests {
     XCTAssertNil(account.defaultSort)
   }
 
+  func testFailedSettingsLoadRecoversWhenAnotherScreenRefreshesTheAccount() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "GET /v2/account/info"
+    fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: route)
+    let preferences = PutioAccountPreferencesModel(
+      actions: PutioAccountPreferenceActions(runtime: runtime))
+    await preferences.loadSettingsIfNeeded()
+    XCTAssertEqual(preferences.settingsState, .failed)
+    let failedRefresh = await runtime.refreshAccount()
+    XCTAssertFalse(failedRefresh)
+    XCTAssertEqual(preferences.settingsState, .failed)
+    fixtures.setFixture(Self.accountInfo, for: route)
+    let refreshed = await runtime.refreshAccount()
+    XCTAssertTrue(refreshed)
+    XCTAssertEqual(preferences.settingsState, .ready)
+  }
+
   func testOfflinePreferenceWriteFailsWithoutReconcilingTheAccount() async {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setNetworkFailure(true, for: "POST /v2/account/settings")

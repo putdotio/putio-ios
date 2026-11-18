@@ -881,15 +881,25 @@ public enum PutioTheme {
     public static let size3xl: CGFloat = 64.0
     public static let sizeDisplay: CGFloat = 96.0
 
+    #if os(iOS)
+      static let captionSize = PutioIOSTypeScale.caption
+      static let bodySize = PutioIOSTypeScale.body
+      static let monoSize = PutioIOSTypeScale.mono
+    #else
+      static let captionSize = sizeSm
+      static let bodySize = sizeBase
+      static let monoSize = sizeSm
+    #endif
+
     public static let caption = PutioFontRole(
       fontName: "GTAmerica-Rg",
-      size: sizeSm,
+      size: captionSize,
       lineHeight: 1.45,
       textStyle: .caption
     )
     public static let body = PutioFontRole(
       fontName: "GTAmerica-Rg",
-      size: sizeBase,
+      size: bodySize,
       lineHeight: 1.45,
       textStyle: .body
     )
@@ -920,7 +930,7 @@ public enum PutioTheme {
     #if os(iOS) || os(watchOS)
       public static let mono = PutioFontRole(
         fontName: "BerkeleyMonoVariable-Regular",
-        size: sizeSm,
+        size: monoSize,
         lineHeight: 1.45,
         textStyle: .caption
       )

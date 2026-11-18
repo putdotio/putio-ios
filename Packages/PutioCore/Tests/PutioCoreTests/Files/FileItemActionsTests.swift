@@ -77,6 +77,36 @@ final class FileItemActionsTests: XCTestCase {
     XCTAssertEqual(model.hiddenIDs, [], "a move that did not commit must show the row again")
   }
 
+  func testTrashedSearchRowStaysHiddenThroughReloadsWhileTheDeleteIsInFlight() async throws {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
+    var finishDelete: CheckedContinuation<Void, any Error>?
+    let requests = PutioFolderRefreshRequests()
+    let model = PutioFileItemActionModel(
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in },
+        deleteFile: { _ in try await withCheckedThrowingContinuation { finishDelete = $0 } }
+      ), refreshRequests: requests)
+
+    model.hideForTrash(item)
+    let delete = Task { await model.delete(item) }
+    let deadline = ContinuousClock.now + .seconds(5)
+    while finishDelete == nil {
+      guard ContinuousClock.now < deadline else { return XCTFail("delete did not start") }
+      try await Task.sleep(for: .milliseconds(1))
+    }
+
+    model.revealHiddenItems(reflecting: requests.revision)
+    XCTAssertEqual(
+      model.hiddenIDs, [item.id],
+      "results that land mid-delete predate it and must not show the row")
+
+    finishDelete?.resume()
+    await delete.value
+    model.revealHiddenItems(reflecting: requests.revision)
+    XCTAssertEqual(model.hiddenIDs, [])
+  }
+
   func testSettledActionsRefreshSearchAndCommittedDeletesStayHidden() async {
     let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
     let requests = PutioFolderRefreshRequests()
@@ -96,7 +126,12 @@ final class FileItemActionsTests: XCTestCase {
     XCTAssertGreaterThan(requests.revision, beforeDelete, "a delete must re-run the search")
     XCTAssertEqual(model.hiddenIDs, [item.id], "a deleted row must not stay actionable")
 
-    model.revealHiddenItems()
+    model.revealHiddenItems(reflecting: beforeDelete)
+    XCTAssertEqual(
+      model.hiddenIDs, [item.id],
+      "a reload that started before the delete settled must not show the row")
+
+    model.revealHiddenItems(reflecting: requests.revision)
     XCTAssertEqual(model.hiddenIDs, [])
   }
 

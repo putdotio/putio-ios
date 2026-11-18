@@ -54,6 +54,7 @@
           .background(PutioListColumnWidth(columns: columns))
       }
       .navigationSplitViewStyle(.balanced)
+      .background(PutioTheme.Colors.background.ignoresSafeArea())
       .onChange(of: selection) { _, current in
         if let current {
           retainedSelection = current

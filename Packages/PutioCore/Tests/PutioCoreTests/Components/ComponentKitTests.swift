@@ -58,6 +58,17 @@ final class ComponentKitTests: XCTestCase {
     XCTAssertEqual(noQuota.usedFraction, 0)
   }
 
+  func testStorageSizesShowAtMostOneDecimal() {
+    let storage = PutioAccountSnapshot.Storage(
+      availableBytes: 1_069_380_000_000, totalBytes: 1_100_000_000_000, usedBytes: 30_620_000_000)
+    XCTAssertEqual(
+      storage.capacitySummary(locale: Locale(identifier: "en_US")), "30.6 GB of 1.1 TB")
+    let almostOneTerabyte = PutioAccountSnapshot.Storage(
+      availableBytes: 40_000_000, totalBytes: 1_000_000_000_000, usedBytes: 999_960_000_000)
+    XCTAssertEqual(
+      almostOneTerabyte.capacitySummary(locale: Locale(identifier: "en_US")), "1 TB of 1 TB")
+  }
+
   func testStorageIsFullWhenNothingIsLeftAndReadsWithoutUsed() {
     let english = Locale(identifier: "en_US")
     let free = PutioAccountSnapshot.Storage(

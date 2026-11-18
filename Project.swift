@@ -42,12 +42,12 @@ private func brandFontResourceElements(for platform: String) -> [ResourceFileEle
   }
 }
 
-private func brandFontResources(for platform: String) -> ResourceFileElements {
-  .resources(brandFontResourceElements(for: platform))
-}
-
 private let openSourceLicenses = ResourceFileElement.glob(
   pattern: .relativeToManifest("Apps/iOS/Generated/OpenSourceLicenses.json"))
+
+private func privacyManifest(_ platformFolder: String) -> ResourceFileElement {
+  .glob(pattern: .relativeToManifest("Apps/\(platformFolder)/Resources/PrivacyInfo.xcprivacy"))
+}
 
 private func brandFontInfoPlist(for platform: String) -> Plist.Value {
   .array(brandFontNames(for: platform).map(Plist.Value.string))
@@ -153,14 +153,15 @@ let project = Project(
         "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
         "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
-        // No remote push yet; keep Intercom from swizzling the app delegate.
+        // PutioAppDelegate forwards push to the messenger; keep Intercom from swizzling it.
         "IntercomAutoIntegratePushNotifications": false,
         "NSCameraUsageDescription": supportCameraUsage,
         "NSMicrophoneUsageDescription": supportMicrophoneUsage,
         "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
         "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
-      resources: .resources(brandFontResourceElements(for: "ios") + [openSourceLicenses]),
+      resources: .resources(
+        brandFontResourceElements(for: "ios") + [openSourceLicenses, privacyManifest("iOS")]),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
       scripts: [
         .post(
@@ -235,7 +236,7 @@ let project = Project(
         "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
         "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
-        // No remote push yet; keep Intercom from swizzling the app delegate.
+        // PutioAppDelegate forwards push to the messenger; keep Intercom from swizzling it.
         "IntercomAutoIntegratePushNotifications": false,
         "NSCameraUsageDescription": supportCameraUsage,
         "NSMicrophoneUsageDescription": supportMicrophoneUsage,
@@ -245,6 +246,7 @@ let project = Project(
       resources: .resources(
         brandFontResourceElements(for: "ios") + [
           openSourceLicenses,
+          privacyManifest("iOS"),
           .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets")),
         ]
       ),
@@ -278,7 +280,8 @@ let project = Project(
         "WKRunsIndependentlyOfCompanionApp": false,
         "WKWatchOnly": false,
       ]),
-      resources: brandFontResources(for: "watchos"),
+      resources: .resources(
+        brandFontResourceElements(for: "watchos") + [privacyManifest("watchOS")]),
       buildableFolders: ["Apps/watchOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
@@ -370,7 +373,7 @@ let project = Project(
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
-      resources: brandFontResources(for: "tvos"),
+      resources: .resources(brandFontResourceElements(for: "tvos") + [privacyManifest("tvOS")]),
       buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
       scripts: [
         .post(

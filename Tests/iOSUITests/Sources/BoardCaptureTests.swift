@@ -2358,6 +2358,11 @@ final class BoardCaptureTests: XCTestCase {
     selectVideo(row, id: 442, primary: "Resume from 21:00")
     XCTAssertGreaterThanOrEqual(
       row.frame.maxX, 384, "the list column is narrower than its 384 pt minimum")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      XCTAssertEqual(
+        element("files.item.443").frame.minY - row.frame.minY, 60, accuracy: 1,
+        "iPad Files rows are not 60 pt apart")
+    }
     XCTAssertFalse(element("video.ready").exists, "selecting a video started playback")
     assertFact("length", "Length, 49:49")
     assertFact("subtitles", "Subtitles, English, Turkish")
@@ -4192,7 +4197,9 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountDefaultSort() throws {
     openAccountSettings()
     element("settings.default-sort").tap()
-    XCTAssertTrue(app.sortChoice("Size").appears(within: 5), "the sort menu has no Size field")
+    XCTAssertTrue(app.staticTexts["Sort by"].appears(within: 5), "the sort menu never opened")
+    XCTAssertTrue(app.staticTexts["Videos"].exists, "the sort menu has no Videos section")
+    XCTAssertTrue(app.sortChoice("Size").exists, "the sort menu has no Size field")
     XCTAssertTrue(app.sortChoice("Z to A").exists, "the sort menu has no Z to A order")
     XCTAssertTrue(app.sortChoice("Watched first").exists, "the sort menu has no video order")
     try captureBoard("rd-ios-acc-05-default-sort")
@@ -5018,6 +5025,9 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadTrashOffClosesDetail() throws {
     let startsInPortrait = isPortraitBoard
+    app.launchArguments += [
+      "--putio-harness-file-preferences", "--putio-harness-reset-file-preferences",
+    ]
     openIPadTrash("board")
     XCTAssertTrue(app.staticTexts["poster.jpg"].appears(within: 10), "Trash never loaded")
     if startsInPortrait {

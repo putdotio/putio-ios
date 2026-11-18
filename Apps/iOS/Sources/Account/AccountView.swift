@@ -453,7 +453,7 @@ struct AccountView: View {
       title: String(localized: "Turn off trash?"),
       message: String(
         localized:
-          "Deleted files will no longer be recoverable. Files already in trash stay for their 14 days."
+          "Turning off trash empties it now. Files you delete after that can’t be restored."
       ),
       confirmTitle: String(localized: "Turn off")
     ) {
