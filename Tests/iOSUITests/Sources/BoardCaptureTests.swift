@@ -5903,9 +5903,10 @@ final class BoardCaptureTests: XCTestCase {
     data.lifetime = .keepAlways
     add(data)
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
-      try app.performAccessibilityAudit(for: .textClipped) { [app] issue in
+      let auditedApp: XCUIApplication = app
+      try auditedApp.performAccessibilityAudit(for: .textClipped) { issue in
         guard let element = issue.element else {
-          return Self.isInFullWidthSystemDialog(issue, app: app)
+          return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
         }
         if element.elementType == .searchField { return true }
         return
