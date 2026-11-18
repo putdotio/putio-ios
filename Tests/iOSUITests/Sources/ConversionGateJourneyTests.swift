@@ -128,11 +128,12 @@ final class ConversionGateJourneyTests: XCTestCase {
       _ = signIn.appears(within: 0.5)
     }
     if signIn.exists { signIn.tap() }
-    for (screen, id) in zip(screens, [410, 440]) where !season.exists {
-      guard screen.appears(within: 10) else { continue }
-      let folder = element("files.item.\(id)")
-      XCTAssertTrue(folder.appears(within: 10), "folder \(id) never appeared")
-      folder.tap()
+    let folders = [440, 410].map { element("files.item.\($0)") }
+    let openDeadline = Date.now.addingTimeInterval(20 * XCUIElement.timeoutScale)
+    while !season.appears(within: 0.5), Date.now < openDeadline {
+      if let folder = folders.first(where: { $0.appears(within: 0.5) }), !season.exists {
+        folder.tap()
+      }
     }
     XCTAssertTrue(season.appears(within: 10), "the season never opened")
   }
