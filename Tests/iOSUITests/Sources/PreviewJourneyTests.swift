@@ -212,8 +212,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.cannot-show").appears(within: 5))
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.407").disappears(within: 5))
-    // The Search tab collapses the tab bar; Files restores it.
-    app.buttons["Files"].tap()
+    app.openTab("Files")
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let history = app.buttons["History"]
     XCTAssertTrue(history.appears(within: 5))

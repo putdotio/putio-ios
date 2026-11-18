@@ -27,6 +27,12 @@ extension XCUIElement {
     }
   }
 
+  func becomesSelected(within timeout: TimeInterval) -> Bool {
+    poll("become selected", timeout: timeout) { element, _ in
+      element.exists && element.isSelected
+    }
+  }
+
   func becomesUnhittable(within timeout: TimeInterval) -> Bool {
     poll("become unhittable", timeout: timeout) { element, _ in !element.isHittable }
   }
