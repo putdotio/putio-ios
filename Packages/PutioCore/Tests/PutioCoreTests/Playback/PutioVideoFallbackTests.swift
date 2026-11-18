@@ -55,7 +55,60 @@ final class PutioVideoFallbackTests: XCTestCase {
     XCTAssertEqual(model.state, .failed(.playback))
   }
 
-  func testOnlyAPlaybackFaultBeforeTheFirstFrameFallsBack() async {
+  func testAnOriginalStillRefusedAfterItsSilentRefreshPlaysConvertedWhereItStood() async {
+    var originalRequests = 0
+    var convertedRequests = 0
+    let original = original
+    let converted = converted
+    let model = model(
+      converted: { _ in
+        convertedRequests += 1
+        return .ready(converted)
+      },
+      resolve: { _ in
+        originalRequests += 1
+        return .ready(original)
+      })
+
+    await model.loadIfNeeded()
+    XCTAssertFalse(model.fallsBack(after: .accessExpired, beforeFirstFrame: true))
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+    XCTAssertEqual(originalRequests, 2)
+    XCTAssertEqual(convertedRequests, 0)
+
+    XCTAssertTrue(model.fallsBack(after: .accessExpired, beforeFirstFrame: true))
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+
+    XCTAssertTrue(model.playsConvertedFallback)
+    XCTAssertEqual(convertedRequests, 1)
+    XCTAssertEqual(
+      model.state,
+      .ready(
+        PutioPlaybackSource(url: converted.url, startFromSeconds: 120, resumesAfterFailure: true)))
+  }
+
+  func testARefusalAfterTheFirstFrameOrWithoutAConvertedStreamShowsExpiredAccess() async {
+    let converted = converted
+    let original = original
+    let models = [
+      (model(converted: { _ in .ready(converted) }), false),
+      (
+        PutioVideoPlaybackModel(fileID: fileID, resolve: { _ in .ready(original) }), true
+      ),
+    ]
+    for (model, beforeFirstFrame) in models {
+      await model.loadIfNeeded()
+      await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: beforeFirstFrame)
+      XCTAssertFalse(model.fallsBack(after: .accessExpired, beforeFirstFrame: beforeFirstFrame))
+      await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: beforeFirstFrame)
+
+      XCTAssertEqual(
+        model.state, .failed(.accessExpired), "before the first frame: \(beforeFirstFrame)")
+      XCTAssertFalse(model.playsConvertedFallback)
+    }
+  }
+
+  func testOnlyAPlaybackFaultFallsBackBeforeAnyRefresh() async {
     let converted = converted
     for (fault, beforeFirstFrame) in [
       (PutioVideoPlayerFault.playback, false), (.connectionLost, true), (.accessExpired, true),

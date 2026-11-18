@@ -47,7 +47,12 @@ extension PutioFileRoute {
 
 protocol PutioExternalURLOpening: Sendable {
   @MainActor func canOpen(_ url: URL) -> Bool
+  @MainActor func canHandOff(_ url: URL) -> Bool
   @MainActor func open(_ url: URL) async -> Bool
+}
+
+extension PutioExternalURLOpening {
+  @MainActor func canHandOff(_ url: URL) -> Bool { canOpen(url) }
 }
 
 struct PutioSystemURLOpener: PutioExternalURLOpening {
@@ -132,7 +137,7 @@ final class PutioExternalPlaybackModel {
     let request = generation
     missingVLCRoute = nil
     toast = nil
-    guard opener.canOpen(PutioVLCHandoff.probeURL) else {
+    guard opener.canHandOff(PutioVLCHandoff.probeURL) else {
       isVLCInstalled = false
       missingVLCRoute = route
       return

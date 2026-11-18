@@ -315,7 +315,9 @@ public final class PutioVideoPlaybackModel {
     guard case .ready(let source) = state, source.original != nil, !source.isStored else {
       return false
     }
-    return fault == .playback && beforeFirstFrame && resolveConverted != nil && !resolvesConverted
+    let refusedAfterRefresh = fault == .accessExpired && refreshedExpiredAccess
+    return (fault == .playback || refusedAfterRefresh) && beforeFirstFrame
+      && resolveConverted != nil && !resolvesConverted
   }
 
   public func playerFailed(
