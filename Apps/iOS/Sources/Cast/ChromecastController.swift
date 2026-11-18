@@ -359,7 +359,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     }
     let state: PutioCastPlayerState =
       switch mediaStatus.playerState {
-      case .idle: .idle
+      case .idle: mediaStatus.idleReason == .error ? .failed : .idle
       case .loading: .loading
       case .buffering: .buffering
       case .playing: .playing

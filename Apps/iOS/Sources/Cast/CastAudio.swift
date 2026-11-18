@@ -146,7 +146,9 @@ final class PutioCastAudioEngine: PutioAudioEngine {
 
   func receive(_ next: PutioCastMediaStatus?) {
     guard let loaded else { return }
-    guard let next, next.fileID == loaded.id, next.playerState != .idle else {
+    guard let next, next.fileID == loaded.id, next.playerState != .idle,
+      next.playerState != .failed
+    else {
       let terminal = next.flatMap { $0.fileID == loaded.id ? $0.positionSeconds : nil }
       finish(at: terminal)
       return
@@ -166,7 +168,7 @@ final class PutioCastAudioEngine: PutioAudioEngine {
         stopTicker()
         onPlayingChanged?(false)
       }
-    case .loading, .idle:
+    case .loading, .idle, .failed:
       break
     }
     if let seconds = currentPosition() { onPositionChanged?(seconds) }

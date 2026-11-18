@@ -688,6 +688,23 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(model.phase, .playing)
   }
 
+  func testAReceiverErrorShowsTheFailedLayoutAndTryAgainResumesThere() async throws {
+    let controller = CastControllerStub()
+    let expected = media()
+    let (model, box) = makeModel(
+      controller: controller,
+      resolutions: [.success(.ready(expected)), .success(.ready(expected))])
+    try await castPlaying(model, controller, box, position: 1_200)
+    controller.report(status(.failed, position: 0))
+    XCTAssertTrue(model.hasSession, "a receiver error keeps the cast layout")
+    XCTAssertEqual(model.phase, .failed(canRetry: true))
+    XCTAssertNil(model.handback)
+    try await expect({ box.reports.map(\.1) == [1_200] }, "the last played position is saved")
+    model.retry()
+    try await expect({ controller.loads.count == 2 && model.activity == .idle })
+    XCTAssertEqual(controller.loads.last?.startSeconds, 1_200)
+  }
+
   func testReceiverPositionSavesEveryTenSecondsAndOnPauseAndSeek() async throws {
     let controller = CastControllerStub()
     let (model, box) = makeModel(controller: controller, resolutions: [.success(.ready(media()))])
