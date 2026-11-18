@@ -215,6 +215,7 @@ final class PutioVideoTransport {
   private(set) var selectedSubtitle: Int?
   private(set) var airPlay: PutioVideoAirPlay?
   private(set) var subtitleCues: [PutioVideoCue] = []
+  private(set) var picture = PutioVideoPicture.unknown
   private(set) var subtitleSize: PutioSubtitleTextSize
   private(set) var subtitleTiming = PutioSubtitleTiming()
   #if DEBUG
@@ -374,6 +375,23 @@ final class PutioVideoTransport {
     engine.$subtitleCues.combineLatest(engine.clock.$sourceTime)
       .sink { [weak self] cues, time in self?.showCues(cues, at: time) }
       .store(in: &engineObservations)
+    engine.$softwareDisplaySize
+      .combineLatest(engine.$sourceVideoWidth, engine.$sourceVideoHeight, engine.$videoRoute)
+      .sink { [weak self, weak engine] display, width, height, _ in
+        guard let self, let engine else { return }
+        let coded = CGSize(width: Int(width), height: Int(height))
+        picture = PutioVideoPicture(
+          coded: coded,
+          display: display
+            ?? CGSize(
+              width: coded.width * engine.sourceVideoPixelAspectRatio, height: coded.height))
+      }
+      .store(in: &engineObservations)
+    routeObservation = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.refreshAirPlay() }
+    }
     engine.$videoRoute.combineLatest(engine.$softwarePiPSource)
       .sink { [weak self, weak engine] route, source in
         guard let self, let engine else { return }
@@ -730,6 +748,7 @@ final class PutioVideoTransport {
     audioTracks = []
     subtitles = []
     subtitleCues = []
+    picture = .unknown
     selectedAudio = nil
     selectedSubtitle = nil
     isPlaying = false
@@ -738,9 +757,23 @@ final class PutioVideoTransport {
   }
 
   private func refreshAirPlay() {
-    guard let player else { return }
-    airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
-    refreshCaptionRendering()
+    if let player {
+      airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
+      refreshCaptionRendering()
+    } else if let engine {
+      airPlay = PutioVideoAirPlay.current(
+        isActive: engine.nativePlayerLayer?.player?.isExternalPlaybackActive == true)
+    }
+  }
+
+  private func observeAirPlay(of player: AVPlayer?) {
+    externalPlaybackObservation?.invalidate()
+    externalPlaybackObservation = player?.observe(
+      \.isExternalPlaybackActive, options: [.initial, .new]
+    ) { [weak self] _, _ in
+      Task { @MainActor [weak self] in self?.refreshAirPlay() }
+    }
+    refreshAirPlay()
   }
 
   private func refreshPlaying() {
@@ -815,6 +848,7 @@ final class PutioVideoTransport {
     default:
       pictureInPicture.attach(engineController: nil, hasRoute: false)
     }
+    observeAirPlay(of: supportsAirPlay ? engine.nativePlayerLayer?.player : nil)
   }
 
   private func showNativeSubtitle(in engine: AetherEngine, active: Bool) {

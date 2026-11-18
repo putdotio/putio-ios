@@ -10,6 +10,7 @@ struct PutioVideoCue: Identifiable, Equatable {
   let text: AttributedString?
   let image: CGImage?
   let position: CGRect?
+  let canvas: CGSize
 
   init(_ cue: SubtitleCue) {
     id = cue.id
@@ -17,9 +18,11 @@ struct PutioVideoCue: Identifiable, Equatable {
     if case .image(let image) = cue.body {
       self.image = image.cgImage
       position = image.position
+      canvas = image.canvasSize
     } else {
       image = nil
       position = nil
+      canvas = .zero
     }
   }
 
@@ -28,6 +31,7 @@ struct PutioVideoCue: Identifiable, Equatable {
     self.text = text
     image = nil
     position = nil
+    canvas = .zero
   }
 
   static func == (lhs: Self, rhs: Self) -> Bool {
@@ -154,28 +158,67 @@ struct PutioCaptionAppearance: Equatable {
   }
 }
 
+struct PutioVideoPicture: Equatable {
+  static let unknown = PutioVideoPicture(coded: .zero, display: .zero)
+
+  let coded: CGSize
+  let display: CGSize
+
+  func rect(in bounds: CGRect) -> CGRect {
+    guard display.width > 0, display.height > 0 else { return bounds }
+    return AVMakeRect(aspectRatio: display, insideRect: bounds)
+  }
+
+  func frame(ofBitmapAt position: CGRect, canvas: CGSize, in bounds: CGRect) -> CGRect {
+    let picture = rect(in: bounds)
+    let placed = Self.normalizedOnCodedFrame(position, canvas: canvas, coded: coded)
+    return CGRect(
+      x: picture.minX + placed.minX * picture.width,
+      y: picture.minY + placed.minY * picture.height,
+      width: placed.width * picture.width,
+      height: placed.height * picture.height)
+  }
+
+  private static func normalizedOnCodedFrame(
+    _ position: CGRect, canvas: CGSize, coded: CGSize
+  ) -> CGRect {
+    guard canvas.width > 0, canvas.height > 0, coded.width > 0, coded.height > 0 else {
+      return position
+    }
+    let scale = coded.width / canvas.width
+    let top = coded.height / 2 + (position.minY - 0.5) * canvas.height * scale
+    return CGRect(
+      x: position.minX,
+      y: top / coded.height,
+      width: position.width,
+      height: position.height * canvas.height * scale / coded.height)
+  }
+}
+
 struct PutioVideoSubtitleOverlay: View {
   let cues: [PutioVideoCue]
   let size: PutioSubtitleTextSize
+  var picture = PutioVideoPicture.unknown
 
   @State private var appearance = PutioCaptionAppearance.current
   @ScaledMetric(relativeTo: .body) private var baseSize = PutioTheme.Typography.sizeBase
 
   var body: some View {
-    GeometryReader { geometry in
-      ZStack(alignment: .bottom) {
+    ZStack {
+      GeometryReader { geometry in
+        let bounds = CGRect(origin: .zero, size: geometry.size)
         ForEach(cues) { cue in
           if let image = cue.image, let position = cue.position {
+            let frame = picture.frame(ofBitmapAt: position, canvas: cue.canvas, in: bounds)
             Image(decorative: image, scale: 1)
               .resizable()
-              .frame(
-                width: position.width * geometry.size.width,
-                height: position.height * geometry.size.height
-              )
-              .position(
-                x: position.midX * geometry.size.width, y: position.midY * geometry.size.height)
+              .frame(width: frame.width, height: frame.height)
+              .position(x: frame.midX, y: frame.midY)
           }
         }
+      }
+      .ignoresSafeArea()
+      ZStack(alignment: .bottom) {
         let texts = cues.compactMap { cue in cue.text.flatMap { $0.characters.isEmpty ? nil : $0 } }
         if !texts.isEmpty {
           caption(texts)

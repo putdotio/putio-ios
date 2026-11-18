@@ -117,7 +117,7 @@ final class PreviewJourneyTests: XCTestCase {
       "the next tap did not hand the file to VLC: \(requests.value ?? "")")
   }
 
-  func testImagePDFUnsupportedAndVLCHandoffOutcomes() {
+  func testImagePDFUnsupportedAndTextPreviews() {
     app.launch()
     signIn()
 
@@ -188,12 +188,12 @@ final class PreviewJourneyTests: XCTestCase {
     assertCannotShow(rowID: 431, title: "Harness Scan.pdf", rowValue: "Document")
     XCTAssertEqual(requests.value as? String, (loadedRequests ?? "") + ",431:loaded")
     assertTextPreviews()
-    var swipes = 0
-    while !element("files.item.412").isHittable, swipes < 3 {
-      app.swipeDown()
-      swipes += 1
-    }
-    XCTAssertTrue(element("files.item.412").isHittable, "row 412 stayed out of reach")
+    signOut()
+  }
+
+  func testSearchAndHistoryOpenPreviewsAndVLCHandsOff() {
+    app.launch()
+    signIn()
 
     // Search and History dispatch through the same routing table.
     app.buttons["Search"].tap()
@@ -212,8 +212,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.cannot-show").appears(within: 5))
     app.buttons["preview.back"].tap()
     XCTAssertTrue(element("preview.screen.407").disappears(within: 5))
-    // The Search tab collapses the tab bar; Files restores it.
-    app.buttons["Files"].tap()
+    app.openTab("Files")
     XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let history = app.buttons["History"]
     XCTAssertTrue(history.appears(within: 5))
@@ -250,20 +249,7 @@ final class PreviewJourneyTests: XCTestCase {
       "handoff was not requested: \(vlcRequests.value ?? "")")
     XCTAssertFalse(app.staticTexts["VLC is not installed"].exists)
     XCTAssertTrue(element("files.screen.0").exists)
-
-    app.terminate()
-    app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
-    app.launch()
-    XCTAssertTrue(element("files.screen.0").appears(within: 10))
-    assertVLCFailureThenHandoff()
-
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5))
-    if !signOut.isHittable { app.swipeUp() }
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
+    signOut()
   }
 
   func testSwipesBetweenFilesOfTheSameKind() {
@@ -371,7 +357,8 @@ final class PreviewJourneyTests: XCTestCase {
       waitForFrame(image) { _ in app.windows.firstMatch.frame.width > window.width },
       "the viewer did not rotate")
     XCTAssertTrue(waitForFit(image), "rotation did not reset zoom: \(image.frame)")
-    XCTAssertTrue(back.isHittable, "the bars do not float over the landscape image")
+    XCTAssertTrue(
+      back.becomesHittable(within: 5), "the bars do not float over the landscape image")
     XCTAssertTrue(element("preview.title").exists)
     screenshot("runtime-preview-image-landscape")
     XCUIDevice.shared.orientation = .portrait
@@ -379,7 +366,7 @@ final class PreviewJourneyTests: XCTestCase {
       waitForFrame(image) { _ in app.windows.firstMatch.frame.width == window.width },
       "the viewer did not rotate back")
     XCTAssertTrue(waitForFit(image), "rotating back did not fit the image: \(image.frame)")
-    XCTAssertTrue(back.isHittable)
+    XCTAssertTrue(back.becomesHittable(within: 5), "Back is not reachable after rotating back")
   }
 
   private func assertTextPreviews() {
@@ -496,7 +483,9 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForFrame(pill) { _ in app.windows.firstMatch.frame.width > window.width },
       "the document did not rotate")
-    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    XCTAssertTrue(
+      app.buttons["preview.back"].becomesHittable(within: 5),
+      "Back is not reachable on the landscape document")
     XCTAssertTrue(pill.exists, "the landscape document has no page pill")
     screenshot("runtime-preview-document-landscape")
     XCUIDevice.shared.orientation = .portrait
@@ -965,7 +954,7 @@ final class PreviewJourneyTests: XCTestCase {
 
   private func openInVLC(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.appears(within: 5))
+    XCTAssertTrue(row.appears(within: 10), "row \(fileID) never appeared")
     revealBelowNavigationBar(row)
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]

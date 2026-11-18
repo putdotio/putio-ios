@@ -1472,7 +1472,7 @@ enum BrowserJourneyContract {
       "ChromecastJourneyTests/testAVideoConvertedAfterCastConnectsPlaysOnTheReceiver",
       timeAllowance: 120),
     JourneyPreflight(
-      "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
+      "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndTextPreviews",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
@@ -1482,6 +1482,12 @@ enum BrowserJourneyContract {
         "runtime-preview-share-text",
       ],
       timeAllowance: 300),
+    JourneyPreflight(
+      "preview-routing", "PreviewJourneyTests/testSearchAndHistoryOpenPreviewsAndVLCHandsOff",
+      timeAllowance: 180),
+    JourneyPreflight(
+      "preview-vlc-retry", "PreviewJourneyTests/testVLCFailureToastsAndTheNextTapHandsOff",
+      timeAllowance: 120),
     JourneyPreflight(
       "share", "PreviewJourneyTests/testShareFetchesCancelsRetriesAndSharesDownloads",
       attachmentNames: [
@@ -1660,9 +1666,11 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 180),
     JourneyPreflight(
-      "folder-states", "FilesBrowserJourneyTests/testFolderEmptyPagingFailedPageAndPullToRefresh",
-      attachmentNames: ["runtime-folder-empty", "runtime-folder-load-more-failed"],
-      timeAllowance: 240),
+      "folder-states", "FilesBrowserJourneyTests/testEmptyFolderRefreshesAndCreatesAFolder",
+      attachmentNames: ["runtime-folder-empty"], timeAllowance: 120),
+    JourneyPreflight(
+      "folder-paging", "FilesBrowserJourneyTests/testFolderPagingFailedPageAndPullToRefresh",
+      attachmentNames: ["runtime-folder-load-more-failed"], timeAllowance: 240),
     JourneyPreflight(
       "folder-errors", "FilesBrowserJourneyTests/testFolderFailuresNameTheirReasonAndRecover",
       attachmentNames: ["runtime-folder-forbidden", "runtime-folder-offline"],
@@ -1861,6 +1869,7 @@ enum BrowserJourneyContract {
   ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
+  static let timeAllowance = 120
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

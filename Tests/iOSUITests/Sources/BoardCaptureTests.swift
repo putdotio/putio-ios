@@ -1195,16 +1195,13 @@ final class BoardCaptureTests: XCTestCase {
     app.launchArguments.append("--putio-harness-unconfirmed-settings")
     app.launch()
     reachFilesRoot()
-    let account = tabButton("Account")
-    XCTAssertTrue(account.appears(within: 10), "the Account tab never appeared")
-    account.tap()
+    app.openTab("Account")
     let subtitles = app.switches["playback-settings.subtitles"]
     app.bringIntoView(subtitles)
     XCTAssertTrue(subtitles.appears(within: 10), "Show subtitles never appeared")
     // Form exposes the full row as the switch accessibility frame.
     subtitles.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-    app.showTabBar()
-    tabButton("Files").tap()
+    app.openTab("Files")
     openSeasonFolder()
     openItemMenu("files.item.442")
     let trash = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Move to trash"))
@@ -2369,6 +2366,8 @@ final class BoardCaptureTests: XCTestCase {
     assertFact("folder", "Folder, Harness Folder / Blue Lights")
     XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
     XCTAssertTrue(element("files.detail.more").exists, "the detail offers no More")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     try captureBoard("rd-ios-12-ipad-split")
 
     rotate(.portrait)
@@ -2400,6 +2399,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     selectVideo(element("files.item.443"), id: 443, primary: "Play")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     XCTAssertTrue(element("files.detail.download").exists, "the detail offers no Download")
     XCTAssertFalse(element("files.detail.on-device").exists, "a remote file shows on device")
     assertFact("size", "Size, 3.1 GB")
@@ -2418,6 +2419,9 @@ final class BoardCaptureTests: XCTestCase {
     }
     selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
     assertFact("folder", "Folder, Files")
+    XCTAssertFalse(
+      element("files.detail.preview-poster").appears(within: 5),
+      "a video without a screenshot shows a poster")
     element("files.detail.download").tap()
     XCTAssertTrue(element("downloads.screen").appears(within: 10), "Downloads never opened")
     tabButton("Files").tap()
@@ -2439,6 +2443,8 @@ final class BoardCaptureTests: XCTestCase {
     let row = element("files.item.442")
     selectVideo(row, id: 442, primary: "Resume from 21:00")
     assertFact("folder", "Folder, Harness Folder / Blue Lights")
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     try captureBoard("rd-ios-15-duo-open")
 
     try fold()
@@ -2564,6 +2570,8 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     openSeasonFolder()
     selectVideo(element("files.item.441"), id: 441, primary: nil)
+    XCTAssertTrue(
+      element("files.detail.preview-poster").appears(within: 15), "the poster frame never showed")
     openDetailMore(lacking: ["Play", "Download", "Share", "Select"])
     XCTAssertTrue(
       app.buttons["Mark as watched"].exists || app.buttons["Mark as unwatched"].exists,
@@ -4773,16 +4781,7 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     reachFilesRoot()
     let profile = element("account.profile")
-    tabButton("Account").tap()
-    if !profile.appears(within: 5) {
-      openSidebar()
-      app.cells["Account"].tap()
-      if element("shell.storage").becomesHittable(within: 3) {
-        sidebarToggle().tap()
-        XCTAssertTrue(
-          element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
-      }
-    }
+    app.openTab("Account")
     XCTAssertTrue(profile.appears(within: 10), "Account never opened")
     let row = app.revealed("account.trash")
     app.bringIntoView(row)
@@ -4832,8 +4831,10 @@ final class BoardCaptureTests: XCTestCase {
 
   func testIPadAccount() throws {
     openIPadAccount()
-    XCTAssertTrue(
-      element("putio.list-detail.empty").appears(within: 5), "a screen opened before a row")
+    if !isPortraitBoard {
+      XCTAssertTrue(
+        element("putio.list-detail.empty").appears(within: 5), "a screen opened before a row")
+    }
     XCTAssertFalse(element("account.public-links").isSelected, "a row is open before a tap")
     try captureBoard("rd-ios-acc-57-ipad-account")
   }
@@ -4854,22 +4855,34 @@ final class BoardCaptureTests: XCTestCase {
     let proxy = scrollIPadAccount(toHit: "playback-settings.route")
     proxy.tap()
     XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "proxies never loaded")
-    assertIPadAccountOpen("playback-settings.route", "opening Proxy")
-    rotate(.portrait)
+    let (start, turned): (UIDeviceOrientation, UIDeviceOrientation) =
+      isPortraitBoard ? (.portrait, .landscapeLeft) : (.landscapeLeft, .portrait)
+    assertIPadProxyOpen(in: start, "opening Proxy")
+    rotate(turned)
+    assertIPadProxyOpen(in: turned, "rotating away")
+    rotate(start)
+    assertIPadProxyOpen(in: start, "rotating back")
+    try captureBoard("rd-ios-acc-20-ipad-proxy")
+  }
+
+  private func assertIPadProxyOpen(in orientation: UIDeviceOrientation, _ step: String) {
     XCTAssertTrue(
-      app.navigationBars["Choose your proxy"].appears(within: 5), "portrait closed Proxy")
-    XCTAssertTrue(
-      element("playback-settings.route").becomesUnhittable(within: 5),
-      "portrait kept the Account list beside Proxy")
-    rotate(.landscapeLeft)
-    XCTAssertTrue(proxyChoice("Washington, D.C.").appears(within: 10), "landscape closed Proxy")
+      proxyChoice("Washington, D.C.").appears(within: 10), "Proxy closed after \(step)")
+    guard orientation.isLandscape else {
+      XCTAssertTrue(
+        app.navigationBars["Choose your proxy"].appears(within: 5),
+        "portrait closed Proxy after \(step)")
+      XCTAssertTrue(
+        element("playback-settings.route").becomesUnhittable(within: 5),
+        "portrait kept the Account list beside Proxy after \(step)")
+      return
+    }
     if element("shell.storage").becomesHittable(within: 3) {
       sidebarToggle().tap()
       XCTAssertTrue(
         element("shell.storage").becomesUnhittable(within: 5), "the tab sidebar did not close")
     }
-    assertIPadAccountOpen("playback-settings.route", "rotating back to landscape")
-    try captureBoard("rd-ios-acc-20-ipad-proxy")
+    assertIPadAccountOpen("playback-settings.route", step)
   }
 
   func testIPadAccountClearData() throws {
@@ -5156,7 +5169,7 @@ final class BoardCaptureTests: XCTestCase {
     orient(.landscapeLeft)
     app.launch()
     reachFilesRoot()
-    tabButton("Account").tap()
+    app.openTab("Account")
     XCTAssertTrue(element("account.profile").appears(within: 10), "Account never opened")
     XCTAssertTrue(
       element("settings.default-sort").appears(within: 15), "account settings never loaded")
@@ -5621,7 +5634,7 @@ final class BoardCaptureTests: XCTestCase {
     orient(.portrait)
     app.launch()
     reachFilesRoot()
-    tabButton("Account").tap()
+    app.openTab("Account")
     XCTAssertTrue(element("account.profile").appears(within: 10), "Account never opened")
     XCTAssertTrue(element("account.storage-used").exists, "Account has no storage row")
   }
@@ -5822,14 +5835,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private func tapFolderMore() {
-    let menu = app.buttons["files.menu"]
-    if menu.appears(within: 10) { return menu.tap() }
-    let overflow = app.buttons["BottomOverflowBarButtonItem"]
-    XCTAssertTrue(overflow.exists, "the folder has no More menu")
-    overflow.tap()
-    let more = app.collectionViews.buttons["More"]
-    XCTAssertTrue(more.appears(within: 5), "the toolbar overflow has no More")
-    more.tap()
+    app.tapToolbarItem("files.menu", title: "More")
   }
 
   private func select(_ identifiers: [String]) {

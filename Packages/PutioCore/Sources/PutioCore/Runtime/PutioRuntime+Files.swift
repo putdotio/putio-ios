@@ -251,7 +251,12 @@ extension PutioRuntime {
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     let duration = file.metaData.map { Int($0.duration.rounded()) }.flatMap { $0 > 0 ? $0 : nil }
     return PutioVideoDetails(
-      resumePositionSeconds: file.startFrom, durationSeconds: duration, subtitles: await subtitles)
+      resumePositionSeconds: file.startFrom, durationSeconds: duration, subtitles: await subtitles,
+      screenshotURL: Self.screenshotURL(file.screenshot))
+  }
+
+  static func screenshotURL(_ raw: String) -> URL? {
+    URL(string: raw).flatMap { $0.scheme == "https" ? $0 : nil }
   }
 
   public func videoStartPoint(fileID: PutioFileID) async throws -> PutioVideoStartPoint {
