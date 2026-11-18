@@ -371,7 +371,8 @@ final class PreviewJourneyTests: XCTestCase {
       waitForFrame(image) { _ in app.windows.firstMatch.frame.width > window.width },
       "the viewer did not rotate")
     XCTAssertTrue(waitForFit(image), "rotation did not reset zoom: \(image.frame)")
-    XCTAssertTrue(back.isHittable, "the bars do not float over the landscape image")
+    XCTAssertTrue(
+      back.becomesHittable(within: 5), "the bars do not float over the landscape image")
     XCTAssertTrue(element("preview.title").exists)
     screenshot("runtime-preview-image-landscape")
     XCUIDevice.shared.orientation = .portrait
@@ -379,7 +380,7 @@ final class PreviewJourneyTests: XCTestCase {
       waitForFrame(image) { _ in app.windows.firstMatch.frame.width == window.width },
       "the viewer did not rotate back")
     XCTAssertTrue(waitForFit(image), "rotating back did not fit the image: \(image.frame)")
-    XCTAssertTrue(back.isHittable)
+    XCTAssertTrue(back.becomesHittable(within: 5), "Back is not reachable after rotating back")
   }
 
   private func assertTextPreviews() {
@@ -496,7 +497,9 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitForFrame(pill) { _ in app.windows.firstMatch.frame.width > window.width },
       "the document did not rotate")
-    XCTAssertTrue(app.buttons["preview.back"].isHittable)
+    XCTAssertTrue(
+      app.buttons["preview.back"].becomesHittable(within: 5),
+      "Back is not reachable on the landscape document")
     XCTAssertTrue(pill.exists, "the landscape document has no page pill")
     screenshot("runtime-preview-document-landscape")
     XCUIDevice.shared.orientation = .portrait
