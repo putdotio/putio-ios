@@ -188,7 +188,7 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
   }
 
   private func closeSheet() {
-    let sheet = element("files.exclusive-link")
+    let sheet = app.scrollViews["files.exclusive-link"]
     sheet.swipeDown(velocity: .fast)
     if !sheet.disappears(within: 3) {
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
