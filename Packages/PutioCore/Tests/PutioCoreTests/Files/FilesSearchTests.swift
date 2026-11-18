@@ -112,6 +112,19 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.firstPageIDs, [PutioFileID(rawValue: 1)])
   }
 
+  func testResultsRevisionMarksSearchesNotAppendedPages() async {
+    let model = PutioFileSearchModel(
+      search: { _, _ in Self.page([1], cursor: "second") },
+      continueSearch: { _ in Self.page([2]) })
+    await model.update(query: "movie", debounced: false)
+    let searched = model.resultsRevision
+    await model.loadMore()
+    XCTAssertEqual(model.resultsRevision, searched, "a continuation page is not a reload")
+    await model.refresh(query: "movie", revision: 3)
+    XCTAssertGreaterThan(model.resultsRevision, searched)
+    XCTAssertEqual(model.resultsRefreshRevision, 3, "results carry the refresh they reflect")
+  }
+
   func testRefreshFailureRetainsResultsAndRetryReplacesThem() async {
     var attempts = 0
     var continuationCalls = 0
