@@ -23,15 +23,19 @@ private func loadBrandFontManifest() -> BrandFontManifest {
 
 private let brandFontManifest = loadBrandFontManifest()
 
+private func brandFontIsPresent(_ name: String) -> Bool {
+  if case .string(let names) = Environment.putioBrandFonts {
+    return names.split(separator: ",").contains(Substring(name))
+  }
+  return FileManager.default.fileExists(
+    atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+      .appending(path: "\(brandFontManifest.directory)/\(name)").path
+  )
+}
+
 private func brandFontNames(for platform: String) -> [String] {
   brandFontManifest.files
-    .filter {
-      $0.value.platforms.contains(platform)
-        && FileManager.default.fileExists(
-          atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appending(path: "\(brandFontManifest.directory)/\($0.key)").path
-        )
-    }
+    .filter { $0.value.platforms.contains(platform) && brandFontIsPresent($0.key) }
     .map(\.key)
     .sorted()
 }

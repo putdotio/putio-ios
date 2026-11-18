@@ -15,4 +15,10 @@ if [[ "${PUTIO_TUIST_DEPENDENCIES_CACHED:-}" != "1" ]]; then
   TUIST_USE_SWIFTERPM=0 tuist install
 fi
 node scripts/open-source-licenses.ts
-tuist generate --no-open
+brand_fonts=""
+for font in Resources/BrandFonts/*.otf; do
+  if [[ -e "$font" ]]; then
+    brand_fonts+="${brand_fonts:+,}${font##*/}"
+  fi
+done
+TUIST_PUTIO_BRAND_FONTS="$brand_fonts" tuist generate --no-open
