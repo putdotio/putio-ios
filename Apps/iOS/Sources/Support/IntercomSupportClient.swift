@@ -44,7 +44,7 @@ struct IntercomSupportClient: SupportMessengerClient {
   }
 
   func setDeviceToken(_ token: Data) {
-    Intercom.setDeviceToken(token)
+    Intercom.setDeviceToken(token, completion: nil)
   }
 
   func isSupportNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
@@ -52,6 +52,6 @@ struct IntercomSupportClient: SupportMessengerClient {
   }
 
   func openNotification(_ userInfo: [AnyHashable: Any]) {
-    Intercom.handleIntercomPushNotification(userInfo)
+    Intercom.handlePushNotification(userInfo)
   }
 }
