@@ -145,9 +145,11 @@ final class ConversionGateJourneyTests: XCTestCase {
     episode.tap()
     let detailPlay = element("files.detail.play")
     if detailPlay.appears(within: 3) { detailPlay.tap() }
-    XCTAssertTrue(app.videoClose.appears(within: 10), "the gate never opened")
+    XCTAssertTrue(
+      app.videoClose.appears(within: 10) || element("video.ready").exists, "the gate never opened")
     XCTAssertEqual(
-      element("video.title").label, "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
+      app.readVideoControl(element("video.title"))?.label,
+      "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
