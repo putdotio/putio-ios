@@ -53,5 +53,5 @@ tools = { java = "temurin-21" }
 run = "node scripts/formal-session.ts"
 
 [verify]
-description = "Run the full gate; pass lanes (tooling, checks, build, ios, tvos) to run a subset"
+description = "Run the full gate; pass lanes from scripts/verify.sh to run a subset"
 run = "./scripts/verify.sh"
