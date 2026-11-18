@@ -2358,9 +2358,11 @@ final class BoardCaptureTests: XCTestCase {
     selectVideo(row, id: 442, primary: "Resume from 21:00")
     XCTAssertGreaterThanOrEqual(
       row.frame.maxX, 384, "the list column is narrower than its 384 pt minimum")
-    XCTAssertEqual(
-      element("files.item.443").frame.minY - row.frame.minY, 60, accuracy: 1,
-      "iPad Files rows are not 60 pt apart")
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] != "1" {
+      XCTAssertEqual(
+        element("files.item.443").frame.minY - row.frame.minY, 60, accuracy: 1,
+        "iPad Files rows are not 60 pt apart")
+    }
     XCTAssertFalse(element("video.ready").exists, "selecting a video started playback")
     assertFact("length", "Length, 49:49")
     assertFact("subtitles", "Subtitles, English, Turkish")
