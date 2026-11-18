@@ -2270,8 +2270,8 @@ public struct SimulatorHarness {
     let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
     let pendingPrefix = "putio-pending-\(name)-"
     return try withExclusiveLock(at: lock) {
-      let devices = try listSimulatorDevices(runner: runner, context: "list Simulator templates")[
-        runtime.identifier] ?? []
+      let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
+      let devices = listed[runtime.identifier] ?? []
       let stale = devices.filter { $0.name.hasPrefix(pendingPrefix) }.map(\.udid)
       if !stale.isEmpty { try? cleanupSimulatorIdentifiers(stale, runner: runner) }
       let templates = devices.filter { $0.name == name }
