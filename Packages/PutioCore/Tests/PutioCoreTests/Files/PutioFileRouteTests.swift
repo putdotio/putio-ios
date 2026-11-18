@@ -31,6 +31,30 @@ final class PutioFileRouteTests: XCTestCase {
       ["Name", "Size", "Date added", "Date modified", "Type"])
   }
 
+  func testSortSummaryNamesTheMenuFieldAndOrder() {
+    let androidSummaries: [(PutioFolderSort, String)] = [
+      (.nameAscending, "Name, A to Z"),
+      (.nameDescending, "Name, Z to A"),
+      (.sizeAscending, "Size, smallest first"),
+      (.sizeDescending, "Size, largest first"),
+      (.dateAddedAscending, "Date added, oldest first"),
+      (.dateAddedDescending, "Date added, newest first"),
+      (.dateModifiedAscending, "Date modified, oldest first"),
+      (.dateModifiedDescending, "Date modified, newest first"),
+      (.typeAscending, "Type, A to Z"),
+      (.typeDescending, "Type, Z to A"),
+      (.watchStatusAscending, "Unwatched first"),
+      (.watchStatusDescending, "Watched first"),
+    ]
+    XCTAssertEqual(androidSummaries.count, PutioFolderSortKey.allCases.count * 2)
+    for (sort, summary) in androidSummaries {
+      XCTAssertEqual(sort.menuLabel, summary)
+      let menuWording =
+        sort.key == .watchStatus ? sort.orderTitle : "\(sort.key.menuTitle), \(sort.orderTitle)"
+      XCTAssertEqual(sort.menuLabel.lowercased(), menuWording.lowercased(), "\(sort)")
+    }
+  }
+
   func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {
     let trash = PutioFileDeletionPresentation(trashEnabled: true)
     XCTAssertEqual(trash.actionTitle, "Trash")
