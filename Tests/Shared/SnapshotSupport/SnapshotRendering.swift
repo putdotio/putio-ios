@@ -116,6 +116,7 @@ enum SnapshotRenderer {
     view.backgroundColor = .clear
     let traits = UITraitCollection { $0.displayScale = SnapshotEnvironment.scale }
     #if os(tvOS)
+      try awaitKeyWindowOnRenderServer()
       let strategy = Snapshotting<UIViewController, UIImage>.image(
         on: .tv,
         drawHierarchyInKeyWindow: true,
@@ -129,6 +130,35 @@ enum SnapshotRenderer {
     strategy.snapshot(controller).run { image = $0 }
     return try XCTUnwrap(image, "the snapshot strategy did not render synchronously")
   }
+
+  #if os(tvOS)
+    private static var keyWindowDraws = false
+
+    private static func awaitKeyWindowOnRenderServer() throws {
+      guard !keyWindowDraws else { return }
+      let deadline = Date.now.addingTimeInterval(30)
+      repeat {
+        if let window = UIApplication.shared.connectedScenes
+          .compactMap({ $0 as? UIWindowScene })
+          .filter({ $0.activationState == .foregroundActive })
+          .flatMap(\.windows)
+          .first(where: \.isKeyWindow),
+          !window.bounds.isEmpty
+        {
+          var drawn = false
+          _ = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            drawn = window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+          }
+          if drawn {
+            keyWindowDraws = true
+            return
+          }
+        }
+        RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+      } while Date.now < deadline
+      throw SnapshotFailure("the host app's key window did not become active and drawable in 30 s")
+    }
+  #endif
 }
 
 struct SnapshotFailure: Error, CustomStringConvertible {
