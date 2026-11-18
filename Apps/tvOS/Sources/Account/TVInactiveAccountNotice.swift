@@ -19,7 +19,7 @@ struct TVInactiveAccountNotice: View {
           .putioFont(TVInactiveAccountNoticeLayout.titleFont)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         if let days = notice.daysUntilFilesDeleted(now: now) {
-          Text(Self.message(days: days))
+          Text(PutioInactiveAccountNotice.filesDeletionMessage(days: days))
             .putioFont(PutioTheme.TV.Typography.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         }
@@ -35,14 +35,6 @@ struct TVInactiveAccountNotice: View {
     .accessibilityElement(children: .combine)
     .accessibilityIdentifier(identifier)
   }
-
-  static func message(days: Int) -> AttributedString {
-    var message = AttributedString(PutioInactiveAccountNotice.filesDeletionMessage(days: days))
-    if let count = message.range(of: String(days)) {
-      message[count].font = TVInactiveAccountNoticeLayout.countFont
-    }
-    return message
-  }
 }
 
 enum TVInactiveAccountNoticeLayout {
@@ -53,9 +45,6 @@ enum TVInactiveAccountNoticeLayout {
     lineHeight: PutioTheme.TV.Typography.body.lineHeight,
     textStyle: .body
   )
-  static let countFont = Font.custom(
-    PutioTheme.Typography.mono.fontName, size: PutioTheme.TV.Typography.caption.size,
-    relativeTo: .caption)
 }
 
 struct TVPlaybackAccountNotice: View {
