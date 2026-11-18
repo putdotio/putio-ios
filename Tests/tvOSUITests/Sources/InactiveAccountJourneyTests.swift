@@ -51,8 +51,10 @@ final class InactiveAccountJourneyTests: XCTestCase {
     if resume.exists { remote.press(.select) }
     XCTAssertTrue(
       playbackNotice.waitForExistence(timeout: 30), "a refused stream did not show the notice")
-    XCTAssertTrue(label(containing: "Your account has been deactivated").exists)
-    XCTAssertTrue(label(containing: "scheduled to be deleted in 12 days.").exists)
+    XCTAssertTrue(
+      playbackNotice.label.contains("Your account has been deactivated"), playbackNotice.label)
+    XCTAssertTrue(
+      playbackNotice.label.contains("scheduled to be deleted in 12 days."), playbackNotice.label)
     XCTAssertFalse(element("video.retry").exists, "the generic playback error still shows")
     attach("runtime-tv-inactive-playback")
 
@@ -101,11 +103,6 @@ final class InactiveAccountJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
-  }
-
-  private func label(containing text: String) -> XCUIElement {
-    app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text))
-      .firstMatch
   }
 
   private func hasFocus(_ identifier: String) -> Bool {

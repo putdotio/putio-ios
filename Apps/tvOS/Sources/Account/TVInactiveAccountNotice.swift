@@ -55,7 +55,7 @@ struct TVPlaybackAccountNotice: View {
       title: notice.title,
       message: notice.daysUntilFilesDeleted().map(PutioInactiveAccountNotice.filesDeletionMessage)
     )
-    .accessibilityElement(children: .contain)
+    .accessibilityElement(children: .combine)
     .accessibilityIdentifier("video.account-notice")
   }
 }
