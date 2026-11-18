@@ -2409,7 +2409,7 @@ final class BoardCaptureTests: XCTestCase {
       }
       _ = signIn.appears(within: 15)
     }
-    selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:49")
+    selectVideo(element("files.item.412"), id: 412, primary: "Resume from 9:20")
     assertFact("folder", "Folder, Files")
     XCTAssertFalse(
       element("files.detail.preview-poster").appears(within: 5),
