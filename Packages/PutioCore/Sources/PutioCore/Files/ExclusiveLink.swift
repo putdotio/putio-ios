@@ -98,6 +98,13 @@ public final class PutioExclusiveLinkModel {
     createLink = create
   }
 
+  var outlivesTheSheet: Bool {
+    switch state {
+    case .creating, .created: true
+    case .ready, .refused, .failed: false
+    }
+  }
+
   public var canCreate: Bool {
     switch state {
     case .ready, .refused, .failed: true
@@ -114,9 +121,7 @@ public final class PutioExclusiveLinkModel {
   public func create() async {
     guard state == .creating else { return }
     do {
-      let url = try await createLink(item.id)
-      try Task.checkCancellation()
-      state = .created(url)
+      state = .created(try await createLink(item.id))
     } catch let refusal as PutioPublicLinkRefusal {
       state = .refused(refusal)
     } catch {
@@ -126,5 +131,25 @@ public final class PutioExclusiveLinkModel {
       }
       state = .failed(String(localized: "Couldn’t create a link. \(reason)", bundle: .module))
     }
+  }
+}
+
+@MainActor
+public final class PutioExclusiveLinks {
+  private var models: [PutioFileID: PutioExclusiveLinkModel] = [:]
+
+  public init() {}
+
+  public func model(
+    for item: PutioFileItem, create: @escaping PutioPublicLinkCreate
+  ) -> PutioExclusiveLinkModel {
+    if let model = models[item.id] { return model }
+    let model = PutioExclusiveLinkModel(item: item, create: create)
+    models[item.id] = model
+    return model
+  }
+
+  public func sheetClosed() {
+    models = models.filter { $0.value.outlivesTheSheet }
   }
 }

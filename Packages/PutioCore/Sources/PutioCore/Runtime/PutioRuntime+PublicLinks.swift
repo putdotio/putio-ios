@@ -20,7 +20,7 @@ extension PutioRuntime {
 
   public func createPublicLink(fileID: PutioFileID) async throws -> URL {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
-    let share = try await performAuthenticatedOperation {
+    let share = try await performAuthenticatedOperation(commits: true) {
       do {
         return try await sdk.createPublicShare(fileID: fileID.rawValue)
       } catch let error as PutioSDKError where error.publicShareRefusal != nil {

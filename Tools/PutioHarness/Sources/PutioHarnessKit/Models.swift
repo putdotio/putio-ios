@@ -1588,7 +1588,8 @@ enum BrowserJourneyContract {
       "exclusive-link-failed", "ExclusiveLinkJourneyTests/testAFailureOffersTryAgain",
       attachmentNames: ["runtime-exclusive-link-failed"]),
     JourneyPreflight(
-      "exclusive-link-cancel", "ExclusiveLinkJourneyTests/testClosingWhileCreatingCancels",
+      "exclusive-link-reopen",
+      "ExclusiveLinkJourneyTests/testReopeningWhileCreatingKeepsTheRequest",
       attachmentNames: ["runtime-exclusive-link-creating"]),
     JourneyPreflight(
       "trash-disabled",

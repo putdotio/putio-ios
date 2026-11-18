@@ -25,11 +25,12 @@ extension View {
 private struct PutioExclusiveLinkHost: ViewModifier {
   @Binding var item: PutioFileItem?
   @Environment(\.putioExclusiveLink) private var create
+  @State private var links = PutioExclusiveLinks()
 
   func body(content: Content) -> some View {
-    content.sheet(item: $item) { item in
+    content.sheet(item: $item, onDismiss: links.sheetClosed) { item in
       if let create {
-        PutioExclusiveLinkSheet(model: PutioExclusiveLinkModel(item: item, create: create))
+        PutioExclusiveLinkSheet(model: links.model(for: item, create: create))
       }
     }
   }
@@ -37,7 +38,6 @@ private struct PutioExclusiveLinkHost: ViewModifier {
 
 struct PutioExclusiveLinkSheet: View {
   @State private var model: PutioExclusiveLinkModel
-  @State private var request = 0
   @State private var contentHeight: CGFloat = 0
   @State private var toast: PutioToast?
 
@@ -65,10 +65,6 @@ struct PutioExclusiveLinkSheet: View {
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
     .putioToast($toast)
-    .task(id: request) {
-      guard request > 0 else { return }
-      await model.create()
-    }
     .accessibilityIdentifier("files.exclusive-link")
   }
 
@@ -177,7 +173,8 @@ struct PutioExclusiveLinkSheet: View {
 
   private func createButton(_ title: String) -> some View {
     Button {
-      if model.start() { request += 1 }
+      guard model.start() else { return }
+      Task { await model.create() }
     } label: {
       label(title, icon: .link)
         .foregroundStyle(PutioTheme.Components.Button.primaryForeground)
