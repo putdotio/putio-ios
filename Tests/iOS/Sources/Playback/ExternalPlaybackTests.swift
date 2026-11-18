@@ -88,6 +88,22 @@ final class ExternalPlaybackTests: XCTestCase {
     XCTAssertTrue(model.isVLCInstalled)
   }
 
+  func testRemovedVLCFixtureStaysListedUntilTheHandoff() async {
+    let opener = HarnessExternalURLOpener(
+      vlcInstalled: false, hidesVLCAtHandoff: true, refusesFirstHandoff: false)
+    let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
+      XCTFail("resolved a file for a removed VLC")
+      return self.source
+    }
+    for _ in 0..<3 {
+      model.refreshInstallation()
+      XCTAssertTrue(model.isVLCInstalled)
+    }
+    await model.open(route())
+    XCTAssertEqual(model.missingVLCRoute?.id, PutioFileID(rawValue: 412))
+    XCTAssertNil(model.toast)
+  }
+
   func testFailuresShowAndroidsMessageAndTheNextTapHandsOff() async {
     let opener = Opener()
     var errors: [Error] = [
