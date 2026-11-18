@@ -109,7 +109,8 @@ Preconditions:
   and goes back; Two-factor authentication and Privacy policy record their
   URLs.
 - **Settings states.** Run `--only account-settings-loading,account-settings-states`.
-  `--putio-harness-account-settings slow-load` holds the settings load;
+  `--putio-harness-account-settings slow-load` holds the settings load until
+  the Darwin notification `io.put.harness.account-settings-release`;
   `fail-load` fails it once. Under either, autoplay's first save fails and its
   second is offline. Screenshots: `runtime-account-settings-loading`,
   `runtime-account-settings-failed`, `runtime-account-save-failed-unavailable`,

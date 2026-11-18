@@ -4167,8 +4167,11 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountSettingsLoading() throws {
     app.launchArguments += ["--putio-harness-account-settings", "slow-load"]
     openAccount()
-    XCTAssertTrue(element("account.settings-loading").appears(within: 5), "settings never loaded")
+    let loading = element("account.settings-loading")
+    XCTAssertTrue(loading.appears(within: 5), "settings never showed loading")
     try captureBoard("rd-ios-acc-26-settings-loading")
+    XCTAssertTrue(loading.exists, "settings loaded during the capture")
+    XCTAssertFalse(element("account.settings-failed").exists, "settings failed during the capture")
   }
 
   func testAccountSettingsFailed() throws {
@@ -4181,6 +4184,7 @@ final class BoardCaptureTests: XCTestCase {
   func testAccountSaveFailed() throws {
     app.launchArguments += ["--putio-harness-account-settings", "slow-load"]
     openAccount()
+    app.releaseAccountSettingsLoads()
     XCTAssertTrue(element("settings.default-sort").appears(within: 15), "settings never loaded")
     scrollAccount(untilNearTop: "settings.default-sort")
     let autoplay = app.switches["playback-settings.autoplay"]
