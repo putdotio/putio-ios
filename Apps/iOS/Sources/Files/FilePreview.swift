@@ -816,7 +816,7 @@ struct PutioPreviewView: View {
           )
         )
     }
-    .environment(\.putioExclusiveLink, fileActions.createLink)
+    .environment(\.putioExclusiveLink, fileActions.exclusiveLink)
     .onChange(of: pager.name(for: pager.current.id)) { _, name in
       if let name { pager.currentModel.retitle(name) }
     }

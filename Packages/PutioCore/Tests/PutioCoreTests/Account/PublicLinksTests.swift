@@ -7,7 +7,7 @@ private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
 private func link(_ id: Int, hours: Double?) -> PutioPublicLink {
   PutioPublicLink(
-    id: id, fileName: "File \(id).mkv", kind: .video,
+    id: id, fileID: PutioFileID(rawValue: id), fileName: "File \(id).mkv", kind: .video,
     expiresAt: hours.map { now.addingTimeInterval($0 * 3600) },
     url: URL(string: "https://app.put.io/exclusive-access/t\(id)")!)
 }
@@ -54,10 +54,11 @@ final class PublicLinksTests: XCTestCase {
         list: {
           [
             PutioPublicLink(
-              id: 1, fileName: "A", kind: .video, expiresAt: now.addingTimeInterval(3600),
+              id: 1, fileID: PutioFileID(rawValue: 1), fileName: "A", kind: .video,
+              expiresAt: now.addingTimeInterval(3600),
               url: URL(string: "https://app.put.io/exclusive-access/a")!),
             PutioPublicLink(
-              id: 2, fileName: "B", kind: .image, expiresAt: nil,
+              id: 2, fileID: PutioFileID(rawValue: 2), fileName: "B", kind: .image, expiresAt: nil,
               url: URL(string: "https://app.put.io/exclusive-access/b")!),
           ]
         },
