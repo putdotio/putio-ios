@@ -22,9 +22,9 @@ images and documents, and opens put.io links into the same screens.
 - `file-actions` creates a folder, rolls back a failed rename, retries it from
   the toast, moves by context menu and swipe, and trashes by swipe.
 - `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`, and
-  `exclusive-link-cancel` create a link for a file and a folder, copy and share
-  it, show every refusal and a failure with Try again, cancel on close, and
-  find the new links on Account.
+  `exclusive-link-reopen` create a link for a file and a folder, copy and share
+  it, show every refusal and a failure with Try again, keep a request across a
+  reopen, and find the new links on Account.
 - `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
   name, disables the current folder and a folder inside the moved one, and
   moves into a folder made in the sheet.
@@ -136,7 +136,7 @@ Preconditions:
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
 - **Exclusive link.** Run
-  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-cancel`.
+  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-reopen`.
   `--putio-harness-public-link-create <ready|slow|refusals|failing>` seeds the
   create call; `refusals` returns each refusal once in turn, `failing` fails the
   first call, and `slow` never answers. Screenshots:

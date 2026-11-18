@@ -47,7 +47,7 @@ final class ExclusiveLinkTests: XCTestCase {
     }
   }
 
-  func testClosingTheSheetMidRequestDropsTheLink() async {
+  func testCancellingMidRequestDropsTheLink() async {
     let started = expectation(description: "request started")
     let model = PutioExclusiveLinkModel(item: item) { [link] _ in
       started.fulfill()
@@ -62,13 +62,47 @@ final class ExclusiveLinkTests: XCTestCase {
     XCTAssertEqual(model.state, .ready)
   }
 
-  func testClosingTheSheetAfterTheServerCreatedTheLinkStillShowsIt() async {
+  func testCancellingAfterTheServerCreatedTheLinkStillShowsIt() async {
     let model = PutioExclusiveLinkModel(item: item) { [link] _ in
       withUnsafeCurrentTask { $0?.cancel() }
       return link
     }
     await Task { await create(model) }.value
     XCTAssertEqual(model.state, .created(link))
+  }
+
+  func testReopeningTheSheetFindsARequestInFlightOrTheLinkItCreated() async {
+    let links = PutioExclusiveLinks()
+    let started = expectation(description: "request started")
+    let answer = AsyncStream<Void>.makeStream()
+    let server: PutioPublicLinkCreate = { [link] _ in
+      started.fulfill()
+      for await _ in answer.stream { break }
+      return link
+    }
+    let first = links.model(for: item, create: server)
+    let task = Task { await create(first) }
+    await fulfillment(of: [started], timeout: 5)
+    XCTAssertTrue(links.model(for: item, create: server) === first, "reopening lost the request")
+    answer.continuation.yield()
+    await task.value
+    let reopened = links.model(for: item, create: server)
+    XCTAssertTrue(reopened === first, "reopening lost the link")
+    XCTAssertEqual(reopened.state, .created(link))
+  }
+
+  func testReopeningAfterAFailureOrRefusalStartsAgain() async {
+    for outcome: Error in [PutioPublicLinkRefusal.daily, PutioRuntimeError.transient] {
+      let links = PutioExclusiveLinks()
+      let server = LinkServer([.failure(outcome)]).create
+      let first = links.model(for: item, create: server)
+      XCTAssertTrue(links.model(for: item, create: server) !== first, "\(outcome)")
+      let second = links.model(for: item, create: server)
+      await create(second)
+      let reopened = links.model(for: item, create: server)
+      XCTAssertTrue(reopened !== second, "\(outcome)")
+      XCTAssertEqual(reopened.state, .ready, "\(outcome)")
+    }
   }
 
   func testRefusalsReadPutioErrorTypes() {

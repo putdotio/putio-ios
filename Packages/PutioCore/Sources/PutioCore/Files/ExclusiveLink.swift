@@ -98,6 +98,13 @@ public final class PutioExclusiveLinkModel {
     createLink = create
   }
 
+  var outlivesTheSheet: Bool {
+    switch state {
+    case .creating, .created: true
+    case .ready, .refused, .failed: false
+    }
+  }
+
   public var canCreate: Bool {
     switch state {
     case .ready, .refused, .failed: true
@@ -124,5 +131,21 @@ public final class PutioExclusiveLinkModel {
       }
       state = .failed(String(localized: "Couldn’t create a link. \(reason)", bundle: .module))
     }
+  }
+}
+
+@MainActor
+public final class PutioExclusiveLinks {
+  private var models: [PutioFileID: PutioExclusiveLinkModel] = [:]
+
+  public init() {}
+
+  public func model(
+    for item: PutioFileItem, create: @escaping PutioPublicLinkCreate
+  ) -> PutioExclusiveLinkModel {
+    if let model = models[item.id], model.outlivesTheSheet { return model }
+    let model = PutioExclusiveLinkModel(item: item, create: create)
+    models[item.id] = model
+    return model
   }
 }

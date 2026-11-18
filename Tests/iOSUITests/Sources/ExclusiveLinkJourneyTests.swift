@@ -116,19 +116,18 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     signOut()
   }
 
-  func testClosingWhileCreatingCancels() {
+  func testReopeningWhileCreatingKeepsTheRequest() {
     launch(create: "slow")
     openSeasonFolder()
     openSheet(for: "files.item.442")
     app.buttons["files.exclusive-link.create"].tap()
-    XCTAssertTrue(app.staticTexts["Creating link…"].appears(within: 5), "creation never started")
+    let creating = app.staticTexts["Creating link…"]
+    XCTAssertTrue(creating.appears(within: 5), "creation never started")
     attach("runtime-exclusive-link-creating")
     closeSheet()
-    openSheet(for: "files.item.442")
-    XCTAssertEqual(
-      app.buttons["files.exclusive-link.create"].label, "Create link",
-      "reopening kept the cancelled request")
-    XCTAssertFalse(app.staticTexts["Creating link…"].exists)
+    openSheet(for: "files.item.442", showing: "files.exclusive-link.creating")
+    XCTAssertTrue(creating.exists, "reopening dropped the request")
+    XCTAssertFalse(app.buttons["files.exclusive-link.create"].exists)
     closeSheet()
     signOut()
   }
@@ -161,15 +160,16 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.442").appears(within: 10), "the episodes never appeared")
   }
 
-  private func openSheet(for identifier: String) {
+  private func openSheet(
+    for identifier: String, showing control: String = "files.exclusive-link.create"
+  ) {
     let row = element(identifier)
     XCTAssertTrue(row.becomesHittable(within: 10), "\(identifier) is not tappable")
     row.press(forDuration: 1)
     let action = app.buttons["Exclusive link"].firstMatch
     XCTAssertTrue(action.appears(within: 5), "the item menu has no Exclusive link")
     action.tap()
-    XCTAssertTrue(
-      app.buttons["files.exclusive-link.create"].appears(within: 5), "Exclusive link never opened")
+    XCTAssertTrue(app.buttons[control].appears(within: 5), "Exclusive link never opened")
   }
 
   private func signOut() {
