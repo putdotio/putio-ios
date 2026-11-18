@@ -127,7 +127,7 @@ runs:
           [.runtimes[] | select(.platform == "iOS" and .isAvailable
             and (.version | split(".")[0:2]) == ($sdk | split(".")[0:2]))][0].buildversion // "none"')"
         coresimulator="$(defaults read /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/Info.plist CFBundleVersion)"
-        echo "key=${{ runner.os }}-simulator-template-xcode-$xcode-ios-$runtime-coresimulator-$coresimulator" >> "$GITHUB_OUTPUT"
+        echo "key=${{ runner.os }}-simulator-template-v2-xcode-$xcode-ios-$runtime-coresimulator-$coresimulator" >> "$GITHUB_OUTPUT"
 
     - name: Restore the iOS Simulator template
       id: simulator-template

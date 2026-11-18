@@ -411,10 +411,46 @@ let unusedSimulatorJobs = [
 /// reuse them. One still being made has another name until its first boot ends.
 let simulatorTemplatePrefix = "putio-template-"
 
-func simulatorTemplateName(runtime: String, deviceType: String) -> String {
+struct SimulatorToolchain: Equatable, Sendable {
+  let xcodeBuild: String
+  let coreSimulatorVersion: String
+
+  var fingerprint: String { "xcode-\(xcodeBuild)-cs-\(coreSimulatorVersion)" }
+}
+
+let coreSimulatorInfoPlist = URL(
+  fileURLWithPath:
+    "/Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/Info.plist")
+
+func xcodeBuildVersion(fromVersionOutput output: String) -> String? {
+  let marker = "Build version "
+  return output.split(whereSeparator: \.isNewline)
+    .first { $0.hasPrefix(marker) }
+    .map { $0.dropFirst(marker.count).trimmingCharacters(in: .whitespaces) }
+    .flatMap { $0.isEmpty ? nil : $0 }
+}
+
+private func simulatorTemplateRuntimeStem(runtime: String, runtimeBuild: String) -> String {
   let runtimeName = runtime.split(separator: ".").last ?? Substring(runtime)
+  return "\(simulatorTemplatePrefix)\(runtimeName)-\(runtimeBuild)-"
+}
+
+func simulatorTemplateName(
+  runtime: String, runtimeBuild: String, deviceType: String, toolchain: SimulatorToolchain
+) -> String {
   let deviceTypeName = deviceType.split(separator: ".").last ?? Substring(deviceType)
-  return "\(simulatorTemplatePrefix)\(runtimeName)-\(deviceTypeName)"
+  let stem = simulatorTemplateRuntimeStem(runtime: runtime, runtimeBuild: runtimeBuild)
+  return "\(stem)\(deviceTypeName)-\(toolchain.fingerprint)"
+}
+
+func isStaleSimulatorTemplate(
+  name: String, listedUnder listedRuntime: String, isAvailable: Bool?,
+  runtime: String, runtimeBuild: String, toolchain: SimulatorToolchain
+) -> Bool {
+  guard name.hasPrefix(simulatorTemplatePrefix) else { return false }
+  if isAvailable != true || !name.hasSuffix("-\(toolchain.fingerprint)") { return true }
+  guard listedRuntime == runtime else { return false }
+  return !name.hasPrefix(simulatorTemplateRuntimeStem(runtime: runtime, runtimeBuild: runtimeBuild))
 }
 
 private struct SimulatorDeviceList: Decodable {
@@ -2180,15 +2216,14 @@ public struct SimulatorHarness {
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
-      let template = try simulatorTemplate(
-        platform: platform, runtime: runtime, deviceType: deviceType)
       try requireNoSimulator(named: deviceName)
       let ownedDevice = OwnedSimulator(name: deviceName)
       try lifecycle.register {
         try ownedDevice.cleanup(runner: runner)
       }
       let deviceIdentifier =
-        try template.map { try cloneDevice($0, name: deviceName) }
+        try simulatorTemplate(
+          platform: platform, runtime: runtime, deviceType: deviceType, cloneAs: deviceName)
         ?? createDevice(
           name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
       ownedDevice.claim(deviceIdentifier)
@@ -2288,57 +2323,98 @@ public struct SimulatorHarness {
   /// Clones of an iOS device that has already booted once skip first-boot data
   /// migration, which takes one to several minutes and keeps every core busy.
   /// Local runs use templates unless `PUTIO_SIMULATOR_TEMPLATES` is off; CI opts
-  /// in only when it restores or saves one. A missing template is created here
-  /// and kept. One lock serializes find-or-create across runs, so a pending
-  /// device seen under it belongs to a run that was killed.
+  /// in only when it restores or saves one. A template is named after the
+  /// runtime build, Xcode build, and CoreSimulator version it was made with; one
+  /// made with any other is deleted, and a missing one is created here and kept.
+  /// One lock serializes find-or-create across runs, so a pending device seen
+  /// under it belongs to a run that was killed.
   func simulatorTemplate(
     platform: HarnessPlatform,
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
+    cloneAs cloneName: String? = nil,
     environment: [String: String] = ProcessInfo.processInfo.environment,
+    toolchain: SimulatorToolchain? = nil,
     lock: URL = simulatorTemplateLock
   ) throws -> String? {
     let onCI = environmentFlag(environment["CI"]) ?? false
     let enabled = environmentFlag(environment["PUTIO_SIMULATOR_TEMPLATES"]) ?? !onCI
     guard platform == .ios, enabled else { return nil }
-    let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
+    guard let runtimeBuild = runtime.buildversion,
+      let toolchain = toolchain ?? simulatorToolchain()
+    else {
+      FileHandle.standardError.write(
+        Data(
+          "putio-harness: Simulator runtime, Xcode, or CoreSimulator build is unknown; using a fresh device\n"
+            .utf8))
+      return nil
+    }
+    let name = simulatorTemplateName(
+      runtime: runtime.identifier, runtimeBuild: runtimeBuild,
+      deviceType: deviceType.identifier, toolchain: toolchain)
     let pendingPrefix = "putio-pending-\(name)-"
     return try withExclusiveLock(at: lock) {
-      let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
-      let devices = listed[runtime.identifier] ?? []
-      let stale = devices.filter { $0.name.hasPrefix(pendingPrefix) }.map(\.udid)
-      if !stale.isEmpty { try? cleanupSimulatorIdentifiers(stale, runner: runner) }
-      let templates = devices.filter { $0.name == name }
-      if let template = templates.first(where: \.isUsableTemplate) { return template.udid }
-      guard templates.isEmpty else {
-        FileHandle.standardError.write(
-          Data(
-            "putio-harness: Simulator template \(name) is booted or unavailable; using a fresh device\n"
-              .utf8))
-        return nil
-      }
-      // The device takes the template's name only after its first boot, so no
-      // run clones a half-made one; a failed or interrupted one is deleted.
-      let pending = "\(pendingPrefix)\(String(UUID().uuidString.prefix(8)).lowercased())"
-      try lifecycle.register { [runner] in
-        try cleanupSimulators(named: [pending], runner: runner)
-      }
-      let identifier = try createDevice(
-        name: pending, type: deviceType.identifier, runtime: runtime.identifier)
-      do {
-        try boot(identifier, label: "\(platform.rawValue) template")
-        _ = try runner.checked(
-          "xcrun", ["simctl", "shutdown", identifier],
-          context: "shut down \(platform.rawValue) Simulator template")
-        _ = try runner.checked(
-          "xcrun", ["simctl", "rename", identifier, name],
-          context: "name \(platform.rawValue) Simulator template")
-      } catch {
-        try? cleanupSimulatorIdentifiers([identifier], runner: runner)
-        throw error
-      }
-      return identifier
+      let template = try { () throws -> String? in
+        let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
+        let leftover = listed.values.flatMap { $0 }.filter {
+          $0.name.hasPrefix("putio-pending-putio-template-")
+        }
+        let outdated = listed.flatMap { listedRuntime, devices in
+          devices.filter {
+            $0.state != "Booted"
+              && isStaleSimulatorTemplate(
+                name: $0.name, listedUnder: listedRuntime, isAvailable: $0.isAvailable,
+                runtime: runtime.identifier, runtimeBuild: runtimeBuild, toolchain: toolchain)
+          }
+        }
+        let doomed = Set((leftover + outdated).map(\.udid))
+        if !doomed.isEmpty { try? cleanupSimulatorIdentifiers(doomed.sorted(), runner: runner) }
+        let templates = (listed[runtime.identifier] ?? []).filter {
+          $0.name == name && !doomed.contains($0.udid)
+        }
+        if let template = templates.first(where: \.isUsableTemplate) { return template.udid }
+        guard templates.isEmpty else {
+          FileHandle.standardError.write(
+            Data(
+              "putio-harness: Simulator template \(name) is booted or unavailable; using a fresh device\n"
+                .utf8))
+          return nil
+        }
+        // The device takes the template's name only after its first boot, so no
+        // run clones a half-made one; a failed or interrupted one is deleted.
+        let pending = "\(pendingPrefix)\(String(UUID().uuidString.prefix(8)).lowercased())"
+        try lifecycle.register { [runner] in
+          try cleanupSimulators(named: [pending], runner: runner)
+        }
+        let identifier = try createDevice(
+          name: pending, type: deviceType.identifier, runtime: runtime.identifier)
+        do {
+          try boot(identifier, label: "\(platform.rawValue) template")
+          _ = try runner.checked(
+            "xcrun", ["simctl", "shutdown", identifier],
+            context: "shut down \(platform.rawValue) Simulator template")
+          _ = try runner.checked(
+            "xcrun", ["simctl", "rename", identifier, name],
+            context: "name \(platform.rawValue) Simulator template")
+        } catch {
+          try? cleanupSimulatorIdentifiers([identifier], runner: runner)
+          throw error
+        }
+        return identifier
+      }()
+      guard let template, let cloneName else { return template }
+      return try cloneDevice(template, name: cloneName)
     }
+  }
+
+  private func simulatorToolchain() -> SimulatorToolchain? {
+    guard
+      let output = try? runner.run("xcodebuild", ["-version"]), output.status == 0,
+      let xcodeBuild = xcodeBuildVersion(fromVersionOutput: output.stdout),
+      let info = NSDictionary(contentsOf: coreSimulatorInfoPlist),
+      let coreSimulatorVersion = info["CFBundleVersion"] as? String
+    else { return nil }
+    return SimulatorToolchain(xcodeBuild: xcodeBuild, coreSimulatorVersion: coreSimulatorVersion)
   }
 
   private func cloneDevice(_ template: String, name: String) throws -> String {
