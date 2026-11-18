@@ -249,6 +249,22 @@ func performJourneyRecordingTrim(
   }
 }
 
+enum HostLoad {
+  static let timeoutScaleEnvironment = "TEST_RUNNER_PUTIO_UI_TIMEOUT_SCALE"
+
+  static func timeoutScale(
+    loadAverage: Double?, processors: Int = ProcessInfo.processInfo.activeProcessorCount
+  ) -> Double {
+    guard let loadAverage, processors > 0 else { return 1 }
+    return min(1 + loadAverage / Double(processors), 4)
+  }
+
+  static func timeoutScale() -> Double {
+    var load = [0.0]
+    return timeoutScale(loadAverage: getloadavg(&load, 1) == 1 ? load[0] : nil)
+  }
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -1675,6 +1691,8 @@ public struct SimulatorHarness {
     maximumExecutionTimeAllowance: Int = 60,
     whileRunning: ((RunningProcess) throws -> Void)? = nil
   ) throws -> [URL] {
+    let timeoutScale = HostLoad.timeoutScale()
+    let scaled = { (seconds: Int) in String(Int((Double(seconds) * timeoutScale).rounded(.up))) }
     let testArguments = [
       "test-without-building",
       "-quiet",
@@ -1687,11 +1705,12 @@ public struct SimulatorHarness {
       "-parallel-testing-enabled", "NO",
       "-collect-test-diagnostics", "never",
       "-test-timeouts-enabled", "YES",
-      "-default-test-execution-time-allowance", String(defaultExecutionTimeAllowance),
-      "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
+      "-default-test-execution-time-allowance", scaled(defaultExecutionTimeAllowance),
+      "-maximum-test-execution-time-allowance", scaled(maximumExecutionTimeAllowance),
       "-only-testing:\(identifier)",
     ]
     var testEnvironment = environment
+    testEnvironment[HostLoad.timeoutScaleEnvironment] = String(timeoutScale)
     if let mediaBaseURL {
       testEnvironment["TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL"] = mediaBaseURL.absoluteString
     }

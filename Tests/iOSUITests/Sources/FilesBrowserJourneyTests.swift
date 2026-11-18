@@ -3063,7 +3063,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     for row: XCUIElement,
     actionLabel: String
   ) -> XCUIElement {
-    XCTAssertTrue(row.isHittable, "file row is not available for its context menu")
+    XCTAssertTrue(
+      row.appears(within: 5) && row.becomesTappable(within: 5),
+      "file row is not available for its context menu")
     row.press(forDuration: 1)
     let action = app.buttons[actionLabel]
     XCTAssertTrue(action.appears(within: 5), "file context-menu action never appeared")
