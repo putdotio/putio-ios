@@ -153,7 +153,7 @@ let project = Project(
         "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
         "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
-        // No remote push yet; keep Intercom from swizzling the app delegate.
+        // PutioAppDelegate forwards push to the messenger; keep Intercom from swizzling it.
         "IntercomAutoIntegratePushNotifications": false,
         "NSCameraUsageDescription": supportCameraUsage,
         "NSMicrophoneUsageDescription": supportMicrophoneUsage,
@@ -236,7 +236,7 @@ let project = Project(
         "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
         "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
-        // No remote push yet; keep Intercom from swizzling the app delegate.
+        // PutioAppDelegate forwards push to the messenger; keep Intercom from swizzling it.
         "IntercomAutoIntegratePushNotifications": false,
         "NSCameraUsageDescription": supportCameraUsage,
         "NSMicrophoneUsageDescription": supportMicrophoneUsage,

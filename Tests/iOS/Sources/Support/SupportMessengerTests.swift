@@ -23,7 +23,8 @@ final class SupportMessengerTests: XCTestCase {
 
     messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
     messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
-    XCTAssertEqual(client.calls, [.start, .logIn("1001", "synthetic-hash")])
+    XCTAssertEqual(
+      client.calls, [.start, .logIn("1001", "synthetic-hash"), .registerForRemoteNotifications])
 
     var opened: [URL] = []
     messenger.contactSupport { opened.append($0) }
@@ -36,7 +37,9 @@ final class SupportMessengerTests: XCTestCase {
 
     let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
     messenger.sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
-    XCTAssertEqual(client.calls.suffix(1), [.logIn("2002", "other-hash")], "started twice")
+    XCTAssertEqual(
+      client.calls.suffix(2), [.logIn("2002", "other-hash"), .registerForRemoteNotifications],
+      "started twice")
   }
 
   func testAFailedLoginStillLogsOutAndAnEarlierLaunchesUserIsLoggedOut() throws {
@@ -45,7 +48,9 @@ final class SupportMessengerTests: XCTestCase {
     let messenger = PutioSupportMessenger(
       configuration: configuration, client: failing, defaults: defaults)
     messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
-    XCTAssertEqual(failing.calls, [.start, .logIn("1001", "synthetic-hash"), .logOut])
+    XCTAssertEqual(
+      failing.calls,
+      [.start, .logIn("1001", "synthetic-hash"), .logOut, .registerForRemoteNotifications])
 
     // The app closes mid-login; the session has expired by the next launch.
     let interrupted = RecordingSupportClient(defersCompletions: true)
@@ -83,11 +88,13 @@ final class SupportMessengerTests: XCTestCase {
     messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
     messenger.sessionDidChange(.signedOut(.userSignedOut), identity: nil)
     messenger.sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
-    XCTAssertEqual(client.calls, [.start, .logIn("1001", "synthetic-hash")], "logins overlapped")
+    XCTAssertEqual(
+      client.calls.filter { $0 != .registerForRemoteNotifications },
+      [.start, .logIn("1001", "synthetic-hash")], "logins overlapped")
 
     client.complete(0, succeeded: true)
     XCTAssertEqual(
-      client.calls,
+      client.calls.filter { $0 != .registerForRemoteNotifications },
       [.start, .logIn("1001", "synthetic-hash"), .logOut, .logIn("2002", "other-hash")])
     client.complete(1, succeeded: true)
     XCTAssertEqual(messenger.login, .loggedIn(userID: "2002"))
@@ -102,13 +109,86 @@ final class SupportMessengerTests: XCTestCase {
     let sameUser = RecordingSupportClient()
     PutioSupportMessenger(configuration: configuration, client: sameUser, defaults: defaults)
       .sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
-    XCTAssertEqual(sameUser.calls, [.start, .logIn("1001", "synthetic-hash")])
+    XCTAssertEqual(
+      sameUser.calls, [.start, .logIn("1001", "synthetic-hash"), .registerForRemoteNotifications])
 
     let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
     let otherUser = RecordingSupportClient()
     PutioSupportMessenger(configuration: configuration, client: otherUser, defaults: defaults)
       .sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
-    XCTAssertEqual(otherUser.calls, [.start, .logOut, .logIn("2002", "other-hash")])
+    XCTAssertEqual(
+      otherUser.calls,
+      [.start, .logOut, .logIn("2002", "other-hash"), .registerForRemoteNotifications])
+  }
+
+  func testTheDeviceTokenReachesIntercomOnlyOnceItStarted() throws {
+    let token = Data([0xAB, 0xCD])
+    let client = RecordingSupportClient()
+    let messenger = try makeMessenger(client)
+    messenger.didRegisterForRemoteNotifications(deviceToken: token)
+    XCTAssertEqual(client.calls, [], "handed the token to Intercom before it started")
+
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    XCTAssertEqual(client.calls.prefix(2), [.start, .setDeviceToken(token)])
+
+    let renewed = Data([0x01])
+    messenger.didRegisterForRemoteNotifications(deviceToken: renewed)
+    XCTAssertEqual(client.calls.last, .setDeviceToken(renewed))
+
+    let switchedOff = RecordingSupportClient()
+    let off = PutioSupportMessenger(
+      configuration: nil, client: switchedOff, defaults: try makeDefaults())
+    off.didRegisterForRemoteNotifications(deviceToken: token)
+    off.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    XCTAssertEqual(switchedOff.calls, [], "registered for push with Intercom switched off")
+  }
+
+  func testAReplyNotificationOpensTheMessengerOnceTheAccountIsLoggedIn() throws {
+    let reply: [AnyHashable: Any] = ["intercom_push_type": "notification", "conversation_id": "7"]
+    let client = RecordingSupportClient(defersCompletions: true)
+    let messenger = try makeMessenger(client)
+
+    messenger.open(notification: reply)
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    XCTAssertFalse(client.calls.contains(.openNotification("7")), "opened before the login")
+    client.complete(0, succeeded: true)
+    XCTAssertEqual(client.calls.last, .openNotification("7"))
+
+    messenger.open(notification: ["aps": ["alert": "Download finished"]])
+    XCTAssertEqual(client.calls.filter { $0 == .openNotification("7") }.count, 1)
+    messenger.open(notification: reply)
+    XCTAssertEqual(client.calls.filter { $0 == .openNotification("7") }.count, 2)
+  }
+
+  func testAReplyNotificationTappedDuringAFailedLoginRetriesItOnce() throws {
+    let reply: [AnyHashable: Any] = ["intercom_push_type": "notification", "conversation_id": "7"]
+    let client = RecordingSupportClient(defersCompletions: true)
+    let messenger = try makeMessenger(client)
+
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    messenger.open(notification: reply)
+    client.complete(0, succeeded: false)
+    XCTAssertEqual(client.calls.last, .logIn("1001", "synthetic-hash"), "did not retry")
+    client.complete(1, succeeded: true)
+    XCTAssertEqual(client.calls.last, .openNotification("7"))
+  }
+
+  func testAReplyNotificationIsDroppedWhenTheSessionEndsFirst() throws {
+    let reply: [AnyHashable: Any] = ["intercom_push_type": "notification", "conversation_id": "7"]
+    let client = RecordingSupportClient()
+    let messenger = try makeMessenger(client)
+
+    messenger.open(notification: reply)
+    messenger.sessionDidChange(.signedOut(.sessionExpired), identity: nil)
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    XCTAssertFalse(client.calls.contains(.openNotification("7")), "opened for a later session")
+
+    messenger.sessionDidChange(.signedOut(.userSignedOut), identity: nil)
+    messenger.open(notification: reply)
+    let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
+    messenger.sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
+    XCTAssertFalse(
+      client.calls.contains(.openNotification("7")), "opened a signed-out tap for the next account")
   }
 
   func testContactUsWaitsForTheLoginAndRetriesAFailedOneOnce() throws {
@@ -194,6 +274,9 @@ private final class RecordingSupportClient: SupportMessengerClient {
     case logIn(String, String)
     case logOut
     case present
+    case registerForRemoteNotifications
+    case setDeviceToken(Data)
+    case openNotification(String?)
   }
 
   private(set) var calls: [Call] = []
@@ -225,4 +308,16 @@ private final class RecordingSupportClient: SupportMessengerClient {
   func logOut() { calls.append(.logOut) }
 
   func present() { calls.append(.present) }
+
+  func registerForRemoteNotifications() { calls.append(.registerForRemoteNotifications) }
+
+  func setDeviceToken(_ token: Data) { calls.append(.setDeviceToken(token)) }
+
+  func isSupportNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
+    userInfo["intercom_push_type"] != nil
+  }
+
+  func openNotification(_ userInfo: [AnyHashable: Any]) {
+    calls.append(.openNotification(userInfo["conversation_id"] as? String))
+  }
 }

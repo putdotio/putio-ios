@@ -60,7 +60,8 @@ development; a standalone dependency install needs
 ### Design tokens
 
 Follow [Design Principles](DESIGN.md) when changing UI. Token values belong in
-[putio-design](https://github.com/putdotio/putio-design); this repository consumes
+[putio-design](https://github.com/putdotio/putio-design), except the iOS text
+sizes, which [DESIGN.md](DESIGN.md#ios) assigns to this repository; it consumes
 the version pinned in [package.json](package.json) and [pnpm-lock.yaml](pnpm-lock.yaml).
 
 After changing tokens upstream, bump the package here, classify new tokens in

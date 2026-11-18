@@ -62,6 +62,65 @@ extension XCUIApplication {
     scrollDown(toHit: buttons["Files"])
   }
 
+  func openTab(_ label: String, file: StaticString = #filePath, line: UInt = #line) {
+    let tab = buttons.matching(NSPredicate(format: "label == %@", label)).firstMatch
+    let search = searchFields.firstMatch
+    let closeSearch = buttons["Close"].firstMatch
+    if search.exists, closeSearch.appears(within: 3) {
+      closeSearch.tap()
+      _ = search.disappears(within: 5)
+    }
+    if tab.becomesHittable(within: 5), tab.appears(within: 3) {
+      tab.tap()
+      if tab.becomesSelected(within: 3) { return }
+    }
+    let selected = tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch
+    if selected.exists, selected.label != label { selected.tap() }
+    if tab.becomesHittable(within: 3), tab.appears(within: 3) {
+      tab.tap()
+      if tab.becomesSelected(within: 3) { return }
+    }
+    let toggle = buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "sidebar"))
+      .firstMatch
+    XCTAssertTrue(
+      toggle.appears(within: 5), "the \(label) tab is out of reach and there is no sidebar",
+      file: file, line: line)
+    toggle.tap()
+    let row = cells[label].firstMatch
+    XCTAssertTrue(row.appears(within: 5), "the sidebar has no \(label)", file: file, line: line)
+    row.tap()
+    let storage = descendants(matching: .any)["shell.storage"]
+    guard storage.becomesHittable(within: 3), storage.appears(within: 3), storage.isHittable
+    else { return }
+    toggle.tap()
+    XCTAssertTrue(
+      storage.becomesUnhittable(within: 5), "the tab sidebar did not close", file: file, line: line)
+  }
+
+  func tapToolbarItem(
+    _ identifier: String, title: String, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let item = buttons[identifier].firstMatch
+    let overflow = buttons.matching(
+      NSPredicate(
+        format: "identifier CONTAINS %@ OR (label == %@ AND identifier != %@)",
+        "OverflowBarButtonItem", title, identifier)
+    ).firstMatch
+    let deadline = Date.now.addingTimeInterval(15 * XCUIElement.timeoutScale)
+    while !item.isHittable, !overflow.isHittable, Date.now < deadline {
+      _ = item.becomesHittable(within: 0.5)
+    }
+    if item.isHittable, item.appears(within: 3) { return item.tap() }
+    XCTAssertTrue(overflow.isHittable, "the toolbar has no \(title)", file: file, line: line)
+    _ = overflow.appears(within: 3)
+    let opensMenu = overflow.identifier.contains("OverflowBarButtonItem")
+    overflow.tap()
+    guard opensMenu else { return }
+    let entry = collectionViews.buttons[title].firstMatch
+    XCTAssertTrue(entry.appears(within: 5), "the overflow has no \(title)", file: file, line: line)
+    entry.tap()
+  }
+
   func sortChoice(_ title: String) -> XCUIElement {
     descendants(matching: .any).matching(
       NSPredicate(

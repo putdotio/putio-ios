@@ -20,6 +20,13 @@ Only one login runs at a time: a session change waits for the login in flight,
 and if that login landed for someone the session no longer wants, it is logged
 out before the next one starts.
 
+Each sign-in asks once for notification permission and registers for remote
+notifications; the device token reaches Intercom once it starts, and a failed
+registration goes to diagnostics. Tapping a support reply notification opens
+that conversation once the login finished, even from a cold launch, and retries
+a failed login once. A tap while signed out, or before a session that then
+ends, is dropped. Intercom's own app delegate swizzling stays off.
+
 Account › Contact us opens the messenger once the login finished. While it is
 logging in, or without keys or a hash, it opens an email to support; after a
 failed login it retries once, then opens email. Only

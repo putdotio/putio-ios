@@ -1,17 +1,22 @@
 import Foundation
 
 /// What a video's detail lists beyond its row: the saved position, the
-/// length when put.io reports one, and the subtitle languages, or `nil` when
-/// they could not load.
+/// length when put.io reports one, the subtitle languages, or `nil` when
+/// they could not load, and the poster frame when put.io has one.
 public struct PutioVideoDetails: Equatable, Sendable {
   public let resumePositionSeconds: Int
   public let durationSeconds: Int?
   public let subtitles: [String]?
+  public let screenshotURL: URL?
 
-  public init(resumePositionSeconds: Int, durationSeconds: Int?, subtitles: [String]?) {
+  public init(
+    resumePositionSeconds: Int, durationSeconds: Int?, subtitles: [String]?,
+    screenshotURL: URL? = nil
+  ) {
     self.resumePositionSeconds = resumePositionSeconds
     self.durationSeconds = durationSeconds
     self.subtitles = subtitles
+    self.screenshotURL = screenshotURL
   }
 }
 

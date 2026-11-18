@@ -413,10 +413,14 @@ final class PutioDirectPlayCoordinator {
         beforeFirstFrame: engine?.hasFirstFrameReadyForDisplay != true))
   }
 
-  private static func fault(_ info: PlaybackErrorInfo?) -> PutioVideoPlayerFault {
-    guard let info, let domain = info.underlyingDomain, let code = info.underlyingCode else {
+  static func fault(_ info: PlaybackErrorInfo?) -> PutioVideoPlayerFault {
+    guard let info else { return .playback }
+    if info.kind == .sourceRefused, info.underlyingCode == httpForbidden { return .accessExpired }
+    guard let domain = info.underlyingDomain, let code = info.underlyingCode else {
       return .playback
     }
     return PutioVideoPlayerFault(error: NSError(domain: domain, code: code))
   }
+
+  private static let httpForbidden = 403
 }

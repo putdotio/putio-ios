@@ -414,6 +414,23 @@ extension PutioRuntimeTests {
       PutioVideoDetails(resumePositionSeconds: 1122, durationSeconds: 2989, subtitles: nil))
   }
 
+  func testVideoDetailsCarryAnHTTPSScreenshotOnly() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let fileRoute = "GET /v2/files/441"
+    fixtures.setFixture(#"{"default":"en","subtitles":[]}"#, for: "GET /v2/files/441/subtitles")
+    for (screenshot, expected) in [
+      ("https://example.com/shot.jpg", URL(string: "https://example.com/shot.jpg")),
+      ("http://example.com/shot.jpg", nil),
+      ("", nil),
+    ] {
+      fixtures.setFixture(
+        #"{"file":{"id":441,"name":"Episode.mkv","file_type":"VIDEO","parent_id":440,"size":3,"created_at":"2026-10-13T10:00:00Z","updated_at":"2026-10-13T10:00:00Z","start_from":0,"screenshot":"\#(screenshot)"}}"#,
+        for: fileRoute)
+      let details = try await runtime.videoDetails(fileID: PutioFileID(rawValue: 441))
+      XCTAssertEqual(details.screenshotURL, expected, screenshot)
+    }
+  }
+
   func testSetFolderSortPostsTheServerKey() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.setSortRoute)

@@ -105,9 +105,21 @@ struct PutioFileDetailView: View {
   }
 
   private var videoPreview: some View {
-    RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius)
+    let poster = previewImage?.id == item.id ? previewImage?.image : nil
+    return RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius)
       .fill(PutioTheme.Colors.surface)
       .aspectRatio(PutioFileDetailLayout.previewAspectRatio, contentMode: .fit)
+      .overlay {
+        if let poster {
+          Image(uiImage: poster)
+            .resizable()
+            .scaledToFill()
+            .accessibilityLabel(Text(verbatim: item.name))
+            .accessibilityAddTraits(.isImage)
+            .accessibilityIdentifier("files.detail.preview-poster")
+        }
+      }
+      .clipShape(RoundedRectangle(cornerRadius: PutioFileDetailLayout.previewRadius))
       .overlay {
         Button {
           onOpen(route)
@@ -305,6 +317,18 @@ struct PutioFileDetailView: View {
     let loaded = await videoDetails
     guard !Task.isCancelled, let loaded else { return }
     details = loaded
+    if let screenshotURL = loaded.screenshotURL, previewImage?.id != id {
+      await loadPoster(screenshotURL, for: id)
+    }
+  }
+
+  private func loadPoster(_ url: URL, for id: PutioFileID) async {
+    guard let fileShare, let data = try? await fileShare.poster(url),
+      let image = try? await PutioPreviewModel.decodeImage(
+        data, maximumPixels: PutioFileDetailLayout.previewPixels),
+      !Task.isCancelled
+    else { return }
+    previewImage = PreviewImage(id: id, image: image)
   }
 
   private func loadPreviewImage() async {

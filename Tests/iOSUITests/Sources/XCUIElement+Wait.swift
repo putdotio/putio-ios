@@ -27,6 +27,12 @@ extension XCUIElement {
     }
   }
 
+  func becomesSelected(within timeout: TimeInterval) -> Bool {
+    poll("become selected", timeout: timeout) { element, _ in
+      element.exists && element.isSelected
+    }
+  }
+
   func becomesUnhittable(within timeout: TimeInterval) -> Bool {
     poll("become unhittable", timeout: timeout) { element, _ in !element.isHittable }
   }
@@ -64,14 +70,13 @@ extension XCUIElement {
   /// because `frame` fails a query that matches several elements.
   private func hasSettled(by deadline: Date) -> Bool {
     let target = firstMatch
-    var previous = target.frame
-    while Date.now < deadline {
-      Self.pause(until: deadline)
-      guard target.exists else { return false }
-      let current = target.frame
+    guard var previous = try? target.snapshot().frame else { return false }
+    repeat {
+      RunLoop.current.run(until: Date.now.addingTimeInterval(0.1))
+      guard let current = try? target.snapshot().frame else { return false }
       if current == previous { return true }
       previous = current
-    }
+    } while Date.now < deadline
     return false
   }
 

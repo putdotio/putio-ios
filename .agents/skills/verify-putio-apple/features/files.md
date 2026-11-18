@@ -44,8 +44,10 @@ images and documents, and opens put.io links into the same screens.
   disables Trash while the setting is unconfirmed.
 - `trash` restores, retries, deletes, and empties Trash.
 - `reconcile` updates other tabs after an open folder is renamed or deleted.
-- `previews` shows images and PDFs, reports unsupported files, and hands video
-  to VLC when it is installed.
+- `previews` shows images, PDFs, text and unsupported files;
+  `preview-routing` opens previews from Search and History and hands video to
+  VLC when it is installed; `preview-vlc-retry` toasts a failed VLC handoff and
+  hands off on the next tap.
 - `preview-paging` swipes between a folder's images past a video, loads the
   folder's next page, pans instead of paging while zoomed, and shows one file
   from Search.
@@ -94,7 +96,7 @@ Preconditions:
   orders, `Unwatched first` and `Watched first`, a failed first `Type, Z to A`,
   then a relaunch keeps the folder's order while Harness Folder keeps the
   account default.
-- **Folder states.** Run `--only folder-states`.
+- **Folder states.** Run `--only folder-states,folder-paging`.
   `--putio-harness-folder-states` adds `Empty` (423) and the 450-file
   `Paging Folder` (460), whose page 2 fails once. Screenshots:
   `runtime-folder-empty`, `runtime-folder-load-more-failed`.
@@ -162,7 +164,7 @@ Preconditions:
   `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new
   name, then "Folder not found" after the delete.
-- **Previews.** Run `--only previews`. Share opens the share sheet for the
+- **Previews.** Run `--only previews,preview-routing,preview-vlc-retry`. Share opens the share sheet for the
   image, the PDF and the long text, from the toolbar and from the text's end
   row. Screenshots: `runtime-preview-loading`, `runtime-preview-error`,
   `runtime-preview-image`, `runtime-preview-image-landscape`,

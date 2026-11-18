@@ -9,6 +9,10 @@ protocol SupportMessengerClient {
   func logIn(_ identity: PutioSupportIdentity, completion: @escaping @MainActor (Bool) -> Void)
   func logOut()
   func present()
+  func registerForRemoteNotifications()
+  func setDeviceToken(_ token: Data)
+  func isSupportNotification(_ userInfo: [AnyHashable: Any]) -> Bool
+  func openNotification(_ userInfo: [AnyHashable: Any])
 }
 
 /// Intercom for signed-in users only: it starts after sign-in so replies and
@@ -59,6 +63,9 @@ final class PutioSupportMessenger {
   private var wanted: Request?
   /// Intercom runs one login at a time; a newer request waits for it.
   private var inFlight: UInt64?
+  private var deviceToken: Data?
+  private var pendingNotification: [AnyHashable: Any]?
+  private var sessionEnded = false
   private(set) var login = Login.idle
 
   init(
@@ -81,6 +88,7 @@ final class PutioSupportMessenger {
       guard identity.userID != login.userID else { return }
       if login != .idle { endSession() }
       request(identity, retrying: false)
+      client.registerForRemoteNotifications()
     case .signedOut, .authenticating, .signingOut:
       endSession()
     }
@@ -102,11 +110,35 @@ final class PutioSupportMessenger {
     }
   }
 
+  func didRegisterForRemoteNotifications(deviceToken: Data) {
+    guard configuration != nil else { return }
+    self.deviceToken = deviceToken
+    if isStarted { client.setDeviceToken(deviceToken) }
+  }
+
+  func open(notification userInfo: [AnyHashable: Any]) {
+    guard configuration != nil, client.isSupportNotification(userInfo) else { return }
+    switch login {
+    case .loggedIn:
+      client.openNotification(userInfo)
+    case .failed(let identity):
+      pendingNotification = userInfo
+      request(identity, retrying: true)
+    case .idle where sessionEnded:
+      return
+    case .idle, .loggingIn:
+      pendingNotification = userInfo
+    case .retryFailed:
+      return
+    }
+  }
+
   private func request(
     _ identity: PutioSupportIdentity, retrying: Bool,
     finished: (@MainActor (Bool) -> Void)? = nil
   ) {
     requests &+= 1
+    sessionEnded = false
     wanted = Request(identity: identity, number: requests, retrying: retrying, finished: finished)
     login = .loggingIn(userID: identity.userID)
     startNextLogin()
@@ -133,8 +165,15 @@ final class PutioSupportMessenger {
       return startNextLogin()
     }
     self.wanted = nil
+    let notification = pendingNotification
+    pendingNotification = nil
     if succeeded {
       login = .loggedIn(userID: wanted.identity.userID)
+      if let notification { client.openNotification(notification) }
+    } else if !wanted.retrying, let notification {
+      logOutAttemptedUser()
+      pendingNotification = notification
+      request(wanted.identity, retrying: true)
     } else {
       logOutAttemptedUser()
       login =
@@ -145,6 +184,8 @@ final class PutioSupportMessenger {
 
   private func endSession() {
     wanted = nil
+    pendingNotification = nil
+    sessionEnded = true
     login = .idle
     // A login in flight is logged out when it lands.
     if inFlight == nil { logOutAttemptedUser() }
@@ -158,6 +199,7 @@ final class PutioSupportMessenger {
     guard !isStarted else { return }
     client.start(configuration)
     isStarted = true
+    if let deviceToken { client.setDeviceToken(deviceToken) }
   }
 
   /// Logs out whoever a login may have left in Intercom, including a user from

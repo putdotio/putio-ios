@@ -20,6 +20,7 @@
         "value" : "never"
       }
     ],
+    "preferredScreenCaptureFormat" : "screenshots",
     "testTimeoutsEnabled" : true
   },
   "testTargets" : [
