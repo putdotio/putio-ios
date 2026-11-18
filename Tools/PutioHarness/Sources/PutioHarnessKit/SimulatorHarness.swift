@@ -2216,15 +2216,14 @@ public struct SimulatorHarness {
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
-      let template = try simulatorTemplate(
-        platform: platform, runtime: runtime, deviceType: deviceType)
       try requireNoSimulator(named: deviceName)
       let ownedDevice = OwnedSimulator(name: deviceName)
       try lifecycle.register {
         try ownedDevice.cleanup(runner: runner)
       }
       let deviceIdentifier =
-        try template.map { try cloneDevice($0, name: deviceName) }
+        try simulatorTemplate(
+          platform: platform, runtime: runtime, deviceType: deviceType, cloneAs: deviceName)
         ?? createDevice(
           name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
       ownedDevice.claim(deviceIdentifier)
@@ -2333,6 +2332,7 @@ public struct SimulatorHarness {
     platform: HarnessPlatform,
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
+    cloneAs cloneName: String? = nil,
     environment: [String: String] = ProcessInfo.processInfo.environment,
     toolchain: SimulatorToolchain? = nil,
     lock: URL = simulatorTemplateLock
@@ -2354,50 +2354,56 @@ public struct SimulatorHarness {
       deviceType: deviceType.identifier, toolchain: toolchain)
     let pendingPrefix = "putio-pending-\(name)-"
     return try withExclusiveLock(at: lock) {
-      let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
-      let leftover = (listed[runtime.identifier] ?? []).filter { $0.name.hasPrefix(pendingPrefix) }
-      let outdated = listed.flatMap { listedRuntime, devices in
-        devices.filter {
-          $0.state != "Booted"
-            && isStaleSimulatorTemplate(
-              name: $0.name, listedUnder: listedRuntime, isAvailable: $0.isAvailable,
-              runtime: runtime.identifier, runtimeBuild: runtimeBuild, toolchain: toolchain)
+      let template = try { () throws -> String? in
+        let listed = try listSimulatorDevices(runner: runner, context: "list Simulator templates")
+        let leftover = listed.values.flatMap { $0 }.filter {
+          $0.name.hasPrefix("putio-pending-putio-template-")
         }
-      }
-      let doomed = Set((leftover + outdated).map(\.udid))
-      if !doomed.isEmpty { try? cleanupSimulatorIdentifiers(doomed.sorted(), runner: runner) }
-      let templates = (listed[runtime.identifier] ?? []).filter {
-        $0.name == name && !doomed.contains($0.udid)
-      }
-      if let template = templates.first(where: \.isUsableTemplate) { return template.udid }
-      guard templates.isEmpty else {
-        FileHandle.standardError.write(
-          Data(
-            "putio-harness: Simulator template \(name) is booted or unavailable; using a fresh device\n"
-              .utf8))
-        return nil
-      }
-      // The device takes the template's name only after its first boot, so no
-      // run clones a half-made one; a failed or interrupted one is deleted.
-      let pending = "\(pendingPrefix)\(String(UUID().uuidString.prefix(8)).lowercased())"
-      try lifecycle.register { [runner] in
-        try cleanupSimulators(named: [pending], runner: runner)
-      }
-      let identifier = try createDevice(
-        name: pending, type: deviceType.identifier, runtime: runtime.identifier)
-      do {
-        try boot(identifier, label: "\(platform.rawValue) template")
-        _ = try runner.checked(
-          "xcrun", ["simctl", "shutdown", identifier],
-          context: "shut down \(platform.rawValue) Simulator template")
-        _ = try runner.checked(
-          "xcrun", ["simctl", "rename", identifier, name],
-          context: "name \(platform.rawValue) Simulator template")
-      } catch {
-        try? cleanupSimulatorIdentifiers([identifier], runner: runner)
-        throw error
-      }
-      return identifier
+        let outdated = listed.flatMap { listedRuntime, devices in
+          devices.filter {
+            $0.state != "Booted"
+              && isStaleSimulatorTemplate(
+                name: $0.name, listedUnder: listedRuntime, isAvailable: $0.isAvailable,
+                runtime: runtime.identifier, runtimeBuild: runtimeBuild, toolchain: toolchain)
+          }
+        }
+        let doomed = Set((leftover + outdated).map(\.udid))
+        if !doomed.isEmpty { try? cleanupSimulatorIdentifiers(doomed.sorted(), runner: runner) }
+        let templates = (listed[runtime.identifier] ?? []).filter {
+          $0.name == name && !doomed.contains($0.udid)
+        }
+        if let template = templates.first(where: \.isUsableTemplate) { return template.udid }
+        guard templates.isEmpty else {
+          FileHandle.standardError.write(
+            Data(
+              "putio-harness: Simulator template \(name) is booted or unavailable; using a fresh device\n"
+                .utf8))
+          return nil
+        }
+        // The device takes the template's name only after its first boot, so no
+        // run clones a half-made one; a failed or interrupted one is deleted.
+        let pending = "\(pendingPrefix)\(String(UUID().uuidString.prefix(8)).lowercased())"
+        try lifecycle.register { [runner] in
+          try cleanupSimulators(named: [pending], runner: runner)
+        }
+        let identifier = try createDevice(
+          name: pending, type: deviceType.identifier, runtime: runtime.identifier)
+        do {
+          try boot(identifier, label: "\(platform.rawValue) template")
+          _ = try runner.checked(
+            "xcrun", ["simctl", "shutdown", identifier],
+            context: "shut down \(platform.rawValue) Simulator template")
+          _ = try runner.checked(
+            "xcrun", ["simctl", "rename", identifier, name],
+            context: "name \(platform.rawValue) Simulator template")
+        } catch {
+          try? cleanupSimulatorIdentifiers([identifier], runner: runner)
+          throw error
+        }
+        return identifier
+      }()
+      guard let template, let cloneName else { return template }
+      return try cloneDevice(template, name: cloneName)
     }
   }
 
