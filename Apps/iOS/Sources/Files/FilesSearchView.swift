@@ -118,7 +118,7 @@ struct FilesSearchView: View {
             refreshRequests: refreshRequests
           )
         )
-        .onChange(of: model.state) { itemActions.revealHiddenItems() }
+        .onChange(of: model.resultsRevision) { itemActions.revealHiddenItems() }
         .onChange(of: share.state) { _, state in
           if case .fetching = state { return }
           if toast?.id == preparingToast { toast = nil }

@@ -25,6 +25,7 @@ public final class PutioFileSearchModel {
   public private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
   public private(set) var generation: UInt64 = 0
   public private(set) var paginationEpoch: UInt64 = 0
+  public private(set) var resultsRevision: UInt64 = 0
   /// Results the latest search returned on its first page; a re-run keeps
   /// only these until paging reaches the rest again.
   public private(set) var firstPageIDs: Set<PutioFileID> = []
@@ -118,6 +119,7 @@ public final class PutioFileSearchModel {
       }
       state = .loaded(page)
       firstPageIDs = Set(page.items.map(\.id))
+      resultsRevision &+= 1
       return true
     } catch {
       guard requestGeneration == generation else { return false }

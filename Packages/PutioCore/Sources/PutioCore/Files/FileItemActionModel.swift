@@ -30,6 +30,7 @@ public final class PutioFileItemActionModel {
 
   /// The results reloaded, so they now reflect every settled delete.
   public func revealHiddenItems() {
+    if case .delete = activeAction { return }
     hiddenIDs = []
   }
 

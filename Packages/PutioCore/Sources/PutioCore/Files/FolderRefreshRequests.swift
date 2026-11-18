@@ -73,6 +73,31 @@ public final class PutioFolderRefreshRequests {
   public func markConsumed(_ sequence: Sequence, for folderID: PutioFileID, owner: UUID) {
     registrations[folderID]?[owner]?.consumed = sequence
   }
+
+  public func requestRefreshes(
+    after outcome: PutioFileActionOutcome, in folderID: PutioFileID, owner: UUID
+  ) {
+    let excludedOwner: UUID? =
+      switch outcome {
+      case .succeeded: owner
+      case .failed: nil
+      }
+    switch outcome.action {
+    case .delete, .restore:
+      requestAllLoadedFolders(excludingOwner: excludedOwner)
+    default:
+      request(folderID: folderID, excludingOwner: excludedOwner)
+    }
+    switch outcome.action {
+    case .rename(let fileID, _, _):
+      request(folderID: fileID)
+    case .move(let fileID, _, _, let destinationID, _):
+      request(folderID: fileID)
+      request(folderID: destinationID)
+    default:
+      break
+    }
+  }
 }
 
 /// Lives in a folder screen's `@State`. SwiftUI releases that state only when

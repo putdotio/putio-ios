@@ -64,7 +64,7 @@ struct TVSearchView: View {
       }
       .onAppear { if searchesOnChange { now = .now } }
       // Reloaded results reflect every settled delete.
-      .onChange(of: model.state) { itemActions.revealHiddenItems() }
+      .onChange(of: model.resultsRevision) { itemActions.revealHiddenItems() }
       .tvFileMenu(
         item: $menuItem, account: account, canDelete: itemActions.canDelete,
         setWatched: { item, watched in
