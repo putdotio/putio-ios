@@ -123,7 +123,7 @@ final class ConversionGateJourneyTests: XCTestCase {
     let signIn = element("auth.sign-in")
     let season = element("files.screen.440")
     let screens = [0, 410].map { element("files.screen.\($0)") }
-    let deadline = Date.now.addingTimeInterval(15)
+    let deadline = Date.now.addingTimeInterval(15 * XCUIElement.timeoutScale)
     while !signIn.exists, !season.exists, !screens.contains(where: \.exists), Date.now < deadline {
       _ = signIn.appears(within: 0.5)
     }
@@ -139,7 +139,8 @@ final class ConversionGateJourneyTests: XCTestCase {
 
   private func openEpisode() {
     let episode = element("files.item.441")
-    XCTAssertTrue(episode.appears(within: 10), "the first episode never appeared")
+    XCTAssertTrue(
+      episode.appears(within: 10), "the first episode never appeared: \(app.debugDescription)")
     episode.tap()
     let detailPlay = element("files.detail.play")
     if detailPlay.appears(within: 3) { detailPlay.tap() }
@@ -149,15 +150,14 @@ final class ConversionGateJourneyTests: XCTestCase {
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", value), object: element)
-    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+    element.hasValue(value, within: 10)
   }
 
   private func waitForValue(_ element: XCUIElement, prefix: String) -> Bool {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value BEGINSWITH %@", prefix), object: element)
-    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+    return XCTWaiter.wait(for: [expectation], timeout: 10 * XCUIElement.timeoutScale)
+      == .completed
   }
 
   private func element(_ identifier: String) -> XCUIElement {
@@ -178,6 +178,7 @@ extension XCUIElement {
       predicate: NSPredicate { object, _ in
         (object as? XCUIElement)?.value as? String != value
       }, object: self)
-    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    return XCTWaiter.wait(for: [expectation], timeout: timeout * Self.timeoutScale)
+      == .completed
   }
 }
