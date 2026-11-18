@@ -3481,7 +3481,11 @@ final class BoardCaptureTests: XCTestCase {
     app.launch()
     reachFilesRoot()
     downloadHarnessTrack()
-    openSignOut()
+    if ProcessInfo.processInfo.environment["PUTIO_BOARD_DEVICE"] == "ipad", !isPortraitBoard {
+      openSignOutBesidePrivacy()
+    } else {
+      openSignOut()
+    }
     let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
     let signIn = element("auth.sign-in")
     addTeardownBlock { @MainActor [remove, signIn] in
@@ -5622,6 +5626,17 @@ final class BoardCaptureTests: XCTestCase {
     signOut.tap()
   }
 
+  private func openSignOutBesidePrivacy() {
+    app.openTab("Account")
+    XCTAssertTrue(
+      element("settings.default-sort").appears(within: 15), "account settings never loaded")
+    scrollIPadAccount(toHit: "account.privacy").tap()
+    XCTAssertTrue(
+      app.switches["privacy.diagnostics"].appears(within: 5), "Privacy controls never opened")
+    assertIPadAccountOpen("account.privacy", "opening Privacy controls")
+    scrollIPadAccount(toHit: "auth.sign-out").tap()
+  }
+
   private func openAccount() {
     orient(.portrait)
     app.launch()
@@ -5888,14 +5903,25 @@ final class BoardCaptureTests: XCTestCase {
     data.lifetime = .keepAlways
     add(data)
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
-      try app.performAccessibilityAudit(for: .textClipped) { issue in
-        guard let element = issue.element else { return false }
+      try app.performAccessibilityAudit(for: .textClipped) { [app] issue in
+        guard let element = issue.element else {
+          return Self.isInFullWidthSystemDialog(issue, app: app)
+        }
         if element.elementType == .searchField { return true }
         return
           (Self.isMiddleTruncatedFileName(element.label) || Self.containsEmoji(element.label))
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
     }
+  }
+
+  private static func isInFullWidthSystemDialog(
+    _ issue: XCUIAccessibilityAuditIssue, app: XCUIApplication
+  ) -> Bool {
+    guard issue.detailedDescription.contains("UILabel") else { return false }
+    let dialog = [app.sheets.firstMatch, app.alerts.firstMatch].first { $0.exists }
+    guard let dialog else { return false }
+    return dialog.frame.width >= app.mainWindow.frame.width - fullWidthDialogMargins
   }
 
   private func requireBoardDevicePosture() throws {
@@ -5994,6 +6020,7 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static let minimumXXLargeLineHeight: CGFloat = 24
+  private static let fullWidthDialogMargins: CGFloat = 40
 
   private static func containsEmoji(_ label: String?) -> Bool {
     label?.unicodeScalars.contains { $0.properties.isEmojiPresentation || $0.value == 0xFE0F }
