@@ -137,10 +137,7 @@ struct OfflineDownloadEngineTests {
     let track = try #require(
       Bundle.main.url(
         forResource: "runtime-proof-audio", withExtension: "m4a", subdirectory: "HarnessMedia"))
-    let server = try LoopbackMediaServer(directory: track.deletingLastPathComponent())
-    let base = try await server.start()
-    defer { server.stop() }
-    let asset = AVURLAsset(url: base.appending(path: "runtime-proof-audio.m4a"))
+    let asset = AVURLAsset(url: track)
     let untouched = AVAssetDownloadConfiguration(asset: asset, title: "track")
 
     let configuration = try await PutioSystemOfflineDownloadEngine.prepareConfiguration(
