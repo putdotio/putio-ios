@@ -373,6 +373,9 @@ struct TrashManagementView: View {
       PutioFileRow(rowModel(for: item))
         .frame(minHeight: rowMinHeight)
         .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
+        .contentShape(
+          .contextMenuPreview, RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+        )
         .contextMenu {
           PutioItemMenuContent(rowMenu(for: item))
         }
