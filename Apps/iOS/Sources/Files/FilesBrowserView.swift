@@ -173,7 +173,6 @@ struct FilesBrowserView: View {
       emptyMessage: String(localized: "Tap a file to see it here.")
     ) { _ in
       stack(showsDetail: true)
-        .toolbar(.hidden, for: .navigationBar)
     } detail: { _ in
       if let selectedFile {
         detail(selectedFile, pushed: false)

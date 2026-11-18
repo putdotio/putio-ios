@@ -82,7 +82,6 @@
         NavigationStack {
           detail(selection)
         }
-        .toolbar(.hidden, for: .navigationBar)
         .id(selection)
         .modifier(PutioListDetailReadableWidth(maxWidth: columns.detailMaxWidth))
       } else if let emptyState {
