@@ -62,6 +62,15 @@ final class ExclusiveLinkTests: XCTestCase {
     XCTAssertEqual(model.state, .ready)
   }
 
+  func testClosingTheSheetAfterTheServerCreatedTheLinkStillShowsIt() async {
+    let model = PutioExclusiveLinkModel(item: item) { [link] _ in
+      withUnsafeCurrentTask { $0?.cancel() }
+      return link
+    }
+    await Task { await create(model) }.value
+    XCTAssertEqual(model.state, .created(link))
+  }
+
   func testRefusalsReadPutioErrorTypes() {
     let mapped: [String: PutioPublicLinkRefusal] = [
       "PUBLIC_SHARE_NOT_ALLOWED_PLAN": .plan,

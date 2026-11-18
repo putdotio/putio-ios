@@ -62,6 +62,7 @@ struct PutioExclusiveLinkSheet: View {
     .background(PutioTheme.Components.Sheet.background)
     .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
     .presentationDragIndicator(.visible)
+    .interactiveDismissDisabled(model.state == .creating)
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
     .putioToast($toast)

@@ -99,6 +99,30 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testALinkTheServerCreatedSurvivesCancellation() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/public_share/442"
+    fixtures.gateFixture(
+      """
+      {"status":"OK","public_share":{"id":9,"token":"8f3KxQ2mVt7","push_token":"p9",
+       "created_at":"2026-11-12T10:00:00","expiration_date":null,"owner":{"name":"moviebuff"},
+       "user_file":{"id":442,"name":"Blue.Lights.S04E02.mkv","file_type":"VIDEO"}}}
+      """, for: route)
+
+    let task = Task { try await runtime.createPublicLink(fileID: PutioFileID(rawValue: 442)) }
+    guard await waitForRequest(route) else {
+      task.cancel()
+      fixtures.releaseFixture(for: route)
+      return XCTFail("the create request did not start")
+    }
+    fixtures.releaseFixture(for: route)
+    blockCurrentThread(seconds: 0.3)
+    task.cancel()
+
+    let url = try await task.value
+    XCTAssertEqual(url.absoluteString, "https://app.put.io/exclusive-access/8f3KxQ2mVt7")
+  }
+
   func testPublicLinkExpiriesAcceptOffsetsAndRejectGarbage() {
     let utc = ISO8601DateFormatter().date(from: "2026-10-07T19:36:01Z")
     XCTAssertEqual(PutioPublicLink.expiryDate("2026-10-07T19:36:01"), utc)

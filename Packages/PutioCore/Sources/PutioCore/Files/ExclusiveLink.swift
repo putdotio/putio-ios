@@ -114,9 +114,7 @@ public final class PutioExclusiveLinkModel {
   public func create() async {
     guard state == .creating else { return }
     do {
-      let url = try await createLink(item.id)
-      try Task.checkCancellation()
-      state = .created(url)
+      state = .created(try await createLink(item.id))
     } catch let refusal as PutioPublicLinkRefusal {
       state = .refused(refusal)
     } catch {
