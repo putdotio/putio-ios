@@ -889,6 +889,7 @@ public struct SimulatorHarness {
         var preflightFailures: [(name: String, failure: Error)] = []
         for preflight in preflights {
           do {
+            try resetKeychain(session: session)
             preflightScreenshots += try runJourneyPreflightTest(
               identifier: preflight.testIdentifier,
               platform: platform,
@@ -942,6 +943,7 @@ public struct SimulatorHarness {
           )
         }
 
+        try resetKeychain(session: session)
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
@@ -1612,6 +1614,14 @@ public struct SimulatorHarness {
   /// Runs one preflight UI test and exports `attachmentNames` as artifacts.
   /// With attachments the result bundle is left for the caller, which deletes
   /// it only after validating the screenshots.
+  private func resetKeychain(session: SimulatorSession) throws {
+    let output = try runner.run(
+      "xcrun", ["simctl", "keychain", session.deviceIdentifier, "reset"])
+    guard output.status == 0 else {
+      throw HarnessFailure("simulator keychain reset failed: \(output.combinedOutput)")
+    }
+  }
+
   private func runJourneyPreflightTest(
     identifier: String,
     platform: HarnessPlatform,
