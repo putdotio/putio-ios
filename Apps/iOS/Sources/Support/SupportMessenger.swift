@@ -65,6 +65,7 @@ final class PutioSupportMessenger {
   private var inFlight: UInt64?
   private var deviceToken: Data?
   private var pendingNotification: [AnyHashable: Any]?
+  private var sessionEnded = false
   private(set) var login = Login.idle
 
   init(
@@ -123,6 +124,8 @@ final class PutioSupportMessenger {
     case .failed(let identity):
       pendingNotification = userInfo
       request(identity, retrying: true)
+    case .idle where sessionEnded:
+      return
     case .idle, .loggingIn:
       pendingNotification = userInfo
     case .retryFailed:
@@ -135,6 +138,7 @@ final class PutioSupportMessenger {
     finished: (@MainActor (Bool) -> Void)? = nil
   ) {
     requests &+= 1
+    sessionEnded = false
     wanted = Request(identity: identity, number: requests, retrying: retrying, finished: finished)
     login = .loggingIn(userID: identity.userID)
     startNextLogin()
@@ -177,6 +181,7 @@ final class PutioSupportMessenger {
   private func endSession() {
     wanted = nil
     pendingNotification = nil
+    sessionEnded = true
     login = .idle
     // A login in flight is logged out when it lands.
     if inFlight == nil { logOutAttemptedUser() }

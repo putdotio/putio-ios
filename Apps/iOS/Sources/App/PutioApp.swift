@@ -115,6 +115,12 @@ final class PutioAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificatio
     PutioSupportMessenger.shared.didRegisterForRemoteNotifications(deviceToken: deviceToken)
   }
 
+  func application(
+    _ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error
+  ) {
+    SentryTelemetry.reportPushRegistrationFailure(error)
+  }
+
   nonisolated func userNotificationCenter(
     _ center: UNUserNotificationCenter, willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void

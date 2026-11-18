@@ -169,6 +169,13 @@ final class SupportMessengerTests: XCTestCase {
     messenger.sessionDidChange(.signedOut(.sessionExpired), identity: nil)
     messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
     XCTAssertFalse(client.calls.contains(.openNotification("7")), "opened for a later session")
+
+    messenger.sessionDidChange(.signedOut(.userSignedOut), identity: nil)
+    messenger.open(notification: reply)
+    let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
+    messenger.sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
+    XCTAssertFalse(
+      client.calls.contains(.openNotification("7")), "opened a signed-out tap for the next account")
   }
 
   func testContactUsWaitsForTheLoginAndRetriesAFailedOneOnce() throws {

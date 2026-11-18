@@ -40,7 +40,10 @@ struct IntercomSupportClient: SupportMessengerClient {
   }
 
   func registerForRemoteNotifications() {
-    UIApplication.shared.registerForRemoteNotifications()
+    Task {
+      await PutioOfflineNotifications.requestPermissionIfNeeded()
+      UIApplication.shared.registerForRemoteNotifications()
+    }
   }
 
   func setDeviceToken(_ token: Data) {
