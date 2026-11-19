@@ -800,8 +800,9 @@ import Foundation
     /// `--putio-harness-tv-browse` adds an empty folder and one whose first
     /// listing fails to the root, fails the root's first continuation and
     /// adds a second file to that page, and adds a root row once the Harness
-    /// Folder is opened, so the tvOS browser journey records empty, error,
-    /// recovery, later-page deletion, and refetch-on-return states.
+    /// Folder is opened, and fails the root video's first delete, so the tvOS
+    /// browser journey records empty, error, recovery, failed and later-page
+    /// deletion, and refetch-on-return states.
     private static var usesTVBrowse: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
     }
@@ -899,6 +900,7 @@ import Foundation
       .arguments.contains("--putio-harness-restore-offline-once")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
+    nonisolated(unsafe) private static var tvRootVideoDeleteFailureDelivered = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
     nonisolated(unsafe) private static var movedSubtitleParents: [Int: Int] = [:]
@@ -1203,6 +1205,7 @@ import Foundation
       }
       bulkDeleteFailureDelivered = false
       offlineOriginalTrashed = false
+      tvRootVideoDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
       partialMoveFailureDelivered = false
       movedSubtitleParents = [:]
@@ -3292,6 +3295,15 @@ import Foundation
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
+        if usesTVBrowse, !tvRootVideoDeleteFailureDelivered {
+          tvRootVideoDeleteFailureDelivered = true
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_TRANSIENT_ROOT_VIDEO_DELETE_FAILURE",
+              message: "The first delete of the root video fails for recovery proof")
+          )
+        }
         offlineOriginalTrashed = true
         return (200, #"{"status":"OK"}"#)
       }

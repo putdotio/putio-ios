@@ -1310,7 +1310,7 @@ public struct SimulatorHarness {
           [
             resultBundle, historyTrashBundle, settingsBundle, browseBundle, searchBundle,
           ] + playbackBundles
-        for bundle in bundles {
+        for bundle in bundles where fileManager.fileExists(atPath: bundle.path) {
           try fileManager.removeItem(at: bundle)
         }
         let artifacts = screenshots + accountScreenshots
