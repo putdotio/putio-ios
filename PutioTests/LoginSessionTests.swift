@@ -256,6 +256,22 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertEqual(messenger.events, [.logout])
     }
 
+    func testATokenRejectedWhileSignedInLogsOutOfSupport() throws {
+        let (appDelegate, _) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-2", answeringAccountID: 2, answersConfig: true)
+        let messenger = SupportMessengerSpy()
+        appDelegate.supportMessenger = messenger
+        addTeardownBlock { DownloadQueueController.sharedInstance.pause() }
+        appDelegate.authenticate(token: "token-2")
+        waitForRoot(RootContainerViewController.self, in: appDelegate)
+
+        AccountStub.answer(accountID: 2, answersConfig: true, rejectsToken: true, in: self)
+        appDelegate.refreshAccountStatus()
+
+        let loggedOut = expectation(for: NSPredicate { _, _ in messenger.events.last == .logout }, evaluatedWith: nil)
+        wait(for: [loggedOut], timeout: 10)
+        XCTAssertEqual(messenger.events, [.setUserHash("hash-2"), .login("2"), .logout])
+    }
+
     func testAFailedSessionLoadKeepsSupportForRetry() throws {
         let (appDelegate, _) = try makeOwnerlessLaunch(cachedUserID: nil, token: "token-1", answeringAccountID: 1, answersConfig: false)
         let messenger = SupportMessengerSpy(loggedInUserID: "1")

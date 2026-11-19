@@ -468,6 +468,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 if error.type.isUnauthorized {
                     AccountNoticeStore.shared.clear()
                     ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
+                    SupportIdentity.signOut(after: .sessionExpired, messenger: self.supportMessenger)
                 } else {
                     ProductAnalytics.keepAnswer()
                 }
