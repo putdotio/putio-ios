@@ -20,7 +20,7 @@ class AudioPlayerViewController: UIViewController {
     var player: AVQueuePlayer?
     var playerQueueObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
-    private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback) }
+    private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback, fileID: $0.id) }
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
     var setStartFromMap = [Int: Int]()
@@ -173,6 +173,7 @@ class AudioPlayerViewController: UIViewController {
         registerPlayerTimeObservers()
         registerRemoteMediaControls()
 
+        playbackAnalytics?.track(playerItem, playback: media.analyticsPlayback, fileID: media.id)
         player?.insert(playerItem, after: player?.currentItem)
         player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), preferredTimescale: 600))
         playAtQueueRate()
@@ -392,6 +393,7 @@ extension AudioPlayerViewController: NextMediaFinderDelegate {
 
         let asset = AVURLAsset(url: nextMedia.url)
         let playerItem = AVPlayerItem.init(asset: asset)
+        playbackAnalytics?.track(playerItem, playback: nextMedia.analyticsPlayback, fileID: nextMedia.id)
         player?.insert(playerItem, after: player?.currentItem)
     }
 

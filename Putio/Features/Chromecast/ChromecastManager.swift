@@ -251,7 +251,7 @@ class ChromecastManager: NSObject {
 
                     if let load = currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions) {
                         load.delegate = self
-                        self.playbackTracker.loadStarted(load, playback: self.castPlayback(for: file), session: session)
+                        self.playbackTracker.loadStarted(load, playback: self.castPlayback(for: file), fileID: file.id, session: session)
                     }
                     GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
 
@@ -369,6 +369,7 @@ final class CastPlaybackTracker {
 
     private struct Load {
         let playback: AnalyticsEvent.Playback
+        let fileID: Int
         let session: Int
     }
 
@@ -394,8 +395,8 @@ final class CastPlaybackTracker {
         self.now = now
     }
 
-    func loadStarted(_ request: AnyObject, playback: AnalyticsEvent.Playback, session: Int) {
-        pending = (request, Load(playback: playback, session: session))
+    func loadStarted(_ request: AnyObject, playback: AnalyticsEvent.Playback, fileID: Int, session: Int) {
+        pending = (request, Load(playback: playback, fileID: fileID, session: session))
         playing = nil
     }
 
@@ -409,7 +410,7 @@ final class CastPlaybackTracker {
     func loadFailed(_ request: AnyObject, error: GCKError) {
         guard let load = takePending(request) else { return }
         capture(.playbackFailed(load.playback, .init(error)), load.session)
-        report(.init(signal: .castLoadFailed, playback: load.playback), error, load.session)
+        report(.init(playback: load.playback, fileID: load.fileID, started: false), error, load.session)
     }
 
     func loadAborted(_ request: AnyObject) {

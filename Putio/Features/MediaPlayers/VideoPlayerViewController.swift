@@ -47,7 +47,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         super.viewDidLoad()
         view.accessibilityIdentifier = "putio-video-player"
         view.accessibilityValue = "loading"
-        playbackAnalytics = item.map { PlaybackAnalytics($0.analyticsPlayback) }
+        playbackAnalytics = item.map { PlaybackAnalytics($0.analyticsPlayback, fileID: $0.id) }
         registerLifecycleObservers()
     }
 
@@ -207,6 +207,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         )
 
         api.sendIFTTTEvent(event: iftttEvent, completion: { _ in })
+        playbackAnalytics?.observePlaying(player)
         playbackAnalytics?.start()
     }
 
@@ -332,7 +333,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     @objc private func handlePlaybackFailed(_ notification: Notification) {
         guard isNotificationForCurrentPlayerItem(notification) else { return }
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
-        playbackAnalytics?.failedToPlayToEnd(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+        playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
     }
 
     @objc private func handlePlaybackEnded(_ notification: Notification) {
