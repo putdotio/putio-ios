@@ -3510,6 +3510,10 @@ final class BoardCaptureTests: XCTestCase {
       XCTAssertFalse(sizedMessage.exists, "the message repeats the size the action shows")
     }
     try captureBoard("rd-ios-ses-08-sign-out")
+    if !remove.exists {
+      element("auth.sign-out").tap()
+      XCTAssertTrue(remove.appears(within: 5), "Sign out never reopened after the audit")
+    }
     remove.tap()
     XCTAssertTrue(signIn.appears(within: 15), "sign-out never reached Welcome")
   }
