@@ -133,7 +133,7 @@ final class ExclusiveLinkTests: XCTestCase {
     XCTAssertFalse(model.start(), "Create ran before the lookup answered")
     await model.findExisting()
     XCTAssertEqual(asked, [item.id])
-    XCTAssertEqual(model.state, .created(link))
+    XCTAssertEqual(model.state, .found(link))
     XCTAssertEqual(model.expiresAt, expiresAt, "the sheet dropped the link's real expiry")
     XCTAssertFalse(model.start(), "Create offered a second link")
     XCTAssertEqual(server.calls, [])

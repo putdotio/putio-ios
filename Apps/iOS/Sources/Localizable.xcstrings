@@ -3933,6 +3933,17 @@
         }
       }
     },
+    "This item already has a link. Copy or share it below." : {
+      "comment" : "ios-only: no board covers the reopened state; coordinator-approved plainest wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item already has a link. Copy or share it below."
+          }
+        }
+      }
+    },
     "This permanently deletes %@ from your put.io account. It can’t be undone." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
