@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -195,7 +195,7 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
 // so the tests can see exactly which App Store Connect calls each command makes.
 // FAKE_TELEMETRY and FAKE_VERSIONS override its telemetry status and version
 // listing; FAKE_PULL_FAILS and FAKE_AGE_RATING_FAILS fail metadata pull and
-// age-rating view.
+// age-rating view; FAKE_VALIDATE_STATUS is the exit code of validate.
 const fakeAsc = `#!/bin/sh
 printf '%s\\n' "$*" >> "$ASC_LOG"
 case "$1 $2" in
@@ -204,6 +204,7 @@ case "$1 $2" in
   "metadata pull") [ -z "$FAKE_PULL_FAILS" ] || exit 1; echo '{}' ;;
   "age-rating view") [ -z "$FAKE_AGE_RATING_FAILS" ] || exit 1; echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
   "metadata push") case "$*" in *--dry-run*) echo "no changes" ;; *) echo '{}' ;; esac ;;
+  "validate --app") echo "| Blockers | \${FAKE_VALIDATE_STATUS:-0} |"; exit "\${FAKE_VALIDATE_STATUS:-0}" ;;
   *) echo '{}' ;;
 esac
 `;
@@ -370,6 +371,20 @@ test("no command talks to App Store Connect while asc telemetry is on", async (t
     const { invoke, calls } = await recordingFixture(t, { FAKE_TELEMETRY: "true" });
     await assert.rejects(invoke(...args), /telemetry is still enabled/, args.join(" "));
     assert.deepEqual(await calls(), ["telemetry status --output json"], args.join(" "));
+  }
+});
+
+test("validate puts asc's readiness report in the job summary and fails the step on a blocker", async (t) => {
+  for (const [status, strict] of [["0", false], ["1", false], ["1", true]] as const) {
+    const summary = join(await mkdtemp(join(tmpdir(), "putio-app-store-summary-")), "summary.md");
+    t.after(() => rm(dirname(summary), { recursive: true, force: true }));
+    const { invoke, calls } = await recordingFixture(t, { FAKE_VALIDATE_STATUS: status, GITHUB_STEP_SUMMARY: summary });
+    const args = strict ? ["validate", "--strict"] : ["validate"];
+    const result = await invoke(...args).then(() => 0, (error: { code?: number }) => error.code ?? -1);
+    assert.equal(result, Number(status), args.join(" "));
+    assert.equal(await readFile(summary, "utf8"), `## asc validate 3.0.0\n\n| Blockers | ${status} |\n`, args.join(" "));
+    const validate = (await calls()).find((call) => call.startsWith("validate "));
+    assert.equal(validate, `validate --app 1260479699 --version 3.0.0 --platform IOS --output markdown${strict ? " --strict" : ""}`);
   }
 });
 
