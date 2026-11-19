@@ -10,26 +10,28 @@ images and documents, and opens put.io links into the same screens.
   parent's place.
 - `continue-watching` lists a video played to the middle on the root, removes
   it from its menu, lists no finished video, and drops a trashed one.
-- `browse-sort` changes the folder sort from the sort button and appends the
-  next page on scroll.
+- `sort-continuation` changes the folder sort from the sort button and appends
+  the next page on scroll; `sort-menu` walks every sort field and keeps a
+  folder's order across a relaunch.
 - `recent-searches` keeps the last five submitted searches, runs, removes and
   clears them, hides them while history is off, and keeps them on a failed write.
-- `search` pages results, retries a failed page, and restores the open folder
+- `search-restoration` pages results, retries a failed page, and restores the open folder
   after a relaunch.
 - `row-menus` lists each item kind's long-press rows in order, marks watched
   and unwatched with a seeded failure, swipes both ways, and shows Open in VLC
   only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it from
-  the toast, moves by context menu and swipe, and trashes by swipe.
-- `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`, and
-  `exclusive-link-cancel` create a link for a file and a folder, copy and share
-  it, show every refusal and a failure with Try again, cancel on close, and
-  find the new links on Account.
+  the toast, moves by context menu and swipe, and trashes by swipe. In
+  selection it selects all, ends selection, moves with partial-failure retry,
+  and trashes with batch retry.
+- `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`,
+  `exclusive-link-reopen`, and `exclusive-link-existing` create a link for a
+  file and a folder, copy and share it, show every refusal and a failure with
+  Try again, keep a request across a reopen, show a file's live link after its
+  folder reopens, and find the new links on Account.
 - `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
   name, disables the current folder and a folder inside the moved one, and
   moves into a folder made in the sheet.
-- `bulk` selects all, ends selection, moves with partial-failure retry, and
-  trashes with batch retry.
 - `selection-bar` changes the bar's actions as videos, audio, and a folder join
   the selection, and selects only the loaded page of a 450-file folder.
 - `selection-trash-off` deletes after a confirm, and reports the one video that
@@ -42,10 +44,12 @@ images and documents, and opens put.io links into the same screens.
   failed move.
 - `trash-limit` asks before a permanent delete when Trash refuses a folder, and
   disables Trash while the setting is unconfirmed.
-- `trash` restores, retries, deletes, and empties Trash.
-- `reconcile` updates other tabs after an open folder is renamed or deleted.
-- `previews` shows images and PDFs, reports unsupported files, and hands video
-  to VLC when it is installed.
+- `trash-management` restores, retries, deletes, and empties Trash.
+- `folder-reconciliation` updates other tabs after an open folder is renamed or deleted.
+- `previews` shows images, PDFs, text and unsupported files;
+  `preview-routing` opens previews from Search and History and hands video to
+  VLC when it is installed; `preview-vlc-retry` toasts a failed VLC handoff and
+  hands off on the next tap.
 - `preview-paging` swipes between a folder's images past a video, loads the
   folder's next page, pans instead of paging while zoomed, and shows one file
   from Search.
@@ -63,8 +67,8 @@ images and documents, and opens put.io links into the same screens.
 - `preview-trash-limit-late` shows the failure toast over the folder when the
   refusal arrives after the viewer closed.
 - `deep-links` opens links cold, warm, and signed out.
-- `large-text` keeps long names, selection, and Downloads usable at the
-  largest text size.
+- `accessibility-files` keeps long names, selection, and Downloads usable at
+  the largest text size.
 
 ## How to get to it (user POV)
 
@@ -94,7 +98,7 @@ Preconditions:
   orders, `Unwatched first` and `Watched first`, a failed first `Type, Z to A`,
   then a relaunch keeps the folder's order while Harness Folder keeps the
   account default.
-- **Folder states.** Run `--only folder-states`.
+- **Folder states.** Run `--only folder-states,folder-paging`.
   `--putio-harness-folder-states` adds `Empty` (423) and the 450-file
   `Paging Folder` (460), whose page 2 fails once. Screenshots:
   `runtime-folder-empty`, `runtime-folder-load-more-failed`.
@@ -136,13 +140,13 @@ Preconditions:
   (445) into Harness Folder fails as a taken name; `--putio-harness-hold-move-folders`
   holds the sheet's Harness Folder listing. Screenshot: `runtime-move-name-taken`.
 - **Exclusive link.** Run
-  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-cancel`.
+  `--only exclusive-link,exclusive-link-refused,exclusive-link-failed,exclusive-link-reopen,exclusive-link-existing`.
   `--putio-harness-public-link-create <ready|slow|refusals|failing>` seeds the
   create call; `refusals` returns each refusal once in turn, `failing` fails the
   first call, and `slow` never answers. Screenshots:
   `runtime-exclusive-link-created`, `runtime-exclusive-link-account`,
   `runtime-exclusive-link-refused`, `runtime-exclusive-link-failed`,
-  `runtime-exclusive-link-creating`. Boards: `rd-ios-78-link-create`,
+  `runtime-exclusive-link-creating`, `runtime-exclusive-link-existing`. Boards: `rd-ios-78-link-create`,
   `rd-ios-79-link-created`, `rd-ios-80-link-refused`.
 - **Selection.** Run `--only selection-bar`, `--only selection-trash-off`, and
   `--only bulk-results`. `--putio-harness-bulk-trash-refusal` fails every
@@ -162,7 +166,7 @@ Preconditions:
   `runtime-trash-empty`.
 - **Reconcile tabs.** Run `--only folder-reconciliation`. Search shows the new
   name, then "Folder not found" after the delete.
-- **Previews.** Run `--only previews`. Share opens the share sheet for the
+- **Previews.** Run `--only previews,preview-routing,preview-vlc-retry`. Share opens the share sheet for the
   image, the PDF and the long text, from the toolbar and from the text's end
   row. Screenshots: `runtime-preview-loading`, `runtime-preview-error`,
   `runtime-preview-image`, `runtime-preview-image-landscape`,

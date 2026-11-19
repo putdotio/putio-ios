@@ -215,13 +215,13 @@ final class PutioVideoTransport {
   private(set) var selectedSubtitle: Int?
   private(set) var airPlay: PutioVideoAirPlay?
   private(set) var subtitleCues: [PutioVideoCue] = []
+  private(set) var picture = PutioVideoPicture.unknown
   private(set) var subtitleSize: PutioSubtitleTextSize
   private(set) var subtitleTiming = PutioSubtitleTiming()
   #if DEBUG
     private(set) var shownCaption: String?
   #endif
   private(set) var supportsAirPlay = true
-  var subtitleListings: [PutioSubtitleListing] = []
   var toast: PutioToast?
   let pictureInPicture = PutioVideoPictureInPicture()
   let wait: PutioVideoWaitModel
@@ -250,6 +250,7 @@ final class PutioVideoTransport {
   @ObservationIgnored private var errorLogObservation: NSObjectProtocol?
   @ObservationIgnored private var renditionLoad: Task<Void, Never>?
   @ObservationIgnored private var subtitleRenditions: [URL] = []
+  @ObservationIgnored private var subtitleNames: [String?] = []
   @ObservationIgnored private var checkedErrorEvents = 0
   @ObservationIgnored private var subtitleSelectedAt: Date?
   @ObservationIgnored private let sizeMemory: PutioSubtitleSizeMemory
@@ -273,7 +274,7 @@ final class PutioVideoTransport {
   var timeline: PutioVideoTimeline { playhead.timeline }
 
   var subtitleMenu: PutioSubtitleMenu {
-    PutioSubtitleMenu(tracks: subtitles, listings: engine == nil ? subtitleListings : [])
+    PutioSubtitleMenu(tracks: subtitles)
   }
 
   var trackChoice: PutioVideoTrackChoice {
@@ -364,8 +365,10 @@ final class PutioVideoTransport {
         self?.subtitles = tracks.enumerated().map { index, track in
           PutioSubtitleTrack(
             id: track.id,
-            title: PutioTrackLabel.subtitleTitle(
-              language: track.language, name: track.name, index: index),
+            title: track.isExternal
+              ? track.name
+              : PutioTrackLabel.subtitleTitle(
+                language: track.language, name: track.name, index: index),
             languageTag: track.language)
         }
         self?.selectedSubtitle = active
@@ -374,6 +377,23 @@ final class PutioVideoTransport {
     engine.$subtitleCues.combineLatest(engine.clock.$sourceTime)
       .sink { [weak self] cues, time in self?.showCues(cues, at: time) }
       .store(in: &engineObservations)
+    engine.$softwareDisplaySize
+      .combineLatest(engine.$sourceVideoWidth, engine.$sourceVideoHeight, engine.$videoRoute)
+      .sink { [weak self, weak engine] display, width, height, _ in
+        guard let self, let engine else { return }
+        let coded = CGSize(width: Int(width), height: Int(height))
+        picture = PutioVideoPicture(
+          coded: coded,
+          display: display
+            ?? CGSize(
+              width: coded.width * engine.sourceVideoPixelAspectRatio, height: coded.height))
+      }
+      .store(in: &engineObservations)
+    routeObservation = NotificationCenter.default.addObserver(
+      forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.refreshAirPlay() }
+    }
     engine.$videoRoute.combineLatest(engine.$softwarePiPSource)
       .sink { [weak self, weak engine] route, source in
         guard let self, let engine else { return }
@@ -644,6 +664,8 @@ final class PutioVideoTransport {
       else { return }
       guard let self, !Task.isCancelled, player?.currentItem === item else { return }
       subtitleRenditions = PutioSubtitleRenditions.uris(inMasterPlaylist: text, relativeTo: master)
+      subtitleNames = PutioSubtitleRenditions.renditions(inMasterPlaylist: text).map(\.name)
+      nameSubtitles()
       checkSubtitleFailures(of: item)
     }
   }
@@ -713,6 +735,7 @@ final class PutioVideoTransport {
     renditionLoad?.cancel()
     renditionLoad = nil
     subtitleRenditions = []
+    subtitleNames = []
     checkedErrorEvents = 0
     subtitleSelectedAt = nil
     if player != nil { pictureInPicture.onActiveChange = nil }
@@ -730,6 +753,7 @@ final class PutioVideoTransport {
     audioTracks = []
     subtitles = []
     subtitleCues = []
+    picture = .unknown
     selectedAudio = nil
     selectedSubtitle = nil
     isPlaying = false
@@ -738,9 +762,23 @@ final class PutioVideoTransport {
   }
 
   private func refreshAirPlay() {
-    guard let player else { return }
-    airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
-    refreshCaptionRendering()
+    if let player {
+      airPlay = PutioVideoAirPlay.current(isActive: player.isExternalPlaybackActive)
+      refreshCaptionRendering()
+    } else if let engine {
+      airPlay = PutioVideoAirPlay.current(
+        isActive: engine.nativePlayerLayer?.player?.isExternalPlaybackActive == true)
+    }
+  }
+
+  private func observeAirPlay(of player: AVPlayer?) {
+    externalPlaybackObservation?.invalidate()
+    externalPlaybackObservation = player?.observe(
+      \.isExternalPlaybackActive, options: [.initial, .new]
+    ) { [weak self] _, _ in
+      Task { @MainActor [weak self] in self?.refreshAirPlay() }
+    }
+    refreshAirPlay()
   }
 
   private func refreshPlaying() {
@@ -815,6 +853,7 @@ final class PutioVideoTransport {
     default:
       pictureInPicture.attach(engineController: nil, hasRoute: false)
     }
+    observeAirPlay(of: supportsAirPlay ? engine.nativePlayerLayer?.player : nil)
   }
 
   private func showNativeSubtitle(in engine: AetherEngine, active: Bool) {
@@ -858,8 +897,7 @@ final class PutioVideoTransport {
       }
       audioTracks = Self.audioTracks(playable, details: details, renditions: [])
       watchAudioFailures(of: item)
-      subtitles = Self.subtitleTracks(
-        legible?.options ?? [], defaultOption: legibleGroup?.defaultOption)
+      nameSubtitles()
       selectionObservation = NotificationCenter.default.addObserver(
         forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
       ) { [weak self] _ in
@@ -899,12 +937,29 @@ final class PutioVideoTransport {
     options.enumerated().map { Track(id: $0.offset, title: $0.element.displayName) }
   }
 
+  /// AVFoundation can drop the number from a NAME such as "Turkish 2".
+  private func nameSubtitles() {
+    guard let legible else {
+      subtitles = []
+      return
+    }
+    let names =
+      subtitleNames.count == legible.group.options.count
+      ? Dictionary(
+        zip(legible.group.options, subtitleNames).compactMap { option, name in
+          name.map { (option, $0) }
+        }, uniquingKeysWith: { first, _ in first }) : [:]
+    subtitles = Self.subtitleTracks(
+      legible.options, defaultOption: legible.group.defaultOption, names: names)
+  }
+
   static func subtitleTracks(
-    _ options: [AVMediaSelectionOption], defaultOption: AVMediaSelectionOption?
+    _ options: [AVMediaSelectionOption], defaultOption: AVMediaSelectionOption?,
+    names: [AVMediaSelectionOption: String] = [:]
   ) -> [PutioSubtitleTrack] {
     options.enumerated().map { index, option in
       PutioSubtitleTrack(
-        id: index, title: option.displayName,
+        id: index, title: names[option] ?? option.displayName(with: PutioTrackLabel.english),
         languageTag: option.extendedLanguageTag ?? option.locale?.identifier,
         isDefault: option == defaultOption)
     }
@@ -1522,8 +1577,9 @@ struct PutioVideoChipTracks {
   }
 
   var selectedSubtitleTitle: String {
-    let rows = subtitleMenu.inFile + subtitleMenu.found + subtitleMenu.unsourced
-    return selectedSubtitle.flatMap { index in rows.first { $0.track.id == index }?.track.title }
+    return selectedSubtitle.flatMap { index in
+      subtitleMenu.rows.first { $0.track.id == index }?.track.title
+    }
       ?? String(localized: "Off")
   }
 }
@@ -1597,11 +1653,6 @@ struct PutioVideoTrackChips: View {
           ])
       ]
     }
-    let groups: [(String?, [PutioSubtitleMenu.Row])] = [
-      (String(localized: "In this file"), menu.inFile),
-      (String(localized: "Found by put.io"), menu.found),
-      (nil, menu.unsourced),
-    ]
     let sizeAndTiming = sizeAndTiming.map { entry in
       PutioVideoChipSection(items: [
         .action(
@@ -1610,30 +1661,22 @@ struct PutioVideoTrackChips: View {
             identifier: "video.subtitles.size-and-timing", perform: entry.open))
       ])
     }
-    return [PutioVideoChipSection(items: [off])]
-      + groups.filter { !$0.1.isEmpty }.map { title, rows in
-        PutioVideoChipSection(title: title, items: rows.map(subtitleItem))
-      }
-      + (sizeAndTiming.map { [$0] } ?? [])
+    return [
+      PutioVideoChipSection(items: [off]),
+      PutioVideoChipSection(items: menu.rows.map(subtitleItem)),
+    ] + (sizeAndTiming.map { [$0] } ?? [])
   }
 
   private func subtitleItem(_ row: PutioSubtitleMenu.Row) -> PutioVideoChipItem {
     let track = row.track
     return .choice(
       PutioVideoChipChoice(
-        title: track.title, detail: row.source.map(Self.sourceTitle),
+        title: row.title,
         identifier: "video.subtitles.\(track.id)",
         selected: tracks.selectedSubtitle == track.id
       ) { tracks.pickSubtitle(track.id) })
   }
 
-  private static func sourceTitle(_ source: PutioSubtitleSource) -> String {
-    switch source {
-    case .embedded: String(localized: "Embedded")
-    case .folder: String(localized: "This folder")
-    case .openSubtitles: String(localized: "OpenSubtitles")
-    }
-  }
 }
 
 private struct PutioVideoChip: View {

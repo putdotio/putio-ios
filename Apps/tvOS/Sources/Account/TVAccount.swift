@@ -222,6 +222,9 @@ struct TVAccountScreen: View {
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       header
+      if let notice = PutioInactiveAccountNotice(account: account) {
+        TVInactiveAccountNotice(notice: notice, identifier: "account.status-notice")
+      }
       TVRowList {
         statusSection
         ForEach(TVAccountSection.allCases) { section in

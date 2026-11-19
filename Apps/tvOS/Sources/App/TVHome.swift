@@ -90,16 +90,19 @@ struct TVSignedInShell: View {
 
   var body: some View {
     NavigationStack(path: $path) {
-      TVHomeScreen(entries: TVHomeEntry.entries(for: account))
-        .onAppear {
-          // Returning to Home picks up settings changed on another device,
-          // which may hide or reveal History.
-          if hasShownHome { Task { await runtime.refreshAccount() } }
-          hasShownHome = true
-        }
-        .navigationDestination(for: TVRoute.self) { route in
-          destination(for: route)
-        }
+      TVHomeScreen(
+        entries: TVHomeEntry.entries(for: account),
+        notice: PutioInactiveAccountNotice(account: account)
+      )
+      .onAppear {
+        // Returning to Home picks up settings changed on another device,
+        // which may hide or reveal History.
+        if hasShownHome { Task { await runtime.refreshAccount() } }
+        hasShownHome = true
+      }
+      .navigationDestination(for: TVRoute.self) { route in
+        destination(for: route)
+      }
     }
     .onChange(of: account) { previous, current in
       PutioAccountPreferencesReconciliation.apply(
@@ -158,6 +161,7 @@ struct TVSignedInShell: View {
 
 struct TVHomeScreen: View {
   let entries: [TVHomeEntry]
+  var notice: PutioInactiveAccountNotice?
 
   @Namespace private var focusScope
   @Environment(\.resetFocus) private var resetFocus
@@ -170,6 +174,9 @@ struct TVHomeScreen: View {
         .putioFont(PutioTheme.TV.Typography.heading)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .accessibilityAddTraits(.isHeader)
+      if let notice {
+        TVInactiveAccountNotice(notice: notice)
+      }
       TVRowList {
         ForEach(entries) { entry in
           NavigationLink(value: entry.route) {

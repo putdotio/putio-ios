@@ -69,6 +69,31 @@ final class InactiveAccountJourneyTests: XCTestCase {
     signOut()
   }
 
+  func testPlaybackOnAnInactiveAccountShowsTheAccountNotice() {
+    app.launchArguments += ["--putio-harness-account-inactive", "owner"]
+    app.launch()
+    signIn()
+
+    element("files.item.412").tap()
+    app.answerResumePrompt()
+    let notice = element("video.account-notice")
+    XCTAssertTrue(
+      notice.appears(within: 20), "a refused stream on an inactive account says nothing")
+    XCTAssertTrue(app.staticTexts["Your account has been deactivated 😢"].exists)
+    XCTAssertTrue(
+      app.staticTexts[
+        "Your files are still here, but they are scheduled to be deleted in 12 days."
+      ].exists)
+    XCTAssertFalse(element("video.error").exists, "the generic playback error still shows")
+    XCTAssertFalse(app.buttons["Try again"].exists, "the account notice offers a retry")
+    XCTAssertTrue(app.videoClose.isHittable, "the account notice hid Close")
+    addScreenshot(named: "runtime-inactive-playback")
+
+    app.videoClose.tap()
+    XCTAssertTrue(element("account.inactive-notice").appears(within: 10))
+    signOut()
+  }
+
   func testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate() {
     app.launchArguments += ["--putio-harness-account-inactive", "family"]
     app.launch()
@@ -128,6 +153,15 @@ final class InactiveAccountJourneyTests: XCTestCase {
   func testActiveAccountSeesNoNotice() {
     app.launch()
     signIn()
+    XCTAssertTrue(element("files.item.410").appears(within: 10))
+    element("files.item.412").tap()
+    app.answerResumePrompt()
+    XCTAssertTrue(element("video.error").appears(within: 10), "the first harness load did not fail")
+    XCTAssertFalse(element("video.account-notice").exists, "an active account sees a notice")
+    app.buttons["Try again"].tap()
+    XCTAssertTrue(element("video.ready").appears(within: 20), "an active account did not play")
+    app.revealVideoControls(showing: app.videoClose)
+    app.videoClose.tap()
     XCTAssertTrue(element("files.item.410").appears(within: 10))
     XCTAssertFalse(element("account.inactive-notice").exists, "an active account sees a notice")
     openAccount()

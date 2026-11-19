@@ -994,15 +994,25 @@ ${renderComponents(entries)}
     public static let size3xl: CGFloat = ${dimension(entries, "typography.fontSize.3xl")}
     public static let sizeDisplay: CGFloat = ${dimension(entries, "typography.fontSize.display")}
 
+    #if os(iOS)
+      static let captionSize = PutioIOSTypeScale.caption
+      static let bodySize = PutioIOSTypeScale.body
+      static let monoSize = PutioIOSTypeScale.mono
+    #else
+      static let captionSize = sizeSm
+      static let bodySize = sizeBase
+      static let monoSize = sizeSm
+    #endif
+
     public static let caption = PutioFontRole(
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.regular").value))},
-      size: sizeSm,
+      size: captionSize,
       lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
       textStyle: .caption
     )
     public static let body = PutioFontRole(
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.regular").value))},
-      size: sizeBase,
+      size: bodySize,
       lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
       textStyle: .body
     )
@@ -1033,7 +1043,7 @@ ${renderComponents(entries)}
     #if os(iOS) || os(watchOS)
       public static let mono = PutioFontRole(
         fontName: ${swiftString(nativeFontName(familyMono, requiredToken(entries, "typography.fontWeight.regular").value))},
-        size: sizeSm,
+        size: monoSize,
         lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
         textStyle: .caption
       )

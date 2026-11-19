@@ -334,6 +334,13 @@ final class OfflineDownloadsTests: XCTestCase {
     for _ in 0..<40 { await Task.yield() }
   }
 
+  private func settle(until done: () -> Bool) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while !done(), ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+  }
+
   func testEachMethodDownloadsItsOwnSourceAndKeepsItAcrossRelaunch() async throws {
     let original = URL(string: "https://api.test/v2/files/412/download")!
     let subtitles = [("en", "English", "eng"), ("tr", "Turkish", "tur")].map {
@@ -392,7 +399,10 @@ final class OfflineDownloadsTests: XCTestCase {
 
     try engine.finishOriginal(directPlay)
     try engine.finish(standard, at: directory)
-    await settle()
+    try await settle {
+      queue.item(for: directPlay)?.stage == .completed
+        && queue.item(for: standard)?.stage == .completed
+    }
     let downloaded = try XCTUnwrap(queue.item(for: directPlay))
     XCTAssertEqual(downloaded.stage, .completed)
     XCTAssertEqual(downloaded.storedSubtitleTracks.map(\.languageCode), ["en", "tr"])

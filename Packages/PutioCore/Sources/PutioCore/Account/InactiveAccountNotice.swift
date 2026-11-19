@@ -68,3 +68,17 @@ public enum PutioInactiveAccountNotice: Equatable, Sendable {
       bundle: .module)
   }
 }
+
+extension PutioVideoPlaybackFailure {
+  public func inactiveAccountNotice(
+    for account: PutioAccountSnapshot?
+  ) -> PutioInactiveAccountNotice? {
+    switch kind {
+    case .playback, .accessExpired, .invalidResponse, .unknown, .conversion:
+      account.flatMap(PutioInactiveAccountNotice.init(account:))
+    case .notFound, .rateLimited, .transient, .connectionLost, .conversionStatus,
+      .conversionUnavailable, .unsupported:
+      nil
+    }
+  }
+}

@@ -3,13 +3,18 @@ import Observation
 
 public struct PutioPublicLink: Identifiable, Hashable, Sendable {
   public let id: Int
+  public let fileID: PutioFileID
   public let fileName: String
   public let kind: PutioFileKind
   public let expiresAt: Date?
   public let url: URL
 
-  public init(id: Int, fileName: String, kind: PutioFileKind, expiresAt: Date?, url: URL) {
+  public init(
+    id: Int, fileID: PutioFileID, fileName: String, kind: PutioFileKind, expiresAt: Date?,
+    url: URL
+  ) {
     self.id = id
+    self.fileID = fileID
     self.fileName = fileName
     self.kind = kind
     self.expiresAt = expiresAt
@@ -46,6 +51,10 @@ public struct PutioPublicLink: Identifiable, Hashable, Sendable {
     guard let expiresAt else {
       return String(localized: "Expires within 72 hours", bundle: .module)
     }
+    return Self.expiryText(expiresAt: expiresAt, at: now)
+  }
+
+  public static func expiryText(expiresAt: Date, at now: Date) -> String {
     let hours = max(1, Int(max(0, expiresAt.timeIntervalSince(now)) / 3600))
     let remaining = String(localized: "\(hours) hours", bundle: .module)
     return String(localized: "Expires in \(remaining)", bundle: .module)

@@ -300,6 +300,10 @@ import Foundation
       #endif
     }
 
+    static var refusesPlayback: Bool {
+      inactiveAccount != nil && !accountRenewalLock.withLock { accountRenewed }
+    }
+
     private static var isAccountDestroyed: Bool {
       accountRenewalLock.withLock { accountDestroyed }
     }
@@ -360,6 +364,16 @@ import Foundation
       return AccountSettingsMode(rawValue: arguments[flag + 1])
     }()
     nonisolated(unsafe) private static var accountInfoRequests = 0
+    static let accountSettingsReleaseNotification = "io.put.harness.account-settings-release"
+    static var holdsAccountSettingsLoads: Bool { accountSettingsMode == .slowLoad }
+    nonisolated(unsafe) private static var heldAccountSettingsLoads: [@Sendable () -> Void] = []
+    nonisolated(unsafe) private static var accountSettingsReleased = false
+    private static let accountSettingsReleaseObserver: Void = {
+      CFNotificationCenterAddObserver(
+        CFNotificationCenterGetDarwinNotifyCenter(), nil,
+        { _, _, _, _, _ in HarnessSeededAPI.releaseAccountSettingsLoads() },
+        accountSettingsReleaseNotification as CFString, nil, .deliverImmediately)
+    }()
 
     enum ProxyMode: String {
       case ready
@@ -386,7 +400,6 @@ import Foundation
       return ProxyMode(rawValue: arguments[flag + 1])
     }()
     nonisolated(unsafe) private static var accountSettingsAutoplaySaves = 0
-    private static let accountSettingsLoadDelay: TimeInterval = 6
 
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
@@ -394,6 +407,26 @@ import Foundation
         || ProcessInfo.processInfo.arguments.contains("--putio-harness-playback-preferences")
     }
     nonisolated(unsafe) private static var filePreferences: FilePreferences?
+
+    private static func castMasterPlaylist(url: URL) -> String {
+      let capped =
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+        .contains { $0.name == "max_subtitle_count" && $0.value == "0" } ?? false
+      let hidden = capped || filePreferences?.hideSubtitles == true
+      let defaults = filePreferences?.dontAutoSelectSubtitles == true ? "NO" : "YES"
+      let subtitles =
+        hidden
+        ? []
+        : [
+          #"#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="en",NAME="English",AUTOSELECT=\#(defaults),DEFAULT=\#(defaults),URI="en.m3u8""#,
+          #"#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="tr",NAME="Turkish",AUTOSELECT=NO,DEFAULT=NO,URI="tr.m3u8""#,
+        ]
+      return
+        (["#EXTM3U"] + subtitles + [
+          #"#EXT-X-STREAM-INF:BANDWIDTH=2030,RESOLUTION=320x180,SUBTITLES="subs0""#, "video.m3u8",
+        ]).joined(separator: "\n")
+    }
+
     nonisolated(unsafe) private static var preferencesSaveFailed = false
     nonisolated(unsafe) private static var preferencesRefreshFailed = false
     nonisolated(unsafe) private static var preferencesSortCommitted = false
@@ -706,11 +739,7 @@ import Foundation
     private static var refusesBulkSeasonTrash: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-bulk-trash-refusal")
     }
-    #if os(tvOS)
-      private static let initialPlaybackPositions = [411: 90, 412: 589, 414: 37, 442: 1_260]
-    #else
-      private static let initialPlaybackPositions = [411: 90, 412: 560, 414: 37, 442: 1_260]
-    #endif
+    private static let initialPlaybackPositions = [411: 90, 412: 560, 414: 37, 442: 1_260]
     nonisolated(unsafe) private static var playbackPositions = initialPlaybackPositions
     nonisolated(unsafe) private static var watchedUpdateFailurePending = true
     nonisolated(unsafe) private static var conversionStarted = false
@@ -767,8 +796,9 @@ import Foundation
     /// `--putio-harness-tv-browse` adds an empty folder and one whose first
     /// listing fails to the root, fails the root's first continuation and
     /// adds a second file to that page, and adds a root row once the Harness
-    /// Folder is opened, so the tvOS browser journey records empty, error,
-    /// recovery, later-page deletion, and refetch-on-return states.
+    /// Folder is opened, and fails the root video's first delete, so the tvOS
+    /// browser journey records empty, error, recovery, failed and later-page
+    /// deletion, and refetch-on-return states.
     private static var usesTVBrowse: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
     }
@@ -866,6 +896,7 @@ import Foundation
       .arguments.contains("--putio-harness-restore-offline-once")
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
+    nonisolated(unsafe) private static var tvRootVideoDeleteFailureDelivered = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var partialMoveFailureDelivered = false
     nonisolated(unsafe) private static var movedSubtitleParents: [Int: Int] = [:]
@@ -1170,6 +1201,7 @@ import Foundation
       }
       bulkDeleteFailureDelivered = false
       offlineOriginalTrashed = false
+      tvRootVideoDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
       partialMoveFailureDelivered = false
       movedSubtitleParents = [:]
@@ -1341,9 +1373,8 @@ import Foundation
       } else if Self.proxyMode == .slow, url.path == "/v2/tunnel/routes" {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.proxyRoutesDelay, execute: deliverResponse)
-      } else if Self.delaysAccountSettingsLoad(url) {
-        DispatchQueue.global().asyncAfter(
-          deadline: .now() + Self.accountSettingsLoadDelay, execute: deliverResponse)
+      } else if Self.holdsAccountSettingsLoad(url, deliver: deliverResponse) {
+        return
       } else if Self.clearsData(replayableRequest, mode: .slow) {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + Self.slowClearDelay, execute: deliverResponse)
@@ -1395,9 +1426,30 @@ import Foundation
       }
     }
 
-    private static func delaysAccountSettingsLoad(_ url: URL) -> Bool {
-      guard accountSettingsMode == .slowLoad, url.path == "/v2/account/info" else { return false }
-      return fileActionsLock.withLock { accountInfoRequests > 1 }
+    private static func holdsAccountSettingsLoad(
+      _ url: URL, deliver: @escaping @Sendable () -> Void
+    ) -> Bool {
+      guard holdsAccountSettingsLoads, url.path == "/v2/account/info" else { return false }
+      observeAccountSettingsRelease()
+      return fileActionsLock.withLock {
+        guard accountInfoRequests > 1, !accountSettingsReleased else { return false }
+        heldAccountSettingsLoads.append(deliver)
+        return true
+      }
+    }
+
+    static func observeAccountSettingsRelease() {
+      guard holdsAccountSettingsLoads else { return }
+      _ = accountSettingsReleaseObserver
+    }
+
+    static func releaseAccountSettingsLoads() {
+      let held = fileActionsLock.withLock {
+        accountSettingsReleased = true
+        defer { heldAccountSettingsLoads.removeAll() }
+        return heldAccountSettingsLoads
+      }
+      for deliver in held { deliver() }
     }
 
     private static func holdsDeviceLink(_ request: URLRequest) -> Bool {
@@ -2116,13 +2168,15 @@ import Foundation
         "GET /v2/files/443/subtitles", "GET /v2/files/444/subtitles":
         return seasonEpisodeSubtitles(
           id: Int(url.deletingLastPathComponent().lastPathComponent) ?? 0)
+      case "GET /v2/files/412/hls/media.m3u8":
+        return (200, castMasterPlaylist(url: url))
       case "GET /v2/files/412/subtitles":
         return (
           200,
           """
           {"default":"en","subtitles":[
-            {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en"},
-            {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"}
+            {"key":"en","language":"English","language_code":"eng","name":"Nested.Movie.en.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/412/subtitles/en"},
+            {"key":"tr","language":"Turkish","language_code":"tur","name":"Nested.Movie.tr.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/412/subtitles/tr"}
           ]}
           """
         )
@@ -2245,6 +2299,7 @@ import Foundation
           "parent_id":\(seasonFolderID),"size":\(seasonEpisodes[0].size),
           "created_at":"2026-10-07T10:00:00Z","updated_at":"2026-10-07T10:00:00Z",
           "need_convert":\(episodeNeedsConversion),"start_from":\(failingOriginalStart),
+          "screenshot":"https://put.io/harness/screenshots/441.jpg",
           "video_metadata":\(seasonEpisodeMetadata)\(failingOriginalFields)}}
           """
         )
@@ -2548,6 +2603,7 @@ import Foundation
         "created_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
         "updated_at":"2026-10-\(episode?.day ?? 13)T10:00:00Z",
         "need_convert":false,"start_from":\(playbackPosition(fileID: id)),
+        "screenshot":"https://put.io/harness/screenshots/\(id).jpg",
         "video_metadata":\(seasonEpisodeMetadata)}}
         """
     }
@@ -2560,8 +2616,8 @@ import Foundation
         200,
         """
         {"default":"en","subtitles":[
-          {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"folder","url":"https://api.put.io/v2/files/\(id)/subtitles/en"},
-          {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/\(id)/subtitles/tr"}
+          {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"folder","format":"srt","url":"https://api.put.io/v2/files/\(id)/subtitles/en"},
+          {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","format":"srt","url":"https://api.put.io/v2/files/\(id)/subtitles/tr"}
         ]}
         """
       )
@@ -3235,6 +3291,15 @@ import Foundation
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
+        if usesTVBrowse, !tvRootVideoDeleteFailureDelivered {
+          tvRootVideoDeleteFailureDelivered = true
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_TRANSIENT_ROOT_VIDEO_DELETE_FAILURE",
+              message: "The first delete of the root video fails for recovery proof")
+          )
+        }
         offlineOriginalTrashed = true
         return (200, #"{"status":"OK"}"#)
       }

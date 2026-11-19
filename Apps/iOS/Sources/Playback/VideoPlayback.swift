@@ -32,7 +32,7 @@ struct PutioVideoPlaybackView: View {
   private let selectsAVPlayerAudio: Bool
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
-  private let reportFailure: @MainActor @Sendable (PutioVideoPlayerFault) -> Void
+  private let reportFailure: @MainActor @Sendable (PutioPlaybackFailureReport) -> Void
   private let showsHarnessReadiness: Bool
   private let positionPipeline: PutioPlaybackPositionPipeline
   private let reportPosition: PutioPlaybackPositionReport
@@ -41,11 +41,10 @@ struct PutioVideoPlaybackView: View {
   private let onCast: (@MainActor @Sendable () -> Void)?
   private let castHandOff: PutioVideoConvertedHandOff?
   private let onOpenInVLC: (() -> Void)?
-  private let onFallback: @MainActor @Sendable () -> Void
   private let onFallbackPlays: @MainActor @Sendable () -> Void
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let subtitleMemory: PutioSubtitleMemory?
-  private let loadSubtitleListings: PutioSubtitleListingsLoad
+  private let account: PutioAccountSnapshot?
 
   init(
     route: PutioVideoRoute,
@@ -57,7 +56,7 @@ struct PutioVideoPlaybackView: View {
     suggestsNextVideo: Bool = true,
     autoplayNextVideo: @escaping PutioNextVideoAutoplayPolicy = { false },
     reportsPlayerFailures: Bool = true,
-    reportFailure: @escaping @MainActor @Sendable (PutioVideoPlayerFault) -> Void,
+    reportFailure: @escaping @MainActor @Sendable (PutioPlaybackFailureReport) -> Void,
     showsHarnessReadiness: Bool = false,
     conversionPollInterval: Duration = PutioVideoPlaybackModel.conversionPollInterval,
     upNextSleep: @escaping PutioNextVideoSleep = { try await Task.sleep(for: $0) },
@@ -72,20 +71,18 @@ struct PutioVideoPlaybackView: View {
     onCast: (@MainActor @Sendable () -> Void)? = nil,
     castHandOff: PutioVideoConvertedHandOff? = nil,
     onOpenInVLC: (() -> Void)? = nil,
-    onFallback: @escaping @MainActor @Sendable () -> Void = {},
     onFallbackPlays: @escaping @MainActor @Sendable () -> Void = {},
     resolveConverted: PutioPlaybackResolve? = nil,
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
-    loadSubtitleListings: @escaping PutioSubtitleListingsLoad = { _ in [] },
+    account: PutioAccountSnapshot? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
-    self.onFallback = onFallback
+    self.account = account
     self.onFallbackPlays = onFallbackPlays
     self.castButton = castButton
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
-    self.loadSubtitleListings = route.subtitleListings(loadSubtitleListings)
     let transport = PutioVideoTransport()
     transport.onSubtitlePicked = { subtitleMemory?.remember($0) }
     transport.onSubtitleFailed = { subtitleMemory?.forget($0) }
@@ -149,7 +146,8 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack {
       content
-      PutioVideoSubtitleOverlay(cues: transport.subtitleCues, size: transport.subtitleSize)
+      PutioVideoSubtitleOverlay(
+        cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture)
       if isReady, nextVideoFailed {
         nextVideoFailure
       } else if isReady, !transport.wait.state.hidesControls {
@@ -174,9 +172,6 @@ struct PutioVideoPlaybackView: View {
     .putioVideoResumeAlert(resumePrompter)
     .task {
       await model.loadIfNeeded()
-    }
-    .task {
-      transport.subtitleListings = (try? await loadSubtitleListings(fileID)) ?? []
     }
     .task {
       await nextVideoModel.lookUp()
@@ -488,18 +483,20 @@ struct PutioVideoPlaybackView: View {
       onFailure: { failure in
         playerIsReady = false
         guard reportsPlayerFailures else { return }
+        let report = model.failureReport(
+          failure.error, beforeFirstFrame: failure.beforeFirstFrame, platform: .ios)
         if model.fallsBack(after: failure.fault, beforeFirstFrame: failure.beforeFirstFrame) {
           fallbacks += 1
-          onFallback()
         } else {
           reportedFaults.append(failure.fault)
-          reportFailure(failure.fault)
         }
+        if let report { reportFailure(report) }
         playerFailureTask?.cancel()
         playerFailureTask = Task {
-          await model.playerFailed(
+          let refreshFailure = await model.playerFailed(
             failure.fault, heldSeconds: failure.heldSeconds,
             beforeFirstFrame: failure.beforeFirstFrame)
+          if let refreshFailure { reportFailure(refreshFailure) }
         }
       })
     #if DEBUG
@@ -587,8 +584,18 @@ struct PutioVideoPlaybackView: View {
       conversionGate(.converting(progress: 1))
         .accessibilityIdentifier("video.conversion-completed")
     case .failed(let failure):
-      failureView(failure)
-        .accessibilityIdentifier("video.error")
+      if let notice = failure.inactiveAccountNotice(for: account) {
+        PutioErrorStateView(
+          title: notice.title,
+          message: notice.daysUntilFilesDeleted().map(
+            PutioInactiveAccountNotice.filesDeletionMessage)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("video.account-notice")
+      } else {
+        failureView(failure)
+          .accessibilityIdentifier("video.error")
+      }
     }
   }
 
@@ -659,9 +666,11 @@ struct PutioVideoPlaybackView: View {
 }
 
 struct PutioVideoPlayerFailure: Equatable, Sendable {
-  let fault: PutioVideoPlayerFault
+  let error: PutioPlayerError
   let heldSeconds: Int?
   var beforeFirstFrame = false
+
+  var fault: PutioVideoPlayerFault { error.fault }
 }
 
 /// A conversion state under app.put.io's explanation of why the video waits.
@@ -1078,7 +1087,7 @@ final class PutioVideoPlayerCoordinator {
           self?.reportReady(generation: playbackGeneration)
         case .failed:
           self?.reportFailure(
-            PutioVideoPlayerFault(error: item.error), generation: playbackGeneration)
+            PutioPlayerError(avPlayerError: item.error), generation: playbackGeneration)
         case .unknown:
           break
         @unknown default:
@@ -1107,10 +1116,11 @@ final class PutioVideoPlayerCoordinator {
       object: item,
       queue: nil
     ) { [weak self] notification in
-      let fault = PutioVideoPlayerFault(
-        error: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError)
+      let error = PutioPlayerError(
+        avPlayerError: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+      )
       Task { @MainActor [weak self] in
-        self?.reportFailure(fault, generation: playbackGeneration)
+        self?.reportFailure(error, generation: playbackGeneration)
       }
     }
     playedToEndObservation = notificationCenter.addObserver(
@@ -1200,7 +1210,7 @@ final class PutioVideoPlayerCoordinator {
       audioSessionIsActive = true
     } catch {
       Task { @MainActor [weak self] in
-        self?.reportFailure(.playback, generation: playbackGeneration)
+        self?.reportFailure(PutioPlayerError(avPlayerError: error), generation: playbackGeneration)
       }
       return false
     }
@@ -1250,7 +1260,7 @@ final class PutioVideoPlayerCoordinator {
         guard !failureReported else { return }
         guard finished else {
           reportFailure(
-            PutioVideoPlayerFault(error: driver.player.currentItem?.error),
+            PutioPlayerError(avPlayerError: driver.player.currentItem?.error),
             generation: playbackGeneration)
           return
         }
@@ -1368,7 +1378,7 @@ final class PutioVideoPlayerCoordinator {
   }
 
   private func reportFailure(
-    _ fault: PutioVideoPlayerFault, generation playbackGeneration: UInt64
+    _ error: PutioPlayerError, generation playbackGeneration: UInt64
   ) {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
@@ -1379,7 +1389,7 @@ final class PutioVideoPlayerCoordinator {
     positionReporter?.playbackFailed()
     onFailure?(
       PutioVideoPlayerFailure(
-        fault: fault, heldSeconds: heldSeconds,
+        error: error, heldSeconds: heldSeconds,
         beforeFirstFrame: surface?.showsFirstFrame != true))
   }
 

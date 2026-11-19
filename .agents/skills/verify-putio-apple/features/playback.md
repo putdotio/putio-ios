@@ -8,10 +8,10 @@ offline playback.
 
 - `video-wait` shows Preparing video, buffering, the 10-second label and the
   30-second stall, recovers on its own, and leaves or reloads from the stall.
-- `walk` signs in, recovers a failed video load, plays to the end, autoplays
-  the next episode at its saved position, and signs out. This is the recorded
-  walk.
-- `resume` asks Resume or Start over for a partly watched video, before the
+- The recorded walk, the journey without `--only`, signs in, recovers a failed
+  video load, plays to the end, autoplays the next episode at its saved
+  position, and signs out.
+- `resume-persistence` asks Resume or Start over for a partly watched video, before the
   player or after a conversion, skips, pauses, scrubs, hides and shows the
   controls, and keeps the position across Close and reopening a file.
 - `video-errors` shows the expired-access and Connection lost states, keeps Close
@@ -81,8 +81,8 @@ offline playback.
   and checks the Downloads tab agrees.
 - `downloads-direct-play-offline` plays a Direct play download with the network
   cut, switches its stored subtitle and audio track, and syncs the position.
-- `large-text-audio` keeps the audio controls usable at the largest text size
-  in portrait and landscape.
+- `accessibility-audio` keeps the audio controls usable at the largest text
+  size in portrait and landscape.
 
 ## How to get to it (user POV)
 

@@ -91,18 +91,20 @@ struct PutioFolderScreen: View {
     self.accountNotice = accountNotice
     self.offlineFiles = offlineFiles
     self.route = route
+    let refreshRegistration = PutioFolderRefreshRegistration(
+      folderID: route.id, requests: refreshRequests)
+    _refreshRegistration = State(initialValue: refreshRegistration)
     _model = State(
       initialValue: PutioFolderModel(
         folderID: route.id,
         load: load,
         continueLoad: continueLoad,
         actions: actions,
-        initialContents: initialContents
+        initialContents: initialContents,
+        refreshRegistration: refreshRegistration
       )
     )
     _copyModel = State(initialValue: actions.map(PutioSharedFileCopyModel.init(actions:)))
-    _refreshRegistration = State(
-      initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     _pinItemActions = State(
       initialValue: route.id == .root
         ? actions.map { PutioFileItemActionModel(actions: $0, refreshRequests: refreshRequests) }
@@ -400,6 +402,7 @@ struct PutioFolderScreen: View {
           ),
           in: contents.folder
         )
+        .putioFilesRowPitch()
         .task(id: prefetchIDs.contains(item.id) ? model.continuationKey : nil) {
           guard prefetchIDs.contains(item.id), model.loadMoreFailure == nil else { return }
           await model.loadMore()
@@ -539,6 +542,7 @@ struct PutioFolderScreen: View {
         selection.toggle(presentation.id)
       } content: {
         PutioFileRow(fileRowModel(presentation), downloadContext: .files)
+          .putioFilesRowLabel()
       }
       .disabled(fileActionPending)
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -548,6 +552,7 @@ struct PutioFolderScreen: View {
         for: presentation.item,
         content: NavigationLink(value: route.child(presentation.item, in: parent)) {
           PutioFileRow(presentation.row)
+            .putioFilesRowLabel()
         }
         .disabled(navigationLocked)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -564,6 +569,7 @@ struct PutioFolderScreen: View {
             PutioFileRow(
               fileRowModel(presentation), downloadContext: .files, showsDownloadControl: false
             )
+            .putioFilesRowLabel()
             .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
@@ -1132,14 +1138,8 @@ struct PutioFolderScreen: View {
     !isSorting && fileActionPending
   }
 
-  private var actionNotifier: PutioFolderActionNotifier {
-    PutioFolderActionNotifier(
-      folderID: route.id, owner: refreshRegistration.owner, requests: refreshRequests)
-  }
-
   private func renameAlert(for item: PutioFileItem) -> PutioTextAlert {
     let model = model
-    let notifier = actionNotifier
     return PutioTextAlert(
       title: String(localized: "Rename"),
       initialText: item.name,
@@ -1147,7 +1147,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      try notifier.settleNameAction(of: model) { action in
+      try PutioNameActionSettlement.settle(model) { action in
         guard case .rename(let fileID, _, _) = action else { return false }
         return fileID == item.id
       } alreadyApplied: {
@@ -1159,7 +1159,6 @@ struct PutioFolderScreen: View {
 
   private func newFolderAlert() -> PutioTextAlert {
     let model = model
-    let notifier = actionNotifier
     return PutioTextAlert(
       title: String(localized: "New folder"),
       message: String(localized: "In \(folderTitle)"),
@@ -1168,7 +1167,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
-      try notifier.settleNameAction(of: model) { action in
+      try PutioNameActionSettlement.settle(model) { action in
         guard case .createFolder = action else { return false }
         return true
       }
@@ -1255,7 +1254,6 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome(deleting item: PutioFileItem? = nil) {
     guard let outcome = model.actionOutcome else { return }
-    actionNotifier.notify(outcome.action)
     switch outcome {
     case .succeeded(.delete(_, _, let permanently)) where trashEnabled && !permanently:
       toast = PutioToast(
@@ -1299,19 +1297,6 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
-    if case .delete = outcome.action {
-      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
-    } else {
-      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
-    }
-    if case .move(let destination) = outcome.action {
-      refreshRequests.request(folderID: destination.id)
-      let movedIDs = Set(outcome.succeeded.map(\.id) + outcome.failures.map { $0.item.id })
-      for id in movedIDs {
-        refreshRequests.request(folderID: id)
-      }
-    }
-
     model.clearBulkOutcome()
     if outcome.failures.isEmpty {
       selection.end()
@@ -1429,31 +1414,9 @@ struct PutioFolderScreen: View {
 }
 
 @MainActor
-private struct PutioFolderActionNotifier {
-  let folderID: PutioFileID
-  let owner: UUID
-  let requests: PutioFolderRefreshRequests
-
-  func notify(_ action: PutioFileAction) {
-    switch action {
-    case .delete, .restore:
-      requests.requestAllLoadedFolders(excludingOwner: owner)
-    default:
-      requests.request(folderID: folderID, excludingOwner: owner)
-    }
-    switch action {
-    case .rename(let fileID, _, _):
-      requests.request(folderID: fileID)
-    case .move(let fileID, _, _, let destinationID, _):
-      requests.request(folderID: fileID)
-      requests.request(folderID: destinationID)
-    default:
-      break
-    }
-  }
-
-  func settleNameAction(
-    of model: PutioFolderModel,
+private enum PutioNameActionSettlement {
+  static func settle(
+    _ model: PutioFolderModel,
     matching isNameAction: (PutioFileAction) -> Bool,
     alreadyApplied: () -> Bool = { false }
   ) throws {
@@ -1462,7 +1425,6 @@ private struct PutioFolderActionNotifier {
       throw PutioNameActionFailure()
     }
     model.clearActionOutcome()
-    notify(outcome.action)
     if case .failed = outcome { throw PutioNameActionFailure() }
   }
 }

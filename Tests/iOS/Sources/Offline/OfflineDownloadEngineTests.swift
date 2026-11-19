@@ -133,6 +133,21 @@ struct OfflineDownloadEngineTests {
     #expect(languages(in: legible) == ["en", "tr"])
   }
 
+  @Test func aProgressiveAudioFileKeepsTheDefaultMediaSelection() async throws {
+    let track = try #require(
+      Bundle.main.url(
+        forResource: "runtime-proof-audio", withExtension: "m4a", subdirectory: "HarnessMedia"))
+    let asset = AVURLAsset(url: track)
+    let untouched = AVAssetDownloadConfiguration(asset: asset, title: "track")
+
+    let configuration = try await PutioSystemOfflineDownloadEngine.prepareConfiguration(
+      url: asset.url, title: "track")
+
+    #expect(
+      configuration.primaryContentConfiguration.mediaSelections
+        == untouched.primaryContentConfiguration.mediaSelections)
+  }
+
   @Test(arguments: [true, false])
   func supersededStartCannotDisplaceItsReplacement(replacementFinishesFirst: Bool) async throws {
     let gate = Gate()

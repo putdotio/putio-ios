@@ -8,18 +8,22 @@ private let runtime = try! JSONDecoder().decode(
   from: Data(
     #"""
     {"name":"iOS 26.5","identifier":"com.apple.CoreSimulator.SimRuntime.iOS-26-5","version":"26.5",
-     "platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+     "buildversion":"23F77","platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
       {"name":"iPhone 17 Pro","identifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
        "productFamily":"iPhone"}]}
     """#.utf8))
 
-private let templateName = simulatorTemplateName(
-  runtime: runtime.identifier, deviceType: runtime.supportedDeviceTypes[0].identifier)
+private let toolchain = SimulatorToolchain(xcodeBuild: "17F42", coreSimulatorVersion: "1051.17.7")
 
-private func listedDevice(_ udid: String, name: String = templateName, state: String = "Shutdown")
-  -> String
-{
-  #"{"udid":"\#(udid)","name":"\#(name)","state":"\#(state)","isAvailable":true}"#
+private let templateName = simulatorTemplateName(
+  runtime: runtime.identifier, runtimeBuild: "23F77",
+  deviceType: runtime.supportedDeviceTypes[0].identifier, toolchain: toolchain)
+
+private func listedDevice(
+  _ udid: String, name: String = templateName, state: String = "Shutdown",
+  isAvailable: Bool = true
+) -> String {
+  #"{"udid":"\#(udid)","name":"\#(name)","state":"\#(state)","isAvailable":\#(isAvailable)}"#
 }
 
 private func withFakeTemplateSimctl(
@@ -72,7 +76,7 @@ struct SimulatorTemplateTests {
     let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: enabled, lock: lock)
+        environment: enabled, toolchain: toolchain, lock: lock)
     }
     #expect(run.template == "CACHED-TEMPLATE")
     #expect(run.calls == ["simctl list devices -j"])
@@ -88,9 +92,9 @@ struct SimulatorTemplateTests {
     let run = try withFakeTemplateSimctl(existing: nil) { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: environment, lock: lock)
+        environment: environment, toolchain: toolchain, lock: lock)
     }
-    let name = "putio-template-iOS-26-5-iPhone-17-Pro"
+    let name = "putio-template-iOS-26-5-23F77-iPhone-17-Pro-xcode-17F42-cs-1051.17.7"
     #expect(run.template == "NEW-TEMPLATE")
     #expect(run.calls.count == 6)
     #expect(run.calls.first == "simctl list devices -j")
@@ -113,7 +117,7 @@ struct SimulatorTemplateTests {
     let run = try withFakeTemplateSimctl(existing: nil, failing: "bootstatus") { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: enabled, lock: lock)
+        environment: enabled, toolchain: toolchain, lock: lock)
     }
     #expect(run.template == nil)
     let failure = try #require(run.error as? HarnessFailure)
@@ -133,7 +137,7 @@ struct SimulatorTemplateTests {
     let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: [:], lock: lock)
+        environment: [:], toolchain: toolchain, lock: lock)
     }
     #expect(run.template == "CACHED-TEMPLATE")
     #expect(run.calls == ["simctl list devices -j"])
@@ -152,7 +156,7 @@ struct SimulatorTemplateTests {
     let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness, lock in
       try harness.simulatorTemplate(
         platform: platform, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: environment, lock: lock)
+        environment: environment, toolchain: toolchain, lock: lock)
     }
     #expect(run.template == nil)
     #expect(run.calls.isEmpty)
@@ -165,7 +169,7 @@ struct SimulatorTemplateTests {
     ) { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: enabled, lock: lock)
+        environment: enabled, toolchain: toolchain, lock: lock)
     }
     #expect(run.template == "CACHED-TEMPLATE")
     #expect(
@@ -183,9 +187,96 @@ struct SimulatorTemplateTests {
     ) { harness, lock in
       try harness.simulatorTemplate(
         platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
-        environment: enabled, lock: lock)
+        environment: enabled, toolchain: toolchain, lock: lock)
     }
     #expect(run.template == nil)
     #expect(run.calls == ["simctl list devices -j"])
+  }
+
+  @Test func templateNameCarriesTheRuntimeBuildXcodeBuildAndCoreSimulatorVersion() {
+    #expect(templateName == "putio-template-iOS-26-5-23F77-iPhone-17-Pro-xcode-17F42-cs-1051.17.7")
+  }
+
+  @Test func xcodeBuildVersionIsReadFromXcodebuildVersionOutput() {
+    #expect(xcodeBuildVersion(fromVersionOutput: "Xcode 26.5\nBuild version 17F42\n") == "17F42")
+    #expect(xcodeBuildVersion(fromVersionOutput: "Xcode 26.5\n") == nil)
+  }
+
+  @Test func templatesMadeWithAnotherRuntimeXcodeOrCoreSimulatorBuildAreDeleted() throws {
+    let run = try withFakeTemplateSimctl(
+      existing: nil,
+      listing: [
+        listedDevice("LEGACY", name: "putio-template-iOS-26-5-iPhone-17-Pro"),
+        listedDevice(
+          "OLD-RUNTIME",
+          name: "putio-template-iOS-26-5-23F70-iPhone-17-Pro-xcode-17F42-cs-1051.17.7"),
+        listedDevice(
+          "OLD-XCODE", name: "putio-template-iOS-26-5-23F77-iPad-Pro-xcode-17F30-cs-1051.17.7"),
+        listedDevice(
+          "OLD-CORESIMULATOR",
+          name: "putio-template-iOS-26-5-23F77-iPhone-17-Pro-xcode-17F42-cs-1051.9"),
+        listedDevice(
+          "CURRENT-IPAD",
+          name: "putio-template-iOS-26-5-23F77-iPad-Pro-xcode-17F42-cs-1051.17.7"),
+        listedDevice(
+          "BOOTED-LEGACY", name: "putio-template-iOS-26-5-iPad-Pro", state: "Booted"),
+        listedDevice("SOMEONE-ELSE", name: "iPhone 17 Pro"),
+      ]
+    ) { harness, lock in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
+        environment: enabled, toolchain: toolchain, lock: lock)
+    }
+    #expect(run.template == "NEW-TEMPLATE")
+    #expect(
+      Array(run.calls.prefix(10)) == [
+        "simctl list devices -j",
+        "simctl shutdown LEGACY",
+        "simctl delete LEGACY",
+        "simctl shutdown OLD-CORESIMULATOR",
+        "simctl delete OLD-CORESIMULATOR",
+        "simctl shutdown OLD-RUNTIME",
+        "simctl delete OLD-RUNTIME",
+        "simctl shutdown OLD-XCODE",
+        "simctl delete OLD-XCODE",
+        "simctl list devices -j",
+      ])
+    #expect(run.calls.dropFirst(10).first?.hasPrefix("simctl create putio-pending-") == true)
+    #expect(run.calls.last == "simctl rename NEW-TEMPLATE \(templateName)")
+    #expect(!run.calls.contains { $0.contains("CURRENT-IPAD") || $0.contains("BOOTED-LEGACY") })
+    #expect(!run.calls.contains { $0.contains("SOMEONE-ELSE") })
+  }
+
+  @Test func anUnavailableTemplateIsDeletedAndMadeAgain() throws {
+    let run = try withFakeTemplateSimctl(
+      existing: nil, listing: [listedDevice("GONE-TEMPLATE", isAvailable: false)]
+    ) { harness, lock in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: runtime, deviceType: runtime.supportedDeviceTypes[0],
+        environment: enabled, toolchain: toolchain, lock: lock)
+    }
+    #expect(run.template == "NEW-TEMPLATE")
+    #expect(
+      Array(run.calls.prefix(4)) == [
+        "simctl list devices -j",
+        "simctl shutdown GONE-TEMPLATE",
+        "simctl delete GONE-TEMPLATE",
+        "simctl list devices -j",
+      ])
+    #expect(run.calls.last == "simctl rename NEW-TEMPLATE \(templateName)")
+  }
+
+  @Test func aTemplateIsNotUsedWhenTheRuntimeBuildIsUnknown() throws {
+    let unversioned = RuntimeRecord(
+      name: runtime.name, identifier: runtime.identifier, version: runtime.version,
+      platform: runtime.platform, isAvailable: true,
+      supportedDeviceTypes: runtime.supportedDeviceTypes)
+    let run = try withFakeTemplateSimctl(existing: "CACHED-TEMPLATE") { harness, lock in
+      try harness.simulatorTemplate(
+        platform: .ios, runtime: unversioned, deviceType: runtime.supportedDeviceTypes[0],
+        environment: enabled, toolchain: toolchain, lock: lock)
+    }
+    #expect(run.template == nil)
+    #expect(run.calls.isEmpty)
   }
 }

@@ -102,6 +102,7 @@ struct PutioPinnedRows: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .putioItemActions(menu(for: pin.item))
         .putioListDetailRow(pin.id)
+        .putioFilesRowPitch()
         .selectionDisabled()
     }
     .onChange(of: pins) { _, pins in
@@ -115,7 +116,9 @@ struct PutioPinnedRows: View {
       PutioFileRowModel(
         name: pin.item.name,
         kind: PutioBrowserItemPresentation.rowKind(for: pin.item.kind),
-        dateText: pin.location.map(PutioPinnedCopy.location)))
+        dateText: pin.location.map(PutioPinnedCopy.location))
+    )
+    .putioFilesRowLabel()
     if pin.item.kind == .folder {
       NavigationLink(value: PutioFolderRoute(id: pin.item.id, title: pin.item.name)) {
         label

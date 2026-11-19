@@ -168,13 +168,6 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     // Status updates are attributed to this file only while the receiver
     // still reports our tag; another sender's media publishes as nil.
     builder.customData = [Self.fileIDKey: media.id.rawValue]
-    builder.mediaTracks = media.subtitles.enumerated().compactMap { index, subtitle in
-      GCKMediaTrack(
-        identifier: PutioCastTextTrack.id(at: index),
-        contentIdentifier: subtitle.url.absoluteString, contentType: "text/vtt", type: .text,
-        textSubtype: .subtitles, name: subtitle.language, languageCode: subtitle.languageCode,
-        customData: nil)
-    }
     let request = GCKMediaLoadRequestDataBuilder()
     request.mediaInformation = builder.build()
     request.autoplay = NSNumber(value: autoplay)
@@ -369,15 +362,18 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       case .unknown: .loading
       @unknown default: .loading
       }
-    let audioTracks = (mediaStatus.mediaInformation?.mediaTracks ?? []).filter {
-      $0.type == .audio
-    }
+    let tracks = mediaStatus.mediaInformation?.mediaTracks ?? []
+    let audioTracks = tracks.filter { $0.type == .audio }
+    let textTracks = tracks.filter { $0.type == .text && $0.textSubtype != .metadata }
     onMediaStatusChanged?(
       PutioCastMediaStatus(
         fileID: fileID, playerState: state, positionSeconds: mediaStatus.streamPosition,
         durationSeconds: mediaStatus.mediaInformation?.streamDuration ?? 0,
         audioTracks: audioTracks.map {
           PutioCastAudioTrack(id: $0.identifier, languageCode: $0.languageCode, name: $0.name)
+        },
+        textTracks: textTracks.map {
+          PutioCastTextTrack(id: $0.identifier, languageCode: $0.languageCode, name: $0.name)
         },
         activeTrackIDs: (mediaStatus.activeTrackIDs ?? []).map(\.intValue)))
   }

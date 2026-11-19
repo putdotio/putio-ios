@@ -127,7 +127,7 @@ runs:
           [.runtimes[] | select(.platform == "iOS" and .isAvailable
             and (.version | split(".")[0:2]) == ($sdk | split(".")[0:2]))][0].buildversion // "none"')"
         coresimulator="$(defaults read /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/Info.plist CFBundleVersion)"
-        echo "key=${{ runner.os }}-simulator-template-xcode-$xcode-ios-$runtime-coresimulator-$coresimulator" >> "$GITHUB_OUTPUT"
+        echo "key=${{ runner.os }}-simulator-template-v2-xcode-$xcode-ios-$runtime-coresimulator-$coresimulator" >> "$GITHUB_OUTPUT"
 
     - name: Restore the iOS Simulator template
       id: simulator-template
@@ -147,9 +147,6 @@ runs:
           mv "$HOME"/.cache/putio-simulator-templates/*/ "$devices/"
           # CoreSimulator only lists devices that existed when its service started.
           killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
-          echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
-        elif [[ "$GITHUB_EVENT_NAME" == push ]]; then
-          # Only pushes to next save a template, so only they spend a boot creating one.
           echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
         fi
 

@@ -238,7 +238,7 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
     runs-on: xcode-27
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Check out repository
@@ -255,6 +255,12 @@ jobs:
 
       - name: Verify iOS snapshots and features
         run: ./scripts/verify.sh ios
+
+      - name: Create a new iOS Simulator template
+        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
+        env:
+          PUTIO_SIMULATOR_TEMPLATES: "1"
+        run: ./scripts/harness.sh boot --platform ios
 
       - name: Stage a new iOS Simulator template
         if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'

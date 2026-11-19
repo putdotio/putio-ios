@@ -136,7 +136,7 @@ final class PutioDirectPlayCoordinator {
     do {
       engine = try PutioDirectPlayEngine.shared.claim(by: self)
     } catch {
-      reportFailure(.playback, generation: playbackGeneration)
+      reportFailure(Self.error(nil), generation: playbackGeneration)
       return
     }
     self.engine = engine
@@ -178,7 +178,7 @@ final class PutioDirectPlayCoordinator {
         case .ended:
           reportPlaybackEnded()
         case .error:
-          reportFailure(Self.fault(engine.errorInfo), generation: playbackGeneration)
+          reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
         case .idle, .loading, .playing, .seeking:
           break
         }
@@ -244,9 +244,13 @@ final class PutioDirectPlayCoordinator {
     options.autoplay = false
     options.preferredAudioLanguages = preferredAudioLanguages
     options.prepareNativeSubtitles = true
-    options.externalSubtitles = (original?.subtitles ?? []).map { subtitle in
+    let files = original?.fileSubtitles ?? []
+    let labels = PutioTrackLabel.fileSubtitleTitles(
+      files.map { ($0.languageCode, $0.language, $0.name) })
+    options.externalSubtitles = zip(files, labels).map { subtitle, label in
       ExternalSubtitleTrack(
-        url: subtitle.url, name: subtitle.name, language: subtitle.languageCode,
+        url: subtitle.url, name: label,
+        language: subtitle.languageCode,
         isDefault: subtitle.key == original?.defaultSubtitleKey,
         formatHint: subtitle.url.pathExtension.isEmpty ? "webvtt" : nil)
     }
@@ -256,11 +260,12 @@ final class PutioDirectPlayCoordinator {
     } catch is CancellationError {
       return
     } catch {
-      reportFailure(Self.fault(engine.errorInfo), generation: playbackGeneration)
+      reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
       return
     }
     guard generation == playbackGeneration, !failureReported else { return }
-    selectStartSubtitle(in: engine, subtitles: subtitles)
+    selectStartSubtitle(
+      in: engine, subtitles: subtitles, embeddedDefault: original?.defaultEmbeddedTrack)
     readyReported = true
     if callbacks.observesPlaybackState {
       reportSubtitle(engine.subtitleTracks, active: engine.activeSubtitleTrackIndex)
@@ -286,19 +291,37 @@ final class PutioDirectPlayCoordinator {
     engine.play()
   }
 
-  private func selectStartSubtitle(in engine: AetherEngine, subtitles: SubtitleStart) {
+  private func selectStartSubtitle(
+    in engine: AetherEngine, subtitles: SubtitleStart,
+    embeddedDefault: (languageCode: String, position: Int)?
+  ) {
     guard
       let start = subtitles.policy.startingTrack(
-        in: Self.startCandidates(engine.subtitleTracks), remembered: subtitles.remembered())
+        in: Self.startCandidates(engine.subtitleTracks, embeddedDefault: embeddedDefault),
+        remembered: subtitles.remembered())
     else { return }
     engine.selectSubtitleTrack(index: start.id)
   }
 
-  static func startCandidates(_ tracks: [TrackInfo]) -> [PutioSubtitleTrack] {
-    tracks.filter { !$0.isForced }.map { track in
+  static func startCandidates(
+    _ tracks: [TrackInfo], embeddedDefault: (languageCode: String, position: Int)? = nil
+  ) -> [PutioSubtitleTrack] {
+    let candidates = tracks.filter { !$0.isForced }
+    let native: Int? =
+      if candidates.contains(where: { $0.isExternal && $0.isDefault }) {
+        nil
+      } else if let embeddedDefault {
+        tracks.filter {
+          !$0.isExternal
+            && PutioSubtitleLanguage.matches($0.language, embeddedDefault.languageCode)
+        }.dropFirst(embeddedDefault.position).first?.id
+      } else {
+        nil
+      }
+    return candidates.map { track in
       PutioSubtitleTrack(
         id: track.id, title: track.name, languageTag: track.language,
-        isDefault: track.isExternal && track.isDefault)
+        isDefault: track.isExternal ? track.isDefault : track.id == native)
     }
   }
 
@@ -312,7 +335,7 @@ final class PutioDirectPlayCoordinator {
       } catch is CancellationError {
         return
       } catch {
-        self?.reportFailure(Self.fault(engine.errorInfo), generation: playbackGeneration)
+        self?.reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
         return
       }
       guard let self, generation == playbackGeneration else { return }
@@ -337,7 +360,7 @@ final class PutioDirectPlayCoordinator {
       } catch is CancellationError {
         return
       } catch {
-        self?.reportFailure(Self.fault(engine.errorInfo), generation: playbackGeneration)
+        self?.reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
         return
       }
       guard let self, generation == playbackGeneration else { return }
@@ -373,7 +396,7 @@ final class PutioDirectPlayCoordinator {
   }
 
   private func reportFailure(
-    _ fault: PutioVideoPlayerFault, generation playbackGeneration: UInt64
+    _ error: PutioPlayerError, generation playbackGeneration: UInt64
   ) {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
@@ -386,14 +409,12 @@ final class PutioDirectPlayCoordinator {
     positionReporter?.playbackFailed()
     callbacks.onFailure(
       PutioVideoPlayerFailure(
-        fault: fault, heldSeconds: heldSeconds,
+        error: error, heldSeconds: heldSeconds,
         beforeFirstFrame: engine?.hasFirstFrameReadyForDisplay != true))
   }
 
-  private static func fault(_ info: PlaybackErrorInfo?) -> PutioVideoPlayerFault {
-    guard let info, let domain = info.underlyingDomain, let code = info.underlyingCode else {
-      return .playback
-    }
-    return PutioVideoPlayerFault(error: NSError(domain: domain, code: code))
+  static func error(_ info: PlaybackErrorInfo?) -> PutioPlayerError {
+    PutioPlayerError(
+      aetherKind: info?.kind.rawValue, domain: info?.underlyingDomain, code: info?.underlyingCode)
   }
 }

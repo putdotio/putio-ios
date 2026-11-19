@@ -61,6 +61,7 @@ struct TVVideoPlaybackView: View {
   @State private var nextVideoTask: Task<Void, Never>?
 
   private let route: PutioVideoRoute
+  private let account: PutioAccountSnapshot
   private let remembersPosition: Bool
   private let pipeline: PutioPlaybackPositionPipeline
   private let runtime: PutioRuntime
@@ -78,6 +79,7 @@ struct TVVideoPlaybackView: View {
   ) {
     let media = TVPlaybackMedia(runtime: runtime, account: account)
     self.route = route
+    self.account = account
     self.remembersPosition = account.rememberVideoTime
     self.pipeline = pipeline
     self.runtime = runtime
@@ -159,11 +161,15 @@ struct TVVideoPlaybackView: View {
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
       TVConversionStatusView(state: model.state)
     case .failed(let failure):
-      PutioErrorStateView(
-        title: failure.title, message: failure.message, retryTitle: "Try again",
-        retryIdentifier: "video.retry"
-      ) {
-        retrySequence &+= 1
+      if let notice = failure.inactiveAccountNotice(for: account) {
+        TVPlaybackAccountNotice(notice: notice)
+      } else {
+        PutioErrorStateView(
+          title: failure.title, message: failure.message, retryTitle: "Try again",
+          retryIdentifier: "video.retry"
+        ) {
+          retrySequence &+= 1
+        }
       }
 
     case .ready:
@@ -191,7 +197,7 @@ struct TVVideoPlaybackView: View {
         probes: showsProbes ? probes : nil,
         onEnded: playbackEnded,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
-        onFailure: { model.playerFailed() }
+        onFailure: { model.playerFailed($0) }
       )
       .ignoresSafeArea()
     case .ended:
@@ -212,14 +218,14 @@ struct TVVideoPlaybackView: View {
     let duration = try? await asset.load(.duration)
     guard !Task.isCancelled else { return }
     let seconds = duration.map(CMTimeGetSeconds)
-    if let prompt = PutioVideoResumePrompt(
+    switch PutioVideoStart.prompted(
       startFromSeconds: source.startFromSeconds, durationSeconds: seconds,
       remembersPosition: remembersPosition)
     {
+    case .ask(let prompt):
       stage = .asking(item, prompt)
-    } else {
-      stage = .playing(
-        item, startSeconds: remembersPosition ? source.startFromSeconds : 0)
+    case .play(let startSeconds):
+      stage = .playing(item, startSeconds: startSeconds)
     }
   }
 
@@ -535,7 +541,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let probes: TVPlaybackProbes?
   let onEnded: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
-  let onFailure: @MainActor () -> Void
+  let onFailure: @MainActor (PutioVideoPlayerFault) -> Void
 
   func makeCoordinator() -> TVVideoPlayerCoordinator {
     TVVideoPlayerCoordinator()
@@ -588,7 +594,7 @@ final class TVVideoPlayerCoordinator {
   private var onEnded: (@MainActor () -> Void)?
   private var onReportsSettled: (@MainActor () -> Void)?
   private var waitForReports: (@MainActor () async -> Void)?
-  private var onFailure: (@MainActor () -> Void)?
+  private var onFailure: (@MainActor (PutioVideoPlayerFault) -> Void)?
   private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
   private let applyDefaultSubtitle: @MainActor (AVPlayerItem, AVPlayer) async -> Void
 
@@ -613,7 +619,7 @@ final class TVVideoPlayerCoordinator {
     probes: TVPlaybackProbes? = nil,
     onEnded: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
-    onFailure: @escaping @MainActor () -> Void
+    onFailure: @escaping @MainActor (PutioVideoPlayerFault) -> Void
   ) {
     generation &+= 1
     let playbackGeneration = generation
@@ -635,7 +641,8 @@ final class TVVideoPlayerCoordinator {
         guard let self, let player, self.player === player else { return nil }
         return PutioVideoPositionReporter.normalizedPosition(
           seconds: CMTimeGetSeconds(player.currentTime()))
-      })
+      },
+      endOfPlayback: .keepsPosition)
     self.reporter = reporter
 
     // Controls stay hidden until the default subtitle is applied, so no
@@ -657,8 +664,10 @@ final class TVVideoPlayerCoordinator {
     notificationObservations = [
       center.addObserver(
         forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated { self?.reportFailure(generation: playbackGeneration) }
+      ) { [weak self] notification in
+        let fault = PutioVideoPlayerFault(
+          error: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+        MainActor.assumeIsolated { self?.reportFailure(fault, generation: playbackGeneration) }
       },
       center.addObserver(
         forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
@@ -677,7 +686,9 @@ final class TVVideoPlayerCoordinator {
       try session.setActive(true)
       audioSessionIsActive = true
     } catch {
-      Task { @MainActor [weak self] in self?.reportFailure(generation: playbackGeneration) }
+      Task { @MainActor [weak self] in
+        self?.reportFailure(.playback, generation: playbackGeneration)
+      }
       return
     }
 
@@ -694,7 +705,7 @@ final class TVVideoPlayerCoordinator {
           !failureReported
         else { return }
         guard finished else {
-          reportFailure(generation: playbackGeneration)
+          reportFailure(.playback, generation: playbackGeneration)
           return
         }
         reporter.positionEstablished()
@@ -764,7 +775,7 @@ final class TVVideoPlayerCoordinator {
         reportMediaSelection(for: item, generation: playbackGeneration)
       }
     case .failed:
-      reportFailure(generation: playbackGeneration)
+      reportFailure(PutioVideoPlayerFault(error: item.error), generation: playbackGeneration)
     case .unknown:
       break
     @unknown default:
@@ -792,10 +803,12 @@ final class TVVideoPlayerCoordinator {
     item.select(option, in: group)
   }
 
-  private func reportFailure(generation playbackGeneration: UInt64) {
+  private func reportFailure(
+    _ fault: PutioVideoPlayerFault, generation playbackGeneration: UInt64
+  ) {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
-    onFailure?()
+    onFailure?(fault)
   }
 
   private func reportEnded(generation playbackGeneration: UInt64) {

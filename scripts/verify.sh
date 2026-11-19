@@ -11,8 +11,14 @@ lanes=("$@")
 for lane in "${lanes[@]}"; do
   case "$lane" in
     tooling | checks | build | ios | tvos) ;;
+    journeys)
+      if [[ -n "$(git status --porcelain=v1 --untracked-files=all)" ]]; then
+        printf 'verify journeys needs a clean committed worktree; commit or pass other lanes\n' >&2
+        exit 65
+      fi
+      ;;
     *)
-      printf 'unknown verify lane: %s (expected tooling, checks, build, ios, or tvos)\n' "$lane" >&2
+      printf 'unknown verify lane: %s (expected tooling, checks, build, ios, tvos, or journeys)\n' "$lane" >&2
       exit 64
       ;;
   esac
@@ -30,5 +36,6 @@ for lane in "${lanes[@]}"; do
       ;;
     build) ./scripts/build.sh ;;
     ios | tvos) ./scripts/harness.sh test --platform "$lane" ;;
+    journeys) ./scripts/harness.sh journey --platform ios --scenario files-browser ;;
   esac
 done

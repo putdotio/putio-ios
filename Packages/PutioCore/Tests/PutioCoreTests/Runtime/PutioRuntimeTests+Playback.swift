@@ -140,6 +140,10 @@ extension PutioRuntimeTests {
         .queryItems?.first(where: { $0.name == "oauth_token" })?.value,
       "account-download-secret"
     )
+    XCTAssertNil(
+      URLComponents(url: source.url, resolvingAgainstBaseURL: false)?
+        .queryItems?.first(where: { $0.name == "max_subtitle_count" }),
+      "an account that shows subtitles gets every rendition")
     XCTAssertFalse(String(describing: source).contains("stored-token"))
     XCTAssertFalse(String(reflecting: source).contains("stored-token"))
   }
@@ -554,25 +558,26 @@ extension PutioRuntimeTests {
     }
   }
 
-  func testCastMediaIsHLSWithSideLoadedSubtitlesAndRedactsTheToken() async throws {
+  private static let castFile = """
+    {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
+     "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+     "need_convert":false,"start_from":589,"screenshot":"https://img.put.io/412.jpg",
+     "video_metadata":{"duration":5400.5,"codec":"h264","width":1920,"height":1080}}}
+    """
+
+  func testCastMediaPlaysTheManifestSubtitlesNamedByTheMasterAndRedactsTheToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
       #"{"config":{"chromecast_playback_type":"mp4"}}"#, for: "GET /v2/config")
+    fixtures.setFixture(Self.castFile, for: "GET /v2/files/412")
     fixtures.setFixture(
       """
-      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
-       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
-       "need_convert":false,"start_from":589,"screenshot":"https://img.put.io/412.jpg",
-       "video_metadata":{"duration":5400.5,"codec":"h264","width":1920,"height":1080}}}
-      """, for: "GET /v2/files/412")
-    fixtures.setFixture(
-      """
-      {"default":"tr","subtitles":[
-        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"mkv","url":"https://api.put.io/v2/files/412/subtitles/en"},
-        {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr?oauth_token=stored-token"},
-        {"key":"x","language":"Elsewhere","language_code":"und","name":"x.srt","source":"folder","url":"https://example.com/x.srt"}
-      ]}
-      """, for: "GET /v2/files/412/subtitles")
+      #EXTM3U
+      #EXT-X-STREAM-INF:BANDWIDTH=1197612,SUBTITLES="subs0"
+      video.m3u8
+      #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="en",NAME="English",AUTOSELECT=YES,DEFAULT=YES,URI="en.m3u8"
+      #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs0",LANGUAGE="tr",NAME="Turkish",AUTOSELECT=NO,DEFAULT=NO,URI="tr.m3u8"
+      """, for: "GET /v2/files/412/hls/media.m3u8")
     guard
       case .ready(let media) = try await runtime.resolveCastMedia(
         fileID: PutioFileID(rawValue: 412))
@@ -583,20 +588,16 @@ extension PutioRuntimeTests {
     XCTAssertEqual(media.artworkURL, URL(string: "https://img.put.io/412.jpg"))
     let components = try XCTUnwrap(URLComponents(url: media.url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(components.path, "/v2/files/412/hls/media.m3u8")
-    XCTAssertNil(
-      components.queryItems?.first { $0.name == "subtitle_key" },
-      "the stream muxes subtitles the load request already side-loads")
+    XCTAssertEqual(components.queryItems?.first { $0.name == "subtitle_key" }?.value, "all")
+    XCTAssertNil(components.queryItems?.first { $0.name == "max_subtitle_count" })
     XCTAssertEqual(
       components.queryItems?.first { $0.name == "oauth_token" }?.value, "account-download-secret")
-    XCTAssertEqual(media.subtitles.map(\.key), ["en", "tr"])
-    XCTAssertEqual(media.subtitles.map(\.source), [.embedded, .openSubtitles])
-    XCTAssertEqual(media.defaultSubtitleKey, "tr")
-    for subtitle in media.subtitles {
-      let query = URLComponents(url: subtitle.url, resolvingAgainstBaseURL: false)?.queryItems
-      XCTAssertEqual(
-        query?.filter { $0.name == "oauth_token" }.map(\.value), ["account-download-secret"])
-      XCTAssertEqual(query?.first { $0.name == "format" }?.value, "webvtt")
-    }
+    XCTAssertEqual(
+      media.subtitleRenditions,
+      [
+        PutioSubtitleRendition(name: "English", languageTag: "en", isDefault: true),
+        PutioSubtitleRendition(name: "Turkish", languageTag: "tr", isDefault: false),
+      ])
     XCTAssertFalse(String(reflecting: media).contains("secret"))
     XCTAssertFalse(String(describing: media).contains("secret"))
     XCTAssertFalse(
@@ -604,26 +605,40 @@ extension PutioRuntimeTests {
       "casting reads no Chromecast setting")
   }
 
-  func testCastMediaStillLoadsWhenSubtitlesFailOrAreHidden() async throws {
+  func testHiddenSubtitlesAskForAStreamWithoutThem() async throws {
     let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(Self.castFile, for: "GET /v2/files/412")
     fixtures.setFixture(
-      """
-      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
-       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
-       "need_convert":false,"start_from":0}}
-      """, for: "GET /v2/files/412")
+      Self.playbackFile(needConvert: false, startFrom: 0), for: Self.playbackRoute)
     fixtures.setFixture(
-      #"{"status":"ERROR"}"#, statusCode: 500, for: "GET /v2/files/412/subtitles")
+      Self.accountInfo.replacingOccurrences(
+        of: #""hide_subtitles": false"#, with: #""hide_subtitles": true"#),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccount()
+    XCTAssertTrue(refreshed)
+
     guard
-      case .ready(let failed) = try await runtime.resolveCastMedia(
-        fileID: PutioFileID(rawValue: 412))
+      case .ready(let media) = try await runtime.resolveCastMedia(
+        fileID: PutioFileID(rawValue: 412)),
+      case .ready(let local) = try await runtime.resolveVideoPlaybackSource(
+        fileID: PutioFileID(rawValue: 411)),
+      case .ready(let download) = try await runtime.resolveVideoPlaybackSource(
+        fileID: PutioFileID(rawValue: 411), forDownload: true)
     else { return XCTFail("expected ready media") }
-    XCTAssertEqual(failed.subtitles, [])
-    XCTAssertNil(failed.defaultSubtitleKey)
-    XCTAssertEqual(
-      URLComponents(url: failed.url, resolvingAgainstBaseURL: false)?.queryItems?
-        .first { $0.name == "subtitle_key" }?.value, "all",
-      "without subtitle files the stream keeps its own subtitles")
+    XCTAssertNil(
+      URLComponents(url: download.url, resolvingAgainstBaseURL: false)?.queryItems?
+        .first { $0.name == "max_subtitle_count" },
+      "a download keeps every rendition for when subtitles come back on")
+
+    for url in [media.url, local.url] {
+      let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      XCTAssertEqual(items.filter { $0.name == "max_subtitle_count" }.map(\.value), ["0"])
+      XCTAssertEqual(items.first { $0.name == "subtitle_key" }?.value, "all")
+    }
+    XCTAssertEqual(media.subtitleRenditions, [], "the manifest fixture failed, so no names")
+    XCTAssertFalse(
+      fixtures.capturedRequests().contains { $0.url?.path == "/v2/files/412/subtitles" },
+      "casting reads no subtitle list")
   }
 
   func testCastAudioSendsTheOriginalStreamWithItsTypeAndRejectsVideo() async throws {

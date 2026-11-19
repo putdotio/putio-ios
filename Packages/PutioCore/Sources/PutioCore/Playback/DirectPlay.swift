@@ -1,6 +1,13 @@
 import Foundation
 import PutioSDK
 
+extension PutioMediaInfo {
+  var defaultAudioStream: PutioMediaStream? {
+    streams.first { $0.codecType == .audio && $0.isDefault == true }
+      ?? streams.first { $0.codecType == .audio }
+  }
+}
+
 /// What the Direct play engine decodes, and which player opens an original.
 /// The engine's FFmpeg build decodes every codec but the ones listed here, as
 /// its formats page states; AVPlayer keeps the MP4 and MOV files it plays.
@@ -17,14 +24,14 @@ public enum PutioDirectPlayDecoders {
   }
 
   /// The SDK asks this only for an original with `media_info` and no playback
-  /// issue: the first video stream and the first audio stream must decode.
+  /// issue: the first video stream and the default audio stream must decode.
   static func support(of media: PutioMediaInfo) -> PutioOriginalVideoSupport {
     if let video = media.streams.first(where: { $0.codecType == .video }),
       let codec = video.codecName?.lowercased(), undecodableVideo.contains(codec)
     {
       return .unsupported(.videoUnsupported)
     }
-    if let audio = media.streams.first(where: { $0.codecType == .audio }),
+    if let audio = media.defaultAudioStream,
       !canDecodeAudio(codec: audio.codecName)
     {
       return .unsupported(.audioUnsupported)
@@ -118,13 +125,44 @@ public enum PutioTrackLabel {
     }
   }
 
-  static func languageName(_ code: String?) -> String? {
+  /// Menus name languages in English, as put.io's other apps do.
+  public static let english = Locale(identifier: "en")
+
+  /// put.io's label for each subtitle file, as its HLS manifests name them:
+  /// "English - Movie.720p" for Movie.720p.srt, "Unknown - Movie" for no
+  /// language, and " (2)" on a repeat.
+  public static func fileSubtitleTitles(
+    _ files: [(languageCode: String, language: String, fileName: String)]
+  ) -> [String] {
+    var seen: [String: Int] = [:]
+    return files.map { file in
+      let language =
+        PutioSubtitleLanguage.key(file.languageCode) == "und"
+        ? String(localized: "Unknown", bundle: .module)
+        : languageName(file.languageCode) ?? file.language
+      let label = "\(language) - \(withoutExtension(file.fileName))"
+      let count = seen[label, default: 0] + 1
+      seen[label] = count
+      return count == 1 ? label : "\(label) (\(count))"
+    }
+  }
+
+  /// Python's `os.path.splitext`: the last dot ends the name unless only
+  /// dots come before it.
+  static func withoutExtension(_ name: String) -> String {
+    guard let dot = name.lastIndex(of: "."),
+      name[..<dot].contains(where: { $0 != "." })
+    else { return name }
+    return String(name[..<dot])
+  }
+
+  public static func languageName(_ code: String?) -> String? {
     guard let code = code?.trimmingCharacters(in: .whitespaces), !code.isEmpty,
       code.lowercased() != "und"
     else { return nil }
     let language = Locale.Language(identifier: code)
     let identifier = language.languageCode?.identifier(.alpha2) ?? code
-    guard let name = Locale.current.localizedString(forLanguageCode: identifier),
+    guard let name = english.localizedString(forLanguageCode: identifier),
       name.lowercased() != identifier.lowercased(), name.lowercased() != code.lowercased()
     else { return nil }
     return name

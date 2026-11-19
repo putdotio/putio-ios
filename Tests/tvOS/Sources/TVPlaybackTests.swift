@@ -102,6 +102,21 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
   }
 
+  func testPlayingToTheEndKeepsTheEndPosition() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    let reported = ReportedPositions()
+    let pipeline = PutioPlaybackPositionPipeline()
+    var ended = false
+    let (coordinator, controller, _) = try await startPlayer(
+      base: base, startSeconds: 586, remembersPosition: true, pipeline: pipeline,
+      reported: reported, onEnded: { ended = true })
+    await waitUntil("ended") { ended }
+    coordinator.stop(controller: controller)
+    await pipeline.waitForPendingReports(fileID: Self.fileID)
+    XCTAssertGreaterThanOrEqual(reported.reports.last?.1 ?? 0, 586, "the end reset the position")
+  }
+
   /// Start from the beginning plays from zero and still reports; an account
   /// that does not remember positions reports nothing.
   func testStartOverPlaysFromZeroAndRememberOffReportsNothing() async throws {
@@ -188,7 +203,7 @@ final class TVPlaybackTests: XCTestCase {
         url: base.appending(path: "multi-audio/multi-subtitles-autoselect-audio.m3u8")),
       fileID: Self.fileID, startSeconds: 0, remembersPosition: false,
       pipeline: PutioPlaybackPositionPipeline(), reportPosition: { _, _ in }, in: controller,
-      probes: probes, onFailure: { XCTFail("playback failed") })
+      probes: probes, onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("subtitle default") { probes.subtitle == "en" }
     await waitUntil("preferred audio") { probes.audioLanguage == "tr" }
     XCTAssertEqual(probes.audioLanguage, "tr", "audio no longer follows the preferred language")
@@ -196,8 +211,8 @@ final class TVPlaybackTests: XCTestCase {
   }
 
   /// A video can end, or be left, while the subtitle default is still
-  /// loading; playback already runs, so the end still counts and resets the
-  /// position, and leaving still flushes it.
+  /// loading; playback already runs, so the end still counts and keeps the
+  /// end position, and leaving still flushes it.
   func testEndAndExitDuringTheSubtitleLoadStillCount() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
@@ -212,7 +227,7 @@ final class TVPlaybackTests: XCTestCase {
       coordinator.start(
         item: item, fileID: Self.fileID, startSeconds: 0, remembersPosition: true,
         pipeline: pipeline, reportPosition: { reported.record($0, $1) }, in: controller,
-        onEnded: { ended = true }, onFailure: { XCTFail("playback failed") })
+        onEnded: { ended = true }, onFailure: { _ in XCTFail("playback failed") })
       await waitUntil("subtitle load started") { gate.entered }
       XCTAssertFalse(controller.showsPlaybackControls, "controls before the subtitle default")
 
@@ -230,7 +245,7 @@ final class TVPlaybackTests: XCTestCase {
         XCTAssertEqual(reported.reports.count, 1, "leaving during the load lost the final sample")
       } else {
         XCTAssertTrue(ended, "the end during the load never reached Up Next")
-        XCTAssertEqual(reported.reports.map(\.1), [0], "the end did not reset the position")
+        XCTAssertEqual(reported.reports.count, 1, "the end saved no position")
       }
     }
   }
@@ -259,7 +274,7 @@ final class TVPlaybackTests: XCTestCase {
       },
       in: controller, probes: probes,
       onReportsSettled: { requests.request(folderID: route.parentID) },
-      onFailure: { XCTFail("playback failed") })
+      onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("player ready") { probes.isReady }
 
     coordinator.stop(controller: controller)
@@ -336,7 +351,8 @@ final class TVPlaybackTests: XCTestCase {
   /// its start position.
   private func startPlayer(
     base: URL, startSeconds: Int, remembersPosition: Bool,
-    pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions
+    pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions,
+    onEnded: @escaping @MainActor () -> Void = {}
   ) async throws -> (TVVideoPlayerCoordinator, AVPlayerViewController, TVPlaybackProbes) {
     let coordinator = TVVideoPlayerCoordinator()
     let controller = AVPlayerViewController()
@@ -345,7 +361,7 @@ final class TVPlaybackTests: XCTestCase {
       item: AVPlayerItem(url: base.appending(path: "runtime-proof.m3u8")),
       fileID: Self.fileID, startSeconds: startSeconds, remembersPosition: remembersPosition,
       pipeline: pipeline, reportPosition: { reported.record($0, $1) }, in: controller,
-      probes: probes, onFailure: { XCTFail("playback failed") })
+      probes: probes, onEnded: onEnded, onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("player ready") { probes.isReady }
     return (coordinator, controller, probes)
   }

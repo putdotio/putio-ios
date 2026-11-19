@@ -86,6 +86,36 @@ final class InactiveAccountNoticeTests: XCTestCase {
       PutioAccountSnapshot.Status(accountStatus: .stranger, accountActive: false), .stranger)
   }
 
+  func testPlaybackRefusedOnAnInactiveAccountShowsTheAccountNotice() throws {
+    let owner = account(.inactive, deletion: deletion)
+    let member = account(.inactive, subAccount: true)
+    for failure in [
+      .playback, .accessExpired,
+      try XCTUnwrap(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.unknown)),
+      try XCTUnwrap(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.invalidResponse)),
+      .conversion,
+    ] as [PutioVideoPlaybackFailure] {
+      XCTAssertEqual(
+        failure.inactiveAccountNotice(for: owner), .deactivated(filesDeletionDate: deletion),
+        "\(failure.kind)")
+      XCTAssertEqual(failure.inactiveAccountNotice(for: member), .familyPlanExpired)
+      XCTAssertNil(failure.inactiveAccountNotice(for: account(.active)), "\(failure.kind)")
+      XCTAssertNil(failure.inactiveAccountNotice(for: nil))
+    }
+  }
+
+  func testFailuresTheAccountDoesNotCauseKeepTheirOwnMessage() throws {
+    let owner = account(.inactive, deletion: deletion)
+    for failure in [
+      try XCTUnwrap(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.notFound)),
+      try XCTUnwrap(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.rateLimited)),
+      try XCTUnwrap(PutioVideoPlaybackFailure.resolving(PutioRuntimeError.transient)),
+      .connectionLost, .unsupported, .conversionUnavailable,
+    ] as [PutioVideoPlaybackFailure] {
+      XCTAssertNil(failure.inactiveAccountNotice(for: owner), "\(failure.kind)")
+    }
+  }
+
   private func account(
     _ status: PutioAccountSnapshot.Status, subAccount: Bool = false, deletion: Date? = nil
   ) -> PutioAccountSnapshot {

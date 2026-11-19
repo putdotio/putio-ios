@@ -1790,7 +1790,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.appears(within: 10))
   }
 
-  func testFolderEmptyPagingFailedPageAndPullToRefresh() {
+  func testEmptyFolderRefreshesAndCreatesAFolder() {
     app.launchArguments.append("--putio-harness-folder-states")
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
@@ -1814,9 +1814,29 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let created = element(identifier: "files.item.415")
     XCTAssertTrue(created.appears(within: 10), "the created folder never replaced the empty state")
     XCTAssertFalse(empty.exists, "the empty state outlived the new folder")
+
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(
       element(identifier: "files.screen.423").disappears(within: 10), "Back never left Empty")
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
+    let account = app.buttons["Account"]
+    if !account.exists { app.buttons["Files"].tap() }
+    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
+    account.tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
+  }
+
+  func testFolderPagingFailedPageAndPullToRefresh() {
+    app.launchArguments.append("--putio-harness-folder-states")
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
 
     let paging = element(identifier: "files.item.460")
     app.bringIntoView(paging)
@@ -1847,18 +1867,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(scrollUntilShown(lastRow, swipes: 120), "paging never reached the 450th file")
     XCTAssertFalse(element(identifier: "files.more.460").exists, "the last page kept a footer")
     XCTAssertFalse(failed.exists, "a later page failed")
-
-    app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
-    let account = app.buttons["Account"]
-    if !account.exists { app.buttons["Files"].tap() }
-    XCTAssertTrue(account.appears(within: 5), "the tab bar stayed collapsed")
-    account.tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testFolderFailuresNameTheirReasonAndRecover() {

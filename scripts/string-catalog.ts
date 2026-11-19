@@ -66,6 +66,11 @@ export const exemptLiterals: { file: string; text: string; reason: string }[] = 
     text: "Harness exercise complete",
     reason: "shown only to the harness after a scripted sign-out",
   },
+  {
+    file: "Packages/PutioCore/Sources/PutioCore/Playback/PlaybackFailureReport.swift",
+    text: "playback \u0000: \u0000",
+    reason: "the Sentry playback_failure message every put.io player sends in English",
+  },
 ];
 
 export const androidSnapshotPath = "Config/AndroidStrings.json";

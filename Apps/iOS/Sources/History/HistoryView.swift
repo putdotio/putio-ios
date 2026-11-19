@@ -377,13 +377,6 @@ private struct PutioHistoryRow: View {
   @PutioScaledMetric(PutioMetricRole(value: 6, relativeTo: .caption)) private var separatorGap
   @PutioScaledMetric(PutioMetricRole(value: 3, relativeTo: .caption)) private var timeSpaceKern
 
-  private static let timeFont = PutioTabularFontRole(
-    base: PutioFontRole(
-      fontName: PutioTheme.Typography.mono.fontName,
-      size: PutioTheme.Typography.sizeXs,
-      lineHeight: PutioTheme.Typography.mono.lineHeight,
-      textStyle: .caption))
-
   var body: some View {
     let presentation = PutioHistoryEventPresentation(event)
     HStack(spacing: contentGap) {
@@ -443,7 +436,7 @@ private struct PutioHistoryRow: View {
 
   private var timeText: some View {
     Text(compactTime)
-      .putioFont(Self.timeFont)
+      .putioFont(PutioTheme.Typography.numeric)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .lineLimit(1)
   }

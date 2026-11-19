@@ -55,7 +55,8 @@ enum PutioOfflineQueueFactory {
           let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         case .video:
-          let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+          let resolution = try await runtime.resolveVideoPlaybackSource(
+            fileID: fileID, forDownload: true)
           guard case .ready(let source) = resolution else { return resolution }
           return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
         }
@@ -221,7 +222,7 @@ enum PutioExternalPlaybackOpener {
         let arguments = ProcessInfo.processInfo.arguments
         return HarnessExternalURLOpener(
           vlcInstalled: arguments.contains("--putio-harness-vlc-installed"),
-          removesVLCAfterFirstCheck: arguments.contains("--putio-harness-vlc-removed"),
+          hidesVLCAtHandoff: arguments.contains("--putio-harness-vlc-removed"),
           refusesFirstHandoff: arguments.contains("--putio-harness-vlc-refuses-once"))
       }
     #endif

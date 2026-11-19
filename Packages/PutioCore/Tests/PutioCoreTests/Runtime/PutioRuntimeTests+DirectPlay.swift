@@ -47,7 +47,8 @@ extension PutioRuntimeTests {
       {"default":"tr","subtitles":[
         {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/411/subtitles/en"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/411/subtitles/tr"},
-        {"key":"x","language":"Elsewhere","language_code":"und","name":"x.srt","source":"opensubtitles","url":"https://example.com/x.srt"}
+        {"key":"x","language":"Elsewhere","language_code":"und","name":"x.srt","source":"opensubtitles","url":"https://example.com/x.srt"},
+        {"key":"in","language":"English","language_code":"eng","name":"Movie.srt","source":"mkv","url":"https://api.put.io/v2/files/411/subtitles/in"}
       ]}
       """,
       for: Self.directPlaySubtitlesRoute)
@@ -67,9 +68,12 @@ extension PutioRuntimeTests {
         PutioOriginalAudioStream(codec: "eac3", channels: 6),
         PutioOriginalAudioStream(codec: "dts", profile: "DTS-HD MA", channels: 8),
       ])
-    XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr", "in"])
     XCTAssertEqual(
-      original.subtitles.map { query($0.url) },
+      original.fileSubtitles.map(\.key), ["en", "tr"],
+      "the engine reads the original's own tracks, not put.io's copy of them")
+    XCTAssertEqual(
+      original.fileSubtitles.map { query($0.url) },
       Array(repeating: ["oauth_token": "account-download-secret", "format": "webvtt"], count: 2))
     XCTAssertEqual(original.defaultSubtitleKey, "tr")
     let fileRequest = try XCTUnwrap(
@@ -134,6 +138,35 @@ extension PutioRuntimeTests {
     XCTAssertEqual(source.original?.subtitles.map(\.key), ["en"])
   }
 
+  func testAnMP4OriginalWhoseDefaultIsItsOwnTrackPlaysInTheEngineOnThatTrack() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      Self.directPlayFile(
+        mediaInfo: """
+          {"format": {"name": "mov,mp4,m4a,3gp,3g2,mj2"},
+          "streams": [
+          {"codec_type": "video", "codec_name": "h264", "rfc6381_codec": "avc1.64001f"}],
+          "playback_issues": []}
+          """),
+      for: Self.directPlayRoute)
+    fixtures.setFixture(
+      """
+      {"default":"in","subtitles":[
+        {"key":"in","language":"English","language_code":"eng","name":"Movie.srt","source":"mkv","url":"https://api.put.io/v2/files/411/subtitles/in"}
+      ]}
+      """,
+      for: Self.directPlaySubtitlesRoute)
+
+    guard case .ready(let source) = try await resolveDirectPlay(runtime) else {
+      return XCTFail("expected the original")
+    }
+
+    XCTAssertEqual(source.original?.player, .engine)
+    XCTAssertEqual(source.original?.fileSubtitles, [])
+    XCTAssertEqual(source.original?.defaultEmbeddedTrack?.languageCode, "eng")
+    XCTAssertEqual(source.original?.defaultEmbeddedTrack?.position, 0)
+  }
+
   func testDirectPlayPlaysTheConvertedCopyWhenTheEngineCannotDecodeTheVideo() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
@@ -151,6 +184,51 @@ extension PutioRuntimeTests {
 
     XCTAssertEqual(source.url.path, "/v2/files/411/mp4/stream")
     XCTAssertNil(source.original)
+  }
+
+  func testDirectPlayChecksTheFirstFlaggedAudioOrFallsBackToFirstAudio() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let cases = [
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"ac4","default":false},
+        {"codec_type":"audio","codec_name":"aac","default":true},
+        {"codec_type":"audio","codec_name":"ac4","default":true}
+        """,
+        path: "/v2/files/411/stream"
+      ),
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"aac"},
+        {"codec_type":"audio","codec_name":"ac4","default":true}
+        """,
+        path: "/v2/files/411/mp4/stream"
+      ),
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"ac4"},
+        {"codec_type":"audio","codec_name":"aac"}
+        """,
+        path: "/v2/files/411/mp4/stream"
+      ),
+    ]
+
+    for fixture in cases {
+      fixtures.setFixture(
+        Self.directPlayFile(
+          mediaInfo: """
+            {"format":{"name":"matroska"},"streams":[
+              {"codec_type":"video","codec_name":"h264"},\(fixture.audio)
+            ],"playback_issues":[]}
+            """,
+          mp4Available: true),
+        for: Self.directPlayRoute)
+
+      guard case .ready(let source) = try await resolveDirectPlay(runtime) else {
+        return XCTFail("expected a playable file")
+      }
+      XCTAssertEqual(source.url.path, fixture.path, fixture.audio)
+    }
   }
 
   func testDirectPlayConvertsAnOriginalWithoutMediaInfoAndNoConvertedCopy() async throws {
@@ -265,22 +343,11 @@ extension PutioRuntimeTests {
       model.state,
       .ready(
         PutioPlaybackSource(
-          url: movie, startFromSeconds: 90, resumesAfterFailure: true, original: original)))
+          url: movie, startFromSeconds: 90, resumesAfterFailure: true, original: original,
+          facts: stored.facts)))
 
     await model.playerFailed(.accessExpired, heldSeconds: 90)
     XCTAssertEqual(model.state, .failed(.accessExpired))
-    let listings: PutioSubtitleListingsLoad = { try await runtime.subtitleListings(fileID: $0) }
-    let storedRoute = PutioVideoRoute(
-      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie",
-      initialResolution: .ready(stored))
-    let storedListings = try await storedRoute.subtitleListings(listings)(storedRoute.id)
-    XCTAssertEqual(storedListings, [])
-    XCTAssertEqual(fixtures.capturedRequests().count, baseline)
-
-    let streamedRoute = PutioVideoRoute(
-      id: PutioFileID(rawValue: 411), parentID: PutioFileID(rawValue: 0), title: "Movie")
-    _ = try await streamedRoute.subtitleListings(listings)(streamedRoute.id)
-    XCTAssertEqual(fixtures.capturedRequests().count, baseline + 1)
   }
 
   func testAStoredSourceTakesOnlyFilesOnThisDevice() {

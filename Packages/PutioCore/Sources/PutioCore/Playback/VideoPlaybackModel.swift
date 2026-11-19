@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import PutioSDK
 
 public typealias PutioPlaybackResolve =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlaybackResolution
@@ -199,6 +200,12 @@ public final class PutioVideoPlaybackModel {
     case resolveConvertedSource
   }
 
+  private enum AccessRefresh {
+    case unused
+    case used
+    case usedThenReady
+  }
+
   public private(set) var state: PutioVideoPlaybackState = .loading
   public private(set) var playerAttempt: UInt64 = 0
   public private(set) var playsConvertedFallback = false
@@ -223,7 +230,8 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private var attemptedLoad = false
   @ObservationIgnored private var recovery: Recovery = .resolve
   @ObservationIgnored private var heldSeconds: Int?
-  @ObservationIgnored private var refreshedExpiredAccess = false
+  @ObservationIgnored private var accessRefresh = AccessRefresh.unused
+  @ObservationIgnored private var refreshFailureReport: PutioPlaybackFailureReport?
 
   public init(
     fileID: PutioFileID,
@@ -267,7 +275,7 @@ public final class PutioVideoPlaybackModel {
 
   public func retry() async {
     attemptedLoad = true
-    refreshedExpiredAccess = false
+    accessRefresh = .unused
     await recover()
   }
 
@@ -301,42 +309,85 @@ public final class PutioVideoPlaybackModel {
   }
 
   public func playerReady() {
-    guard case .ready = state else { return }
-    refreshedExpiredAccess = false
+    guard case .ready = state, accessRefresh == .used else { return }
+    accessRefresh = .usedThenReady
   }
 
-  public func playerFailed() {
+  public func playerFailed(_ fault: PutioVideoPlayerFault = .playback) {
     guard case .ready = state else { return }
     generation &+= 1
-    state = .failed(.playback)
+    state = .failed(.player(fault))
   }
 
   public func fallsBack(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {
     guard case .ready(let source) = state, source.original != nil, !source.isStored else {
       return false
     }
-    return fault == .playback && beforeFirstFrame && resolveConverted != nil && !resolvesConverted
+    let refusedAfterRefresh = fault == .accessExpired && accessRefresh != .unused
+    return (fault == .playback || refusedAfterRefresh) && beforeFirstFrame
+      && resolveConverted != nil && !resolvesConverted
   }
 
+  /// The report for a player failure, before `playerFailed` acts on it: a
+  /// rescue when the converted copy takes over, otherwise a terminal failure.
+  /// A failure a silent access refresh retries is `nil` here, and
+  /// `playerFailed` returns it if that refresh ends the playback.
+  public func failureReport(
+    _ error: PutioPlayerError, beforeFirstFrame: Bool,
+    platform: PutioPlaybackFailureReport.Platform
+  ) -> PutioPlaybackFailureReport? {
+    guard case .ready(let source) = state else { return nil }
+    let outcome: PutioPlaybackFailureReport.Outcome
+    if fallsBack(after: error.fault, beforeFirstFrame: beforeFirstFrame) {
+      outcome = .rescued(reason: PutioPlaybackReason.decoderError.rawValue, to: .converted)
+    } else {
+      outcome = .failed
+    }
+    let report = PutioPlaybackFailureReport(
+      platform: platform, fileID: fileID, source: source, error: error,
+      playbackStarted: !beforeFirstFrame, outcome: outcome)
+    guard refreshesAccess(after: error.fault, beforeFirstFrame: beforeFirstFrame), !report.isRescue
+    else {
+      refreshFailureReport = nil
+      return report
+    }
+    refreshFailureReport = report
+    return nil
+  }
+
+  private func refreshesAccess(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {
+    let refresh: AccessRefresh =
+      accessRefresh == .usedThenReady ? (beforeFirstFrame ? .used : .unused) : accessRefresh
+    return fault == .accessExpired && refresh == .unused && storedResolution == nil
+  }
+
+  @discardableResult
   public func playerFailed(
     _ fault: PutioVideoPlayerFault, heldSeconds: Int?, beforeFirstFrame: Bool = false
-  ) async {
-    guard case .ready = state else { return }
+  ) async -> PutioPlaybackFailureReport? {
+    let refreshReport = refreshFailureReport
+    refreshFailureReport = nil
+    guard case .ready = state else { return nil }
+    if accessRefresh == .usedThenReady {
+      accessRefresh = beforeFirstFrame ? .used : .unused
+    }
     let fallsBack = fallsBack(after: fault, beforeFirstFrame: beforeFirstFrame)
     if let heldSeconds { self.heldSeconds = heldSeconds }
     recovery = .resolve
     if fallsBack {
       resolvesConverted = true
       await resolveSource()
-      return
+      return nil
     }
-    guard fault == .accessExpired, !refreshedExpiredAccess, storedResolution == nil else {
+    guard refreshesAccess(after: fault, beforeFirstFrame: beforeFirstFrame) else {
       generation &+= 1
       state = .failed(.player(fault))
-      return
+      return nil
     }
-    refreshedExpiredAccess = true
+    accessRefresh = .used
     await resolveSource(showsLoading: false)
+    guard !Task.isCancelled, case .failed = state else { return nil }
+    return refreshReport
   }
 
   private func resolveSource(showsLoading: Bool = true) async {
@@ -548,9 +599,7 @@ public final class PutioVideoPlaybackModel {
     -> PutioPlaybackSource
   {
     if let heldSeconds {
-      return PutioPlaybackSource(
-        url: source.url, startFromSeconds: heldSeconds, resumesAfterFailure: true,
-        original: source.original)
+      return source.resuming(at: heldSeconds)
     }
     if let chosenStart {
       guard source.startFromSeconds == chosenStart.saved else { return source }

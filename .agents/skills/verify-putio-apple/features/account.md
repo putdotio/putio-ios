@@ -14,7 +14,8 @@ from a sign-out that did not finish.
 - `session-restore-storage` and `session-restore-check` restore through an
   unreadable credential and an offline session check: retry restores, a failed
   reset keeps the screen, and the secondary action lands on the fresh welcome.
-- `security` links a device by code, lists apps, and clears data.
+- `account-security` links a device by code and lists apps; `clear-data`
+  clears data.
 - `browser-handoffs` opens Two-factor authentication and Destroy account in
   the browser and refreshes the two-factor value on return;
   `destroyed-account` lands on the welcome when the account is gone on return.
@@ -23,18 +24,19 @@ from a sign-out that did not finish.
 - `privacy-controls` reverts a failed Privacy controls switch with a toast and
   keeps both switches across relaunch.
 - `history` pages, opens items, deletes, and follows the History setting.
-- `rows` opens and closes every Account row from top to end.
-- `settings-states` shows settings loading and failed, retries, and reverts a
-  failed save with a toast, online and offline.
-- `rating` opens rating and contact links only after an explicit tap.
+- `account-rows` opens and closes every Account row from top to end.
+- `account-settings-loading` and `account-settings-states` show settings
+  loading and failed, retry, and revert a failed save with a toast, online and
+  offline.
+- `account-rating` opens rating and contact links only after an explicit tap.
 - `analytics-prompt` shows saving and failed states, retries, and saves the
   choice once.
 - `analytics-prompt-swipe` swipes the prompt away, signs out and in, and
   meets the prompt again.
-- `inactive-account`, `inactive-family`, `inactive-no-date`, and
-  `active-account` show the inactive-account notice on the Files root and
-  Account, clear it after renewal on return to the foreground, and show
-  nothing to an active account.
+- `inactive-account`, `inactive-playback`, `inactive-family`,
+  `inactive-no-date`, and `active-account` show the inactive-account notice on
+  the Files root, Account, and a refused video, clear it after renewal on
+  return to the foreground, and show nothing to an active account.
 - `storage-full` shows the full storage bar and line on Account.
 - `public-links`, `public-links-slow`, and `public-links-failed` list
   exclusive links, copy, share, and revoke them by menu and swipe, survive a
@@ -109,7 +111,8 @@ Preconditions:
   and goes back; Two-factor authentication and Privacy policy record their
   URLs.
 - **Settings states.** Run `--only account-settings-loading,account-settings-states`.
-  `--putio-harness-account-settings slow-load` holds the settings load;
+  `--putio-harness-account-settings slow-load` holds the settings load until
+  the Darwin notification `io.put.harness.account-settings-release`;
   `fail-load` fails it once. Under either, autoplay's first save fails and its
   second is offline. Screenshots: `runtime-account-settings-loading`,
   `runtime-account-settings-failed`, `runtime-account-save-failed-unavailable`,
@@ -127,12 +130,13 @@ Preconditions:
   `rd-ios-ses-17-analytics-saving`, `rd-ios-ses-18-analytics-failed`,
   `rd-ios-ses-25-ipad-analytics`.
 - **Inactive account and full storage.** Run
-  `--only inactive-account,inactive-family,inactive-no-date,active-account,storage-full`.
+  `--only inactive-account,inactive-playback,inactive-family,inactive-no-date,active-account,storage-full`.
   `--putio-harness-account-inactive <owner|owner-no-date|family>` picks the
   fixture; `--putio-harness-account-renews-in-background` turns it active when
   the app leaves the foreground; `--putio-harness-account-storage-full` fills
-  the disk. Screenshots: `runtime-inactive-notice`,
-  `runtime-inactive-account-tab`, `runtime-inactive-renewed`,
+  the disk. An inactive fixture refuses every stream with a 403. Screenshots:
+  `runtime-inactive-notice`, `runtime-inactive-account-tab`,
+  `runtime-inactive-renewed`, `runtime-inactive-playback`,
   `runtime-storage-full`. Boards: `rd-ios-acc-28-storage-full`,
   `rd-ios-acc-29-inactive`, `rd-ios-acc-30-inactive-family`.
 

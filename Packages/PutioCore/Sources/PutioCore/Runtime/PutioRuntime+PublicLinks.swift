@@ -11,6 +11,7 @@ extension PutioRuntime {
       else { return nil }
       return PutioPublicLink(
         id: share.id,
+        fileID: PutioFileID(rawValue: share.userFile.id),
         fileName: share.userFile.name,
         kind: kind(for: share.userFile.fileType),
         expiresAt: share.expirationDate.flatMap(PutioPublicLink.expiryDate),
@@ -18,9 +19,15 @@ extension PutioRuntime {
     }
   }
 
+  public func livePublicLink(
+    fileID: PutioFileID, at now: Date = .now
+  ) async throws -> PutioPublicLink? {
+    try await listPublicLinks().first { $0.fileID == fileID && !$0.isExpired(at: now) }
+  }
+
   public func createPublicLink(fileID: PutioFileID) async throws -> URL {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
-    let share = try await performAuthenticatedOperation {
+    let share = try await performAuthenticatedOperation(commits: true) {
       do {
         return try await sdk.createPublicShare(fileID: fileID.rawValue)
       } catch let error as PutioSDKError where error.publicShareRefusal != nil {

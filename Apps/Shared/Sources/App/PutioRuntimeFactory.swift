@@ -46,14 +46,14 @@ enum PutioRuntimeFactory {
         )
         HarnessSeededAPI.isEnabled = true
         HarnessSeededAPI.observeBackgroundChanges()
+        HarnessSeededAPI.observeAccountSettingsRelease()
         let failSignOut = usesSignOutFailureFixture(scenario: scenario)
         HarnessSeededAPI.configureSignOutFailure(failSignOut)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [HarnessSeededAPI.self]
-        // Bounds only stray requests to hosts the mock does not claim; mocked
-        // responses return in-process.
-        configuration.timeoutIntervalForRequest = 10
-        configuration.timeoutIntervalForResource = 10
+        let timeout: TimeInterval = HarnessSeededAPI.holdsAccountSettingsLoads ? 300 : 10
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
         let tokenStore: PutioTokenStore
         let signOutIntentStore: PutioSignOutIntentStore
         if scenario == .filesBrowser || scenario == .deviceSignIn {

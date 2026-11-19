@@ -1728,17 +1728,6 @@
         }
       }
     },
-    "Embedded" : {
-      "comment" : "android: playback_subtitles_embedded",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Embedded"
-          }
-        }
-      }
-    },
     "Empty trash" : {
       "comment" : "android: mobile_trash_empty_action",
       "localizations" : {
@@ -1960,17 +1949,6 @@
         }
       }
     },
-    "Found by put.io" : {
-      "comment" : "android: playback_subtitles_found",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Found by put.io"
-          }
-        }
-      }
-    },
     "Free" : {
       "comment" : "android: mobile_downloads_free | differs: a row label beside the size",
       "localizations" : {
@@ -2044,17 +2022,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "In %@"
-          }
-        }
-      }
-    },
-    "In this file" : {
-      "comment" : "android: playback_subtitles_in_file",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "In this file"
           }
         }
       }
@@ -2187,17 +2154,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Settings"
-          }
-        }
-      }
-    },
-    "OpenSubtitles" : {
-      "comment" : "android: playback_subtitles_from_opensubtitles",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OpenSubtitles"
           }
         }
       }
@@ -3911,17 +3867,6 @@
         }
       }
     },
-    "This folder" : {
-      "comment" : "android: playback_subtitles_from_folder",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This folder"
-          }
-        }
-      }
-    },
     "This iPad" : {
       "comment" : "ios-only: Android says This device; iOS names the iPad",
       "localizations" : {
@@ -3984,6 +3929,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This iPhone stays signed in. Every other app and device has to sign in again."
+          }
+        }
+      }
+    },
+    "This item already has a link. Copy or share it below." : {
+      "comment" : "ios-only: no board covers the reopened state; coordinator-approved plainest wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item already has a link. Copy or share it below."
           }
         }
       }

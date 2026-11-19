@@ -1235,7 +1235,7 @@ enum TVPlaybackJourneyContract {
   static let continuationAttachmentNames = [
     "runtime-tv-playback-resume", "runtime-tv-playback-resume-start-over",
     "runtime-tv-playback-up-next", "runtime-tv-playback-successor-resume",
-    "runtime-tv-playback-playing",
+    "runtime-tv-playback-playing", "runtime-tv-playback-watched-start",
   ]
   static let controlsTestIdentifier =
     "PutioTVUITests/PlaybackJourneyTests/testSubtitleAndSpeedControlsKeepTheAudioTrack"
@@ -1249,6 +1249,20 @@ enum TVPlaybackJourneyContract {
     "runtime-tv-playback-conversion-failure", "runtime-tv-playback-converting",
     "runtime-tv-playback-converted-resume",
   ]
+}
+
+enum TVInactiveAccountJourneyContract {
+  static let ownerTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testInactiveOwnerSeesTheNoticeAndPlaybackSaysWhyUntilRenewal"
+  static let ownerAttachmentNames = [
+    "runtime-tv-inactive-home", "runtime-tv-inactive-account", "runtime-tv-inactive-playback",
+    "runtime-tv-inactive-renewed",
+  ]
+  static let familyTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testInactiveFamilyMemberSeesTheFamilyNoticeWithoutADate"
+  static let familyAttachmentNames = ["runtime-tv-inactive-family"]
+  static let activeTestIdentifier =
+    "PutioTVUITests/InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"
 }
 
 /// One XCUITest the iOS journey runs on its own before the recorded walk.
@@ -1472,7 +1486,7 @@ enum BrowserJourneyContract {
       "ChromecastJourneyTests/testAVideoConvertedAfterCastConnectsPlaysOnTheReceiver",
       timeAllowance: 120),
     JourneyPreflight(
-      "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
+      "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndTextPreviews",
       attachmentNames: [
         "runtime-preview-loading", "runtime-preview-error", "runtime-preview-image",
         "runtime-preview-image-landscape", "runtime-preview-document",
@@ -1482,6 +1496,12 @@ enum BrowserJourneyContract {
         "runtime-preview-share-text",
       ],
       timeAllowance: 300),
+    JourneyPreflight(
+      "preview-routing", "PreviewJourneyTests/testSearchAndHistoryOpenPreviewsAndVLCHandsOff",
+      timeAllowance: 180),
+    JourneyPreflight(
+      "preview-vlc-retry", "PreviewJourneyTests/testVLCFailureToastsAndTheNextTapHandsOff",
+      timeAllowance: 120),
     JourneyPreflight(
       "share", "PreviewJourneyTests/testShareFetchesCancelsRetriesAndSharesDownloads",
       attachmentNames: [
@@ -1582,8 +1602,13 @@ enum BrowserJourneyContract {
       "exclusive-link-failed", "ExclusiveLinkJourneyTests/testAFailureOffersTryAgain",
       attachmentNames: ["runtime-exclusive-link-failed"]),
     JourneyPreflight(
-      "exclusive-link-cancel", "ExclusiveLinkJourneyTests/testClosingWhileCreatingCancels",
+      "exclusive-link-reopen",
+      "ExclusiveLinkJourneyTests/testReopeningWhileCreatingKeepsTheRequest",
       attachmentNames: ["runtime-exclusive-link-creating"]),
+    JourneyPreflight(
+      "exclusive-link-existing",
+      "ExclusiveLinkJourneyTests/testReopeningTheFolderShowsTheLinkTheFileAlreadyHas",
+      attachmentNames: ["runtime-exclusive-link-existing"], timeAllowance: 120),
     JourneyPreflight(
       "trash-disabled",
       "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
@@ -1659,9 +1684,11 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 180),
     JourneyPreflight(
-      "folder-states", "FilesBrowserJourneyTests/testFolderEmptyPagingFailedPageAndPullToRefresh",
-      attachmentNames: ["runtime-folder-empty", "runtime-folder-load-more-failed"],
-      timeAllowance: 240),
+      "folder-states", "FilesBrowserJourneyTests/testEmptyFolderRefreshesAndCreatesAFolder",
+      attachmentNames: ["runtime-folder-empty"], timeAllowance: 120),
+    JourneyPreflight(
+      "folder-paging", "FilesBrowserJourneyTests/testFolderPagingFailedPageAndPullToRefresh",
+      attachmentNames: ["runtime-folder-load-more-failed"], timeAllowance: 240),
     JourneyPreflight(
       "folder-errors", "FilesBrowserJourneyTests/testFolderFailuresNameTheirReasonAndRecover",
       attachmentNames: ["runtime-folder-forbidden", "runtime-folder-offline"],
@@ -1721,7 +1748,7 @@ enum BrowserJourneyContract {
       timeAllowance: 360),
     JourneyPreflight(
       "subtitle-menu",
-      "SubtitlesJourneyTests/testMenuGroupsTracksBySourceRemembersTheLanguageAndTurnsAFailedTrackOff",
+      "SubtitlesJourneyTests/testMenuListsManifestNamesRemembersTheLanguageAndTurnsAFailedTrackOff",
       attachmentNames: [
         "runtime-subtitles-sources", "runtime-subtitles-none", "runtime-subtitles-failed",
       ],
@@ -1800,6 +1827,10 @@ enum BrowserJourneyContract {
         "runtime-inactive-notice", "runtime-inactive-account-tab", "runtime-inactive-renewed",
       ], timeAllowance: 90),
     JourneyPreflight(
+      "inactive-playback",
+      "InactiveAccountJourneyTests/testPlaybackOnAnInactiveAccountShowsTheAccountNotice",
+      attachmentNames: ["runtime-inactive-playback"], timeAllowance: 90),
+    JourneyPreflight(
       "inactive-family",
       "InactiveAccountJourneyTests/testFamilyMemberSeesTheFamilyPlanNoticeWithoutADate"),
     JourneyPreflight(
@@ -1809,7 +1840,8 @@ enum BrowserJourneyContract {
       "storage-full", "InactiveAccountJourneyTests/testFullStorageSaysSoOnAccount",
       attachmentNames: ["runtime-storage-full"]),
     JourneyPreflight(
-      "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"),
+      "active-account", "InactiveAccountJourneyTests/testActiveAccountSeesNoNotice",
+      timeAllowance: 90),
     JourneyPreflight(
       "video-wait",
       "VideoWaitJourneyTests/testPlayerSaysWhatItWaitsForAndRecovers",
@@ -1860,6 +1892,7 @@ enum BrowserJourneyContract {
   ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
+  static let timeAllowance = 120
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",
