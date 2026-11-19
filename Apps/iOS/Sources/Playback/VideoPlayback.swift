@@ -1116,7 +1116,8 @@ final class PutioVideoPlayerCoordinator {
       queue: nil
     ) { [weak self] notification in
       let error = PutioPlayerError(
-        avPlayerError: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError)
+        avPlayerError: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? NSError
+      )
       Task { @MainActor [weak self] in
         self?.reportFailure(error, generation: playbackGeneration)
       }

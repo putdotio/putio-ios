@@ -1,6 +1,6 @@
 import Foundation
-import PutioSDK
 import Observation
+import PutioSDK
 
 public typealias PutioPlaybackResolve =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlaybackResolution
@@ -348,8 +348,7 @@ public final class PutioVideoPlaybackModel {
       playbackStarted: !beforeFirstFrame, outcome: outcome)
   }
 
-  private func refreshesAccess(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool
-  {
+  private func refreshesAccess(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool {
     let refresh: AccessRefresh =
       accessRefresh == .usedThenReady ? (beforeFirstFrame ? .used : .unused) : accessRefresh
     return fault == .accessExpired && refresh == .unused && storedResolution == nil

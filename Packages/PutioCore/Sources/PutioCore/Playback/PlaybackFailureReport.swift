@@ -38,7 +38,8 @@ public struct PutioPlaybackFacts: Equatable, Sendable {
     PutioPlaybackFacts(method: method, sourceKind: .localFile, deviceCheck: .skipped)
   }
 
-  static let standard = PutioPlaybackFacts(method: .standard, sourceKind: .hls, deviceCheck: .skipped)
+  static let standard = PutioPlaybackFacts(
+    method: .standard, sourceKind: .hls, deviceCheck: .skipped)
 
   /// The Direct play device check runs on the original only; the converted
   /// copy is trusted without one.
