@@ -551,7 +551,7 @@ struct PutioOfflineInfoView: View {
     .scrollBounceBehavior(.basedOnSize)
     .frame(idealHeight: contentHeight > 0 ? contentHeight : nil)
     .background(PutioTheme.Components.Sheet.background)
-    .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+    .putioContentHeightDetents(contentHeight, fallback: .medium)
     .presentationDragIndicator(.visible)
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
