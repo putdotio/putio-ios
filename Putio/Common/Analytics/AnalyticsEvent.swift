@@ -374,7 +374,7 @@ final class PlaybackAnalytics {
     private let playedItems = NSHashTable<AVPlayerItem>.weakObjects()
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
-    private var playingObservation: NSKeyValueObservation?
+    private var playingObservations: [NSKeyValueObservation] = []
 
     /// Made on the main thread by default, so a playback that outlives a
     /// sign-out, as in Picture in Picture, sends nothing to the next account.
@@ -430,12 +430,18 @@ final class PlaybackAnalytics {
         lock.withLock { itemSources.setObject(ItemSource(playback: playback, fileID: fileID), forKey: item) }
     }
 
-    /// Marks the playback, and the item on screen, as started once `player` plays.
+    /// Marks the playback, and the current item, as started while `player`
+    /// plays, including a queue that moves to its next item without pausing.
     func observePlaying(_ player: AVPlayer?) {
-        let observation = player?.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+        guard let player else { return }
+        let didChange: (AVPlayer) -> Void = { [weak self] player in
             if player.timeControlStatus == .playing { self?.didPlay(player.currentItem) }
         }
-        lock.withLock { playingObservation = observation }
+        let observations = [
+            player.observe(\.timeControlStatus, options: [.initial, .new]) { player, _ in didChange(player) },
+            player.observe(\.currentItem, options: [.new]) { player, _ in didChange(player) }
+        ]
+        lock.withLock { playingObservations = observations }
     }
 
     private func didPlay(_ item: AVPlayerItem?) {
@@ -450,7 +456,7 @@ final class PlaybackAnalytics {
     func didReachEnd() {
         lock.withLock {
             queueObservation = nil
-            playingObservation = nil
+            playingObservations = []
             defer { isFinished = true }
             guard let startedAt, !isFinished else { return }
             capture(.playbackEnded(playback, .init(seconds: now().timeIntervalSince(startedAt))))
@@ -462,7 +468,7 @@ final class PlaybackAnalytics {
     func close() {
         lock.withLock {
             queueObservation = nil
-            playingObservation = nil
+            playingObservations = []
             isFinished = true
         }
     }
@@ -476,7 +482,7 @@ final class PlaybackAnalytics {
         let failure = lock.withLock { () -> SentryTelemetry.PlaybackFailure? in
             guard !isFinished else { return nil }
             isFinished = true
-            playingObservation = nil
+            playingObservations = []
             capture(.playbackFailed(playback, .init(error)))
             guard let item else { return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed) }
             let source = itemSources.object(forKey: item)
