@@ -109,9 +109,7 @@ public enum PutioVideoStart {
     { source, afterConversion in
       switch routeStart {
       case .resumes(let seconds):
-        return PutioPlaybackSource(
-          url: source.url, startFromSeconds: seconds, resumesAfterFailure: true,
-          original: source.original)
+        return source.resuming(at: seconds)
       case .chosen(let choice):
         return Self.source(source, startingWith: choice)
       case .asksAfterConversion where !afterConversion:

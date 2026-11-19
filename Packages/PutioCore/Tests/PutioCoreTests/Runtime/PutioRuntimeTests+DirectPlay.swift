@@ -298,7 +298,8 @@ extension PutioRuntimeTests {
       model.state,
       .ready(
         PutioPlaybackSource(
-          url: movie, startFromSeconds: 90, resumesAfterFailure: true, original: original)))
+          url: movie, startFromSeconds: 90, resumesAfterFailure: true, original: original,
+          facts: stored.facts)))
 
     await model.playerFailed(.accessExpired, heldSeconds: 90)
     XCTAssertEqual(model.state, .failed(.accessExpired))

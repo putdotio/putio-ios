@@ -16,7 +16,7 @@ public enum PutioVideoPlayerFault: String, Equatable, Sendable {
     }
   }
 
-  private static func chain(from error: NSError?) -> [NSError] {
+  static func chain(from error: NSError?) -> [NSError] {
     var errors: [NSError] = []
     var current = error
     while let error = current, errors.count < 8 {
@@ -29,7 +29,7 @@ public enum PutioVideoPlayerFault: String, Equatable, Sendable {
   static let coreMediaDomain = "CoreMediaErrorDomain"
   static let httpForbidden = -12660
 
-  private static func isForbidden(_ error: NSError) -> Bool {
+  static func isForbidden(_ error: NSError) -> Bool {
     error.domain == coreMediaDomain && error.code == httpForbidden
   }
 

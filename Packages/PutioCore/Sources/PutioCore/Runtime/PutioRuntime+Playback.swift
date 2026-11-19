@@ -33,7 +33,7 @@ extension PutioRuntime {
       return .ready(
         PutioPlaybackSource(
           url: forDownload ? source.url : try hlsURL(source.url),
-          startFromSeconds: source.startFrom))
+          startFromSeconds: source.startFrom, facts: .standard))
     case .conversionRequired:
       return .conversionRequired
     }
@@ -74,7 +74,9 @@ extension PutioRuntime {
     switch resolved.plan {
     case .ready(let stream):
       guard stream.kind == .original else {
-        return .ready(PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom))
+        return .ready(
+          PutioPlaybackSource(
+            url: stream.url, startFromSeconds: stream.startFrom, facts: .directPlay(stream)))
       }
       let sidecars = try? await sidecarSubtitles(fileID: fileID, token: resolved.token)
       let subtitles = sidecars?.subtitles ?? []
@@ -87,8 +89,9 @@ extension PutioRuntime {
         player: player, audioStreams: PutioDirectPlayDecoders.audioStreams(of: stream.mediaInfo),
         subtitles: subtitles, defaultSubtitleKey: sidecars?.defaultKey)
       return .ready(
-        PutioPlaybackSource(url: stream.url, startFromSeconds: stream.startFrom, original: original)
-      )
+        PutioPlaybackSource(
+          url: stream.url, startFromSeconds: stream.startFrom, original: original,
+          facts: .directPlay(stream)))
     case .conversionRequired:
       return .conversionRequired
     case .unplayable(let reason):
