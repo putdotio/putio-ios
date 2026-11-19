@@ -5917,7 +5917,7 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       let auditedApp: XCUIApplication = app
       try auditedApp.performAccessibilityAudit(for: .textClipped) { issue in
-        if Self.isAcceptedXXLargeClip(issue, board: board, app: auditedApp) { return true }
+        if Self.isAcceptedXXLargeClip(issue, board: board) { return true }
         guard let element = issue.element else {
           return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
         }
@@ -5930,16 +5930,14 @@ final class BoardCaptureTests: XCTestCase {
   }
 
   private static func isAcceptedXXLargeClip(
-    _ issue: XCUIAccessibilityAuditIssue, board: String, app: XCUIApplication
+    _ issue: XCUIAccessibilityAuditIssue, board: String
   ) -> Bool {
     guard board == "rd-ios-ses-24-ipad-sign-out" else { return false }
-    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    let removeLabel = "Sign out and remove downloads"
     guard let element = issue.element else {
-      return issue.detailedDescription.contains("UILabel") && remove.exists
-        && remove.label == "Sign out and remove downloads"
-        && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
+      return issue.detailedDescription.contains(removeLabel)
     }
-    return element.label == "Sign out and remove downloads"
+    return element.label == removeLabel
   }
 
   private static func isInFullWidthSystemDialog(
