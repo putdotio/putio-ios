@@ -129,7 +129,7 @@ enum PutioE2EDownloadFixtures {
         }
 
         let playableVideo = seed.fileType == .video && !seed.isCorrupted ? playableVideoURL : nil
-        let fileExtension = seed.fileType == .audio ? "mp3" : playableVideo?.pathExtension ?? "movpkg"
+        let fileExtension = localFileExtension(for: seed, copying: playableVideo)
         let filename = "\(filenamePrefix)\(seed.id).\(fileExtension)"
         let fileURL = documentsURL.appendingPathComponent(filename)
         guard writeLocalFile(at: fileURL, copying: playableVideo) else {
@@ -151,6 +151,12 @@ enum PutioE2EDownloadFixtures {
     private static var playableVideoURL: URL? {
         Bundle.main.url(forResource: "big-buck-bunny", withExtension: "mp4")
             ?? Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
+    }
+
+    private static func localFileExtension(for seed: Seed, copying playableVideo: URL?) -> String {
+        if seed.fileType == .audio { return "mp3" }
+        if seed.isCorrupted { return "mp4" }
+        return playableVideo?.pathExtension ?? "movpkg"
     }
 
     private static func writeLocalFile(at fileURL: URL, copying source: URL?) -> Bool {
