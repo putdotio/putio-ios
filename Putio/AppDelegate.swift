@@ -76,6 +76,7 @@ enum SessionLoadFallback: Equatable {
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: UIWindow?
     var supportMessenger: SupportMessenger? = IntercomMessenger.ifEnabled
+    private(set) var supportDeviceTokenSet = false
     var keychain = PutioKeychain.sharedInstance
     private var pendingURLs: [URL] = []
     // A session restored at launch, not a fresh sign-in, which may be another
@@ -247,9 +248,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        if INTERCOM_ENABLED {
-            Intercom.setDeviceToken(deviceToken, completion: nil)
-        }
+        guard let supportMessenger else { return }
+        supportMessenger.setDeviceToken(deviceToken)
+        supportDeviceTokenSet = true
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -398,7 +399,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         Utils.authorizeNotifications(application: UIApplication.shared)
 
-        SupportIdentity.signIn(accountID: account.id, userHash: account.hash, messenger: supportMessenger)
+        SupportIdentity.signIn(accountID: account.id, userHash: account.hash, deviceTokenSet: supportDeviceTokenSet, messenger: supportMessenger)
         keychain.setTokenOwner(accountID: account.id, for: token)
         keychain.clearSignedOutAccount()
 

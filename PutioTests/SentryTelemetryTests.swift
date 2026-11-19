@@ -521,7 +521,7 @@ final class SentryTelemetryTests: XCTestCase {
         let accountID = 7_301_946
         let hash = "synthetic-user-hash-9c41d2"
         let token = "synthetic-oauth-token-b7e2"
-        let rejection = NSError(domain: "com.intercom.sdk", code: 401, userInfo: [
+        let rejection = NSError(domain: "io.intercom.ios.error.network", code: 401, userInfo: [
             NSLocalizedDescriptionKey: "user \(accountID) rejected with \(hash)",
             NSUnderlyingErrorKey: NSError(domain: "com.intercom.sdk", code: 1, userInfo: ["token": token]),
             "user_id": String(accountID)
@@ -531,7 +531,7 @@ final class SentryTelemetryTests: XCTestCase {
 
         SupportIdentity.signIn(accountID: accountID, userHash: hash, messenger: FailingSupportMessenger(error: rejection))
 
-        XCTAssertEqual(sent().map(\.tags), [["category": "support_login"]])
+        XCTAssertEqual(sent().map(\.tags), [["category": "support_login", "context": "fresh.hash_set.no_token_before.intercom_network"]])
         XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.domain, "io.put.support-login.rejected")
         XCTAssertEqual(sent().first?.exceptions?.first?.mechanism?.meta?.error?.code, 401)
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
@@ -927,6 +927,7 @@ private struct FailingSupportMessenger: SupportMessenger {
     var isUserLoggedIn: Bool { false }
     var loggedInUserID: String? { nil }
     func setUserHash(_ hash: String) {}
+    func setDeviceToken(_ token: Data) {}
     func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void) { completion(.failure(error)) }
     func logout() {}
     func present() {}
