@@ -146,6 +146,9 @@ final class ExclusiveLinkJourneyTests: XCTestCase {
     openSheet(for: "files.item.442", showing: "files.exclusive-link.copy")
     XCTAssertEqual(
       element("files.exclusive-link.address").label, "app.put.io/exclusive-access/8f3KxQ2mVt71")
+    XCTAssertEqual(
+      created.label, "This item already has a link. Copy or share it below.",
+      "the sheet called a found link new")
     XCTAssertFalse(
       app.buttons["files.exclusive-link.create"].exists, "the sheet offered a second link")
     attach("runtime-exclusive-link-existing")

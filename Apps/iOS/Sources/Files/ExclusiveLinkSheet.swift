@@ -84,7 +84,11 @@ struct PutioExclusiveLinkSheet: View {
         .accessibilityIdentifier("files.exclusive-link.body")
       switch model.state {
       case .created(let url):
-        created(url)
+        link(url, status: String(localized: "Link created. Copy or share it below."))
+      case .found(let url):
+        link(
+          url,
+          status: String(localized: "This item already has a link. Copy or share it below."))
       case .refused(let refusal):
         failure(refusal.message)
         createButton(String(localized: "Create link"))
@@ -111,9 +115,9 @@ struct PutioExclusiveLinkSheet: View {
     return AttributedString(parts[0]) + name + AttributedString(parts[1])
   }
 
-  private func created(_ url: URL) -> some View {
+  private func link(_ url: URL, status: String) -> some View {
     VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
-      Text("Link created. Copy or share it below.")
+      Text(status)
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("files.exclusive-link.created")

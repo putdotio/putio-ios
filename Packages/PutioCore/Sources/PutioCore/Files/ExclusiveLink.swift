@@ -103,6 +103,7 @@ public final class PutioExclusiveLinkModel {
     case ready
     case creating
     case created(URL)
+    case found(URL)
     case refused(PutioPublicLinkRefusal)
     case failed(String)
   }
@@ -120,7 +121,7 @@ public final class PutioExclusiveLinkModel {
 
   var outlivesTheSheet: Bool {
     switch state {
-    case .creating, .created: true
+    case .creating, .created, .found: true
     case .finding, .ready, .refused, .failed: false
     }
   }
@@ -128,7 +129,7 @@ public final class PutioExclusiveLinkModel {
   public var canCreate: Bool {
     switch state {
     case .ready, .refused, .failed: true
-    case .finding, .creating, .created: false
+    case .finding, .creating, .created, .found: false
     }
   }
 
@@ -137,7 +138,10 @@ public final class PutioExclusiveLinkModel {
     findGeneration += 1
     let generation = findGeneration
     let fallback: State
-    if case .created = state { fallback = state } else { fallback = .ready }
+    switch state {
+    case .created, .found: fallback = state
+    case .finding, .ready, .creating, .refused, .failed: fallback = .ready
+    }
     state = .finding
     let found: PutioPublicLink?
     do {
@@ -149,7 +153,7 @@ public final class PutioExclusiveLinkModel {
     }
     guard generation == findGeneration else { return }
     expiresAt = found?.expiresAt
-    state = found.map { .created($0.url) } ?? .ready
+    state = found.map { .found($0.url) } ?? .ready
   }
 
   public func start() -> Bool {
