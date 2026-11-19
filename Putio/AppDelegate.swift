@@ -466,9 +466,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
                 if error.type.isUnauthorized {
-                    AccountNoticeStore.shared.clear()
-                    ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
-                    SupportIdentity.signOut(after: .sessionExpired, messenger: self.supportMessenger)
+                    self.endSession()
+                    self.presentLoginScreen(after: .sessionExpired, reason: "account refresh rejected the token")
                 } else {
                     ProductAnalytics.keepAnswer()
                 }
