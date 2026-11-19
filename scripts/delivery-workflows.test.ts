@@ -26,6 +26,10 @@ const arrayAt = (record: RecordValue, key: string, context: string): readonly un
   return value as readonly unknown[];
 };
 
+const ascBinary = process.env.ASC_BIN ?? "asc";
+const ascAvailable = spawnSync(ascBinary, ["version"], { env: { ...process.env, ASC_TELEMETRY_DISABLED: "1" } }).status === 0;
+const requireAsc = process.env.PUTIO_REQUIRE_ASC === "1";
+
 const loadYaml = async (path: string): Promise<RecordValue> =>
   asRecord(parse(await readFile(new URL(`../${path}`, import.meta.url), "utf8")) as unknown, path);
 
@@ -218,9 +222,109 @@ test("workflows that change one App Store version queue behind each other", asyn
   }
 });
 
-test("beta keeps notifying external testers", async () => {
-  const raw = await readFile(new URL("../.github/workflows/beta.yml", import.meta.url), "utf8");
-  assert.match(raw, /asc publish testflight[^\n]*(\\\n[^\n]*)*--notify/);
+const ascCalls = (run: string): string[][] =>
+  run
+    .replace(/\\\n\s*/g, " ")
+    .split("\n")
+    .filter((line) => !/^\s*(?:#|echo\s|printf\s)/.test(line))
+    .flatMap((line) => line.split(/[|;&]/))
+    .map((segment) => segment.trim().split(/\s+/))
+    .filter((words) => words[0] === "asc");
+
+const lane = async (name: string, job: string) => {
+  const workflow = await loadYaml(`.github/workflows/${name}`);
+  const steps = arrayAt(recordAt(recordAt(workflow, "jobs", name), job, `${name}.jobs`), "steps", job).map((step, index) =>
+    asRecord(step, `${name}.${job}.steps[${index}]`),
+  );
+  const at = (pattern: RegExp) => steps.findIndex((step) => pattern.test(String(step.run ?? "")));
+  const call = (command: string) => {
+    const index = steps.findIndex((step) => ascCalls(String(step.run ?? "")).some((words) => words.slice(1).join(" ").startsWith(command)));
+    assert.ok(index !== -1, `${name} ${job} runs asc ${command}`);
+    const words = ascCalls(String(steps[index]?.run)).find((candidate) => candidate.slice(1).join(" ").startsWith(command)) ?? [];
+    return { index, step: steps[index] ?? {}, words, line: words.join(" ") };
+  };
+  return { workflow, steps, at, call };
+};
+
+test("beta uploads to TestFlight and hands the build to the Beta group with its tester notes", async () => {
+  const { workflow, steps, call } = await lane("beta.yml", "beta");
+  const inputs = recordAt(recordAt(recordAt(workflow, "on", "beta.yml"), "workflow_dispatch", "beta.yml.on"), "inputs", "beta.yml.on.workflow_dispatch");
+  assert.equal(recordAt(inputs, "groups", "inputs").default, "Beta");
+  const notes = steps.findIndex((step) => step.id === "notes");
+  const publish = call("publish testflight");
+  assert.ok(notes !== -1 && notes < publish.index, "tester notes are written before the upload");
+  assert.equal(recordAt(publish.step, "env", "publish").PUTIO_BETA_NOTES, "${{ steps.notes.outputs.notes }}");
+  for (const flag of ['--group "$PUTIO_BETA_GROUPS"', '--test-notes "$PUTIO_BETA_NOTES"', "--locale en-US", "--wait", "--notify", "--submit", "--confirm"]) {
+    assert.ok(publish.line.includes(` ${flag}`), `publish testflight passes ${flag}`);
+  }
+  assert.doesNotMatch(publish.line, /--upload-only/, "an upload-only build reaches no group");
+  assert.match(String(publish.step.run), /\| tee -a "\$GITHUB_STEP_SUMMARY"/);
+});
+
+test("release attaches its build to the version, writes What's New, applies the settings, then validates without submitting", async (t) => {
+  const release = await lane("release.yml", "release");
+  const publish = release.call("publish appstore");
+  for (const flag of ['--ipa "$PUTIO_RELEASE_IPA_PATH"', '--version "$PUTIO_RELEASE_VERSION"', "--wait"]) {
+    assert.ok(publish.line.includes(` ${flag}`), `publish appstore passes ${flag}`);
+  }
+  assert.doesNotMatch(publish.line, /--submit|--dry-run|--metadata-dir/, "Release attaches the build and leaves the listing and review to their own steps");
+  assert.match(String(publish.step.run), /\| tee -a "\$GITHUB_STEP_SUMMARY"/);
+  const raw = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.doesNotMatch(raw, /review submit|--strict/, "Submit is the only lane that submits");
+
+  const jobs = recordAt(release.workflow, "jobs", "release.yml");
+  assert.equal(recordAt(jobs, "whats-new", "jobs")["continue-on-error"], true, "a failed What's New writer can't hold back the listing");
+  const listingJob = recordAt(jobs, "listing", "jobs");
+  assert.deepEqual(listingJob.needs, ["validate-ref", "release", "whats-new"]);
+  assert.match(String(listingJob.if), /!cancelled\(\)/);
+  assert.doesNotMatch(String(listingJob.if), /whats-new/);
+  const listing = await lane("release.yml", "listing");
+  const whatsNew = listing.steps.findIndex((step) => step.name === "Add What's New to the listing");
+  const apply = listing.at(/node scripts\/app-store\.ts apply --version "\$RELEASE_VERSION" --confirm$/m);
+  const validate = listing.at(/node scripts\/app-store\.ts validate --version "\$RELEASE_VERSION"$/m);
+  assert.ok(whatsNew !== -1 && whatsNew < apply && apply < validate, "What's New, apply, then validate");
+  assert.equal(recordAt(listing.steps[whatsNew] ?? {}, "env", "whats-new").WHATS_NEW, "${{ needs.whats-new.outputs.notes || 'Bug fixes and improvements.' }}");
+
+  const dir = await tempDir(t);
+  await mkdir(join(dir, "metadata/version/3.0.1"), { recursive: true });
+  const file = join(dir, "metadata/version/3.0.1/en-US.json");
+  await writeFile(file, JSON.stringify({ description: "Files." }));
+  const written = spawnSync("bash", ["-eo", "pipefail", "-c", String(listing.steps[whatsNew]?.run)], {
+    cwd: dir,
+    encoding: "utf8",
+    env: { PATH: process.env.PATH, RELEASE_VERSION: "3.0.1", RUNNER_TEMP: dir, WHATS_NEW: "Faster folders.\n\"Quoted\" too." },
+  });
+  assert.equal(written.status, 0, written.stderr);
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), { description: "Files.", whatsNew: "Faster folders.\n\"Quoted\" too." });
+});
+
+test("every asc call a delivery lane makes exists in the pinned asc with each flag", { skip: !ascAvailable && !requireAsc && "asc is not installed" }, async () => {
+  const flagsByCommand = new Map<string, Set<string>>();
+  for (const name of ["beta.yml", "release.yml", "submit.yml", "screenshots.yml", "signing-check.yml"]) {
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    for (const [jobName, job] of Object.entries(recordAt(workflow, "jobs", name))) {
+      const jobRecord = asRecord(job, `${name}.${jobName}`);
+      if (jobRecord.steps === undefined) continue;
+      for (const step of arrayAt(jobRecord, "steps", jobName)) {
+        for (const words of ascCalls(String(asRecord(step, "step").run ?? ""))) {
+          const firstArgument = words.findIndex((word, index) => index > 0 && !/^[a-z][a-z-]*$/.test(word));
+          const command = words.slice(1, firstArgument === -1 ? undefined : firstArgument).join(" ");
+          const flags = flagsByCommand.get(command) ?? new Set<string>();
+          for (const word of words) if (/^--[a-z]/.test(word)) flags.add(word);
+          flagsByCommand.set(command, flags);
+        }
+      }
+    }
+  }
+  for (const expected of ["publish testflight", "publish appstore", "versions attach-build", "review submit", "telemetry status", "signing keychain delete"]) {
+    assert.ok(flagsByCommand.has(expected), `a lane runs asc ${expected}`);
+  }
+  for (const [command, flags] of flagsByCommand) {
+    const help = spawnSync(ascBinary, [...command.split(" "), "--help"], { encoding: "utf8", env: { ...process.env, ASC_TELEMETRY_DISABLED: "1" } });
+    const known = new Set([...`${help.stdout}${help.stderr}`.matchAll(/^\s+(--[a-z][a-z0-9-]*)/gm)].map(([, flag]) => flag));
+    assert.ok(known.size > 0, `asc ${command} --help lists flags`);
+    for (const flag of flags) assert.ok(known.has(flag), `asc ${command} has no ${flag}`);
+  }
 });
 
 test("submit checks committed notes and validates the build it submits", async () => {
