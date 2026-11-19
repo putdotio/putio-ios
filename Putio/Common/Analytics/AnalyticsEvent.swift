@@ -370,6 +370,8 @@ final class PlaybackAnalytics {
     private let lock = NSLock()
     private var startedAt: Date?
     private var hasPlayed = false
+    private let itemFileIDs = NSMapTable<AVPlayerItem, NSNumber>.weakToStrongObjects()
+    private let playedItems = NSHashTable<AVPlayerItem>.weakObjects()
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
     private var playingObservation: NSKeyValueObservation?
@@ -406,23 +408,31 @@ final class PlaybackAnalytics {
                 self?.didReachEnd()
                 return
             }
-            if item.status == .failed { self?.fail(item.error) }
+            if item.status == .failed { self?.fail(item.error, item: item) }
         }
         lock.withLock { queueObservation = observation }
         observePlaying(player)
         start()
     }
 
-    /// Marks the playback as started, for failure reports, once `player` plays.
+    /// Names the file a queued item plays, so its failure reports that file.
+    func track(_ item: AVPlayerItem, fileID: Int) {
+        lock.withLock { itemFileIDs.setObject(NSNumber(value: fileID), forKey: item) }
+    }
+
+    /// Marks the playback, and the item on screen, as started once `player` plays.
     func observePlaying(_ player: AVPlayer?) {
         let observation = player?.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
-            if player.timeControlStatus == .playing { self?.didPlay() }
+            if player.timeControlStatus == .playing { self?.didPlay(player.currentItem) }
         }
         lock.withLock { playingObservation = observation }
     }
 
-    private func didPlay() {
-        lock.withLock { hasPlayed = true }
+    private func didPlay(_ item: AVPlayerItem?) {
+        lock.withLock {
+            hasPlayed = true
+            item.map(playedItems.add)
+        }
     }
 
     /// The media played to its end, whether or not the player stays open.
@@ -448,12 +458,19 @@ final class PlaybackAnalytics {
     }
 
     func fail(_ error: Error?) {
+        fail(error, item: nil)
+    }
+
+    /// A queued `item` reports its own file and whether it played.
+    func fail(_ error: Error?, item: AVPlayerItem?) {
         let failure = lock.withLock { () -> SentryTelemetry.PlaybackFailure? in
             guard !isFinished else { return nil }
             isFinished = true
             playingObservation = nil
             capture(.playbackFailed(playback, .init(error)))
-            return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed)
+            guard let item else { return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed) }
+            let itemFileID = itemFileIDs.object(forKey: item)?.intValue ?? fileID
+            return SentryTelemetry.PlaybackFailure(playback: playback, fileID: itemFileID, started: playedItems.contains(item))
         }
         if let failure { report(failure, error) }
     }

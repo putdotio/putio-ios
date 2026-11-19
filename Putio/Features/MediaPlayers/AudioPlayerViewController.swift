@@ -173,6 +173,7 @@ class AudioPlayerViewController: UIViewController {
         registerPlayerTimeObservers()
         registerRemoteMediaControls()
 
+        playbackAnalytics?.track(playerItem, fileID: media.id)
         player?.insert(playerItem, after: player?.currentItem)
         player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), preferredTimescale: 600))
         playAtQueueRate()
@@ -392,6 +393,7 @@ extension AudioPlayerViewController: NextMediaFinderDelegate {
 
         let asset = AVURLAsset(url: nextMedia.url)
         let playerItem = AVPlayerItem.init(asset: asset)
+        playbackAnalytics?.track(playerItem, fileID: nextMedia.id)
         player?.insert(playerItem, after: player?.currentItem)
     }
 
