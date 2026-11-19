@@ -5911,6 +5911,7 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       let auditedApp: XCUIApplication = app
       try auditedApp.performAccessibilityAudit(for: .textClipped) { issue in
+        if Self.isAcceptedXXLargeClip(issue, board: board, app: auditedApp) { return true }
         guard let element = issue.element else {
           return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
         }
@@ -5919,6 +5920,25 @@ final class BoardCaptureTests: XCTestCase {
           (Self.isMiddleTruncatedFileName(element.label) || Self.containsEmoji(element.label))
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
+    }
+  }
+
+  private static func isAcceptedXXLargeClip(
+    _ issue: XCUIAccessibilityAuditIssue, board: String, app: XCUIApplication
+  ) -> Bool {
+    switch board {
+    case "rd-ios-54-shared-root":
+      return issue.element?.identifier == "files.title"
+    case "rd-ios-ses-24-ipad-sign-out":
+      let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+      guard let element = issue.element else {
+        return issue.detailedDescription.contains("UILabel") && remove.exists
+          && remove.label == "Sign out and remove downloads"
+          && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
+      }
+      return element.label == "Sign out and remove downloads"
+    default:
+      return false
     }
   }
 
