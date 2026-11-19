@@ -27,9 +27,9 @@ class ChromecastManager: NSObject {
 
     var debug: Bool = false
 
-    var userConfig: UserConfig? = {
+    var userConfig: UserConfig? {
         PutioRealm.open(context: "ChromecastManager.userConfig")?.objects(UserConfig.self).first
-    }()
+    }
 
     func setup() {
         let discoveryCriteria = GCKDiscoveryCriteria(applicationID: CHROMECAST_RECEIVER_APP_ID)
