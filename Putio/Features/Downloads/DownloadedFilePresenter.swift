@@ -24,7 +24,13 @@ extension DownloadedFilePresenter where Self: UIViewController {
                 return presentFileNotReachableMessage(for: download)
             }
 
-            MediaPlaybackManager.sharedInstance.play(MediaPlayerItem(download: download, url: url), sourceViewController: self)
+            MediaPlaybackManager.sharedInstance.play(
+                MediaPlayerItem(download: download, url: url),
+                sourceViewController: self
+            ) { [weak self] in
+                guard let self, !download.isInvalidated else { return }
+                self.presentFileNotReachableMessage(for: download)
+            }
 
         case .audio:
             guard let url = AudioDownloadManager.sharedInstance.getLocalFileURL(for: download.id) else {

@@ -106,6 +106,33 @@ final class PlaybackSmokeUITests: XCTestCase {
         XCTAssertTrue(player.reaches(NSPredicate(format: "value == %@", "ready"), within: 10), "the player should report ready")
     }
 
+    func testCorruptedDownloadOffersRedownloadAndAPlayableOneStillPlays() {
+        let app = launchFixtureApp()
+        guard app.waitForSignedInTabBar() else { return }
+
+        app.tabItem("Downloads").tap()
+        let downloadsTable = app.tables["putio-downloads-table"]
+        let corrupted = downloadsTable.cells["putio-download-71"]
+        XCTAssertTrue(corrupted.appears(within: 10))
+        corrupted.tap()
+
+        let alert = app.alerts["File Unavailable"]
+        XCTAssertTrue(alert.appears(within: 10), "a package the player can't read must offer Re-download")
+        XCTAssertTrue(alert.buttons["Re-download"].exists)
+        XCTAssertFalse(app.otherElements["putio-video-player"].exists)
+        attachScreenshot(of: app, named: "Corrupted download offers Re-download")
+
+        alert.buttons["Close"].tap()
+        XCTAssertTrue(alert.disappears(within: 5))
+        XCTAssertEqual(corrupted.label, "Sintel.mp4, Failed: File not reachable")
+
+        downloadsTable.cells["putio-download-42"].tap()
+        let player = app.otherElements["putio-video-player"]
+        XCTAssertTrue(player.appears(within: 5))
+        XCTAssertTrue(player.reaches(NSPredicate(format: "value == %@", "ready"), within: 10), "a playable download should play")
+        XCTAssertFalse(app.alerts["File Unavailable"].exists)
+    }
+
     func testAudioPlaybackSpeedCanChange() {
         let app = launchFixtureApp()
 

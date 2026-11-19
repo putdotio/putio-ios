@@ -121,6 +121,14 @@ enum AnalyticsEvent: Equatable {
             }
         }
 
+        init(_ error: Error?, streamMethod: StreamMethod) {
+            if streamMethod == .localFile, error is URLError {
+                self = .source
+                return
+            }
+            self.init(error)
+        }
+
         init(httpStatus status: Int) {
             switch status {
             case 402, 404, 429: self = .source
@@ -483,7 +491,7 @@ final class PlaybackAnalytics {
             guard !isFinished else { return nil }
             isFinished = true
             playingObservations = []
-            capture(.playbackFailed(playback, .init(error)))
+            capture(.playbackFailed(playback, .init(error, streamMethod: playback.streamMethod)))
             guard let item else { return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed) }
             let source = itemSources.object(forKey: item)
             return SentryTelemetry.PlaybackFailure(

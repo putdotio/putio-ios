@@ -7,6 +7,7 @@ import PutioSDK
 class VideoPlayerViewController: AVPlayerViewController {
     private lazy var realm: Realm? = PutioRealm.open(context: "VideoPlayerViewController.realm")
     var item: MediaPlayerItem!
+    var onLocalFileFailure: (() -> Void)?
     private lazy var user: User? = realm?.objects(User.self).first
 
     var isPlayerSetup: Bool = false
@@ -18,6 +19,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     private var playerStatusObserver: NSKeyValueObservation?
     private var hasStoppedPlayback = false
     private var hasDisposedPlayer = false
+    private var hasBeenReadyToPlay = false
     private var playbackAnalytics: PlaybackAnalytics?
     private var playbackStartSignpost: PerfSignpost.Interval?
 
@@ -230,6 +232,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     private func disposePlayerIfNeeded(shouldPersistPlaybackPosition: Bool, shouldSyncRemoteInBackground: Bool) {
         guard !hasDisposedPlayer else { return }
         hasDisposedPlayer = true
+        onLocalFileFailure = nil
 
         if shouldPersistPlaybackPosition {
             persistPlaybackPosition(shouldSyncRemoteInBackground: shouldSyncRemoteInBackground)
@@ -276,10 +279,12 @@ class VideoPlayerViewController: AVPlayerViewController {
                 self?.view.accessibilityValue = accessibilityValue
                 switch playerItem.status {
                 case .readyToPlay:
+                    self?.hasBeenReadyToPlay = true
                     self?.endPlaybackStartSignpost(.succeeded)
                 case .failed:
                     self?.endPlaybackStartSignpost(.failed)
                     self?.playbackAnalytics?.fail(playerItem.error)
+                    self?.leaveForLocalFileRecoveryIfNeeded(after: playerItem.error)
                 default:
                     break
                 }
@@ -331,9 +336,32 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     @objc private func handlePlaybackFailed(_ notification: Notification) {
-        guard isNotificationForCurrentPlayerItem(notification) else { return }
-        persistPlaybackPosition(shouldSyncRemoteInBackground: true)
-        playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isNotificationForCurrentPlayerItem(notification) else { return }
+            self.persistPlaybackPosition(shouldSyncRemoteInBackground: true)
+            let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
+            self.playbackAnalytics?.fail(error)
+            self.leaveForLocalFileRecoveryIfNeeded(after: error)
+        }
+    }
+
+    static func isUnreadableLocalFile(_ error: Error?, wasReadyToPlay: Bool) -> Bool {
+        if error is URLError { return true }
+        guard !wasReadyToPlay else { return false }
+        let error = error as NSError?
+        return !(error?.domain == AVFoundationErrorDomain && error?.code == AVError.Code.mediaServicesWereReset.rawValue)
+    }
+
+    private func leaveForLocalFileRecoveryIfNeeded(after error: Error?) {
+        guard item.consumptionType == .offline,
+            !hasDisposedPlayer,
+            !isPlayingInPictureOnPictureMode,
+            !isBeingDismissed,
+            Self.isUnreadableLocalFile(error, wasReadyToPlay: hasBeenReadyToPlay),
+            let recover = onLocalFileFailure else { return }
+        onLocalFileFailure = nil
+        guard let presentingViewController else { return recover() }
+        presentingViewController.dismiss(animated: true, completion: recover)
     }
 
     @objc private func handlePlaybackEnded(_ notification: Notification) {
