@@ -234,6 +234,43 @@ final class LoginSessionTests: XCTestCase {
         }
     }
 
+    func testSupportLoginFailuresReportTheBranchHashAndDeviceTokenOrder() {
+        let rejected = NSError(domain: "io.intercom.ios.error.network", code: 401)
+        let cases: [(SupportMessengerSpy, String, Bool, [SupportMessengerSpy.Event], String)] = [
+            (SupportMessengerSpy(loginResult: .failure(rejected)), "hash-7", false,
+             [.setUserHash("hash-7"), .login("7")], "fresh.hash_set.no_token_before.intercom_network"),
+            (SupportMessengerSpy(loggedInUserID: "7", loggedIn: false, loginResult: .failure(rejected)), "hash-7", true,
+             [.setUserHash("hash-7"), .login("7")], "sameIDNotLoggedIn.hash_set.token_before.intercom_network"),
+            (SupportMessengerSpy(loggedIn: true, loginResult: .failure(rejected)), "hash-7", false,
+             [.logout, .setUserHash("hash-7"), .login("7")], "switchedNilID.hash_set.no_token_before.intercom_network"),
+            (SupportMessengerSpy(loggedInUserID: "8", loginResult: .failure(URLError(.timedOut))), "", true,
+             [.logout, .setUserHash(""), .login("7")], "switchedOtherID.hash_empty.token_before.url"),
+            (SupportMessengerSpy(loginResult: .failure(NSError(domain: "user 7 hash-7", code: 1))), "hash-7", false,
+             [.setUserHash("hash-7"), .login("7")], "fresh.hash_set.no_token_before.other")
+        ]
+
+        for (messenger, hash, deviceTokenSet, events, context) in cases {
+            var reported: [String] = []
+
+            SupportIdentity.signIn(accountID: 7, userHash: hash, deviceTokenSet: deviceTokenSet, messenger: messenger) { reported.append($0.context) }
+
+            XCTAssertEqual(messenger.events, events)
+            XCTAssertEqual(reported, [context])
+        }
+    }
+
+    func testARegisteredDeviceTokenReachesSupportAndMarksTheNextSignIn() {
+        let appDelegate = AppDelegate()
+        let messenger = SupportMessengerSpy()
+        appDelegate.supportMessenger = messenger
+        let token = Data(repeating: 7, count: 32)
+
+        appDelegate.application(UIApplication.shared, didRegisterForRemoteNotificationsWithDeviceToken: token)
+
+        XCTAssertEqual(messenger.events, [.setDeviceToken(token)])
+        XCTAssertTrue(appDelegate.supportDeviceTokenSet)
+    }
+
     func testEndingTheSessionClearsSupportButAFailedLoadKeepsIt() {
         let messenger = SupportMessengerSpy(loggedInUserID: "7")
 
@@ -381,6 +418,7 @@ final class LoginSessionTests: XCTestCase {
     private final class SupportMessengerSpy: SupportMessenger {
         enum Event: Equatable {
             case setUserHash(String)
+            case setDeviceToken(Data)
             case login(String)
             case logout
             case present(signedInAs: String?)
@@ -388,28 +426,36 @@ final class LoginSessionTests: XCTestCase {
 
         private(set) var events: [Event] = []
         private(set) var loggedInUserID: String?
+        private var loggedIn: Bool?
         private let loginResult: Result<Void, Error>
 
-        init(loggedInUserID: String? = nil, loginResult: Result<Void, Error> = .success(())) {
+        init(loggedInUserID: String? = nil, loggedIn: Bool? = nil, loginResult: Result<Void, Error> = .success(())) {
             self.loggedInUserID = loggedInUserID
+            self.loggedIn = loggedIn
             self.loginResult = loginResult
         }
 
-        var isUserLoggedIn: Bool { loggedInUserID != nil }
+        var isUserLoggedIn: Bool { loggedIn ?? (loggedInUserID != nil) }
 
         func setUserHash(_ hash: String) {
             events.append(.setUserHash(hash))
         }
 
+        func setDeviceToken(_ token: Data) {
+            events.append(.setDeviceToken(token))
+        }
+
         func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void) {
             events.append(.login(id))
             loggedInUserID = id
+            loggedIn = nil
             completion(loginResult)
         }
 
         func logout() {
             events.append(.logout)
             loggedInUserID = nil
+            loggedIn = nil
         }
 
         func present() {
