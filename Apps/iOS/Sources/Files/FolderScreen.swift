@@ -1297,19 +1297,6 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
-    if case .delete = outcome.action {
-      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
-    } else {
-      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
-    }
-    if case .move(let destination) = outcome.action {
-      refreshRequests.request(folderID: destination.id)
-      let movedIDs = Set(outcome.succeeded.map(\.id) + outcome.failures.map { $0.item.id })
-      for id in movedIDs {
-        refreshRequests.request(folderID: id)
-      }
-    }
-
     model.clearBulkOutcome()
     if outcome.failures.isEmpty {
       selection.end()

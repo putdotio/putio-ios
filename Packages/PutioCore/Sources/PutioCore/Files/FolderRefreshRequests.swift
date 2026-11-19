@@ -98,6 +98,24 @@ public final class PutioFolderRefreshRequests {
       break
     }
   }
+
+  func requestRefreshes(
+    after outcome: PutioBulkFileOutcome, in folderID: PutioFileID, owner: UUID
+  ) {
+    switch outcome.action {
+    case .delete:
+      requestAllLoadedFolders(excludingOwner: owner)
+    case .setWatched:
+      request(folderID: folderID, excludingOwner: owner)
+    case .move(let destination):
+      request(folderID: folderID, excludingOwner: owner)
+      request(folderID: destination.id)
+      let movedIDs = Set(outcome.succeeded.map(\.id) + outcome.failures.map(\.item.id))
+      for id in movedIDs {
+        request(folderID: id)
+      }
+    }
+  }
 }
 
 /// Lives in a folder screen's `@State`. SwiftUI releases that state only when
