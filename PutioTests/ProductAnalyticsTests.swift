@@ -488,14 +488,14 @@ final class ProductAnalyticsTests: XCTestCase {
         let (gate, token) = makeGate()
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
-        let pictureInPicture = PlaybackAnalytics(video, capture: gate.captureInCurrentSession())
+        let pictureInPicture = PlaybackAnalytics(video, fileID: 1, capture: gate.captureInCurrentSession())
         pictureInPicture.start()
         _ = try waitForEvents(token: token, count: 1)
 
         // Signed out and in again while Picture in Picture kept playing.
         AccountNoticeStore.shared.clear()
         pictureInPicture.didReachEnd()
-        PlaybackAnalytics(video, capture: gate.captureInCurrentSession()).fail(URLError(.timedOut))
+        PlaybackAnalytics(video, fileID: 1, capture: gate.captureInCurrentSession()).fail(URLError(.timedOut))
         let events = try waitForEvents(token: token, count: 2)
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["playback_started", "playback_failed"])
@@ -614,11 +614,11 @@ final class ProductAnalyticsTests: XCTestCase {
         var events: [AnalyticsEvent] = []
         var clock = Date(timeIntervalSince1970: 0)
         let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
-        let closedEarly = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        let closedEarly = PlaybackAnalytics(video, fileID: 1, capture: { events.append($0) }, now: { clock })
         closedEarly.close()
         closedEarly.start()
 
-        let playback = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        let playback = PlaybackAnalytics(video, fileID: 1, capture: { events.append($0) }, now: { clock })
         playback.start()
         playback.start()
         clock += 2000
@@ -629,12 +629,12 @@ final class ProductAnalyticsTests: XCTestCase {
         playback.fail(URLError(.timedOut))
 
         // Closed before the end: like the web app, no playback_ended.
-        let closed = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        let closed = PlaybackAnalytics(video, fileID: 1, capture: { events.append($0) }, now: { clock })
         closed.start()
         closed.close()
         closed.didReachEnd()
 
-        let failing = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        let failing = PlaybackAnalytics(video, fileID: 1, capture: { events.append($0) }, now: { clock })
         failing.fail(NSError(domain: AVFoundationErrorDomain, code: -11800, userInfo: [NSLocalizedDescriptionKey: fileName]))
         failing.start()
         failing.didReachEnd()
@@ -684,9 +684,9 @@ final class ProductAnalyticsTests: XCTestCase {
         let tracker = CastPlaybackTracker(capture: { event, _ in events.append(event) }, report: { _, _, _ in }, now: { clock })
 
         let unanswered = NSObject()
-        tracker.loadStarted(unanswered, playback: cast, session: 1)
+        tracker.loadStarted(unanswered, playback: cast, fileID: 1, session: 1)
         let load = NSObject()
-        tracker.loadStarted(load, playback: cast, session: 1)
+        tracker.loadStarted(load, playback: cast, fileID: 1, session: 1)
         XCTAssertFalse(tracker.loadCompleted(unanswered, status: nil))
         XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .idle, idleReason: .interrupted, mediaSessionID: 0)))
         tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 0))
@@ -707,13 +707,13 @@ final class ProductAnalyticsTests: XCTestCase {
 
         for idleReason in [GCKMediaPlayerIdleReason.cancelled, .error, .interrupted] {
             let load = NSObject()
-            tracker.loadStarted(load, playback: cast, session: 1)
+            tracker.loadStarted(load, playback: cast, fileID: 1, session: 1)
             XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .playing, mediaSessionID: 3)))
             tracker.update(.init(playerState: .idle, idleReason: idleReason, mediaSessionID: 3))
             tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 3))
         }
         let load = NSObject()
-        tracker.loadStarted(load, playback: cast, session: 1)
+        tracker.loadStarted(load, playback: cast, fileID: 1, session: 1)
         XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .playing, mediaSessionID: 4)))
         tracker.sessionEnded()
         tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 4))
@@ -726,7 +726,7 @@ final class ProductAnalyticsTests: XCTestCase {
         let events = OSAllocatedUnfairLock(uncheckedState: [AnalyticsEvent]())
         let ending = DispatchGroup()
         var playback: PlaybackAnalytics?
-        playback = PlaybackAnalytics(video, capture: { event in
+        playback = PlaybackAnalytics(video, fileID: 1, capture: { event in
             if case .playbackStarted = event {
                 // AVFoundation reports the end on its own thread while the start is on its way out.
                 ending.enter()

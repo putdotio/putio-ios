@@ -363,23 +363,28 @@ final class AppSessionAnalytics {
 /// the lock, in the order it happened; `capture` must not call back in.
 final class PlaybackAnalytics {
     private let playback: AnalyticsEvent.Playback
+    private let fileID: Int
     private let capture: (AnalyticsEvent) -> Void
     private let report: (SentryTelemetry.PlaybackFailure, Error?) -> Void
     private let now: () -> Date
     private let lock = NSLock()
     private var startedAt: Date?
+    private var hasPlayed = false
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
+    private var playingObservation: NSKeyValueObservation?
 
     /// Made on the main thread by default, so a playback that outlives a
     /// sign-out, as in Picture in Picture, sends nothing to the next account.
     init(
         _ playback: AnalyticsEvent.Playback,
+        fileID: Int,
         capture: @escaping (AnalyticsEvent) -> Void = ProductAnalytics.captureInCurrentSession(),
         report: @escaping (SentryTelemetry.PlaybackFailure, Error?) -> Void = SentryTelemetry.captureInCurrentSession(),
         now: @escaping () -> Date = Date.init
     ) {
         self.playback = playback
+        self.fileID = fileID
         self.capture = capture
         self.report = report
         self.now = now
@@ -404,7 +409,20 @@ final class PlaybackAnalytics {
             if item.status == .failed { self?.fail(item.error) }
         }
         lock.withLock { queueObservation = observation }
+        observePlaying(player)
         start()
+    }
+
+    /// Marks the playback as started, for failure reports, once `player` plays.
+    func observePlaying(_ player: AVPlayer?) {
+        let observation = player?.observe(\.timeControlStatus, options: [.initial, .new]) { [weak self] player, _ in
+            if player.timeControlStatus == .playing { self?.didPlay() }
+        }
+        lock.withLock { playingObservation = observation }
+    }
+
+    private func didPlay() {
+        lock.withLock { hasPlayed = true }
     }
 
     /// The media played to its end, whether or not the player stays open.
@@ -412,6 +430,7 @@ final class PlaybackAnalytics {
     func didReachEnd() {
         lock.withLock {
             queueObservation = nil
+            playingObservation = nil
             defer { isFinished = true }
             guard let startedAt, !isFinished else { return }
             capture(.playbackEnded(playback, .init(seconds: now().timeIntervalSince(startedAt))))
@@ -423,25 +442,19 @@ final class PlaybackAnalytics {
     func close() {
         lock.withLock {
             queueObservation = nil
+            playingObservation = nil
             isFinished = true
         }
     }
 
     func fail(_ error: Error?) {
-        fail(error, signal: .itemFailed)
-    }
-
-    func failedToPlayToEnd(_ error: Error?) {
-        fail(error, signal: .failedToPlayToEnd)
-    }
-
-    private func fail(_ error: Error?, signal: SentryTelemetry.PlaybackFailure.Signal) {
-        let isFirstFailure = lock.withLock {
-            guard !isFinished else { return false }
+        let failure = lock.withLock { () -> SentryTelemetry.PlaybackFailure? in
+            guard !isFinished else { return nil }
             isFinished = true
+            playingObservation = nil
             capture(.playbackFailed(playback, .init(error)))
-            return true
+            return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed)
         }
-        if isFirstFailure { report(.init(signal: signal, playback: playback), error) }
+        if let failure { report(failure, error) }
     }
 }

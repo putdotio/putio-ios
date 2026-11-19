@@ -20,7 +20,7 @@ class AudioPlayerViewController: UIViewController {
     var player: AVQueuePlayer?
     var playerQueueObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
-    private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback) }
+    private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback, fileID: $0.id) }
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
     var setStartFromMap = [Int: Int]()

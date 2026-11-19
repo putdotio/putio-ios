@@ -206,9 +206,11 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent().count, 1, "the check skipped the diagnostics gate")
     }
 
-    func testAPlaybackFailureSendsOneBoundedReportWhileDiagnosticsAreOn() throws {
+    func testAPlaybackFailureSendsOneAnonymousSchema2ReportWhileDiagnosticsAreOn() throws {
         let sent = try startRecordingSentEvents()
         allowCapture()
+        SentrySDK.setUser(Sentry.User(userId: "synthetic-user"))
+        addTeardownBlock { SentrySDK.setUser(nil) }
         let title = "Synthetic Feature Title"
         let fileName = "Synthetic.Feature.Title.2001.mkv"
         let host = "media.example.invalid"
@@ -222,85 +224,148 @@ final class SentryTelemetryTests: XCTestCase {
             NSURLErrorFailingURLErrorKey: URL(filePath: "/Documents/\(fileName)")
         ])
 
-        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), capture: { _ in })
+        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), fileID: 41, capture: { _ in })
         streamed.fail(streamFailure)
         streamed.fail(streamFailure)
-        PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .localFile, player: .avplayer), capture: { _ in })
+        PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .localFile, player: .avplayer), fileID: 42, capture: { _ in })
             .fail(missingDownload)
         drainMainQueue()
         SentryTelemetry.isCapturing = false
-        PlaybackAnalytics(AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer), capture: { _ in })
+        PlaybackAnalytics(AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer), fileID: 43, capture: { _ in })
             .fail(streamFailure)
         drainMainQueue()
 
         XCTAssertEqual(sent().map(\.tags), [
-            [
-                "category": "playback", "playback_signal": "item_failed", "player": "avplayer", "stream_method": "hls", "media": "video",
-                "error_domain": "AVFoundationErrorDomain", "error_code": "-11800", "underlying_domain": "NSOSStatusErrorDomain", "underlying_code": "-12971"
-            ],
-            [
-                "category": "playback", "playback_signal": "item_failed", "player": "avplayer", "stream_method": "local_file", "media": "video",
-                "error_domain": "NSURLErrorDomain", "error_code": "-1100"
-            ]
+            playbackTags([
+                "player": "avplayer", "playback_started": "false", "failure_mode": "unknown", "streaming_method": "hls", "source_kind": "hls",
+                "device_check": "skipped", "engine_error_domain": "NSOSStatusErrorDomain", "engine_error_code": "-12971",
+                "source_request_status": "unknown", "file_id": "41"
+            ]),
+            playbackTags([
+                "player": "avplayer", "playback_started": "false", "failure_mode": "source_gone", "streaming_method": "hls", "source_kind": "local_file",
+                "device_check": "skipped", "engine_error_domain": "NSURLErrorDomain", "engine_error_code": "-1100",
+                "source_request_status": "none", "file_id": "42"
+            ])
         ])
-        XCTAssertEqual(sent().map { $0.exceptions?.first?.type }, ["AVFoundationErrorDomain", "NSURLErrorDomain"])
+        XCTAssertEqual(sent().map(\.level), [.error, .error])
+        XCTAssertEqual(sent().map { $0.message?.formatted }, ["playback failed: unknown", "playback failed: source_gone"])
+        XCTAssertEqual(sent().map(\.fingerprint), [["ios", "failed", "unknown", "-12971"], ["ios", "failed", "source_gone", "-1100"]])
+        XCTAssertEqual(sent().map { $0.user == nil }, [true, true])
+        XCTAssertEqual(sent().map { $0.exceptions == nil }, [true, true])
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
-        for leaked in [title, fileName, host, token] {
+        for leaked in [title, fileName, host, token, "synthetic-user"] {
             XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
         }
     }
 
-    func testEachPlaybackFailureSignalIsReportedOncePerAttempt() throws {
+    func testEachPlayerReportsItsSourceOncePerAttempt() throws {
         let sent = try startRecordingSentEvents()
         allowCapture()
-        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), capture: { _ in })
-        streamed.failedToPlayToEnd(URLError(.networkConnectionLost))
+        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer), fileID: 7, capture: { _ in })
+        streamed.fail(URLError(.networkConnectionLost))
         streamed.fail(URLError(.networkConnectionLost))
         drainMainQueue()
         let cast = CastPlaybackTracker(capture: { _, _ in })
         let load = NSObject()
-        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+        cast.loadStarted(
+            load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), fileID: 8, session: AccountNoticeStore.shared.session
+        )
         cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
         cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
         SentryTelemetry.capture(
-            .init(signal: .castLoadFailed, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .chromecast)),
+            .init(playback: AnalyticsEvent.Playback(media: .video, streamMethod: .progressive, player: .chromecast), fileID: 9, started: false),
             error: NSError(domain: "io.synthetic.unlisted", code: 7),
+            startedIn: AccountNoticeStore.shared.session
+        )
+        SentryTelemetry.capture(
+            .init(playback: AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .chromecast), fileID: 10, started: true),
+            error: nil,
             startedIn: AccountNoticeStore.shared.session
         )
 
         XCTAssertEqual(sent().map(\.tags), [
-            [
-                "category": "playback", "playback_signal": "failed_to_play_to_end", "player": "avplayer", "stream_method": "hls", "media": "video",
-                "error_domain": "NSURLErrorDomain", "error_code": "-1005"
-            ],
-            [
-                "category": "playback", "playback_signal": "cast_load_failed", "player": "chromecast", "stream_method": "mp4", "media": "video",
-                "error_domain": "com.google.cast.GCKError", "error_code": "30"
-            ],
-            [
-                "category": "playback", "playback_signal": "cast_load_failed", "player": "chromecast", "stream_method": "hls", "media": "video",
-                "error_domain": "other", "error_code": "7"
-            ]
+            playbackTags([
+                "player": "avplayer", "playback_started": "false", "failure_mode": "network", "streaming_method": "file", "source_kind": "original",
+                "device_check": "skipped", "engine_error_domain": "NSURLErrorDomain", "engine_error_code": "-1005",
+                "source_request_status": "unknown", "file_id": "7"
+            ]),
+            playbackTags([
+                "player": "chromecast", "playback_started": "false", "failure_mode": "load", "streaming_method": "file", "source_kind": "converted",
+                "device_check": "skipped", "engine_error_domain": "com.google.cast.GCKError", "engine_error_code": "30",
+                "source_request_status": "unknown", "file_id": "8"
+            ]),
+            playbackTags([
+                "player": "chromecast", "playback_started": "false", "failure_mode": "unknown", "streaming_method": "file", "source_kind": "original",
+                "device_check": "pass", "engine_error_domain": "other", "engine_error_code": "7",
+                "source_request_status": "unknown", "file_id": "9"
+            ]),
+            playbackTags([
+                "player": "chromecast", "playback_started": "true", "failure_mode": "unknown", "streaming_method": "hls", "source_kind": "hls",
+                "device_check": "skipped", "engine_error_domain": "none", "engine_error_code": "none",
+                "source_request_status": "unknown", "file_id": "10"
+            ])
         ])
-        XCTAssertEqual(sent().last?.exceptions?.first?.type, "other")
+    }
+
+    func testAPlaybackFailureKeepsOnlyContractTagsAndValues() throws {
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let event = Event(level: .info)
+        event.message = SentryMessage(formatted: fileName)
+        event.fingerprint = [fileName]
+        event.tags = playbackTags([
+            "player": "vlc", "playback_started": "false", "failure_mode": "decode", "streaming_method": "file", "source_kind": "direct",
+            "device_check": "skipped", "engine_error_domain": "io.synthetic.unlisted", "engine_error_code": fileName,
+            "source_request_status": "404", "file_id": "-3"
+        ]).merging([
+            "category": "playback", "stream_method": "progressive", "video_codec": "hevc", "playback_outcome": "rescued", fileName: fileName
+        ]) { _, new in new }
+        event.user = Sentry.User(userId: "synthetic-installation")
+        event.exceptions = [Exception(value: fileName, type: AVFoundationErrorDomain)]
+
+        allowCapture()
+        let sent = try XCTUnwrap(SentryTelemetry.options(dsn: dsn).beforeSend?(event))
+
+        var expected = playbackTags(["playback_started": "false", "failure_mode": "decode", "streaming_method": "file", "device_check": "skipped"])
+        for dropped in ["player", "source_kind", "engine_error_domain", "engine_error_code", "source_request_status", "file_id", "video_codec", "playback_outcome"] {
+            expected[dropped] = nil
+        }
+        XCTAssertEqual(sent.tags, expected)
+        XCTAssertEqual(sent.level, .error)
+        XCTAssertEqual(sent.message?.formatted, "playback failed: decode")
+        XCTAssertEqual(sent.fingerprint, ["ios", "unknown", "decode", "unknown"])
+        XCTAssertNil(sent.user)
+        XCTAssertNil(sent.exceptions)
     }
 
     func testAPlaybackFailureThatOutlivesItsSessionSendsNothing() throws {
         let sent = try startRecordingSentEvents()
         allowCapture()
         let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
-        let pictureInPicture = PlaybackAnalytics(video, capture: { _ in })
+        let pictureInPicture = PlaybackAnalytics(video, fileID: 1, capture: { _ in })
         let cast = CastPlaybackTracker(capture: { _, _ in })
         let load = NSObject()
-        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+        cast.loadStarted(
+            load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), fileID: 2, session: AccountNoticeStore.shared.session
+        )
 
         AccountNoticeStore.shared.clear()
         pictureInPicture.fail(URLError(.timedOut))
         cast.loadFailed(load, error: GCKError(code: .timeout))
-        PlaybackAnalytics(video, capture: { _ in }).fail(URLError(.timedOut))
+        PlaybackAnalytics(video, fileID: 3, capture: { _ in }).fail(URLError(.timedOut))
         drainMainQueue()
 
-        XCTAssertEqual(sent().map { $0.tags?["playback_signal"] }, ["item_failed"])
+        XCTAssertEqual(sent().map { $0.tags?["file_id"] }, ["3"])
+    }
+
+    /// The contract's fixed tags for an iOS terminal failure, with `overrides` on top.
+    private func playbackTags(_ overrides: [String: String]) -> [String: String] {
+        [
+            "telemetry_event": "playback_failure", "schema_version": "2", "platform": "ios", "playback_outcome": "failed",
+            "playback_terminal": "true", "rescue_reason": "none", "rescue_to": "none", "engine_error_category": "none",
+            "container_family": "unknown", "video_codec": "unknown", "video_profile": "unknown", "video_level": "unknown",
+            "video_bit_depth": "unknown", "video_resolution": "unknown", "video_hdr": "unknown", "audio_codec": "unknown",
+            "audio_channels": "unknown"
+        ].merging(overrides) { _, new in new }
     }
 
     func testUnhandledCrashesKeepATokenizedReasonOnly() throws {
