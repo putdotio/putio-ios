@@ -298,15 +298,25 @@ final class ProductAnalyticsGate {
 
     @discardableResult
     private func deleteStorage(token: String) -> Bool {
+        let fileManager = FileManager.default
+        let discarded = environment.storageDirectory.appending(path: ".discarded-\(token)")
         do {
-            try FileManager.default.removeItem(at: storageDirectory(token: token))
-        } catch let error as CocoaError where error.code == .fileNoSuchFile {
-            // Already gone; every update while off lands here.
+            try ignoringMissing { try fileManager.removeItem(at: discarded) }
+            try ignoringMissing { try fileManager.moveItem(at: storageDirectory(token: token), to: discarded) }
+            try ignoringMissing { try fileManager.removeItem(at: discarded) }
         } catch {
             InternalFailurePresenter.log("ProductAnalytics: storage not deleted: \(error.localizedDescription)", context: "ProductAnalytics.deleteStorage", error: error)
             return false
         }
         return true
+    }
+
+    private func ignoringMissing(_ operation: () throws -> Void) throws {
+        do {
+            try operation()
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return
+        }
     }
 
     /// A held event keeps the time it happened, not the time the answer came.

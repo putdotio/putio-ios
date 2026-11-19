@@ -506,9 +506,18 @@ final class ProductAnalyticsTests: XCTestCase {
         killed.update(accountID: 1001, productAnalyticsEnabled: true)
         // As if the process died while capturing: the SDK's storage stays behind.
         try XCTUnwrap(killed.runningSDK).close()
+        let folder = killed.storageDirectory(token: token)
+        let writing = OSAllocatedUnfairLock(initialState: true)
+        defer { writing.withLock { $0 = false } }
+        Thread.detachNewThread {
+            while writing.withLock({ $0 }) {
+                try? Data("{}".utf8).write(to: folder.appending(path: "posthog.late-\(UUID().uuidString)"))
+            }
+        }
 
         let (relaunched, _) = makeGate(token: token)
         relaunched.update(accountID: 1002, productAnalyticsEnabled: true)
+        writing.withLock { $0 = false }
         relaunched.capture(.screenViewed(.files))
         let events = try waitForEvents(token: token, count: 1)
 
