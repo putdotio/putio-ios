@@ -14,7 +14,8 @@ from a sign-out that did not finish.
 - `session-restore-storage` and `session-restore-check` restore through an
   unreadable credential and an offline session check: retry restores, a failed
   reset keeps the screen, and the secondary action lands on the fresh welcome.
-- `security` links a device by code, lists apps, and clears data.
+- `account-security` links a device by code and lists apps; `clear-data`
+  clears data.
 - `browser-handoffs` opens Two-factor authentication and Destroy account in
   the browser and refreshes the two-factor value on return;
   `destroyed-account` lands on the welcome when the account is gone on return.
@@ -23,10 +24,11 @@ from a sign-out that did not finish.
 - `privacy-controls` reverts a failed Privacy controls switch with a toast and
   keeps both switches across relaunch.
 - `history` pages, opens items, deletes, and follows the History setting.
-- `rows` opens and closes every Account row from top to end.
-- `settings-states` shows settings loading and failed, retries, and reverts a
-  failed save with a toast, online and offline.
-- `rating` opens rating and contact links only after an explicit tap.
+- `account-rows` opens and closes every Account row from top to end.
+- `account-settings-loading` and `account-settings-states` show settings
+  loading and failed, retry, and revert a failed save with a toast, online and
+  offline.
+- `account-rating` opens rating and contact links only after an explicit tap.
 - `analytics-prompt` shows saving and failed states, retries, and saves the
   choice once.
 - `analytics-prompt-swipe` swipes the prompt away, signs out and in, and
