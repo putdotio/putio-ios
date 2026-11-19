@@ -14,10 +14,16 @@ class PutioKeychain {
     private let signedOutAccountKey = "signed_out_account_id"
     let keychain: Keychain
     private let legacyKeychain: Keychain?
+    private let signedOutAccountQueue: DispatchQueue
 
-    init(serviceKey: String = APP_KEYCHAIN_SERVICE, legacyServiceKey: String? = PutioKeychain.shipped258ServiceKey) {
+    init(
+        serviceKey: String = APP_KEYCHAIN_SERVICE,
+        legacyServiceKey: String? = PutioKeychain.shipped258ServiceKey,
+        signedOutAccountQueue: DispatchQueue = DispatchQueue(label: "io.put.keychain.signed-out-account", qos: .utility)
+    ) {
         keychain = Keychain(service: serviceKey)
         legacyKeychain = legacyServiceKey.flatMap { $0 == serviceKey ? nil : Keychain(service: $0) }
+        self.signedOutAccountQueue = signedOutAccountQueue
     }
 
     /// Moves 2.58.0's token over only when `adoptsShipped258Token`. Elsewhere it
@@ -59,7 +65,7 @@ class PutioKeychain {
     }
 
     var signedOutAccountID: Int? {
-        keychain[signedOutAccountKey].flatMap(Int.init)
+        signedOutAccountQueue.sync { keychain[signedOutAccountKey].flatMap(Int.init) }
     }
 
     func signOut(cachedUserID: Int?) {
@@ -77,11 +83,13 @@ class PutioKeychain {
     }
 
     private func recordSignedOutAccount(_ accountID: Int) {
-        keychain[signedOutAccountKey] = String(accountID)
+        signedOutAccountQueue.sync { keychain[signedOutAccountKey] = String(accountID) }
     }
 
     func clearSignedOutAccount() {
-        keychain[signedOutAccountKey] = nil
+        signedOutAccountQueue.async { [keychain, signedOutAccountKey] in
+            keychain[signedOutAccountKey] = nil
+        }
     }
 
     func clearToken() {
