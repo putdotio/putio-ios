@@ -370,7 +370,7 @@ final class PlaybackAnalytics {
     private let lock = NSLock()
     private var startedAt: Date?
     private var hasPlayed = false
-    private let itemFileIDs = NSMapTable<AVPlayerItem, NSNumber>.weakToStrongObjects()
+    private let itemSources = NSMapTable<AVPlayerItem, ItemSource>.weakToStrongObjects()
     private let playedItems = NSHashTable<AVPlayerItem>.weakObjects()
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
@@ -415,9 +415,19 @@ final class PlaybackAnalytics {
         start()
     }
 
-    /// Names the file a queued item plays, so its failure reports that file.
-    func track(_ item: AVPlayerItem, fileID: Int) {
-        lock.withLock { itemFileIDs.setObject(NSNumber(value: fileID), forKey: item) }
+    private final class ItemSource {
+        let playback: AnalyticsEvent.Playback
+        let fileID: Int
+
+        init(playback: AnalyticsEvent.Playback, fileID: Int) {
+            self.playback = playback
+            self.fileID = fileID
+        }
+    }
+
+    /// Names the file and source a queued item plays, so its failure reports them.
+    func track(_ item: AVPlayerItem, playback: AnalyticsEvent.Playback, fileID: Int) {
+        lock.withLock { itemSources.setObject(ItemSource(playback: playback, fileID: fileID), forKey: item) }
     }
 
     /// Marks the playback, and the item on screen, as started once `player` plays.
@@ -461,7 +471,7 @@ final class PlaybackAnalytics {
         fail(error, item: nil)
     }
 
-    /// A queued `item` reports its own file and whether it played.
+    /// A queued `item` reports its own file, source and whether it played.
     func fail(_ error: Error?, item: AVPlayerItem?) {
         let failure = lock.withLock { () -> SentryTelemetry.PlaybackFailure? in
             guard !isFinished else { return nil }
@@ -469,8 +479,10 @@ final class PlaybackAnalytics {
             playingObservation = nil
             capture(.playbackFailed(playback, .init(error)))
             guard let item else { return SentryTelemetry.PlaybackFailure(playback: playback, fileID: fileID, started: hasPlayed) }
-            let itemFileID = itemFileIDs.object(forKey: item)?.intValue ?? fileID
-            return SentryTelemetry.PlaybackFailure(playback: playback, fileID: itemFileID, started: playedItems.contains(item))
+            let source = itemSources.object(forKey: item)
+            return SentryTelemetry.PlaybackFailure(
+                playback: source?.playback ?? playback, fileID: source?.fileID ?? fileID, started: playedItems.contains(item)
+            )
         }
         if let failure { report(failure, error) }
     }

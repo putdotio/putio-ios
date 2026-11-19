@@ -307,21 +307,24 @@ final class SentryTelemetryTests: XCTestCase {
         ])
     }
 
-    func testAFailingQueuedItemReportsItsOwnFileAndStart() throws {
+    func testAFailingQueuedItemReportsItsOwnFileSourceAndStart() throws {
         let sent = try startRecordingSentEvents()
         allowCapture()
-        let audio = AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer)
+        let downloaded = AnalyticsEvent.Playback(media: .audio, streamMethod: .localFile, player: .avplayer)
+        let streamed = AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer)
         let first = AVPlayerItem(url: URL(filePath: "/dev/null"))
         let second = AVPlayerItem(url: URL(filePath: "/dev/null"))
-        let queue = PlaybackAnalytics(audio, fileID: 21, capture: { _ in })
-        queue.track(first, fileID: 21)
-        queue.track(second, fileID: 22)
+        let queue = PlaybackAnalytics(downloaded, fileID: 21, capture: { _ in })
+        queue.track(first, playback: downloaded, fileID: 21)
+        queue.track(second, playback: streamed, fileID: 22)
         queue.observePlaying(AVPlayer(playerItem: first))
         queue.fail(URLError(.networkConnectionLost), item: second)
         drainMainQueue()
 
         XCTAssertEqual(sent().map { $0.tags?["file_id"] }, ["22"])
         XCTAssertEqual(sent().map { $0.tags?["playback_started"] }, ["false"])
+        XCTAssertEqual(sent().map { $0.tags?["source_kind"] }, ["original"])
+        XCTAssertEqual(sent().map { $0.tags?["source_request_status"] }, ["unknown"])
     }
 
     func testAPlaybackFailureKeepsOnlyContractTagsAndValues() throws {
