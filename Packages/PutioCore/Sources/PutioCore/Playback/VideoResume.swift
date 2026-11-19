@@ -3,8 +3,8 @@ import Observation
 
 /// The pre-play decision between the saved position and the start, shown
 /// before the system player opens. It exists only while the account
-/// remembers positions and the video has both a duration and a saved
-/// position, the same trigger as every TV tier.
+/// remembers positions and the video has a duration and a saved position
+/// short of the watched mark, the same trigger as every TV tier.
 public struct PutioVideoResumePrompt: Equatable, Sendable {
   public enum Choice: Equatable, Sendable {
     case resume
@@ -15,7 +15,10 @@ public struct PutioVideoResumePrompt: Equatable, Sendable {
   public let durationSeconds: Double
 
   public init?(startFromSeconds: Int, durationSeconds: Double?, remembersPosition: Bool) {
-    guard remembersPosition, startFromSeconds > 0,
+    guard
+      PutioVideoStart.asksWhereToStart(
+        savedSeconds: startFromSeconds, durationSeconds: durationSeconds,
+        remembersPosition: remembersPosition),
       let durationSeconds, durationSeconds.isFinite, durationSeconds > 0
     else { return nil }
     self.positionSeconds = startFromSeconds
@@ -79,6 +82,11 @@ public enum PutioVideoRouteStart: Equatable, Sendable {
   case resumes(atSeconds: Int)
 }
 
+public enum PutioVideoPromptedStart: Equatable, Sendable {
+  case ask(PutioVideoResumePrompt)
+  case play(startSeconds: Int)
+}
+
 public enum PutioVideoOpening: Equatable, Sendable {
   case show(PutioVideoRoute)
   case ask(positionSeconds: Int)
@@ -127,6 +135,21 @@ public enum PutioVideoStart {
       let choice = await ask(source.startFromSeconds)
       return Self.source(source, startingWith: choice ?? .resume)
     }
+  }
+
+  public static func prompted(
+    startFromSeconds: Int, durationSeconds: Double?, remembersPosition: Bool
+  ) -> PutioVideoPromptedStart {
+    if let prompt = PutioVideoResumePrompt(
+      startFromSeconds: startFromSeconds, durationSeconds: durationSeconds,
+      remembersPosition: remembersPosition)
+    {
+      return .ask(prompt)
+    }
+    guard remembersPosition else { return .play(startSeconds: 0) }
+    return .play(
+      startSeconds: PutioPlaybackProgress.startSeconds(
+        savedSeconds: startFromSeconds, durationSeconds: durationSeconds))
   }
 
   public static func asksWhereToStart(
