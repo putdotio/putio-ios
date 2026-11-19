@@ -262,6 +262,9 @@ struct MainTabView: View {
           presentedPreview = nil
         }
       )
+      .onDisappear {
+        if !isCurrentSession { endShell() }
+      }
     }
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
@@ -323,9 +326,7 @@ struct MainTabView: View {
       }
     }
     .onDisappear {
-      stopAudio()
-      offlineQueueHolder.stop()
-      PutioVideoOrientationLock.setLocked(false)
+      if presentedPreview == nil || !isCurrentSession { endShell() }
     }
     .onChange(of: selectedVideoRoute != nil || audioPlayback.isPresented, initial: true) {
       _, playing in
@@ -713,6 +714,17 @@ struct MainTabView: View {
     else { return }
     let receiver = cast.makeAudioReceiver { try await runtime.resolveCastAudio(fileID: $0) }
     model.moveToReceiver(receiver) { try await receiver.resolve($0) }
+  }
+
+  private var isCurrentSession: Bool {
+    guard case .signedIn(let current) = runtime.session.state else { return false }
+    return current.id == account.id
+  }
+
+  private func endShell() {
+    stopAudio()
+    offlineQueueHolder.stop()
+    PutioVideoOrientationLock.setLocked(false)
   }
 
   private func stopAudio(keepingSleepTimer: Bool = false) {
