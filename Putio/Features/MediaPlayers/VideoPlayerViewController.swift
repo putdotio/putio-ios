@@ -333,10 +333,12 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     @objc private func handlePlaybackFailed(_ notification: Notification) {
-        guard isNotificationForCurrentPlayerItem(notification) else { return }
-        persistPlaybackPosition(shouldSyncRemoteInBackground: true)
-        playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
-        leaveForLocalFileRecoveryIfNeeded()
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isNotificationForCurrentPlayerItem(notification) else { return }
+            self.persistPlaybackPosition(shouldSyncRemoteInBackground: true)
+            self.playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+            self.leaveForLocalFileRecoveryIfNeeded()
+        }
     }
 
     private func leaveForLocalFileRecoveryIfNeeded() {
