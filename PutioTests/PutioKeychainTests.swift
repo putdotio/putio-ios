@@ -89,6 +89,37 @@ final class PutioKeychainTests: XCTestCase {
         XCTAssertEqual(keychain.getToken(adoptsShipped258Token: true), "shipped-token")
         XCTAssertNil(shipped.getToken())
     }
+
+    func testClearingTheSignedOutAccountDoesNotWaitForTheKeychain() {
+        let busyKeychain = DispatchQueue(label: "com.putio.tests.keychain.busy")
+        let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil, signedOutAccountQueue: busyKeychain)
+        addTeardownBlock { keychain.clearToken() }
+        keychain.signOut(cachedUserID: 1)
+
+        busyKeychain.suspend()
+        keychain.clearSignedOutAccount()
+        XCTAssertEqual(keychain.keychain["signed_out_account_id"], "1")
+        busyKeychain.resume()
+
+        XCTAssertNil(keychain.signedOutAccountID)
+    }
+
+    func testASignOutAfterAPendingClearKeepsItsAccount() {
+        let busyKeychain = DispatchQueue(label: "com.putio.tests.keychain.busy")
+        let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil, signedOutAccountQueue: busyKeychain)
+        addTeardownBlock {
+            keychain.clearToken()
+            keychain.clearSignedOutAccount()
+        }
+        keychain.signOut(cachedUserID: 1)
+
+        busyKeychain.suspend()
+        keychain.clearSignedOutAccount()
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.2) { busyKeychain.resume() }
+        keychain.signOut(cachedUserID: 2)
+
+        XCTAssertEqual(keychain.signedOutAccountID, 2)
+    }
 }
 
 final class DownloadSupportTests: XCTestCase {
