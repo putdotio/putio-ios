@@ -172,6 +172,32 @@ extension PutioRuntimeTests {
     XCTAssertEqual(report?.tags["source_request_status"], "403")
   }
 
+  func testAnAccessRefreshCancelledByLeavingThePlayerIsNoReport() async throws {
+    let source = PutioPlaybackSource(
+      url: URL(string: "https://api.example.test/v2/files/411/hls/media.m3u8")!,
+      startFromSeconds: 0)
+    var resolutions = 0
+    let model = PutioVideoPlaybackModel(fileID: Self.reportFileID) { _ in
+      resolutions += 1
+      if resolutions > 1 { try await Task.sleep(for: .seconds(60)) }
+      return .ready(source)
+    }
+    await model.loadIfNeeded()
+    let forbidden = PutioPlayerError(
+      avPlayerError: NSError(domain: "CoreMediaErrorDomain", code: -12660))
+    XCTAssertNil(model.failureReport(forbidden, beforeFirstFrame: true, platform: .ios))
+
+    let refresh = Task {
+      await model.playerFailed(forbidden.fault, heldSeconds: nil, beforeFirstFrame: true)
+    }
+    while resolutions < 2 { await Task.yield() }
+    refresh.cancel()
+
+    let report = await refresh.value
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+    XCTAssertNil(report)
+  }
+
   func testADefinitiveSourceStatusOutranksTheEngineCode() {
     let modes: [Int: String] = [
       404: "source_gone", 410: "source_gone", 402: "entitlement", 429: "throttled",

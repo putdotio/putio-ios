@@ -386,7 +386,7 @@ public final class PutioVideoPlaybackModel {
     }
     accessRefresh = .used
     await resolveSource(showsLoading: false)
-    guard case .failed = state else { return nil }
+    guard !Task.isCancelled, case .failed = state else { return nil }
     return refreshReport
   }
 
