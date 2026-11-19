@@ -423,7 +423,7 @@ public final class PutioFolderModel {
     let action = PutioBulkFileAction.setWatched(watched)
     let items = latest.filter { $0.isWatched != watched }
     guard !items.isEmpty else {
-      bulkOutcome = PutioBulkFileOutcome(action: action, succeeded: latest, failures: [])
+      settleBulk(PutioBulkFileOutcome(action: action, succeeded: latest, failures: []))
       return
     }
 
@@ -562,6 +562,12 @@ public final class PutioFolderModel {
     refreshRequests.requestRefreshes(after: actionOutcome, in: folderID, owner: refreshOwner)
   }
 
+  private func settleBulk(_ outcome: PutioBulkFileOutcome) {
+    bulkOutcome = outcome
+    guard let refreshRequests, let refreshOwner else { return }
+    refreshRequests.requestRefreshes(after: outcome, in: folderID, owner: refreshOwner)
+  }
+
   /// Sends the items in batches. A thrown batch fails all of its items; a
   /// rate-limited item defers every later batch for the retry.
   private func runBulk(
@@ -630,11 +636,8 @@ public final class PutioFolderModel {
       state = .loaded(apply(originalContents, appliedIDs).droppingCursor())
       activeBulkAction = nil
       bulkProgress = nil
-      bulkOutcome = PutioBulkFileOutcome(
-        action: action,
-        succeeded: succeeded,
-        failures: failures
-      )
+      settleBulk(
+        PutioBulkFileOutcome(action: action, succeeded: succeeded, failures: failures))
       refreshRequestedWhileActionActive = true
       startQueuedRefreshIfNeeded()
       continuationEpoch &+= 1

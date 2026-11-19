@@ -920,6 +920,95 @@ final class PutioFolderModelTests: XCTestCase {
       "a delete must reach every loaded folder after its screen closed")
   }
 
+  func testSettledBulkActionsRequestRefreshesAfterTheirScreenCloses() async throws {
+    enum Bulk: CaseIterable { case delete, move, watch }
+    let folder = PutioFileID(rawValue: 42)
+    let parent = PutioFileID.root
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
+    let requests = PutioFolderRefreshRequests()
+    let search = UUID()
+    let parentScreen = UUID()
+    let destinationScreen = UUID()
+    let movedScreen = UUID()
+    requests.register(folderID: folder, owner: search)
+    requests.register(folderID: parent, owner: parentScreen)
+    requests.register(folderID: destination.id, owner: destinationScreen)
+    requests.register(folderID: first.id, owner: movedScreen)
+
+    for bulk in Bulk.allCases {
+      let mutation = SuspendedFileMutation()
+      addTeardownBlock { await mutation.cancelPending() }
+      var registration: PutioFolderRefreshRegistration? = PutioFolderRefreshRegistration(
+        folderID: folder, requests: requests)
+      registration?.activate()
+      let model = PutioFolderModel(
+        folderID: folder,
+        load: { _ in original },
+        actions: PutioFileActions(
+          createFolder: { _, _ in throw PutioRuntimeError.unknown },
+          renameFile: { _, _ in throw PutioRuntimeError.unknown },
+          deleteFile: { _ in throw PutioRuntimeError.unknown },
+          deleteFiles: { _ in
+            try await mutation.run()
+            return [:]
+          },
+          moveFiles: { _, _ in
+            try await mutation.run()
+            return [:]
+          },
+          setWatched: { fileID, _ in
+            if fileID == first.id { try await mutation.run() }
+          }
+        ),
+        initialContents: original,
+        refreshRegistration: registration
+      )
+      let task = Task {
+        switch bulk {
+        case .delete: await model.delete([first, second])
+        case .move: await model.move([first, second], to: destination)
+        case .watch: await model.setWatched([first, second], true)
+        }
+      }
+      try await mutation.waitUntilStarted()
+      let before = requests.sequence(for: folder, owner: search)
+
+      registration = nil
+      await mutation.succeed()
+      _ = await task.value
+
+      let after = try XCTUnwrap(
+        requests.sequence(for: folder, owner: search),
+        "a settled \(bulk) must reach other screens of its folder after its own closed")
+      XCTAssertNotEqual(after, before)
+      requests.markConsumed(after, for: folder, owner: search)
+      let others = [
+        (parent, parentScreen), (destination.id, destinationScreen), (first.id, movedScreen),
+      ]
+      let reached = others.filter { requests.sequence(for: $0.0, owner: $0.1) != nil }
+      switch bulk {
+      case .delete:
+        XCTAssertEqual(
+          reached.map(\.1), others.map(\.1),
+          "a bulk delete must reach every loaded folder after its screen closed")
+      case .move:
+        XCTAssertEqual(
+          reached.map(\.1), [destinationScreen, movedScreen],
+          "a bulk move must reach its destination and moved folders after its screen closed")
+      case .watch:
+        XCTAssertTrue(reached.isEmpty)
+      }
+      for (folderID, owner) in others {
+        if let sequence = requests.sequence(for: folderID, owner: owner) {
+          requests.markConsumed(sequence, for: folderID, owner: owner)
+        }
+      }
+    }
+  }
+
   func testConsumedRefreshRequestsStopRefreshingOnLaterAppearances() {
     let folder = PutioFileID(rawValue: 42)
     let other = PutioFileID(rawValue: 7)
