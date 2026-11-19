@@ -19,9 +19,11 @@ final class PlaybackJourneyTests: XCTestCase {
   }
 
   /// The saved position asks first; Continue has the first focus and the
-  /// progress preview follows the focused choice. The resumed video ends,
-  /// its successor comes up next, and the successor starts over on request
-  /// and reports its position on the 10-second cadence.
+  /// progress preview follows the focused choice. The resumed video ends
+  /// and keeps its end position, its successor comes up next, and the
+  /// successor starts over on request and reports its position on the
+  /// 10-second cadence. The watched video then plays from the start without
+  /// asking.
   func testResumeChoicesAndEpisodicContinuation() {
     launch()
     openFile("files.item.412")
@@ -29,11 +31,11 @@ final class PlaybackJourneyTests: XCTestCase {
     let resume = element("video.resume.continue")
     XCTAssertTrue(resume.waitForExistence(timeout: 30))
     XCTAssertEqual(element("video.resume.file-name").label, "Root Movie.mkv")
-    XCTAssertEqual(resume.label, "Continue from 9 minutes, 49 seconds")
+    XCTAssertEqual(resume.label, "Continue from 9 minutes, 20 seconds")
     XCTAssertTrue(
       waitUntil(timeout: 5) { self.hasFocus("video.resume.continue") },
       "Continue takes the first focus")
-    XCTAssertEqual(percent("video.resume.progress"), 100)
+    XCTAssertEqual(percent("video.resume.progress"), 95)
     attach("runtime-tv-playback-resume")
 
     remote.press(.down)
@@ -46,15 +48,19 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.resume.continue") })
     remote.press(.select)
 
-    // One second is left from the saved position.
+    // Thirty seconds are left from the saved position.
     XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
-    XCTAssertTrue(probe("video.ended").waitForExistence(timeout: 30))
+    XCTAssertTrue(probe("video.ended").waitForExistence(timeout: 60))
     let nextTitle = element("video.next-title")
     XCTAssertTrue(nextTitle.waitForExistence(timeout: 30))
     XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
     XCTAssertTrue(element("video.cancel-next").exists)
     XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.play-next") })
-    XCTAssertEqual(probeValue("video.position-reported"), "id=412;seconds=0")
+    let endReport = probeValue("video.position-reported") ?? ""
+    XCTAssertTrue(
+      endReport.hasPrefix("id=412;seconds=")
+        && (Int(endReport.dropFirst("id=412;seconds=".count)) ?? 0) >= 589,
+      "the end keeps its position, not \(endReport)")
     attach("runtime-tv-playback-up-next")
     remote.press(.select)
 
@@ -84,10 +90,18 @@ final class PlaybackJourneyTests: XCTestCase {
       }, "a position report within the 10-second cadence")
 
     leavePlayer()
-    // The finished video's reset reaches its row: it is no longer watched.
     let finished = element("files.item.412")
     XCTAssertTrue(finished.waitForExistence(timeout: 15))
-    XCTAssertTrue(waitUntil(timeout: 15) { !finished.label.contains("Watched") })
+    XCTAssertTrue(waitUntil(timeout: 15) { finished.label.contains("Watched") })
+
+    openFile("files.item.412")
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+    XCTAssertFalse(element("video.resume.continue").exists, "a watched video asks nothing")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { (Int(self.probeValue("video.current-position") ?? "") ?? 99) < 10 },
+      "a watched video plays from the start")
+    attach("runtime-tv-playback-watched-start")
+    leavePlayer()
   }
 
   /// Subtitles and speed are AVKit's own controls. The server's default
