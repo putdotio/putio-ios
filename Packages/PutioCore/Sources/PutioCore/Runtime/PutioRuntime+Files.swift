@@ -227,10 +227,15 @@ extension PutioRuntime {
     try await deleteFiles(fileIDs: [fileID], permanently: permanently)
   }
 
+  /// A file's metadata and saved position. The SDK's default details query
+  /// also asks for stream and MP4 URLs, which the API signs for nothing here.
+  static let fileMetadataQuery = PutioFileDetailsQuery(
+    mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)
+
   public func getFile(fileID: PutioFileID) async throws -> PutioFileItem {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let file = try await performAuthenticatedOperation {
-      try await sdk.getFile(fileID: fileID.rawValue)
+      try await sdk.getFile(fileID: fileID.rawValue, query: Self.fileMetadataQuery)
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     return snapshot(file)
@@ -243,10 +248,7 @@ extension PutioRuntime {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     async let subtitles = subtitleLanguages(fileID: fileID)
     let file = try await performAuthenticatedOperation {
-      try await sdk.getFile(
-        fileID: fileID.rawValue,
-        query: PutioFileDetailsQuery(
-          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false))
+      try await sdk.getFile(fileID: fileID.rawValue, query: Self.fileMetadataQuery)
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     let duration = file.metaData.map { Int($0.duration.rounded()) }.flatMap { $0 > 0 ? $0 : nil }
@@ -292,7 +294,10 @@ extension PutioRuntime {
   {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
     let (file, downloadToken) = try await performAuthenticatedOperation {
-      (try await sdk.getFile(fileID: fileID.rawValue), session.downloadToken)
+      (
+        try await sdk.getFile(fileID: fileID.rawValue, query: Self.fileMetadataQuery),
+        session.downloadToken
+      )
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     guard let token = try? requireDownloadToken(downloadToken) else {
