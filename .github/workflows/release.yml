@@ -183,7 +183,6 @@ jobs:
         timeout-minutes: 15
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
         run: |
           mise install sentry-cli
           mise exec sentry-cli -- ./scripts/upload-dsyms.sh "$PUTIO_RELEASE_DSYM_PATH"
