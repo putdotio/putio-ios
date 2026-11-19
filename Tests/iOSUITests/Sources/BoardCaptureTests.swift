@@ -3731,8 +3731,10 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(position.label, "3 of 4", "the preview did not page to the third image")
     XCTAssertTrue(
       app.images["Gallery 3.png"].appears(within: 10), "the third image did not settle")
-    XCTAssertFalse(
-      element("files.title").exists, "VoiceOver still reaches the folder behind the viewer")
+    XCTAssertFalse(element("files.title").isHittable, "the folder title shows behind the viewer")
+    for tab in ["Files", "Downloads", "Account"] {
+      XCTAssertFalse(app.buttons[tab].firstMatch.isHittable, "the \(tab) tab shows over the viewer")
+    }
     try captureBoard("rd-ios-pv-09-position")
   }
 
@@ -5926,20 +5928,14 @@ final class BoardCaptureTests: XCTestCase {
   private static func isAcceptedXXLargeClip(
     _ issue: XCUIAccessibilityAuditIssue, board: String, app: XCUIApplication
   ) -> Bool {
-    switch board {
-    case "rd-ios-54-shared-root":
-      return issue.element?.identifier == "files.title"
-    case "rd-ios-ses-24-ipad-sign-out":
-      let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
-      guard let element = issue.element else {
-        return issue.detailedDescription.contains("UILabel") && remove.exists
-          && remove.label == "Sign out and remove downloads"
-          && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
-      }
-      return element.label == "Sign out and remove downloads"
-    default:
-      return false
+    guard board == "rd-ios-ses-24-ipad-sign-out" else { return false }
+    let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+    guard let element = issue.element else {
+      return issue.detailedDescription.contains("UILabel") && remove.exists
+        && remove.label == "Sign out and remove downloads"
+        && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
     }
+    return element.label == "Sign out and remove downloads"
   }
 
   private static func isInFullWidthSystemDialog(
