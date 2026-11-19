@@ -1,4 +1,5 @@
 import Foundation
+import PutioSDK
 import Observation
 
 public typealias PutioPlaybackResolve =
@@ -326,6 +327,34 @@ public final class PutioVideoPlaybackModel {
       && resolveConverted != nil && !resolvesConverted
   }
 
+  /// The report for a player failure, before `playerFailed` acts on it: a
+  /// rescue when the converted copy takes over, `nil` when a refreshed
+  /// source retries silently, otherwise a terminal failure.
+  public func failureReport(
+    _ error: PutioPlayerError, beforeFirstFrame: Bool,
+    platform: PutioPlaybackFailureReport.Platform
+  ) -> PutioPlaybackFailureReport? {
+    guard case .ready(let source) = state else { return nil }
+    let outcome: PutioPlaybackFailureReport.Outcome
+    if fallsBack(after: error.fault, beforeFirstFrame: beforeFirstFrame) {
+      outcome = .rescued(reason: PutioPlaybackReason.decoderError.rawValue, to: .converted)
+    } else if refreshesAccess(after: error.fault, beforeFirstFrame: beforeFirstFrame) {
+      return nil
+    } else {
+      outcome = .failed
+    }
+    return PutioPlaybackFailureReport(
+      platform: platform, fileID: fileID, source: source, error: error,
+      playbackStarted: !beforeFirstFrame, outcome: outcome)
+  }
+
+  private func refreshesAccess(after fault: PutioVideoPlayerFault, beforeFirstFrame: Bool) -> Bool
+  {
+    let refresh: AccessRefresh =
+      accessRefresh == .usedThenReady ? (beforeFirstFrame ? .used : .unused) : accessRefresh
+    return fault == .accessExpired && refresh == .unused && storedResolution == nil
+  }
+
   public func playerFailed(
     _ fault: PutioVideoPlayerFault, heldSeconds: Int?, beforeFirstFrame: Bool = false
   ) async {
@@ -341,7 +370,7 @@ public final class PutioVideoPlaybackModel {
       await resolveSource()
       return
     }
-    guard fault == .accessExpired, accessRefresh == .unused, storedResolution == nil else {
+    guard refreshesAccess(after: fault, beforeFirstFrame: beforeFirstFrame) else {
       generation &+= 1
       state = .failed(.player(fault))
       return
@@ -559,9 +588,7 @@ public final class PutioVideoPlaybackModel {
     -> PutioPlaybackSource
   {
     if let heldSeconds {
-      return PutioPlaybackSource(
-        url: source.url, startFromSeconds: heldSeconds, resumesAfterFailure: true,
-        original: source.original)
+      return source.resuming(at: heldSeconds)
     }
     if let chosenStart {
       guard source.startFromSeconds == chosenStart.saved else { return source }

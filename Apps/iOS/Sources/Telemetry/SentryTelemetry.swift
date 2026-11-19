@@ -47,14 +47,9 @@ enum SentryTelemetry {
     return options
   }
 
-  static func report(_ fault: PutioVideoPlayerFault) {
+  static func report(_ report: PutioPlaybackFailureReport) {
     guard isCapturing, SentrySDK.isEnabled else { return }
-    SentrySDK.capture(event: event(for: fault))
-  }
-
-  static func reportFallback() {
-    guard isCapturing, SentrySDK.isEnabled else { return }
-    SentrySDK.capture(event: fallbackEvent())
+    SentrySDK.capture(event: event(for: report))
   }
 
   static func reportPushRegistrationFailure(_ error: any Error) {
@@ -73,23 +68,9 @@ enum SentryTelemetry {
     return event
   }
 
-  static func fallbackEvent() -> Event {
-    let event = Event(level: .warning)
-    let exception = Exception(value: nil, type: "VideoPlaybackFallback.decoder_error")
-    let mechanism = Mechanism(type: "video-player")
-    mechanism.handled = true
-    exception.mechanism = mechanism
-    event.exceptions = [exception]
-    return event
-  }
-
-  static func event(for fault: PutioVideoPlayerFault) -> Event {
-    let event = Event(level: .error)
-    let exception = Exception(value: nil, type: "VideoPlaybackFailure.\(fault.rawValue)")
-    let mechanism = Mechanism(type: "video-player")
-    mechanism.handled = true
-    exception.mechanism = mechanism
-    event.exceptions = [exception]
+  static func event(for report: PutioPlaybackFailureReport) -> Event {
+    let event = Event(level: report.isRescue ? .warning : .error)
+    event.tags = report.tags
     return event
   }
 
@@ -107,6 +88,13 @@ enum SentryTelemetry {
     sent.threads = event.threads
     sent.debugMeta = event.debugMeta
     sent.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
+    if PutioPlaybackFailureReport.isPlaybackFailure(tags: event.tags) {
+      let tags = event.tags?.filter { PutioPlaybackFailureReport.tagKeys.contains($0.key) } ?? [:]
+      sent.tags = tags
+      sent.message = SentryMessage(formatted: PutioPlaybackFailureReport.message(tags: tags))
+      sent.fingerprint = PutioPlaybackFailureReport.fingerprint(tags: tags)
+      return sent
+    }
     sent.user = event.user?.userId.map(Sentry.User.init(userId:))
     sent.exceptions = event.exceptions?.map { exception in
       let kept = Exception(value: nil, type: exception.type)

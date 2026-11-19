@@ -46,3 +46,8 @@ drops everything while diagnostics are off; otherwise it rebuilds each event,
 crashes and hangs included, from the allowlist in `SentryTelemetry.allowlisted`.
 `SentryTelemetryTests` fills every other field with a URL, token, file name,
 and title and fails if any is sent.
+
+Player failures and rescues send one anonymous `playback_failure` event, schema
+2, shared with put.io's other players. It carries no user and only the tags in
+[`PutioPlaybackFailureReport.tagKeys`](../Packages/PutioCore/Sources/PutioCore/Playback/PlaybackFailureReport.swift);
+the allowlist rebuilds its message and fingerprint from those tags.

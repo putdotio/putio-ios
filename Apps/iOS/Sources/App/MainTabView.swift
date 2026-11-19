@@ -937,7 +937,6 @@ struct MainTabView: View {
           return cast.castingRoute != nil
         }),
       onOpenInVLC: vlcAction.map { open in { open(PutioFileRoute(video: route)) } },
-      onFallback: { SentryTelemetry.reportFallback() },
       onFallbackPlays: { convertedFallbacks.remember(route.id) },
       resolveConverted: { fileID in
         try await resolvePlaybackSource(fileID: fileID, method: route.method, playsConverted: true)

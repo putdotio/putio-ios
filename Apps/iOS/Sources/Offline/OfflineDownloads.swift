@@ -691,10 +691,14 @@ final class PutioOfflineQueue {
     }
     let resume = item.pendingPositionSeconds ?? item.resumePositionSeconds
     let url = playbackURL(localPath)
-    guard item.isOriginal else { return PutioPlaybackSource(url: url, startFromSeconds: resume) }
+    guard item.isOriginal else {
+      return PutioPlaybackSource(
+        url: url, startFromSeconds: resume, facts: .download(method: item.playbackMethod))
+    }
     let fileURL = PutioOfflineOriginalPackage.mediaURL(in: url, name: item.name)
     if item.playsOriginalInAVPlayer {
-      return PutioPlaybackSource(url: fileURL, startFromSeconds: resume)
+      return PutioPlaybackSource(
+        url: fileURL, startFromSeconds: resume, facts: .download(method: item.playbackMethod))
     }
     let stored = PutioOfflineOriginalPackage.playbackSubtitles(in: url)
     return PutioPlaybackSource.stored(
