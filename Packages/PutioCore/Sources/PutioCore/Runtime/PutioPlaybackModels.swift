@@ -21,21 +21,29 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
   /// Set when Direct play opens the original file; `nil` for HLS, a
   /// converted copy and Standard downloads.
   public let original: PutioOriginalPlayback?
+  public let facts: PutioPlaybackFacts
 
   public init(
     url: URL, startFromSeconds: Int, resumesAfterFailure: Bool = false,
-    original: PutioOriginalPlayback? = nil
+    original: PutioOriginalPlayback? = nil, facts: PutioPlaybackFacts = .unknown
   ) {
     self.url = url
     self.startFromSeconds = startFromSeconds
     self.resumesAfterFailure = resumesAfterFailure
     self.original = original
+    self.facts = facts
   }
 
   public func starting(at seconds: Int) -> PutioPlaybackSource {
     PutioPlaybackSource(
       url: url, startFromSeconds: seconds, resumesAfterFailure: resumesAfterFailure,
-      original: original)
+      original: original, facts: facts)
+  }
+
+  public func resuming(at seconds: Int) -> PutioPlaybackSource {
+    PutioPlaybackSource(
+      url: url, startFromSeconds: seconds, resumesAfterFailure: true, original: original,
+      facts: facts)
   }
 
   public var description: String {
@@ -76,7 +84,8 @@ extension PutioPlaybackSource {
       url: fileURL, startFromSeconds: startFromSeconds,
       original: PutioOriginalPlayback(
         player: .engine, audioStreams: audioStreams, subtitles: subtitles,
-        defaultSubtitleKey: defaultKey))
+        defaultSubtitleKey: defaultKey),
+      facts: .download(method: .directPlay))
   }
 }
 

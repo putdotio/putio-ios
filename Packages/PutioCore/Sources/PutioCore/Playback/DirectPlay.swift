@@ -1,6 +1,13 @@
 import Foundation
 import PutioSDK
 
+extension PutioMediaInfo {
+  var defaultAudioStream: PutioMediaStream? {
+    streams.first { $0.codecType == .audio && $0.isDefault == true }
+      ?? streams.first { $0.codecType == .audio }
+  }
+}
+
 /// What the Direct play engine decodes, and which player opens an original.
 /// The engine's FFmpeg build decodes every codec but the ones listed here, as
 /// its formats page states; AVPlayer keeps the MP4 and MOV files it plays.
@@ -17,14 +24,14 @@ public enum PutioDirectPlayDecoders {
   }
 
   /// The SDK asks this only for an original with `media_info` and no playback
-  /// issue: the first video stream and the first audio stream must decode.
+  /// issue: the first video stream and the default audio stream must decode.
   static func support(of media: PutioMediaInfo) -> PutioOriginalVideoSupport {
     if let video = media.streams.first(where: { $0.codecType == .video }),
       let codec = video.codecName?.lowercased(), undecodableVideo.contains(codec)
     {
       return .unsupported(.videoUnsupported)
     }
-    if let audio = media.streams.first(where: { $0.codecType == .audio }),
+    if let audio = media.defaultAudioStream,
       !canDecodeAudio(codec: audio.codecName)
     {
       return .unsupported(.audioUnsupported)
