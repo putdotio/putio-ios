@@ -10,17 +10,20 @@ images and documents, and opens put.io links into the same screens.
   parent's place.
 - `continue-watching` lists a video played to the middle on the root, removes
   it from its menu, lists no finished video, and drops a trashed one.
-- `browse-sort` changes the folder sort from the sort button and appends the
-  next page on scroll.
+- `sort-continuation` changes the folder sort from the sort button and appends
+  the next page on scroll; `sort-menu` walks every sort field and keeps a
+  folder's order across a relaunch.
 - `recent-searches` keeps the last five submitted searches, runs, removes and
   clears them, hides them while history is off, and keeps them on a failed write.
-- `search` pages results, retries a failed page, and restores the open folder
+- `search-restoration` pages results, retries a failed page, and restores the open folder
   after a relaunch.
 - `row-menus` lists each item kind's long-press rows in order, marks watched
   and unwatched with a seeded failure, swipes both ways, and shows Open in VLC
   only with VLC installed.
 - `file-actions` creates a folder, rolls back a failed rename, retries it from
-  the toast, moves by context menu and swipe, and trashes by swipe.
+  the toast, moves by context menu and swipe, and trashes by swipe. In
+  selection it selects all, ends selection, moves with partial-failure retry,
+  and trashes with batch retry.
 - `exclusive-link`, `exclusive-link-refused`, `exclusive-link-failed`,
   `exclusive-link-reopen`, and `exclusive-link-existing` create a link for a
   file and a folder, copy and share it, show every refusal and a failure with
@@ -29,8 +32,6 @@ images and documents, and opens put.io links into the same screens.
 - `move-sheet` walks the move sheet's folder levels, keeps it open on a taken
   name, disables the current folder and a folder inside the moved one, and
   moves into a folder made in the sheet.
-- `bulk` selects all, ends selection, moves with partial-failure retry, and
-  trashes with batch retry.
 - `selection-bar` changes the bar's actions as videos, audio, and a folder join
   the selection, and selects only the loaded page of a 450-file folder.
 - `selection-trash-off` deletes after a confirm, and reports the one video that
@@ -43,8 +44,8 @@ images and documents, and opens put.io links into the same screens.
   failed move.
 - `trash-limit` asks before a permanent delete when Trash refuses a folder, and
   disables Trash while the setting is unconfirmed.
-- `trash` restores, retries, deletes, and empties Trash.
-- `reconcile` updates other tabs after an open folder is renamed or deleted.
+- `trash-management` restores, retries, deletes, and empties Trash.
+- `folder-reconciliation` updates other tabs after an open folder is renamed or deleted.
 - `previews` shows images, PDFs, text and unsupported files;
   `preview-routing` opens previews from Search and History and hands video to
   VLC when it is installed; `preview-vlc-retry` toasts a failed VLC handoff and
@@ -66,8 +67,8 @@ images and documents, and opens put.io links into the same screens.
 - `preview-trash-limit-late` shows the failure toast over the folder when the
   refusal arrives after the viewer closed.
 - `deep-links` opens links cold, warm, and signed out.
-- `large-text` keeps long names, selection, and Downloads usable at the
-  largest text size.
+- `accessibility-files` keeps long names, selection, and Downloads usable at
+  the largest text size.
 
 ## How to get to it (user POV)
 
