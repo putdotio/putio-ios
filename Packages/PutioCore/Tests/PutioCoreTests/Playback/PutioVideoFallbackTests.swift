@@ -87,6 +87,59 @@ final class PutioVideoFallbackTests: XCTestCase {
         PutioPlaybackSource(url: converted.url, startFromSeconds: 120, resumesAfterFailure: true)))
   }
 
+  func testAnOriginalRefusedAfterReadyButBeforeItsFirstFramePlaysConvertedAfterOneRefresh() async {
+    var originalRequests = 0
+    var convertedRequests = 0
+    let original = original
+    let converted = converted
+    let model = model(
+      converted: { _ in
+        convertedRequests += 1
+        return .ready(converted)
+      },
+      resolve: { _ in
+        originalRequests += 1
+        return .ready(original)
+      })
+
+    await model.loadIfNeeded()
+    model.playerReady()
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+    model.playerReady()
+    XCTAssertTrue(model.fallsBack(after: .accessExpired, beforeFirstFrame: true))
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+
+    XCTAssertEqual(originalRequests, 2)
+    XCTAssertEqual(convertedRequests, 1)
+    XCTAssertTrue(model.playsConvertedFallback)
+    XCTAssertEqual(
+      model.state,
+      .ready(
+        PutioPlaybackSource(url: converted.url, startFromSeconds: 120, resumesAfterFailure: true)))
+  }
+
+  func testAnOriginalWithoutAConvertedStreamRefusedAfterReadyShowsExpiredAccessAfterOneRefresh()
+    async
+  {
+    var originalRequests = 0
+    let original = original
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      resolve: { _ in
+        originalRequests += 1
+        return .ready(original)
+      })
+
+    await model.loadIfNeeded()
+    model.playerReady()
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+    model.playerReady()
+    await model.playerFailed(.accessExpired, heldSeconds: 120, beforeFirstFrame: true)
+
+    XCTAssertEqual(originalRequests, 2)
+    XCTAssertEqual(model.state, .failed(.accessExpired))
+  }
+
   func testARefusalAfterTheFirstFrameOrWithoutAConvertedStreamShowsExpiredAccess() async {
     let converted = converted
     let original = original
