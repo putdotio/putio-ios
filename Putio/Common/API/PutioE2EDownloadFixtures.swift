@@ -18,6 +18,7 @@ enum PutioE2EDownloadFixtures {
         // minute boundary mid-run, day-scale ones straddle a month bucket.
         let completedHoursAgo: Int?
         let progress: String
+        let isCorrupted: Bool
 
         init(
             id: Int,
@@ -26,7 +27,8 @@ enum PutioE2EDownloadFixtures {
             fileType: Download.FileType = .video,
             state: Download.State = .completed,
             completedHoursAgo: Int? = nil,
-            progress: String = "0"
+            progress: String = "0",
+            isCorrupted: Bool = false
         ) {
             self.id = id
             self.name = name
@@ -35,6 +37,7 @@ enum PutioE2EDownloadFixtures {
             self.state = state
             self.completedHoursAgo = completedHoursAgo
             self.progress = progress
+            self.isCorrupted = isCorrupted
         }
     }
 
@@ -44,7 +47,7 @@ enum PutioE2EDownloadFixtures {
     // fixtures use, since they reach the App Store listing.
     private static let seeds: [Seed] = [
         Seed(id: 42, name: "Big Buck Bunny.mp4", size: 276_205_568, completedHoursAgo: 9),
-        Seed(id: 71, name: "Sintel.mp4", size: 1_503_238_553, completedHoursAgo: 7),
+        Seed(id: 71, name: "Sintel.mp4", size: 1_503_238_553, completedHoursAgo: 7, isCorrupted: true),
         Seed(id: 73, name: "Elephants Dream.mp4", size: 761_266_995, completedHoursAgo: 6),
         Seed(id: 74, name: "Cosmos Laundromat.mp4", size: 1_181_116_006, completedHoursAgo: 5),
         Seed(id: 75, name: "Caminandes - Llamigos.mp4", size: 432_013_312, completedHoursAgo: 4),
@@ -125,10 +128,11 @@ enum PutioE2EDownloadFixtures {
             return log.error("[PutioE2EDownloadFixtures] Unable to resolve documents directory")
         }
 
-        let fileExtension = seed.fileType == .audio ? "mp3" : "movpkg"
+        let playableVideo = seed.fileType == .video && !seed.isCorrupted ? playableVideoURL : nil
+        let fileExtension = seed.fileType == .audio ? "mp3" : playableVideo?.pathExtension ?? "movpkg"
         let filename = "\(filenamePrefix)\(seed.id).\(fileExtension)"
         let fileURL = documentsURL.appendingPathComponent(filename)
-        guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
+        guard writeLocalFile(at: fileURL, copying: playableVideo) else {
             return log.error("[PutioE2EDownloadFixtures] Unable to create \(filename)")
         }
 
@@ -141,6 +145,25 @@ enum PutioE2EDownloadFixtures {
             } catch {
                 log.error("[PutioE2EDownloadFixtures] Unable to bookmark \(filename): \(error.localizedDescription)")
             }
+        }
+    }
+
+    private static var playableVideoURL: URL? {
+        Bundle.main.url(forResource: "big-buck-bunny", withExtension: "mp4")
+            ?? Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
+    }
+
+    private static func writeLocalFile(at fileURL: URL, copying source: URL?) -> Bool {
+        guard let source else {
+            return FileManager.default.createFile(atPath: fileURL.path, contents: Data())
+        }
+        _ = DownloadSupport.deleteItemIfPresent(at: fileURL, context: "PutioE2EDownloadFixtures.writeLocalFile")
+        do {
+            try FileManager.default.copyItem(at: source, to: fileURL)
+            return true
+        } catch {
+            log.error("[PutioE2EDownloadFixtures] Unable to copy \(source.lastPathComponent): \(error.localizedDescription)")
+            return false
         }
     }
 }

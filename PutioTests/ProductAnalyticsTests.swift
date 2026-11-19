@@ -664,6 +664,28 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
+    func testDownloadedVideoReachingForTheNetworkReadsSource() {
+        var events: [AnalyticsEvent] = []
+        let local = AnalyticsEvent.Playback(media: .video, streamMethod: .localFile, player: .avplayer)
+        let hls = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
+        let notConnectedToInternet = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
+
+        PlaybackAnalytics(local, fileID: 1, capture: { events.append($0) }, report: { _, _ in }).fail(notConnectedToInternet)
+        PlaybackAnalytics(hls, fileID: 1, capture: { events.append($0) }, report: { _, _ in }).fail(notConnectedToInternet)
+
+        XCTAssertEqual(events, [.playbackFailed(local, .source), .playbackFailed(hls, .network)])
+        let codes = [
+            NSURLErrorCannotFindHost, NSURLErrorResourceUnavailable, NSURLErrorNotConnectedToInternet,
+            NSURLErrorUserAuthenticationRequired, NSURLErrorSecureConnectionFailed
+        ]
+        for code in codes {
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: NSURLErrorDomain, code: code), streamMethod: .localFile), .source, "\(code)")
+        }
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: AVFoundationErrorDomain, code: AVError.mediaServicesWereReset.rawValue), streamMethod: .localFile), .media)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: "CoreMediaErrorDomain", code: -12971), streamMethod: .localFile), .media)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(nil, streamMethod: .localFile), .unknown)
+    }
+
     func testCastFailuresKeepTheirCause() {
         let expected: [(GCKErrorCode, AnalyticsEvent.PlaybackError)] = [
             (.networkError, .network), (.timeout, .network), (.networkNotReachable, .network), (.disconnected, .network),

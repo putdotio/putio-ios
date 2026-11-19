@@ -7,6 +7,7 @@ import PutioSDK
 class VideoPlayerViewController: AVPlayerViewController {
     private lazy var realm: Realm? = PutioRealm.open(context: "VideoPlayerViewController.realm")
     var item: MediaPlayerItem!
+    var onLocalFileFailure: (() -> Void)?
     private lazy var user: User? = realm?.objects(User.self).first
 
     var isPlayerSetup: Bool = false
@@ -280,6 +281,7 @@ class VideoPlayerViewController: AVPlayerViewController {
                 case .failed:
                     self?.endPlaybackStartSignpost(.failed)
                     self?.playbackAnalytics?.fail(playerItem.error)
+                    self?.leaveForLocalFileRecoveryIfNeeded()
                 default:
                     break
                 }
@@ -334,6 +336,14 @@ class VideoPlayerViewController: AVPlayerViewController {
         guard isNotificationForCurrentPlayerItem(notification) else { return }
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
         playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+        leaveForLocalFileRecoveryIfNeeded()
+    }
+
+    private func leaveForLocalFileRecoveryIfNeeded() {
+        guard item.consumptionType == .offline, let recover = onLocalFileFailure else { return }
+        onLocalFileFailure = nil
+        guard let presentingViewController else { return recover() }
+        presentingViewController.dismiss(animated: true, completion: recover)
     }
 
     @objc private func handlePlaybackEnded(_ notification: Notification) {
