@@ -120,30 +120,30 @@ url_api = "https://api.github.com/repos/pnpm/pnpm/releases/assets/744357251"
 provenance = "github-attestations"
 
 [[tools.tuist]]
-version = "4.216.7"
+version = "4.218.1"
 backend = "aqua:tuist/tuist"
-specifiers = ["4.216.7"]
+specifiers = ["4.218.1"]
 
 [tools.tuist."platforms.linux-arm64"]
-checksum = "sha256:0ea77724476e8073112b5ee4685a59bf6db714c2fd52271f6059e4736a266ad1"
+checksum = "sha256:a06090804c85679490ad05499df3b5e836cc7908e05bc613edfb57d5d4bac633"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist-linux-aarch64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498324"
+url = "https://github.com/tuist/tuist/releases/download/4.218.1/tuist-linux-aarch64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/759534520"
 
 [tools.tuist."platforms.linux-x64"]
-checksum = "sha256:c5c736201aa88d40cd15281ff627e706bab9d51ad9d41baeb6dc123da9b07fb8"
+checksum = "sha256:e6fce51d606a7f7bc274960a0f0022f700984efd37c372bc71b0d10e913af7b6"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist-linux-x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498320"
+url = "https://github.com/tuist/tuist/releases/download/4.218.1/tuist-linux-x86_64.tar.gz"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/759534518"
 
 [tools.tuist."platforms.macos-arm64"]
-checksum = "sha256:e1363ea2b43513824c6e24d03ef7bd75fb1c05fa4d72a0cae393c2e3e9e42b8d"
+checksum = "sha256:b2b61bf6222d5eec82ef496ffaeb1755dbfb50f7fc2cc182ced2d268e7e0cdc3"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498319"
+url = "https://github.com/tuist/tuist/releases/download/4.218.1/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/759534506"
 
 [tools.tuist."platforms.macos-x64"]
-checksum = "sha256:e1363ea2b43513824c6e24d03ef7bd75fb1c05fa4d72a0cae393c2e3e9e42b8d"
+checksum = "sha256:b2b61bf6222d5eec82ef496ffaeb1755dbfb50f7fc2cc182ced2d268e7e0cdc3"
 checksum_source = "mise-versions"
-url = "https://github.com/tuist/tuist/releases/download/4.216.7/tuist.zip"
-url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/748498319"
+url = "https://github.com/tuist/tuist/releases/download/4.218.1/tuist.zip"
+url_api = "https://api.github.com/repos/tuist/tuist/releases/assets/759534506"
