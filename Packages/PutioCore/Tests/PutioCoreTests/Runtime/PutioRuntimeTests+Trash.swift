@@ -256,6 +256,11 @@ extension PutioRuntimeTests {
     fixtures.releaseFixture(for: Self.restoredTrashFileRoute)
     await restore.value
 
+    let lookup = try XCTUnwrap(
+      fixtures.capturedRequests().first { $0.url?.path == "/v2/files/91" }?.url)
+    let queryNames = Set(
+      (URLComponents(url: lookup, resolvingAgainstBaseURL: false)?.queryItems ?? []).map(\.name))
+    XCTAssertTrue(queryNames.isDisjoint(with: ["stream_url", "mp4_stream_url", "mp4_size"]))
     XCTAssertEqual(destinations.count, 1)
   }
 

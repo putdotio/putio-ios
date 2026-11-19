@@ -67,13 +67,17 @@ private final class ReporterHarness {
 }
 
 final class PutioVideoResumePromptTests: XCTestCase {
-  func testPromptAppearsOnlyWithRememberedPositionAndDuration() {
+  func testPromptAppearsOnlyWithAnUnwatchedRememberedPositionAndDuration() {
     XCTAssertNotNil(
       PutioVideoResumePrompt(startFromSeconds: 90, durationSeconds: 5400, remembersPosition: true))
     XCTAssertNil(
       PutioVideoResumePrompt(startFromSeconds: 90, durationSeconds: 5400, remembersPosition: false))
     XCTAssertNil(
       PutioVideoResumePrompt(startFromSeconds: 0, durationSeconds: 5400, remembersPosition: true))
+    XCTAssertNil(
+      PutioVideoResumePrompt(
+        startFromSeconds: 5130, durationSeconds: 5400, remembersPosition: true),
+      "a watched position")
     XCTAssertNil(
       PutioVideoResumePrompt(startFromSeconds: 90, durationSeconds: nil, remembersPosition: true))
     XCTAssertNil(
@@ -91,12 +95,6 @@ final class PutioVideoResumePromptTests: XCTestCase {
     XCTAssertEqual(prompt.startSeconds(for: .startOver), 0)
     XCTAssertEqual(prompt.progress(for: .resume), 0.25, accuracy: 0.0001)
     XCTAssertEqual(prompt.progress(for: .startOver), 0)
-  }
-
-  func testProgressNeverOverflowsWhenThePositionPassesTheDuration() throws {
-    let prompt = try XCTUnwrap(
-      PutioVideoResumePrompt(startFromSeconds: 600, durationSeconds: 590, remembersPosition: true))
-    XCTAssertEqual(prompt.progress(for: .resume), 1)
   }
 
   func testResumeTitleUsesClockTimeAndVoiceOverHearsADuration() throws {
@@ -135,6 +133,24 @@ final class PutioVideoStartTests: XCTestCase {
     XCTAssertEqual(
       PutioVideoStart.source(saved, startingWith: .startOver),
       PutioPlaybackSource(url: url, startFromSeconds: 0))
+  }
+
+  func testAPlayerThatAsksAfterMeasuringPlaysAWatchedPositionFromTheStart() throws {
+    func start(_ saved: Int, _ duration: Double?, remembers: Bool = true)
+      -> PutioVideoPromptedStart
+    {
+      PutioVideoStart.prompted(
+        startFromSeconds: saved, durationSeconds: duration, remembersPosition: remembers)
+    }
+    let prompt = try XCTUnwrap(
+      PutioVideoResumePrompt(startFromSeconds: 5129, durationSeconds: 5400, remembersPosition: true)
+    )
+    XCTAssertEqual(start(5129, 5400), .ask(prompt), "just below 95%")
+    XCTAssertEqual(start(5130, 5400), .play(startSeconds: 0), "95%")
+    XCTAssertEqual(start(600, 590), .play(startSeconds: 0), "past the end")
+    XCTAssertEqual(start(1122, nil), .play(startSeconds: 1122), "unknown length")
+    XCTAssertEqual(start(1122, 5400, remembers: false), .play(startSeconds: 0), "setting off")
+    XCTAssertEqual(start(0, 5400), .play(startSeconds: 0), "no saved position")
   }
 
   func testRouteCarriesTheChoiceMade() {

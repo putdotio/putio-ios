@@ -5917,6 +5917,9 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       let auditedApp: XCUIApplication = app
       var unlabeledSignOutClips = 0
+      let pinnedSheets = app.descendants(matching: .any)
+        .matching(identifier: "harness.content-height-sheet").allElementsBoundByIndex
+        .map(\.frame)
       try auditedApp.performAccessibilityAudit(for: .textClipped) { issue in
         if Self.isAcceptedXXLargeClip(issue, board: board, app: auditedApp) {
           if issue.element != nil { return true }
@@ -5925,6 +5928,13 @@ final class BoardCaptureTests: XCTestCase {
         }
         guard let element = issue.element else {
           return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
+        }
+        if Self.isAboveTextSizeCap(issue),
+          pinnedSheets.contains(where: {
+            $0.contains(CGPoint(x: element.frame.midX, y: element.frame.midY))
+          })
+        {
+          return true
         }
         if element.elementType == .searchField { return true }
         return
@@ -5946,6 +5956,10 @@ final class BoardCaptureTests: XCTestCase {
         && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
     }
     return element.label == removeLabel
+  }
+
+  private static func isAboveTextSizeCap(_ issue: XCUIAccessibilityAuditIssue) -> Bool {
+    issue.detailedDescription.contains("at larger Dynamic Type sizes")
   }
 
   private static func isInFullWidthSystemDialog(

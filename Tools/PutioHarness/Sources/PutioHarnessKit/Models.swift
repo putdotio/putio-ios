@@ -1235,7 +1235,7 @@ enum TVPlaybackJourneyContract {
   static let continuationAttachmentNames = [
     "runtime-tv-playback-resume", "runtime-tv-playback-resume-start-over",
     "runtime-tv-playback-up-next", "runtime-tv-playback-successor-resume",
-    "runtime-tv-playback-playing",
+    "runtime-tv-playback-playing", "runtime-tv-playback-watched-start",
   ]
   static let controlsTestIdentifier =
     "PutioTVUITests/PlaybackJourneyTests/testSubtitleAndSpeedControlsKeepTheAudioTrack"

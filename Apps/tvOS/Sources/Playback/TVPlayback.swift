@@ -218,14 +218,14 @@ struct TVVideoPlaybackView: View {
     let duration = try? await asset.load(.duration)
     guard !Task.isCancelled else { return }
     let seconds = duration.map(CMTimeGetSeconds)
-    if let prompt = PutioVideoResumePrompt(
+    switch PutioVideoStart.prompted(
       startFromSeconds: source.startFromSeconds, durationSeconds: seconds,
       remembersPosition: remembersPosition)
     {
+    case .ask(let prompt):
       stage = .asking(item, prompt)
-    } else {
-      stage = .playing(
-        item, startSeconds: remembersPosition ? source.startFromSeconds : 0)
+    case .play(let startSeconds):
+      stage = .playing(item, startSeconds: startSeconds)
     }
   }
 
@@ -641,7 +641,8 @@ final class TVVideoPlayerCoordinator {
         guard let self, let player, self.player === player else { return nil }
         return PutioVideoPositionReporter.normalizedPosition(
           seconds: CMTimeGetSeconds(player.currentTime()))
-      })
+      },
+      endOfPlayback: .keepsPosition)
     self.reporter = reporter
 
     // Controls stay hidden until the default subtitle is applied, so no
