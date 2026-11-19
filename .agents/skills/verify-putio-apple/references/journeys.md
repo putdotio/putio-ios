@@ -126,7 +126,9 @@ A board state needs one row there and one seeded test step.
   simulator's text size and restores it afterwards, also on failure or
   interruption. The capture fails when the accessibility audit reports clipped
   text, except file names cut in the middle and text with an emoji, which the
-  audit flags even when it fits. Check those in the capture yourself.
+  audit flags even when it fits. It also accepts the iPad sign-out popover's
+  remove action on `rd-ios-ses-24-ipad-sign-out`, a stock clip. Check those in
+  the capture yourself.
 
 ## tvOS
 

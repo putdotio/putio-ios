@@ -3731,6 +3731,14 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(position.label, "3 of 4", "the preview did not page to the third image")
     XCTAssertTrue(
       app.images["Gallery 3.png"].appears(within: 10), "the third image did not settle")
+    var reachedBehindViewer: [String] = []
+    try app.performAccessibilityAudit(for: .dynamicType) { issue in
+      if let identifier = issue.element?.identifier, identifier.hasPrefix("files.") {
+        reachedBehindViewer.append(identifier)
+      }
+      return true
+    }
+    XCTAssertEqual(reachedBehindViewer, [], "accessibility reaches the folder behind the viewer")
     try captureBoard("rd-ios-pv-09-position")
   }
 
@@ -5908,10 +5916,16 @@ final class BoardCaptureTests: XCTestCase {
     add(data)
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       let auditedApp: XCUIApplication = app
+      var unlabeledSignOutClips = 0
       let pinnedSheets = app.descendants(matching: .any)
         .matching(identifier: "harness.content-height-sheet").allElementsBoundByIndex
         .map(\.frame)
       try auditedApp.performAccessibilityAudit(for: .textClipped) { issue in
+        if Self.isAcceptedXXLargeClip(issue, board: board, app: auditedApp) {
+          if issue.element != nil { return true }
+          unlabeledSignOutClips += 1
+          return unlabeledSignOutClips == 1
+        }
         guard let element = issue.element else {
           return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
         }
@@ -5928,6 +5942,20 @@ final class BoardCaptureTests: XCTestCase {
           && element.frame.height >= Self.minimumXXLargeLineHeight
       }
     }
+  }
+
+  private static func isAcceptedXXLargeClip(
+    _ issue: XCUIAccessibilityAuditIssue, board: String, app: XCUIApplication
+  ) -> Bool {
+    guard board == "rd-ios-ses-24-ipad-sign-out" else { return false }
+    let removeLabel = "Sign out and remove downloads"
+    guard let element = issue.element else {
+      let remove = app.buttons["auth.sign-out-remove-downloads"].firstMatch
+      return issue.detailedDescription.contains("UILabel") && remove.exists
+        && remove.label == removeLabel
+        && remove.frame.width < app.mainWindow.frame.width - fullWidthDialogMargins
+    }
+    return element.label == removeLabel
   }
 
   private static func isAboveTextSizeCap(_ issue: XCUIAccessibilityAuditIssue) -> Bool {

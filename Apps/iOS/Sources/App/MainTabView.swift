@@ -118,19 +118,10 @@ struct MainTabView: View {
   }
 
   var body: some View {
-    if #available(iOS 27.1, *) {
-      PutioRailEdgeReader { shell(railed: $0 != nil) }
-    } else {
-      shell(railed: false)
-    }
-  }
-
-  private func shell(railed: Bool) -> some View {
-    let tabBarVisibility: Visibility = railed && presentedPreview != nil ? .hidden : .automatic
-    return TabView(selection: tabSelection) {
+    TabView(selection: tabSelection) {
       Tab(value: SelectedTab.files) {
         filesBrowser
-          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
+          .shellTabContent(shellToast, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Files")
@@ -140,7 +131,7 @@ struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         downloads
-          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
+          .shellTabContent(shellToast, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Downloads")
@@ -158,7 +149,7 @@ struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
-          .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
+          .shellTabContent(shellToast, miniPlayer: miniPlayer)
           .id(historyRevision)
         } label: {
           Label {
@@ -187,7 +178,7 @@ struct MainTabView: View {
             if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
           }
         )
-        .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
+        .shellTabContent(shellToast, miniPlayer: miniPlayer)
         .id(accountNavigationRevision)
       } label: {
         Label {
@@ -209,7 +200,7 @@ struct MainTabView: View {
         )
         .putioToast($externalPlayback.toast)
         .environment(\.putioFileShare, fileShare)
-        .shellTabContent(shellToast, tabBar: tabBarVisibility, miniPlayer: miniPlayer)
+        .shellTabContent(shellToast, miniPlayer: miniPlayer)
       } label: {
         Label {
           Text("Search")
@@ -256,25 +247,21 @@ struct MainTabView: View {
     .modifier(PutioCastPresentation(model: cast, audio: miniPlayer, onOpen: openCasting))
     .putioVideoResumeAlert(resumePrompter)
     .accessibilityHidden(selectedVideoRoute != nil)
-    .overlay {
-      if let preview = presentedPreview {
-        PutioPreviewView(
-          route: preview.route,
-          file: preview.file,
-          source: preview.source,
-          fileActions: PutioPreviewFileActions(
-            runtime: runtime, trashEnabled: account.trashEnabled,
-            refreshRequests: folderRefreshRequests),
-          download: { preview, extent in try await downloadPreview(preview, extent) },
-          toast: $previewToast,
-          onDismiss: {
-            guard presentedPreview?.id == preview.id else { return }
-            presentedPreview = nil
-          }
-        )
-        .id(preview.id)
-        .accessibilityAddTraits(.isModal)
-      }
+    .fullScreenCover(item: $presentedPreview) { preview in
+      PutioPreviewView(
+        route: preview.route,
+        file: preview.file,
+        source: preview.source,
+        fileActions: PutioPreviewFileActions(
+          runtime: runtime, trashEnabled: account.trashEnabled,
+          refreshRequests: folderRefreshRequests),
+        download: { preview, extent in try await downloadPreview(preview, extent) },
+        toast: $previewToast,
+        onDismiss: {
+          guard presentedPreview?.id == preview.id else { return }
+          presentedPreview = nil
+        }
+      )
     }
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
@@ -1270,23 +1257,21 @@ private final class PutioOfflineQueueHolder {
 
 extension View {
   fileprivate func shellTabContent(
-    _ toast: Binding<PutioToast?>, tabBar: Visibility, miniPlayer: PutioAudioMiniPlayerSlot
+    _ toast: Binding<PutioToast?>, miniPlayer: PutioAudioMiniPlayerSlot
   ) -> some View {
     putioToast(toast)
       .tint(PutioTheme.Colors.textPrimary)
-      .modifier(ShellTabBarVisibility(visibility: tabBar))
+      .modifier(ShellTabBarVisibility())
       .modifier(PutioAudioMiniPlayerInset(slot: miniPlayer))
   }
 }
 
 private struct ShellTabBarVisibility: ViewModifier {
-  let visibility: Visibility
   @State private var hiding = PutioTabBarHiding()
 
   func body(content: Content) -> some View {
     content
       .environment(\.putioTabBarHiding, hiding)
-      .toolbarVisibility(
-        visibility == .hidden || hiding.hidesTabBar ? .hidden : visibility, for: .tabBar)
+      .toolbarVisibility(hiding.hidesTabBar ? .hidden : .automatic, for: .tabBar)
   }
 }
