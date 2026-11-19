@@ -39,12 +39,14 @@ enum PutioCastPlayerState: Equatable, Sendable {
   case buffering
   case playing
   case paused
+  /// The receiver stopped the media on an error.
+  case failed
 
   var waitActivity: PutioVideoPlayerActivity {
     switch self {
     case .playing: .playing
     case .paused: .paused
-    case .idle, .loading, .buffering: .waiting
+    case .idle, .loading, .buffering, .failed: .waiting
     }
   }
 }
@@ -291,7 +293,7 @@ final class PutioCastModel {
       if wait.state == .stalled { return .failed(canRetry: true) }
       switch status?.playerState {
       case .playing, .paused, .buffering: return .playing
-      case .loading, .idle, nil: return .loading
+      case .loading, .idle, .failed, nil: return .loading
       }
     }
   }
@@ -712,9 +714,15 @@ final class PutioCastModel {
     }
     guard let status, status.fileID == media.id else {
       // The receiver moved on (another sender, or playback ended).
-      if self.status != nil, status == nil || status?.playerState == .idle {
+      if self.status != nil,
+        status == nil || status?.playerState == .idle || status?.playerState == .failed
+      {
         endOnReceiver()
       }
+      return
+    }
+    if status.playerState == .failed {
+      receiverFailed(media.id)
       return
     }
     if status.playerState == .idle {
@@ -729,6 +737,16 @@ final class PutioCastModel {
     if wasPlaying, status.playerState == .paused { reporter?.savePosition() }
     startSubtitle()
     carryOverAudio()
+  }
+
+  /// The receiver gave up on this file, as Android shows it: the failed
+  /// layout stays, and Try again reloads from the last position it played.
+  private func receiverFailed(_ fileID: PutioFileID) {
+    if case .failed = activity { return }
+    requestedStart = receiverPosition()
+    reporter?.stop()
+    reporter = nil
+    activity = .failed(fileID, .receiver)
   }
 
   private func armStallDetection() {
