@@ -493,9 +493,10 @@ struct PutioVideoPlaybackView: View {
         if let report { reportFailure(report) }
         playerFailureTask?.cancel()
         playerFailureTask = Task {
-          await model.playerFailed(
+          let refreshFailure = await model.playerFailed(
             failure.fault, heldSeconds: failure.heldSeconds,
             beforeFirstFrame: failure.beforeFirstFrame)
+          if let refreshFailure { reportFailure(refreshFailure) }
         }
       })
     #if DEBUG

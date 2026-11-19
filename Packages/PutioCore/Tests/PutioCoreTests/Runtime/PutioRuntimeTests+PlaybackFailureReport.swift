@@ -136,7 +136,9 @@ extension PutioRuntimeTests {
         ]))
 
     XCTAssertNil(model.failureReport(forbidden, beforeFirstFrame: true, platform: .ios))
-    await model.playerFailed(forbidden.fault, heldSeconds: nil, beforeFirstFrame: true)
+    let refreshed = await model.playerFailed(
+      forbidden.fault, heldSeconds: nil, beforeFirstFrame: true)
+    XCTAssertNil(refreshed, "the refresh played again")
     let report = try XCTUnwrap(
       model.failureReport(forbidden, beforeFirstFrame: true, platform: .ios))
 
@@ -145,6 +147,29 @@ extension PutioRuntimeTests {
     XCTAssertEqual(report.tags["engine_error_code"], "-12660")
     XCTAssertEqual(report.tags["source_request_status"], "403")
     XCTAssertEqual(report.tags["source_kind"], "unknown")
+  }
+
+  func testAnExpiredStreamWhoseRefreshCannotResolveIsReportedWhenPlaybackEnds() async throws {
+    let source = PutioPlaybackSource(
+      url: URL(string: "https://api.example.test/v2/files/411/hls/media.m3u8")!,
+      startFromSeconds: 0)
+    var resolutions = 0
+    let model = PutioVideoPlaybackModel(fileID: Self.reportFileID) { _ in
+      resolutions += 1
+      guard resolutions == 1 else { throw PutioRuntimeError.notFound }
+      return .ready(source)
+    }
+    await model.loadIfNeeded()
+    let forbidden = PutioPlayerError(
+      avPlayerError: NSError(domain: "CoreMediaErrorDomain", code: -12660))
+
+    XCTAssertNil(model.failureReport(forbidden, beforeFirstFrame: true, platform: .ios))
+    let report = await model.playerFailed(
+      forbidden.fault, heldSeconds: nil, beforeFirstFrame: true)
+
+    XCTAssertEqual(model.state, .failed(.resolving(PutioRuntimeError.notFound)!))
+    XCTAssertEqual(report?.tags["playback_outcome"], "failed")
+    XCTAssertEqual(report?.tags["source_request_status"], "403")
   }
 
   func testADefinitiveSourceStatusOutranksTheEngineCode() {
