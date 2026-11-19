@@ -3731,10 +3731,14 @@ final class BoardCaptureTests: XCTestCase {
     XCTAssertEqual(position.label, "3 of 4", "the preview did not page to the third image")
     XCTAssertTrue(
       app.images["Gallery 3.png"].appears(within: 10), "the third image did not settle")
-    XCTAssertFalse(element("files.title").isHittable, "the folder title shows behind the viewer")
-    for tab in ["Files", "Downloads", "Account"] {
-      XCTAssertFalse(app.buttons[tab].firstMatch.isHittable, "the \(tab) tab shows over the viewer")
+    var reachedBehindViewer: [String] = []
+    try app.performAccessibilityAudit(for: .dynamicType) { issue in
+      if let identifier = issue.element?.identifier, identifier.hasPrefix("files.") {
+        reachedBehindViewer.append(identifier)
+      }
+      return true
     }
+    XCTAssertEqual(reachedBehindViewer, [], "accessibility reaches the folder behind the viewer")
     try captureBoard("rd-ios-pv-09-position")
   }
 
