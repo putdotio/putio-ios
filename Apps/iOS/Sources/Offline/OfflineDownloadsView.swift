@@ -551,7 +551,6 @@ struct PutioOfflineInfoView: View {
     .scrollBounceBehavior(.basedOnSize)
     .frame(idealHeight: contentHeight > 0 ? contentHeight : nil)
     .background(PutioTheme.Components.Sheet.background)
-    .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
     .presentationDragIndicator(.visible)
     .presentationSizing(.form.fitted(horizontal: false, vertical: true))
     .presentationBackground(PutioTheme.Components.Sheet.background)
@@ -562,6 +561,7 @@ struct PutioOfflineInfoView: View {
       lengthSeconds = Int(seconds.rounded())
     }
     .accessibilityIdentifier("downloads.info-sheet.\(item.id.rawValue)")
+    .putioContentHeightDetents(contentHeight, fallback: .medium)
   }
 
   private var facts: some View {
