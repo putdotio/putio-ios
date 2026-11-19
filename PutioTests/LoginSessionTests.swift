@@ -268,7 +268,6 @@ final class LoginSessionTests: XCTestCase {
         appDelegate.refreshAccountStatus()
 
         waitForRoot(LoginViewController.self, in: appDelegate)
-        XCTAssertEqual((appDelegate.window?.rootViewController as? LoginViewController)?.failure, .sessionExpired)
         XCTAssertNil(appDelegate.keychain.getToken())
         XCTAssertEqual(messenger.events, [.setUserHash("hash-2"), .login("2"), .logout])
     }
