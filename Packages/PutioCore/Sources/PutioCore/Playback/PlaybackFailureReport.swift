@@ -60,8 +60,7 @@ public struct PutioPlaybackFacts: Equatable, Sendable {
 }
 
 /// The original's `media_info` as report tags: its first video stream,
-/// lowercased, and its first audio stream. The SDK decodes no bit depth, HDR or
-/// default flag yet, so those stay unknown.
+/// lowercased, and its default audio stream.
 public struct PutioPlaybackMedia: Equatable, Sendable {
   public let containerFamily: String
   public let videoCodec: String
@@ -93,7 +92,7 @@ public struct PutioPlaybackMedia: Equatable, Sendable {
     }
     containerFamily = Self.containerFamily(format: info.format?.name, mimeType: info.mimeType)
     let video = info.streams.first { $0.codecType == .video }
-    let audio = info.streams.first { $0.codecType == .audio }
+    let audio = info.defaultAudioStream
     func value<T>(
       _ stream: PutioMediaStream?, lowercased: Bool = true, _ field: (PutioMediaStream) -> T?
     ) -> String {
@@ -105,11 +104,11 @@ public struct PutioPlaybackMedia: Equatable, Sendable {
     videoCodec = value(video) { $0.codecName }
     videoProfile = value(video) { $0.profile }
     videoLevel = value(video) { $0.level }
-    videoBitDepth = video == nil ? Self.noneValue : Self.unknownValue
+    videoBitDepth = value(video) { $0.bitDepth }
     videoResolution = value(video) { stream in
       stream.width.flatMap { width in stream.height.map { "\(width)x\($0)" } }
     }
-    videoHDR = video == nil ? Self.noneValue : Self.unknownValue
+    videoHDR = value(video) { $0.isHDR }
     audioCodec = value(audio, lowercased: false) { $0.codecName }
     audioChannels = value(audio) { $0.channels }
   }

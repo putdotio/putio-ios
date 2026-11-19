@@ -186,6 +186,51 @@ extension PutioRuntimeTests {
     XCTAssertNil(source.original)
   }
 
+  func testDirectPlayChecksTheFirstFlaggedAudioOrFallsBackToFirstAudio() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let cases = [
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"ac4","default":false},
+        {"codec_type":"audio","codec_name":"aac","default":true},
+        {"codec_type":"audio","codec_name":"ac4","default":true}
+        """,
+        path: "/v2/files/411/stream"
+      ),
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"aac"},
+        {"codec_type":"audio","codec_name":"ac4","default":true}
+        """,
+        path: "/v2/files/411/mp4/stream"
+      ),
+      (
+        audio: """
+        {"codec_type":"audio","codec_name":"ac4"},
+        {"codec_type":"audio","codec_name":"aac"}
+        """,
+        path: "/v2/files/411/mp4/stream"
+      ),
+    ]
+
+    for fixture in cases {
+      fixtures.setFixture(
+        Self.directPlayFile(
+          mediaInfo: """
+            {"format":{"name":"matroska"},"streams":[
+              {"codec_type":"video","codec_name":"h264"},\(fixture.audio)
+            ],"playback_issues":[]}
+            """,
+          mp4Available: true),
+        for: Self.directPlayRoute)
+
+      guard case .ready(let source) = try await resolveDirectPlay(runtime) else {
+        return XCTFail("expected a playable file")
+      }
+      XCTAssertEqual(source.url.path, fixture.path, fixture.audio)
+    }
+  }
+
   func testDirectPlayConvertsAnOriginalWithoutMediaInfoAndNoConvertedCopy() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(

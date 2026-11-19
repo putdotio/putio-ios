@@ -18,7 +18,9 @@ extension PutioRuntimeTests {
     "audio_codec", "audio_channels",
   ]
 
-  private static func reportFile(mp4Available: Bool) -> String {
+  private static func reportFile(
+    mp4Available: Bool, videoFields: String = "", lastAudioFields: String = ""
+  ) -> String {
     """
     {"file": {"id": 411, "name": "Movie.mkv", "file_type": "VIDEO", "parent_id": 0,
     "need_convert": false, "is_mp4_available": \(mp4Available), "start_from": 0,
@@ -26,8 +28,8 @@ extension PutioRuntimeTests {
     "streams": [
     {"codec_type": "audio", "codec_name": "eac3", "channels": 6},
     {"codec_type": "video", "codec_name": "hevc", "profile": "Main 10", "level": 153,
-     "width": 3840, "height": 2160},
-    {"codec_type": "audio", "codec_name": "dts", "channels": 8}],
+     "width": 3840, "height": 2160\(videoFields)},
+    {"codec_type": "audio", "codec_name": "dts", "channels": 8\(lastAudioFields)}],
     "playback_issues": []}}}
     """
   }
@@ -48,7 +50,11 @@ extension PutioRuntimeTests {
 
   func testAnOriginalTheEngineCannotDecodeIsReportedAsARescueToTheConvertedCopy() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    fixtures.setFixture(Self.reportFile(mp4Available: true), for: Self.reportRoute)
+    fixtures.setFixture(
+      Self.reportFile(
+        mp4Available: true, videoFields: #", "bit_depth": 10, "hdr": true"#,
+        lastAudioFields: #", "default": true"#),
+      for: Self.reportRoute)
     fixtures.setFixture(#"{"default":"en","subtitles":[]}"#, for: "GET /v2/files/411/subtitles")
     let model = directPlayModel(runtime)
     await model.loadIfNeeded()
@@ -69,8 +75,8 @@ extension PutioRuntimeTests {
         "engine_error_category": "softwarePipelineFailed", "engine_error_code": "none",
         "source_request_status": "none", "file_id": "411", "container_family": "matroska",
         "video_codec": "hevc", "video_profile": "main 10", "video_level": "153",
-        "video_bit_depth": "unknown", "video_resolution": "3840x2160", "video_hdr": "unknown",
-        "audio_codec": "eac3", "audio_channels": "6",
+        "video_bit_depth": "10", "video_resolution": "3840x2160", "video_hdr": "true",
+        "audio_codec": "dts", "audio_channels": "8",
       ])
     XCTAssertEqual(report.message, "playback rescued: decoder_error")
     XCTAssertEqual(report.fingerprint, ["ios", "rescued", "decoder_error", "none"])
@@ -95,6 +101,31 @@ extension PutioRuntimeTests {
     XCTAssertEqual(converted.tags["engine_error_code"], "-11821")
     XCTAssertEqual(converted.tags["video_codec"], "hevc", "media facts describe the original")
     XCTAssertEqual(converted.message, "playback failed: decode")
+  }
+
+  func testFailureReportDistinguishesSDRFromLegacyMissingVideoFacts() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"default":"en","subtitles":[]}"#, for: "GET /v2/files/411/subtitles")
+    let cases = [
+      (fields: #", "bit_depth": 8, "hdr": false"#, bitDepth: "8", hdr: "false"),
+      (fields: "", bitDepth: "unknown", hdr: "unknown"),
+    ]
+
+    for fixture in cases {
+      fixtures.setFixture(
+        Self.reportFile(mp4Available: false, videoFields: fixture.fields), for: Self.reportRoute)
+      let model = directPlayModel(runtime)
+      await model.loadIfNeeded()
+      let report = try XCTUnwrap(
+        model.failureReport(
+          PutioPlayerError(aetherKind: "softwarePipelineFailed", domain: nil, code: nil),
+          beforeFirstFrame: true, platform: .ios))
+
+      XCTAssertEqual(report.tags["video_bit_depth"], fixture.bitDepth)
+      XCTAssertEqual(report.tags["video_hdr"], fixture.hdr)
+      XCTAssertEqual(report.tags["audio_codec"], "eac3")
+      XCTAssertEqual(report.tags["audio_channels"], "6")
+    }
   }
 
   func testAStandardStreamReportsHLSWithNoDeviceCheckOrMediaFacts() async throws {
