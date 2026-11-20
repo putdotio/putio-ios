@@ -346,7 +346,9 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     static func isUnreadableLocalFile(_ error: Error?, wasReadyToPlay: Bool) -> Bool {
-        if error is URLError { return true }
+        if let urlError = error as? URLError {
+            return !wasReadyToPlay || urlError.code != .notConnectedToInternet
+        }
         guard !wasReadyToPlay else { return false }
         let error = error as NSError?
         return !(error?.domain == AVFoundationErrorDomain && error?.code == AVError.Code.mediaServicesWereReset.rawValue)
