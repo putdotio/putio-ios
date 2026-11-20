@@ -28,7 +28,7 @@ bump a hash only with a deliberate `mise run screenshots-record`.
 
 ## Local Private Config
 
-Signed local builds and private support integrations need
+Signed local builds, OAuth sign-in and Cast need
 `Config/Local.xcconfig`. Ask a maintainer for an authorized iOS ciphertext file
 and a machine-specific age identity, then run:
 
