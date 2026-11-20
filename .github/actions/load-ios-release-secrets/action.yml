@@ -39,8 +39,7 @@ runs:
           exit 1
         fi
 
-        # Contact us and destroy-account support open Intercom (#318). "null" is
-        # the SOPS payload's not-configured marker (secrets-render.jq), not a key.
+        # Contact us and destroy-account support open Intercom (#318).
         for name in PUTIO_INTERCOM_API_KEY PUTIO_INTERCOM_APP_ID; do
           if [[ "${!name}" == null || ! "${!name}" =~ ^[A-Za-z0-9._:-]+$ ]]; then
             echo "$name must be one or more of A-Z a-z 0-9 . _ : - and not null" >&2
