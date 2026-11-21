@@ -337,7 +337,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
-            guard api.mediaToken == token else {
+            guard api.config.token == token else {
                 PerfSignpost.end(signpost, outcome: .cancelled)
                 return
             }

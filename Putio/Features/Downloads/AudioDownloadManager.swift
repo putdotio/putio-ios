@@ -11,6 +11,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
+    private var startAttempts = [Int: UUID]()
     private let activeDownloadsLock = NSLock()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
     private var artifactSaveErrors = [URLSessionTask: Error]()
@@ -95,21 +96,54 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return
         }
         guard download.state == .starting else { return }
+        let attempt = UUID()
+        startAttempts[id] = attempt
         startTimings.begin(id: id)
-        guard let url = api.audioStreamURL(fileID: download.id) else {
-            startTimings.end(id: id, outcome: .failed)
-            DownloadQueueController.sharedInstance.startFailed(id: id)
-            return
+
+        Task { @MainActor in
+            let request = await self.remoteRequest(for: id)
+            guard self.startAttempts[id] == attempt else { return }
+            self.startAttempts.removeValue(forKey: id)
+            guard self.getDownloadFromDatabase(id: id)?.state == .starting else {
+                self.startTimings.end(id: id, outcome: .cancelled)
+                return
+            }
+            guard let request else {
+                self.startTimings.end(id: id, outcome: .failed)
+                DownloadQueueController.sharedInstance.startFailed(id: id)
+                return
+            }
+
+            let task = self.urlSession.downloadTask(with: request)
+
+            self.withActiveDownloadsMap { $0[task] = id }
+
+            task.taskDescription = String(id)
+            task.resume()
+
+            NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
         }
+    }
 
-        let task = urlSession.downloadTask(with: url)
+    private func remoteRequest(for id: Int) async -> URLRequest? {
+        do {
+            let source = try await api.resolveAudioPlaybackSource(fileID: id, downloadToken: api.mediaToken)
+            return URLRequest(headerAuthorizedMediaURL: source.url)
+        } catch {
+            log.verbose(["ADM: remoteRequest, resolve failed", error])
+            return nil
+        }
+    }
 
-        withActiveDownloadsMap { $0[task] = id }
+    var pendingStartIDs: Set<Int> {
+        Set(startAttempts.keys)
+    }
 
-        task.taskDescription = String(id)
-        task.resume()
-
-        NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
+    func invalidatePendingStarts(ids: Set<Int>) {
+        ids.forEach { id in
+            startAttempts.removeValue(forKey: id)
+            startTimings.end(id: id, outcome: .cancelled)
+        }
     }
 
     @discardableResult
@@ -224,6 +258,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             map.removeValue(forKey: task)
             return task
         }
+        startAttempts.removeValue(forKey: id)
         startTimings.end(id: id, outcome: .cancelled)
         if let task { artifactSaveErrors.removeValue(forKey: task) }
         task?.cancel()

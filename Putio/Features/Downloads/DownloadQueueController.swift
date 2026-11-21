@@ -21,8 +21,10 @@ enum DownloadConcurrencyPreference {
 }
 
 protocol DownloadQueueManaging: AnyObject {
+    var pendingStartIDs: Set<Int> { get }
     func resumeDownload(id: Int)
     func discardDownload(id: Int)
+    func invalidatePendingStarts(ids: Set<Int>)
 }
 
 struct DownloadQueueItem: Equatable {
@@ -147,8 +149,11 @@ final class DownloadQueueController {
         onMain {
             self.isEnabled = false
             self.startsAfterAccountChange = false
-            guard self.restoredIDsByType[.video] != nil else { return }
-            let pendingIDs = VideoDownloadManager.sharedInstance.pendingStartIDs
+            let managers: [DownloadQueueManaging] = [
+                self.restoredIDsByType[.audio].map { _ in AudioDownloadManager.sharedInstance },
+                self.restoredIDsByType[.video].map { _ in VideoDownloadManager.sharedInstance }
+            ].compactMap { $0 }
+            let pendingIDs = managers.reduce(into: Set<Int>()) { $0.formUnion($1.pendingStartIDs) }
             guard !pendingIDs.isEmpty,
                   let realm = DownloadSupport.realm(context: "DownloadQueueController.pause") else { return }
             let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.pause.write") {
@@ -160,7 +165,7 @@ final class DownloadQueueController {
                 }
             }
             guard didWrite else { return }
-            VideoDownloadManager.sharedInstance.invalidatePendingStarts(ids: pendingIDs)
+            managers.forEach { $0.invalidatePendingStarts(ids: pendingIDs) }
         }
     }
 

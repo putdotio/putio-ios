@@ -1,12 +1,12 @@
 import ImageIO
 import os
+import RealmSwift
 import UniformTypeIdentifiers
 import XCTest
 @testable import Putio
 import PutioSDK
 
 final class MediaPreviewSessionTests: XCTestCase {
-    // A preview URL carries the OAuth token, so a cached response would keep it in the cache key.
     func testPreviewResponsesReachNoURLCache() throws {
         let token = "synthetic-token-\(UUID().uuidString)"
         let preview = URLRequest(url: try XCTUnwrap(URL(string: "https://api.put.io/v2/files/1/download?oauth_token=\(token)")))
@@ -117,6 +117,7 @@ final class FilePreviewFailureTests: XCTestCase {
         line: UInt = #line
     ) throws {
         let fileID = preview == .pdf ? 500_000_001 : 400_000_001
+        let downloadToken = try signIn(downloadToken: "download-token-\(UUID().uuidString)")
         PreviewDownloadStub.answer(with: statusCode)
         let configuration = MediaPreviewSession.configuration(environment: [:])
         configuration.protocolClasses = [PreviewDownloadStub.self]
@@ -129,12 +130,29 @@ final class FilePreviewFailureTests: XCTestCase {
         let alert = try waitForAlert(on: viewController, titled: "Oops!")
         XCTAssertEqual(alert.message, message, preview.rawValue, file: file, line: line)
         XCTAssertEqual(alert.actions.map(\.title), ["Go Back"], preview.rawValue, file: file, line: line)
-        XCTAssertEqual(PreviewDownloadStub.requestedPaths.last, "/v2/files/\(fileID)/download", preview.rawValue, file: file, line: line)
+        let request = try XCTUnwrap(PreviewDownloadStub.requests.last, preview.rawValue, file: file, line: line)
+        XCTAssertEqual(request.url, URL(string: "https://api.put.io/v2/files/\(fileID)/download"), preview.rawValue, file: file, line: line)
+        XCTAssertEqual(request.authorization, "Token \(downloadToken)", preview.rawValue, file: file, line: line)
 
         try chooseAlertAction("Go Back", in: alert)
         let returned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in navigation.topViewController !== viewController }, object: nil)
         wait(for: [returned], timeout: 5)
         XCTAssertEqual(navigation.viewControllers.count, 1, preview.rawValue, file: file, line: line)
+    }
+
+    private func signIn(downloadToken: String) throws -> String {
+        let previousConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: "FilePreviewFailureTests-\(UUID().uuidString)")
+        let realm = try Realm()
+        let user = User()
+        user.id = 1
+        user.downloadToken = downloadToken
+        try realm.write { realm.add(user) }
+        addTeardownBlock {
+            realm.invalidate()
+            Realm.Configuration.defaultConfiguration = previousConfiguration
+        }
+        return downloadToken
     }
 
     private func makePreview(_ preview: Preview, fileID: Int, session: URLSession) throws -> UIViewController {
@@ -173,9 +191,14 @@ final class FilePreviewFailureTests: XCTestCase {
 }
 
 private final class PreviewDownloadStub: URLProtocol {
-    private static let state = OSAllocatedUnfairLock(initialState: (statusCode: 200, paths: [String]()))
+    struct Request {
+        let url: URL
+        let authorization: String?
+    }
 
-    static var requestedPaths: [String] { state.withLock { $0.paths } }
+    private static let state = OSAllocatedUnfairLock(initialState: (statusCode: 200, requests: [Request]()))
+
+    static var requests: [Request] { state.withLock { $0.requests } }
 
     static func answer(with statusCode: Int) {
         state.withLock { $0 = (statusCode, []) }
@@ -188,7 +211,7 @@ private final class PreviewDownloadStub: URLProtocol {
     override func startLoading() {
         guard let url = request.url else { return }
         let statusCode = Self.state.withLock { state -> Int in
-            state.paths.append(url.path)
+            state.requests.append(Request(url: url, authorization: request.value(forHTTPHeaderField: "Authorization")))
             return state.statusCode
         }
         guard let response = HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: nil, headerFields: ["Content-Type": "application/json"]) else {

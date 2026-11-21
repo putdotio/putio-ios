@@ -369,7 +369,7 @@ final class LoginSessionTests: XCTestCase {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
         appDelegate.window = window
 
-        let previousToken = api.mediaToken
+        let previousToken = api.config.token
         api.setToken(token: token)
         AccountStub.answer(accountID: answeringAccountID, answersConfig: answersConfig, rejectsToken: rejectsToken, in: self)
         addTeardownBlock {

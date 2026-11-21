@@ -40,11 +40,14 @@ class ImageViewController: UIViewController {
             return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
         }
 
-        let url = file.getDownloadURL(downloadToken: api.mediaToken)
+        guard let preview = URLRequest(headerAuthorizedMediaURL: file.getDownloadURL(downloadToken: api.mediaToken)) else {
+            finishLoading()
+            return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
+        }
         // viewDidLoad runs before this view joins a window.
         let maxPixelSize = ImagePreviewDecoder.maxPixelSize(on: navigationController?.view.window ?? view.window)
 
-        request = previewSession.dataTask(with: url) { [weak self] data, response, error in
+        request = previewSession.dataTask(with: preview) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
             guard let data = MediaPreviewSession.body(data, of: response) else {
