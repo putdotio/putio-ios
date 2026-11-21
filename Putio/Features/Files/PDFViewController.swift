@@ -60,9 +60,13 @@ class PDFViewController: UIViewController {
             return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
         }
 
-        let url = file.getDownloadURL(downloadToken: api.mediaToken)
+        guard let mediaToken = api.mediaToken,
+              let preview = URLRequest(headerAuthorizedMediaURL: file.getDownloadURL(downloadToken: mediaToken)) else {
+            finishLoading()
+            return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
+        }
 
-        request = previewSession.dataTask(with: url) { [weak self] data, response, error in
+        request = previewSession.dataTask(with: preview) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
             guard let data = MediaPreviewSession.body(data, of: response) else {

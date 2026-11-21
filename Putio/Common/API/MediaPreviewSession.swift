@@ -1,8 +1,5 @@
 import Foundation
 
-/// Loads image and PDF previews. Their URLs carry the OAuth token as
-/// `oauth_token`, so the session keeps no URL cache: no response, and no cache
-/// key holding the token, is ever stored.
 enum MediaPreviewSession {
     static let shared = URLSession(configuration: configuration())
 

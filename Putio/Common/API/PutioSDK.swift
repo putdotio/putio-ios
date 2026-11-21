@@ -71,17 +71,38 @@ struct AppConfig: Decodable {
     }
 }
 
-extension PutioSDK {
-    /// The token every media URL carries as `oauth_token`: the OAuth token,
-    /// not the narrower `User.downloadToken` the SDK's `downloadToken:` asks for.
-    var mediaToken: String { config.token }
+enum MediaTokenError: Error {
+    case unavailable
+}
 
-    func audioStreamURL(fileID: Int) -> URL? {
-        var components = URLComponents(string: "\(config.baseURL)/files/\(fileID)/stream")
-        components?.queryItems = [URLQueryItem(name: "oauth_token", value: mediaToken)]
-        return components?.url
+extension PutioSDK {
+    var mediaToken: String? {
+        let token = PutioRealm.open(context: "PutioSDK.mediaToken")?.objects(User.self).first?.downloadToken
+        return token?.isEmpty == false ? token : nil
     }
 
+    func resolveMediaToken() async throws -> String {
+        if let mediaToken { return mediaToken }
+        let account = try await getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
+        guard !account.downloadToken.isEmpty else { throw MediaTokenError.unavailable }
+        return account.downloadToken
+    }
+}
+
+extension URLRequest {
+    init?(headerAuthorizedMediaURL url: URL) {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let token = components.queryItems?.first(where: { $0.name == "oauth_token" })?.value,
+              !token.isEmpty else { return nil }
+        let queryItems = components.queryItems?.filter { $0.name != "oauth_token" } ?? []
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let tokenFreeURL = components.url else { return nil }
+        self.init(url: tokenFreeURL)
+        setValue("Token \(token)", forHTTPHeaderField: "Authorization")
+    }
+}
+
+extension PutioSDK {
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T

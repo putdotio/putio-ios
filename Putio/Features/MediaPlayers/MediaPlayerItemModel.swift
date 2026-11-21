@@ -35,22 +35,21 @@ struct MediaPlayerItem {
         self.startFrom = download.startFrom
     }
 
-    init(file: PutioFile) {
+    init?(file: PutioFile) {
+        guard let url = PutioE2EPlaybackAsset.url(for: file) ?? Self.streamURL(for: file) else { return nil }
         self.id = file.id
         self.name = file.name
-        self.url = PutioE2EPlaybackAsset.url(for: file)
-            ?? (file.type == PutioFileType.video
-                ? file.getHlsStreamURL(downloadToken: api.mediaToken).applyingSubtitlePreference(hideSubtitles: Self.hidesSubtitles)
-                : file.getAudioStreamURL(downloadToken: api.mediaToken))
+        self.url = url
         self.fileType = file.type == PutioFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = file.startFrom
     }
 
-    init(file: PutioNextFile) {
+    init?(file: PutioNextFile) {
+        guard let mediaToken = api.mediaToken else { return nil }
         self.id = file.id
         self.name = file.name
-        let streamURL = file.getStreamURL(downloadToken: api.mediaToken)
+        let streamURL = file.getStreamURL(downloadToken: mediaToken)
         self.url = file.type == PutioNextFileType.video
             ? streamURL.applyingSubtitlePreference(hideSubtitles: Self.hidesSubtitles)
             : streamURL
@@ -61,6 +60,13 @@ struct MediaPlayerItem {
 
     func startsWithSubtitlesOff(hideSubtitles: Bool) -> Bool {
         consumptionType == .offline && hideSubtitles
+    }
+
+    private static func streamURL(for file: PutioFile) -> URL? {
+        guard let mediaToken = api.mediaToken else { return nil }
+        return file.type == PutioFileType.video
+            ? file.getHlsStreamURL(downloadToken: mediaToken).applyingSubtitlePreference(hideSubtitles: hidesSubtitles)
+            : file.getAudioStreamURL(downloadToken: mediaToken)
     }
 
     private static var hidesSubtitles: Bool {

@@ -85,7 +85,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     private func remoteStreamURL(for id: Int) async -> URL? {
         do {
-            guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.mediaToken) else {
+            guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.resolveMediaToken()) else {
                 return nil
             }
             return source.url
