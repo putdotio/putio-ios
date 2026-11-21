@@ -60,6 +60,16 @@ extension FilePresenter where Self: UIViewController {
         return true
     }
 
+    func presentMediaTokenUnavailable() {
+        let alertController = UIAlertController(
+            title: NSLocalizedString("Couldn't load your account", comment: ""),
+            message: NSLocalizedString("Try again in a moment.", comment: ""),
+            preferredStyle: .alert
+        )
+        alertController.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
+        present(alertController, animated: true, completion: nil)
+    }
+
     private func toFolder(file: PutioFile) {
         let filesVC = storyboard?.instantiateViewController(withIdentifier: "Files") as! FilesViewController
         filesVC.viewModel.file = file
@@ -69,11 +79,16 @@ extension FilePresenter where Self: UIViewController {
     }
 
     private func toVideo(file: PutioFile) {
-        MediaPlaybackManager.sharedInstance.play(MediaPlayerItem(file: file), sourceViewController: self)
+        play(file)
     }
 
     private func toAudio(file: PutioFile) {
-        MediaPlaybackManager.sharedInstance.play(MediaPlayerItem(file: file), sourceViewController: self)
+        play(file)
+    }
+
+    private func play(_ file: PutioFile) {
+        guard let item = MediaPlayerItem(file: file) else { return presentMediaTokenUnavailable() }
+        MediaPlaybackManager.sharedInstance.play(item, sourceViewController: self)
     }
 
     private func toImage(file: PutioFile) {

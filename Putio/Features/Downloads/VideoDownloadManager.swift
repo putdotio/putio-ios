@@ -83,16 +83,14 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         return realm.object(ofType: Download.self, forPrimaryKey: id)
     }
 
-    private func remoteAsset(for id: Int) async -> AVURLAsset? {
+    private func remoteStreamURL(for id: Int) async -> URL? {
         do {
-            guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.mediaToken),
-                  let request = URLRequest(headerAuthorizedMediaURL: source.url),
-                  let url = request.url else {
+            guard case .ready(let source) = try await api.resolveVideoPlaybackSource(fileID: id, downloadToken: api.resolveMediaToken()) else {
                 return nil
             }
-            return AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": request.allHTTPHeaderFields ?? [:]])
+            return source.url
         } catch {
-            log.verbose(["VDM: remoteAsset, resolve failed", error])
+            log.verbose(["VDM: remoteStreamURL, resolve failed", error])
             return nil
         }
     }
@@ -135,7 +133,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         startTimings.begin(id: id)
 
         Task { @MainActor in
-            let asset = await self.remoteAsset(for: id)
+            let asset = await self.remoteStreamURL(for: id).map { AVURLAsset(url: $0) }
             let mediaSelections = if let asset { await self.subtitleSelections(of: asset) } else { [AVMediaSelection]() }
             guard self.startAttempts[id] == attempt else { return }
             self.startAttempts.removeValue(forKey: id)

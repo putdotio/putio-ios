@@ -24,9 +24,11 @@ extension FilesViewController {
                 loadingAlert.dismiss(animated: true) {
                     switch result {
                     case .success(let file):
-                        let streamURLString = file.type == .video
+                        guard let streamURLString = file.type == .video
                             ? file.streamURL
-                            : file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
+                            : api.mediaToken.map({ file.getAudioStreamURL(downloadToken: $0).absoluteString }) else {
+                            return self.presentMediaTokenUnavailable()
+                        }
 
                         guard let destinationURL = URL(string: "vlc://\(streamURLString)") else {
                             return InternalFailurePresenter.logAndPresent(

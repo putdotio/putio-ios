@@ -127,7 +127,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
     private func remoteRequest(for id: Int) async -> URLRequest? {
         do {
-            let source = try await api.resolveAudioPlaybackSource(fileID: id, downloadToken: api.mediaToken)
+            let source = try await api.resolveAudioPlaybackSource(fileID: id, downloadToken: api.resolveMediaToken())
             return URLRequest(headerAuthorizedMediaURL: source.url)
         } catch {
             log.verbose(["ADM: remoteRequest, resolve failed", error])

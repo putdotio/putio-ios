@@ -71,9 +71,21 @@ struct AppConfig: Decodable {
     }
 }
 
+enum MediaTokenError: Error {
+    case unavailable
+}
+
 extension PutioSDK {
-    var mediaToken: String {
-        PutioRealm.open(context: "PutioSDK.mediaToken")?.objects(User.self).first?.downloadToken ?? ""
+    var mediaToken: String? {
+        let token = PutioRealm.open(context: "PutioSDK.mediaToken")?.objects(User.self).first?.downloadToken
+        return token?.isEmpty == false ? token : nil
+    }
+
+    func resolveMediaToken() async throws -> String {
+        if let mediaToken { return mediaToken }
+        let account = try await getAccountInfo(query: PutioAccountInfoQuery(downloadToken: true))
+        guard !account.downloadToken.isEmpty else { throw MediaTokenError.unavailable }
+        return account.downloadToken
     }
 }
 

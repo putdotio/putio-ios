@@ -157,7 +157,8 @@ class ChromecastManager: NSObject {
 
         if userConfig?.chromecastPlaybackType == "hls" {
             log.debug("Chromecast: playing HLS")
-            mediaInfo.contentID = file.getHlsStreamURL(downloadToken: api.mediaToken)
+            guard let mediaToken = api.mediaToken else { return completion(nil, MediaTokenError.unavailable) }
+            mediaInfo.contentID = file.getHlsStreamURL(downloadToken: mediaToken)
                 .applyingSubtitlePreference(hideSubtitles: hideSubtitles)
                 .absoluteString
             mediaInfo.streamType = .none

@@ -40,7 +40,8 @@ class ImageViewController: UIViewController {
             return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
         }
 
-        guard let preview = URLRequest(headerAuthorizedMediaURL: file.getDownloadURL(downloadToken: api.mediaToken)) else {
+        guard let mediaToken = api.mediaToken,
+              let preview = URLRequest(headerAuthorizedMediaURL: file.getDownloadURL(downloadToken: mediaToken)) else {
             finishLoading()
             return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
         }

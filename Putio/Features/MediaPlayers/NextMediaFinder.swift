@@ -82,7 +82,8 @@ class NextMediaFinder {
         api.findNextFile(fileID: item.id, fileType: getMappedAPIFileType(for: item)) { result in
             switch result {
             case .success(let nextFile):
-                self.onNextMediaFound(nextMedia: MediaPlayerItem(file: nextFile))
+                guard let nextMedia = MediaPlayerItem(file: nextFile) else { return self.onNextMediaCannotFound() }
+                self.onNextMediaFound(nextMedia: nextMedia)
 
             case .failure(let error):
                 log.debug(self.getMappedAPIFileType(for: item).rawValue)

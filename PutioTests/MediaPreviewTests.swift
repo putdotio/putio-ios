@@ -109,6 +109,28 @@ final class FilePreviewFailureTests: XCTestCase {
         try assertPreview(.image, answeredWith: 500, failsWith: "An error occurred while fetching the image")
     }
 
+    func testWithoutADownloadTokenThePreviewFailsBeforeAnyRequest() throws {
+        try assertPreviewWithoutDownloadToken(.pdf, failsWith: "An error occurred while fetching the PDF")
+        try assertPreviewWithoutDownloadToken(.image, failsWith: "An error occurred while fetching the image")
+    }
+
+    private func assertPreviewWithoutDownloadToken(_ preview: Preview, failsWith message: String) throws {
+        try useRealm(storingDownloadToken: nil)
+        PreviewDownloadStub.answer(with: 200)
+        let configuration = MediaPreviewSession.configuration(environment: [:])
+        configuration.protocolClasses = [PreviewDownloadStub.self]
+        let session = URLSession(configuration: configuration)
+        addTeardownBlock { session.invalidateAndCancel() }
+
+        let viewController = try makePreview(preview, fileID: 600_000_001, session: session)
+        _ = try pushOnWindow(viewController)
+
+        let alert = try waitForAlert(on: viewController, titled: "Oops!")
+        XCTAssertEqual(alert.message, message, preview.rawValue)
+        XCTAssertTrue(PreviewDownloadStub.requests.isEmpty, preview.rawValue)
+        try chooseAlertAction("Go Back", in: alert)
+    }
+
     private func assertPreview(
         _ preview: Preview,
         answeredWith statusCode: Int,
@@ -117,7 +139,8 @@ final class FilePreviewFailureTests: XCTestCase {
         line: UInt = #line
     ) throws {
         let fileID = preview == .pdf ? 500_000_001 : 400_000_001
-        let downloadToken = try signIn(downloadToken: "download-token-\(UUID().uuidString)")
+        let downloadToken = "download-token-\(UUID().uuidString)"
+        try useRealm(storingDownloadToken: downloadToken)
         PreviewDownloadStub.answer(with: statusCode)
         let configuration = MediaPreviewSession.configuration(environment: [:])
         configuration.protocolClasses = [PreviewDownloadStub.self]
@@ -138,21 +161,6 @@ final class FilePreviewFailureTests: XCTestCase {
         let returned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in navigation.topViewController !== viewController }, object: nil)
         wait(for: [returned], timeout: 5)
         XCTAssertEqual(navigation.viewControllers.count, 1, preview.rawValue, file: file, line: line)
-    }
-
-    private func signIn(downloadToken: String) throws -> String {
-        let previousConfiguration = Realm.Configuration.defaultConfiguration
-        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: "FilePreviewFailureTests-\(UUID().uuidString)")
-        let realm = try Realm()
-        let user = User()
-        user.id = 1
-        user.downloadToken = downloadToken
-        try realm.write { realm.add(user) }
-        addTeardownBlock {
-            realm.invalidate()
-            Realm.Configuration.defaultConfiguration = previousConfiguration
-        }
-        return downloadToken
     }
 
     private func makePreview(_ preview: Preview, fileID: Int, session: URLSession) throws -> UIViewController {
@@ -187,6 +195,102 @@ final class FilePreviewFailureTests: XCTestCase {
             "is_shared": false
         ]
         return try JSONDecoder().decode(PutioFile.self, from: JSONSerialization.data(withJSONObject: payload))
+    }
+}
+
+@MainActor
+final class MediaTokenTests: XCTestCase {
+    func testAStoredDownloadTokenIsUsedWithoutARequest() async throws {
+        try useRealm(storingDownloadToken: "stored-download-token")
+        AccountInfoStub.answer(downloadToken: "fetched-download-token", in: self)
+
+        let token = try await api.resolveMediaToken()
+
+        XCTAssertEqual(token, "stored-download-token")
+        XCTAssertTrue(AccountInfoStub.queries.isEmpty)
+    }
+
+    func testWithoutAStoredDownloadTokenItIsFetchedOnDemand() async throws {
+        try useRealm(storingDownloadToken: nil)
+        XCTAssertNil(api.mediaToken)
+        AccountInfoStub.answer(downloadToken: "fetched-download-token", in: self)
+
+        let token = try await api.resolveMediaToken()
+
+        XCTAssertEqual(token, "fetched-download-token")
+        XCTAssertEqual(AccountInfoStub.queries.map { $0?.contains("download_token=1") }, [true])
+    }
+
+    func testAnAccountWithoutADownloadTokenFailsInsteadOfReturningAnEmptyOne() async throws {
+        try useRealm(storingDownloadToken: nil)
+        AccountInfoStub.answer(downloadToken: "", in: self)
+
+        do {
+            let token = try await api.resolveMediaToken()
+            XCTFail("expected no token, got one of length \(token.count)")
+        } catch MediaTokenError.unavailable {}
+    }
+}
+
+private extension XCTestCase {
+    func useRealm(storingDownloadToken downloadToken: String?) throws {
+        let previousConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: "media-token-\(UUID().uuidString)")
+        let realm = try Realm()
+        if let downloadToken {
+            let user = User()
+            user.id = 1
+            user.downloadToken = downloadToken
+            try realm.write { realm.add(user) }
+        }
+        addTeardownBlock {
+            realm.invalidate()
+            Realm.Configuration.defaultConfiguration = previousConfiguration
+        }
+    }
+}
+
+private final class AccountInfoStub: URLProtocol {
+    private static let state = OSAllocatedUnfairLock(initialState: (downloadToken: "", queries: [String?]()))
+
+    static var queries: [String?] { state.withLock { $0.queries } }
+
+    static func answer(downloadToken: String, in testCase: XCTestCase) {
+        state.withLock { $0 = (downloadToken, []) }
+        URLProtocol.registerClass(AccountInfoStub.self)
+        testCase.addTeardownBlock { URLProtocol.unregisterClass(AccountInfoStub.self) }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        request.url?.host == "api.put.io" && request.url?.path == "/v2/account/info"
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])
+        else { return }
+        let downloadToken = Self.state.withLock { state -> String in
+            state.queries.append(url.query)
+            return state.downloadToken
+        }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Self.accountInfo(downloadToken: downloadToken))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+    private static func accountInfo(downloadToken: String) -> Data {
+        Data("""
+        {"info": {"user_id": 1, "username": "account-1", "mail": "account-1@example.com", "avatar_url": "https://static.put.io/avatar.png",
+          "user_hash": "hash-1", "features": {}, "download_token": "\(downloadToken)", "trash_size": 0, "account_active": true, "account_status": "active",
+          "is_sub_account": false, "files_will_be_deleted_at": "", "password_last_changed_at": "", "disk": {"avail": 1, "size": 2, "used": 1},
+          "settings": {"tunnel_route_name": "default", "next_episode": true, "start_from": true, "history_enabled": true, "trash_enabled": true,
+            "sort_by": "NAME_ASC", "show_optimistic_usage": false, "two_factor_enabled": false, "hide_subtitles": false,
+            "dont_autoselect_subtitles": false, "diagnostics_enabled": false, "product_analytics_enabled": false}}}
+        """.utf8)
     }
 }
 
