@@ -42,6 +42,9 @@ final class VideoPlayerFailureTests: XCTestCase {
         let servicesReset = NSError(domain: AVFoundationErrorDomain, code: AVError.Code.mediaServicesWereReset.rawValue)
 
         XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(URLError(.notConnectedToInternet), wasReadyToPlay: true))
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(URLError(.networkConnectionLost), wasReadyToPlay: true))
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(URLError(.timedOut), wasReadyToPlay: true))
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(URLError(.dataNotAllowed), wasReadyToPlay: true))
         XCTAssertTrue(VideoPlayerViewController.isUnreadableLocalFile(URLError(.notConnectedToInternet), wasReadyToPlay: false))
         XCTAssertTrue(VideoPlayerViewController.isUnreadableLocalFile(URLError(.fileDoesNotExist), wasReadyToPlay: true))
         XCTAssertTrue(VideoPlayerViewController.isUnreadableLocalFile(cannotOpen, wasReadyToPlay: false))
