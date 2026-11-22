@@ -1,38 +1,17 @@
 ## Summary
 
-- What changed
-- Why it changed
+- What changed and why
 
-## Reviewer Guide
+## Visual aid
 
-- Highest-risk area
-- Best place to start reviewing
-
-## Visual Aids
-
-- Screenshots or screen recordings for UI, layout, animation, onboarding, or copy changes
-- If not applicable, write `N/A`
+- Screenshot, recording, diagram, table, or code sample
 
 ## Validation
 
 - [ ] `mise run verify`
-- [ ] Manual runtime check when behavior changed
 - [ ] `mise run run-simulator` when auth, keychain, or signed-in persistence changed
-- Additional targeted checks:
-  -
-
-## Sanity Checks
-
-- Manual user paths exercised
-- Edge cases or failure paths checked
-- If not applicable, write `N/A`
-
-## Benchmarks
-
-- Device profiling evidence for performance-sensitive changes
-- Startup, scrolling, memory, network, or build-time impact when relevant
-- If not applicable, write `N/A`
+- Other checks and user paths exercised:
 
 ## Notes
 
-- Risks, rollout notes, or follow-up work
+- Risks, device profiling for performance-sensitive changes, and follow-ups
