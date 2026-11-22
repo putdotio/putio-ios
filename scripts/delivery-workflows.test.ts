@@ -491,7 +491,7 @@ test("every script a delivery job runs routes to the tooling lane, where its tes
   const script = fileURLToPath(new URL("./ci-affected.sh", import.meta.url));
   const callers = [".github/workflows/beta.yml", ".github/workflows/release.yml", ".github/workflows/submit.yml", "scripts/archive-ios.sh"];
   const sources = await Promise.all(callers.map((path) => readFile(new URL(`../${path}`, import.meta.url), "utf8")));
-  const scripts = new Set(sources.flatMap((source) => [...source.matchAll(/\.\/(scripts\/[\w.-]+\.sh)/g)].map((match) => match[1])));
+  const scripts = new Set(sources.flatMap((source) => [...source.matchAll(/\.\/(scripts\/[\w.-]+\.sh)/g)].flatMap((match) => match[1] ?? [])));
   assert.ok(scripts.has("scripts/build-number.sh") && scripts.has("scripts/check-embedded-frameworks.sh"), [...scripts].join(" "));
   for (const path of scripts) {
     const result = spawnSync("sh", [script], { encoding: "utf8", input: `${path}\n` });

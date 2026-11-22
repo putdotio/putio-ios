@@ -160,10 +160,11 @@ jobs:
           install: false
           cache: false
 
+      - name: Install the pinned pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
       - name: Install the pinned Node
-        run: |
-          mise install node
-          mise exec -- corepack enable pnpm
+        run: mise install node
 
       - name: Install Node dependencies
         run: mise exec -- pnpm install --frozen-lockfile
