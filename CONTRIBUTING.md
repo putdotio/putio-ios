@@ -52,15 +52,14 @@ mise run screenshots-verify  # screenshot walk against the screen baselines
 mise run run-simulator       # signed build on a visible simulator
 ```
 
-- `verify` is the gate before handoff.
-- Auth, keychain, or signed-in persistence changes need both `verify` and
-  `run-simulator`: only the signed build persists like a real install.
+- `verify` is the gate before handoff; [Verification](AGENTS.md#verification)
+  maps each kind of change to the checks it adds.
+- Only the signed `run-simulator` build persists auth and keychain state like
+  a real install.
 - `verify` and `e2e-simulator` each run on an ephemeral simulator.
-  `PUTIO_SIMULATOR_ID=<udid>` reuses a device, but that device keeps its own
-  locale, so never record baselines on it.
+  `PUTIO_SIMULATOR_ID=<udid>` reuses a device, which keeps its own locale.
 - No CI runs the full `e2e-simulator` suite; the
   [weekly smoke](.github/workflows/e2e-simulator.yml) runs a few of its tests.
-  Run it before you hand off SDK-backed flow changes.
 
 ### Mocked e2e
 
@@ -74,10 +73,8 @@ walk does.
 
 ### Visual baselines
 
-- `e2e-simulator` skips the screenshot walk; `mise run screenshots-verify`
-  asserts it. Run it after a change to any walked screen.
-- After an intentional visual change, run `mise run screenshots-record` and
-  commit the image diff.
+- After an intentional visual change, run `mise run screenshots-record` on
+  the ephemeral simulator it creates, and commit the image diff.
 - Scope a run to one screen with xcodebuild's `-only-testing:` syntax:
   `mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk`.
 - A scoped run skips the baseline-count tripwire. Run the full set before you
@@ -178,5 +175,4 @@ node scripts/app-store.ts check
 
 ## Pull requests
 
-Follow the [pull request template](.github/pull_request_template.md). Update
-docs when setup, CI, or release steps change.
+Follow the [pull request template](.github/pull_request_template.md).

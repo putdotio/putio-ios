@@ -1,8 +1,8 @@
 # Agent Guide
 
 The put.io iOS app that ships on the App Store: UIKit with Swift packages.
-Feature code lives in `Putio/Features/<Area>`; only genuinely shared code goes
-in `Putio/Common`.
+Feature code lives in `Putio/Features/<Area>`; code two areas share goes in
+`Putio/Common`.
 
 The SwiftUI rewrite of the iOS, watchOS and tvOS apps lives on `next`, with
 its own AGENTS.md. PRs for the rewrite target `next`.
@@ -41,13 +41,13 @@ its own AGENTS.md. PRs for the rewrite target `next`.
 
 ## Verification
 
-| Change                             | Proof                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Any behavior change                | `mise run verify`                                                                                                                                                                                                                                                                                                                       |
-| Packages or build settings         | `mise run release-launch`; also before dispatching Beta or Release                                                                                                                                                                                                                                                                      |
-| SDK-backed app flow                | `mise run e2e-simulator` before live-account checks; pull-request CI doesn't run it                                                                                                                                                                                                                                                     |
-| Auth, keychain, or signed-in state | `mise run verify` and `mise run run-simulator`                                                                                                                                                                                                                                                                                          |
-| Screen layout or copy              | `mise run screenshots-verify`; `e2e-simulator` skips the screenshot walk                                                                                                                                                                                                                                                                |
-| Intentional visual change          | Re-record [visual baselines](CONTRIBUTING.md#visual-baselines), then [App Store images](CONTRIBUTING.md#app-store-images)                                                                                                                                                                                                               |
-| File previews                      | Smoke-test in a simulator with real image and PDF files                                                                                                                                                                                                                                                                                 |
-| Performance-sensitive work         | Profile the affected flow before and after on one physical device with Instruments and an optimized build; run `mise run verify` and `mise run e2e-simulator`. `mise run perf` (optional, ~4 min) gives early simulator feedback. After release, check Sentry or Organizer ([Measure Performance](CONTRIBUTING.md#measure-performance)) |
+| Change                             | Proof                                                                                                                             |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Any behavior change                | `mise run verify`                                                                                                                 |
+| Packages or build settings         | `mise run release-launch`; also before dispatching Beta or Release                                                                |
+| SDK-backed app flow                | `mise run e2e-simulator` before live-account checks; pull-request CI doesn't run it                                               |
+| Auth, keychain, or signed-in state | `mise run verify` and `mise run run-simulator`                                                                                    |
+| Screen layout or copy              | `mise run screenshots-verify`; `e2e-simulator` skips the screenshot walk                                                          |
+| Intentional visual change          | Re-record [visual baselines](CONTRIBUTING.md#visual-baselines), then [App Store images](CONTRIBUTING.md#app-store-images)         |
+| File previews                      | Smoke-test in a simulator with real image and PDF files                                                                           |
+| Performance-sensitive work         | Profile it as [Measure Performance](CONTRIBUTING.md#measure-performance) says; run `mise run verify` and `mise run e2e-simulator` |
