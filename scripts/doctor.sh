@@ -7,7 +7,7 @@
 set -eu
 
 # Run in the repo rather than wherever doctor was invoked from. Both halves of
-# every check have to agree on which checkout they mean: corepack resolves pnpm
+# every check have to agree on which checkout they mean: pnpm resolves its version
 # against the nearest package.json, so reading the pin here while probing the
 # version there would compare this repo's expectation to another directory's
 # toolchain.
@@ -61,8 +61,8 @@ check_tool node "$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/
 
 # package.json's packageManager field is pnpm's single pin rather than mise.toml —
 # two pins would have to be bumped together. Checked all the same, because
-# corepack honours that field only when a standalone pnpm on PATH is not
-# silently winning and resolving dependencies differently from the lockfile.
+# pnpm switches to that version only while manage-package-manager-versions is
+# on; otherwise the pnpm on PATH resolves differently from the lockfile.
 expected_pnpm="$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([^"]*\)".*/\1/p' package.json)"
 actual_pnpm="$(pnpm --version 2>/dev/null || echo "missing")"
 
@@ -74,11 +74,11 @@ elif [ "$actual_pnpm" = "$expected_pnpm" ]; then
 elif [ "$actual_pnpm" = "missing" ]; then
   status=1
   echo "doctor: pnpm is not on PATH but package.json wants pnpm@$expected_pnpm" >&2
-  echo "doctor: fix: npm install -g corepack && corepack enable" >&2
+  echo "doctor: fix: install pnpm from https://pnpm.io/installation; it switches to packageManager on first use" >&2
 else
   status=1
   echo "doctor: active pnpm is $actual_pnpm but package.json pins pnpm@$expected_pnpm" >&2
-  echo "doctor: fix: npm install -g corepack && corepack enable && corepack prepare pnpm@$expected_pnpm --activate" >&2
+  echo "doctor: fix: pnpm self-update $expected_pnpm" >&2
 fi
 
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || echo "missing")}"
