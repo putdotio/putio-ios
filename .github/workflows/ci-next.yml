@@ -122,9 +122,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js and pnpm
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
         with:
-          version: "2026.11.9"
+          version: "2026.11.11"
           install_args: node pnpm
 
       - name: Verify tooling
@@ -149,9 +149,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js, pnpm, and asc
-        uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
+        uses: jdx/mise-action@90f833d396d0cc3674b631d2d225e306476c303a # v5.2.10
         with:
-          version: "2026.11.9"
+          version: "2026.11.11"
           install_args: node pnpm github:rorkai/App-Store-Connect-CLI
 
       # The second status runs without the variable, so the check fails if
