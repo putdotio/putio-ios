@@ -78,7 +78,7 @@ elif [ "$actual_pnpm" = "missing" ]; then
 else
   status=1
   echo "doctor: active pnpm is $actual_pnpm but package.json pins pnpm@$expected_pnpm" >&2
-  echo "doctor: fix: corepack enable && corepack prepare pnpm@$expected_pnpm --activate" >&2
+  echo "doctor: fix: npm install -g corepack && corepack enable && corepack prepare pnpm@$expected_pnpm --activate" >&2
 fi
 
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || echo "missing")}"
