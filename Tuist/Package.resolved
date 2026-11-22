@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/superuser404notfound/AetherEngine",
       "state" : {
-        "revision" : "3cfe848106482150209281c176ed72df5ac2674c",
-        "version" : "7.70.0"
+        "revision" : "5201576481c59cc247b15958dbeda961568d42e5",
+        "version" : "7.71.2"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/intercom/intercom-ios-sp",
       "state" : {
-        "revision" : "78d949a749d83800b0e7f8238d1c5488ea02771a",
-        "version" : "19.11.0"
+        "revision" : "97bd69f72a84213c1e11eaa65803c746b033aed1",
+        "version" : "19.12.0"
       }
     },
     {
