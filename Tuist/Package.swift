@@ -7,8 +7,8 @@ let package = Package(
   dependencies: [
     .package(path: "../Packages/GoogleCastSDK"),
     .package(path: "../Packages/SentrySDK"),
-    .package(url: "https://github.com/intercom/intercom-ios-sp", exact: "19.11.0"),
-    .package(url: "https://github.com/superuser404notfound/AetherEngine", exact: "7.70.0"),
+    .package(url: "https://github.com/intercom/intercom-ios-sp", exact: "19.12.0"),
+    .package(url: "https://github.com/superuser404notfound/AetherEngine", exact: "7.71.2"),
     .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", exact: "1.19.7"),
   ]
 )
