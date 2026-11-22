@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "@putdotio/design": "^5.3.3",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "playwright": "^1.65.0",
     "typescript": "^7.0.2",
     "yaml": "2.9.1"
