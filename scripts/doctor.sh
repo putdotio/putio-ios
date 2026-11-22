@@ -59,8 +59,7 @@ check_tool() {
 
 check_tool node "$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
 
-# pnpm ships via corepack, which is bundled with node, so package.json's
-# packageManager field stays its single pin rather than moving to mise.toml —
+# package.json's packageManager field is pnpm's single pin rather than mise.toml —
 # two pins would have to be bumped together. Checked all the same, because
 # corepack honours that field only when a standalone pnpm on PATH is not
 # silently winning and resolving dependencies differently from the lockfile.
@@ -75,7 +74,7 @@ elif [ "$actual_pnpm" = "$expected_pnpm" ]; then
 elif [ "$actual_pnpm" = "missing" ]; then
   status=1
   echo "doctor: pnpm is not on PATH but package.json wants pnpm@$expected_pnpm" >&2
-  echo "doctor: fix: corepack enable" >&2
+  echo "doctor: fix: npm install -g corepack && corepack enable" >&2
 else
   status=1
   echo "doctor: active pnpm is $actual_pnpm but package.json pins pnpm@$expected_pnpm" >&2
