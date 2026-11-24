@@ -118,6 +118,10 @@ final class DeviceSignInJourneyTests: XCTestCase {
     let code = app.descendants(matching: .any)["auth.device-code"]
     XCTAssertTrue(code.waitForExistence(timeout: 15))
     attach("runtime-tv-session-expired")
+    // The screen requests its code on its own; the expiry stays in the title.
+    XCTAssertTrue(
+      app.descendants(matching: .any)["auth.code-expired"].waitForExistence(timeout: 15))
+    XCTAssertTrue(expired.exists, "requesting a code dropped the session-expired title")
   }
 
   /// Moves focus onto `element` with the remote, bounded so a screen that

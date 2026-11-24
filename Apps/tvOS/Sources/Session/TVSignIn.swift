@@ -35,19 +35,22 @@ enum TVSignInPhase: Equatable {
 struct TVSignInView: View {
   let session: PutioSessionStore
   var restoreRetryInterval: Duration = .seconds(15)
+  @State private var sessionExpired = false
 
   var body: some View {
     TVSignInScreen(
       phase: TVSignInPhase(state: session.state, deviceCodeSignIn: session.deviceCodeSignIn),
       sessionExpired: PutioSignedOutNotice(
-        reason: session.state == .signedOut(.sessionExpired) ? .sessionExpired : nil,
-        device: .appleTV),
+        reason: sessionExpired ? .sessionExpired : nil, device: .appleTV),
       requestCode: { Task { await session.signInWithDeviceCode() } },
       retryRestore: { Task { await session.restore() } },
       discardCredential: { session.discardUnrestoredCredential() }
     )
     // A fresh signed-out screen asks for a code on its own; failures wait for
     // an explicit retry so an unreachable API cannot loop.
+    .onChange(of: session.state, initial: true) { _, state in
+      if state == .signedOut(.sessionExpired) { sessionExpired = true }
+    }
     .onChange(of: startsAutomatically, initial: true) { _, starts in
       if starts { Task { await session.signInWithDeviceCode() } }
     }
