@@ -29,7 +29,9 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
 
   func testHistoryClearBoards() {
     openHistory("board")
-    XCTAssertTrue(focus("history.clear", moving: .up))
+    XCTAssertTrue(
+      focus("history.clear", moving: .down, limit: 2)
+        || focus("history.clear", moving: .up, limit: 12))
     remote.press(.select)
     XCTAssertTrue(app.buttons["history.clear-confirm"].waitForExistence(timeout: 5))
     pause(1)
@@ -60,7 +62,7 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
   func testHistoryMoreFailedBoard() {
     openHistory("more-fails")
     XCTAssertTrue(element("history.more-retry").waitForExistence(timeout: 15))
-    XCTAssertTrue(focusRow(901))
+    XCTAssertTrue(focus("history.more-retry", moving: .down, limit: 14))
     capture("rd-tvos-hist-09-more-failed")
   }
 

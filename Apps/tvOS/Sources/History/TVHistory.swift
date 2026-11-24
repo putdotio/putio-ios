@@ -11,8 +11,15 @@ struct TVHistoryView: View {
   @State private var confirmsClear = false
   @State private var toast: PutioToast?
   @State private var shownEventID: Int?
-  @FocusState private var focusedEventID: Int?
+  @State private var showsPanel = true
+  @FocusState private var focus: Focus?
   private let locale: Locale
+
+  private enum Focus: Hashable {
+    case event(Int)
+    case clear
+    case moreRetry
+  }
 
   init(runtime: PutioRuntime, open: @escaping (PutioFileItem) -> Void) {
     self.init(
@@ -61,8 +68,16 @@ struct TVHistoryView: View {
       .onChange(of: scenePhase) { _, phase in
         if phase == .active { groupingDate = .now }
       }
-      .onChange(of: focusedEventID) { _, id in
-        if let id { shownEventID = id }
+      .onChange(of: focus) { _, focus in
+        switch focus {
+        case .event(let id):
+          shownEventID = id
+          showsPanel = true
+        case .clear, .moreRetry:
+          showsPanel = false
+        case nil:
+          break
+        }
       }
       .onChange(of: model.fileGone) { _, gone in
         guard gone != nil else { return }
@@ -117,8 +132,10 @@ struct TVHistoryView: View {
         HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {
           list(page)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-          if let event = shownEvent(in: page) {
+          if showsPanel, let event = shownEvent(in: page) {
             panel(event)
+          } else {
+            Color.clear.frame(width: TVDetailPanelLayout.width)
           }
         }
       }
@@ -141,6 +158,7 @@ struct TVHistoryView: View {
           String(localized: "Clear history", bundle: .putioCore), icon: .trash, tier: .secondary
         ) { confirmsClear = true }
         .disabled(model.mutation != nil)
+        .focused($focus, equals: .clear)
         .accessibilityIdentifier("history.clear")
       }
       .focusSection()
@@ -168,7 +186,7 @@ struct TVHistoryView: View {
           if model.loadMoreFailure != nil {
             TVLoadMoreFailedRow(
               message: String(localized: "Couldn’t load more activity.", bundle: .putioCore),
-              identifier: "history.more-retry"
+              identifier: "history.more-retry", focus: $focus, focusValue: .moreRetry
             ) { await model.loadMore() }
           } else {
             ProgressView()
@@ -232,10 +250,15 @@ struct TVHistoryView: View {
       TVHistoryEventRow(
         event: event, isOpening: model.openingEventID == event.id, locale: locale)
     }
-    .tvRowOpen(focusedEventID == nil && shownEventID == event.id)
-    .focused($focusedEventID, equals: event.id)
+    .tvRowOpen(!isEventFocused && showsPanel && shownEventID == event.id)
+    .focused($focus, equals: .event(event.id))
     .disabled(model.mutation != nil)
     .accessibilityIdentifier("history.item.\(event.id)")
+  }
+
+  private var isEventFocused: Bool {
+    if case .event = focus { return true }
+    return false
   }
 
   private func play(_ event: PutioHistoryEventItem) {

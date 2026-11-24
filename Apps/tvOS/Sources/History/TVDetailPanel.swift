@@ -90,7 +90,7 @@ struct TVDetailAction: View {
           .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
           .foregroundStyle(
             isDestructive
-              ? AnyShapeStyle(PutioTheme.Colors.destructiveText) : AnyShapeStyle(.putioRowIcon)
+              ? AnyShapeStyle(PutioTheme.Colors.destructiveText) : AnyShapeStyle(.putioRowPrimary)
           )
           .accessibilityHidden(true)
         Text(title)
@@ -105,9 +105,11 @@ struct TVDetailAction: View {
   }
 }
 
-struct TVLoadMoreFailedRow: View {
+struct TVLoadMoreFailedRow<FocusValue: Hashable>: View {
   let message: String
   let identifier: String
+  let focus: FocusState<FocusValue?>.Binding
+  let focusValue: FocusValue
   let retry: @MainActor () async -> Void
 
   var body: some View {
@@ -125,6 +127,7 @@ struct TVLoadMoreFailedRow: View {
       PutioButton(String(localized: "Try again", bundle: .putioCore), tier: .secondary) {
         Task { await retry() }
       }
+      .focused(focus, equals: focusValue)
       .accessibilityIdentifier(identifier)
     }
     .padding(.horizontal, PutioTheme.TV.Spacing.medium)
