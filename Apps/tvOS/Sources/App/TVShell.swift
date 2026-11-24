@@ -32,10 +32,10 @@ enum TVTab: Hashable, CaseIterable {
   var icon: Image {
     switch self {
     case .home: Image(systemName: "house")
-    case .files: Image(putioIcon: .folder)
+    case .files: Image(systemName: "folder")
     case .search: Image(systemName: "magnifyingglass")
-    case .history: Image(putioIcon: .clockCounterClockwise)
-    case .account: Image(putioIcon: .userCircle)
+    case .history: Image(systemName: "clock.arrow.circlepath")
+    case .account: Image(systemName: "person.crop.circle")
     }
   }
 
@@ -113,12 +113,18 @@ struct TVSignedInShell: View {
         Tab(value: tab, role: tab == .search ? .search : nil) {
           stack(for: tab)
         } label: {
-          Label {
-            Text(tab.title)
-          } icon: {
+          if tab == .search {
             tab.icon
+              .accessibilityLabel(Text(tab.title))
+              .accessibilityIdentifier(tab.identifier)
+          } else {
+            Label {
+              Text(tab.title)
+            } icon: {
+              tab.icon
+            }
+            .accessibilityIdentifier(tab.identifier)
           }
-          .accessibilityIdentifier(tab.identifier)
         }
       }
     }
