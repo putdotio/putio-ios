@@ -144,12 +144,7 @@ enum PutioOfflineQueueFactory {
 
   private static var harnessMediaBaseURL: URL? {
     #if DEBUG
-      guard
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else { return nil }
-      return baseURL
+      return HarnessMediaServer.baseURL()
     #else
       return nil
     #endif
@@ -192,11 +187,9 @@ extension PutioOfflineQueueFactory {
     -> PutioOfflineOriginal
   {
     #if DEBUG
-      guard scenario == .filesBrowser,
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else { return original }
+      guard scenario == .filesBrowser, let baseURL = HarnessMediaServer.baseURL() else {
+        return original
+      }
       return PutioOfflineOriginal(
         file: PutioFileDownloadSource(
           id: original.file.id, kind: original.file.kind, name: original.file.name,

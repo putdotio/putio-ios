@@ -624,13 +624,7 @@ struct MainTabView: View {
 
   #if DEBUG
     private func harnessMediaBaseURL() throws -> URL {
-      guard
-        scenario == .filesBrowser,
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString),
-        baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else {
+      guard scenario == .filesBrowser, let baseURL = HarnessMediaServer.baseURL() else {
         throw HarnessPlaybackFixtureError.missingResource
       }
       return baseURL
@@ -1090,12 +1084,7 @@ struct MainTabView: View {
     let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
     #if DEBUG
       guard scenario == .filesBrowser else { return source }
-      guard
-        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let baseURL = URL(string: baseURLString),
-        baseURL.scheme == "http",
-        baseURL.host == "127.0.0.1"
-      else {
+      guard let baseURL = HarnessMediaServer.baseURL() else {
         throw HarnessPlaybackFixtureError.missingResource
       }
       return PutioPlaybackSource(
@@ -1125,10 +1114,9 @@ struct MainTabView: View {
         return resolution
       }
       if HarnessSeededAPI.refusesPlayback {
-        guard
-          let baseURL = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"].flatMap(
-            URL.init(string:))
-        else { throw HarnessPlaybackFixtureError.missingResource }
+        guard let baseURL = HarnessMediaServer.baseURL() else {
+          throw HarnessPlaybackFixtureError.missingResource
+        }
         return .ready(
           PutioPlaybackSource(
             url: HarnessVideoFaults.url(for: .forbidden, mediaBaseURL: baseURL),
@@ -1143,12 +1131,7 @@ struct MainTabView: View {
         return .ready(try HarnessDirectPlay.converted(source))
       }
       if let fault = HarnessVideoFaults.next() {
-        guard
-          let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-          let baseURL = URL(string: baseURLString),
-          baseURL.scheme == "http",
-          baseURL.host == "127.0.0.1"
-        else {
+        guard let baseURL = HarnessMediaServer.baseURL() else {
           throw HarnessPlaybackFixtureError.missingResource
         }
         return .ready(
@@ -1176,14 +1159,7 @@ struct MainTabView: View {
         }
         fixtureURL = invalidFixture
       } else {
-        guard
-          let baseURLString = ProcessInfo.processInfo.environment[
-            "PUTIO_HARNESS_MEDIA_BASE_URL"
-          ],
-          let baseURL = URL(string: baseURLString),
-          baseURL.scheme == "http",
-          baseURL.host == "127.0.0.1"
-        else {
+        guard let baseURL = HarnessMediaServer.baseURL() else {
           throw HarnessPlaybackFixtureError.missingResource
         }
         fixtureURL = baseURL.appending(path: heldPath ?? subtitledPath ?? "runtime-proof.m3u8")
