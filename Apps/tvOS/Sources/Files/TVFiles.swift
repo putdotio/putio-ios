@@ -25,14 +25,6 @@ enum TVFilePresentation {
     return actions
   }
 
-  /// The shipped sort menu: the current key's other direction, and every
-  /// other key in the current direction.
-  static func sortChoices(from current: PutioFolderSort) -> [PutioFolderSort] {
-    PutioFolderSortKey.allCases.map { key in
-      key.sort(ascending: key == current.key ? !current.isAscending : current.isAscending)
-    }
-  }
-
   /// A folder without its own sort follows the account default.
   static func effectiveSort(
     _ folderSort: PutioFolderSort?, account: PutioAccountSnapshot
@@ -40,29 +32,16 @@ enum TVFilePresentation {
     folderSort ?? account.defaultSort ?? .nameAscending
   }
 
-  /// Where focus goes when a row leaves the list: the row after it, or the
-  /// one before it at the end. Left alone, tvOS jumps to the first row.
-  /// The removal reloads only the first page, so the target must be a row
-  /// in `firstPage`; on a later page that is the first page's last row.
-  static func focusAfterRemoving(
-    _ id: PutioFileID, from items: [PutioFileItem], firstPage: Set<PutioFileID>
-  ) -> PutioFileID? {
-    guard let index = items.firstIndex(where: { $0.id == id }) else { return nil }
-    let following = items[(index + 1)...]
-    let preceding = items[..<index].reversed()
-    return (following + preceding).first { firstPage.contains($0.id) }?.id
-  }
-
-  /// Where focus goes when a row stays but the list reloads its first page:
-  /// the row itself if that page holds it, otherwise that page's last row.
-  static func focusKeeping(
-    _ id: PutioFileID, in items: [PutioFileItem], firstPage: Set<PutioFileID>
-  ) -> PutioFileID? {
-    firstPage.contains(id) ? id : focusAfterRemoving(id, from: items, firstPage: firstPage)
-  }
-
-  static func sortButtonTitle(_ sort: PutioFolderSort) -> String {
-    "\(sort.key.title) \(sort.isAscending ? "↑" : "↓")"
+  /// Sort by, then Order, then Videos, as on iOS. The current sort is not
+  /// offered again.
+  static func sortChoices(from current: PutioFolderSort) -> [PutioFolderSort] {
+    let choices = PutioFolderSortChoices(current: current)
+    let all =
+      PutioFolderSortChoices.fields.map(choices.selecting) + choices.orders
+      + PutioFolderSortChoices.videoOrders
+    return all.reduce(into: []) { result, sort in
+      if sort != current, !result.contains(sort) { result.append(sort) }
+    }
   }
 
   /// Sorting shows in the header; every other outcome is a toast.
@@ -154,32 +133,6 @@ struct TVFocusHandoff: ViewModifier {
     guard let row = target else { return }
     target = nil
     focusedRow.wrappedValue = row
-  }
-}
-
-/// Runs a folder mutation and then asks the other mounted screens, Search
-/// included, to refresh. The request follows the mutation itself, not the
-/// screen, so it is sent even if the screen closed meanwhile. A failed
-/// mutation may still have reached the server, and the model only rolls
-/// back, so then the screen that started it refreshes too.
-enum TVFolderMutation {
-  enum Scope {
-    /// A deleted folder can contain any other mounted folder.
-    case allFolders
-    case folder(PutioFileID)
-  }
-
-  @MainActor
-  static func run(
-    _ scope: Scope, requests: PutioFolderRefreshRequests, owner: UUID,
-    operation: @MainActor () async -> Bool
-  ) async {
-    let committed = await operation()
-    let excluded = committed ? owner : nil
-    switch scope {
-    case .allFolders: requests.requestAllLoadedFolders(excludingOwner: excluded)
-    case .folder(let id): requests.request(folderID: id, excludingOwner: excluded)
-    }
   }
 }
 
@@ -277,7 +230,7 @@ struct TVFolderView: View {
       route: route,
       model: PutioFolderModel(
         folderID: route.id,
-        load: { try await runtime.listFiles(parentID: $0) },
+        load: { try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize) },
         continueLoad: { try await runtime.continueFiles(cursor: $0) },
         actions: PutioFileActions(runtime: runtime)),
       account: account, refreshRequests: refreshRequests, open: open)
@@ -325,7 +278,7 @@ struct TVFolderView: View {
             Task { await refresh() }
           }
           .accessibilityIdentifier("files.refresh")
-          PutioButton(TVFilePresentation.sortButtonTitle(sort), tier: .secondary) {
+          PutioButton(sort.menuLabel, tier: .secondary) {
             if model.canStartAction { choosesSort = true }
           }
           .accessibilityLabel("Sort by \(sort.title)")
@@ -340,26 +293,26 @@ struct TVFolderView: View {
     .background(PutioTheme.Colors.background.ignoresSafeArea())
     .alert("Sort by", isPresented: $choosesSort) {
       ForEach(TVFilePresentation.sortChoices(from: sort), id: \.self) { choice in
-        Button(choice.title) { Task { await model.setSort(choice) } }
+        Button(choice.menuLabel) { Task { await model.setSort(choice) } }
           .accessibilityIdentifier("files.sort.\(choice.rawValue)")
       }
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Sorted by \(sort.title.lowercased()).")
+      Text("Sorted by \(sort.menuLabel.lowercased()).")
     }
     .tvFileMenu(
       item: $menuItem, account: account, canDelete: model.canDelete,
       setWatched: { item, watched in
         if case .loaded(let contents) = model.state {
-          focusTarget = TVFilePresentation.focusKeeping(
-            item.id, in: contents.items, firstPage: model.firstPageIDs)
+          focusTarget = PutioFolderContents.neighbour(
+            keeping: item.id, in: contents.items, firstPage: model.firstPageIDs)
         }
         mutate(.folder(route.id)) { [model] in await model.setWatched(item, watched) }
       },
       delete: { item in
         guard case .loaded(let contents) = model.state else { return }
-        focusTarget = TVFilePresentation.focusAfterRemoving(
-          item.id, from: contents.items, firstPage: model.firstPageIDs)
+        focusTarget = PutioFolderContents.neighbour(
+          afterRemoving: item.id, from: contents.items, firstPage: model.firstPageIDs)
         mutate(.allFolders) { [model] in await model.delete(item) }
       }
     )
@@ -367,26 +320,21 @@ struct TVFolderView: View {
     .putioToast($toast)
     .task(id: route.id) {
       guard loadsOnAppear else { return }
-      refreshRegistration.activate()
-      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      // A fresh initial load already reflects any request that predates it.
-      let loaded = await model.loadIfNeeded()
-      guard loaded, let pending, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
+      await refreshRegistration.loadIfNeeded(model)
+    }
+    .task(id: isOffline) {
+      guard loadsOnAppear else { return }
+      await PutioOfflineRetry().run(while: isOffline) {
+        await refreshRegistration.retryKeepingFailure(model)
+      }
     }
     // Keyed on the loaded flag too, so a request that arrived while the
     // initial load was in flight runs once the folder is loaded.
     .task(
-      id: PendingRefresh(
-        sequence: refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner),
-        loaded: model.isLoaded)
+      id: PendingRefresh(sequence: refreshRegistration.pendingSequence, loaded: model.isLoaded)
     ) {
-      guard loadsOnAppear, model.isLoaded,
-        let sequence = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      else { return }
-      let refreshed = await model.refreshWhenIdle()
-      guard refreshed, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
+      guard loadsOnAppear else { return }
+      await refreshRegistration.refreshPending(model)
     }
     .onAppear {
       // Returning from a pushed screen refetches, as the shipped app does.
@@ -411,7 +359,7 @@ struct TVFolderView: View {
         title: failure.title, message: failure.message, retryTitle: "Try again",
         retryIdentifier: "files.retry"
       ) {
-        Task { await model.retry() }
+        Task { await refreshRegistration.retry(model) }
       }
     case .loaded(let contents):
       if contents.items.isEmpty, contents.nextCursor == nil, model.refreshFailure == nil {
@@ -470,21 +418,20 @@ struct TVFolderView: View {
     }
   }
 
+  private var isOffline: Bool {
+    if case .failed(let failure) = model.state { return failure.isOffline }
+    return false
+  }
+
   private func refresh() async {
-    let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-    let refreshed = await model.refresh()
-    guard refreshed, let pending, !Task.isCancelled else { return }
-    refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
+    await refreshRegistration.refresh(model)
   }
 
   private func mutate(
-    _ scope: TVFolderMutation.Scope, _ operation: @escaping @MainActor () async -> Bool
+    _ scope: PutioFolderMutationScope, _ operation: @escaping @MainActor () async -> Bool
   ) {
-    let requests = refreshRequests
-    let owner = refreshRegistration.owner
-    Task {
-      await TVFolderMutation.run(scope, requests: requests, owner: owner, operation: operation)
-    }
+    let registration = refreshRegistration
+    Task { await registration.mutate(scope, operation: operation) }
   }
 
   private struct PendingRefresh: Equatable {
