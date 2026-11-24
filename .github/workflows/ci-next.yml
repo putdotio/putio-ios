@@ -36,22 +36,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
       contents: read
       pull-requests: read
     # A pull request or push skips a lane when every changed path is excluded
     # from its filter; unlisted paths count for every lane. A push compares with
-    # the commit before it. Tooling runs on every pull request and push. This job also checks
-    # Markdown links and scans each pushed range. A link or scan failure fails
-    # this job without skipping the lanes, which use `!cancelled()`. A dispatch
-    # runs only this job unless `verify` is set; only pushes save compilation
-    # caches and Simulator templates.
+    # the head of the last successful push run, so a push whose macOS jobs a
+    # later push replaced still reaches its lanes. Tooling runs on every pull
+    # request and push. This job also checks Markdown links and scans each
+    # pushed range. A link or scan failure fails this job without skipping the
+    # lanes, which use `!cancelled()`. A dispatch runs only this job unless
+    # `verify` is set; only pushes save compilation caches and Simulator
+    # templates.
     outputs:
       tooling: ${{ github.event_name != 'workflow_dispatch' || inputs.verify }}
-      store: ${{ inputs.verify || steps.filter.outputs.store == 'true' }}
-      checks: ${{ inputs.verify || steps.filter.outputs.checks == 'true' }}
-      build: ${{ inputs.verify || steps.filter.outputs.build == 'true' }}
-      ios: ${{ inputs.verify || steps.filter.outputs.ios == 'true' }}
-      tvos: ${{ inputs.verify || steps.filter.outputs.tvos == 'true' }}
+      store: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.store == 'true' }}
+      checks: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.checks == 'true' }}
+      build: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.build == 'true' }}
+      ios: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.ios == 'true' }}
+      tvos: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.tvos == 'true' }}
       release-schemes: ${{ steps.release-schemes.outputs.schemes }}
     steps:
       - name: Check out repository
@@ -59,12 +62,28 @@ jobs:
         with:
           persist-credentials: false
 
+      # Without a successful push run to compare with, a push runs every lane.
+      - name: Find the last verified push
+        id: base
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          sha="$(gh api "repos/$REPOSITORY/actions/workflows/ci-next.yml/runs?branch=next&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' || true)"
+          if [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          else
+            echo "all=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Classify changed paths
         id: filter
         if: github.event_name != 'workflow_dispatch'
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          base: ${{ github.ref_name }}
+          base: ${{ steps.base.outputs.sha || github.ref_name }}
           predicate-quantifier: every
           filters: |
             apple: &apple
@@ -111,7 +130,7 @@ jobs:
       - name: Select Release shells
         id: release-schemes
         env:
-          VERIFY_ALL: ${{ github.event_name == 'workflow_dispatch' }}
+          VERIFY_ALL: ${{ github.event_name == 'workflow_dispatch' || steps.base.outputs.all == 'true' }}
           IOS: ${{ steps.filter.outputs.ios }}
           NIGHTLY: ${{ steps.filter.outputs.nightly }}
           TVOS: ${{ steps.filter.outputs.tvos }}
@@ -200,9 +219,13 @@ jobs:
 
   # macOS jobs share the organization's concurrent macOS limit, so a run that
   # overlaps another, a `verify` dispatch included, queues until slots free up.
+  # On pushes to next each macOS job queues behind the same job of the running
+  # push, and a newer push replaces a waiting one.
   checks:
     name: Checks
     needs: changes
+    concurrency:
+      group: next-ci-checks-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.checks == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
@@ -222,6 +245,8 @@ jobs:
   tvos:
     name: tvOS tests
     needs: changes
+    concurrency:
+      group: next-ci-tvos-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.tvos == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
@@ -260,6 +285,8 @@ jobs:
   ios:
     name: iOS tests
     needs: changes
+    concurrency:
+      group: next-ci-ios-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 40
@@ -323,6 +350,8 @@ jobs:
   build:
     name: Builds
     needs: changes
+    concurrency:
+      group: next-ci-build-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.build == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30

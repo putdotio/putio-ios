@@ -108,6 +108,22 @@ test("next CI cancels a stale pull request run but never a push to next", async 
   assert.equal(pullRequest("5", "refs/heads/next").group, pullRequest("3").group, "merging cancels the open run");
 });
 
+test("each macOS job of a push to next queues behind the running push's same job", async () => {
+  const jobs = recordAt(await loadWorkflow("ci-next.yml"), "jobs", "ci-next.yml");
+  const groups: unknown[] = [];
+  for (const job of ["checks", "tvos", "ios", "build"]) {
+    const concurrency = recordAt(recordAt(jobs, job, "jobs"), "concurrency", job);
+    assert.equal(concurrency["cancel-in-progress"], undefined, `${job} never cancels a running push`);
+    const group = (event_name: string, run_id: string) =>
+      evaluate(concurrency.group, { event_name, ref: "refs/heads/next", run_id, event: {} });
+    assert.equal(group("push", "1"), group("push", "2"), job);
+    assert.notEqual(group("pull_request", "1"), group("pull_request", "2"), job);
+    assert.notEqual(group("workflow_dispatch", "1"), group("push", "1"), job);
+    groups.push(group("push", "1"), group("pull_request", "1"));
+  }
+  assert.equal(new Set(groups).size, groups.length, "lanes never share a group");
+});
+
 const laneFilters = async (): Promise<Map<string, readonly string[]>> => {
   const workflow = await loadWorkflow("ci-next.yml");
   const changes = recordAt(recordAt(workflow, "jobs", "ci-next.yml"), "changes", "jobs");
