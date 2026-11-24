@@ -49,7 +49,12 @@ public struct PutioButton: View {
     self.presentation = presentation
     self.action = action
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonContentGap)
-    _iconSize = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonIconSize)
+    #if os(tvOS)
+      _iconSize = PutioScaledMetric(
+        PutioMetricRole(value: size.brandLabel.size, relativeTo: size.brandLabel.textStyle))
+    #else
+      _iconSize = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonIconSize)
+    #endif
   }
 
   public var body: some View {
