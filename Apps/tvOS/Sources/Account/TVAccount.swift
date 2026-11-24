@@ -462,6 +462,7 @@ struct TVProxyChooserScreen: View {
   var retry: () -> Void = {}
 
   @FocusState private var focusedRoute: String?
+  @FocusState private var focusesRetry: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
@@ -487,6 +488,9 @@ struct TVProxyChooserScreen: View {
           }
         }
         .defaultFocus($focusedRoute, selection)
+        .onChange(of: failure != nil) { _, failed in
+          if failed { focusesRetry = true }
+        }
       } else if let failure {
         PutioErrorStateView(
           title: "Could not load proxies", message: failure, retryTitle: "Try again",
@@ -511,6 +515,7 @@ struct TVProxyChooserScreen: View {
         .accessibilityIdentifier("proxy.failure")
       PutioButton("Try again", tier: .secondary, action: retry)
         .disabled(isLoading)
+        .focused($focusesRetry)
         .accessibilityIdentifier("proxy.retry")
     }
     .padding(.horizontal, PutioTheme.TV.Spacing.medium)
