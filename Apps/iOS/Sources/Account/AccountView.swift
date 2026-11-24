@@ -129,14 +129,14 @@ struct AccountView: View {
     }
     .accessibilityIdentifier("auth.sign-out")
     .confirmationDialog(
-      PutioSignOutPrompt.title,
+      signOutPrompt.title,
       isPresented: Binding(
         get: { signOutDownloadedBytes != nil },
         set: { if !$0 { signOutDownloadedBytes = nil } }),
       titleVisibility: .visible,
       presenting: signOutDownloadedBytes
     ) { _ in
-      Button(String(localized: "Sign out"), role: .destructive) {
+      Button(signOutPrompt.confirmTitle, role: .destructive) {
         signOut(removingDownloads: false)
       }
       .accessibilityIdentifier("auth.sign-out-confirm")
@@ -153,7 +153,7 @@ struct AccountView: View {
   }
 
   private var signOutPrompt: PutioSignOutPrompt {
-    PutioSignOutPrompt(sizeInMessage: dynamicTypeSize >= .xxLarge)
+    PutioSignOutPrompt(device: .current, sizeInMessage: dynamicTypeSize >= .xxLarge)
   }
 
   private func askToSignOut() {
@@ -163,11 +163,7 @@ struct AccountView: View {
     }
     let runtime = runtime
     let accountID = account.id
-    confirmAlert = PutioConfirmAlert(
-      title: PutioSignOutPrompt.title,
-      message: PutioSignOutPrompt.message,
-      confirmTitle: String(localized: "Sign out")
-    ) {
+    confirmAlert = PutioConfirmAlert(signOutPrompt.confirmation) {
       PutioFilesNavigationRestoration().clear(accountID: accountID)
       Task { await runtime.session.signOut() }
     }
@@ -242,11 +238,7 @@ struct AccountView: View {
       .id(AccountSettingRow.trash)
       .accessibilityIdentifier("settings.trash")
       PutioActionRow(String(localized: "Reset all sort settings"), icon: .arrowCounterClockwise) {
-        confirmAlert = PutioConfirmAlert(
-          title: String(localized: "Reset all folder sorts?"),
-          message: String(localized: "Every folder will use your account’s default sort."),
-          confirmTitle: String(localized: "Reset folder sorts")
-        ) {
+        confirmAlert = PutioConfirmAlert(PutioAccountConfirmations.resetFolderSorts) {
           save(nil, .resetFolderSorts)
         }
       }
@@ -361,7 +353,7 @@ struct AccountView: View {
   private var aboutSection: some View {
     PutioSettingsSection(String(localized: "About")) {
       row(
-        String(localized: "App info"), icon: .info, value: PutioAppInfo.shortVersion,
+        String(localized: "App info"), icon: .info, value: PutioAppInfo.shortVersion(),
         valueStyle: .measurement, opens: .appInfo
       )
       .accessibilityIdentifier("account.about")
@@ -426,37 +418,19 @@ struct AccountView: View {
   }
 
   private func confirmResumeOff() {
-    confirmAlert = PutioConfirmAlert(
-      title: String(localized: "Turn off resume?"),
-      message: String(
-        localized: "This erases every saved playback position on your account, on all devices."),
-      confirmTitle: String(localized: "Turn off")
-    ) {
+    confirmAlert = PutioConfirmAlert(PutioAccountConfirmations.resumeOff) {
       save(.resume, .resumePlayback(false))
     }
   }
 
   private func confirmHistoryOff() {
-    confirmAlert = PutioConfirmAlert(
-      title: String(localized: "Turn off history?"),
-      message: String(
-        localized:
-          "Existing history will be cleared and new account events will no longer be saved."),
-      confirmTitle: String(localized: "Turn off")
-    ) {
+    confirmAlert = PutioConfirmAlert(PutioAccountConfirmations.historyOff) {
       save(.history, .history(false))
     }
   }
 
   private func confirmTrashOff() {
-    confirmAlert = PutioConfirmAlert(
-      title: String(localized: "Turn off trash?"),
-      message: String(
-        localized:
-          "Turning off trash empties it now. Files you delete after that can’t be restored."
-      ),
-      confirmTitle: String(localized: "Turn off")
-    ) {
+    confirmAlert = PutioConfirmAlert(PutioAccountConfirmations.trashOff) {
       save(.trash, .trash(false))
     }
   }
@@ -494,7 +468,7 @@ struct PutioPlaybackConfigRows: View {
 
   var body: some View {
     if appConfig.config != nil {
-      if suggestsNextVideo {
+      if appConfig.offersAutoplay(suggestsNextVideo: suggestsNextVideo) {
         PutioToggleRow(
           String(localized: "Autoplay next video"), icon: .skipForward,
           isOn: appConfig.autoplayNextVideo
@@ -623,37 +597,5 @@ private struct AccountProfileHeader: View {
     .frame(width: avatarSize, height: avatarSize)
     .clipShape(Circle())
     .accessibilityHidden(true)
-  }
-}
-
-private struct PutioSignOutPrompt {
-  static var title: String { String(localized: "Sign out of put.io?") }
-
-  static var message: String {
-    UIDevice.current.userInterfaceIdiom == .pad
-      ? String(localized: "Downloads stay on this iPad and come back when you sign in again.")
-      : String(localized: "Downloads stay on this iPhone and come back when you sign in again.")
-  }
-
-  let sizeInMessage: Bool
-
-  func message(downloadedBytes bytes: Int64) -> String {
-    guard sizeInMessage, bytes > 0 else { return Self.message }
-    let size = PutioFileRowModel.sizeText(bytes: bytes)
-    return UIDevice.current.userInterfaceIdiom == .pad
-      ? String(
-        localized:
-          "Downloads use \(size) and stay on this iPad. They come back when you sign in again.")
-      : String(
-        localized:
-          "Downloads use \(size) and stay on this iPhone. They come back when you sign in again.")
-  }
-
-  func removeDownloadsTitle(downloadedBytes bytes: Int64) -> String {
-    guard !sizeInMessage, bytes > 0 else {
-      return String(localized: "Sign out and remove downloads")
-    }
-    let size = PutioFileRowModel.sizeText(bytes: bytes)
-    return String(localized: "Sign out and remove downloads (\(size))")
   }
 }

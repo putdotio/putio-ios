@@ -215,6 +215,38 @@ public final class PutioAccountPreferencesModel {
     await task.value
   }
 
+  /// Repeats a failed save, or refreshes a stale or unloaded account.
+  public func retry() async {
+    if isStale || failedMutation == nil {
+      await retryRefresh()
+    } else {
+      await retrySave()
+    }
+  }
+
+  /// What a settings screen says about the last refresh or save.
+  public var statusMessage: String? {
+    guard isStale else { return failure }
+    return failure ?? Self.staleMessage
+  }
+
+  /// The title of the button that runs `retry()`.
+  public var retryTitle: String {
+    if isRefreshing { return String(localized: "Refreshing…", bundle: .module) }
+    return isStale || failedMutation == nil
+      ? String(localized: "Refresh account", bundle: .module)
+      : String(localized: "Try again", bundle: .module)
+  }
+
+  public static var staleMessage: String {
+    String(
+      localized: "Account settings could not be confirmed. Refresh to continue.", bundle: .module)
+  }
+
+  public static var savingTitle: String {
+    String(localized: "Saving settings", bundle: .module)
+  }
+
   private static func message(for error: Error) -> String? {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {

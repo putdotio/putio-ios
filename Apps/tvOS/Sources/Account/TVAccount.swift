@@ -36,7 +36,10 @@ enum TVAccountSection: CaseIterable, Identifiable {
     case .storage:
       account.trashEnabled ? [.trash, .manageTrash] : [.trash]
     case .about:
-      [.app, .device, .system]
+      [
+        .appInfo("version"), .appInfo("channel"), .appInfo("device"), .appInfo("os"),
+        .appInfo("player"),
+      ]
     }
   }
 }
@@ -48,9 +51,8 @@ enum TVAccountRow: Hashable, Identifiable {
   case subtitleSelection
   case trash
   case manageTrash
-  case app
-  case device
-  case system
+  /// A `PutioAppInfo` field, by its id.
+  case appInfo(String)
 
   var id: Self { self }
 
@@ -62,9 +64,7 @@ enum TVAccountRow: Hashable, Identifiable {
     case .subtitleSelection: "Do not select subtitles by default"
     case .trash: "Move deleted files to trash"
     case .manageTrash: "Manage your trash"
-    case .app: "App"
-    case .device: "Device"
-    case .system: "Operating system"
+    case .appInfo(let field): field
     }
   }
 
@@ -76,9 +76,7 @@ enum TVAccountRow: Hashable, Identifiable {
     case .subtitleSelection: "account.subtitle-selection"
     case .trash: "account.trash"
     case .manageTrash: "account.manage-trash"
-    case .app: "account.app"
-    case .device: "account.device"
-    case .system: "account.system"
+    case .appInfo(let field): "account.app-info.\(field)"
     }
   }
 
@@ -89,7 +87,7 @@ enum TVAccountRow: Hashable, Identifiable {
     case .showSubtitles: !account.hideSubtitles
     case .subtitleSelection: account.dontAutoSelectSubtitles
     case .trash: account.trashEnabled
-    case .proxy, .manageTrash, .app, .device, .system: nil
+    case .proxy, .manageTrash, .appInfo: nil
     }
   }
 
@@ -101,35 +99,23 @@ enum TVAccountRow: Hashable, Identifiable {
     case .showSubtitles: .save(.showSubtitles(isOn))
     case .subtitleSelection: .save(.dontAutoSelectSubtitles(isOn))
     case .trash: isOn ? .save(.trash(true)) : .confirmDisablingTrash
-    case .rememberPosition, .proxy, .manageTrash, .app, .device, .system: nil
+    case .rememberPosition, .proxy, .manageTrash, .appInfo: nil
     }
   }
 }
 
-struct TVAppInfo: Equatable {
-  let app: String
-  let device: String
-  let system: String
-
-  @MainActor static var current: TVAppInfo {
-    let bundle = Bundle.main
-    let identifier = bundle.bundleIdentifier ?? "io.put.tvos"
-    let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-    let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-    let device = UIDevice.current
-    return TVAppInfo(
-      app: "\(identifier)@\(version ?? "0")+\(build ?? "0")",
-      device: "\(device.name) - \(device.model)",
-      system: "\(device.systemName) \(device.systemVersion)"
-    )
+extension PutioAppInfo {
+  @MainActor static func currentTV(channel: PutioReleaseChannel = .appStore) -> PutioAppInfo {
+    PutioAppInfo(
+      channel: channel, device: UIDevice.current.model, systemName: "tvOS",
+      systemVersion: UIDevice.current.systemVersion)
   }
 }
 
 /// The preferences model's state as the screen shows it.
 struct TVAccountStatus: Equatable {
-  var failure: String?
-  var canRetrySave = false
-  var isStale = false
+  var message: String?
+  var retryTitle: String?
   var isSaving = false
   var isRefreshing = false
   var canSave = true
@@ -137,21 +123,19 @@ struct TVAccountStatus: Equatable {
   static let idle = TVAccountStatus()
 
   @MainActor init(model: PutioAccountPreferencesModel) {
-    failure = model.failure
-    canRetrySave = model.failedMutation != nil
-    isStale = model.isStale
+    message = model.statusMessage
+    retryTitle = model.isStale || model.failure != nil ? model.retryTitle : nil
     isSaving = model.isSaving
     isRefreshing = model.isRefreshing
     canSave = model.canSave
   }
 
   init(
-    failure: String? = nil, canRetrySave: Bool = false, isStale: Bool = false,
-    isSaving: Bool = false, isRefreshing: Bool = false, canSave: Bool = true
+    message: String? = nil, retryTitle: String? = nil, isSaving: Bool = false,
+    isRefreshing: Bool = false, canSave: Bool = true
   ) {
-    self.failure = failure
-    self.canRetrySave = canRetrySave
-    self.isStale = isStale
+    self.message = message
+    self.retryTitle = retryTitle
     self.isSaving = isSaving
     self.isRefreshing = isRefreshing
     self.canSave = canSave
@@ -163,6 +147,7 @@ struct TVAccountView: View {
 
   @State private var model: PutioAccountPreferencesModel
   @State private var hasAppeared = false
+  @State private var channel = PutioReleaseChannel.appStore
 
   init(runtime: PutioRuntime) {
     self.runtime = runtime
@@ -174,17 +159,10 @@ struct TVAccountView: View {
       if let account = model.account {
         TVAccountScreen(
           account: account,
+          appInfo: .currentTV(channel: channel),
           status: TVAccountStatus(model: model),
           save: { mutation in Task { await model.save(mutation) } },
-          retry: {
-            Task {
-              if model.isStale || model.failedMutation == nil {
-                await model.retryRefresh()
-              } else {
-                await model.retrySave()
-              }
-            }
-          },
+          retry: { Task { await model.retry() } },
           signOut: { await runtime.session.signOut() }
         )
       } else {
@@ -197,6 +175,7 @@ struct TVAccountView: View {
       }
       hasAppeared = true
     }
+    .task { channel = await PutioReleaseChannel.current() }
   }
 
   /// Back from Trash: restores and deletions change the trash size. The
@@ -208,7 +187,7 @@ struct TVAccountView: View {
 
 struct TVAccountScreen: View {
   let account: PutioAccountSnapshot
-  var appInfo = TVAppInfo.current
+  var appInfo = PutioAppInfo.currentTV()
   var status = TVAccountStatus.idle
   var locale: Locale = .current
   var save: (PutioAccountPreferenceMutation) -> Void = { _ in }
@@ -241,24 +220,27 @@ struct TVAccountScreen: View {
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
     .confirmationDialog(
-      "Log out of put.io?", isPresented: $confirmsSignOut, titleVisibility: .visible
+      signOutConfirmation.title, isPresented: $confirmsSignOut, titleVisibility: .visible
     ) {
-      Button("Log out", role: .destructive) {
+      Button(signOutConfirmation.confirmTitle, role: .destructive) {
         Task { await signOut() }
       }
       .accessibilityIdentifier("auth.sign-out-confirm")
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("This Apple TV will need a new activation code to sign in again.")
+      Text(signOutConfirmation.message)
     }
-    .alert("Turn off Trash?", isPresented: $confirmsDisablingTrash) {
-      Button("Turn off Trash", role: .destructive) { save(.trash(false)) }
+    .alert(trashOffConfirmation.title, isPresented: $confirmsDisablingTrash) {
+      Button(trashOffConfirmation.confirmTitle, role: .destructive) { save(.trash(false)) }
         .accessibilityIdentifier("account.trash-disable-confirm")
       Button("Cancel", role: .cancel) {}
     } message: {
-      Text("Every item in Trash will be permanently deleted. Future deletions cannot be restored.")
+      Text(trashOffConfirmation.message)
     }
   }
+
+  private let signOutConfirmation = PutioAccountConfirmations.signOut(device: .appleTV)
+  private let trashOffConfirmation = PutioAccountConfirmations.trashOff
 
   private var header: some View {
     HStack(alignment: .center, spacing: PutioTheme.TV.Spacing.medium) {
@@ -288,21 +270,21 @@ struct TVAccountScreen: View {
 
   @ViewBuilder
   private var statusSection: some View {
-    if status.isStale || status.failure != nil || status.isSaving {
+    if status.message != nil || status.retryTitle != nil || status.isSaving {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        if let message = statusMessage {
+        if let message = status.message {
           Text(message)
             .putioFont(PutioTheme.TV.Typography.body)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .accessibilityIdentifier("account.settings-failure")
         }
-        if status.isStale || status.failure != nil {
+        if let retryTitle = status.retryTitle {
           PutioButton(retryTitle, tier: .secondary, action: retry)
             .disabled(status.isSaving || status.isRefreshing)
             .accessibilityIdentifier("account.settings-retry")
         }
         if status.isSaving {
-          ProgressView("Saving settings")
+          ProgressView(PutioAccountPreferencesModel.savingTitle)
             .accessibilityIdentifier("account.saving")
         }
       }
@@ -310,24 +292,13 @@ struct TVAccountScreen: View {
     }
   }
 
-  private var statusMessage: String? {
-    if status.isStale {
-      return status.failure ?? "Account settings could not be confirmed. Refresh to continue."
-    }
-    return status.failure
-  }
-
-  private var retryTitle: String {
-    if status.isRefreshing { return "Refreshing…" }
-    return status.isStale || !status.canRetrySave ? "Refresh account" : "Try again"
-  }
-
   @ViewBuilder
   private func rowView(_ row: TVAccountRow) -> some View {
     switch row {
     case .proxy:
       NavigationLink(value: TVRoute.proxy) {
-        TVValueRow(title: row.title, value: account.routeName, opens: true)
+        TVValueRow(
+          title: row.title, value: PutioProxyChoices.title(for: account.routeName), opens: true)
       }
       .disabled(!status.canSave)
       .accessibilityIdentifier(row.identifier)
@@ -361,18 +332,15 @@ struct TVAccountScreen: View {
       )
       .accessibilityElement(children: .combine)
       .accessibilityIdentifier(row.identifier)
-    case .app:
-      TVValueRow(title: row.title, value: appInfo.app)
+    case .appInfo(let id):
+      if let field = appInfo.fields.first(where: { $0.id == id }) {
+        Button {
+        } label: {
+          TVValueRow(title: field.title, value: field.value)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(row.identifier)
-    case .device:
-      TVValueRow(title: row.title, value: appInfo.device)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(row.identifier)
-    case .system:
-      TVValueRow(title: row.title, value: appInfo.system)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(row.identifier)
+      }
     }
   }
 
@@ -455,81 +423,38 @@ struct TVAvatar: View {
 // MARK: - Proxy chooser
 
 /// The full-screen chooser behind "Choose your proxy". It closes once put.io
-/// acknowledges the selected route.
+/// confirms the selected route.
 struct TVProxyChooserView: View {
-  let runtime: PutioRuntime
-
   @Environment(\.dismiss) private var dismiss
-  @State private var model: PutioAccountPreferencesModel
-  @State private var routes: [PutioPlaybackRoute]?
-  @State private var routeFailure: String?
-  @State private var isLoadingRoutes = false
-  @State private var routeGeneration = 0
-  @State private var requestedRoute: String?
+  @State private var model: PutioProxyChooserModel
 
   init(runtime: PutioRuntime) {
-    self.runtime = runtime
-    _model = State(initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
+    _model = State(
+      initialValue: PutioProxyChooserModel(
+        actions: PutioProxyChooserActions(runtime: runtime),
+        preferences: PutioAccountPreferencesModel(actions: .init(runtime: runtime))))
   }
 
   var body: some View {
     TVProxyChooserScreen(
-      currentRoute: model.account?.routeName ?? "",
-      routes: routes,
-      isLoading: isLoadingRoutes || model.isBusy,
-      failure: routeFailure ?? model.failure,
-      canSelect: model.canSave && !isLoadingRoutes,
-      select: { name in
-        requestedRoute = name
-        Task { await model.save(.route(name)) }
-      },
-      retry: { Task { await retry() } }
+      selection: model.selection,
+      choices: model.choices,
+      isLoading: model.isBusy,
+      failure: model.failure,
+      canSelect: model.canSelect,
+      select: { name in Task { await model.select(name) } },
+      retry: { Task { await model.retry() } }
     )
-    .task { if routes == nil { await loadRoutes() } }
-    .onChange(of: isAcknowledged) { _, acknowledged in
-      if acknowledged { dismiss() }
-    }
-  }
-
-  /// The requested route is the account's confirmed value.
-  private var isAcknowledged: Bool {
-    guard let requestedRoute else { return false }
-    return model.account?.routeName == requestedRoute && !model.isStale && !model.isBusy
-  }
-
-  private func retry() async {
-    if routeFailure != nil {
-      await loadRoutes()
-    } else if model.isStale || model.failedMutation == nil {
-      await model.retryRefresh()
-    } else {
-      await model.retrySave()
-    }
-  }
-
-  private func loadRoutes() async {
-    routeGeneration += 1
-    let generation = routeGeneration
-    isLoadingRoutes = true
-    routeFailure = nil
-    defer { if generation == routeGeneration { isLoadingRoutes = false } }
-    do {
-      let loaded = try await runtime.listPlaybackRoutes()
-      try Task.checkCancellation()
-      guard generation == routeGeneration else { return }
-      routes = loaded
-    } catch {
-      guard generation == routeGeneration, !Task.isCancelled,
-        let failure = PutioBrowserErrorPresentation(error: error)
-      else { return }
-      routeFailure = failure.message
+    .task { await model.loadIfNeeded() }
+    .onChange(of: model.isRequestConfirmed) { _, confirmed in
+      if confirmed { dismiss() }
     }
   }
 }
 
 struct TVProxyChooserScreen: View {
-  let currentRoute: String
-  let routes: [PutioPlaybackRoute]?
+  let selection: String
+  let choices: PutioProxyChoices?
   var isLoading = false
   var failure: String?
   var canSelect = true
@@ -537,33 +462,35 @@ struct TVProxyChooserScreen: View {
   var retry: () -> Void = {}
 
   @FocusState private var focusedRoute: String?
+  @FocusState private var focusesRetry: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       TVScreenHeader(title: "Choose your proxy") {
         if isLoading { ProgressView() }
       }
-      if let routes {
+      if let choices {
         TVRowList {
           if let failure { failureSection(failure) }
-          ForEach(options(routes)) { route in
+          ForEach(choices.names, id: \.self) { name in
             Button {
-              guard route.name != currentRoute else { return }
-              select(route.name)
+              select(name)
             } label: {
               TVChoiceLabel(
-                title: route.description.isEmpty ? route.name : route.description,
-                isSelected: route.name == currentRoute
+                title: PutioProxyChoices.title(for: name), isSelected: name == selection
               )
               .tvRowPadding()
             }
             .disabled(!canSelect)
-            .focused($focusedRoute, equals: route.name)
-            .accessibilityIdentifier("proxy.route.\(route.name)")
-            .accessibilityAddTraits(route.name == currentRoute ? .isSelected : [])
+            .focused($focusedRoute, equals: name)
+            .accessibilityIdentifier("proxy.route.\(name)")
+            .accessibilityAddTraits(name == selection ? .isSelected : [])
           }
         }
-        .defaultFocus($focusedRoute, currentRoute)
+        .defaultFocus($focusedRoute, selection)
+        .onChange(of: failure != nil) { _, failed in
+          if failed { focusesRetry = true }
+        }
       } else if let failure {
         PutioErrorStateView(
           title: "Could not load proxies", message: failure, retryTitle: "Try again",
@@ -580,14 +507,6 @@ struct TVProxyChooserScreen: View {
     .background(PutioTheme.Colors.background.ignoresSafeArea())
   }
 
-  /// The current route stays choosable even when put.io no longer lists it.
-  private func options(_ routes: [PutioPlaybackRoute]) -> [PutioPlaybackRoute] {
-    guard !currentRoute.isEmpty, !routes.contains(where: { $0.name == currentRoute }) else {
-      return routes
-    }
-    return [PutioPlaybackRoute(name: currentRoute, description: "")] + routes
-  }
-
   private func failureSection(_ failure: String) -> some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
       Text(failure)
@@ -596,6 +515,7 @@ struct TVProxyChooserScreen: View {
         .accessibilityIdentifier("proxy.failure")
       PutioButton("Try again", tier: .secondary, action: retry)
         .disabled(isLoading)
+        .focused($focusesRetry)
         .accessibilityIdentifier("proxy.retry")
     }
     .padding(.horizontal, PutioTheme.TV.Spacing.medium)
