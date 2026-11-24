@@ -105,7 +105,7 @@ enum TVAccountRow: Hashable, Identifiable {
     case .trash: String(localized: "Move deleted files to trash", bundle: .putioCore)
     case .defaultSort: String(localized: "Default sort order", bundle: .putioCore)
     case .history: String(localized: "Keep account history", bundle: .putioCore)
-    case .showHome: PutioShowHomePreference.title
+    case .showHome: String(localized: "Show Home", bundle: .putioCore)
     case .resume: String(localized: "Resume where you left off", bundle: .putioCore)
     case .autoplay: String(localized: "Autoplay next video", bundle: .putioCore)
     case .proxy: String(localized: "Choose your proxy", bundle: .putioCore)
