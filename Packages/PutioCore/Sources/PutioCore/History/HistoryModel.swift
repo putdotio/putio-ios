@@ -284,8 +284,15 @@ public final class PutioHistoryModel {
       if folder {
         try Task.checkCancellation()
         let parentID = file.parentID
-        file = try await actions.file(parentID)
-        guard file.id == parentID else { throw PutioRuntimeError.invalidResponse }
+        if parentID == .root {
+          file = PutioFileItem(
+            id: .root, parentID: .root, name: PutioFolderRoute.root.title, kind: .folder,
+            sizeBytes: 0, createdAt: file.createdAt, updatedAt: file.updatedAt,
+            resumePositionSeconds: 0)
+        } else {
+          file = try await actions.file(parentID)
+          guard file.id == parentID else { throw PutioRuntimeError.invalidResponse }
+        }
       }
       try Task.checkCancellation()
       guard request == openGeneration else { return }
