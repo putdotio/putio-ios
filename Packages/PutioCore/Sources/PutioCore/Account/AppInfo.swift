@@ -100,6 +100,18 @@ public struct PutioAppInfo: Equatable, Sendable {
   public var supportText: String {
     fields.map { "\($0.title): \($0.value)" }.joined(separator: "\n")
   }
+
+  public static let supportAddress = "support@put.io"
+
+  /// A mail link to support with the app info as the body, for a QR code a
+  /// phone can act on.
+  public var supportMailto: String {
+    var components = URLComponents()
+    components.scheme = "mailto"
+    components.path = Self.supportAddress
+    components.queryItems = [URLQueryItem(name: "body", value: supportText)]
+    return components.string ?? "mailto:\(Self.supportAddress)"
+  }
 }
 
 public struct PutioLicenseNotice: Decodable, Equatable, Identifiable, Sendable {

@@ -139,6 +139,23 @@ final class TVSessionRenderingTests: XCTestCase {
       size: viewport)
   }
 
+  /// A privacy change whose account refresh failed says so and offers a
+  /// refresh, with both controls held until it succeeds.
+  @MainActor
+  func testPrivacyControlsWithStaleSettingsMatchBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-privacy-controls-stale",
+      view: NavigationStack {
+        TVPrivacyControlsScreen(
+          account: Self.account,
+          status: TVAccountStatus(
+            message:
+              "Saved, but the latest account settings could not be loaded. Refresh to continue.",
+            retryTitle: "Refresh account", canSave: false))
+      },
+      size: viewport)
+  }
+
   @MainActor
   private func accountScreen(
     account: PutioAccountSnapshot = TVSessionRenderingTests.account,

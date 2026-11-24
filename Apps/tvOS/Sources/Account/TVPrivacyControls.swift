@@ -15,7 +15,8 @@ struct TVPrivacyControlsView: View {
     Group {
       if let account = model.account {
         TVPrivacyControlsScreen(
-          account: account, canSave: model.canSave,
+          account: account, status: TVAccountStatus(model: model),
+          retry: { Task { await model.retry() } },
           save: { mutation in
             Task {
               let outcome = await model.save(mutation)
@@ -34,7 +35,8 @@ struct TVPrivacyControlsView: View {
 
 struct TVPrivacyControlsScreen: View {
   let account: PutioAccountSnapshot
-  var canSave = true
+  var status = TVAccountStatus.idle
+  var retry: () -> Void = {}
   var save: (PutioAccountPreferenceMutation) -> Void = { _ in }
 
   var body: some View {
@@ -50,6 +52,7 @@ struct TVPrivacyControlsScreen: View {
             .accessibilityAddTraits(.isHeader)
         }
         .padding(.horizontal, PutioTheme.TV.Spacing.medium)
+        TVAccountStatusSection(status: status, retry: retry)
         TVRowList {
           TVPrivacyRow(
             control: PutioPrivacyControls.strictlyNecessary,
@@ -91,7 +94,7 @@ struct TVPrivacyControlsScreen: View {
       TVPrivacyRow(control: control, value: TVAccountScreen.onOff(isOn))
         .tvRowPadding()
     }
-    .disabled(!canSave)
+    .disabled(!status.canSave)
     .accessibilityIdentifier(identifier)
     .accessibilityValue(TVAccountScreen.onOff(isOn))
   }

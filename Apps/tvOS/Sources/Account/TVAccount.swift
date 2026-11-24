@@ -445,27 +445,7 @@ struct TVAccountScreen: View {
 
   @ViewBuilder
   private var statusSection: some View {
-    if status.message != nil || status.retryTitle != nil || status.isSaving {
-      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        if let message = status.message {
-          Text(message)
-            .putioFont(PutioTVTypeScale.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-            .accessibilityIdentifier("account.settings-failure")
-        }
-        if let retryTitle = status.retryTitle {
-          PutioButton(retryTitle, tier: .secondary, action: retry)
-            .disabled(status.isSaving || status.isRefreshing)
-            .accessibilityIdentifier("account.settings-retry")
-        }
-        if status.isSaving {
-          ProgressView(PutioAccountPreferencesModel.savingTitle)
-            .accessibilityIdentifier("account.saving")
-        }
-      }
-      .padding(.horizontal, PutioTheme.TV.Spacing.medium)
-      .focusSection()
-    }
+    TVAccountStatusSection(status: status, retry: retry)
   }
 
   @ViewBuilder
@@ -592,7 +572,7 @@ struct TVAccountScreen: View {
       content.fields = appInfo.fields
       content.qr = TVAccountPanelQR(
         caption: String(localized: "Need help? Scan to contact support.", bundle: .putioCore),
-        text: appInfo.supportText)
+        text: appInfo.supportMailto)
     case .manageAccount:
       content.description = String(
         localized: "Plan, billing, security and sessions live on the web. Scan with your phone.",
@@ -1025,5 +1005,35 @@ private struct TVFocusedChange: ViewModifier {
 extension View {
   fileprivate func onFocusedChange(_ action: @escaping (Bool) -> Void) -> some View {
     modifier(TVFocusedChange(action: action))
+  }
+}
+
+/// The preferences model's saving, stale, or failed state, with its retry.
+struct TVAccountStatusSection: View {
+  let status: TVAccountStatus
+  let retry: () -> Void
+
+  var body: some View {
+    if status.message != nil || status.retryTitle != nil || status.isSaving {
+      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+        if let message = status.message {
+          Text(message)
+            .putioFont(PutioTVTypeScale.caption)
+            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .accessibilityIdentifier("account.settings-failure")
+        }
+        if let retryTitle = status.retryTitle {
+          PutioButton(retryTitle, tier: .secondary, action: retry)
+            .disabled(status.isSaving || status.isRefreshing)
+            .accessibilityIdentifier("account.settings-retry")
+        }
+        if status.isSaving {
+          ProgressView(PutioAccountPreferencesModel.savingTitle)
+            .accessibilityIdentifier("account.saving")
+        }
+      }
+      .padding(.horizontal, PutioTheme.TV.Spacing.medium)
+      .focusSection()
+    }
   }
 }
