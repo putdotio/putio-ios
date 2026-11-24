@@ -41,10 +41,17 @@ The redesign lands on `next` only.
 
 ## tvOS and watchOS
 
-Use stock tvOS focus styles for lift, shadow, and parallax. Secondary controls
-keep the system focus fill so accent text remains readable. Non-control surfaces
-use solid backgrounds and TV token roles. Rows acting as controls use the stock
-card style.
+The tvOS shell is a system tab bar (Home, Files, Search, History, Account), each
+tab with its own stack, and the wordmark at the top left. Buttons, cards, pills,
+and tabs keep the stock 1.06 lift. List rows use
+[TVRowButtonStyle](Apps/tvOS/Sources/Components/TVRows.swift): a light fill with
+no scale on focus, grey while their menu or alert is open (`tvRowOpen`); row text
+takes its colour from the row state (`.putioRowPrimary`, `.putioRowSecondary`,
+`.putioRowIcon`). Menus and alerts use the system glass. Toasts sit top right in
+the tab bar row. Text roles come from
+[PutioTVTypeScale](Packages/PutioCore/Sources/PutioCore/Components/PutioTVTypeScale.swift),
+none under 26 pt; QR codes use
+[PutioQRCodeView](Packages/PutioCore/Sources/PutioCore/Components/PutioQRCode.swift).
 
 [tvOverscanPadding](Apps/tvOS/Sources/Components/TVLayout.swift) tops up the safe area to the
 token overscan ratios; adding both in full would double the margin. Device-code
