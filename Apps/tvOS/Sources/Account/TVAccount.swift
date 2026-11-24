@@ -478,6 +478,7 @@ struct TVAccountScreen: View {
         select: selectProxy, retry: retryProxy
       ) {
         TVAccountRowLabel(row: row, value: value, opens: true)
+          .onFocusedChange { if $0 { panelRow = row } }
       }
       .disabled(!status.canSave)
       .accessibilityIdentifier(row.identifier)
@@ -501,6 +502,7 @@ struct TVAccountScreen: View {
     case .defaultSort:
       TVDefaultSortMenu(current: account.defaultSort, save: { save(.defaultSort($0)) }) {
         TVAccountRowLabel(row: row, value: sortValue)
+          .onFocusedChange { if $0 { panelRow = row } }
       }
       .disabled(!status.canSave)
       .accessibilityIdentifier(row.identifier)
@@ -827,6 +829,7 @@ struct TVAccountPanel: View {
         Text(content.title ?? content.row.title)
           .putioFont(TVAccountLayout.panelTitleFont)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .accessibilityIdentifier("account.panel.\(content.row.identifier)")
       }
       if let description = content.description {
         Text(description)
@@ -1010,5 +1013,23 @@ struct TVProxyMenu<Content: View>: View {
       label
     }
     .menuStyle(.button)
+  }
+}
+
+/// Reports the system focus of the control this label sits in. A `Menu`
+/// takes no part in `@FocusState`, so its label reads focus from the
+/// environment instead.
+private struct TVFocusedChange: ViewModifier {
+  let action: (Bool) -> Void
+  @Environment(\.isFocused) private var isFocused
+
+  func body(content: Content) -> some View {
+    content.onChange(of: isFocused, initial: true) { _, focused in action(focused) }
+  }
+}
+
+extension View {
+  fileprivate func onFocusedChange(_ action: @escaping (Bool) -> Void) -> some View {
+    modifier(TVFocusedChange(action: action))
   }
 }

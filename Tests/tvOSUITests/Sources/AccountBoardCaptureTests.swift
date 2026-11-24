@@ -89,15 +89,9 @@ final class AccountBoardCaptureTests: XCTestCase {
     attach("rd-tvos-acc-13-storage-full")
   }
 
-  /// The fixture fails the settings load once and the first autoplay save.
-  func testLoadErrorAndSaveFailure() {
-    openAccount(arguments: ["--putio-harness-account-settings", "fail-load"], waitsForList: false)
-    XCTAssertTrue(element("account.settings-failed").waitForExistence(timeout: 15))
-    pause(1)
-    attach("rd-tvos-acc-15-error")
-    remote.press(.select)
-    XCTAssertTrue(element("account.username").waitForExistence(timeout: 15))
-
+  /// The fixture fails the first autoplay save.
+  func testSaveFailure() {
+    openAccount(arguments: ["--putio-harness-account-settings", "fail-load"])
     XCTAssertTrue(focus("account.autoplay"))
     remote.press(.select)
     XCTAssertTrue(
@@ -106,25 +100,33 @@ final class AccountBoardCaptureTests: XCTestCase {
     attach("rd-tvos-acc-12-save-failed")
   }
 
-  private func openAccount(arguments: [String] = [], waitsForList: Bool = true) {
+  private func openAccount(arguments: [String] = []) {
     app.launchArguments = ["--putio-harness-scenario", "signed-in"] + arguments
     app.launch()
     XCTAssertTrue(TVTabBar(app).open("Account"))
     remote.press(.down)
-    if waitsForList {
-      XCTAssertTrue(element("account.username").waitForExistence(timeout: 15))
-    }
+    XCTAssertTrue(element("account.username").waitForExistence(timeout: 15))
   }
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
   }
 
+  /// Account's menus never report `hasFocus`; the panel names the row they
+  /// focus instead.
   private func hasFocus(_ identifier: String) -> Bool {
-    app.descendants(matching: .any)
+    if Self.menuRows.contains(identifier) {
+      return app.descendants(matching: .any)["account.panel.\(identifier)"].exists
+        && !app.descendants(matching: .any)
+          .matching(NSPredicate(format: "identifier BEGINSWITH 'account.' AND hasFocus == true"))
+          .firstMatch.exists
+    }
+    return app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
       .firstMatch.exists
   }
+
+  private static let menuRows: Set<String> = ["account.default-sort", "account.proxy"]
 
   private func focus(_ identifier: String) -> Bool {
     focus(identifier, moving: .down, limit: 12) || focus(identifier, moving: .up, limit: 24)

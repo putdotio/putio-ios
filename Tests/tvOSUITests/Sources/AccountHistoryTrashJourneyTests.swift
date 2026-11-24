@@ -274,11 +274,21 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
       && frame.midY < screen.minY + screen.height * 0.75
   }
 
+  /// Account's menus never report `hasFocus`; the panel names the row they
+  /// focus instead.
   private func hasFocus(_ identifier: String) -> Bool {
-    app.descendants(matching: .any)
+    if Self.menuRows.contains(identifier) {
+      return app.descendants(matching: .any)["account.panel.\(identifier)"].exists
+        && !app.descendants(matching: .any)
+          .matching(NSPredicate(format: "identifier BEGINSWITH 'account.' AND hasFocus == true"))
+          .firstMatch.exists
+    }
+    return app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
       .firstMatch.exists
   }
+
+  private static let menuRows: Set<String> = ["account.default-sort", "account.proxy"]
 
   /// Moves focus onto the element with the remote: down first, then up,
   /// bounded so a screen that never offers it still fails.
