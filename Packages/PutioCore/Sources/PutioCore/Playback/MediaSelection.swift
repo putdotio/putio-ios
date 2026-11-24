@@ -32,7 +32,8 @@ public enum PutioMediaSelection {
 
     /// The subtitles a viewer can pick; forced-only renditions play on
     /// their own and never show in a menu.
-    public static func subtitleOptions(of group: AVMediaSelectionGroup) -> [AVMediaSelectionOption] {
+    public static func subtitleOptions(of group: AVMediaSelectionGroup) -> [AVMediaSelectionOption]
+    {
       group.options.filter { !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) }
     }
 

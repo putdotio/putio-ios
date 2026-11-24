@@ -879,7 +879,8 @@ final class PutioVideoTransport {
       let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
       let legibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .legible)
       guard let self, !Task.isCancelled, player?.currentItem === item else { return }
-      let details = PutioVideoTracks.details(for: audibleGroup?.options ?? [], streams: originalAudioStreams)
+      let details = PutioVideoTracks.details(
+        for: audibleGroup?.options ?? [], streams: originalAudioStreams)
       let playable = (audibleGroup?.options ?? []).filter(\.isPlayable)
       audible = audibleGroup.map { ($0, playable) }
       legible = legibleGroup.map { group in

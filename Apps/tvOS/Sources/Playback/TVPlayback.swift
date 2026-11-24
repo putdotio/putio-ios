@@ -194,7 +194,8 @@ struct TVVideoPlaybackView: View {
       }
     case .playing(let item, let source):
       TVSystemVideoPlayer(
-        item: item, source: source, fileID: route.id, remembersPosition: remembersPosition, pipeline: pipeline,
+        item: item, source: source, fileID: route.id, remembersPosition: remembersPosition,
+        pipeline: pipeline,
         reportPosition: { [runtime] fileID, seconds in
           try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         },
