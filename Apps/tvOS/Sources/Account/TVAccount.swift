@@ -477,7 +477,7 @@ struct TVAccountScreen: View {
         state: proxy ?? TVProxyMenuState(selection: account.routeName),
         select: selectProxy, retry: retryProxy
       ) {
-        TVAccountRowLabel(row: row, value: value)
+        TVAccountRowLabel(row: row, value: value, opens: true)
       }
       .disabled(!status.canSave)
       .accessibilityIdentifier(row.identifier)
@@ -510,7 +510,7 @@ struct TVAccountScreen: View {
         confirmation = .signOut
       } label: {
         Text(row.title)
-          .putioFont(TVValueRow.titleFont)
+          .putioFont(PutioTheme.TV.Typography.body)
           .foregroundStyle(PutioTheme.Colors.destructive)
           .tvRowPadding()
       }
@@ -720,10 +720,10 @@ struct TVAccountRowLabel: View {
         .resizable()
         .scaledToFit()
         .frame(width: TVAccountLayout.rowIconSize, height: TVAccountLayout.rowIconSize)
-        .foregroundStyle(.putioRowIcon)
+        .foregroundStyle(.putioRowSecondary)
         .accessibilityHidden(true)
       Text(row.title)
-        .putioFont(TVValueRow.titleFont)
+        .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(.putioRowPrimary)
         .lineLimit(1)
       Spacer(minLength: PutioTheme.TV.Spacing.small)
@@ -830,7 +830,7 @@ struct TVAccountPanel: View {
       }
       if let description = content.description {
         Text(description)
-          .putioFont(PutioTheme.TV.Typography.small)
+          .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
