@@ -325,6 +325,9 @@ final class OwnedSimulator: @unchecked Sendable {
 /// Game Center's `com.apple.gamed` stays loaded: Xcode's DTServiceHub looks it
 /// up on every app launch, and without it each `XCUIApplication.launch()`
 /// waits about 10 seconds before the app starts.
+///
+/// `com.apple.sleepd` stays loaded: SpringBoard retries its XPC service without
+/// backoff, logging about 9,000 messages a second that keep `diagnosticd` busy.
 let unusedSimulatorJobs = [
   "com.apple.activityawardsd",
   "com.apple.activitysharingd",
@@ -396,7 +399,6 @@ let unusedSimulatorJobs = [
   "com.apple.siriinferenced",
   "com.apple.siriknowledged",
   "com.apple.sirittsd",
-  "com.apple.sleepd",
   "com.apple.sociallayerd",
   "com.apple.spotlightknowledged.updater",
   "com.apple.suggestd",
