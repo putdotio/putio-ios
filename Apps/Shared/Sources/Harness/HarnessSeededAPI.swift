@@ -987,11 +987,12 @@ import Foundation
 
     static let token = "putio-harness-session-token"
     // Device-code sign-in: the first code stays pending for three polls and
-    // then expires. The second code's first poll fails offline, the next is
-    // pending, and the third approves it. Later codes stay pending. The margin
+    // then expires. The second code's first three polls fail offline, the
+    // next is pending, and the one after approves it. Later codes stay pending. The margin
     // lets the UI test observe each state.
     static let expiringDeviceCode = "TVXP1"
     static let approvedDeviceCode = "TVOK2"
+    private static let offlineDeviceCodePolls = 3
     /// Signed-out launches show a code that never expires or signs in.
     static let pendingDeviceCode = "TVWT1"
     nonisolated(unsafe) static var holdsDeviceCodes = false
@@ -1539,8 +1540,9 @@ import Foundation
     private static func consumeDeviceCodeOffline(_ url: URL) -> Bool {
       guard url.path == "/v2/oauth2/oob/code/\(approvedDeviceCode)" else { return false }
       return deviceCodeLock.withLock {
-        guard deviceCodePolls[approvedDeviceCode] == nil else { return false }
-        deviceCodePolls[approvedDeviceCode] = 1
+        let polls = deviceCodePolls[approvedDeviceCode] ?? 0
+        guard polls < offlineDeviceCodePolls else { return false }
+        deviceCodePolls[approvedDeviceCode] = polls + 1
         return true
       }
     }
@@ -1556,7 +1558,7 @@ import Foundation
             fixtureError(
               statusCode: 404, type: "code_not_found", message: "The activation code expired")
           )
-        case approvedDeviceCode where polls > 2:
+        case approvedDeviceCode where polls > offlineDeviceCodePolls + 1:
           return (200, #"{"oauth_token":"\#(token)"}"#)
         default:
           return (200, #"{"oauth_token":null}"#)
