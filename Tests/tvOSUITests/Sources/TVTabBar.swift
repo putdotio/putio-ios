@@ -27,7 +27,8 @@ struct TVTabBar {
       guard current.exists else { return false }
       let label = current.label
       if label == target.label {
-        return waitUntil(10) { target.isSelected }
+        RunLoop.current.run(until: Date.now.addingTimeInterval(1))
+        return target.hasFocus
       }
       remote.press(current.frame.midX < target.frame.midX ? .right : .left)
       _ = waitUntil(5) { focusedItem.exists && focusedItem.label != label }
