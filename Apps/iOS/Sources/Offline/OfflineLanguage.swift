@@ -1,4 +1,5 @@
 import Foundation
+import PutioCore
 
 enum PutioOfflineLanguage {
   /// The first preferred language present, or nil when none is: playback
@@ -18,6 +19,6 @@ enum PutioOfflineLanguage {
   }
 
   static func normalize(_ code: String) -> String {
-    (Locale(identifier: code).language.languageCode?.identifier ?? code).lowercased()
+    PutioMediaSelection.languageCode(code)
   }
 }
