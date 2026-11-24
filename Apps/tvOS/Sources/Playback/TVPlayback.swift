@@ -197,7 +197,7 @@ struct TVVideoPlaybackView: View {
         probes: showsProbes ? probes : nil,
         onEnded: playbackEnded,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
-        onFailure: { model.playerFailed($0) }
+        onFailure: playerFailed
       )
       .ignoresSafeArea()
     case .ended:
@@ -206,6 +206,19 @@ struct TVVideoPlaybackView: View {
         onFinish()
       }
     }
+  }
+
+  /// Reports the failure, then ends the playback: tvOS has no rescue or
+  /// silent access refresh, so every player failure is terminal.
+  private func playerFailed(_ failure: TVPlayerFailure) {
+    if let source = readySource {
+      let report = PutioPlaybackFailureReport(
+        platform: .tvos, fileID: route.id, source: source, error: failure.error,
+        playbackStarted: !failure.beforeFirstFrame, outcome: .failed)
+      SentryTelemetry.report(report)
+      if showsProbes { probes.failureReport = report }
+    }
+    model.playerFailed(failure.error.fault)
   }
 
   /// Loads the stream's duration for the resume decision; the same item then
@@ -541,7 +554,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let probes: TVPlaybackProbes?
   let onEnded: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
-  let onFailure: @MainActor (PutioVideoPlayerFault) -> Void
+  let onFailure: @MainActor (TVPlayerFailure) -> Void
 
   func makeCoordinator() -> TVVideoPlayerCoordinator {
     TVVideoPlayerCoordinator()
@@ -573,6 +586,12 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   }
 }
 
+/// A player failure as the shared report reads it.
+struct TVPlayerFailure {
+  let error: PutioPlayerError
+  let beforeFirstFrame: Bool
+}
+
 /// Starts the system player at the chosen position, applies the server's
 /// default subtitle before controls appear, and hands position reports to
 /// the shared reporter. Every new playback starts at the system's 1× rate;
@@ -594,7 +613,8 @@ final class TVVideoPlayerCoordinator {
   private var onEnded: (@MainActor () -> Void)?
   private var onReportsSettled: (@MainActor () -> Void)?
   private var waitForReports: (@MainActor () async -> Void)?
-  private var onFailure: (@MainActor (PutioVideoPlayerFault) -> Void)?
+  private var onFailure: (@MainActor (TVPlayerFailure) -> Void)?
+  private weak var controller: AVPlayerViewController?
   private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
   private let applyDefaultSubtitle: @MainActor (AVPlayerItem, AVPlayer) async -> Void
 
@@ -619,7 +639,7 @@ final class TVVideoPlayerCoordinator {
     probes: TVPlaybackProbes? = nil,
     onEnded: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
-    onFailure: @escaping @MainActor (PutioVideoPlayerFault) -> Void
+    onFailure: @escaping @MainActor (TVPlayerFailure) -> Void
   ) {
     generation &+= 1
     let playbackGeneration = generation
@@ -631,6 +651,7 @@ final class TVVideoPlayerCoordinator {
     self.onReportsSettled = onReportsSettled
     waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
     self.onFailure = onFailure
+    self.controller = controller
 
     let player = makePlayer(item)
     self.player = player
@@ -665,9 +686,10 @@ final class TVVideoPlayerCoordinator {
       center.addObserver(
         forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
       ) { [weak self] notification in
-        let fault = PutioVideoPlayerFault(
-          error: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
-        MainActor.assumeIsolated { self?.reportFailure(fault, generation: playbackGeneration) }
+        let error = PutioPlayerError(
+          avPlayerError: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey]
+            as? Error)
+        MainActor.assumeIsolated { self?.reportFailure(error, generation: playbackGeneration) }
       },
       center.addObserver(
         forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
@@ -687,7 +709,7 @@ final class TVVideoPlayerCoordinator {
       audioSessionIsActive = true
     } catch {
       Task { @MainActor [weak self] in
-        self?.reportFailure(.playback, generation: playbackGeneration)
+        self?.reportFailure(PutioPlayerError(avPlayerError: error), generation: playbackGeneration)
       }
       return
     }
@@ -705,7 +727,7 @@ final class TVVideoPlayerCoordinator {
           !failureReported
         else { return }
         guard finished else {
-          reportFailure(.playback, generation: playbackGeneration)
+          reportFailure(PutioPlayerError(avPlayerError: nil), generation: playbackGeneration)
           return
         }
         reporter.positionEstablished()
@@ -733,6 +755,7 @@ final class TVVideoPlayerCoordinator {
     positionObservation = nil
     onEnded = nil
     onFailure = nil
+    self.controller = nil
     player?.currentItem?.cancelPendingSeeks()
     player?.pause()
     player?.replaceCurrentItem(with: nil)
@@ -775,7 +798,7 @@ final class TVVideoPlayerCoordinator {
         reportMediaSelection(for: item, generation: playbackGeneration)
       }
     case .failed:
-      reportFailure(PutioVideoPlayerFault(error: item.error), generation: playbackGeneration)
+      reportFailure(PutioPlayerError(avPlayerError: item.error), generation: playbackGeneration)
     case .unknown:
       break
     @unknown default:
@@ -804,11 +827,12 @@ final class TVVideoPlayerCoordinator {
   }
 
   private func reportFailure(
-    _ fault: PutioVideoPlayerFault, generation playbackGeneration: UInt64
+    _ error: PutioPlayerError, generation playbackGeneration: UInt64
   ) {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
-    onFailure?(fault)
+    onFailure?(
+      TVPlayerFailure(error: error, beforeFirstFrame: controller?.isReadyForDisplay != true))
   }
 
   private func reportEnded(generation playbackGeneration: UInt64) {

@@ -4,10 +4,10 @@ import PackageDescription
 
 // sentry-cocoa's own package declares seven binary targets, and SwiftPM
 // downloads every one (about 800 MB) whichever product the app links. This
-// wraps the single dynamic xcframework the iOS shell uses, as GoogleCastSDK does.
+// wraps the single dynamic xcframework the iOS and tvOS shells use, as GoogleCastSDK does.
 let package = Package(
   name: "SentrySDK",
-  platforms: [.iOS(.v15)],
+  platforms: [.iOS(.v15), .tvOS(.v15)],
   products: [
     .library(name: "Sentry", targets: ["Sentry-Dynamic"])
   ],

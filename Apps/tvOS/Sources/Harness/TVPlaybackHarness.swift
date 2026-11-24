@@ -51,6 +51,7 @@ final class TVPlaybackProbes {
   var ended = false
   var reportedPosition: String?
   var speeds: [String]?
+  var failureReport: PutioPlaybackFailureReport?
   private(set) var conversionHistory: [String] = []
 
   func record(_ state: PutioVideoPlaybackState) {
@@ -100,6 +101,15 @@ final class TVPlaybackProbes {
 
     if let reportedPosition {
       values.append(Probe("video.position-reported", "Reported position", reportedPosition))
+    }
+    if let failureReport {
+      let keys = [
+        "platform", "player", "playback_outcome", "failure_mode", "source_request_status",
+      ]
+      values.append(
+        Probe(
+          "video.failure-report", "Playback failure report",
+          keys.map { "\($0)=\(failureReport.tags[$0] ?? "")" }.joined(separator: ";")))
     }
     if !conversionHistory.isEmpty {
       values.append(
