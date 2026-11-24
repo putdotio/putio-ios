@@ -8,11 +8,7 @@ import SwiftUI
     let baseURL: URL
 
     static var current: TVHarnessMedia? {
-      guard
-        let raw = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
-        let url = URL(string: raw), url.scheme == "http", url.host == "127.0.0.1"
-      else { return nil }
-      return TVHarnessMedia(baseURL: url)
+      HarnessMediaServer.baseURL().map(TVHarnessMedia.init(baseURL:))
     }
 
     /// Seeded positions exceed the 20-second subtitled fixture, so it starts
@@ -24,7 +20,7 @@ import SwiftUI
       guard !HarnessSeededAPI.refusesPlayback else {
         return .ready(
           PutioPlaybackSource(
-            url: baseURL.appending(path: "forbidden/runtime-proof.m3u8"),
+            url: HarnessVideoFaults.url(for: .forbidden, mediaBaseURL: baseURL),
             startFromSeconds: source.startFromSeconds))
       }
       let subtitled = HarnessSubtitledStream.path(for: account)
@@ -52,18 +48,10 @@ final class TVPlaybackProbes {
   var reportedPosition: String?
   var speeds: [String]?
   var failureReport: PutioPlaybackFailureReport?
-  private(set) var conversionHistory: [String] = []
+  private(set) var conversionHistory = HarnessConversionHistory()
 
   func record(_ state: PutioVideoPlaybackState) {
-    let phase: String
-    switch state {
-    case .conversionQueued: phase = "queued"
-    case .converting: phase = "converting"
-    case .conversionCompleted: phase = "completed"
-    case .loading, .ready, .conversionRequired, .failed: return
-    }
-    guard conversionHistory.last != phase else { return }
-    conversionHistory.append(phase)
+    conversionHistory.record(state)
   }
 
   struct Probe: Identifiable {
@@ -111,11 +99,9 @@ final class TVPlaybackProbes {
           "video.failure-report", "Playback failure report",
           keys.map { "\($0)=\(failureReport.tags[$0] ?? "")" }.joined(separator: ";")))
     }
-    if !conversionHistory.isEmpty {
+    if let conversionHistory = conversionHistory.value {
       values.append(
-        Probe(
-          "video.conversion-history", "Observed conversion states",
-          conversionHistory.joined(separator: ",")))
+        Probe("video.conversion-history", "Observed conversion states", conversionHistory))
     }
     return values
   }

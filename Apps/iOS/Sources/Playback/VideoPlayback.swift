@@ -20,7 +20,7 @@ struct PutioVideoPlaybackView: View {
   @State private var reportedFaults: [PutioVideoPlayerFault] = []
   @State private var fallbacks = 0
   @State private var rememberedFallback = false
-  @State private var conversionHistory: [String] = []
+  @State private var conversionHistory = HarnessConversionHistory()
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   @State private var playerFailureTask: Task<Void, Never>?
   @State private var transport: PutioVideoTransport
@@ -182,7 +182,7 @@ struct PutioVideoPlaybackView: View {
       await model.retry()
     }
     .onChange(of: model.state) { _, state in
-      recordConversionState(state)
+      conversionHistory.record(state)
     }
     .onChange(of: nextVideoModel.state) { _, state in
       guard case .playing(let nextVideo) = state else { return }
@@ -295,12 +295,12 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.ended")
               .allowsHitTesting(false)
           }
-          if !conversionHistory.isEmpty {
+          if let conversionHistory = conversionHistory.value {
             Color.clear
               .frame(width: 1, height: 1)
               .accessibilityElement(children: .ignore)
               .accessibilityLabel("Observed conversion states")
-              .accessibilityValue(conversionHistory.joined(separator: ","))
+              .accessibilityValue(conversionHistory)
               .accessibilityIdentifier("video.conversion-history")
               .allowsHitTesting(false)
           }
@@ -503,22 +503,6 @@ struct PutioVideoPlaybackView: View {
       callbacks.onSubtitleSelected = { selectedSubtitle = $0 }
     #endif
     return callbacks
-  }
-
-  private func recordConversionState(_ state: PutioVideoPlaybackState) {
-    let phase: String
-    switch state {
-    case .conversionQueued:
-      phase = "queued"
-    case .converting:
-      phase = "converting"
-    case .conversionCompleted:
-      phase = "completed"
-    case .loading, .ready, .conversionRequired, .failed:
-      return
-    }
-    guard conversionHistory.last != phase else { return }
-    conversionHistory.append(phase)
   }
 
   @ViewBuilder
