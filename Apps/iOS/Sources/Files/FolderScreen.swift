@@ -1021,7 +1021,7 @@ struct PutioFolderScreen: View {
   }
 
   private func retryWhileOffline() async {
-    await PutioOfflineRetry().run(while: { isOffline && retryRequest == nil }) {
+    await PutioOfflineRetry().run(while: isOffline && retryRequest == nil) {
       await refreshRegistration.retryKeepingFailure(model)
     }
   }

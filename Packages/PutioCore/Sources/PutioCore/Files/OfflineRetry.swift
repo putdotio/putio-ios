@@ -18,7 +18,7 @@ public struct PutioOfflineRetry: Sendable {
   /// Returns when `isOffline` turns false or the task is cancelled.
   @MainActor
   public func run(
-    while isOffline: @MainActor () -> Bool, retry: @MainActor () async -> Void
+    while isOffline: @autoclosure @MainActor () -> Bool, retry: @MainActor () async -> Void
   ) async {
     var attempt = 0
     while isOffline() {

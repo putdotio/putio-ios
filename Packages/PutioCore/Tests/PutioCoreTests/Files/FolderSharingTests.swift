@@ -80,9 +80,11 @@ final class FolderPagingAndSortTests: XCTestCase {
     XCTAssertEqual(choices.selecting(.name), .nameDescending)
     XCTAssertEqual(
       PutioFolderSortChoices(current: .watchStatusAscending).selecting(.size), .sizeAscending)
-    XCTAssertEqual(PutioFolderSortChoices.videoOrders.map(\.orderTitle), [
-      "Unwatched first", "Watched first",
-    ])
+    XCTAssertEqual(
+      PutioFolderSortChoices.videoOrders.map(\.orderTitle),
+      [
+        "Unwatched first", "Watched first",
+      ])
   }
 }
 
@@ -179,14 +181,17 @@ final class OfflineRetryTests: XCTestCase {
   func testDelaysDoubleFromThreeSecondsUpToThirty() {
     XCTAssertEqual(
       (0..<7).map(PutioOfflineRetry.delay(attempt:)),
-      [.seconds(3), .seconds(6), .seconds(12), .seconds(24), .seconds(30), .seconds(30), .seconds(30)])
+      [
+        .seconds(3), .seconds(6), .seconds(12), .seconds(24), .seconds(30), .seconds(30),
+        .seconds(30),
+      ])
   }
 
   func testRetriesUntilTheScreenIsBackOnline() async {
     let slept = SleepLog()
     var offline = true
     var attempts = 0
-    await PutioOfflineRetry(sleep: { await slept.record($0) }).run(while: { offline }) {
+    await PutioOfflineRetry(sleep: { await slept.record($0) }).run(while: offline) {
       attempts += 1
       if attempts == 3 { offline = false }
     }
@@ -197,7 +202,7 @@ final class OfflineRetryTests: XCTestCase {
 
   func testStopsWhenTheSleepIsCancelled() async {
     var attempts = 0
-    await PutioOfflineRetry(sleep: { _ in throw CancellationError() }).run(while: { true }) {
+    await PutioOfflineRetry(sleep: { _ in throw CancellationError() }).run(while: true) {
       attempts += 1
     }
     XCTAssertEqual(attempts, 0)

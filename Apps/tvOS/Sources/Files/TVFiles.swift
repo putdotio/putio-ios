@@ -324,7 +324,7 @@ struct TVFolderView: View {
     }
     .task(id: isOffline) {
       guard loadsOnAppear else { return }
-      await PutioOfflineRetry().run(while: { isOffline }) {
+      await PutioOfflineRetry().run(while: isOffline) {
         await refreshRegistration.retryKeepingFailure(model)
       }
     }
