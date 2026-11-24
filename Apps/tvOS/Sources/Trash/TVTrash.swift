@@ -229,7 +229,7 @@ struct TVTrashView: View {
   }
 
   private func toolbar(_ page: PutioTrashPage) -> some View {
-    HStack(spacing: PutioTheme.TV.Spacing.small) {
+    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
       HStack(spacing: PutioTheme.TV.Spacing.xs) {
         Text(PutioFileRowModel.sizeText(bytes: page.sizeBytes, locale: locale))
           .putioFont(PutioTheme.TV.Typography.numeric)
@@ -239,46 +239,48 @@ struct TVTrashView: View {
       }
       .putioFont(PutioTheme.TV.Typography.caption)
       .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      .lineLimit(2)
+      .lineLimit(1)
       .accessibilityElement(children: .combine)
       .accessibilityIdentifier("trash.summary")
-      Spacer(minLength: PutioTheme.TV.Spacing.small)
-      if model.activeMutation != nil {
-        ProgressView()
-          .accessibilityLabel(String(localized: "Updating trash…", bundle: .putioCore))
-          .accessibilityIdentifier("trash.progress")
-      }
-      PutioButton(
-        String(localized: "Refresh", bundle: .putioCore), icon: .arrowsClockwise,
-        tier: .secondary
-      ) {
-        guard model.canMutate else { return }
-        Task { await model.refresh() }
-      }
-      .fixedSize()
-      .accessibilityIdentifier("trash.refresh")
-      if model.hasContents {
+      HStack(spacing: PutioTheme.TV.Spacing.small) {
         PutioButton(
-          String(localized: "Restore all", bundle: .putioCore), icon: .arrowCounterClockwise,
+          String(localized: "Refresh", bundle: .putioCore), icon: .arrowsClockwise,
           tier: .secondary
         ) {
           guard model.canMutate else { return }
-          Task { await model.restoreAll() }
+          Task { await model.refresh() }
         }
         .fixedSize()
-        .focused($focus, equals: .restoreAll)
-        .accessibilityIdentifier("trash.restore-all")
-        PutioButton(
-          String(localized: "Empty trash", bundle: .putioCore), icon: .trash, tier: .secondary
-        ) {
-          guard model.canMutate else { return }
-          confirmsEmpty = true
+        .accessibilityIdentifier("trash.refresh")
+        if model.hasContents {
+          PutioButton(
+            String(localized: "Restore all", bundle: .putioCore), icon: .arrowCounterClockwise,
+            tier: .secondary
+          ) {
+            guard model.canMutate else { return }
+            Task { await model.restoreAll() }
+          }
+          .fixedSize()
+          .focused($focus, equals: .restoreAll)
+          .accessibilityIdentifier("trash.restore-all")
+          PutioButton(
+            String(localized: "Empty trash", bundle: .putioCore), icon: .trash, tier: .secondary
+          ) {
+            guard model.canMutate else { return }
+            confirmsEmpty = true
+          }
+          .fixedSize()
+          .accessibilityIdentifier("trash.empty")
         }
-        .fixedSize()
-        .accessibilityIdentifier("trash.empty")
+        if model.activeMutation != nil {
+          ProgressView()
+            .accessibilityLabel(String(localized: "Updating trash…", bundle: .putioCore))
+            .accessibilityIdentifier("trash.progress")
+        }
+        Spacer(minLength: 0)
       }
+      .focusSection()
     }
-    .focusSection()
   }
 
   private func list(_ page: PutioTrashPage) -> some View {

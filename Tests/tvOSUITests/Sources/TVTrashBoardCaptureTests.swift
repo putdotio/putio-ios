@@ -34,12 +34,7 @@ final class TVTrashBoardCaptureTests: XCTestCase {
 
   func testTrashEmptyConfirmBoard() {
     openTrash("board")
-    let toolbar = ["trash.refresh", "trash.restore-all", "trash.empty"]
-    for _ in 0..<6 where !toolbar.contains(where: hasFocus) {
-      remote.press(.up)
-      pause(0.5)
-    }
-    XCTAssertTrue(focus("trash.empty", moving: .right, limit: 3))
+    XCTAssertTrue(focusToolbar("trash.empty"))
     remote.press(.select)
     XCTAssertTrue(app.buttons["trash.empty-confirm"].waitForExistence(timeout: 5))
     capture("rd-tvos-trash-05-empty-confirm")
@@ -47,7 +42,7 @@ final class TVTrashBoardCaptureTests: XCTestCase {
 
   func testTrashRestoreAllBoard() {
     openTrash("board")
-    XCTAssertTrue(focus("trash.restore-all", moving: .up))
+    XCTAssertTrue(focusToolbar("trash.restore-all"))
     remote.press(.select)
     XCTAssertTrue(
       waitUntil(timeout: 5) {
@@ -121,6 +116,16 @@ final class TVTrashBoardCaptureTests: XCTestCase {
     app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
       .firstMatch.exists
+  }
+
+  private func focusToolbar(_ identifier: String) -> Bool {
+    let toolbar = ["trash.refresh", "trash.restore-all", "trash.empty"]
+    for _ in 0..<6 where !toolbar.contains(where: hasFocus) {
+      remote.press(.up)
+      pause(0.5)
+    }
+    return focus(identifier, moving: .right, limit: 3)
+      || focus(identifier, moving: .left, limit: 3)
   }
 
   private func focusRow(_ id: Int) -> Bool {
