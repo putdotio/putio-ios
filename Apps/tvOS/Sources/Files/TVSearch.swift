@@ -88,7 +88,7 @@ struct TVSearchView: View {
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .onChange(of: itemActions.outcome) { _, outcome in
         guard let outcome else { return }
-        toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+        toast = outcome.toastTitle(trashEnabled: account.trashEnabled).map { PutioToast($0) }
         itemActions.clearOutcome()
       }
       .putioToast($toast)

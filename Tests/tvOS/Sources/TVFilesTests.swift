@@ -8,20 +8,20 @@ final class TVFilesTests: XCTestCase {
     let account = Self.account()
     XCTAssertEqual(
       TVFilePresentation.menuActions(for: Self.video(), account: account, canDelete: true),
-      [.markWatched, .delete])
+      [.markWatched, .trash])
     XCTAssertEqual(
       TVFilePresentation.menuActions(
         for: Self.video(resumePositionSeconds: 90), account: account, canDelete: true),
-      [.markUnwatched, .delete])
+      [.markUnwatched, .trash])
     XCTAssertEqual(
       TVFilePresentation.menuActions(
         for: Self.video(), account: Self.account(rememberVideoTime: false), canDelete: true),
-      [.delete])
+      [.trash])
     XCTAssertEqual(
       TVFilePresentation.menuActions(
         for: Self.video(kind: .audio, resumePositionSeconds: 90), account: account,
         canDelete: true),
-      [.delete])
+      [.trash])
     XCTAssertEqual(
       TVFilePresentation.menuActions(for: Self.video(), account: account, canDelete: false),
       [.markWatched], "Trash or Delete waits for the trash setting to be known")
@@ -92,27 +92,6 @@ final class TVFilesTests: XCTestCase {
     XCTAssertEqual(navigation.path(for: .search), [folder])
     XCTAssertEqual(navigation.path(for: .history), [])
     XCTAssertEqual(navigation.selection, .files)
-  }
-
-  func testToastsNameTheActionAndFollowTheTrashSetting() {
-    let video = Self.video()
-    let delete = PutioFileAction.delete(fileID: video.id, name: video.name)
-    XCTAssertEqual(
-      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: true)?.text,
-      "Moved to Trash")
-    XCTAssertEqual(
-      TVFilePresentation.toast(for: .succeeded(delete), trashEnabled: false)?.text,
-      "Item deleted")
-    XCTAssertEqual(
-      TVFilePresentation.toast(
-        for: .succeeded(
-          .setWatched(fileID: video.id, parentID: .root, name: video.name, watched: false)),
-        trashEnabled: true)?.text,
-      "Marked as unwatched")
-    XCTAssertNil(
-      TVFilePresentation.toast(
-        for: .succeeded(.sort(folderID: .root, sort: .nameDescending)), trashEnabled: true),
-      "the header already shows the new sort")
   }
 
   private static func video(

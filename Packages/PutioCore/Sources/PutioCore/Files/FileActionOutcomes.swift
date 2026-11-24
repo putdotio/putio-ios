@@ -63,6 +63,46 @@ public enum PutioFileActionOutcome: Equatable, Sendable {
     case .succeeded(let action), .failed(let action, _): action
     }
   }
+
+  /// The toast an outcome shows, or `nil` when the screen already shows it.
+  public func toastTitle(trashEnabled: Bool) -> String? {
+    switch self {
+    case .succeeded(.delete(_, _, let permanently)):
+      trashEnabled && !permanently
+        ? PutioFileDeletionPresentation.trashed : PutioFileDeletionPresentation.deleted
+    case .succeeded(.move):
+      PutioMoveCopy.moved(1)
+    case .succeeded(.setWatched(_, _, _, let watched)):
+      PutioFileActionCopy.watchStatus(watched)
+    case .succeeded(.createFolder), .succeeded(.rename), .succeeded(.sort),
+      .succeeded(.restore):
+      nil
+    case .failed(.delete(_, _, let permanently), _):
+      PutioFileDeletionPresentation(trashEnabled: trashEnabled && !permanently)
+        .singleFailureTitle
+    case .failed(_, let failure):
+      failure.title
+    }
+  }
+
+  public func isNameTaken(movingFileID id: PutioFileID) -> Bool {
+    guard case .failed(.move(let fileID, _, _, _, _), let failure) = self else { return false }
+    return fileID == id && failure.isNameTaken
+  }
+}
+
+public enum PutioMoveCopy {
+  public static func moved(_ count: Int) -> String {
+    String(localized: "\(count) items are in the selected folder.", bundle: .module)
+  }
+}
+
+public enum PutioFileActionCopy {
+  public static func watchStatus(_ watched: Bool) -> String {
+    watched
+      ? String(localized: "Marked as watched", bundle: .module)
+      : String(localized: "Marked as unwatched", bundle: .module)
+  }
 }
 
 public enum PutioBulkFileAction: Equatable, Sendable {

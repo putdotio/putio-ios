@@ -57,10 +57,7 @@ final class PutioFileRouteTests: XCTestCase {
 
   func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {
     let trash = PutioFileDeletionPresentation(trashEnabled: true)
-    XCTAssertEqual(trash.actionTitle, "Trash")
-    XCTAssertEqual(trash.confirmationTitle(itemName: "Weekend"), "Move “Weekend” to Trash?")
-    XCTAssertEqual(trash.confirmationTitle(itemCount: 2), "Move 2 items to Trash?")
-    XCTAssertEqual(trash.confirmationMessage(itemCount: 1), "You can restore this item from Trash.")
+    XCTAssertEqual(trash.actionTitle, "Move to trash")
     XCTAssertEqual(
       trash.progressTitle(currentItem: 1, totalItems: 2), "Moving item 1 of 2 to Trash…")
     XCTAssertEqual(
@@ -70,17 +67,11 @@ final class PutioFileRouteTests: XCTestCase {
       "Moved 1 item to Trash. 1 couldn’t be moved to Trash.")
 
     let permanentDelete = PutioFileDeletionPresentation(trashEnabled: false)
-    XCTAssertEqual(permanentDelete.actionTitle, "Delete")
-    XCTAssertEqual(
-      permanentDelete.confirmationTitle(itemName: "Weekend"),
-      "Delete “Weekend” permanently?"
-    )
-    XCTAssertEqual(
-      permanentDelete.confirmationTitle(itemCount: 2),
-      "Delete 2 items permanently?"
-    )
-    XCTAssertEqual(
-      permanentDelete.confirmationMessage(itemCount: 1), "This item cannot be restored.")
+    XCTAssertEqual(permanentDelete.actionTitle, "Delete permanently")
+    let alert = PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) {}
+    XCTAssertEqual(alert.title, "Delete 1 item permanently?")
+    XCTAssertEqual(alert.message, "Trash is off for this account, so this can’t be undone.")
+    XCTAssertEqual(alert.confirmTitle, "Delete")
     XCTAssertEqual(
       permanentDelete.progressTitle(currentItem: 1, totalItems: 2),
       "Deleting item 1 of 2…"

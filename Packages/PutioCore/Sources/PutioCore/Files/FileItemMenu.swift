@@ -1,7 +1,9 @@
 import Foundation
 
 public enum PutioFileMenuRow: String, Hashable, Sendable {
+  case open
   case play
+  case startOver
   case playWithOtherMethod
   case download
   case downloadWithOtherMethod
@@ -33,6 +35,20 @@ public struct PutioFileMenu: Equatable, Sendable {
     /// The method a video's "Play with" and "Download with" rows name: the
     /// one that is not the account's. `nil` leaves both rows out.
     public var otherPlaybackMethod: PutioPlaybackMethod?
+    public var canSelect = true
+    /// A panel lists Open for folders and Start over for started videos.
+    public var isPanel = false
+
+    /// Apple TV's panel: no selection, downloads, sharing, links or copies;
+    /// Open in VLC is always offered.
+    public static func tv(tracksWatched: Bool, pinned: Bool?) -> Capabilities {
+      var capabilities = Capabilities(
+        canEdit: true, canDownload: false, vlcInstalled: true, tracksWatched: tracksWatched,
+        pinned: pinned)
+      capabilities.canSelect = false
+      capabilities.isPanel = true
+      return capabilities
+    }
 
     public init(
       canEdit: Bool, canDownload: Bool, vlcInstalled: Bool, tracksWatched: Bool,
@@ -60,8 +76,12 @@ public struct PutioFileMenu: Equatable, Sendable {
     }
     let route = item.kind == .folder ? nil : PutioFileRoute(item: item)
     var playback: [PutioFileMenuRow] = []
+    if capabilities.isPanel, item.kind == .folder { playback.append(.open) }
     if let route, route.isPlayable {
       playback.append(.play)
+      if capabilities.isPanel, item.kind == .video, item.resumePositionSeconds > 0 {
+        playback.append(.startOver)
+      }
       if capabilities.otherPlaybackMethod != nil, item.kind == .video {
         playback.append(.playWithOtherMethod)
       }
@@ -82,7 +102,7 @@ public struct PutioFileMenu: Equatable, Sendable {
     var edit: [PutioFileMenuRow] = []
     var destructive: [PutioFileMenuRow] = []
     let editable = capabilities.canEdit && !item.isShared
-    if editable { organize.append(.select) }
+    if editable, capabilities.canSelect { organize.append(.select) }
     if let pinned = capabilities.pinned, pinned || !item.isShared {
       organize.append(pinned ? .unpin : .pin)
     }

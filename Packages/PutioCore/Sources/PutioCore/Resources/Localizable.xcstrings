@@ -1329,17 +1329,6 @@
         }
       }
     },
-    "Delete “%@” permanently?" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete “%@” permanently?"
-          }
-        }
-      }
-    },
     "Deleted" : {
       "comment" : "ios-only: the tvOS Trash panel's deleted-date fact",
       "localizations" : {
@@ -2090,29 +2079,6 @@
         }
       }
     },
-    "Move %lld items to Trash?" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Move %lld item to Trash?"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Move %lld items to Trash?"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Move deleted files to trash" : {
       "comment" : "android: mobile_settings_trash",
       "localizations" : {
@@ -2120,17 +2086,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Move deleted files to trash"
-          }
-        }
-      }
-    },
-    "Move “%@” to Trash?" : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Move “%@” to Trash?"
           }
         }
       }
@@ -2154,17 +2109,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "Moved to Trash" : {
-      "comment" : "android: mobile_files_trash_done | differs: iOS capitalizes Trash",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moved to Trash"
           }
         }
       }
@@ -3445,17 +3389,6 @@
         }
       }
     },
-    "These items cannot be restored." : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These items cannot be restored."
-          }
-        }
-      }
-    },
     "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
       "comment" : "android: mobile_settings_open_source_licenses_description",
       "localizations" : {
@@ -3540,17 +3473,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This folder is too big to share."
-          }
-        }
-      }
-    },
-    "This item cannot be restored." : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This item cannot be restored."
           }
         }
       }
@@ -4028,28 +3950,6 @@
         }
       }
     },
-    "You can restore these items from Trash." : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can restore these items from Trash."
-          }
-        }
-      }
-    },
-    "You can restore this item from Trash." : {
-      "comment" : "ios-only: no Android string for the shared file actions and sorting",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can restore this item from Trash."
-          }
-        }
-      }
-    },
     "You can’t create public links with your current plan." : {
       "comment" : "android: mobile_public_links_refused_plan",
       "localizations" : {
@@ -4355,6 +4255,348 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” will be removed from trash right away. This cannot be undone."
+          }
+        }
+      }
+    },
+    "%lld items are in the selected folder." : {
+      "comment" : "android: mobile_files_move_moved_many",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item is in the selected folder."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items are in the selected folder."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Marked as watched" : {
+      "comment" : "ios-only: no Android string for the iOS file browser",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marked as watched"
+          }
+        }
+      }
+    },
+    "Marked as unwatched" : {
+      "comment" : "ios-only: no Android string for the iOS file browser",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marked as unwatched"
+          }
+        }
+      }
+    },
+    "Move to trash" : {
+      "comment" : "android: mobile_files_trash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move to trash"
+          }
+        }
+      }
+    },
+    "Waiting for confirmed trash settings." : {
+      "comment" : "android: mobile_files_delete_settings_unknown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for confirmed trash settings."
+          }
+        }
+      }
+    },
+    "Moved to trash" : {
+      "comment" : "android: mobile_files_trash_done",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved to trash"
+          }
+        }
+      }
+    },
+    "Undo" : {
+      "comment" : "android: mobile_files_undo",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Undo"
+          }
+        }
+      }
+    },
+    "Trash is off for this account, so this can’t be undone." : {
+      "comment" : "android: mobile_files_delete_permanently_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trash is off for this account, so this can’t be undone."
+          }
+        }
+      }
+    },
+    "We couldn’t send these files to trash" : {
+      "comment" : "android: mobile_files_trash_limit_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We couldn’t send these files to trash"
+          }
+        }
+      }
+    },
+    "This folder contains too many files. Delete it permanently?" : {
+      "comment" : "android: mobile_files_trash_limit_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This folder contains too many files. Delete it permanently?"
+          }
+        }
+      }
+    },
+    "Resume from %@" : {
+      "comment" : "android: mobile_files_detail_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume from %@"
+          }
+        }
+      }
+    },
+    "Added" : {
+      "comment" : "android: mobile_files_detail_added",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        }
+      }
+    },
+    "Length" : {
+      "comment" : "android: mobile_files_detail_length",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Length"
+          }
+        }
+      }
+    },
+    "Folder" : {
+      "comment" : "android: mobile_files_detail_folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Folder"
+          }
+        }
+      }
+    },
+    "Open" : {
+      "comment" : "android: mobile_files_detail_open",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      }
+    },
+    "Start over" : {
+      "comment" : "android: playback_start_over",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start over"
+          }
+        }
+      }
+    },
+    "Download" : {
+      "comment" : "android: mobile_files_download_action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        }
+      }
+    },
+    "Open in VLC" : {
+      "comment" : "android: mobile_files_open_in_vlc",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in VLC"
+          }
+        }
+      }
+    },
+    "Share" : {
+      "comment" : "android: mobile_files_share_action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share"
+          }
+        }
+      }
+    },
+    "Select" : {
+      "comment" : "android: mobile_files_select",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select"
+          }
+        }
+      }
+    },
+    "Pin to Home" : {
+      "comment" : "ios-only: the Apple TV detail panel; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin to Home"
+          }
+        }
+      }
+    },
+    "Pin" : {
+      "comment" : "android: mobile_files_pin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin"
+          }
+        }
+      }
+    },
+    "Unpin from Home" : {
+      "comment" : "ios-only: the Apple TV detail panel; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpin from Home"
+          }
+        }
+      }
+    },
+    "Unpin" : {
+      "comment" : "android: mobile_files_unpin",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpin"
+          }
+        }
+      }
+    },
+    "Mark as watched" : {
+      "comment" : "android: mobile_files_mark_watched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as watched"
+          }
+        }
+      }
+    },
+    "Mark as unwatched" : {
+      "comment" : "android: mobile_files_mark_unwatched",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark as unwatched"
+          }
+        }
+      }
+    },
+    "Rename" : {
+      "comment" : "android: mobile_files_rename",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        }
+      }
+    },
+    "Move" : {
+      "comment" : "android: mobile_files_move",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move"
+          }
+        }
+      }
+    },
+    "Exclusive link" : {
+      "comment" : "android: mobile_files_exclusive_link",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclusive link"
+          }
+        }
+      }
+    },
+    "Make a copy" : {
+      "comment" : "android: mobile_files_make_copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Make a copy"
           }
         }
       }

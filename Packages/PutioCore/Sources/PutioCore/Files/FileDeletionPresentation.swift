@@ -8,16 +8,22 @@ public struct PutioFileDeletionPresentation: Equatable, Sendable {
   }
 
   public var actionTitle: String {
-    trashEnabled
-      ? String(localized: "Trash", bundle: .module)
-      : String(localized: "Delete", bundle: .module)
+    trashEnabled ? String(localized: "Move to trash", bundle: .module) : Self.deletePermanently
   }
 
-  public var singleSuccessTitle: String {
-    trashEnabled
-      ? String(localized: "Moved to Trash", bundle: .module)
-      : String(localized: "Item deleted", bundle: .module)
+  public static var deletePermanently: String {
+    String(localized: "Delete permanently", bundle: .module)
   }
+
+  public static var settingUnknown: String {
+    String(localized: "Waiting for confirmed trash settings.", bundle: .module)
+  }
+
+  public static var trashed: String { String(localized: "Moved to trash", bundle: .module) }
+
+  public static var deleted: String { String(localized: "Item deleted", bundle: .module) }
+
+  public static var undo: String { String(localized: "Undo", bundle: .module) }
 
   public var singleFailureTitle: String {
     trashEnabled
@@ -25,33 +31,27 @@ public struct PutioFileDeletionPresentation: Equatable, Sendable {
       : String(localized: "Could not delete item", bundle: .module)
   }
 
-  public func confirmationTitle(itemName: String) -> String {
-    if trashEnabled {
-      return String(
-        localized: "Move “\(itemName)” to Trash?", bundle: .module)
-    }
-    return String(
-      localized: "Delete “\(itemName)” permanently?", bundle: .module)
+  public static func permanentDeleteAlert(
+    itemCount: Int, confirm: @escaping @MainActor @Sendable () -> Void
+  ) -> PutioConfirmAlert {
+    PutioConfirmAlert(
+      title: String(localized: "Delete \(itemCount) items permanently?", bundle: .module),
+      message: String(
+        localized: "Trash is off for this account, so this can’t be undone.", bundle: .module),
+      confirmTitle: String(localized: "Delete", bundle: .module),
+      confirm: confirm)
   }
 
-  public func confirmationTitle(itemCount: Int) -> String {
-    if trashEnabled {
-      return String(
-        localized: "Move \(itemCount) items to Trash?", bundle: .module)
-    }
-    return String(
-      localized: "Delete \(itemCount) items permanently?", bundle: .module)
-  }
-
-  public func confirmationMessage(itemCount: Int) -> String {
-    if trashEnabled {
-      return itemCount == 1
-        ? String(localized: "You can restore this item from Trash.", bundle: .module)
-        : String(localized: "You can restore these items from Trash.", bundle: .module)
-    }
-    return itemCount == 1
-      ? String(localized: "This item cannot be restored.", bundle: .module)
-      : String(localized: "These items cannot be restored.", bundle: .module)
+  public static func trashLimitAlert(
+    confirm: @escaping @MainActor @Sendable () -> Void
+  ) -> PutioConfirmAlert {
+    PutioConfirmAlert(
+      title: String(localized: "We couldn’t send these files to trash", bundle: .module),
+      message: String(
+        localized: "This folder contains too many files. Delete it permanently?",
+        bundle: .module),
+      confirmTitle: deletePermanently,
+      confirm: confirm)
   }
 
   public func progressTitle(currentItem: Int, totalItems: Int) -> String {

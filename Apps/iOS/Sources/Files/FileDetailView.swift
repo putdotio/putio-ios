@@ -191,12 +191,11 @@ struct PutioFileDetailView: View {
     .fixedSize(horizontal: true, vertical: false)
   }
 
-  private var primaryTitle: String {
-    let position = details?.resumePositionSeconds ?? item.resumePositionSeconds
-    guard position > 0 else { return String(localized: "Play") }
-    let time = PutioFileDetailText.clock(seconds: position)
-    return String(localized: "Resume from \(time)")
+  private var detail: PutioFileDetailModel {
+    PutioFileDetailModel(item: item, isVideo: isVideo, details: details, folder: folderText)
   }
+
+  private var primaryTitle: String { detail.primaryTitle }
 
   private func iconButton(
     _ icon: PutioIcon, label: String, action: @escaping () -> Void
@@ -254,25 +253,8 @@ struct PutioFileDetailView: View {
       horizontalSpacing: PutioTheme.Spacing.space3,
       verticalSpacing: PutioTheme.Spacing.space2
     ) {
-      fact(
-        "size", label: String(localized: "Size"),
-        value: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale), numeric: true)
-      fact(
-        "added", label: String(localized: "Added"),
-        value: item.createdAt.formatted(
-          .dateTime.month(.abbreviated).day().year().locale(locale)))
-      if isVideo, let seconds = details?.durationSeconds {
-        fact(
-          "length", label: String(localized: "Length"),
-          value: PutioFileDetailText.clock(seconds: seconds), numeric: true)
-      }
-      if isVideo, let subtitles = details?.subtitles, !subtitles.isEmpty {
-        fact(
-          "subtitles", label: String(localized: "Subtitles"),
-          value: subtitles.formatted(.list(type: .and, width: .narrow).locale(locale)))
-      }
-      if let folder = folderText {
-        fact("folder", label: String(localized: "Folder"), value: folder)
+      ForEach(detail.facts(locale: locale)) { fact in
+        self.fact(fact.id, label: fact.label, value: fact.value, numeric: fact.isNumeric)
       }
     }
   }

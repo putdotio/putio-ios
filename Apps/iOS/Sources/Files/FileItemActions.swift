@@ -2,22 +2,6 @@ import Observation
 import PutioCore
 import SwiftUI
 
-enum PutioFileItemActionRequest: Equatable, Identifiable {
-  case rename(PutioFileItem)
-  case move(PutioFileItem)
-  case delete(PutioFileItem)
-  case setWatched(PutioFileItem, Bool)
-
-  var id: String {
-    switch self {
-    case .rename(let item): "rename.\(item.id.rawValue)"
-    case .move(let item): "move.\(item.id.rawValue)"
-    case .delete(let item): "delete.\(item.id.rawValue)"
-    case .setWatched(let item, let watched): "watched.\(item.id.rawValue).\(watched)"
-    }
-  }
-}
-
 /// Presents the rename alert, move picker, and permanent-delete confirmation
 /// for `request`, runs the action, and reports it with a toast.
 struct PutioFileItemActionsHost: ViewModifier {
@@ -45,35 +29,34 @@ struct PutioFileItemActionsHost: ViewModifier {
           refreshRequests: refreshRequests,
           onMove: { destination in
             await model.move(item, to: destination)
-            if model.outcome?.isNameTaken(movingFileID: item.id) == true {
-              model.clearOutcome()
-              return .nameTaken(item.name)
+            switch model.settleMove(of: item) {
+            case .nameTaken(let name): return .nameTaken(name)
+            case .settled(let outcome):
+              present(outcome)
+              return .closed
             }
-            present(model.outcome)
-            return .closed
           }
         )
       }
       .putioConfirmAlert($confirmAlert)
       .onChange(of: request) { _, request in
-        switch request {
-        case .rename(let item):
+        guard let step = request?.step(trashEnabled: trashEnabled) else { return }
+        switch step {
+        case .askForName(let item):
           self.request = nil
           renameAlert = Self.renameAlert(for: item, model: model)
-        case .delete(let item):
+        case .trash(let item):
           self.request = nil
-          // Trash is recoverable, so only a permanent deletion asks first.
-          if trashEnabled {
-            perform { await model.delete(item) }
-          } else {
-            confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
-              perform { await model.delete(item, permanently: true) }
-            }
+          perform { await model.delete(item) }
+        case .confirmPermanentDelete(let item):
+          self.request = nil
+          confirmAlert = PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) {
+            perform { await model.delete(item, permanently: true) }
           }
         case .setWatched(let item, let watched):
           self.request = nil
           perform { await model.setWatched(item, watched) }
-        case .move, nil:
+        case .pickDestination:
           break
         }
       }
@@ -90,16 +73,8 @@ struct PutioFileItemActionsHost: ViewModifier {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      guard case .succeeded(.rename) = model.outcome else {
-        if case .failed(.rename, _) = model.outcome { model.clearOutcome() }
-        throw PutioRenameFailure()
-      }
-      model.clearOutcome()
+      try model.settleRename(of: item)
     }
-  }
-
-  private var deletion: PutioFileDeletionPresentation {
-    PutioFileDeletionPresentation(trashEnabled: trashEnabled)
   }
 
   private func perform(_ operation: @escaping @MainActor () async -> Void) {
@@ -111,25 +86,7 @@ struct PutioFileItemActionsHost: ViewModifier {
 
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
-    switch outcome {
-    case .succeeded(.delete(_, _, let permanently)):
-      toast = PutioToast(
-        permanently ? PutioFileDeletionCopy.deleted : PutioFileDeletionCopy.trashed)
-    case .succeeded(.move):
-      toast = PutioToast(PutioMoveCopy.moved(1))
-    case .succeeded(.setWatched(_, _, _, let watched)):
-      toast = PutioToast(
-        watched
-          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
-    case .succeeded:
-      break
-    case .failed(let action, let failure):
-      let title: String
-      if case .delete = action {
-        title = deletion.singleFailureTitle
-      } else {
-        title = failure.title
-      }
+    if let title = outcome.toastTitle(trashEnabled: trashEnabled) {
       toast = PutioToast(title)
     }
     model.clearOutcome()
@@ -145,5 +102,3 @@ struct PutioFileItemActionsHost: ViewModifier {
     )
   }
 }
-
-private struct PutioRenameFailure: Error {}

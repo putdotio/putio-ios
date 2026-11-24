@@ -1,35 +1,21 @@
 import PutioCore
 import SwiftUI
 
-/// What a long press on a file row offers, as in the shipped TV app.
-enum TVFileMenuAction: Hashable {
-  case markWatched
-  case markUnwatched
-  case delete
-}
-
 enum TVFilePresentation {
-  /// Watch status needs remember-position on and a video; Trash or Delete
-  /// waits for the account's trash setting to be known. As in the shipped
-  /// app, a shared file offers neither, and with nothing to offer there is
-  /// no menu.
+  /// The rows a long press performs today, from the shared menu with the
+  /// Apple TV preset. Trash waits for the account's trash setting.
   static func menuActions(
     for item: PutioFileItem, account: PutioAccountSnapshot, canDelete: Bool
-  ) -> [TVFileMenuAction] {
-    guard !item.isShared else { return [] }
-    var actions: [TVFileMenuAction] = []
-    if account.rememberVideoTime, item.kind == .video {
-      actions.append(item.isWatched ? .markUnwatched : .markWatched)
+  ) -> [PutioFileMenuRow] {
+    let menu = PutioFileMenu(
+      item: item, capabilities: .tv(tracksWatched: account.rememberVideoTime, pinned: nil))
+    return menu.sections.joined().filter { row in
+      switch row {
+      case .markWatched, .markUnwatched: true
+      case .trash: canDelete
+      default: false
+      }
     }
-    if canDelete { actions.append(.delete) }
-    return actions
-  }
-
-  /// A folder without its own sort follows the account default.
-  static func effectiveSort(
-    _ folderSort: PutioFolderSort?, account: PutioAccountSnapshot
-  ) -> PutioFolderSort {
-    folderSort ?? account.defaultSort ?? .nameAscending
   }
 
   /// Sort by, then Order, then Videos, as on iOS. The current sort is not
@@ -41,23 +27,6 @@ enum TVFilePresentation {
       + PutioFolderSortChoices.videoOrders
     return all.reduce(into: []) { result, sort in
       if sort != current, !result.contains(sort) { result.append(sort) }
-    }
-  }
-
-  /// Sorting shows in the header; every other outcome is a toast.
-  static func toast(for outcome: PutioFileActionOutcome, trashEnabled: Bool) -> PutioToast? {
-    let deletion = PutioFileDeletionPresentation(trashEnabled: trashEnabled)
-    switch outcome {
-    case .succeeded(.setWatched(_, _, _, let watched)):
-      return PutioToast(watched ? "Marked as watched" : "Marked as unwatched")
-    case .succeeded(.delete):
-      return PutioToast(deletion.singleSuccessTitle)
-    case .succeeded:
-      return nil
-    case .failed(.delete, _):
-      return PutioToast(deletion.singleFailureTitle)
-    case .failed(_, let failure):
-      return PutioToast(failure.title)
     }
   }
 }
@@ -148,7 +117,9 @@ struct TVFileMenuModifier: ViewModifier {
   @State private var confirmingDelete: PutioFileItem?
 
   func body(content: Content) -> some View {
-    let deletion = PutioFileDeletionPresentation(trashEnabled: account.trashEnabled)
+    let confirmation = confirmingDelete.map { item in
+      PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) { delete(item) }
+    }
     content
       .alert(
         item?.name ?? "",
@@ -157,34 +128,38 @@ struct TVFileMenuModifier: ViewModifier {
       ) { item in
         let actions = TVFilePresentation.menuActions(
           for: item, account: account, canDelete: canDelete)
-        if actions.contains(.markWatched) {
-          Button("Mark as watched") { setWatched(item, true) }
-            .accessibilityIdentifier("files.menu.watched")
-        }
-        if actions.contains(.markUnwatched) {
-          Button("Mark as unwatched") { setWatched(item, false) }
-            .accessibilityIdentifier("files.menu.unwatched")
-        }
-        if actions.contains(.delete) {
-          Button(deletion.actionTitle, role: .destructive) {
-            if account.trashEnabled { delete(item) } else { confirmingDelete = item }
+        ForEach(actions, id: \.self) { row in
+          let title = row.title(for: item, trashEnabled: account.trashEnabled) ?? ""
+          switch PutioFileItemActionRequest(row: row, item: item)?.step(
+            trashEnabled: account.trashEnabled)
+          {
+          case .setWatched(_, let watched):
+            Button(title) { setWatched(item, watched) }
+              .accessibilityIdentifier(watched ? "files.menu.watched" : "files.menu.unwatched")
+          case .trash:
+            Button(title, role: .destructive) { delete(item) }
+              .accessibilityIdentifier("files.menu.delete")
+          case .confirmPermanentDelete:
+            Button(title, role: .destructive) { confirmingDelete = item }
+              .accessibilityIdentifier("files.menu.delete")
+          case .askForName, .pickDestination, nil:
+            EmptyView()
           }
-          .accessibilityIdentifier("files.menu.delete")
         }
         Button("Cancel", role: .cancel) {}
       }
       .alert(
-        confirmingDelete.map { deletion.confirmationTitle(itemName: $0.name) } ?? "",
+        confirmation?.title ?? "",
         isPresented: Binding(
           get: { confirmingDelete != nil }, set: { if !$0 { confirmingDelete = nil } }),
         presenting: confirmingDelete
       ) { item in
-        Button(deletion.actionTitle, role: .destructive) { delete(item) }
+        Button(confirmation?.confirmTitle ?? "", role: .destructive) { delete(item) }
           .accessibilityIdentifier("files.delete-confirm")
         Button("Cancel", role: .cancel) {}
           .accessibilityIdentifier("files.delete-cancel")
       } message: { _ in
-        Text(deletion.confirmationMessage(itemCount: 1))
+        Text(confirmation?.message ?? "")
       }
   }
 }
@@ -344,7 +319,7 @@ struct TVFolderView: View {
     }
     .onChange(of: model.actionOutcome) { _, outcome in
       guard let outcome else { return }
-      toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+      toast = outcome.toastTitle(trashEnabled: account.trashEnabled).map { PutioToast($0) }
       model.clearActionOutcome()
     }
   }
