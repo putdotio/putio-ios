@@ -103,9 +103,16 @@ final class DeviceSignInJourneyTests: XCTestCase {
     attach("runtime-tv-session-offline")
 
     XCTAssertTrue(
-      TVTabBar(app).open("Files", timeout: 40), "the saved session never restored on its own")
+      TVTabBar(app).item("Files").waitForExistence(timeout: 40),
+      "the saved session never restored on its own")
     XCTAssertFalse(failure.exists)
+    // Focusing Files loads it; the seeded rejection then replaces the tab bar.
     let expired = app.staticTexts["auth.session-expired"]
+    for direction in [XCUIRemote.Button.up, .up, .right, .right, .right, .right]
+    where !expired.exists {
+      XCUIRemote.shared.press(direction)
+      _ = expired.waitForExistence(timeout: 2)
+    }
     XCTAssertTrue(
       expired.waitForExistence(timeout: 15), "a session put.io rejects never asked to sign in")
     let code = app.descendants(matching: .any)["auth.device-code"]
