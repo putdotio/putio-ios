@@ -59,6 +59,16 @@ runs:
         restore-keys: |
           ${{ runner.os }}-tuist-build-
 
+    # Tuist keys compiled manifests by their content, so a stale entry is only
+    # unused. A fresh runner otherwise compiles them before every generate.
+    - name: Restore Tuist manifest cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/tuist/Manifests
+        key: ${{ runner.os }}-tuist-manifests-${{ hashFiles('mise.toml', 'Project.swift', 'Tuist.swift', 'Tuist/Package.swift', 'Tuist/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-tuist-manifests-
+
     # An exact hit is what tuist install would produce, so generation skips it.
     - name: Skip tuist install on an exact cache hit
       if: steps.tuist-dependencies.outputs.cache-hit == 'true'
