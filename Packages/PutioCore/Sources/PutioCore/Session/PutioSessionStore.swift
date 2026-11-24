@@ -56,11 +56,14 @@ public enum PutioDeviceCodeSignInState: Equatable, Sendable {
 /// that opens put.io/link with this code filled in. A new code replaces both.
 public struct PutioDeviceCode: Equatable, Sendable {
   public let code: String
-  public let qrCode: Data?
+  public internal(set) var qrCode: Data?
+  /// The last check for approval could not reach put.io; checks continue.
+  public internal(set) var isOffline: Bool
 
-  public init(code: String, qrCode: Data? = nil) {
+  public init(code: String, qrCode: Data? = nil, isOffline: Bool = false) {
     self.code = code
     self.qrCode = qrCode
+    self.isOffline = isOffline
   }
 }
 
@@ -351,12 +354,13 @@ public final class PutioSessionStore {
       if let url = issued.qrCodeURL {
         Task { await loadQRCode(from: url, code: code, generation: generation) }
       }
-      let authorization = try await sdk.awaitDeviceCodeAuthorization(
-        code: code, pollInterval: deviceCodePollInterval)
+      let authorization = try await awaitDeviceCodeAuthorization(code, generation: generation)
       guard generation == authenticationGeneration else { return }
       switch authorization {
       case .expired:
-        deviceCodeSignIn = .expired(currentDeviceCode(code) ?? PutioDeviceCode(code: code))
+        var expired = currentDeviceCode(code) ?? PutioDeviceCode(code: code)
+        expired.isOffline = false
+        deviceCodeSignIn = .expired(expired)
       case .authorized(let token):
         deviceCodeSignIn = nil
         guard await storeSignInToken(token, generation: generation) else { return }
@@ -379,11 +383,56 @@ public final class PutioSessionStore {
       PutioQRCodeImage.isReadable(data),
       generation == authenticationGeneration
     else { return }
+    updateDeviceCode(code) { $0.qrCode = data }
+  }
+
+  /// Waits for approval through the SDK while put.io is reachable. A network
+  /// failure marks the code offline and checks it once per interval until a
+  /// check answers, then hands back to the SDK.
+  private func awaitDeviceCodeAuthorization(_ code: String, generation: UInt64) async throws
+    -> PutioDeviceCodeAuthorization
+  {
+    while true {
+      do {
+        return try await sdk.awaitDeviceCodeAuthorization(
+          code: code, pollInterval: deviceCodePollInterval)
+      } catch let error as PutioSDKError where error.isNetworkFailure {
+        guard generation == authenticationGeneration else { throw CancellationError() }
+        updateDeviceCode(code) { $0.isOffline = true }
+        if let authorization = try await pollWhileOffline(code, generation: generation) {
+          return authorization
+        }
+      }
+    }
+  }
+
+  private func pollWhileOffline(_ code: String, generation: UInt64) async throws
+    -> PutioDeviceCodeAuthorization?
+  {
+    while true {
+      try await Task.sleep(for: deviceCodePollInterval)
+      guard generation == authenticationGeneration else { throw CancellationError() }
+      do {
+        let token = try await sdk.checkAuthCodeMatch(code: code)
+        guard generation == authenticationGeneration else { throw CancellationError() }
+        updateDeviceCode(code) { $0.isOffline = false }
+        return token.map { .authorized(token: $0) }
+      } catch let error as PutioSDKError where error.isNotFound {
+        return .expired
+      } catch let error as PutioSDKError where error.isNetworkFailure {
+        continue
+      }
+    }
+  }
+
+  private func updateDeviceCode(_ code: String, _ change: (inout PutioDeviceCode) -> Void) {
     switch deviceCodeSignIn {
-    case .awaitingApproval(let current) where current.code == code:
-      deviceCodeSignIn = .awaitingApproval(PutioDeviceCode(code: code, qrCode: data))
-    case .expired(let current) where current.code == code:
-      deviceCodeSignIn = .expired(PutioDeviceCode(code: code, qrCode: data))
+    case .awaitingApproval(var current) where current.code == code:
+      change(&current)
+      deviceCodeSignIn = .awaitingApproval(current)
+    case .expired(var current) where current.code == code:
+      change(&current)
+      deviceCodeSignIn = .expired(current)
     default:
       return
     }
@@ -697,4 +746,11 @@ public final class PutioSessionStore {
 
 private enum PutioDeviceCodeError: Error {
   case emptyCode
+}
+
+extension PutioSDKError {
+  fileprivate var isNetworkFailure: Bool {
+    if case .networkError = type { return true }
+    return false
+  }
 }

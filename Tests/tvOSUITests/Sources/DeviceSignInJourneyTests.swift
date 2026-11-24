@@ -1,8 +1,8 @@
 import XCTest
 
 /// Drives the seeded device-code flow with the Siri Remote: each code shows
-/// put.io's QR beside it, the first code expires after one poll, "Get new
-/// code" issues one that is approved and
+/// put.io's QR beside it, the first code expires after three polls, "Get a
+/// new code" issues one that survives an unreachable poll, is approved and
 /// lands on Home, the session survives a relaunch, and signing out from
 /// Account returns to a fresh code.
 final class DeviceSignInJourneyTests: XCTestCase {
@@ -17,7 +17,9 @@ final class DeviceSignInJourneyTests: XCTestCase {
     let qrCode = app.descendants(matching: .any)["auth.qr-code"]
     XCTAssertTrue(qrCode.waitForExistence(timeout: 10), "the QR never joined the code")
     attach("runtime-tv-sign-in-code")
-    XCTAssertTrue(app.staticTexts["put.io/link"].exists)
+    XCTAssertTrue(
+      app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "put.io/link"))
+        .firstMatch.exists)
     XCTAssertTrue(app.staticTexts["auth.awaiting-approval"].exists)
 
     let expired = app.descendants(matching: .any)["auth.code-expired"]
@@ -31,6 +33,10 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     XCTAssertTrue(waitForValue(code, "TVOK2", timeout: 10))
     XCTAssertFalse(expired.exists)
+    let offline = app.staticTexts["auth.offline"]
+    XCTAssertTrue(offline.waitForExistence(timeout: 10), "an unreachable poll never showed")
+    XCTAssertEqual(code.value as? String, "TVOK2", "the code stays through the outage")
+    attach("runtime-tv-sign-in-offline")
     XCTAssertTrue(TVTabBar(app).open("Account"))
     XCUIRemote.shared.press(.down)
     let username = app.descendants(matching: .any)["account.username"]
@@ -72,6 +78,38 @@ final class DeviceSignInJourneyTests: XCTestCase {
     // The relaunched process issues codes from the start of the seeded sequence.
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
     XCTAssertFalse(username.exists)
+  }
+
+  /// A saved sign-in put.io can't check at launch shows the offline notice and
+  /// restores on its own; a session put.io later rejects returns to sign-in
+  /// with the expired-session title.
+  func testOfflineLaunchRestoresOnItsOwnAndAnExpiredSessionAsksToSignIn() {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "device-sign-in",
+      "--putio-harness-saved-credential-at-launch", "--putio-harness-restore-offline-once",
+      "--putio-harness-restore-seconds", "2", "--putio-harness-session-expires",
+    ]
+    app.launch()
+
+    let checking = app.descendants(matching: .any)["auth.checking-session"]
+    XCTAssertTrue(checking.waitForExistence(timeout: 10), "the session check never showed")
+    attach("runtime-tv-session-checking")
+    let failure = app.staticTexts["auth.failure"]
+    XCTAssertTrue(failure.waitForExistence(timeout: 15), "the offline notice never showed")
+    XCTAssertTrue(app.buttons["auth.retry"].exists)
+    XCTAssertTrue(app.buttons["auth.discard-credential"].exists)
+    attach("runtime-tv-session-offline")
+
+    let expired = app.staticTexts["auth.session-expired"]
+    XCTAssertTrue(
+      expired.waitForExistence(timeout: 40),
+      "the saved session never restored on its own, or its rejection never asked to sign in")
+    XCTAssertFalse(failure.exists)
+    let code = app.descendants(matching: .any)["auth.device-code"]
+    XCTAssertTrue(code.waitForExistence(timeout: 15))
+    attach("runtime-tv-session-expired")
   }
 
   /// Moves focus onto `element` with the remote, bounded so a screen that

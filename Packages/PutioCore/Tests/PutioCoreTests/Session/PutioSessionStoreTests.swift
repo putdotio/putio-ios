@@ -277,6 +277,7 @@ final class PutioSessionStoreTests: XCTestCase {
     tokenStore: PutioTokenStore,
     signOutIntentStore: PutioSignOutIntentStore = PutioInMemorySignOutIntentStore(),
     supportIdentityPlatform: String? = nil,
+    deviceCodePollInterval: Duration = .seconds(3),
     loadImage: @escaping PutioImageLoader = { _ in throw URLError(.notConnectedToInternet) }
   ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
@@ -289,6 +290,7 @@ final class PutioSessionStoreTests: XCTestCase {
     return (
       PutioSessionStore(
         sdk: sdk, tokenStore: tokenStore, signOutIntentStore: signOutIntentStore,
+        deviceCodePollInterval: deviceCodePollInterval,
         supportIdentityPlatform: supportIdentityPlatform, loadImage: loadImage),
       sdk
     )
@@ -1339,6 +1341,52 @@ final class PutioSessionStoreTests: XCTestCase {
     let accountRequest = try XCTUnwrap(
       fixtures.requests.last { $0.url?.path == "/v2/account/info" })
     XCTAssertEqual(accountRequest.value(forHTTPHeaderField: "Authorization"), "token device-token")
+  }
+
+  func testAnUnreachablePollKeepsTheCodeOfflineAndSignsInOncePutioAnswers() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["NET01"])
+    let poll = "GET /v2/oauth2/oob/code/NET01"
+    fixtures.fixtures[poll] = (200, Self.approvedCode)
+    fixtures.networkFailureRoutes = [poll]
+    let tokenStore = PutioInMemoryTokenStore(token: nil)
+    let store = makeStore(tokenStore: tokenStore, deviceCodePollInterval: .seconds(1)).0
+    let signIn = Task { await store.signInWithDeviceCode() }
+    defer { signIn.cancel() }
+
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == true }
+    try await waitUntil { self.fixtures.requestCount(route: poll) >= 2 }
+    XCTAssertEqual(store.state, .authenticating)
+    XCTAssertEqual(store.deviceCodeSignIn?.deviceCode?.code, "NET01")
+
+    fixtures.networkFailureRoutes = []
+    await signIn.value
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(try tokenStore.read(), "device-token")
+  }
+
+  func testAPendingPollAfterAnOutageClearsOfflineAndExpiryStillEndsTheCode() async throws {
+    stubDeviceCodeIssue(["NET02"])
+    let poll = "GET /v2/oauth2/oob/code/NET02"
+    fixtures.fixtures[poll] = (200, Self.pendingCode)
+    fixtures.networkFailureRoutes = [poll]
+    let store = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: nil), deviceCodePollInterval: .seconds(1)
+    ).0
+    let signIn = Task { await store.signInWithDeviceCode() }
+    defer { signIn.cancel() }
+
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == true }
+    fixtures.networkFailureRoutes = []
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == false }
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "NET02")))
+
+    fixtures.fixtures[poll] = (404, Self.expiredCode)
+    await signIn.value
+    XCTAssertEqual(store.deviceCodeSignIn, .expired(PutioDeviceCode(code: "NET02")))
+    XCTAssertEqual(store.state, .authenticating)
   }
 
   func testExpiredDeviceCodeStaysAuthenticatingUntilANewCodeIsRequested() async throws {

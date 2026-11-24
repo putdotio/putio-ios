@@ -987,8 +987,9 @@ import Foundation
 
     static let token = "putio-harness-session-token"
     // Device-code sign-in: the first code stays pending for three polls and
-    // then expires, the second is approved after one pending poll, and later
-    // codes stay pending. The margin lets the UI test observe each state.
+    // then expires. The second code's first poll fails offline, the next is
+    // pending, and the third approves it. Later codes stay pending. The margin
+    // lets the UI test observe each state.
     static let expiringDeviceCode = "TVXP1"
     static let approvedDeviceCode = "TVOK2"
     /// Signed-out launches show a code that never expires or signs in.
@@ -1290,6 +1291,12 @@ import Foundation
         return
       }
       let progressDelay = Self.delaysResponses ? Self.sessionProgressDelay(url) : 0
+      if Self.consumeDeviceCodeOffline(url) {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
+      }
       if url.path == "/v2/oauth2/validate", Self.consumeRestoreOffline() {
         let deliverFailure: @Sendable () -> Void = { [weak self] in
           self?.deliveryGate.deliver(generation: generation) {
@@ -1529,6 +1536,15 @@ import Foundation
       HarnessHistory.release(self)
     }
 
+    private static func consumeDeviceCodeOffline(_ url: URL) -> Bool {
+      guard url.path == "/v2/oauth2/oob/code/\(approvedDeviceCode)" else { return false }
+      return deviceCodeLock.withLock {
+        guard deviceCodePolls[approvedDeviceCode] == nil else { return false }
+        deviceCodePolls[approvedDeviceCode] = 1
+        return true
+      }
+    }
+
     private static func pollDeviceCode(_ code: String) -> (Int, String) {
       deviceCodeLock.withLock {
         let polls = (deviceCodePolls[code] ?? 0) + 1
@@ -1540,7 +1556,7 @@ import Foundation
             fixtureError(
               statusCode: 404, type: "code_not_found", message: "The activation code expired")
           )
-        case approvedDeviceCode where polls > 1:
+        case approvedDeviceCode where polls > 2:
           return (200, #"{"oauth_token":"\#(token)"}"#)
         default:
           return (200, #"{"oauth_token":null}"#)

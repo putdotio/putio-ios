@@ -13,7 +13,7 @@ final class TVSessionRenderingTests: XCTestCase {
     let image = try assertRenderingSnapshot(
       name: "tv-sign-in-code",
       view: TVSignInScreen(
-        phase: .awaitingApproval(PutioDeviceCode(code: "TVOK2", qrCode: Self.qrCode("TVOK2"))),
+        phase: .awaitingApproval(PutioDeviceCode(code: "FXWNPH", qrCode: Self.qrCode("FXWNPH"))),
         requestCode: {}, retryRestore: {}),
       size: viewport
     )
@@ -25,10 +25,51 @@ final class TVSessionRenderingTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-sign-in-expired",
       view: TVSignInScreen(
-        phase: .expired(PutioDeviceCode(code: "TVXP1", qrCode: Self.qrCode("TVXP1"))),
+        phase: .expired(PutioDeviceCode(code: "FXWNPH", qrCode: Self.qrCode("FXWNPH"))),
         requestCode: {}, retryRestore: {}),
       size: viewport
     )
+  }
+
+  @MainActor
+  func testSignInOfflineMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-sign-in-offline",
+      view: TVSignInScreen(
+        phase: .awaitingApproval(
+          PutioDeviceCode(code: "FXWNPH", qrCode: Self.qrCode("FXWNPH"), isOffline: true)),
+        requestCode: {}, retryRestore: {}),
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testSignInAfterAnExpiredSessionMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-sign-in-session-expired",
+      view: TVSignInScreen(
+        phase: .awaitingApproval(PutioDeviceCode(code: "FXWNPH", qrCode: Self.qrCode("FXWNPH"))),
+        sessionExpired: PutioSignedOutNotice(kind: .sessionExpired, device: .appleTV),
+        requestCode: {}, retryRestore: {}),
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testSessionCheckFailureMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-session-check-failed",
+      view: TVSignInScreen(
+        phase: .failed(PutioSignedOutNotice(kind: .restoreFailed(.sessionCheck), device: .appleTV)),
+        requestCode: {}, retryRestore: {}),
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testCheckingSessionMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-session-checking", view: TVSessionCheckingView(), size: viewport)
   }
 
   @MainActor
@@ -256,7 +297,7 @@ final class TVSessionRenderingTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-sign-in-code-without-qr",
       view: TVSignInScreen(
-        phase: .awaitingApproval(PutioDeviceCode(code: "TVOK2", qrCode: Data("x".utf8))),
+        phase: .awaitingApproval(PutioDeviceCode(code: "FXWNPH", qrCode: Data("x".utf8))),
         requestCode: {}, retryRestore: {}),
       size: viewport
     )

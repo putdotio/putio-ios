@@ -82,120 +82,114 @@ struct TVSignInScreen: View {
   var discardCredential: () -> Void = {}
 
   var body: some View {
-    VStack(spacing: PutioTheme.TV.Spacing.medium) {
-      Text("put.io")
-        .putioFont(PutioTheme.TV.Typography.heading)
-        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-      if let sessionExpired {
-        Text(verbatim: "\(sessionExpired.title). \(sessionExpired.message)")
-          .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.destructive)
+    Group {
+      if case .failed(let notice) = phase {
+        TVSignInFailure(
+          notice: notice, requestCode: requestCode, retryRestore: retryRestore,
+          discardCredential: discardCredential)
+      } else {
+        linkScreen
       }
-      VStack(spacing: PutioTheme.TV.Spacing.xs) {
-        Text("On your phone or computer, go to")
-          .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        Text("put.io/link")
-          .putioFont(PutioTheme.TV.Typography.label)
-          .foregroundStyle(PutioTheme.Colors.accent)
-        Text("and enter this code")
-          .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      }
-      .multilineTextAlignment(.center)
-      HStack(spacing: PutioTheme.TV.Spacing.large) {
-        if let qrCode = phase.deviceCode?.qrCode {
-          TVSignInQRCode(png: qrCode, isDimmed: phase.isExpired)
-        }
-        codeBlock
-      }
-      status
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
   }
 
-  private var codeBlock: some View {
-    Group {
-      switch phase {
-      case .awaitingApproval(let code):
-        codeText(code.code, color: PutioTheme.TV.Colors.textPrimary)
-      case .expired(let code):
-        codeText(code.code, color: PutioTheme.TV.Colors.textTertiary)
-      case .fetchingCode, .failed:
-        codeText("·····", color: PutioTheme.TV.Colors.textTertiary)
+  private var linkScreen: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.large) {
+      VStack(spacing: PutioTheme.TV.Spacing.small) {
+        TVSignInGreeting()
+        Text(sessionExpired?.title ?? String(localized: "Sign in to put.io", bundle: .putioCore))
+          .putioFont(PutioTheme.TV.Typography.heading)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        if let sessionExpired {
+          Text(sessionExpired.message)
+            .putioFont(PutioTheme.TV.Typography.caption)
+            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .accessibilityIdentifier("auth.session-expired")
+        }
       }
+      HStack(alignment: .center, spacing: 0) {
+        phoneColumn
+          .frame(maxWidth: .infinity)
+        TVSignInDivider()
+        browserColumn
+          .frame(maxWidth: .infinity)
+      }
+      .frame(maxHeight: .infinity, alignment: .top)
     }
-    .padding(.vertical, PutioTheme.TV.Spacing.small)
-    .padding(.horizontal, PutioTheme.TV.Spacing.large)
-    .background(
-      RoundedRectangle(cornerRadius: PutioTheme.TV.radius, style: .continuous)
-        .fill(PutioTheme.Colors.surface)
-    )
   }
 
-  private func codeText(_ code: String, color: Color) -> some View {
-    Text(code)
-      .putioFont(PutioTabularFontRole(base: PutioTheme.TV.Typography.heading))
-      .tracking(PutioTheme.TV.Spacing.small)
-      .foregroundStyle(color)
-      .accessibilityIdentifier("auth.device-code")
-      .accessibilityValue(code)
+  private var phoneColumn: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.medium) {
+      TVSignInColumnTitle(String(localized: "With your phone", bundle: .putioCore))
+      Group {
+        if let qrCode = phase.deviceCode?.qrCode {
+          TVSignInQRCode(png: qrCode, isDimmed: phase.isExpired)
+        } else {
+          RoundedRectangle(cornerRadius: TVSignInLayout.qrCornerRadius, style: .continuous)
+            .fill(PutioTheme.Colors.surface)
+            .frame(width: TVSignInLayout.qrSize, height: TVSignInLayout.qrSize)
+        }
+      }
+      Text("Scan with your camera and approve.", bundle: .putioCore)
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .multilineTextAlignment(.center)
+    }
+  }
+
+  private var browserColumn: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.medium) {
+      TVSignInColumnTitle(String(localized: "In a browser", bundle: .putioCore))
+      Text(Self.linkInstruction)
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .multilineTextAlignment(.center)
+      status
+      TVSignInCodeTiles(code: phase.deviceCode?.code, isDimmed: phase.isExpired)
+      PutioButton(
+        String(localized: "Get a new code", bundle: .putioCore), icon: .arrowCounterClockwise,
+        tier: .primary, action: requestCode
+      )
+      .disabled(phase.deviceCode == nil)
+      .accessibilityIdentifier("auth.new-code")
+    }
+  }
+
+  static var linkInstruction: AttributedString {
+    let link = String(localized: "put.io/link", bundle: .putioCore)
+    var text = AttributedString(
+      String(localized: "Go to \(link) and enter", bundle: .putioCore))
+    if let range = text.range(of: link) {
+      text[range].foregroundColor = PutioTheme.Colors.accent
+      text[range].font = PutioTheme.TV.Typography.caption.font.weight(.medium)
+    }
+    return text
   }
 
   @ViewBuilder
   private var status: some View {
     switch phase {
     case .fetchingCode:
-      TVSignInStatus(text: "Getting a code…", identifier: "auth.fetching-code")
+      TVSignInStatus(
+        String(localized: "Getting a code", bundle: .putioCore), identifier: "auth.fetching-code")
+    case .awaitingApproval(let code) where code.isOffline:
+      TVSignInStatus(
+        String(localized: "No connection. Still trying.", bundle: .putioCore),
+        identifier: "auth.offline", icon: .wifiSlash)
     case .awaitingApproval:
-      VStack(spacing: PutioTheme.TV.Spacing.small) {
-        TVSignInStatus(text: "Waiting for approval…", identifier: "auth.awaiting-approval")
-        PutioButton("Get new code", tier: .secondary) {
-          requestCode()
-        }
-        .accessibilityIdentifier("auth.new-code")
-      }
+      TVSignInStatus(
+        String(localized: "Waiting for authentication…", bundle: .putioCore),
+        identifier: "auth.awaiting-approval")
     case .expired:
-      VStack(spacing: PutioTheme.TV.Spacing.small) {
-        Text("This code expired.")
-          .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.destructive)
-          .accessibilityIdentifier("auth.code-expired")
-        PutioButton("Get new code", tier: .primary) {
-          requestCode()
-        }
-        .accessibilityIdentifier("auth.new-code")
-      }
-    case .failed(let notice):
-      VStack(spacing: PutioTheme.TV.Spacing.small) {
-        Text(notice.title)
-          .putioFont(PutioTheme.TV.Typography.label)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .multilineTextAlignment(.center)
-        Text(notice.message)
-          .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.destructive)
-          .multilineTextAlignment(.center)
-          .accessibilityIdentifier("auth.failure")
-        if let actions = notice.restoreActions {
-          PutioButton(actions.retryTitle, tier: .primary, action: retryRestore)
-            .accessibilityIdentifier("auth.retry")
-          // Abandoning the saved sign-in is only ever the user's choice; a
-          // transient failure must not cost a valid session.
-          PutioButton(actions.discardTitle, tier: .secondary) {
-            discardCredential()
-          }
-          .accessibilityIdentifier("auth.discard-credential")
-          Text("Signing in again removes the saved sign-in from this Apple TV.")
-            .putioFont(PutioTheme.TV.Typography.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-            .multilineTextAlignment(.center)
-        } else {
-          PutioButton("Try again", tier: .primary, action: requestCode)
-            .accessibilityIdentifier("auth.retry")
-        }
-      }
+      Text("This code expired.", bundle: .putioCore)
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        .accessibilityIdentifier("auth.code-expired")
+    case .failed:
+      EmptyView()
     }
   }
 }
@@ -214,6 +208,157 @@ extension TVSignInPhase {
   }
 }
 
+/// The launch check of a saved sign-in, before the shell or sign-in shows.
+struct TVSessionCheckingView: View {
+  var body: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.medium) {
+      TVSignInWordmark()
+      Spacer()
+      PutioLoadingStateView(title: String(localized: "Checking your session", bundle: .putioCore))
+        .fixedSize()
+      Spacer()
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .tvOverscanPadding()
+    .background(PutioTheme.Colors.background.ignoresSafeArea())
+    .accessibilityIdentifier("auth.checking-session")
+  }
+}
+
+private struct TVSignInFailure: View {
+  let notice: PutioSignedOutNotice
+  let requestCode: () -> Void
+  let retryRestore: () -> Void
+  let discardCredential: () -> Void
+
+  var body: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.medium) {
+      TVSignInWordmark()
+      Spacer()
+      Text(verbatim: PutioKaomoji.knockedOut.rawValue)
+        .putioFont(TVSignInLayout.kaomojiFont)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        .accessibilityHidden(true)
+      VStack(spacing: PutioTheme.TV.Spacing.small) {
+        Text(notice.title)
+          .putioFont(PutioTheme.TV.Typography.label)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        Text(notice.message)
+          .putioFont(PutioTheme.TV.Typography.caption)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .accessibilityIdentifier("auth.failure")
+      }
+      .multilineTextAlignment(.center)
+      if let actions = notice.restoreActions {
+        PutioButton(
+          actions.retryTitle, icon: .arrowCounterClockwise, tier: .primary, action: retryRestore
+        )
+        .accessibilityIdentifier("auth.retry")
+        PutioButton(actions.discardTitle, tier: .secondary, action: discardCredential)
+          .accessibilityIdentifier("auth.discard-credential")
+      } else {
+        PutioButton(
+          String(localized: "Try again", bundle: .putioCore), icon: .arrowCounterClockwise,
+          tier: .primary, action: requestCode
+        )
+        .accessibilityIdentifier("auth.retry")
+      }
+      Spacer()
+    }
+  }
+}
+
+private struct TVSignInGreeting: View {
+  var body: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.xs) {
+      Text(verbatim: TVSignInLayout.greetingKaomoji)
+        .putioFont(TVSignInLayout.kaomojiFont)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+      Text("Paste a magnet.", bundle: .putioCore)
+        .putioFont(TVSignInLayout.greetingFont)
+        .foregroundStyle(PutioTheme.Colors.accent)
+    }
+    .accessibilityHidden(true)
+  }
+}
+
+private struct TVSignInWordmark: View {
+  var body: some View {
+    Image.putioWordmark
+      .resizable()
+      .scaledToFit()
+      .frame(height: TVSignInLayout.wordmarkHeight)
+      .accessibilityLabel(Text(verbatim: "put.io"))
+  }
+}
+
+private struct TVSignInColumnTitle: View {
+  let title: String
+
+  init(_ title: String) { self.title = title }
+
+  var body: some View {
+    Text(title)
+      .putioFont(TVSignInLayout.columnTitleFont)
+      .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+  }
+}
+
+private struct TVSignInDivider: View {
+  var body: some View {
+    VStack(spacing: PutioTheme.TV.Spacing.small) {
+      line
+      Text("or", bundle: .putioCore)
+        .putioFont(PutioTheme.TV.Typography.small)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      line
+    }
+    .accessibilityHidden(true)
+  }
+
+  private var line: some View {
+    Rectangle()
+      .fill(PutioTheme.Colors.separator)
+      .frame(width: 2)
+      .frame(maxHeight: .infinity)
+  }
+}
+
+/// The activation code as one tile per letter, dimmed once it expires.
+private struct TVSignInCodeTiles: View {
+  let code: String?
+  let isDimmed: Bool
+
+  var body: some View {
+    HStack(spacing: PutioTheme.TV.Spacing.xs) {
+      ForEach(Array(letters.enumerated()), id: \.offset) { _, letter in
+        Text(verbatim: letter)
+          .putioFont(PutioTabularFontRole(base: PutioTheme.TV.Typography.heading))
+          .foregroundStyle(
+            isDimmed || code == nil
+              ? PutioTheme.TV.Colors.textTertiary.opacity(TVSignInLayout.dimmedOpacity)
+              : PutioTheme.TV.Colors.textPrimary
+          )
+          .frame(width: TVSignInLayout.tileWidth, height: TVSignInLayout.tileHeight)
+          .background(
+            PutioTheme.Colors.surface.opacity(isDimmed ? TVSignInLayout.dimmedOpacity * 2 : 1),
+            in: RoundedRectangle(cornerRadius: PutioTheme.TV.radius, style: .continuous))
+      }
+    }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(Text(verbatim: code ?? ""))
+    .accessibilityIdentifier("auth.device-code")
+    .accessibilityValue(code ?? "")
+  }
+
+  private var letters: [String] {
+    guard let code else {
+      return Array(repeating: " ", count: TVSignInLayout.placeholderLength)
+    }
+    return code.map(String.init)
+  }
+}
+
 /// put.io's QR image for the code on screen, scaled without smoothing so its
 /// modules stay sharp. An image that does not decode shows nothing.
 struct TVSignInQRCode: View {
@@ -228,10 +373,13 @@ struct TVSignInQRCode: View {
         .scaledToFit()
         .padding(TVSignInLayout.qrSize * TVSignInLayout.qrPaddingRatio)
         .frame(width: TVSignInLayout.qrSize, height: TVSignInLayout.qrSize)
-        .background(.white, in: RoundedRectangle(cornerRadius: PutioTheme.TV.radius))
+        .background(
+          TVSignInLayout.qrBackground,
+          in: RoundedRectangle(cornerRadius: TVSignInLayout.qrCornerRadius, style: .continuous)
+        )
         .opacity(isDimmed ? TVSignInLayout.dimmedOpacity : 1)
         .accessibilityElement()
-        .accessibilityLabel("QR code to sign in on your phone")
+        .accessibilityLabel(Text("QR code to sign in on your phone", bundle: .putioCore))
         .accessibilityIdentifier("auth.qr-code")
     }
   }
@@ -239,20 +387,50 @@ struct TVSignInQRCode: View {
 
 enum TVSignInLayout {
   static let qrSize: CGFloat = 300
-  static let qrPaddingRatio: CGFloat = 0.06
+  static let qrPaddingRatio: CGFloat = 0.12
+  static let qrCornerRadius: CGFloat = 36
+  static let qrBackground = Color(.sRGB, red: 0.925, green: 0.925, blue: 0.925, opacity: 1)
   static let dimmedOpacity = 0.3
+  static let tileWidth: CGFloat = 92
+  static let tileHeight: CGFloat = 116
+  static let placeholderLength = 6
+  static let statusIconSize: CGFloat = 32
+  static let wordmarkHeight: CGFloat = 48
+  static let greetingKaomoji = "┌( ಠ‿ಠ)┘"
+  static let kaomojiFont = PutioFontRole(
+    fontName: "GTAmerica-Md", size: 96, lineHeight: 1.1, textStyle: .largeTitle)
+  static let greetingFont = PutioFontRole(
+    fontName: "BerkeleyMonoVariable-Regular", size: 28, lineHeight: 1.45, textStyle: .caption)
+  static let columnTitleFont = PutioFontRole(
+    fontName: "GTAmerica-Md", size: 32, lineHeight: 1.25, textStyle: .headline)
 }
 
 private struct TVSignInStatus: View {
   let text: String
   let identifier: String
+  var icon: PutioIcon?
+
+  init(_ text: String, identifier: String, icon: PutioIcon? = nil) {
+    self.text = text
+    self.identifier = identifier
+    self.icon = icon
+  }
 
   var body: some View {
     HStack(spacing: PutioTheme.TV.Spacing.small) {
-      ProgressView()
+      if let icon {
+        Image(putioIcon: icon)
+          .resizable()
+          .scaledToFit()
+          .frame(width: TVSignInLayout.statusIconSize, height: TVSignInLayout.statusIconSize)
+          .foregroundStyle(PutioTheme.Colors.accent)
+          .accessibilityHidden(true)
+      } else {
+        ProgressView()
+      }
       Text(text)
         .putioFont(PutioTheme.TV.Typography.caption)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .accessibilityIdentifier(identifier)
     }
   }

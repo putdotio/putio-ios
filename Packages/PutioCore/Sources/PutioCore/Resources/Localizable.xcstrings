@@ -447,6 +447,17 @@
         }
       }
     },
+    "Checking your session" : {
+      "comment" : "android: mobile_auth_validating",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking your session"
+          }
+        }
+      }
+    },
     "Choose another one." : {
       "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
       "localizations" : {
@@ -1418,6 +1429,39 @@
         }
       }
     },
+    "Get a new code" : {
+      "comment" : "android: tv_link_new_code",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get a new code"
+          }
+        }
+      }
+    },
+    "Getting a code" : {
+      "comment" : "android: tv_link_requesting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting a code"
+          }
+        }
+      }
+    },
+    "Go to %@ and enter" : {
+      "comment" : "android: tv_link_browser_instruction",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to %@ and enter"
+          }
+        }
+      }
+    },
     "Gone in %lld days" : {
       "comment" : "android: mobile_trash_gone_in",
       "localizations" : {
@@ -1481,6 +1525,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Home"
+          }
+        }
+      }
+    },
+    "In a browser" : {
+      "comment" : "android: tv_link_browser_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In a browser"
           }
         }
       }
@@ -1740,6 +1795,17 @@
         }
       }
     },
+    "No connection. Still trying." : {
+      "comment" : "android: tv_offline_banner | differs: the sign-in board adds that polling continues",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No connection. Still trying."
+          }
+        }
+      }
+    },
     "No files whatsoever!" : {
       "comment" : "android: mobile_files_empty_title",
       "localizations" : {
@@ -1872,6 +1938,28 @@
         }
       }
     },
+    "or" : {
+      "comment" : "android: tv_link_or",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "or"
+          }
+        }
+      }
+    },
+    "Paste a magnet." : {
+      "comment" : "android: tv_welcome_caption_magnet",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste a magnet."
+          }
+        }
+      }
+    },
     "Pause download" : {
       "comment" : "android: mobile_downloads_ring_pause",
       "localizations" : {
@@ -1960,6 +2048,17 @@
         }
       }
     },
+    "put.io/link" : {
+      "comment" : "android: tv_link_url",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "put.io/link"
+          }
+        }
+      }
+    },
     "QR code that opens put.io" : {
       "comment" : "ios-only: tvOS empty Home QR label; the Android snapshot covers mobile only",
       "localizations" : {
@@ -1967,6 +2066,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "QR code that opens put.io"
+          }
+        }
+      }
+    },
+    "QR code to sign in on your phone" : {
+      "comment" : "android: tv_link_qr_description | differs: names the phone instead of the URL it opens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR code to sign in on your phone"
           }
         }
       }
@@ -2191,6 +2301,17 @@
         }
       }
     },
+    "Scan with your camera and approve." : {
+      "comment" : "android: tv_link_phone_caption",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan with your camera and approve."
+          }
+        }
+      }
+    },
     "Search" : {
       "comment" : "android: mobile_shortcut_search",
       "localizations" : {
@@ -2275,6 +2396,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign in to continue"
+          }
+        }
+      }
+    },
+    "Sign in to put.io" : {
+      "comment" : "android: tv_link_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to put.io"
           }
         }
       }
@@ -2605,6 +2737,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
+          }
+        }
+      }
+    },
+    "This code expired." : {
+      "comment" : "android: tv_link_expired",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code expired."
           }
         }
       }
@@ -3005,6 +3148,17 @@
         }
       }
     },
+    "Waiting for authentication…" : {
+      "comment" : "android: tv_link_waiting",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for authentication…"
+          }
+        }
+      }
+    },
     "Waiting for network" : {
       "comment" : "android: mobile_files_download_waiting",
       "localizations" : {
@@ -3089,6 +3243,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "What we’d send"
+          }
+        }
+      }
+    },
+    "With your phone" : {
+      "comment" : "android: tv_link_phone_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With your phone"
           }
         }
       }
