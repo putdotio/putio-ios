@@ -7,12 +7,16 @@ public enum PutioTVTypeScale {
   private static let medium = "GTAmerica-Md"
   private static let mono = "BerkeleyMonoVariable-Regular"
 
+  public static let kaomoji = PutioFontRole(
+    fontName: medium, size: 96, lineHeight: 1.1, textStyle: .largeTitle)
   public static let title = PutioFontRole(
     fontName: medium, size: 56, lineHeight: 66 / 56, textStyle: .title)
   public static let emptyTitle = PutioFontRole(
     fontName: medium, size: 40, lineHeight: 48 / 40, textStyle: .title2)
   public static let panelTitle = PutioFontRole(
     fontName: medium, size: 36, lineHeight: 44 / 36, textStyle: .title3)
+  public static let columnTitle = PutioFontRole(
+    fontName: medium, size: 32, lineHeight: 40 / 32, textStyle: .headline)
   public static let rowTitle = PutioFontRole(
     fontName: regular, size: 30, lineHeight: 38 / 30, textStyle: .body)
   public static let action = PutioFontRole(
@@ -27,8 +31,11 @@ public enum PutioTVTypeScale {
     fontName: regular, size: 26, lineHeight: 34 / 26, textStyle: .caption)
   public static let numeric = PutioFontRole(
     fontName: mono, size: 26, lineHeight: 34 / 26, textStyle: .caption)
+  public static let tagline = PutioFontRole(
+    fontName: mono, size: 28, lineHeight: 1.45, textStyle: .caption)
 
   static let roles = [
-    title, emptyTitle, panelTitle, rowTitle, action, body, button, label, caption, numeric,
+    kaomoji, title, emptyTitle, panelTitle, columnTitle, rowTitle, action, body, button, label,
+    caption, numeric, tagline,
   ]
 }

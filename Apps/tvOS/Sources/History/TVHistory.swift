@@ -87,6 +87,7 @@ struct TVHistoryView: View {
       .onChange(of: model.failedMutation) { _, failed in
         guard failed == .clear else { return }
         model.dismissMutationFailure()
+        focus = .clear
         toast = PutioToast(
           String(localized: "Couldn’t clear history", bundle: .putioCore), icon: .warning,
           width: .fit)
@@ -105,7 +106,9 @@ struct TVHistoryView: View {
     case .loading:
       PutioLoadingStateView(
         title: String(localized: "Loading history", bundle: .putioCore),
-        titleVisibility: .hidden)
+        titleVisibility: .hidden
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .failed:
       PutioErrorStateView(
         title: String(localized: "Couldn’t load your history.", bundle: .putioCore),
@@ -116,6 +119,7 @@ struct TVHistoryView: View {
       ) {
         Task { await model.refresh() }
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .loaded:
       let page = model.page ?? PutioHistoryPage(items: [], nextBefore: nil)
       if page.items.isEmpty, page.nextBefore == nil, model.refreshFailure == nil,
@@ -128,6 +132,7 @@ struct TVHistoryView: View {
             localized: "Files you watch, upload or share show up here.", bundle: .putioCore)
         )
         .accessibilityIdentifier("history.empty")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {
           list(page)
@@ -216,7 +221,7 @@ struct TVHistoryView: View {
         event: event, presentation: presentation, locale: locale,
         secondary: AnyShapeStyle(PutioTheme.TV.Colors.textSecondary))
     } facts: {
-      if let size = presentation.sizeBytes, event.fileID != nil {
+      if let size = presentation.sizeBytes, size > 0, event.fileID != nil {
         TVDetailFact(
           label: String(localized: "Size", bundle: .putioCore),
           value: PutioFileRowModel.sizeText(bytes: size, locale: locale))

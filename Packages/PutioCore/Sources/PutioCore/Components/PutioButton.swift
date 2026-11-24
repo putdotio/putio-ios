@@ -51,7 +51,7 @@ public struct PutioButton: View {
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonContentGap)
     #if os(tvOS)
       _iconSize = PutioScaledMetric(
-        PutioMetricRole(value: PutioTheme.TV.Typography.caption.size, relativeTo: .caption))
+        PutioMetricRole(value: size.brandLabel.size, relativeTo: size.brandLabel.textStyle))
     #else
       _iconSize = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonIconSize)
     #endif

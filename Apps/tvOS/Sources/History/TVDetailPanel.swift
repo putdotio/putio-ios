@@ -44,6 +44,7 @@ struct TVDetailPanel<Subtitle: View, Facts: View, Actions: View>: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         actions
       }
+      .padding(.horizontal, -PutioTheme.TV.Spacing.medium)
       .buttonStyle(TVRowButtonStyle())
     }
     .padding(PutioTheme.TV.Spacing.medium)

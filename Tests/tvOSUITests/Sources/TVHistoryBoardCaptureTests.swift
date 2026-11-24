@@ -56,13 +56,13 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
   func testHistoryErrorBoard() {
     openHistory("failing", waitForList: false)
     XCTAssertTrue(element("history.retry").waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("history.retry", moving: .down, limit: 3))
     capture("rd-tvos-hist-08-error")
   }
 
   func testHistoryMoreFailedBoard() {
     openHistory("more-fails")
-    XCTAssertTrue(element("history.more-retry").waitForExistence(timeout: 15))
-    XCTAssertTrue(focus("history.more-retry", moving: .down, limit: 14))
+    XCTAssertTrue(focus("history.more-retry", moving: .down, limit: 16))
     capture("rd-tvos-hist-09-more-failed")
   }
 
@@ -124,7 +124,11 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
         remote.press(.select)
         return waitUntil(timeout: 5) { !target.exists }
       }
-      remote.press(goal.midY > current.midY ? .down : .up)
+      if abs(current.midY - goal.midY) >= 4 {
+        remote.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        remote.press(goal.midX > current.midX ? .right : .left)
+      }
       pause(0.5)
     }
     return false

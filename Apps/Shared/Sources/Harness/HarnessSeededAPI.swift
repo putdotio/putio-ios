@@ -1,6 +1,7 @@
 import Foundation
 
 #if canImport(UIKit) && !os(watchOS)
+  import PutioCore
   import UIKit
 #endif
 
@@ -656,6 +657,25 @@ import Foundation
       }
     }
 
+    /// put.io's QR image for a device code: the code's put.io/link page.
+    private static func deviceCodeQR(_ request: URLRequest) -> String? {
+      let prefix = "/v2/oauth2/oob/qr/"
+      guard request.httpMethod == "GET", let path = request.url?.path, path.hasPrefix(prefix)
+      else { return nil }
+      return String(path.dropFirst(prefix.count))
+    }
+
+    private static func qrCodePNG(_ code: String) -> Data? {
+      #if canImport(UIKit) && !os(watchOS)
+        guard let image = PutioQRCode.image(for: "https://app.put.io/link?code=\(code)") else {
+          return nil
+        }
+        return UIImage(cgImage: image).pngData()
+      #else
+        return nil
+      #endif
+    }
+
     private static func servesAppIcon(_ request: URLRequest) -> Bool {
       guard usesAccountSecurity, request.httpMethod == "GET",
         let parts = request.url?.path.split(separator: "/"),
@@ -967,10 +987,12 @@ import Foundation
 
     static let token = "putio-harness-session-token"
     // Device-code sign-in: the first code stays pending for three polls and
-    // then expires, the second is approved after one pending poll, and later
-    // codes stay pending. The margin lets the UI test observe each state.
+    // then expires. The second code's first three polls fail offline, the
+    // next is pending, and the one after approves it. Later codes stay pending. The margin
+    // lets the UI test observe each state.
     static let expiringDeviceCode = "TVXP1"
     static let approvedDeviceCode = "TVOK2"
+    private static let offlineDeviceCodePolls = 3
     /// Signed-out launches show a code that never expires or signs in.
     static let pendingDeviceCode = "TVWT1"
     nonisolated(unsafe) static var holdsDeviceCodes = false
@@ -1242,6 +1264,18 @@ import Foundation
         return
       }
       if Self.cutsNetwork { Self.recordCutRequest(request) }
+      if let code = Self.deviceCodeQR(request) {
+        let png = Self.qrCodePNG(code)
+        deliveryGate.deliver(generation: generation) {
+          let response = HTTPURLResponse(
+            url: url, statusCode: png == nil ? 404 : 200, httpVersion: nil,
+            headerFields: ["Content-Type": "image/png"])!
+          self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          self.client?.urlProtocol(self, didLoad: png ?? Data())
+          self.client?.urlProtocolDidFinishLoading(self)
+        }
+        return
+      }
       if Self.servesAppIcon(request) {
         DispatchQueue.main.async { [weak self] in
           let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }
@@ -1258,6 +1292,12 @@ import Foundation
         return
       }
       let progressDelay = Self.delaysResponses ? Self.sessionProgressDelay(url) : 0
+      if Self.consumeDeviceCodeOffline(url) {
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        }
+        return
+      }
       if url.path == "/v2/oauth2/validate", Self.consumeRestoreOffline() {
         let deliverFailure: @Sendable () -> Void = { [weak self] in
           self?.deliveryGate.deliver(generation: generation) {
@@ -1497,6 +1537,16 @@ import Foundation
       HarnessHistory.release(self)
     }
 
+    private static func consumeDeviceCodeOffline(_ url: URL) -> Bool {
+      guard url.path == "/v2/oauth2/oob/code/\(approvedDeviceCode)" else { return false }
+      return deviceCodeLock.withLock {
+        let polls = deviceCodePolls[approvedDeviceCode] ?? 0
+        guard polls < offlineDeviceCodePolls else { return false }
+        deviceCodePolls[approvedDeviceCode] = polls + 1
+        return true
+      }
+    }
+
     private static func pollDeviceCode(_ code: String) -> (Int, String) {
       deviceCodeLock.withLock {
         let polls = (deviceCodePolls[code] ?? 0) + 1
@@ -1508,7 +1558,7 @@ import Foundation
             fixtureError(
               statusCode: 404, type: "code_not_found", message: "The activation code expired")
           )
-        case approvedDeviceCode where polls > 1:
+        case approvedDeviceCode where polls > offlineDeviceCodePolls + 1:
           return (200, #"{"oauth_token":"\#(token)"}"#)
         default:
           return (200, #"{"oauth_token":null}"#)
@@ -2064,7 +2114,8 @@ import Foundation
             case 2: approvedDeviceCode
             default: "TVWT\(deviceCodesIssued)"
             }
-          return (200, #"{"code":"\#(code)","qr_code_url":null}"#)
+          let qr = "https://api.put.io/v2/oauth2/oob/qr/\(code)"
+          return (200, #"{"code":"\#(code)","qr_code_url":"\#(qr)"}"#)
         }
       case "GET /v2/oauth2/validate":
         return (

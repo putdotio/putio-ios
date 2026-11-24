@@ -1,7 +1,8 @@
 import XCTest
 
-/// Drives the seeded device-code flow with the Siri Remote: the first code
-/// expires after one poll, "Get new code" issues one that is approved and
+/// Drives the seeded device-code flow with the Siri Remote: each code shows
+/// put.io's QR beside it, the first code expires after three polls, "Get a
+/// new code" issues one that survives an unreachable poll, is approved and
 /// lands on Home, the session survives a relaunch, and signing out from
 /// Account returns to a fresh code.
 final class DeviceSignInJourneyTests: XCTestCase {
@@ -13,8 +14,12 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     let code = app.descendants(matching: .any)["auth.device-code"]
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
+    let qrCode = app.descendants(matching: .any)["auth.qr-code"]
+    XCTAssertTrue(qrCode.waitForExistence(timeout: 10), "the QR never joined the code")
     attach("runtime-tv-sign-in-code")
-    XCTAssertTrue(app.staticTexts["put.io/link"].exists)
+    XCTAssertTrue(
+      app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "put.io/link"))
+        .firstMatch.exists)
     XCTAssertTrue(app.staticTexts["auth.awaiting-approval"].exists)
 
     let expired = app.descendants(matching: .any)["auth.code-expired"]
@@ -28,6 +33,10 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     XCTAssertTrue(waitForValue(code, "TVOK2", timeout: 10))
     XCTAssertFalse(expired.exists)
+    let offline = app.staticTexts["auth.offline"]
+    XCTAssertTrue(offline.waitForExistence(timeout: 10), "an unreachable poll never showed")
+    XCTAssertEqual(code.value as? String, "TVOK2", "the code stays through the outage")
+    attach("runtime-tv-sign-in-offline")
     XCTAssertTrue(TVTabBar(app).open("Account"))
     XCUIRemote.shared.press(.down)
     let username = app.descendants(matching: .any)["account.username"]
@@ -69,6 +78,50 @@ final class DeviceSignInJourneyTests: XCTestCase {
     // The relaunched process issues codes from the start of the seeded sequence.
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
     XCTAssertFalse(username.exists)
+  }
+
+  /// A saved sign-in put.io can't check at launch shows the offline notice and
+  /// restores on its own; when Files then finds the session rejected, sign-in
+  /// returns with the expired-session title.
+  func testOfflineLaunchRestoresOnItsOwnAndAnExpiredSessionAsksToSignIn() {
+    continueAfterFailure = false
+    let app = XCUIApplication()
+    app.launchArguments = [
+      "--putio-harness-scenario", "device-sign-in",
+      "--putio-harness-saved-credential-at-launch", "--putio-harness-restore-offline-once",
+      "--putio-harness-restore-seconds", "8", "--putio-harness-session-expires",
+    ]
+    app.launch()
+
+    let checking = app.staticTexts["Checking your session"].firstMatch
+    XCTAssertTrue(checking.waitForExistence(timeout: 10), "the session check never showed")
+    attach("runtime-tv-session-checking")
+    let failure = app.staticTexts["auth.failure"]
+    XCTAssertTrue(failure.waitForExistence(timeout: 15), "the offline notice never showed")
+    XCTAssertTrue(app.buttons["auth.retry"].exists)
+    XCTAssertTrue(app.buttons["auth.discard-credential"].exists)
+    attach("runtime-tv-session-offline")
+
+    XCTAssertTrue(
+      TVTabBar(app).item("Files").waitForExistence(timeout: 40),
+      "the saved session never restored on its own")
+    XCTAssertFalse(failure.exists)
+    // Focusing Files loads it; the seeded rejection then replaces the tab bar.
+    let expired = app.staticTexts["auth.session-expired"]
+    for direction in [XCUIRemote.Button.up, .up, .right, .right, .right, .right]
+    where !expired.exists {
+      XCUIRemote.shared.press(direction)
+      _ = expired.waitForExistence(timeout: 2)
+    }
+    XCTAssertTrue(
+      expired.waitForExistence(timeout: 15), "a session put.io rejects never asked to sign in")
+    let code = app.descendants(matching: .any)["auth.device-code"]
+    XCTAssertTrue(code.waitForExistence(timeout: 15))
+    attach("runtime-tv-session-expired")
+    // The screen requests its code on its own; the expiry stays in the title.
+    XCTAssertTrue(
+      app.descendants(matching: .any)["auth.code-expired"].waitForExistence(timeout: 15))
+    XCTAssertTrue(expired.exists, "requesting a code dropped the session-expired title")
   }
 
   /// Moves focus onto `element` with the remote, bounded so a screen that
