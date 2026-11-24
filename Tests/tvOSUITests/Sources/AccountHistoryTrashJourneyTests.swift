@@ -181,18 +181,19 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
 
     XCTAssertTrue(focus("account.proxy"))
     remote.press(.select)
-    let proxyRetry = element("proxy.retry")
+    let proxyRetry = menuItem("Try again")
     XCTAssertTrue(proxyRetry.waitForExistence(timeout: 10))
     attach("runtime-tv-proxy-failure")
-    XCTAssertTrue(focus("proxy.retry"))
+    XCTAssertTrue(focusMenuItem(proxyRetry))
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { !proxyRetry.exists })
 
     XCTAssertTrue(focus("account.proxy"))
     remote.press(.select)
-    XCTAssertTrue(element("proxy.route.edge").waitForExistence(timeout: 10))
+    let edge = menuItem("edge")
+    XCTAssertTrue(edge.waitForExistence(timeout: 10))
     attach("runtime-tv-proxy-chooser")
-    XCTAssertTrue(focus("proxy.route.edge"))
+    XCTAssertTrue(focusMenuItem(edge))
     remote.press(.select)
 
     // The first save fails, then the committed save's account reload fails
@@ -248,6 +249,22 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
   }
 
   // MARK: - Remote helpers
+
+  /// A system menu's item: menus drop the identifiers of their buttons, so
+  /// items are found by title.
+  private func menuItem(_ title: String) -> XCUIElement {
+    app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  private func focusMenuItem(_ item: XCUIElement) -> Bool {
+    for direction in [XCUIRemote.Button.down, .up] {
+      for _ in 0..<6 {
+        if waitUntil(timeout: 0.75, { item.hasFocus }) { return true }
+        remote.press(direction)
+      }
+    }
+    return item.hasFocus
+  }
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch

@@ -37,14 +37,15 @@ final class AccountBoardCaptureTests: XCTestCase {
 
     XCTAssertTrue(focus("account.proxy"))
     remote.press(.select)
-    if element("proxy.retry").waitForExistence(timeout: 5) {
-      XCTAssertTrue(focus("proxy.retry"))
+    let retry = menuItem("Try again")
+    if retry.waitForExistence(timeout: 5) {
+      XCTAssertTrue(focusMenuItem(retry))
       remote.press(.select)
       pause(2)
       XCTAssertTrue(focus("account.proxy"))
       remote.press(.select)
     }
-    XCTAssertTrue(element("proxy.route.edge").waitForExistence(timeout: 10))
+    XCTAssertTrue(menuItem("edge").waitForExistence(timeout: 10))
     pause(1)
     attach("rd-tvos-acc-06-proxy")
     remote.press(.menu)
@@ -106,6 +107,22 @@ final class AccountBoardCaptureTests: XCTestCase {
     XCTAssertTrue(TVTabBar(app).open("Account"))
     remote.press(.down)
     XCTAssertTrue(element("account.username").waitForExistence(timeout: 15))
+  }
+
+  /// A system menu's item: menus drop the identifiers of their buttons, so
+  /// items are found by title.
+  private func menuItem(_ title: String) -> XCUIElement {
+    app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  private func focusMenuItem(_ item: XCUIElement) -> Bool {
+    for direction in [XCUIRemote.Button.down, .up] {
+      for _ in 0..<6 {
+        if waitUntil(timeout: 0.75, { item.hasFocus }) { return true }
+        remote.press(direction)
+      }
+    }
+    return item.hasFocus
   }
 
   private func element(_ identifier: String) -> XCUIElement {
