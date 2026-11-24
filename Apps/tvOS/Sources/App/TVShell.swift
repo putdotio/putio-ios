@@ -103,7 +103,6 @@ struct TVSignedInShell: View {
 
   @Environment(\.scenePhase) private var scenePhase
   @State private var navigation = TVShellNavigation()
-  @State private var toasts = TVToasts()
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
@@ -124,8 +123,6 @@ struct TVSignedInShell: View {
       }
     }
     .overlay(alignment: .topLeading) { TVWordmark() }
-    .putioToast($toasts.current)
-    .environment(toasts)
     .onChange(of: account) { previous, current in
       PutioAccountPreferencesReconciliation.apply(
         previous: previous, current: current, folders: folderRefreshRequests,

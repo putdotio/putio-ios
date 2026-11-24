@@ -228,17 +228,17 @@ struct TVHistoryEventRow: View {
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-        .foregroundStyle(PutioTheme.Components.FileRow.icon)
+        .foregroundStyle(.putioRowIcon)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(TVHistoryPresentation.title(event))
           .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .foregroundStyle(.putioRowPrimary)
           .lineLimit(1)
           .truncationMode(.middle)
         Text(TVHistoryPresentation.detail(event, now: now, locale: locale))
           .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .foregroundStyle(.putioRowSecondary)
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }

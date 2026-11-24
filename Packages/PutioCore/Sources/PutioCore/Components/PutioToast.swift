@@ -171,6 +171,7 @@ private struct PutioToastPresenter: ViewModifier {
         .offset(y: dragOffset)
         .modifier(PutioToastSwipe(offset: $dragOffset) { dismiss(toast) })
         .padding(PutioToastLayout.presentationInsets)
+        .modifier(PutioToastPlacement())
         .transition(
           reduceMotion ? .opacity : .move(edge: PutioToastLayout.edge).combined(with: .opacity)
         )
@@ -244,6 +245,16 @@ private struct PutioToastSwipe: ViewModifier {
   }
 }
 
+private struct PutioToastPlacement: ViewModifier {
+  func body(content: Content) -> some View {
+    #if os(tvOS)
+      content.ignoresSafeArea()
+    #else
+      content
+    #endif
+  }
+}
+
 enum PutioToastLayout {
   #if os(tvOS)
     static let textFont = PutioTVTypeScale.label
@@ -255,7 +266,7 @@ enum PutioToastLayout {
     static let textVerticalPadding: CGFloat = 0
     static let alignment = Alignment.topTrailing
     static let edge = Edge.top
-    static let presentationInsets = EdgeInsets(top: -8, leading: 0, bottom: 0, trailing: 0)
+    static let presentationInsets = EdgeInsets(top: 52, leading: 0, bottom: 0, trailing: 80)
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
     static func fillsWidth(_ toast: PutioToast) -> Bool { false }

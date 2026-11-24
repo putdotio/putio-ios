@@ -115,13 +115,8 @@ public struct PutioFileRow: View {
     #if os(tvOS)
       content
         .padding(.vertical, PutioTheme.TV.Spacing.small)
-        .padding(.horizontal, PutioTheme.TV.Spacing.small)
+        .padding(.horizontal, PutioFileRowLayout.horizontalPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(alignment: .bottom) {
-          Rectangle()
-            .fill(PutioTheme.Components.FileRow.border)
-            .frame(height: PutioTheme.Border.width)
-        }
     #else
       content
         .opacity(presentation.dimsRow ? PutioFileRowLayout.dimmedOpacity : 1)
@@ -135,7 +130,7 @@ public struct PutioFileRow: View {
   private func detail(_ text: String) -> some View {
     Text(text)
       .putioFont(PutioFileRowLayout.detailFont)
-      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .foregroundStyle(PutioFileRowLayout.secondaryStyle)
       .lineLimit(wrapsDetails ? nil : 1)
       .fixedSize(horizontal: false, vertical: true)
   }
@@ -145,7 +140,7 @@ public struct PutioFileRow: View {
       .resizable()
       .scaledToFit()
       .frame(width: iconSize, height: iconSize)
-      .foregroundStyle(PutioTheme.Components.FileRow.icon)
+      .foregroundStyle(PutioFileRowLayout.iconStyle)
   }
 
   @ViewBuilder private var leading: some View {
@@ -176,7 +171,7 @@ public struct PutioFileRow: View {
     VStack(alignment: .leading, spacing: textGap) {
       Text(model.name)
         .putioFont(PutioFileRowLayout.nameFont)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .foregroundStyle(PutioFileRowLayout.primaryStyle)
         .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
         .truncationMode(.middle)
         .fixedSize(horizontal: false, vertical: true)
@@ -202,7 +197,7 @@ public struct PutioFileRow: View {
           .resizable()
           .scaledToFit()
           .frame(width: indicatorSize, height: indicatorSize)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .foregroundStyle(PutioFileRowLayout.secondaryStyle)
           .accessibilityLabel(Text("Watched", bundle: .module))
       }
       if model.kind == .folder, model.showsDisclosure {
@@ -210,7 +205,7 @@ public struct PutioFileRow: View {
           .resizable()
           .scaledToFit()
           .frame(width: indicatorSize, height: indicatorSize)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .foregroundStyle(PutioFileRowLayout.secondaryStyle)
       }
     #else
       if !isSelecting, showsDownloadControl {
@@ -344,7 +339,14 @@ enum PutioFileRowLayout {
       value: PutioTheme.TV.Typography.caption.size,
       relativeTo: .body
     )
+    static let horizontalPadding: CGFloat = 24
+    static let primaryStyle = PutioTVRowForeground.putioRowPrimary
+    static let secondaryStyle = PutioTVRowForeground.putioRowSecondary
+    static let iconStyle = PutioTVRowForeground.putioRowIcon
   #else
+    static let primaryStyle = PutioTheme.Colors.textPrimary
+    static let secondaryStyle = PutioTheme.Colors.textSecondary
+    static let iconStyle = PutioTheme.Components.FileRow.icon
     static let nameFont = PutioTheme.Typography.body
     static let captionFont = PutioTheme.Typography.caption
     #if os(iOS) || os(watchOS)

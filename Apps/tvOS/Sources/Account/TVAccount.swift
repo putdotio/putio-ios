@@ -396,17 +396,17 @@ struct TVValueRow: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(title)
           .putioFont(TVValueRow.titleFont)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .foregroundStyle(.putioRowPrimary)
         if let caption {
           Text(caption)
             .putioFont(PutioTheme.TV.Typography.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .foregroundStyle(.putioRowSecondary)
         }
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       Text(value)
         .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .foregroundStyle(.putioRowSecondary)
         .lineLimit(1)
         .truncationMode(.middle)
       if opens { TVDisclosure() }
