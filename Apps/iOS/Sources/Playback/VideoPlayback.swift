@@ -356,7 +356,7 @@ struct PutioVideoPlaybackView: View {
       ZStack {
         Color.black.ignoresSafeArea()
         PutioErrorStateView(
-          icon: .warningCircle, title: String(localized: "Playback stalled"), message: nil,
+          icon: .warningCircle, title: PutioVideoWait.stalledTitle, message: nil,
           retryIdentifier: "video.stalled.retry"
         ) {
           transport.reload()
@@ -483,21 +483,14 @@ struct PutioVideoPlaybackView: View {
       onFailure: { failure in
         playerIsReady = false
         guard reportsPlayerFailures else { return }
-        let report = model.failureReport(
-          failure.error, beforeFirstFrame: failure.beforeFirstFrame, platform: .ios)
-        if model.fallsBack(after: failure.fault, beforeFirstFrame: failure.beforeFirstFrame) {
+        playerFailureTask?.cancel()
+        let handled = model.handlePlayerFailure(failure, platform: .ios) { reportFailure($0) }
+        if handled.fellBack {
           fallbacks += 1
         } else {
           reportedFaults.append(failure.fault)
         }
-        if let report { reportFailure(report) }
-        playerFailureTask?.cancel()
-        playerFailureTask = Task {
-          let refreshFailure = await model.playerFailed(
-            failure.fault, heldSeconds: failure.heldSeconds,
-            beforeFirstFrame: failure.beforeFirstFrame)
-          if let refreshFailure { reportFailure(refreshFailure) }
-        }
+        playerFailureTask = handled.recovery
       })
     #if DEBUG
       callbacks.onSubtitleSelected = { selectedSubtitle = $0 }
@@ -596,55 +589,40 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
-  private func conversionGate(_ phase: PutioVideoConversionGate.Phase) -> some View {
+  private func conversionGate(_ phase: PutioVideoConversionPhase) -> some View {
     PutioVideoConversionGate(phase: phase, onCancel: onDismiss, onOpenInVLC: onOpenInVLC)
       .accessibilityElement(children: .contain)
   }
 
   @ViewBuilder
   private func failureView(_ failure: PutioVideoPlaybackFailure) -> some View {
-    switch failure.kind {
-    case .accessExpired, .connectionLost:
+    let retry = { retrySequence &+= 1 }
+    switch failure.recovery {
+    case .reconnect:
       PutioErrorStateView(
         icon: failure.kind == .connectionLost ? .wifiSlash : .warningCircle,
-        title: failure.title,
-        message: failure.message
-      ) {
-        retrySequence &+= 1
-      }
-    case .conversion:
+        title: failure.title, message: failure.message, retry: retry)
+    case .convertAgain:
       PutioErrorStateView(
         icon: .warningCircle, title: failure.title, message: failure.message,
-        actionTitle: String(localized: "Convert again"),
-        actionIdentifier: "video.conversion.convert-again", prominent: true
-      ) {
-        retrySequence &+= 1
-      }
-    case .conversionStatus:
+        actionTitle: PutioVideoPlaybackFailure.Recovery.convertAgainTitle,
+        actionIdentifier: "video.conversion.convert-again", prominent: true, action: retry)
+    case .checkConversionAgain:
       PutioErrorStateView(
         icon: .wifiSlash, title: failure.title, message: failure.message,
-        retryIdentifier: "video.conversion.check-again"
-      ) {
-        retrySequence &+= 1
-      }
-    case .conversionUnavailable:
+        retryIdentifier: "video.conversion.check-again", retry: retry)
+    case .playElsewhere:
       PutioErrorStateView(
-        icon: .warningCircle, title: failure.title, message: failure.message,
+        icon: .warningCircle, title: failure.title,
+        message: failure.kind == .unsupported ? unsupportedMessage(failure) : failure.message,
         actionTitle: String(localized: "Open in VLC"),
-        actionIdentifier: "video.conversion.vlc", prominent: false, action: onOpenInVLC)
-    case .unsupported:
+        actionIdentifier: failure.kind == .unsupported
+          ? "video.unsupported.vlc" : "video.conversion.vlc",
+        prominent: false, action: onOpenInVLC)
+    case .retry:
       PutioErrorStateView(
-        icon: .warningCircle, title: failure.title, message: unsupportedMessage(failure),
-        actionTitle: String(localized: "Open in VLC"),
-        actionIdentifier: "video.unsupported.vlc", prominent: false, action: onOpenInVLC)
-    case .notFound, .rateLimited, .transient, .invalidResponse, .playback, .unknown:
-      PutioErrorStateView(
-        title: failure.title,
-        message: failure.message,
-        retryTitle: String(localized: "Try again")
-      ) {
-        retrySequence &+= 1
-      }
+        title: failure.title, message: failure.message,
+        retryTitle: PutioVideoPlaybackFailure.Recovery.tryAgainTitle, retry: retry)
     }
   }
 }

@@ -64,6 +64,7 @@ struct TVVideoPlaybackView: View {
   @State private var resumePrompter: PutioVideoResumePrompter
   @State private var ended = false
   @State private var retrySequence: UInt64 = 0
+  @State private var playerFailureTask: Task<Void, Never>?
   @State private var probes = TVPlaybackProbes()
   @State private var nextVideoTask: Task<Void, Never>?
   @State private var subtitleMemory = TVVideoPlaybackView.makeSubtitleMemory()
@@ -195,11 +196,14 @@ struct TVVideoPlaybackView: View {
         TVPlaybackAccountNotice(notice: notice)
       } else {
         PutioErrorStateView(
-          title: failure.title, message: failure.message, retryTitle: "Try again",
+          title: failure.title, message: failure.message,
+          retryTitle: failure.recovery == .playElsewhere
+            ? nil : PutioVideoPlaybackFailure.Recovery.tryAgainTitle,
           retryIdentifier: "video.retry"
         ) {
           retrySequence &+= 1
         }
+        .secondaryAction(String(localized: "Back"), identifier: "video.back", perform: onFinish)
       }
 
     case .ready(let source):
@@ -238,14 +242,12 @@ struct TVVideoPlaybackView: View {
   }
 
   private func playerFailed(_ failure: PutioVideoPlayerFailure) {
-    if let source = readySource {
-      let report = PutioPlaybackFailureReport(
-        platform: .tvos, fileID: route.id, source: source, error: failure.error,
-        playbackStarted: !failure.beforeFirstFrame, outcome: .failed)
-      SentryTelemetry.report(report)
-      if showsProbes { probes.failureReport = report }
-    }
-    model.playerFailed(failure.error.fault)
+    playerFailureTask?.cancel()
+    playerFailureTask =
+      model.handlePlayerFailure(failure, platform: .tvos) { [probes, showsProbes] report in
+        SentryTelemetry.report(report)
+        if showsProbes { probes.failureReport = report }
+      }.recovery
   }
 
   private static func makeSubtitleMemory() -> PutioSubtitleMemory {
@@ -454,29 +456,32 @@ struct TVConversionStatusView: View {
 
   @ViewBuilder
   private var status: some View {
-    switch state {
+    switch state.conversionPhase {
     case .converting(let progress):
       VStack(spacing: PutioTheme.TV.Spacing.small) {
         ProgressView(value: progress)
           .tint(PutioTheme.Colors.accent)
           .frame(width: TVConversionLayout.progressWidth)
-          .accessibilityLabel("Video conversion progress")
+          .accessibilityLabel(PutioVideoConversionPhase.converting(progress: progress).title)
           .accessibilityValue(percent(progress))
           .accessibilityIdentifier("video.conversion-progress")
-        Text("Converting video \(percent(progress))")
-          .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-          .monospacedDigit()
+        Text(
+          "\(PutioVideoConversionPhase.converting(progress: progress).title) \(percent(progress))"
+        )
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .monospacedDigit()
       }
-    case .conversionQueued:
-      PutioLoadingStateView(title: "Waiting to convert")
-        .accessibilityIdentifier("video.conversion-queued")
-    case .conversionCompleted:
-      PutioLoadingStateView(title: "Finishing conversion")
-        .accessibilityIdentifier("video.conversion-completed")
-    case .conversionRequired, .loading, .ready, .failed:
-      PutioLoadingStateView(title: "Starting conversion")
-        .accessibilityIdentifier("video.conversion-required")
+    case .waiting, nil:
+      PutioLoadingStateView(title: PutioVideoConversionPhase.waiting.title)
+        .accessibilityIdentifier(waitingIdentifier)
+    }
+  }
+
+  private var waitingIdentifier: String {
+    switch state {
+    case .conversionQueued: "video.conversion-queued"
+    default: "video.conversion-required"
     }
   }
 }

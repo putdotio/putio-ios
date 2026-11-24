@@ -2,12 +2,7 @@ import PutioCore
 import SwiftUI
 
 struct PutioVideoConversionGate: View {
-  enum Phase: Equatable {
-    case waiting
-    case converting(progress: Double)
-  }
-
-  let phase: Phase
+  let phase: PutioVideoConversionPhase
   let onCancel: () -> Void
   let onOpenInVLC: (() -> Void)?
 
@@ -25,7 +20,7 @@ struct PutioVideoConversionGate: View {
   private var content: some View {
     VStack(spacing: PutioTheme.Spacing.space3) {
       VStack(spacing: PutioTheme.Spacing.space1) {
-        Text(title)
+        Text(phase.title)
           .putioFont(PutioTheme.Typography.subheading)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .accessibilityAddTraits(.isHeader)
@@ -52,20 +47,13 @@ struct PutioVideoConversionGate: View {
     .frame(maxWidth: PutioVideoConversionGateMetrics.maxWidth)
   }
 
-  private var title: String {
-    switch phase {
-    case .waiting: String(localized: "Waiting to convert")
-    case .converting: String(localized: "Converting to MP4")
-    }
-  }
-
   @ViewBuilder
   private var progress: some View {
     switch phase {
     case .waiting:
       PutioConversionWaitingBar()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(String(localized: "Waiting to convert"))
+        .accessibilityLabel(phase.title)
         .accessibilityIdentifier("video.conversion-waiting")
     case .converting(let fraction):
       let percent = fraction.formatted(.percent.precision(.fractionLength(0)))
@@ -77,7 +65,7 @@ struct PutioVideoConversionGate: View {
           .accessibilityHidden(true)
       }
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel(String(localized: "Converting to MP4"))
+      .accessibilityLabel(phase.title)
       .accessibilityValue(percent)
       .accessibilityIdentifier("video.conversion-progress")
     }

@@ -285,13 +285,16 @@ public struct PutioPlaybackFailureReport: Equatable, Sendable {
   public let outcome: Outcome
   public let tags: [String: String]
 
+  /// A short id the failed screen shows, so support can find this event.
+  public var reference: String { tags["error_reference"] ?? "" }
+
   public static let tagKeys: Set<String> = [
     "telemetry_event", "schema_version", "platform", "player", "playback_outcome",
     "playback_terminal", "playback_started", "failure_mode", "streaming_method", "source_kind",
     "device_check", "rescue_reason", "rescue_to", "engine_error_domain", "engine_error_category",
     "engine_error_code", "source_request_status", "file_id", "container_family", "video_codec",
     "video_profile", "video_level", "video_bit_depth", "video_resolution", "video_hdr",
-    "audio_codec", "audio_channels",
+    "audio_codec", "audio_channels", "error_reference",
   ]
 
   static let event = "playback_failure"
@@ -299,7 +302,8 @@ public struct PutioPlaybackFailureReport: Equatable, Sendable {
 
   public init(
     platform: Platform, fileID: PutioFileID, source: PutioPlaybackSource, error: PutioPlayerError,
-    playbackStarted: Bool, outcome: Outcome
+    playbackStarted: Bool, outcome: Outcome,
+    reference: String = PutioPlaybackFailureReport.makeReference()
   ) {
     self.outcome = outcome
     let facts = source.facts
@@ -329,6 +333,7 @@ public struct PutioPlaybackFailureReport: Equatable, Sendable {
       "video_hdr": facts.media.videoHDR,
       "audio_codec": facts.media.audioCodec,
       "audio_channels": facts.media.audioChannels,
+      "error_reference": reference,
     ]
     switch outcome {
     case .failed:
@@ -343,6 +348,10 @@ public struct PutioPlaybackFailureReport: Equatable, Sendable {
       tags["rescue_to"] = target.rawValue
     }
     self.tags = tags
+  }
+
+  public static func makeReference() -> String {
+    String(UUID().uuidString.prefix(8))
   }
 
   public var isRescue: Bool {

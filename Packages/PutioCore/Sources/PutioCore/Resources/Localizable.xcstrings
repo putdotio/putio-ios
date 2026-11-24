@@ -646,6 +646,17 @@
         }
       }
     },
+    "Convert again" : {
+      "comment" : "android: mobile_playback_convert_again",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Convert again"
+          }
+        }
+      }
+    },
     "Converting" : {
       "comment" : "ios-only: no Android string for the shared download status line",
       "localizations" : {
@@ -653,6 +664,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converting"
+          }
+        }
+      }
+    },
+    "Converting to MP4" : {
+      "comment" : "android: mobile_playback_conversion_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converting to MP4"
           }
         }
       }
@@ -2660,6 +2682,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback and billing events"
+          }
+        }
+      }
+    },
+    "Playback stalled" : {
+      "comment" : "android: mobile_playback_stalled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback stalled"
           }
         }
       }
