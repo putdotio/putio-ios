@@ -19,11 +19,12 @@ on:
         type: boolean
 
 # Pull requests share a group per number so a new push cancels the stale run,
-# and closing the pull request cancels it too; the push to next verifies a merged
-# commit. Each push to next and each dispatch gets its own group, so every merged
-# commit keeps its own result.
+# and closing the pull request cancels it too. Pushes to next share one group:
+# the running push finishes, and only the newest waiting push runs after it, so
+# merges that land together verify once, as their combined head. Each dispatch
+# gets its own group.
 concurrency:
-  group: next-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.run_id }}
+  group: next-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.event_name == 'push' && 'next' || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
