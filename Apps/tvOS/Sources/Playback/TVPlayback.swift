@@ -208,8 +208,8 @@ struct TVVideoPlaybackView: View {
     case .ended:
       TVNextVideoStage(
         model: nextVideoModel,
-        play: { startNextVideoTask { await nextVideoModel.playNext() } },
-        retry: { startNextVideoTask { await nextVideoModel.retry() } },
+        play: { runNextVideo { await nextVideoModel.playNext() } },
+        retry: { runNextVideo { await nextVideoModel.retry() } },
         close: {
           nextVideoModel.cancel()
           onFinish()
@@ -272,10 +272,19 @@ struct TVVideoPlaybackView: View {
   private func playbackEnded() {
     probes.ended = true
     stage = .ended
-    startNextVideoTask {
+    runNextVideo {
       await nextVideoModel.playbackEnded()
       if nextVideoModel.upcoming == nil { await nextVideoModel.lookUp() }
-      guard nextVideoModel.state == .idle, nextVideoModel.upcoming == nil else { return }
+    }
+  }
+
+  /// Leaves the screen only once a lookup confirms there is no successor.
+  private func runNextVideo(_ operation: @escaping @MainActor () async -> Void) {
+    startNextVideoTask {
+      await operation()
+      guard !Task.isCancelled, nextVideoModel.state == .idle, nextVideoModel.upcoming == nil,
+        !nextVideoModel.lookupFailed
+      else { return }
       onFinish()
     }
   }
@@ -494,11 +503,13 @@ private struct TVNextVideoStage: View {
     case .countingDown(let next, let secondsLeft):
       TVUpNextView(
         nextVideo: next, autoplaySecondsRemaining: secondsLeft, onPlay: play, onCancel: close)
-    case .idle where model.upcoming != nil:
+    case .idle where model.upcoming != nil,
+      .finding where model.upcoming != nil && !model.isPlayingChosenVideo:
       if let next = model.upcoming {
         TVUpNextView(nextVideo: next, onPlay: play, onCancel: close)
       }
-    case .failed:
+    case .failed,
+      .idle where model.lookupFailed:
       PutioErrorStateView(
         icon: .warningCircle, title: String(localized: "Couldn’t find the next video"),
         message: nil, retryIdentifier: "video.next-error.retry", retry: retry

@@ -21,6 +21,9 @@ public final class PutioVideoUpNextModel {
   public private(set) var state: PutioUpNextState = .idle
   public private(set) var upcoming: PutioNextVideo?
   public private(set) var lookupSettled = false
+  /// The last successor lookup failed, so an empty `upcoming` is not a
+  /// confirmed end of the folder.
+  public private(set) var lookupFailed = false
   public var isPlayingChosenVideo: Bool {
     if case .finding = state, lastRequest == .chosen { return true }
     return false
@@ -150,12 +153,14 @@ public final class PutioVideoUpNextModel {
       do {
         let next = try await task.value
         lookup = .found(next)
+        lookupFailed = false
         upcoming = next
         return next
       } catch {
         if lookupTask == task {
           lookupTask = nil
           lookup = .failed
+          lookupFailed = true
         }
         throw error
       }
