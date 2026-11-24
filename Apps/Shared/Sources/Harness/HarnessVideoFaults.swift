@@ -29,7 +29,7 @@
       return fault
     }
 
-    static func url(for fault: Fault, mediaBaseURL: URL) -> URL {
+    nonisolated static func url(for fault: Fault, mediaBaseURL: URL) -> URL {
       switch fault {
       case .none: mediaBaseURL.appending(path: "runtime-proof.m3u8")
       case .forbidden: mediaBaseURL.appending(path: "forbidden/runtime-proof.m3u8")
