@@ -54,83 +54,80 @@ struct TVTrashView: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
-      header
-      content
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .tvOverscanPadding()
-    .background(PutioTheme.Colors.background.ignoresSafeArea())
-    .alert(
-      String(localized: "Delete permanently?", bundle: .putioCore),
-      isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
-      presenting: deleting
-    ) { item in
-      Button(String(localized: "Delete", bundle: .putioCore), role: .destructive) {
-        mutate(item) { await model.permanentlyDelete(item) }
+    content
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+      .tvOverscanPadding()
+      .background(PutioTheme.Colors.background.ignoresSafeArea())
+      .alert(
+        String(localized: "Delete permanently?", bundle: .putioCore),
+        isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+        presenting: deleting
+      ) { item in
+        Button(String(localized: "Delete", bundle: .putioCore), role: .destructive) {
+          mutate(item) { await model.permanentlyDelete(item) }
+        }
+        .accessibilityIdentifier("trash.delete-confirm")
+        Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
+          .accessibilityIdentifier("trash.delete-cancel")
+      } message: { item in
+        Text(
+          String(
+            localized:
+              "“\(item.name)” will be removed from trash right away. This cannot be undone.",
+            bundle: .putioCore))
       }
-      .accessibilityIdentifier("trash.delete-confirm")
-      Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
-        .accessibilityIdentifier("trash.delete-cancel")
-    } message: { item in
-      Text(
-        String(
-          localized: "“\(item.name)” will be removed from trash right away. This cannot be undone.",
-          bundle: .putioCore))
-    }
-    .alert(String(localized: "Empty trash?", bundle: .putioCore), isPresented: $confirmsEmpty) {
-      Button(String(localized: "Empty trash", bundle: .putioCore), role: .destructive) {
-        Task { await model.empty() }
+      .alert(String(localized: "Empty trash?", bundle: .putioCore), isPresented: $confirmsEmpty) {
+        Button(String(localized: "Empty trash", bundle: .putioCore), role: .destructive) {
+          Task { await model.empty() }
+        }
+        .accessibilityIdentifier("trash.empty-confirm")
+        Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
+          .accessibilityIdentifier("trash.empty-cancel")
+      } message: {
+        Text(
+          String(
+            localized: "Every item in trash will be removed right away. This cannot be undone.",
+            bundle: .putioCore))
       }
-      .accessibilityIdentifier("trash.empty-confirm")
-      Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
-        .accessibilityIdentifier("trash.empty-cancel")
-    } message: {
-      Text(
-        String(
-          localized: "Every item in trash will be removed right away. This cannot be undone.",
-          bundle: .putioCore))
-    }
-    .alert(
-      stillMoving?.title ?? "",
-      isPresented: Binding(get: { stillMoving != nil }, set: { if !$0 { stillMoving = nil } })
-    ) {
-      Button(String(localized: "OK", bundle: .putioCore), role: .cancel) {}
-        .accessibilityIdentifier("trash.still-moving.ok")
-    } message: {
-      Text(stillMoving?.message ?? "")
-    }
-    .putioToast($toast)
-    .task { if loadsOnAppear { await model.refreshOnAppear() } }
-    .onAppear { if loadsOnAppear { now = .now } }
-    .onDisappear { model.abandonListing() }
-    .onChange(of: focus) { _, focus in
-      switch focus {
-      case .item(let id):
-        shownItemID = id
-        showsPanel = true
-      case .moreRetry:
-        showsPanel = false
-      case .restoreAll, .panel, nil:
-        break
+      .alert(
+        stillMoving?.title ?? "",
+        isPresented: Binding(get: { stillMoving != nil }, set: { if !$0 { stillMoving = nil } })
+      ) {
+        Button(String(localized: "OK", bundle: .putioCore), role: .cancel) {}
+          .accessibilityIdentifier("trash.still-moving.ok")
+      } message: {
+        Text(stillMoving?.message ?? "")
       }
-    }
-    .onChange(of: model.page?.items.map(\.id) ?? []) { old, new in
-      moveFocus(from: old, to: new)
-    }
-    .onChange(of: model.reconciliationVersion) { _, _ in
-      Task {
-        await model.applyReconciliation()
-        if let deleting, model.page?.items.contains(deleting) != true { self.deleting = nil }
-        if !model.hasContents { confirmsEmpty = false }
+      .putioToast($toast)
+      .task { if loadsOnAppear { await model.refreshOnAppear() } }
+      .onAppear { if loadsOnAppear { now = .now } }
+      .onDisappear { model.abandonListing() }
+      .onChange(of: focus) { _, focus in
+        switch focus {
+        case .item(let id):
+          shownItemID = id
+          showsPanel = true
+        case .moreRetry:
+          showsPanel = false
+        case .restoreAll, .panel, nil:
+          break
+        }
       }
-    }
-    .onChange(of: model.mutationOutcome) { _, outcome in
-      guard let outcome else { return }
-      present(outcome.notice)
-      model.clearMutationOutcome()
-    }
+      .onChange(of: model.page?.items.map(\.id) ?? []) { old, new in
+        moveFocus(from: old, to: new)
+      }
+      .onChange(of: model.reconciliationVersion) { _, _ in
+        Task {
+          await model.applyReconciliation()
+          if let deleting, model.page?.items.contains(deleting) != true { self.deleting = nil }
+          if !model.hasContents { confirmsEmpty = false }
+        }
+      }
+      .onChange(of: model.mutationOutcome) { _, outcome in
+        guard let outcome else { return }
+        present(outcome.notice)
+        model.clearMutationOutcome()
+      }
   }
 
   /// A row that leaves the list hands focus to the row after it, or to
@@ -182,36 +179,52 @@ struct TVTrashView: View {
     }
   }
 
+  private func titled(@ViewBuilder _ state: () -> some View) -> some View {
+    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
+      header
+      state()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+  }
+
   @ViewBuilder
   private var content: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(
-        title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden)
+      titled {
+        PutioLoadingStateView(
+          title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden)
+      }
     case .failed:
-      PutioErrorStateView(
-        title: String(localized: "Couldn’t load your trash.", bundle: .putioCore),
-        message: String(
-          localized: "Check your internet connection and try again.", bundle: .putioCore),
-        retryTitle: String(localized: "Try again", bundle: .putioCore),
-        retryIdentifier: "trash.retry"
-      ) {
-        Task { await model.refresh() }
+      titled {
+        PutioErrorStateView(
+          title: String(localized: "Couldn’t load your trash.", bundle: .putioCore),
+          message: String(
+            localized: "Check your internet connection and try again.", bundle: .putioCore),
+          retryTitle: String(localized: "Try again", bundle: .putioCore),
+          retryIdentifier: "trash.retry"
+        ) {
+          Task { await model.refresh() }
+        }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextCursor == nil, model.refreshFailure == nil,
         model.storageFailure == nil
       {
-        PutioEmptyStateView(
-          kaomoji: .shrug,
-          title: String(localized: "Your trash is empty", bundle: .putioCore),
-          message: String(
-            localized: "Files you move to trash stay here for 14 days.", bundle: .putioCore)
-        )
-        .accessibilityIdentifier("trash.empty-state")
+        titled {
+          PutioEmptyStateView(
+            kaomoji: .shrug,
+            title: String(localized: "Your trash is empty", bundle: .putioCore),
+            message: String(
+              localized: "Files you move to trash stay here for 14 days.", bundle: .putioCore)
+          )
+          .accessibilityIdentifier("trash.empty-state")
+        }
       } else {
         HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {
           VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+            header
+              .padding(.bottom, PutioTheme.TV.Spacing.small)
             toolbar(page)
             list(page)
           }
@@ -356,6 +369,7 @@ struct TVTrashView: View {
       }
       .focused($focus, equals: .panel)
       .accessibilityIdentifier("trash.panel.restore")
+      TVDetailDivider()
       TVDetailAction(
         title: String(localized: "Delete permanently", bundle: .putioCore), icon: .trash,
         isDestructive: true
