@@ -88,6 +88,26 @@ final class HistoryPresentationTests: XCTestCase {
     }
   }
 
+  func testOnlyFileEventsOfferPlayAndGoToFolderAndCarryTheirSize() {
+    let file = PutioFileID(rawValue: 7)
+    let cases: [(PutioHistoryEventKind, Bool, Int64?)] = [
+      (.fileShared(name: "a", sharingUserName: "Friend", fileID: file), true, nil),
+      (.transferCompleted(name: "a", sizeBytes: 3, fileID: file), true, 3),
+      (.upload(name: "a", sizeBytes: 2, fileID: file), true, 2),
+      (.fileFromRSSDeleted(name: "a", sizeBytes: 1), true, 1),
+      (.transferError(name: "a"), false, nil),
+      (.rssFilterPaused(title: "a"), false, nil),
+      (.transferFromRSSError(name: "a"), false, nil),
+      (.transferCallbackError(name: "a"), false, nil),
+    ]
+    for (kind, offersFileActions, size) in cases {
+      let presentation = PutioHistoryEventPresentation(
+        PutioHistoryEventItem(id: 1, createdAt: .now, kind: kind))
+      XCTAssertEqual(presentation.offersFileActions, offersFileActions, "\(kind)")
+      XCTAssertEqual(presentation.sizeBytes, size, "\(kind)")
+    }
+  }
+
   func testTimeReadsAsTimeOfDay() throws {
     let zone = try XCTUnwrap(TimeZone(identifier: "UTC"))
     let date = Date(timeIntervalSince1970: 1_793_643_300)

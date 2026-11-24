@@ -524,6 +524,33 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [event])
   }
 
+  func testGoToFolderOpensTheFolderThatHoldsTheEventFile() async {
+    let file = BrowserTestFixtures.item(id: 10, parentID: 4)
+    let folder = BrowserTestFixtures.item(id: 4, kind: .folder)
+    var lookups: [Int] = []
+    var parentFails = true
+    let model = model(
+      list: { _ in Self.page([]) },
+      file: { id in
+        lookups.append(id.rawValue)
+        if id.rawValue == 4 {
+          if parentFails { throw PutioRuntimeError.transient }
+          return folder
+        }
+        return file
+      })
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "File", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    await model.openFolder(event: event)
+    XCTAssertNil(model.openedFile)
+    XCTAssertNotNil(model.openFailure)
+    parentFails = false
+    await model.retryOpen()
+    XCTAssertEqual(model.openedFile, folder)
+    XCTAssertEqual(lookups, [10, 4, 10, 4])
+  }
+
   func testLoadedEventsRegroupWhenCalendarDayAdvances() async throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))

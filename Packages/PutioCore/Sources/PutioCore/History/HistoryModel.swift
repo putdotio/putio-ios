@@ -95,7 +95,7 @@ public final class PutioHistoryModel {
   @ObservationIgnored private var clearCount: UInt64 = 0
   @ObservationIgnored private let actions: PutioHistoryActions
   public private(set) var generation: UInt64 = 0
-  @ObservationIgnored private var failedOpen: PutioHistoryEventItem?
+  @ObservationIgnored private var failedOpen: (event: PutioHistoryEventItem, folder: Bool)?
   @ObservationIgnored private var openGeneration: UInt64 = 0
 
   public init(actions: PutioHistoryActions) {
@@ -151,7 +151,7 @@ public final class PutioHistoryModel {
       if failedMutation == .clear, page.items.isEmpty, page.nextBefore == nil {
         dismissMutationFailure()
       }
-      if let eventID = openingEventID ?? failedOpen?.id, !ids.contains(eventID) {
+      if let eventID = openingEventID ?? failedOpen?.event.id, !ids.contains(eventID) {
         cancelOpen()
       }
     } catch {
@@ -204,7 +204,7 @@ public final class PutioHistoryModel {
       page?.items.contains(where: { $0.id == eventID }) == true
     else { return false }
     deletingEventIDs.insert(eventID)
-    if failedOpen?.id == eventID || openingEventID == eventID { cancelOpen() }
+    if failedOpen?.event.id == eventID || openingEventID == eventID { cancelOpen() }
     return true
   }
 
@@ -260,6 +260,14 @@ public final class PutioHistoryModel {
   }
 
   public func openFile(event: PutioHistoryEventItem) async {
+    await open(event, folder: false)
+  }
+
+  public func openFolder(event: PutioHistoryEventItem) async {
+    await open(event, folder: true)
+  }
+
+  private func open(_ event: PutioHistoryEventItem, folder: Bool) async {
     guard let fileID = event.fileID, fileID.rawValue > 0 else { return }
     failedOpen = nil
     openGeneration &+= 1
@@ -271,10 +279,16 @@ public final class PutioHistoryModel {
     defer { if request == openGeneration { openingEventID = nil } }
     do {
       try Task.checkCancellation()
-      let file = try await actions.file(fileID)
+      var file = try await actions.file(fileID)
+      guard file.id == fileID else { throw PutioRuntimeError.invalidResponse }
+      if folder {
+        try Task.checkCancellation()
+        let parentID = file.parentID
+        file = try await actions.file(parentID)
+        guard file.id == parentID else { throw PutioRuntimeError.invalidResponse }
+      }
       try Task.checkCancellation()
       guard request == openGeneration else { return }
-      guard file.id == fileID else { throw PutioRuntimeError.invalidResponse }
       openedFile = file
     } catch {
       guard request == openGeneration, !Task.isCancelled,
@@ -284,7 +298,7 @@ public final class PutioHistoryModel {
         fileGone = PutioHistoryFileGone(eventID: event.id, attempt: request)
       } else {
         openFailure = failure
-        failedOpen = event
+        failedOpen = (event, folder)
       }
     }
   }
@@ -300,7 +314,7 @@ public final class PutioHistoryModel {
 
   public func retryOpen() async {
     guard let failedOpen else { return }
-    await openFile(event: failedOpen)
+    await open(failedOpen.event, folder: failedOpen.folder)
   }
 
   public func clearOpenedFile() { openedFile = nil }
