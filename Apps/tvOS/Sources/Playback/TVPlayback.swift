@@ -208,8 +208,6 @@ struct TVVideoPlaybackView: View {
     }
   }
 
-  /// Reports the failure, then ends the playback: tvOS has no rescue or
-  /// silent access refresh, so every player failure is terminal.
   private func playerFailed(_ failure: TVPlayerFailure) {
     if let source = readySource {
       let report = PutioPlaybackFailureReport(
@@ -586,7 +584,6 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   }
 }
 
-/// A player failure as the shared report reads it.
 struct TVPlayerFailure {
   let error: PutioPlayerError
   let beforeFirstFrame: Bool
