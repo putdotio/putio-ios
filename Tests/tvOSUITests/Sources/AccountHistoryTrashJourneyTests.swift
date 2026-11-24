@@ -41,6 +41,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(
       element("history.item.806").waitForExistence(timeout: 10), "the last page never arrived")
     XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists && !loadMore.exists })
+    XCTAssertTrue(
+      focus("history.item.801", moving: .down, limit: 12),
+      "every event row, file or not, takes focus down to the oldest")
 
     // A shared file that no longer exists says so once and offers no retry.
     XCTAssertTrue(focus("history.item.808"))

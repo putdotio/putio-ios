@@ -149,21 +149,16 @@ struct TVHistoryView: View {
     }
   }
 
-  @ViewBuilder
   private func eventRow(_ event: PutioHistoryEventItem) -> some View {
-    let row = TVHistoryEventRow(
-      event: event, isOpening: model.openingEventID == event.id, locale: locale)
-    if let fileID = event.fileID, fileID.rawValue > 0 {
-      Button {
-        Task { await model.openFile(event: event) }
-      } label: {
-        row
-      }
-      .disabled(model.mutation != nil)
-      .accessibilityIdentifier("history.item.\(event.id)")
-    } else {
-      row.accessibilityIdentifier("history.item.\(event.id)")
+    Button {
+      guard let fileID = event.fileID, fileID.rawValue > 0 else { return }
+      Task { await model.openFile(event: event) }
+    } label: {
+      TVHistoryEventRow(
+        event: event, isOpening: model.openingEventID == event.id, locale: locale)
     }
+    .disabled(model.mutation != nil)
+    .accessibilityIdentifier("history.item.\(event.id)")
   }
 
   private struct PageRequest: Equatable {
