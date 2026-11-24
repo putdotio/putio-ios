@@ -67,6 +67,7 @@ test("next CI admits rollout PR bases without broadening push", async () => {
 
 type GitHubContext = Readonly<{
   event_name: string;
+  job?: string;
   ref: string;
   run_id: string;
   event: { pull_request?: { number: number } };
@@ -87,7 +88,7 @@ const evaluate = (value: unknown, github: GitHubContext): unknown => {
   return value.replace(/\$\{\{([^}]*)\}\}/g, (_, expression: string) => String(run(expression)));
 };
 
-test("next CI cancels a stale pull request run and queues pushes to next behind the running one", async () => {
+test("next CI cancels a stale pull request run but never a push to next", async () => {
   const workflow = await loadWorkflow("ci-next.yml");
   const concurrency = recordAt(workflow, "concurrency", "ci-next.yml");
   const settle = (github: GitHubContext) => ({
@@ -98,17 +99,27 @@ test("next CI cancels a stale pull request run and queues pushes to next behind 
     settle({ event_name: "push", ref: "refs/heads/next", run_id: runId, event: {} });
   const pullRequest = (runId: string, ref = "refs/pull/7/merge") =>
     settle({ event_name: "pull_request", ref, run_id: runId, event: { pull_request: { number: 7 } } });
-  const dispatch = (runId: string) =>
-    settle({ event_name: "workflow_dispatch", ref: "refs/heads/next", run_id: runId, event: {} });
 
-  assert.equal(push("1").group, push("2").group);
-  assert.equal(push("1").cancelInProgress, false, "a running push to next always finishes");
+  // A shared group would let a later push cancel, or replace while queued, an
+  // earlier one, so that merged commit would get no result of its own.
+  assert.notEqual(push("1").group, push("2").group);
   assert.notEqual(push("1").group, pullRequest("2").group);
-  assert.notEqual(dispatch("1").group, dispatch("2").group);
-  assert.notEqual(dispatch("1").group, push("1").group);
   assert.equal(pullRequest("3").group, pullRequest("4").group);
   assert.equal(pullRequest("4").cancelInProgress, true);
   assert.equal(pullRequest("5", "refs/heads/next").group, pullRequest("3").group, "merging cancels the open run");
+});
+
+test("each macOS job of a push to next queues behind the running push's same job", async () => {
+  const jobs = recordAt(await loadWorkflow("ci-next.yml"), "jobs", "ci-next.yml");
+  for (const job of ["checks", "tvos", "ios", "build"]) {
+    const concurrency = recordAt(recordAt(jobs, job, "jobs"), "concurrency", job);
+    assert.equal(concurrency["cancel-in-progress"], undefined, `${job} never cancels a running push`);
+    const group = (event_name: string, run_id: string) =>
+      evaluate(concurrency.group, { event_name, job, ref: "refs/heads/next", run_id, event: {} });
+    assert.equal(group("push", "1"), group("push", "2"), job);
+    assert.notEqual(group("pull_request", "1"), group("pull_request", "2"), job);
+    assert.notEqual(group("workflow_dispatch", "1"), group("push", "1"), job);
+  }
 });
 
 const laneFilters = async (): Promise<Map<string, readonly string[]>> => {
