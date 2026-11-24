@@ -1,6 +1,6 @@
 [tools]
 node = "26.13.1"
-pnpm = "12.21.0"
+pnpm = "12.23.0"
 tuist = "4.218.2"
 periphery = "3.8.0"
 "github:rorkai/App-Store-Connect-CLI" = { version = "5.17.1", bin = "asc" }
