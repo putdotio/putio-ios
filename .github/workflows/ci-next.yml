@@ -105,7 +105,7 @@ jobs:
             # PutioNightly compiles Putio's sources with Putio's flags; only its
             # manifest, resources, and toolchain can break it alone.
             nightly:
-              - '{Project.swift,Tuist.swift,Tuist/**,Apps/iOS/Resources/**,Config/**,Packages/{GoogleCastSDK,SentrySDK}/**,mise.toml,mise.lock,.xcode-version,scripts/build.sh,scripts/generate.sh,.github/workflows/ci-next.yml,.github/actions/setup-apple/**}'
+              - '{Project.swift,Tuist.swift,Tuist/**,Apps/iOS/Resources/**,Config/**,Packages/GoogleCastSDK/**,Packages/SentrySDK/**,mise.toml,mise.lock,.xcode-version,scripts/build.sh,scripts/generate.sh,.github/workflows/ci-next.yml,.github/actions/setup-apple/**}'
 
       # The Release build compiles only the shells whose test lane runs. A change
       # that selects neither test lane, such as scripts/build.sh, builds all three.
