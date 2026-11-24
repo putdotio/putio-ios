@@ -334,9 +334,12 @@ struct TVAccountScreen: View {
       .accessibilityIdentifier(row.identifier)
     case .appInfo(let id):
       if let field = appInfo.fields.first(where: { $0.id == id }) {
-        TVValueRow(title: field.title, value: field.value)
-          .accessibilityElement(children: .combine)
-          .accessibilityIdentifier(row.identifier)
+        Button {
+        } label: {
+          TVValueRow(title: field.title, value: field.value)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(row.identifier)
       }
     }
   }
