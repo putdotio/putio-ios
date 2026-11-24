@@ -20,11 +20,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     app.launchArguments = ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"]
     app.launch()
 
-    XCTAssertTrue(element("home.files").waitForExistence(timeout: 15))
-    XCTAssertTrue(
-      waitUntil(timeout: 5) { self.hasFocus("home.files") }, "Home opens on Your Files")
+    XCTAssertTrue(TVTabBar(app).open("Files"))
     attach("runtime-tv-home-files")
-    remote.press(.select)
+    remote.press(.down)
     let movie = element("files.item.412")
     XCTAssertTrue(movie.waitForExistence(timeout: 15))
     XCTAssertTrue(element("files.item.410").exists)
@@ -158,9 +156,8 @@ final class FilesSearchJourneyTests: XCTestCase {
     ]
     app.launch()
 
-    XCTAssertTrue(element("home.search").waitForExistence(timeout: 15))
-    XCTAssertTrue(focus("home.search"))
-    remote.press(.select)
+    XCTAssertTrue(TVTabBar(app).open("Search"))
+    remote.press(.down)
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 10))
     pause(1)

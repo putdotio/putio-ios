@@ -82,12 +82,16 @@ final class TVFilesTests: XCTestCase {
 
   func testBrowsingSurvivesHistoryTurningOffUnlessHistoryOpenedIt() {
     let folder = TVRoute.folder(PutioFolderRoute(id: PutioFileID(rawValue: 410), title: "F"))
-    let historyOff = Self.account(historyEnabled: false)
-    XCTAssertEqual(
-      TVRoute.reconcile([.files, folder, .file(Self.video())], account: historyOff),
-      [.files, folder, .file(Self.video())])
-    XCTAssertEqual(TVRoute.reconcile([.search, folder], account: historyOff), [.search, folder])
-    XCTAssertEqual(TVRoute.reconcile([.history, folder], account: historyOff), [])
+    let account = Self.account()
+    var navigation = TVShellNavigation(selection: .files)
+    navigation.setPath([folder, .file(Self.video())], for: .files, account: account)
+    navigation.setPath([folder], for: .search, account: account)
+    navigation.setPath([folder], for: .history, account: account)
+    navigation.reconcile(account: Self.account(historyEnabled: false))
+    XCTAssertEqual(navigation.path(for: .files), [folder, .file(Self.video())])
+    XCTAssertEqual(navigation.path(for: .search), [folder])
+    XCTAssertEqual(navigation.path(for: .history), [])
+    XCTAssertEqual(navigation.selection, .files)
   }
 
   func testRemovingARowFocusesTheNextRowOrThePreviousAtTheEnd() {

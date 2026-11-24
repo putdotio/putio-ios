@@ -127,11 +127,7 @@ public struct PutioToastView: View {
 private struct PutioToastSurface: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
     #if os(tvOS)
-      content.background(
-        RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
-          .fill(PutioTheme.Components.Notification.background)
-          .stroke(PutioTheme.Components.Notification.border, lineWidth: PutioTheme.Border.width)
-      )
+      content.glassEffect(.regular, in: Capsule())
     #elseif os(iOS)
       if HarnessRendering.usesRasterFallback {
         content.background(
@@ -161,7 +157,7 @@ private struct PutioToastPresenter: ViewModifier {
   @State private var dragOffset: CGFloat = 0
 
   func body(content: Content) -> some View {
-    content.overlay(alignment: .bottom) {
+    content.overlay(alignment: PutioToastLayout.alignment) {
       if let toast {
         PutioToastView(
           toast,
@@ -174,8 +170,10 @@ private struct PutioToastPresenter: ViewModifier {
         .id(toast.id)
         .offset(y: dragOffset)
         .modifier(PutioToastSwipe(offset: $dragOffset) { dismiss(toast) })
-        .padding(PutioToastLayout.presentationPadding)
-        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+        .padding(PutioToastLayout.presentationInsets)
+        .transition(
+          reduceMotion ? .opacity : .move(edge: PutioToastLayout.edge).combined(with: .opacity)
+        )
         .zIndex(PutioToastLayout.zIndex)
       }
     }
@@ -248,17 +246,19 @@ private struct PutioToastSwipe: ViewModifier {
 
 enum PutioToastLayout {
   #if os(tvOS)
-    static let textFont = PutioTheme.TV.Typography.label
-    static let actionFont = PutioTheme.TV.Typography.label
-    static let textColor = PutioTheme.Components.Notification.foreground
+    static let textFont = PutioTVTypeScale.label
+    static let actionFont = PutioTVTypeScale.label
+    static let textColor = PutioTheme.TV.Colors.textPrimary
     static let contentGap = PutioTheme.TV.Spacing.small
-    static let leadingPadding = PutioTheme.TV.Spacing.medium
-    static let actionInset = PutioTheme.TV.Spacing.small
-    static let textVerticalPadding = PutioTheme.TV.Spacing.small
-    static let presentationPadding = PutioTheme.TV.Spacing.large
+    static let leadingPadding: CGFloat = 30
+    static let actionInset: CGFloat = 15
+    static let textVerticalPadding: CGFloat = 0
+    static let alignment = Alignment.topTrailing
+    static let edge = Edge.top
+    static let presentationInsets = EdgeInsets(top: -8, leading: 0, bottom: 0, trailing: 0)
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
-    static func fillsWidth(_ toast: PutioToast) -> Bool { true }
+    static func fillsWidth(_ toast: PutioToast) -> Bool { false }
   #else
     static let textFont = PutioTheme.Typography.body
     static let actionFont = PutioButtonSize.regular.brandLabel
@@ -267,6 +267,11 @@ enum PutioToastLayout {
     static let leadingPadding = PutioTheme.Spacing.space3
     static let actionInset = PutioTheme.Spacing.space2
     static let textVerticalPadding = PutioTheme.Spacing.space2
+    static let alignment = Alignment.bottom
+    static let edge = Edge.bottom
+    static let presentationInsets = EdgeInsets(
+      top: presentationPadding, leading: presentationPadding, bottom: presentationPadding,
+      trailing: presentationPadding)
     static let presentationPadding = PutioTheme.Spacing.space3
     static let zIndex = 1.0
     static let duration = Duration.seconds(5)

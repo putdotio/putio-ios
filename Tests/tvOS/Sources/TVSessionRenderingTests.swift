@@ -28,15 +28,6 @@ final class TVSessionRenderingTests: XCTestCase {
   }
 
   @MainActor
-  func testHomeMatchesBaseline() throws {
-    _ = try assertRenderingSnapshot(
-      name: "tv-home",
-      view: NavigationStack { TVHomeScreen(entries: TVHomeEntry.entries(for: Self.account)) },
-      size: viewport
-    )
-  }
-
-  @MainActor
   func testAccountMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-account",

@@ -21,14 +21,14 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     ]
     app.launch()
 
-    let homeHistory = element("home.history")
-    let homeAccount = element("home.account")
-    XCTAssertTrue(homeHistory.waitForExistence(timeout: 15))
-    XCTAssertTrue(homeAccount.exists)
+    let tabs = TVTabBar(app)
+    let historyTab = tabs.item("History")
+    XCTAssertTrue(historyTab.waitForExistence(timeout: 15))
+    XCTAssertTrue(tabs.item("Account").exists)
     attach("runtime-tv-home")
 
-    XCTAssertTrue(focus("home.history"))
-    remote.press(.select)
+    XCTAssertTrue(tabs.open("History"))
+    remote.press(.down)
     let moreRetry = element("history.more-retry")
     XCTAssertTrue(moreRetry.waitForExistence(timeout: 15))
     XCTAssertTrue(element("history.item.809").exists)
@@ -80,13 +80,12 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-history-empty")
 
     // Home reloads the account, which now has History off.
-    remote.press(.menu)
-    XCTAssertTrue(homeAccount.waitForExistence(timeout: 5))
-    XCTAssertTrue(waitUntil(timeout: 10) { !homeHistory.exists })
+    XCTAssertTrue(tabs.open("Home"))
+    XCTAssertTrue(waitUntil(timeout: 10) { !historyTab.exists })
     attach("runtime-tv-home-history-off")
 
-    XCTAssertTrue(focus("home.account"))
-    remote.press(.select)
+    XCTAssertTrue(tabs.open("Account"))
+    remote.press(.down)
     XCTAssertTrue(element("account.username").waitForExistence(timeout: 10))
     attach("runtime-tv-account-settings")
 
@@ -143,9 +142,8 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     ]
     app.launch()
 
-    XCTAssertTrue(element("home.account").waitForExistence(timeout: 15))
-    XCTAssertTrue(focus("home.account"))
-    remote.press(.select)
+    XCTAssertTrue(TVTabBar(app).open("Account"))
+    remote.press(.down)
     XCTAssertTrue(element("account.username").waitForExistence(timeout: 10))
 
     XCTAssertTrue(focus("account.proxy"))
