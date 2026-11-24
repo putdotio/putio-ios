@@ -44,7 +44,7 @@ struct TVDetailPanel<Subtitle: View, Facts: View, Actions: View>: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         actions
       }
-      .padding(.horizontal, -PutioTheme.TV.Spacing.medium)
+      .padding(.horizontal, -PutioTheme.TV.Spacing.small)
       .buttonStyle(TVRowButtonStyle())
     }
     .padding(PutioTheme.TV.Spacing.medium)
@@ -101,8 +101,19 @@ struct TVDetailAction: View {
               ? AnyShapeStyle(PutioTheme.Colors.destructiveText) : AnyShapeStyle(.putioRowPrimary)
           )
       }
-      .tvRowPadding()
+      .padding(PutioTheme.TV.Spacing.small)
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
+  }
+}
+
+struct TVDetailDivider: View {
+  var body: some View {
+    Rectangle()
+      .fill(PutioTheme.Colors.separator)
+      .frame(height: 1)
+      .padding(.horizontal, PutioTheme.TV.Spacing.small)
+      .accessibilityHidden(true)
   }
 }
 

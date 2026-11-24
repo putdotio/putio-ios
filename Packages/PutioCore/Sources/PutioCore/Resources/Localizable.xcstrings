@@ -953,6 +953,17 @@
         }
       }
     },
+    "Couldn’t load more items." : {
+      "comment" : "ios-only: the tvOS Trash board's load-more failure",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load more items."
+          }
+        }
+      }
+    },
     "Couldn’t load this" : {
       "comment" : "android: mobile_state_error_title",
       "localizations" : {
@@ -971,6 +982,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load your history."
+          }
+        }
+      }
+    },
+    "Couldn’t load your trash." : {
+      "comment" : "ios-only: the tvOS Trash board's first-load error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load your trash."
           }
         }
       }
@@ -1186,6 +1208,28 @@
         }
       }
     },
+    "Delete permanently" : {
+      "comment" : "android: mobile_files_delete_permanently",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete permanently"
+          }
+        }
+      }
+    },
+    "Delete permanently?" : {
+      "comment" : "android: mobile_trash_delete_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete permanently?"
+          }
+        }
+      }
+    },
     "Delete “%@” permanently?" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -1193,6 +1237,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Delete “%@” permanently?"
+          }
+        }
+      }
+    },
+    "Deleted" : {
+      "comment" : "ios-only: the tvOS Trash panel's deleted-date fact",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted"
           }
         }
       }
@@ -1216,6 +1271,17 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Deleted items stay 14 days" : {
+      "comment" : "android: mobile_trash_retention | differs: iOS board wording; Android lowercases it after the size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted items stay 14 days"
           }
         }
       }
@@ -1407,6 +1473,28 @@
         }
       }
     },
+    "Empty trash" : {
+      "comment" : "android: mobile_trash_empty_action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty trash"
+          }
+        }
+      }
+    },
+    "Empty trash?" : {
+      "comment" : "android: mobile_trash_empty_confirm_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty trash?"
+          }
+        }
+      }
+    },
     "Every folder will use your account’s default sort." : {
       "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
       "localizations" : {
@@ -1414,6 +1502,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every folder will use your account’s default sort."
+          }
+        }
+      }
+    },
+    "Every item in trash will be removed right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_empty_confirm_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every item in trash will be removed right away. This cannot be undone."
           }
         }
       }
@@ -1491,6 +1590,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files"
+          }
+        }
+      }
+    },
+    "Files you move to trash stay here for 14 days." : {
+      "comment" : "android: mobile_trash_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files you move to trash stay here for 14 days."
           }
         }
       }
@@ -1756,6 +1866,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading more history"
+          }
+        }
+      }
+    },
+    "Loading trash…" : {
+      "comment" : "android: mobile_trash_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading trash…"
           }
         }
       }
@@ -2070,6 +2191,17 @@
         }
       }
     },
+    "OK" : {
+      "comment" : "android: mobile_action_ok",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Oldest first" : {
       "comment" : "android: mobile_files_sort_oldest_first",
       "localizations" : {
@@ -2279,6 +2411,17 @@
         }
       }
     },
+    "Refresh" : {
+      "comment" : "android: mobile_action_refresh",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
     "Refresh account" : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -2330,6 +2473,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset folder sorts"
+          }
+        }
+      }
+    },
+    "Restore" : {
+      "comment" : "android: mobile_trash_restore",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore"
+          }
+        }
+      }
+    },
+    "Restore all" : {
+      "comment" : "android: mobile_trash_restore_all",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restore all"
           }
         }
       }
@@ -3269,6 +3434,17 @@
         }
       }
     },
+    "Updating trash…" : {
+      "comment" : "ios-only: the tvOS Trash progress label while a change is sent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updating trash…"
+          }
+        }
+      }
+    },
     "URLs or search text" : {
       "comment" : "android: mobile_product_analytics_prompt_never_urls",
       "localizations" : {
@@ -3644,6 +3820,17 @@
         }
       }
     },
+    "Your trash is empty" : {
+      "comment" : "android: mobile_trash_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your trash is empty"
+          }
+        }
+      }
+    },
     "You’ll need a new code to sign in on this Apple TV again." : {
       "comment" : "ios-only: tvOS sign-out confirmation (rd-tvos-acc-11-sign-out); the Android snapshot covers mobile only",
       "localizations" : {
@@ -3772,6 +3959,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” is no longer in trash."
+          }
+        }
+      }
+    },
+    "“%@” will be removed from trash right away. This cannot be undone." : {
+      "comment" : "android: mobile_trash_delete_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” will be removed from trash right away. This cannot be undone."
           }
         }
       }

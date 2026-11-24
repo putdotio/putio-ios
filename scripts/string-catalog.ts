@@ -71,7 +71,6 @@ export const unlocalizedTVOSFiles: { file: string; epic: string }[] = [
   { file: "Apps/tvOS/Sources/Files/TVFiles.swift", epic: "#1304" },
   { file: "Apps/tvOS/Sources/Files/TVSearch.swift", epic: "#1304" },
   { file: "Apps/tvOS/Sources/Playback/TVPlayback.swift", epic: "#1297" },
-  { file: "Apps/tvOS/Sources/Trash/TVTrash.swift", epic: "#1308" },
 ];
 
 export const exemptLiterals: { file: string; text: string; reason: string }[] = [
