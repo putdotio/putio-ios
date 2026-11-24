@@ -395,6 +395,11 @@ struct TVAccountScreen: View {
         }
       }
       .frame(width: TVAccountLayout.listWidth)
+      .mask {
+        Rectangle()
+          .padding(.horizontal, -TVAccountLayout.focusOverflow)
+          .padding(.bottom, -TVAccountLayout.focusOverflow)
+      }
       .defaultFocus($focusedRow, Self.firstRow(for: account))
       TVAccountPanel(content: panel(for: shownRow))
         .frame(width: TVAccountLayout.panelWidth)
@@ -623,6 +628,7 @@ enum TVAccountLayout {
   static let listWidth: CGFloat = 1064
   static let panelWidth: CGFloat = 640
   static let columnGap: CGFloat = 56
+  static let focusOverflow: CGFloat = 80
   static let avatarSize: CGFloat = 72
   static let meterHeight: CGFloat = 6
   static let panelIconTile: CGFloat = 96
