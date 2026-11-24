@@ -7,14 +7,18 @@ enum TVSignInPhase: Equatable {
   case fetchingCode
   case awaitingApproval(code: String)
   case expired(code: String)
-  case failed(message: String, canRetryRestore: Bool)
+  case failed(PutioSignedOutNotice)
 
   init(state: PutioSessionState, deviceCodeSignIn: PutioDeviceCodeSignInState?) {
     switch state {
-    case .signedOut(.authenticationFailed(let message)):
-      self = .failed(message: message, canRetryRestore: false)
-    case .signedOut(.restoreFailed(_, let message)):
-      self = .failed(message: message, canRetryRestore: true)
+    case .signedOut(let reason):
+      if let notice = PutioSignedOutNotice(reason: reason, device: .appleTV),
+        notice.kind != .sessionExpired
+      {
+        self = .failed(notice)
+      } else {
+        self = .fetchingCode
+      }
     case .authenticating:
       switch deviceCodeSignIn {
       case .awaitingApproval(let code): self = .awaitingApproval(code: code)
@@ -33,7 +37,9 @@ struct TVSignInView: View {
   var body: some View {
     TVSignInScreen(
       phase: TVSignInPhase(state: session.state, deviceCodeSignIn: session.deviceCodeSignIn),
-      sessionExpired: session.state == .signedOut(.sessionExpired),
+      sessionExpired: PutioSignedOutNotice(
+        reason: session.state == .signedOut(.sessionExpired) ? .sessionExpired : nil,
+        device: .appleTV),
       requestCode: { Task { await session.signInWithDeviceCode() } },
       retryRestore: { Task { await session.restore() } },
       discardCredential: { session.discardUnrestoredCredential() }
@@ -55,7 +61,7 @@ struct TVSignInView: View {
 
 struct TVSignInScreen: View {
   let phase: TVSignInPhase
-  var sessionExpired = false
+  var sessionExpired: PutioSignedOutNotice?
   let requestCode: () -> Void
   let retryRestore: () -> Void
   var discardCredential: () -> Void = {}
@@ -65,8 +71,8 @@ struct TVSignInScreen: View {
       Text("put.io")
         .putioFont(PutioTheme.TV.Typography.heading)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-      if sessionExpired {
-        Text("Your session expired. Sign in again.")
+      if let sessionExpired {
+        Text(verbatim: "\(sessionExpired.title). \(sessionExpired.message)")
           .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.destructive)
       }
@@ -137,21 +143,23 @@ struct TVSignInScreen: View {
         }
         .accessibilityIdentifier("auth.new-code")
       }
-    case .failed(let message, let canRetryRestore):
+    case .failed(let notice):
       VStack(spacing: PutioTheme.TV.Spacing.small) {
-        Text(message)
+        Text(notice.title)
+          .putioFont(PutioTheme.TV.Typography.label)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .multilineTextAlignment(.center)
+        Text(notice.message)
           .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.destructive)
           .multilineTextAlignment(.center)
           .accessibilityIdentifier("auth.failure")
-        PutioButton("Try again", tier: .primary) {
-          canRetryRestore ? retryRestore() : requestCode()
-        }
-        .accessibilityIdentifier("auth.retry")
-        if canRetryRestore {
+        if let actions = notice.restoreActions {
+          PutioButton(actions.retryTitle, tier: .primary, action: retryRestore)
+            .accessibilityIdentifier("auth.retry")
           // Abandoning the saved sign-in is only ever the user's choice; a
           // transient failure must not cost a valid session.
-          PutioButton("Sign in again", tier: .secondary) {
+          PutioButton(actions.discardTitle, tier: .secondary) {
             discardCredential()
           }
           .accessibilityIdentifier("auth.discard-credential")
@@ -159,6 +167,9 @@ struct TVSignInScreen: View {
             .putioFont(PutioTheme.TV.Typography.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .multilineTextAlignment(.center)
+        } else {
+          PutioButton("Try again", tier: .primary, action: requestCode)
+            .accessibilityIdentifier("auth.retry")
         }
       }
     }
