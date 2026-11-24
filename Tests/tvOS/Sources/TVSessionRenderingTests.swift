@@ -152,20 +152,27 @@ final class TVSessionRenderingTests: XCTestCase {
   }
 
   /// Restores never refresh storage on their own, and one can commit after
-  /// Trash is gone; the account's trash size must still follow it.
+  /// Trash is gone; the account's trash size and the restored file's folder
+  /// must still follow it.
   @MainActor
-  func testRestoreRefreshesTheAccountTrashSize() async throws {
+  func testRestoreRefreshesTheAccountTrashSizeAndTheRestoredFolder() async throws {
     let runtime = try await Self.seededRuntime()
     XCTAssertEqual(Self.trashSize(runtime), 3 * 1_073_741_824)
-    let model = TVTrashView.model(runtime: runtime, reconciliation: PutioTrashReconciliation())
+    let refreshRequests = PutioFolderRefreshRequests()
+    let model = TVTrashView.model(
+      runtime: runtime, reconciliation: PutioTrashReconciliation(),
+      refreshRequests: refreshRequests)
     await model.refresh()
     let item = try XCTUnwrap(model.page?.items.first)
     await model.restore(item)
     let deadline = Date().addingTimeInterval(10)
-    while Self.trashSize(runtime) != 2 * 1_073_741_824, Date() < deadline {
+    while Self.trashSize(runtime) != 2 * 1_073_741_824 || refreshRequests.revision == 0,
+      Date() < deadline
+    {
       try await Task.sleep(for: .milliseconds(100))
     }
     XCTAssertEqual(Self.trashSize(runtime), 2 * 1_073_741_824)
+    XCTAssertGreaterThan(refreshRequests.revision, 0, "the restored file's folder never refreshed")
   }
 
   /// A failed refresh on returning to Account must say so and offer the

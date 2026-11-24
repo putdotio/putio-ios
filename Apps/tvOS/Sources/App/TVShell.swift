@@ -195,7 +195,9 @@ struct TVSignedInShell: View {
     case .proxy:
       TVProxyChooserView(runtime: runtime)
     case .trash:
-      TVTrashView(runtime: runtime, reconciliation: trashReconciliation)
+      TVTrashView(
+        runtime: runtime, reconciliation: trashReconciliation,
+        refreshRequests: folderRefreshRequests)
     case .folder(let folder):
       TVFolderView(
         route: folder, runtime: runtime, account: account,

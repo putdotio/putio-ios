@@ -180,29 +180,6 @@
         }
       }
     },
-    "%lld items are no longer in trash." : {
-      "comment" : "android: mobile_trash_delete_selected_verified",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld item is no longer in trash."
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld items are no longer in trash."
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "%lld items are still in Files." : {
       "comment" : "android: mobile_files_delete_still_present_many | differs: the iOS toast carries Try again in place of the select hint",
       "localizations" : {
@@ -1198,29 +1175,6 @@
         }
       }
     },
-    "Couldn’t restore %lld items from trash" : {
-      "comment" : "android: mobile_files_undo_failed_many | differs: the board drops the reason and the period",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn’t restore %lld item from trash"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "Couldn’t restore %lld items from trash"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "Couldn’t search" : {
       "comment" : "android: mobile_search_error_title",
       "localizations" : {
@@ -1394,28 +1348,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "“%@” will be removed from trash right away. This cannot be undone."
-          }
-        }
-      }
-    },
-    "“%@” is no longer in trash." : {
-      "comment" : "android: mobile_trash_delete_verified",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "“%@” is no longer in trash."
-          }
-        }
-      }
-    },
-    "The request could not start" : {
-      "comment" : "android: mobile_trash_action_rejected | differs: iOS board wording drops the period",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The request could not start"
           }
         }
       }
@@ -4274,28 +4206,6 @@
         }
       }
     },
-    "Restore could not start" : {
-      "comment" : "android: mobile_trash_rejected | differs: board drops the period",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restore could not start"
-          }
-        }
-      }
-    },
-    "Restore started" : {
-      "comment" : "android: mobile_trash_started | differs: board drops the period",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Restore started"
-          }
-        }
-      }
-    },
     "Restoring your session" : {
       "comment" : "android: mobile_auth_restoring",
       "localizations" : {
@@ -4875,17 +4785,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Trash"
-          }
-        }
-      }
-    },
-    "Trash is empty." : {
-      "comment" : "android: mobile_trash_empty_verified",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trash is empty."
           }
         }
       }
