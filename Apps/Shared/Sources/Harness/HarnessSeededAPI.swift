@@ -656,6 +656,25 @@ import Foundation
       }
     }
 
+    /// put.io's QR image for a device code: the code's put.io/link page.
+    private static func deviceCodeQR(_ request: URLRequest) -> String? {
+      let prefix = "/v2/oauth2/oob/qr/"
+      guard request.httpMethod == "GET", let path = request.url?.path, path.hasPrefix(prefix)
+      else { return nil }
+      return String(path.dropFirst(prefix.count))
+    }
+
+    private static func qrCodePNG(_ code: String) -> Data? {
+      #if canImport(UIKit) && !os(watchOS)
+        guard let image = PutioQRCode.image(for: "https://app.put.io/link?code=\(code)") else {
+          return nil
+        }
+        return UIImage(cgImage: image).pngData()
+      #else
+        return nil
+      #endif
+    }
+
     private static func servesAppIcon(_ request: URLRequest) -> Bool {
       guard usesAccountSecurity, request.httpMethod == "GET",
         let parts = request.url?.path.split(separator: "/"),
@@ -1242,6 +1261,18 @@ import Foundation
         return
       }
       if Self.cutsNetwork { Self.recordCutRequest(request) }
+      if let code = Self.deviceCodeQR(request) {
+        let png = Self.qrCodePNG(code)
+        deliveryGate.deliver(generation: generation) {
+          let response = HTTPURLResponse(
+            url: url, statusCode: png == nil ? 404 : 200, httpVersion: nil,
+            headerFields: ["Content-Type": "image/png"])!
+          self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          self.client?.urlProtocol(self, didLoad: png ?? Data())
+          self.client?.urlProtocolDidFinishLoading(self)
+        }
+        return
+      }
       if Self.servesAppIcon(request) {
         DispatchQueue.main.async { [weak self] in
           let icon = MainActor.assumeIsolated { HarnessAppIcon.png() }
@@ -2064,7 +2095,8 @@ import Foundation
             case 2: approvedDeviceCode
             default: "TVWT\(deviceCodesIssued)"
             }
-          return (200, #"{"code":"\#(code)","qr_code_url":null}"#)
+          let qr = "https://api.put.io/v2/oauth2/oob/qr/\(code)"
+          return (200, #"{"code":"\#(code)","qr_code_url":"\#(qr)"}"#)
         }
       case "GET /v2/oauth2/validate":
         return (

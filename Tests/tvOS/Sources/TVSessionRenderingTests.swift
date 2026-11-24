@@ -1,5 +1,6 @@
 import PutioCore
 import SwiftUI
+import UIKit
 import XCTest
 
 @testable import PutioTV
@@ -12,7 +13,8 @@ final class TVSessionRenderingTests: XCTestCase {
     let image = try assertRenderingSnapshot(
       name: "tv-sign-in-code",
       view: TVSignInScreen(
-        phase: .awaitingApproval(code: "TVOK2"), requestCode: {}, retryRestore: {}),
+        phase: .awaitingApproval(PutioDeviceCode(code: "TVOK2", qrCode: Self.qrCode("TVOK2"))),
+        requestCode: {}, retryRestore: {}),
       size: viewport
     )
     XCTAssertEqual(image.size, viewport)
@@ -22,7 +24,9 @@ final class TVSessionRenderingTests: XCTestCase {
   func testSignInExpiredMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-sign-in-expired",
-      view: TVSignInScreen(phase: .expired(code: "TVXP1"), requestCode: {}, retryRestore: {}),
+      view: TVSignInScreen(
+        phase: .expired(PutioDeviceCode(code: "TVXP1", qrCode: Self.qrCode("TVXP1"))),
+        requestCode: {}, retryRestore: {}),
       size: viewport
     )
   }
@@ -199,11 +203,14 @@ final class TVSessionRenderingTests: XCTestCase {
     XCTAssertEqual(
       TVSignInPhase(state: .signedOut(nil), deviceCodeSignIn: nil), .fetchingCode)
     XCTAssertEqual(
-      TVSignInPhase(state: .authenticating, deviceCodeSignIn: .awaitingApproval(code: "AB12C")),
-      .awaitingApproval(code: "AB12C"))
+      TVSignInPhase(
+        state: .authenticating,
+        deviceCodeSignIn: .awaitingApproval(PutioDeviceCode(code: "AB12C"))),
+      .awaitingApproval(PutioDeviceCode(code: "AB12C")))
     XCTAssertEqual(
-      TVSignInPhase(state: .authenticating, deviceCodeSignIn: .expired(code: "AB12C")),
-      .expired(code: "AB12C"))
+      TVSignInPhase(
+        state: .authenticating, deviceCodeSignIn: .expired(PutioDeviceCode(code: "AB12C"))),
+      .expired(PutioDeviceCode(code: "AB12C")))
     XCTAssertEqual(
       TVSignInPhase(state: .signedOut(.authenticationFailed("nope")), deviceCodeSignIn: nil),
       .failed(PutioSignedOutNotice(kind: .signInFailed, device: .appleTV)))
@@ -236,6 +243,24 @@ final class TVSessionRenderingTests: XCTestCase {
   }
 
   private static let locale = Locale(identifier: "en_US")
+
+  private static func qrCode(_ code: String) -> Data? {
+    PutioQRCode.image(for: "https://app.put.io/link?code=\(code)").flatMap {
+      UIImage(cgImage: $0).pngData()
+    }
+  }
+
+  /// An image that does not decode leaves the code and manual entry alone.
+  @MainActor
+  func testSignInWithAnUnreadableQRImageMatchesTheCodeOnlyBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-sign-in-code-without-qr",
+      view: TVSignInScreen(
+        phase: .awaitingApproval(PutioDeviceCode(code: "TVOK2", qrCode: Data("x".utf8))),
+        requestCode: {}, retryRestore: {}),
+      size: viewport
+    )
+  }
 
   private static let trashNow = ISO8601DateFormatter().date(from: "2026-09-10T12:00:00Z")!
 

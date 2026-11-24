@@ -82,7 +82,7 @@ below, and prints the new digest.
 
 ## Coverage
 
-Sync digest: `cbac3c34c8cdd4fd48dbfe7ba892be9145fa454feb757d415d15214e35a2d13f`
+Sync digest: `482fc673bbdf9cb4782218ff3a1a855bbad585b7345e6051c5db6eee34c62cfc`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)

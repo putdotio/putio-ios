@@ -1,7 +1,8 @@
 import XCTest
 
-/// Drives the seeded device-code flow with the Siri Remote: the first code
-/// expires after one poll, "Get new code" issues one that is approved and
+/// Drives the seeded device-code flow with the Siri Remote: each code shows
+/// put.io's QR beside it, the first code expires after one poll, "Get new
+/// code" issues one that is approved and
 /// lands on Home, the session survives a relaunch, and signing out from
 /// Account returns to a fresh code.
 final class DeviceSignInJourneyTests: XCTestCase {
@@ -13,6 +14,8 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     let code = app.descendants(matching: .any)["auth.device-code"]
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
+    let qrCode = app.descendants(matching: .any)["auth.qr-code"]
+    XCTAssertTrue(qrCode.waitForExistence(timeout: 10), "the QR never joined the code")
     attach("runtime-tv-sign-in-code")
     XCTAssertTrue(app.staticTexts["put.io/link"].exists)
     XCTAssertTrue(app.staticTexts["auth.awaiting-approval"].exists)

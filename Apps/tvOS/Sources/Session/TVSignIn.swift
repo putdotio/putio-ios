@@ -1,12 +1,13 @@
 import PutioCore
 import SwiftUI
+import UIKit
 
 /// What the code screen shows, derived from the session store so the view
 /// owns no flow state of its own.
 enum TVSignInPhase: Equatable {
   case fetchingCode
-  case awaitingApproval(code: String)
-  case expired(code: String)
+  case awaitingApproval(PutioDeviceCode)
+  case expired(PutioDeviceCode)
   case failed(PutioSignedOutNotice)
 
   init(state: PutioSessionState, deviceCodeSignIn: PutioDeviceCodeSignInState?) {
@@ -21,8 +22,8 @@ enum TVSignInPhase: Equatable {
       }
     case .authenticating:
       switch deviceCodeSignIn {
-      case .awaitingApproval(let code): self = .awaitingApproval(code: code)
-      case .expired(let code): self = .expired(code: code)
+      case .awaitingApproval(let code): self = .awaitingApproval(code)
+      case .expired(let code): self = .expired(code)
       case .fetchingCode, nil: self = .fetchingCode
       }
     default:
@@ -102,7 +103,12 @@ struct TVSignInScreen: View {
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
       }
       .multilineTextAlignment(.center)
-      codeBlock
+      HStack(spacing: PutioTheme.TV.Spacing.large) {
+        if let qrCode = phase.deviceCode?.qrCode {
+          TVSignInQRCode(png: qrCode, isDimmed: phase.isExpired)
+        }
+        codeBlock
+      }
       status
     }
     .tvOverscanPadding()
@@ -113,11 +119,9 @@ struct TVSignInScreen: View {
     Group {
       switch phase {
       case .awaitingApproval(let code):
-        codeText(code, color: PutioTheme.TV.Colors.textPrimary)
+        codeText(code.code, color: PutioTheme.TV.Colors.textPrimary)
       case .expired(let code):
-        codeText(code, color: PutioTheme.TV.Colors.textTertiary)
-          .accessibilityIdentifier("auth.device-code")
-          .accessibilityValue(code)
+        codeText(code.code, color: PutioTheme.TV.Colors.textTertiary)
       case .fetchingCode, .failed:
         codeText("·····", color: PutioTheme.TV.Colors.textTertiary)
       }
@@ -145,7 +149,13 @@ struct TVSignInScreen: View {
     case .fetchingCode:
       TVSignInStatus(text: "Getting a code…", identifier: "auth.fetching-code")
     case .awaitingApproval:
-      TVSignInStatus(text: "Waiting for approval…", identifier: "auth.awaiting-approval")
+      VStack(spacing: PutioTheme.TV.Spacing.small) {
+        TVSignInStatus(text: "Waiting for approval…", identifier: "auth.awaiting-approval")
+        PutioButton("Get new code", tier: .secondary) {
+          requestCode()
+        }
+        .accessibilityIdentifier("auth.new-code")
+      }
     case .expired:
       VStack(spacing: PutioTheme.TV.Spacing.small) {
         Text("This code expired.")
@@ -188,6 +198,49 @@ struct TVSignInScreen: View {
       }
     }
   }
+}
+
+extension TVSignInPhase {
+  var deviceCode: PutioDeviceCode? {
+    switch self {
+    case .awaitingApproval(let code), .expired(let code): code
+    case .fetchingCode, .failed: nil
+    }
+  }
+
+  var isExpired: Bool {
+    if case .expired = self { return true }
+    return false
+  }
+}
+
+/// put.io's QR image for the code on screen, scaled without smoothing so its
+/// modules stay sharp. An image that does not decode shows nothing.
+struct TVSignInQRCode: View {
+  let png: Data
+  var isDimmed = false
+
+  var body: some View {
+    if let image = UIImage(data: png) {
+      Image(uiImage: image)
+        .interpolation(.none)
+        .resizable()
+        .scaledToFit()
+        .padding(TVSignInLayout.qrSize * TVSignInLayout.qrPaddingRatio)
+        .frame(width: TVSignInLayout.qrSize, height: TVSignInLayout.qrSize)
+        .background(.white, in: RoundedRectangle(cornerRadius: PutioTheme.TV.radius))
+        .opacity(isDimmed ? TVSignInLayout.dimmedOpacity : 1)
+        .accessibilityElement()
+        .accessibilityLabel("QR code to sign in on your phone")
+        .accessibilityIdentifier("auth.qr-code")
+    }
+  }
+}
+
+enum TVSignInLayout {
+  static let qrSize: CGFloat = 300
+  static let qrPaddingRatio: CGFloat = 0.06
+  static let dimmedOpacity = 0.3
 }
 
 private struct TVSignInStatus: View {
