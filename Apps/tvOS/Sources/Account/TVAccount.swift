@@ -449,7 +449,7 @@ struct TVAccountScreen: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
         if let message = status.message {
           Text(message)
-            .putioFont(PutioTheme.TV.Typography.caption)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .accessibilityIdentifier("account.settings-failure")
         }
@@ -517,7 +517,7 @@ struct TVAccountScreen: View {
         confirmation = .signOut
       } label: {
         Text(row.title)
-          .putioFont(PutioTheme.TV.Typography.body)
+          .putioFont(PutioTVTypeScale.rowTitle)
           .foregroundStyle(PutioTheme.Colors.destructive)
           .tvRowPadding()
       }
@@ -636,12 +636,6 @@ enum TVAccountLayout {
   static let rowIconSize: CGFloat = 32
   static let qrSize: CGFloat = 220
   static let accountURL = URL(string: "https://app.put.io/account")!
-  static let nameFont = PutioFontRole(
-    fontName: "GTAmerica-Md", size: 36, lineHeight: 1.25, textStyle: .headline)
-  static let panelTitleFont = PutioFontRole(
-    fontName: "GTAmerica-Md", size: 40, lineHeight: 1.2, textStyle: .headline)
-  static let highlightFont = PutioFontRole(
-    fontName: "GTAmerica-Md", size: 40, lineHeight: 1.2, textStyle: .headline)
 }
 
 /// The account's avatar, name, email, and storage meter, with a warning once
@@ -655,17 +649,17 @@ struct TVAccountProfile: View {
       TVAvatar(url: account.avatarURL, username: account.username)
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(account.username)
-          .putioFont(TVAccountLayout.nameFont)
+          .putioFont(PutioTVTypeScale.panelTitle)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
           .accessibilityIdentifier("account.username")
         HStack(alignment: .firstTextBaseline) {
           Text(account.email)
-            .putioFont(PutioTheme.TV.Typography.small)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .lineLimit(1)
           Spacer(minLength: PutioTheme.TV.Spacing.small)
           Text(account.storage.usageSummary(locale: locale))
-            .putioFont(PutioTabularFontRole(base: PutioTheme.TV.Typography.small))
+            .putioFont(PutioTVTypeScale.numeric)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .accessibilityIdentifier("account.storage")
         }
@@ -682,7 +676,7 @@ struct TVAccountProfile: View {
               .scaledToFit()
               .frame(width: TVAccountLayout.rowIconSize, height: TVAccountLayout.rowIconSize)
           }
-          .putioFont(PutioTheme.TV.Typography.small)
+          .putioFont(PutioTVTypeScale.caption)
           .foregroundStyle(PutioTheme.Colors.destructive)
           .accessibilityIdentifier("account.storage-warning")
         }
@@ -731,16 +725,16 @@ struct TVAccountRowLabel: View {
         .foregroundStyle(.putioRowSecondary)
         .accessibilityHidden(true)
       Text(row.title)
-        .putioFont(PutioTheme.TV.Typography.body)
+        .putioFont(PutioTVTypeScale.rowTitle)
         .foregroundStyle(.putioRowPrimary)
         .lineLimit(1)
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if let value {
         Group {
           if valueIsNumeric {
-            Text(value).putioFont(PutioTabularFontRole(base: PutioTheme.TV.Typography.body))
+            Text(value).putioFont(PutioTVTypeScale.numeric)
           } else {
-            Text(value).putioFont(PutioTheme.TV.Typography.body)
+            Text(value).putioFont(PutioTVTypeScale.rowTitle)
           }
         }
         .foregroundStyle(.putioRowSecondary)
@@ -833,19 +827,19 @@ struct TVAccountPanel: View {
         .frame(width: TVAccountLayout.panelIconTile, height: TVAccountLayout.panelIconTile)
         .accessibilityHidden(true)
         Text(content.title ?? content.row.title)
-          .putioFont(TVAccountLayout.panelTitleFont)
+          .putioFont(PutioTVTypeScale.panelTitle)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
           .accessibilityIdentifier("account.panel.\(content.row.identifier)")
       }
       if let description = content.description {
         Text(description)
-          .putioFont(PutioTheme.TV.Typography.caption)
+          .putioFont(PutioTVTypeScale.body)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
       if let highlight = content.highlight {
         Text(highlight)
-          .putioFont(PutioTabularFontRole(base: TVAccountLayout.highlightFont))
+          .putioFont(PutioTabularFontRole(base: PutioTVTypeScale.emptyTitle))
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
       }
       if !content.fields.isEmpty {
@@ -853,11 +847,12 @@ struct TVAccountPanel: View {
           ForEach(content.fields, id: \.id) { field in
             GridRow {
               Text(field.title)
+                .putioFont(PutioTVTypeScale.caption)
                 .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
               Text(field.value)
+                .putioFont(PutioTVTypeScale.numeric)
                 .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
             }
-            .putioFont(PutioTheme.TV.Typography.small)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("account.app-info.\(field.id)")
           }
@@ -866,7 +861,7 @@ struct TVAccountPanel: View {
       if let qr = content.qr {
         if let caption = qr.caption {
           Text(caption)
-            .putioFont(PutioTheme.TV.Typography.small)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         }
         PutioQRCodeView(qr.text, size: TVAccountLayout.qrSize)
@@ -896,17 +891,17 @@ struct TVValueRow: View {
     HStack(spacing: PutioTheme.TV.Spacing.small) {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(title)
-          .putioFont(TVValueRow.titleFont)
+          .putioFont(PutioTVTypeScale.rowTitle)
           .foregroundStyle(.putioRowPrimary)
         if let caption {
           Text(caption)
-            .putioFont(PutioTheme.TV.Typography.caption)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(.putioRowSecondary)
         }
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       Text(value)
-        .putioFont(PutioTheme.TV.Typography.body)
+        .putioFont(PutioTVTypeScale.rowTitle)
         .foregroundStyle(.putioRowSecondary)
         .lineLimit(1)
         .truncationMode(.middle)
@@ -915,13 +910,6 @@ struct TVValueRow: View {
     .tvRowPadding()
   }
 
-  /// The kit's form-row title face, so every settings title reads alike.
-  static let titleFont = PutioFontRole(
-    fontName: PutioTheme.Components.Button.label.fontName,
-    size: PutioTheme.TV.Typography.body.size,
-    lineHeight: PutioTheme.TV.Typography.body.lineHeight,
-    textStyle: PutioTheme.TV.Typography.body.textStyle
-  )
 }
 
 /// The account avatar, or the username's initial while it loads or when the
@@ -947,7 +935,7 @@ struct TVAvatar: View {
     ZStack {
       PutioTheme.Colors.surfaceActive
       Text(username.first.map { String($0).uppercased() } ?? "")
-        .putioFont(TVAccountLayout.nameFont)
+        .putioFont(PutioTVTypeScale.panelTitle)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
     }
   }

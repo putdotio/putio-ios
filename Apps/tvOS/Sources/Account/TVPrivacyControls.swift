@@ -42,10 +42,10 @@ struct TVPrivacyControlsScreen: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
         VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
           Text(TVAccountSection.account.title)
-            .putioFont(PutioTheme.TV.Typography.small)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           Text(PutioPrivacyControls.title)
-            .putioFont(PutioTheme.TV.Typography.heading)
+            .putioFont(PutioTVTypeScale.title)
             .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
             .accessibilityAddTraits(.isHeader)
         }
@@ -65,7 +65,7 @@ struct TVPrivacyControlsScreen: View {
             PutioPrivacyControls.productAnalytics, isOn: account.productAnalyticsEnabled,
             identifier: "privacy.product-analytics", save: { .productAnalytics($0) })
           Text(PutioPrivacyControls.groupFooter)
-            .putioFont(PutioTheme.TV.Typography.caption)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .padding(.horizontal, PutioTheme.TV.Spacing.medium)
             .fixedSize(horizontal: false, vertical: true)
@@ -105,16 +105,16 @@ private struct TVPrivacyRow: View {
     HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.medium) {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(control.title)
-          .putioFont(TVValueRow.titleFont)
+          .putioFont(PutioTVTypeScale.rowTitle)
           .foregroundStyle(.putioRowPrimary)
         Text(control.description)
-          .putioFont(PutioTheme.TV.Typography.caption)
+          .putioFont(PutioTVTypeScale.caption)
           .foregroundStyle(.putioRowSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       Text(value)
-        .putioFont(PutioTheme.TV.Typography.body)
+        .putioFont(PutioTVTypeScale.rowTitle)
         .foregroundStyle(.putioRowSecondary)
     }
   }
@@ -149,7 +149,7 @@ struct TVLicensesView: View {
           .padding(.horizontal, PutioTheme.TV.Spacing.medium)
         TVRowList {
           Text(PutioLicenseManifest.summary)
-            .putioFont(PutioTheme.TV.Typography.caption)
+            .putioFont(PutioTVTypeScale.caption)
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .padding(.horizontal, PutioTheme.TV.Spacing.medium)
             .fixedSize(horizontal: false, vertical: true)
