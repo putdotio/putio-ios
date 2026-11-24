@@ -214,11 +214,11 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
       _ = waitUntil(timeout: 5) { !(settingsRetry.exists && settingsRetry.isEnabled) }
     }
     XCTAssertEqual(retries, 2)
+    XCTAssertTrue(focus("account.proxy"))
     let proxy = element("account.proxy")
     XCTAssertTrue(
-      waitUntil(timeout: 10) {
-        proxy.label.contains("edge") || (proxy.value as? String)?.contains("edge") == true
-      })
+      waitUntil(timeout: 10) { proxy.exists && (proxy.value as? String) == "edge" },
+      "the account never confirmed the new route")
 
     let subtitles = element("account.show-subtitles")
     XCTAssertTrue(focus("account.show-subtitles"))
