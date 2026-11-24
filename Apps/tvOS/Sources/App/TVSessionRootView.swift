@@ -14,7 +14,7 @@ struct TVSessionRootView: View {
     Group {
       switch runtime.session.state {
       case .unknown:
-        PutioLoadingStateView()
+        TVSessionCheckingView()
       case .signedOut, .authenticating:
         TVSignInView(session: runtime.session)
       case .signingOut:

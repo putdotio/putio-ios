@@ -72,7 +72,6 @@ export const unlocalizedTVOSFiles: { file: string; epic: string }[] = [
   { file: "Apps/tvOS/Sources/Files/TVSearch.swift", epic: "#1304" },
   { file: "Apps/tvOS/Sources/History/TVHistory.swift", epic: "#1308" },
   { file: "Apps/tvOS/Sources/Playback/TVPlayback.swift", epic: "#1297" },
-  { file: "Apps/tvOS/Sources/Session/TVSignIn.swift", epic: "#1311" },
   { file: "Apps/tvOS/Sources/Trash/TVTrash.swift", epic: "#1308" },
 ];
 
@@ -92,7 +91,7 @@ export const exemptLiterals: { file: string; text: string; reason: string }[] = 
 export const androidSnapshotPath = "Config/AndroidStrings.json";
 
 const androidStringFile =
-  /^(?:mobile|core\/[^/]+|domain\/[^/]+)\/src\/main\/res\/values\/strings[^/]*\.xml$/;
+  /^(?:mobile|tv|core\/[^/]+|domain\/[^/]+)\/src\/main\/res\/values\/strings[^/]*\.xml$/;
 
 const recordPattern = /^(?:android: ([a-z0-9_]+)(?: \| differs: (\S.*))?|ios-only: (\S.*))$/;
 

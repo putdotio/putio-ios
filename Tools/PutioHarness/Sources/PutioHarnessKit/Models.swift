@@ -1185,6 +1185,12 @@ enum DeviceSignInJourneyContract {
     "PutioTVUITests/DeviceSignInJourneyTests/testCodeExpiryApprovalRelaunchAndSignOut"
   static let attachmentNames = [
     "runtime-tv-sign-in-code", "runtime-tv-sign-in-expired", "runtime-tv-account",
+    "runtime-tv-sign-in-offline",
+  ]
+  static let sessionRecoveryTestIdentifier =
+    "PutioTVUITests/DeviceSignInJourneyTests/testOfflineLaunchRestoresOnItsOwnAndAnExpiredSessionAsksToSignIn"
+  static let sessionRecoveryAttachmentNames = [
+    "runtime-tv-session-checking", "runtime-tv-session-offline", "runtime-tv-session-expired",
   ]
 }
 

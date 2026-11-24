@@ -1,6 +1,7 @@
 #if canImport(CoreImage)
   import CoreImage
   import CoreImage.CIFilterBuiltins
+  import ImageIO
   import SwiftUI
 
   public enum PutioQRCode {
@@ -17,17 +18,25 @@
   }
 
   public struct PutioQRCodeView: View {
-    private let text: String
+    private let image: CGImage?
     private let size: CGFloat
 
     public init(_ text: String, size: CGFloat = 300) {
-      self.text = text
+      self.image = PutioQRCode.image(for: text)
+      self.size = size
+    }
+
+    /// Shows a QR image put.io rendered, such as the device-code sign-in QR.
+    public init(png: Data, size: CGFloat = 300) {
+      self.image = CGImageSourceCreateWithData(png as CFData, nil).flatMap {
+        CGImageSourceCreateImageAtIndex($0, 0, nil)
+      }
       self.size = size
     }
 
     public var body: some View {
       Group {
-        if let image = PutioQRCode.image(for: text) {
+        if let image {
           Image(decorative: image, scale: 1)
             .interpolation(.none)
             .resizable()
