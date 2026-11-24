@@ -47,10 +47,10 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
   /// never offers it still fails instead of looping.
   private func focus(_ element: XCUIElement, moving direction: XCUIRemote.Button) -> Bool {
     for _ in 0..<24 {
-      if waitUntil(timeout: 1, { element.hasFocus }) { return true }
+      if waitUntil(timeout: 1, { element.exists && element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }
-    return waitUntil(timeout: 2) { element.hasFocus }
+    return waitUntil(timeout: 2) { element.exists && element.hasFocus }
   }
 
   /// Steers the remote to an alert button by frame and selects it; only the
