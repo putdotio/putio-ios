@@ -110,6 +110,7 @@ struct TVSignedInShell: View {
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
+  @State private var historyActivations = 0
 
   var body: some View {
     TabView(selection: $navigation.selection) {
@@ -143,6 +144,7 @@ struct TVSignedInShell: View {
     }
     .onChange(of: navigation.selection) { _, tab in
       if tab == .home { Task { await runtime.refreshAccount() } }
+      if tab == .history { historyActivations &+= 1 }
     }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { Task { await runtime.refreshAccount() } }
@@ -177,6 +179,7 @@ struct TVSignedInShell: View {
         open: { open($0, in: tab) })
     case .history:
       TVHistoryView(runtime: runtime, open: { open($0, in: tab) })
+        .environment(\.tvHistoryActivations, historyActivations)
     case .account:
       TVAccountView(runtime: runtime)
     }
@@ -201,7 +204,8 @@ struct TVSignedInShell: View {
       if case .video(let video) = PutioFileRoute(item: item).openAction {
         TVVideoSession(
           route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
-          refreshRequests: folderRefreshRequests)
+          refreshRequests: folderRefreshRequests
+        )
         .toolbar(.hidden, for: .tabBar)
       } else {
         TVFileScreen(item: item)
@@ -247,4 +251,8 @@ extension TVRoute {
     case .file(let item): "file.\(item.id.rawValue)"
     }
   }
+}
+
+extension EnvironmentValues {
+  @Entry var tvHistoryActivations = 0
 }

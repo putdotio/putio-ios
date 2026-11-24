@@ -55,6 +55,7 @@ struct TVHistoryView: View {
   let open: (PutioFileItem) -> Void
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.tvHistoryActivations) private var activations
   @State private var model: PutioHistoryModel
   @State private var groupingDate: Date
   @State private var confirmsClear = false
@@ -98,6 +99,10 @@ struct TVHistoryView: View {
       Text("Every event will be removed from your history. Your files will stay in place.")
     }
     .task { await model.loadIfNeeded() }
+    .onChange(of: activations) {
+      guard case .loaded = model.state else { return }
+      Task { await model.refresh() }
+    }
     .onDisappear { model.cancelOpen() }
     .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
       groupingDate = .now
