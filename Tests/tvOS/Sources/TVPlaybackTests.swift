@@ -103,6 +103,8 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
   }
 
+  /// The latest start the resume prompt offers sits just short of the
+  /// watched mark, 95% of the 590-second fixture.
   func testPlayingToTheEndKeepsTheEndPosition() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
@@ -110,12 +112,12 @@ final class TVPlaybackTests: XCTestCase {
     let pipeline = PutioPlaybackPositionPipeline()
     var ended = false
     let (coordinator, controller, _) = try await startPlayer(
-      base: base, startSeconds: 586, remembersPosition: true, pipeline: pipeline,
+      base: base, startSeconds: 560, remembersPosition: true, pipeline: pipeline,
       reported: reported, onEnded: { ended = true })
-    await waitUntil("ended") { ended }
+    await waitUntil("ended", timeout: .seconds(60)) { ended }
     coordinator.stop(controller: controller)
     await pipeline.waitForPendingReports(fileID: Self.fileID)
-    XCTAssertGreaterThanOrEqual(reported.reports.last?.1 ?? 0, 586, "the end reset the position")
+    XCTAssertGreaterThanOrEqual(reported.reports.last?.1 ?? 0, 589, "the end reset the position")
   }
 
   /// Start from the beginning plays from zero and reports the position it
@@ -189,15 +191,17 @@ final class TVPlaybackTests: XCTestCase {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
     // Stands in for a Turkish system language, in place before the item loads.
-    let coordinator = TVVideoPlayerCoordinator(speedStore: speedStore(), makePlayer: { item in
-      let player = AVPlayer()
-      player.setMediaSelectionCriteria(
-        AVPlayerMediaSelectionCriteria(
-          preferredLanguages: ["tr"], preferredMediaCharacteristics: nil),
-        forMediaCharacteristic: .audible)
-      player.replaceCurrentItem(with: item)
-      return player
-    })
+    let coordinator = TVVideoPlayerCoordinator(
+      speedStore: speedStore(),
+      makePlayer: { item in
+        let player = AVPlayer()
+        player.setMediaSelectionCriteria(
+          AVPlayerMediaSelectionCriteria(
+            preferredLanguages: ["tr"], preferredMediaCharacteristics: nil),
+          forMediaCharacteristic: .audible)
+        player.replaceCurrentItem(with: item)
+        return player
+      })
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     // Automatic selection only picks renditions marked AUTOSELECT.
@@ -235,6 +239,8 @@ final class TVPlaybackTests: XCTestCase {
         onEnded: { ended = true }, onFailure: { _ in XCTFail("playback failed") })
       await waitUntil("subtitle load started") { gate.entered }
       XCTAssertFalse(controller.showsPlaybackControls, "controls before the subtitle default")
+      // A position the server already holds is not sent again.
+      await waitUntil("playing") { CMTimeGetSeconds(item.currentTime()) >= 1 }
 
       if leaves {
         coordinator.stop(controller: controller)
@@ -281,6 +287,8 @@ final class TVPlaybackTests: XCTestCase {
       onReportsSettled: { requests.request(folderID: route.parentID) },
       onFailure: { _ in XCTFail("playback failed") })
     await waitUntil("player ready") { probes.isReady }
+    let player = try XCTUnwrap(coordinator.player)
+    await waitUntil("playing") { CMTimeGetSeconds(player.currentTime()) >= 1 }
 
     coordinator.stop(controller: controller)
     await waitUntil("final report sent") { gate.entered }
