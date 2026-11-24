@@ -7,8 +7,7 @@ struct TrashManagementView: View {
   @State private var pendingDeletion: PutioTrashItem?
   @State private var confirmAlert: PutioConfirmAlert?
   @State private var toast: PutioToast?
-  @State private var stillMovingMessage = ""
-  @State private var stillMovingAlertPresented = false
+  @State private var stillMoving: (title: String, message: String)?
   @State private var selection = PutioSelection<PutioFileID>()
   @Environment(\.locale) private var locale
   @Environment(\.calendar) private var calendar
@@ -74,9 +73,10 @@ struct TrashManagementView: View {
       if id == nil { pendingDeletion = nil }
     }
     .putioAlert(
-      String(localized: "Restore could not start"),
-      isPresented: $stillMovingAlertPresented,
-      message: stillMovingMessage,
+      stillMoving?.title ?? "",
+      isPresented: Binding(
+        get: { stillMoving != nil }, set: { if !$0 { stillMoving = nil } }),
+      message: stillMoving?.message ?? "",
       actions: [
         PutioAlertAction(String(localized: "OK"), tier: .neutral, id: "trash.still-moving.ok")
       ]
@@ -496,58 +496,33 @@ struct TrashManagementView: View {
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
-    Self.rowModel(for: item, locale: locale, calendar: calendar)
-  }
-
-  static func rowModel(
-    for item: PutioTrashItem, relativeTo now: Date = .now, locale: Locale = .current,
-    calendar: Calendar = .current
-  ) -> PutioFileRowModel {
-    PutioFileRowModel(
-      name: item.name,
-      kind: PutioBrowserItemPresentation.rowKind(for: item.kind),
-      sizeText: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale),
-      dateText: PutioTrashExpiry.text(until: item.expiresAt, from: now, calendar: calendar),
-      showsDisclosure: false
-    )
+    item.rowModel(locale: locale, calendar: calendar)
   }
 
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }
     switch outcome {
-    case .restored:
-      toast = PutioToast(String(localized: "Restore started"))
-    case .permanentlyDeleted(let item, _):
-      toast = PutioToast(String(localized: "“\(item.name)” is no longer in trash."))
-    case .restoredItems:
-      toast = PutioToast(String(localized: "Restore started"))
-    case .permanentlyDeletedItems(let items, _):
+    case .permanentlyDeletedItems:
       selection.end()
-      toast = PutioToast(String(localized: "\(items.count) items are no longer in trash."))
-    case .restoredAll:
-      toast = PutioToast(String(localized: "Restore started"))
-    case .emptied:
-      toast = PutioToast(String(localized: "Trash is empty."))
-    case .failed(_, let failure) where failure.isStillMovingToTrash:
-      stillMovingMessage = failure.message
-      stillMovingAlertPresented = true
-    case .failed(.restoreItems(let items), _):
-      toast = PutioToast(
-        String(localized: "Couldn’t restore \(items.count) items from trash"),
-        action: PutioToast.Action(String(localized: "Try again")) { [model] in
-          Self.restore(items, in: model)
-        })
     case .failed(.permanentlyDeleteItems(let items), _):
       selection = PutioSelection(
         isActive: true, selectedIDs: Set(Self.listed(items, in: model).map(\.id)))
+    default:
+      break
+    }
+    switch outcome.notice {
+    case .done(let text):
+      toast = PutioToast(text)
+    case .failed(let text):
+      toast = PutioToast(text, icon: .warning, width: .fit)
+    case .restoreFailed(let text, let items):
       toast = PutioToast(
-        String(localized: "The request could not start"), icon: .warning, width: .fit)
-    case .failed(.permanentlyDelete, _), .failed(.empty, _):
-      toast = PutioToast(
-        String(localized: "The request could not start"), icon: .warning, width: .fit)
-    case .failed(.restore, _), .failed(.restoreAll, _):
-      toast = PutioToast(
-        String(localized: "Restore could not start"), icon: .warning, width: .fit)
+        text,
+        action: PutioToast.Action(String(localized: "Try again")) { [model] in
+          Self.restore(items, in: model)
+        })
+    case .stillMoving(let title, let message):
+      stillMoving = (title, message)
     }
     model.clearMutationOutcome()
   }
