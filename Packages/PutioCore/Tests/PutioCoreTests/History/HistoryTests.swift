@@ -551,6 +551,28 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(lookups, [10, 4, 10, 4])
   }
 
+  func testGoToFolderOpensFilesRootWithoutLookingUpFileZero() async {
+    let file = PutioFileItem(
+      id: PutioFileID(rawValue: 10), parentID: .root, name: "File", kind: .video, sizeBytes: 0,
+      createdAt: .now, updatedAt: .now, resumePositionSeconds: 0)
+    var lookups: [Int] = []
+    let model = model(
+      list: { _ in Self.page([]) },
+      file: { id in
+        lookups.append(id.rawValue)
+        guard id.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+        return file
+      })
+    let event = PutioHistoryEventItem(
+      id: 31, createdAt: .now,
+      kind: .upload(name: "File", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    await model.openFolder(event: event)
+    XCTAssertNil(model.openFailure)
+    XCTAssertEqual(model.openedFile?.id, PutioFileID.root)
+    XCTAssertEqual(model.openedFile?.kind, PutioFileKind.folder)
+    XCTAssertEqual(lookups, [10])
+  }
+
   func testLoadedEventsRegroupWhenCalendarDayAdvances() async throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
