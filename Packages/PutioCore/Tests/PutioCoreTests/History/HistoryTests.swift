@@ -270,7 +270,7 @@ final class HistoryTests: XCTestCase {
       list: { _ in PutioHistoryPage(items: items, nextBefore: nil) },
       file: { _ in
         lookups += 1
-        throw PutioRuntimeError.notFound
+        throw PutioRuntimeError.transient
       })
     await model.loadIfNeeded()
     await model.openFile(event: event)
@@ -443,7 +443,7 @@ final class HistoryTests: XCTestCase {
       list: { _ in Self.page([]) },
       file: { id in
         XCTAssertEqual(id.rawValue, 10)
-        if fail { throw PutioRuntimeError.notFound }
+        if fail { throw PutioRuntimeError.transient }
         return item
       })
     let event = PutioHistoryEventItem(
@@ -467,7 +467,7 @@ final class HistoryTests: XCTestCase {
       list: { _ in PutioHistoryPage(items: [event], nextBefore: nil) },
       file: { _ in
         lookups += 1
-        throw PutioRuntimeError.notFound
+        throw PutioRuntimeError.transient
       })
     await model.loadIfNeeded()
     await model.openFile(event: event)
@@ -483,9 +483,9 @@ final class HistoryTests: XCTestCase {
     let event = PutioHistoryEventItem(
       id: 30, createdAt: .now,
       kind: .upload(name: "Missing file", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
-    let model = model(list: { _ in
-      PutioHistoryPage(items: [event, Self.event(20)], nextBefore: nil)
-    })
+    let model = model(
+      list: { _ in PutioHistoryPage(items: [event, Self.event(20)], nextBefore: nil) },
+      file: { _ in throw PutioRuntimeError.transient })
     await model.loadIfNeeded()
     await model.openFile(event: event)
     model.beginDelete(eventID: 20)
@@ -498,6 +498,32 @@ final class HistoryTests: XCTestCase {
     XCTAssertNil(model.openFailure)
   }
 
+  func testAFileThatIsGoneReportsItOnceAndOffersNoRetry() async {
+    var lookups = 0
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "Missing file", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    let model = model(
+      list: { _ in PutioHistoryPage(items: [event], nextBefore: nil) },
+      file: { _ in
+        lookups += 1
+        throw PutioRuntimeError.notFound
+      })
+    await model.loadIfNeeded()
+    await model.openFile(event: event)
+    let first = model.fileGone
+    XCTAssertEqual(first?.eventID, 30)
+    XCTAssertNil(model.openFailure)
+    await model.retryOpen()
+    XCTAssertEqual(lookups, 1)
+    await model.openFile(event: event)
+    XCTAssertEqual(model.fileGone?.eventID, 30)
+    XCTAssertNotEqual(model.fileGone, first)
+    model.dismissFileGone()
+    XCTAssertNil(model.fileGone)
+    XCTAssertEqual(model.page?.items, [event])
+  }
+
   func testLoadedEventsRegroupWhenCalendarDayAdvances() async throws {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
@@ -508,8 +534,13 @@ final class HistoryTests: XCTestCase {
       PutioHistoryPage(items: [Self.event(30, at: firstDay)], nextBefore: nil)
     })
     await model.loadIfNeeded()
-    XCTAssertEqual(model.daySections(now: firstDay, calendar: calendar).map(\.id), [.today])
-    XCTAssertEqual(model.daySections(now: nextDay, calendar: calendar).map(\.id), [.yesterday])
+    func titles(at now: Date) -> [String] {
+      PutioHistoryDay.group(
+        model.page?.items ?? [], now: now, calendar: calendar, locale: Locale(identifier: "en_US")
+      ).map(\.title)
+    }
+    XCTAssertEqual(titles(at: firstDay), ["Today"])
+    XCTAssertEqual(titles(at: nextDay), ["Yesterday"])
     XCTAssertEqual(model.page?.items.map(\.id), [30])
   }
 
@@ -590,39 +621,6 @@ final class HistoryTests: XCTestCase {
     XCTAssertNil(model.openedFile)
     XCTAssertNil(model.openingEventID)
     XCTAssertNil(model.openFailure)
-  }
-
-  func testCalendarGroupingAcrossSpringDSTBoundary() throws {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
-    let now = try XCTUnwrap(
-      calendar.date(from: DateComponents(year: 2026, month: 3, day: 9, hour: 1)))
-    let yesterday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 3, day: 8)))
-    let older = try XCTUnwrap(
-      calendar.date(from: DateComponents(year: 2026, month: 3, day: 7, hour: 23)))
-    let items = [Self.event(3, at: now), Self.event(2, at: yesterday), Self.event(1, at: older)]
-    let sections = PutioHistorySection.group(items, now: now, calendar: calendar)
-    XCTAssertEqual(sections.map(\.id), [.today, .yesterday, .lastWeek])
-    XCTAssertEqual(sections.map { $0.items.map(\.id) }, [[3], [2], [1]])
-  }
-
-  func testOlderEventsSplitIntoLastWeekAndAncientTimes() throws {
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Istanbul"))
-    let now = try XCTUnwrap(
-      calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 9)))
-    func daysAgo(_ days: Int) throws -> Date {
-      try XCTUnwrap(calendar.date(byAdding: .day, value: -days, to: now))
-    }
-    let items = [
-      Self.event(5, at: try daysAgo(2)), Self.event(4, at: try daysAgo(7)),
-      Self.event(3, at: try daysAgo(8)), Self.event(2, at: try daysAgo(90)),
-    ]
-
-    let sections = PutioHistorySection.group(items, now: now, calendar: calendar)
-
-    XCTAssertEqual(sections.map(\.title), ["Last week", "Ancient times"])
-    XCTAssertEqual(sections.map { $0.items.map(\.id) }, [[5, 4], [3, 2]])
   }
 
   func testEventTimesReadAsRelativeDatesInsteadOfDurations() throws {

@@ -11,9 +11,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     app = XCUIApplication()
   }
 
-  /// History recovers its continuation, a missing file, and a failed clear;
-  /// clearing it turns History off on the fixture account, and Home drops it
-  /// on the next account load. Trash recovers a failed listing and a failed
+  /// History recovers its continuation and a failed clear, and reports a
+  /// missing file; clearing it turns History off on the fixture account, and
+  /// Home drops it on the next account load. Trash recovers a failed listing and a failed
   /// delete, then restores everything left across both pages.
   func testHistoryAndTrashModalsEmptyStatesAndRecovery() {
     app.launchArguments = [
@@ -33,28 +33,22 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(moreRetry.waitForExistence(timeout: 15))
     XCTAssertTrue(element("history.item.809").exists)
     XCTAssertTrue(element("history.item.808").exists)
-    XCTAssertFalse(element("history.item.810").exists, "uploads are not TV events")
+    XCTAssertTrue(element("history.item.810").exists, "TV lists every event, as iOS does")
     attach("runtime-tv-history-recovery")
     XCTAssertTrue(focus("history.more-retry"))
     remote.press(.select)
-    // The retried page holds only events TV hides, so the end of the list
-    // shows as neither a retry nor a loading row, and the first page stays.
     let loadMore = element("history.load-more")
+    XCTAssertTrue(element("history.item.806").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists && !loadMore.exists })
-    pause(1)
-    XCTAssertFalse(moreRetry.exists, "the retried page failed again")
-    XCTAssertFalse(loadMore.exists, "the list never reached its end")
+    XCTAssertTrue(element("history.item.801").exists, "the last page never arrived")
     XCTAssertTrue(element("history.item.809").exists)
 
-    // A shared file that no longer exists offers a retry and a dismissal.
+    // A shared file that no longer exists says so once and offers no retry.
     XCTAssertTrue(focus("history.item.808"))
     remote.press(.select)
-    let openRetry = element("history.open-retry")
-    XCTAssertTrue(openRetry.waitForExistence(timeout: 10))
-    attach("runtime-tv-history-open-failure")
-    XCTAssertTrue(focus("history.open-retry.dismiss"))
-    remote.press(.select)
-    XCTAssertTrue(waitUntil(timeout: 5) { !openRetry.exists })
+    XCTAssertTrue(label(containing: "File not found").waitForExistence(timeout: 10))
+    attach("runtime-tv-history-file-gone")
+    XCTAssertFalse(element("history.open-retry").exists, "a missing file can't be retried")
 
     XCTAssertTrue(focus("history.item.809"))
     remote.press(.select)

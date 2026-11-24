@@ -1,56 +1,6 @@
 import PutioCore
 import SwiftUI
 
-/// The shipped TV app lists only the events that lead to a file you can
-/// watch: completed transfers and shares.
-enum TVHistoryPresentation {
-  static func isShown(_ event: PutioHistoryEventItem) -> Bool {
-    switch event.kind {
-    case .transferCompleted, .fileShared: true
-    default: false
-    }
-  }
-
-  static func sections(
-    _ page: PutioHistoryPage, now: Date, calendar: Calendar = .current
-  ) -> [PutioHistorySection] {
-    PutioHistorySection.group(page.items.filter(isShown), now: now, calendar: calendar)
-  }
-
-  /// Nothing to show and nothing left to load. A page of hidden events with
-  /// a continuation is still loading, not empty.
-  static func isEmpty(_ page: PutioHistoryPage) -> Bool {
-    page.nextBefore == nil && !page.items.contains(where: isShown)
-  }
-
-  static func title(_ event: PutioHistoryEventItem) -> String {
-    switch event.kind {
-    case .transferCompleted(let name, _, _), .fileShared(let name, _, _): name
-    default: ""
-    }
-  }
-
-  static func detail(
-    _ event: PutioHistoryEventItem, now: Date, locale: Locale = .current
-  ) -> String {
-    let time = PutioBrowserItemPresentation.relativeDateText(
-      for: event.createdAt, relativeTo: now, locale: locale)
-    switch event.kind {
-    case .fileShared(_, let user, _):
-      return "\(time) · Shared by \(user)"
-    case .transferCompleted(_, let size, _):
-      return "\(time) · \(PutioFileRowModel.sizeText(bytes: size, locale: locale))"
-    default:
-      return time
-    }
-  }
-
-  static func icon(_ event: PutioHistoryEventItem) -> PutioIcon {
-    if case .fileShared = event.kind { return .userCircle }
-    return .checkCircle
-  }
-}
-
 struct TVHistoryView: View {
   let open: (PutioFileItem) -> Void
 
@@ -59,6 +9,7 @@ struct TVHistoryView: View {
   @State private var model: PutioHistoryModel
   @State private var groupingDate: Date
   @State private var confirmsClear = false
+  @State private var toast: PutioToast?
   private let locale: Locale
 
   init(runtime: PutioRuntime, open: @escaping (PutioFileItem) -> Void) {
@@ -110,6 +61,12 @@ struct TVHistoryView: View {
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { groupingDate = .now }
     }
+    .onChange(of: model.fileGone) { _, gone in
+      guard gone != nil else { return }
+      model.dismissFileGone()
+      toast = PutioToast("File not found", icon: .warning, width: .fit)
+    }
+    .putioToast($toast)
     .onChange(of: model.openedFile) { _, file in
       guard let file else { return }
       model.clearOpenedFile()
@@ -130,14 +87,11 @@ struct TVHistoryView: View {
         Task { await model.refresh() }
       }
     case .loaded(let page):
-      if TVHistoryPresentation.isEmpty(page), model.refreshFailure == nil,
+      if page.items.isEmpty, page.nextBefore == nil, model.refreshFailure == nil,
         model.mutationFailure == nil, model.openFailure == nil
       {
-        PutioEmptyStateView(
-          icon: .clockCounterClockwise, title: "No history",
-          message: "Completed transfers and files shared with you will appear here."
-        )
-        .accessibilityIdentifier("history.empty")
+        PutioEmptyStateView.history
+          .accessibilityIdentifier("history.empty")
       } else {
         list(page)
       }
@@ -168,9 +122,9 @@ struct TVHistoryView: View {
         ProgressView("Updating history")
           .accessibilityIdentifier("history.progress")
       }
-      ForEach(TVHistoryPresentation.sections(page, now: groupingDate)) { section in
-        TVSectionHeader(title: section.title)
-        ForEach(section.items) { event in
+      ForEach(PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)) { day in
+        TVSectionHeader(title: day.title)
+        ForEach(day.items) { event in
           eventRow(event)
         }
       }
@@ -198,8 +152,7 @@ struct TVHistoryView: View {
   @ViewBuilder
   private func eventRow(_ event: PutioHistoryEventItem) -> some View {
     let row = TVHistoryEventRow(
-      event: event, now: groupingDate, isOpening: model.openingEventID == event.id,
-      locale: locale)
+      event: event, isOpening: model.openingEventID == event.id, locale: locale)
     if let fileID = event.fileID, fileID.rawValue > 0 {
       Button {
         Task { await model.openFile(event: event) }
@@ -223,27 +176,37 @@ struct TVHistoryView: View {
 
 struct TVHistoryEventRow: View {
   let event: PutioHistoryEventItem
-  let now: Date
   var isOpening = false
   var locale: Locale = .current
 
   var body: some View {
+    let presentation = PutioHistoryEventPresentation(event)
     HStack(spacing: PutioTheme.TV.Spacing.small) {
-      Image(putioIcon: TVHistoryPresentation.icon(event))
+      Image(putioIcon: presentation.icon)
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
         .foregroundStyle(.putioRowIcon)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
-        Text(TVHistoryPresentation.title(event))
+        Text(presentation.name)
           .putioFont(PutioTheme.TV.Typography.body)
           .foregroundStyle(.putioRowPrimary)
           .lineLimit(1)
           .truncationMode(.middle)
-        Text(TVHistoryPresentation.detail(event, now: now, locale: locale))
-          .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(.putioRowSecondary)
+        HStack(spacing: PutioTheme.TV.Spacing.xs) {
+          Text(presentation.kind)
+            .foregroundStyle(
+              presentation.tone == .destructive
+                ? AnyShapeStyle(PutioTheme.Colors.destructiveText)
+                : AnyShapeStyle(.putioRowSecondary))
+          Text(verbatim: "·").accessibilityHidden(true)
+            .foregroundStyle(.putioRowSecondary)
+          Text(PutioHistoryEventPresentation.time(event.createdAt, locale: locale))
+            .foregroundStyle(.putioRowSecondary)
+        }
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .lineLimit(1)
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }

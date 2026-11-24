@@ -29,7 +29,7 @@ public struct PutioHistoryActions: Sendable {
 
 public struct PutioHistoryFailure: Equatable, Sendable {
   public let message: String
-  public let isNotFound: Bool
+  let isNotFound: Bool
   public let isOffline: Bool
 
   init?(error: Error) {
@@ -59,6 +59,11 @@ public struct PutioHistoryFailure: Equatable, Sendable {
   }
 }
 
+public struct PutioHistoryFileGone: Equatable, Sendable {
+  public let eventID: Int
+  let attempt: UInt64
+}
+
 @MainActor
 @Observable
 public final class PutioHistoryModel {
@@ -84,6 +89,7 @@ public final class PutioHistoryModel {
   public private(set) var openingEventID: Int?
   public private(set) var openedFile: PutioFileItem?
   public private(set) var openFailure: PutioHistoryFailure?
+  public private(set) var fileGone: PutioHistoryFileGone?
   public private(set) var deletingEventIDs: Set<Int> = []
   @ObservationIgnored private var deletedEventIDs: Set<Int> = []
   @ObservationIgnored private var clearCount: UInt64 = 0
@@ -261,6 +267,7 @@ public final class PutioHistoryModel {
     openingEventID = event.id
     openedFile = nil
     openFailure = nil
+    fileGone = nil
     defer { if request == openGeneration { openingEventID = nil } }
     do {
       try Task.checkCancellation()
@@ -270,14 +277,16 @@ public final class PutioHistoryModel {
       guard file.id == fileID else { throw PutioRuntimeError.invalidResponse }
       openedFile = file
     } catch {
-      guard request == openGeneration, !Task.isCancelled else { return }
-      openFailure = PutioHistoryFailure(error: error)
-      if openFailure != nil { failedOpen = event }
+      guard request == openGeneration, !Task.isCancelled,
+        let failure = PutioHistoryFailure(error: error)
+      else { return }
+      if failure.isNotFound {
+        fileGone = PutioHistoryFileGone(eventID: event.id, attempt: request)
+      } else {
+        openFailure = failure
+        failedOpen = event
+      }
     }
-  }
-
-  func daySections(now: Date = .now, calendar: Calendar = .current) -> [PutioHistorySection] {
-    PutioHistorySection.group(page?.items ?? [], now: now, calendar: calendar)
   }
 
   public func cancelOpen() {
@@ -285,6 +294,7 @@ public final class PutioHistoryModel {
     openingEventID = nil
     openedFile = nil
     openFailure = nil
+    fileGone = nil
     failedOpen = nil
   }
 
@@ -294,50 +304,9 @@ public final class PutioHistoryModel {
   }
 
   public func clearOpenedFile() { openedFile = nil }
+  public func dismissFileGone() { fileGone = nil }
   public func dismissMutationFailure() {
     mutationFailure = nil
     failedMutation = nil
-  }
-}
-
-public struct PutioHistorySection: Identifiable {
-  public enum Day: CaseIterable {
-    case today
-    case yesterday
-    case lastWeek
-    case ancientTimes
-  }
-
-  public let id: Day
-  public let items: [PutioHistoryEventItem]
-  public var title: String {
-    switch id {
-    case .today: String(localized: "Today", bundle: .module)
-    case .yesterday: String(localized: "Yesterday", bundle: .module)
-    case .lastWeek: String(localized: "Last week", bundle: .module)
-    case .ancientTimes: String(localized: "Ancient times", bundle: .module)
-    }
-  }
-
-  /// Calendar days back from `now`: today, yesterday, the rest of the last
-  /// week (under 8 days), then everything older.
-  public static func group(
-    _ items: [PutioHistoryEventItem], now: Date = .now, calendar: Calendar = .current
-  ) -> [PutioHistorySection] {
-    let today = calendar.startOfDay(for: now)
-    let groups = Dictionary(grouping: items) { item -> Day in
-      let days =
-        calendar.dateComponents([.day], from: calendar.startOfDay(for: item.createdAt), to: today)
-        .day ?? 0
-      switch days {
-      case ...0: return .today
-      case 1: return .yesterday
-      case 2..<8: return .lastWeek
-      default: return .ancientTimes
-      }
-    }
-    return Day.allCases.compactMap { day in
-      groups[day].map { PutioHistorySection(id: day, items: $0) }
-    }
   }
 }
