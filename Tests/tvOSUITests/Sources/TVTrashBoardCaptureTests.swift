@@ -29,7 +29,7 @@ final class TVTrashBoardCaptureTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("trash.panel.restore") })
     remote.press(.select)
     XCTAssertTrue(label(containing: "Restore started").waitForExistence(timeout: 5))
-    capture("rd-tvos-trash-03-restored", after: 0)
+    capture("rd-tvos-trash-03-restored", after: 0.8)
   }
 
   func testTrashEmptyConfirmBoard() {
