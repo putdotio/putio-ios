@@ -66,9 +66,6 @@ export const excludedPaths = [
   "Packages/PutioCore/Sources/PutioCore/Components/PutioComponentGallery.swift",
 ];
 
-/** tvOS files whose copy is still bare literals, each listed under the lane
- * epic that localizes it. A lane removes its files as it moves their copy into
- * the PutioCore catalog; new tvOS files are checked from the start. */
 export const unlocalizedTVOSFiles: { file: string; epic: string }[] = [
   { file: "Apps/tvOS/Sources/Account/TVAccount.swift", epic: "#1311" },
   { file: "Apps/tvOS/Sources/App/TVHome.swift", epic: "#1295" },
