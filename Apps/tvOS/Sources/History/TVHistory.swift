@@ -87,6 +87,7 @@ struct TVHistoryView: View {
       .onChange(of: model.failedMutation) { _, failed in
         guard failed == .clear else { return }
         model.dismissMutationFailure()
+        focus = .clear
         toast = PutioToast(
           String(localized: "Couldn’t clear history", bundle: .putioCore), icon: .warning,
           width: .fit)
