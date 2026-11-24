@@ -61,11 +61,7 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
 
   func testHistoryMoreFailedBoard() {
     openHistory("more-fails")
-    remote.press(.down)
-    XCTAssertTrue(element("history.more-retry").waitForExistence(timeout: 15))
-    XCTAssertTrue(
-      focus("history.more-retry", moving: .down, limit: 8)
-        || focus("history.more-retry", moving: .up, limit: 16))
+    XCTAssertTrue(focus("history.more-retry", moving: .down, limit: 16))
     capture("rd-tvos-hist-09-more-failed")
   }
 
