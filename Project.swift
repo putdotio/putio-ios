@@ -166,7 +166,7 @@ let project = Project(
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [openSourceLicenses, privacyManifest("iOS")]),
-      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       scripts: [
         .post(
           script: """
@@ -254,7 +254,7 @@ let project = Project(
           .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets")),
         ]
       ),
-      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       dependencies: [
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
@@ -286,10 +286,7 @@ let project = Project(
       ]),
       resources: .resources(
         brandFontResourceElements(for: "watchos") + [privacyManifest("watchOS")]),
-      buildableFolders: [
-        "Apps/watchOS/Sources",
-        .folder("Apps/Shared/Sources", exceptions: [.exception(excluded: ["**/Telemetry"])]),
-      ],
+      buildableFolders: ["Apps/watchOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
       ]
@@ -384,7 +381,7 @@ let project = Project(
         "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
       ]),
       resources: .resources(brandFontResourceElements(for: "tvos") + [privacyManifest("tvOS")]),
-      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       scripts: [
         .post(
           script: """
