@@ -42,10 +42,9 @@ final class DeviceSignInJourneyTests: XCTestCase {
     // The keychain session restores to Home without showing a code.
     app.terminate()
     app.launch()
-    XCTAssertTrue(homeAccount.waitForExistence(timeout: 15))
+    XCTAssertTrue(TVTabBar(app).open("Account"))
     XCTAssertFalse(code.exists)
-    XCTAssertTrue(focus(homeAccount))
-    XCUIRemote.shared.press(.select)
+    XCUIRemote.shared.press(.down)
     XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     XCTAssertTrue(focus(signOut, moving: .up))
