@@ -188,10 +188,17 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { !proxyRetry.exists })
 
-    XCTAssertTrue(focus("account.proxy"))
-    remote.press(.select)
+    // A menu keeps the items it opened with, so it reopens until the
+    // retried listing has loaded.
     let edge = menuItem("edge")
-    XCTAssertTrue(edge.waitForExistence(timeout: 10))
+    for _ in 0..<4 {
+      XCTAssertTrue(focus("account.proxy"))
+      remote.press(.select)
+      if edge.waitForExistence(timeout: 3) { break }
+      remote.press(.menu)
+      pause(1)
+    }
+    XCTAssertTrue(edge.exists, "the retried proxy listing never loaded")
     attach("runtime-tv-proxy-chooser")
     XCTAssertTrue(focusMenuItem(edge))
     remote.press(.select)
