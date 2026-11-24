@@ -34,7 +34,12 @@ final class TVTrashBoardCaptureTests: XCTestCase {
 
   func testTrashEmptyConfirmBoard() {
     openTrash("board")
-    XCTAssertTrue(focus("trash.empty", moving: .up))
+    let toolbar = ["trash.refresh", "trash.restore-all", "trash.empty"]
+    for _ in 0..<6 where !toolbar.contains(where: hasFocus) {
+      remote.press(.up)
+      pause(0.5)
+    }
+    XCTAssertTrue(focus("trash.empty", moving: .right, limit: 3))
     remote.press(.select)
     XCTAssertTrue(app.buttons["trash.empty-confirm"].waitForExistence(timeout: 5))
     capture("rd-tvos-trash-05-empty-confirm")
