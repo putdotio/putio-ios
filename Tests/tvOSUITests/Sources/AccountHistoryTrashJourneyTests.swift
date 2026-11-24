@@ -63,8 +63,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(focus("history.panel.folder", moving: .down, limit: 3))
     remote.press(.select)
     XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10), "no folder opened")
-    XCTAssertTrue(tabs.open("History"))
-    remote.press(.down)
+    remote.press(.menu)
+    XCTAssertTrue(element("history.panel.folder").waitForExistence(timeout: 5))
+    remote.press(.left)
     XCTAssertTrue(focus("history.item.809"))
     remote.press(.select)
     // A video event opens that file's player; this one waits on its
