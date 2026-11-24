@@ -54,7 +54,7 @@ private enum TVPlaybackStage {
 /// playback models; this screen owns presentation and remote input.
 struct TVVideoPlaybackView: View {
   @State private var model: PutioVideoPlaybackModel
-  @State private var nextVideoModel: PutioNextVideoModel
+  @State private var nextVideoModel: PutioVideoUpNextModel
   @State private var stage: TVPlaybackStage = .measuring
   @State private var retrySequence: UInt64 = 0
   @State private var probes = TVPlaybackProbes()
@@ -104,15 +104,18 @@ struct TVVideoPlaybackView: View {
         return try await media.resolve(fileID)
       })
     _nextVideoModel = State(
-      initialValue: PutioNextVideoModel(
+      initialValue: PutioVideoUpNextModel(
+        fileID: route.id,
         suggestionsEnabled: account.suggestNextVideo,
         autoplayEnabled: { (try? await runtime.appConfig().autoplayNextVideo) ?? false },
         waitForReset: { await pipeline.waitForPendingReports(fileID: $0) },
-        loadNext: { fileID in
-          try await prepareNextVideo(
-            after: fileID,
-            findNext: { try await runtime.findNextVideo(after: $0) },
-            waitForPendingReports: { await pipeline.waitForPendingReports(fileID: $0) },
+        find: { fileID in
+          try await findNextVideo(
+            after: fileID, findNext: { try await runtime.findNextVideo(after: $0) })
+        },
+        prepare: { video in
+          try await preparePlayableVideo(
+            video, waitForPendingReports: { await pipeline.waitForPendingReports(fileID: $0) },
             resolve: { try await media.resolve($0) })
         }))
   }
@@ -129,6 +132,7 @@ struct TVVideoPlaybackView: View {
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("video.screen.\(route.id.rawValue)")
       .task { await model.loadIfNeeded() }
+      .task { await nextVideoModel.lookUp() }
       .task(id: retrySequence) {
         guard retrySequence > 0 else { return }
         await model.retry()
@@ -139,13 +143,8 @@ struct TVVideoPlaybackView: View {
       }
       .onChange(of: model.state) { _, state in probes.record(state) }
       .onChange(of: nextVideoModel.state) { _, state in
-        // A cancel is the Cancel button's own; the one from leaving the
-        // screen must not close the screen under it.
-        switch state {
-        case .playing(let next): onPlayNext(next)
-        case .unavailable: onFinish()
-        case .idle, .loading, .available, .cancelled: break
-        }
+        guard case .playing(let next) = state else { return }
+        onPlayNext(next)
       }
       .onDisappear {
         nextVideoTask?.cancel()
@@ -207,10 +206,14 @@ struct TVVideoPlaybackView: View {
       )
       .ignoresSafeArea()
     case .ended:
-      TVNextVideoStage(model: nextVideoModel) {
-        nextVideoModel.cancel()
-        onFinish()
-      }
+      TVNextVideoStage(
+        model: nextVideoModel,
+        play: { startNextVideoTask { await nextVideoModel.playNext() } },
+        retry: { startNextVideoTask { await nextVideoModel.retry() } },
+        close: {
+          nextVideoModel.cancel()
+          onFinish()
+        })
     }
   }
 
@@ -269,11 +272,18 @@ struct TVVideoPlaybackView: View {
   private func playbackEnded() {
     probes.ended = true
     stage = .ended
-    let completed = route.id
-    nextVideoTask?.cancel()
-    nextVideoTask = Task { @MainActor in
-      await nextVideoModel.playbackEnded(completedFileID: completed)
+    startNextVideoTask {
+      await nextVideoModel.playbackEnded()
+      if nextVideoModel.upcoming == nil { await nextVideoModel.lookUp() }
+      guard nextVideoModel.state == .idle, nextVideoModel.upcoming == nil else { return }
+      onFinish()
     }
+  }
+
+  private func startNextVideoTask(_ operation: @escaping @MainActor () async -> Void) {
+    let previous = nextVideoTask
+    nextVideoTask = Task { @MainActor in await operation() }
+    previous?.cancel()
   }
 }
 
@@ -470,19 +480,35 @@ enum TVConversionLayout {
   static let progressWidth: CGFloat = 640
 }
 
-/// After the end: the successor with its countdown, or nothing while the
-/// shared model looks for one. No successor ends the screen.
+/// After the end: the successor with its countdown while autoplay is on,
+/// the successor alone while it is off, and a retry when the lookup failed.
+/// No successor ends the screen.
 private struct TVNextVideoStage: View {
-  let model: PutioNextVideoModel
-  let cancel: () -> Void
+  let model: PutioVideoUpNextModel
+  let play: () -> Void
+  let retry: () -> Void
+  let close: () -> Void
 
   var body: some View {
     switch model.state {
-    case .available(let next):
+    case .countingDown(let next, let secondsLeft):
       TVUpNextView(
-        nextVideo: next.video, autoplaySecondsRemaining: model.autoplaySecondsRemaining,
-        onPlay: { model.playNext() }, onCancel: cancel)
-    case .idle, .loading, .playing, .cancelled, .unavailable:
+        nextVideo: next, autoplaySecondsRemaining: secondsLeft, onPlay: play, onCancel: close)
+    case .idle where model.upcoming != nil:
+      if let next = model.upcoming {
+        TVUpNextView(nextVideo: next, onPlay: play, onCancel: close)
+      }
+    case .failed:
+      PutioErrorStateView(
+        icon: .warningCircle, title: String(localized: "Couldn’t find the next video"),
+        message: nil, retryIdentifier: "video.next-error.retry", retry: retry
+      )
+      .secondaryAction(
+        String(localized: "Cancel"), identifier: "video.next-error.cancel", perform: close
+      )
+      .accessibilityElement(children: .contain)
+      .accessibilityIdentifier("video.next-error")
+    case .idle, .finding, .playing:
       PutioLoadingStateView(title: "Finding the next video")
         .accessibilityIdentifier("video.next-loading")
     }
