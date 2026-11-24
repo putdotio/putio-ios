@@ -238,7 +238,7 @@ private struct TVSignInFailure: View {
       TVSignInWordmark()
       Spacer()
       Text(verbatim: PutioKaomoji.knockedOut.rawValue)
-        .putioFont(TVSignInLayout.kaomojiFont)
+        .putioFont(PutioTVTypeScale.kaomoji)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .accessibilityHidden(true)
       VStack(spacing: PutioTheme.TV.Spacing.small) {
@@ -274,10 +274,10 @@ private struct TVSignInGreeting: View {
   var body: some View {
     VStack(spacing: PutioTheme.TV.Spacing.xs) {
       Text(verbatim: TVSignInLayout.greetingKaomoji)
-        .putioFont(TVSignInLayout.kaomojiFont)
+        .putioFont(PutioTVTypeScale.kaomoji)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
       Text("Paste a magnet.", bundle: .putioCore)
-        .putioFont(TVSignInLayout.greetingFont)
+        .putioFont(PutioTVTypeScale.tagline)
         .foregroundStyle(PutioTheme.Colors.accent)
     }
     .accessibilityHidden(true)
@@ -301,7 +301,7 @@ private struct TVSignInColumnTitle: View {
 
   var body: some View {
     Text(title)
-      .putioFont(TVSignInLayout.columnTitleFont)
+      .putioFont(PutioTVTypeScale.columnTitle)
       .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
   }
 }
@@ -399,12 +399,6 @@ enum TVSignInLayout {
   static let statusIconSize: CGFloat = 32
   static let wordmarkHeight: CGFloat = 48
   static let greetingKaomoji = "┌( ಠ‿ಠ)┘"
-  static let kaomojiFont = PutioFontRole(
-    fontName: "GTAmerica-Md", size: 96, lineHeight: 1.1, textStyle: .largeTitle)
-  static let greetingFont = PutioFontRole(
-    fontName: "BerkeleyMonoVariable-Regular", size: 28, lineHeight: 1.45, textStyle: .caption)
-  static let columnTitleFont = PutioFontRole(
-    fontName: "GTAmerica-Md", size: 32, lineHeight: 1.25, textStyle: .headline)
 }
 
 private struct TVSignInStatus: View {
