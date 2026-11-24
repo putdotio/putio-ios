@@ -147,6 +147,7 @@ struct TVAccountView: View {
 
   @State private var model: PutioAccountPreferencesModel
   @State private var hasAppeared = false
+  @State private var channel = PutioReleaseChannel.appStore
 
   init(runtime: PutioRuntime) {
     self.runtime = runtime
@@ -158,6 +159,7 @@ struct TVAccountView: View {
       if let account = model.account {
         TVAccountScreen(
           account: account,
+          appInfo: .currentTV(channel: channel),
           status: TVAccountStatus(model: model),
           save: { mutation in Task { await model.save(mutation) } },
           retry: { Task { await model.retry() } },
@@ -173,6 +175,7 @@ struct TVAccountView: View {
       }
       hasAppeared = true
     }
+    .task { channel = await PutioReleaseChannel.current() }
   }
 
   /// Back from Trash: restores and deletions change the trash size. The

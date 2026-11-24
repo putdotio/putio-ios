@@ -33,6 +33,7 @@ enum TVSignInPhase: Equatable {
 
 struct TVSignInView: View {
   let session: PutioSessionStore
+  var restoreRetryInterval: Duration = .seconds(15)
 
   var body: some View {
     TVSignInScreen(
@@ -49,6 +50,19 @@ struct TVSignInView: View {
     .onChange(of: startsAutomatically, initial: true) { _, starts in
       if starts { Task { await session.signInWithDeviceCode() } }
     }
+    .task(id: retriesRestore) {
+      guard retriesRestore else { return }
+      while !Task.isCancelled {
+        try? await Task.sleep(for: restoreRetryInterval)
+        guard !Task.isCancelled else { return }
+        await session.restore()
+      }
+    }
+  }
+
+  private var retriesRestore: Bool {
+    if case .signedOut(.restoreFailed(.sessionCheck, _)) = session.state { return true }
+    return false
   }
 
   private var startsAutomatically: Bool {
