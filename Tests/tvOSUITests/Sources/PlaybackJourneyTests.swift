@@ -263,7 +263,7 @@ final class PlaybackJourneyTests: XCTestCase {
         if waitUntil(timeout: 0.75, { target.exists }) { return true }
         let before = focusedFrame()
         remote.press(direction)
-        _ = waitUntil(timeout: 3) { self.focusedFrame() != before }
+        if !waitUntil(timeout: 1.5, { self.focusedFrame() != before }) { break }
       }
     }
     if waitUntil(timeout: 5, { target.exists }) { return true }
@@ -294,8 +294,9 @@ final class PlaybackJourneyTests: XCTestCase {
       .firstMatch
   }
 
-  /// Each press waits for focus to move, so a slow host never stacks
-  /// presses past the target.
+  /// AVKit hides its transport bar and menus about 8 seconds after focus
+  /// last moved, so `focus` waits for each press to move focus and turns
+  /// at an edge instead of pressing into it.
   private func focusedFrame() -> CGRect? {
     let focused = app.descendants(matching: .any)
       .matching(NSPredicate(format: "hasFocus == true")).firstMatch
