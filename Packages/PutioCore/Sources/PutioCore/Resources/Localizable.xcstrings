@@ -237,17 +237,6 @@
         }
       }
     },
-    "Ancient times" : {
-      "comment" : "ios-only: no Android string for the shared history day groups",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ancient times"
-          }
-        }
-      }
-    },
     "Anyone with a link can open %@. A link stops working after %@ hours, or sooner when it hits its IP or data limit." : {
       "comment" : "android: mobile_public_links_sheet_body",
       "localizations" : {
@@ -1303,17 +1292,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Largest first"
-          }
-        }
-      }
-    },
-    "Last week" : {
-      "comment" : "ios-only: no Android string for the shared history day groups",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Last week"
           }
         }
       }

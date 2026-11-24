@@ -67,53 +67,9 @@ final class TVAccountHistoryTrashTests: XCTestCase {
     XCTAssertNil(TVAccountRow.rememberPosition.change(to: false))
   }
 
-  func testHistoryShowsOnlyCompletedTransfersAndShares() {
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let page = PutioHistoryPage(
-      items: [
-        Self.event(
-          1,
-          .transferCompleted(
-            name: "Movie.mkv", sizeBytes: 1_073_741_824, fileID: .init(rawValue: 11)), at: now),
-        Self.event(
-          2, .upload(name: "Notes.txt", sizeBytes: 10, fileID: .init(rawValue: 12)), at: now),
-        Self.event(
-          3,
-          .fileShared(name: "Shared.mkv", sharingUserName: "friend", fileID: .init(rawValue: 13)),
-          at: now),
-        Self.event(4, .transferError(name: "Broken.zip"), at: now),
-      ],
-      nextBefore: nil)
-
-    let sections = TVHistoryPresentation.sections(page, now: now)
-    XCTAssertEqual(sections.flatMap(\.items).map(\.id), [1, 3])
-    XCTAssertFalse(TVHistoryPresentation.isEmpty(page))
-    XCTAssertEqual(
-      TVHistoryPresentation.detail(page.items[0], now: now, locale: Locale(identifier: "en_US")),
-      "now · 1.07 GB")
-    XCTAssertEqual(
-      TVHistoryPresentation.detail(page.items[2], now: now, locale: Locale(identifier: "en_US")),
-      "now · Shared by friend")
-  }
-
-  /// A page of hidden events with more to load is still loading, so the
-  /// screen must not claim History is empty before walking it.
-  func testHiddenEventsWithAContinuationAreNotEmpty() {
-    let now = Date(timeIntervalSince1970: 1_800_000_000)
-    let hidden = [Self.event(2, .transferError(name: "Broken.zip"), at: now)]
-    XCTAssertFalse(TVHistoryPresentation.isEmpty(PutioHistoryPage(items: hidden, nextBefore: 2)))
-    XCTAssertTrue(TVHistoryPresentation.isEmpty(PutioHistoryPage(items: hidden, nextBefore: nil)))
-  }
-
   private static let file = PutioFileItem(
     id: PutioFileID(rawValue: 411), parentID: .root, name: "Nested Movie.mkv", kind: .video,
     sizeBytes: 1, createdAt: .distantPast, updatedAt: .distantPast, resumePositionSeconds: 0)
-
-  private static func event(
-    _ id: Int, _ kind: PutioHistoryEventKind, at date: Date
-  ) -> PutioHistoryEventItem {
-    PutioHistoryEventItem(id: id, createdAt: date, kind: kind)
-  }
 
   private static func account(
     historyEnabled: Bool = true, trashEnabled: Bool = true, hideSubtitles: Bool = false,

@@ -74,9 +74,9 @@ struct HistoryView: View {
         .onChange(of: scenePhase) { _, phase in
           if phase == .active { groupingDate = .now }
         }
-        .onChange(of: model.openFailure) { _, failure in
-          guard failure?.isNotFound == true else { return }
-          model.cancelOpen()
+        .onChange(of: model.fileGone) { _, gone in
+          guard gone != nil else { return }
+          model.dismissFileGone()
           toast = PutioToast(
             String(localized: "This item cannot be opened right now. Check Files, then try again."))
         }
@@ -177,7 +177,7 @@ struct HistoryView: View {
       let page = model.page ?? PutioHistoryPage(items: [], nextBefore: nil)
       if page.items.isEmpty, page.nextBefore == nil,
         model.refreshFailure == nil, model.mutationFailure == nil,
-        model.openFailure.map(\.isNotFound) ?? true
+        model.openFailure == nil
       {
         scrollableState {
           PutioEmptyStateView.history
@@ -206,7 +206,7 @@ struct HistoryView: View {
       if let failure = model.refreshFailure {
         retryRow(failure.message, identifier: "history.retry") { await model.refresh() }
       }
-      if let failure = model.openFailure, !failure.isNotFound {
+      if let failure = model.openFailure {
         retryRow(failure.message, identifier: "history.open-retry") { await model.retryOpen() }
       }
       let days = PutioHistoryDay.group(page.items, now: groupingDate, locale: locale)
