@@ -48,22 +48,28 @@ public struct PutioHistoryEventPresentation: Equatable {
   public let kind: String
   public let icon: PutioIcon
   public let tone: Tone
+  public let sizeBytes: Int64?
+  public let offersFileActions: Bool
 
   public init(_ event: PutioHistoryEventItem) {
     switch event.kind {
     case .fileShared(let name, _, _):
       self.init(name, String(localized: "Shared with you", bundle: .module), .shareNetwork)
-    case .transferCompleted(let name, _, _):
-      self.init(name, String(localized: "Transfer completed", bundle: .module), .checkCircle)
-    case .upload(let name, _, _):
-      self.init(name, String(localized: "Uploaded", bundle: .module), .uploadSimple)
+    case .transferCompleted(let name, let size, _):
+      self.init(
+        name, String(localized: "Transfer completed", bundle: .module), .checkCircle, size: size)
+    case .upload(let name, let size, _):
+      self.init(name, String(localized: "Uploaded", bundle: .module), .uploadSimple, size: size)
     case .transferError(let name):
       self.init(
         name, String(localized: "Transfer failed", bundle: .module), .warningCircle, .destructive)
-    case .fileFromRSSDeleted(let name, _):
-      self.init(name, String(localized: "Deleted to free space", bundle: .module), .trash)
+    case .fileFromRSSDeleted(let name, let size):
+      self.init(
+        name, String(localized: "Deleted to free space", bundle: .module), .trash, size: size)
     case .rssFilterPaused(let title):
-      self.init(title, String(localized: "RSS filter paused", bundle: .module), .pauseCircle)
+      self.init(
+        title, String(localized: "RSS filter paused", bundle: .module), .pauseCircle,
+        offersFileActions: false)
     case .transferFromRSSError(let name):
       self.init(
         name, String(localized: "RSS transfer failed", bundle: .module), .warningCircle,
@@ -74,11 +80,16 @@ public struct PutioHistoryEventPresentation: Equatable {
     }
   }
 
-  private init(_ name: String, _ kind: String, _ icon: PutioIcon, _ tone: Tone = .secondary) {
+  private init(
+    _ name: String, _ kind: String, _ icon: PutioIcon, _ tone: Tone = .secondary,
+    size: Int64? = nil, offersFileActions: Bool? = nil
+  ) {
     self.name = name
     self.kind = kind
     self.icon = icon
     self.tone = tone
+    self.sizeBytes = size
+    self.offersFileActions = offersFileActions ?? (tone == .secondary)
   }
 
   public static func time(
