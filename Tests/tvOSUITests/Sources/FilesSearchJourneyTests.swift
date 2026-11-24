@@ -157,10 +157,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     app.launch()
 
     XCTAssertTrue(TVTabBar(app).open("Search"))
-    remote.press(.down)
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 10))
-    pause(1)
+    XCTAssertTrue(focusSearchKeyboard(), "the search keyboard never took focus")
     attach("runtime-tv-search-keyboard")
 
     field.typeText("no-matching-file")
@@ -241,6 +240,22 @@ final class FilesSearchJourneyTests: XCTestCase {
   private func label(containing text: String) -> XCUIElement {
     app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text))
       .firstMatch
+  }
+
+  /// A press before the search keyboard loads stays on the tab bar, and
+  /// typing then finds no keyboard focus; press until the keyboard holds it.
+  private func focusSearchKeyboard() -> Bool {
+    for _ in 0..<6 {
+      remote.press(.down)
+      if waitUntil(timeout: 3, { self.keyboardHasFocus() }) { return true }
+    }
+    return false
+  }
+
+  private func keyboardHasFocus() -> Bool {
+    app.keyboards.descendants(matching: .any)
+      .matching(NSPredicate(format: "hasFocus == true")).firstMatch.exists
+      || app.searchFields.firstMatch.hasFocus
   }
 
   private func focusIsSettled() -> Bool {
