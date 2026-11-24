@@ -249,7 +249,7 @@ CompleteSignIn ==
 (* runDeviceCodeSignIn(generation:).                                       *)
 DeviceStart ==
   /\ \/ state \in {"signedOut", "authFailed"}
-     \/ state = "authenticating" /\ device = "expired"
+     \/ state = "authenticating" /\ device \in {"awaiting", "expired"}
   /\ AdvanceWithDevice("fetching")
   /\ state' = "authenticating"
   /\ flows' = flows \cup {Flow("code", gen + 1, None)}

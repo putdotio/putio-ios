@@ -82,7 +82,7 @@
         content
           .onChange(of: session.deviceCodeSignIn, initial: true) { _, signIn in
             guard !signsOut, case .awaitingApproval(let code) = signIn else { return }
-            HarnessLiveSession.write(code, to: HarnessLiveSession.deviceCodeFilename)
+            HarnessLiveSession.write(code.code, to: HarnessLiveSession.deviceCodeFilename)
           }
           .onChange(of: session.state, initial: true) { _, state in
             // The marker lands before the outcome the harness waits for.

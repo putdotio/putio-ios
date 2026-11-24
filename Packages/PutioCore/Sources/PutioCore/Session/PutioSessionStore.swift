@@ -38,11 +38,37 @@ public struct PutioSignInRequest: Sendable {
 /// The SDK owns polling; the store only records which phase the TV shows.
 public enum PutioDeviceCodeSignInState: Equatable, Sendable {
   case fetchingCode
-  case awaitingApproval(code: String)
+  case awaitingApproval(PutioDeviceCode)
   /// The code is no longer valid; the TV keeps showing it dimmed until
   /// `signInWithDeviceCode()` requests another.
-  case expired(code: String)
+  case expired(PutioDeviceCode)
+
+  /// The code on screen, live or expired.
+  public var deviceCode: PutioDeviceCode? {
+    switch self {
+    case .fetchingCode: nil
+    case .awaitingApproval(let code), .expired(let code): code
+    }
+  }
 }
+
+/// An activation code and, once put.io's image loads, the PNG of a QR code
+/// that opens put.io/link with this code filled in. A new code replaces both.
+public struct PutioDeviceCode: Equatable, Sendable {
+  public let code: String
+  public internal(set) var qrCode: Data?
+  /// The last check for approval could not reach put.io; checks continue.
+  public internal(set) var isOffline: Bool
+
+  public init(code: String, qrCode: Data? = nil, isOffline: Bool = false) {
+    self.code = code
+    self.qrCode = qrCode
+    self.isOffline = isOffline
+  }
+}
+
+/// Loads the bytes at a URL put.io returned, such as a device code's QR image.
+public typealias PutioImageLoader = @Sendable (URL) async throws -> Data
 
 @MainActor
 @Observable
@@ -86,6 +112,7 @@ public final class PutioSessionStore {
   private var pendingOAuthState: String?
   private var pendingOAuthGeneration: UInt64?
   private var deviceCodeTask: Task<Void, Never>?
+  private let loadImage: PutioImageLoader
   public private(set) var isSignOutCleanupPending = false
 
   init(
@@ -94,9 +121,11 @@ public final class PutioSessionStore {
     signOutIntentStore: PutioSignOutIntentStore = PutioInMemorySignOutIntentStore(),
     callbackScheme: String = "putio",
     deviceCodePollInterval: Duration = .seconds(3),
-    supportIdentityPlatform: String? = nil
+    supportIdentityPlatform: String? = nil,
+    loadImage: @escaping PutioImageLoader = PutioSessionStore.loadImage(using: .shared)
   ) {
     self.sdk = sdk
+    self.loadImage = loadImage
     self.tokenStore = tokenStore
     self.signOutIntentStore = signOutIntentStore
     isSignOutCleanupPending = signOutIntentStore.isPending
@@ -296,7 +325,12 @@ public final class PutioSessionStore {
     case .unknown, .signedOut:
       break
     case .authenticating:
-      guard case .expired = deviceCodeSignIn else { return }
+      // A new code is offered while the current one waits, as well as after it
+      // expires; it replaces the code and its QR together.
+      switch deviceCodeSignIn {
+      case .awaitingApproval, .expired: break
+      case .fetchingCode, nil: return
+      }
     case .signedIn, .signingOut:
       return
     }
@@ -312,16 +346,21 @@ public final class PutioSessionStore {
 
   private func runDeviceCodeSignIn(generation: UInt64) async {
     do {
-      let code = try await sdk.getAuthCode().code
+      let issued = try await sdk.getAuthCode()
+      let code = issued.code
       guard generation == authenticationGeneration else { return }
       guard !code.isEmpty else { throw PutioDeviceCodeError.emptyCode }
-      deviceCodeSignIn = .awaitingApproval(code: code)
-      let authorization = try await sdk.awaitDeviceCodeAuthorization(
-        code: code, pollInterval: deviceCodePollInterval)
+      deviceCodeSignIn = .awaitingApproval(PutioDeviceCode(code: code))
+      if let url = issued.qrCodeURL {
+        Task { await loadQRCode(from: url, code: code, generation: generation) }
+      }
+      let authorization = try await awaitDeviceCodeAuthorization(code, generation: generation)
       guard generation == authenticationGeneration else { return }
       switch authorization {
       case .expired:
-        deviceCodeSignIn = .expired(code: code)
+        var expired = currentDeviceCode(code) ?? PutioDeviceCode(code: code)
+        expired.isOffline = false
+        deviceCodeSignIn = .expired(expired)
       case .authorized(let token):
         deviceCodeSignIn = nil
         guard await storeSignInToken(token, generation: generation) else { return }
@@ -333,6 +372,86 @@ public final class PutioSessionStore {
       deviceCodeSignIn = nil
       sdk.clearToken()
       state = .signedOut(.authenticationFailed(message(for: error)))
+    }
+  }
+
+  /// Adds put.io's QR image to the code it belongs to. A failed or unreadable
+  /// image leaves the code alone, and an image that arrives after the code
+  /// changed is dropped.
+  private func loadQRCode(from url: URL, code: String, generation: UInt64) async {
+    guard url.scheme == "https", let data = try? await loadImage(url),
+      PutioQRCodeImage.isReadable(data),
+      generation == authenticationGeneration
+    else { return }
+    updateDeviceCode(code) { $0.qrCode = data }
+  }
+
+  /// Waits for approval through the SDK while put.io is reachable. A network
+  /// failure marks the code offline and checks it once per interval until a
+  /// check answers, then hands back to the SDK.
+  private func awaitDeviceCodeAuthorization(_ code: String, generation: UInt64) async throws
+    -> PutioDeviceCodeAuthorization
+  {
+    while true {
+      do {
+        return try await sdk.awaitDeviceCodeAuthorization(
+          code: code, pollInterval: deviceCodePollInterval)
+      } catch let error as PutioSDKError where error.isNetworkFailure {
+        guard generation == authenticationGeneration else { throw CancellationError() }
+        updateDeviceCode(code) { $0.isOffline = true }
+        if let authorization = try await pollWhileOffline(code, generation: generation) {
+          return authorization
+        }
+      }
+    }
+  }
+
+  private func pollWhileOffline(_ code: String, generation: UInt64) async throws
+    -> PutioDeviceCodeAuthorization?
+  {
+    while true {
+      try await Task.sleep(for: deviceCodePollInterval)
+      guard generation == authenticationGeneration else { throw CancellationError() }
+      do {
+        let token = try await sdk.checkAuthCodeMatch(code: code)
+        guard generation == authenticationGeneration else { throw CancellationError() }
+        updateDeviceCode(code) { $0.isOffline = false }
+        return token.map { .authorized(token: $0) }
+      } catch let error as PutioSDKError where error.isNotFound {
+        return .expired
+      } catch let error as PutioSDKError where error.isNetworkFailure {
+        continue
+      }
+    }
+  }
+
+  private func updateDeviceCode(_ code: String, _ change: (inout PutioDeviceCode) -> Void) {
+    switch deviceCodeSignIn {
+    case .awaitingApproval(var current) where current.code == code:
+      change(&current)
+      deviceCodeSignIn = .awaitingApproval(current)
+    case .expired(var current) where current.code == code:
+      change(&current)
+      deviceCodeSignIn = .expired(current)
+    default:
+      return
+    }
+  }
+
+  private func currentDeviceCode(_ code: String) -> PutioDeviceCode? {
+    guard case .awaitingApproval(let current) = deviceCodeSignIn, current.code == code else {
+      return nil
+    }
+    return current
+  }
+
+  public nonisolated static func loadImage(using session: URLSession) -> PutioImageLoader {
+    { url in
+      let (data, response) = try await session.data(from: url)
+      guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+        throw URLError(.badServerResponse)
+      }
+      return data
     }
   }
 
@@ -627,4 +746,11 @@ public final class PutioSessionStore {
 
 private enum PutioDeviceCodeError: Error {
   case emptyCode
+}
+
+extension PutioSDKError {
+  fileprivate var isNetworkFailure: Bool {
+    if case .networkError = type { return true }
+    return false
+  }
 }

@@ -276,7 +276,9 @@ final class PutioSessionStoreTests: XCTestCase {
   private func makeStore(
     tokenStore: PutioTokenStore,
     signOutIntentStore: PutioSignOutIntentStore = PutioInMemorySignOutIntentStore(),
-    supportIdentityPlatform: String? = nil
+    supportIdentityPlatform: String? = nil,
+    deviceCodePollInterval: Duration = .seconds(3),
+    loadImage: @escaping PutioImageLoader = { _ in throw URLError(.notConnectedToInternet) }
   ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
@@ -288,7 +290,8 @@ final class PutioSessionStoreTests: XCTestCase {
     return (
       PutioSessionStore(
         sdk: sdk, tokenStore: tokenStore, signOutIntentStore: signOutIntentStore,
-        supportIdentityPlatform: supportIdentityPlatform),
+        deviceCodePollInterval: deviceCodePollInterval,
+        supportIdentityPlatform: supportIdentityPlatform, loadImage: loadImage),
       sdk
     )
   }
@@ -1255,9 +1258,10 @@ final class PutioSessionStoreTests: XCTestCase {
     #"{"status":"ERROR","status_code":404,"error_type":"code_not_found"}"#
   private static let approvedCode = #"{"oauth_token": "device-token"}"#
 
-  private func stubDeviceCodeIssue(_ codes: [String]) {
+  private func stubDeviceCodeIssue(_ codes: [String], withQRCodes: Bool = false) {
     fixtures.sequences["GET /v2/oauth2/oob/code"] = codes.map {
-      (200, #"{"code": "\#($0)", "qr_code_url": null}"#)
+      let qr = withQRCodes ? #""https://api.put.io/v2/oauth2/oob/qr/\#($0)""# : "null"
+      return (200, #"{"code": "\#($0)", "qr_code_url": \#(qr)}"#)
     }
   }
 
@@ -1323,7 +1327,7 @@ final class PutioSessionStoreTests: XCTestCase {
       polled, store: store, task: signIn, route: poll)
     XCTAssertEqual(result, .completed)
     guard result == .completed else { return }
-    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "ABCD1"))
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "ABCD1")))
     XCTAssertEqual(store.state, .authenticating)
     fixtures.release(poll)
     await signIn.value
@@ -1339,6 +1343,52 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(accountRequest.value(forHTTPHeaderField: "Authorization"), "token device-token")
   }
 
+  func testAnUnreachablePollKeepsTheCodeOfflineAndSignsInOncePutioAnswers() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["NET01"])
+    let poll = "GET /v2/oauth2/oob/code/NET01"
+    fixtures.fixtures[poll] = (200, Self.approvedCode)
+    fixtures.networkFailureRoutes = [poll]
+    let tokenStore = PutioInMemoryTokenStore(token: nil)
+    let store = makeStore(tokenStore: tokenStore, deviceCodePollInterval: .seconds(1)).0
+    let signIn = Task { await store.signInWithDeviceCode() }
+    defer { signIn.cancel() }
+
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == true }
+    try await waitUntil { self.fixtures.requestCount(route: poll) >= 2 }
+    XCTAssertEqual(store.state, .authenticating)
+    XCTAssertEqual(store.deviceCodeSignIn?.deviceCode?.code, "NET01")
+
+    fixtures.networkFailureRoutes = []
+    await signIn.value
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(try tokenStore.read(), "device-token")
+  }
+
+  func testAPendingPollAfterAnOutageClearsOfflineAndExpiryStillEndsTheCode() async throws {
+    stubDeviceCodeIssue(["NET02"])
+    let poll = "GET /v2/oauth2/oob/code/NET02"
+    fixtures.fixtures[poll] = (200, Self.pendingCode)
+    fixtures.networkFailureRoutes = [poll]
+    let store = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: nil), deviceCodePollInterval: .seconds(1)
+    ).0
+    let signIn = Task { await store.signInWithDeviceCode() }
+    defer { signIn.cancel() }
+
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == true }
+    fixtures.networkFailureRoutes = []
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.isOffline == false }
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "NET02")))
+
+    fixtures.fixtures[poll] = (404, Self.expiredCode)
+    await signIn.value
+    XCTAssertEqual(store.deviceCodeSignIn, .expired(PutioDeviceCode(code: "NET02")))
+    XCTAssertEqual(store.state, .authenticating)
+  }
+
   func testExpiredDeviceCodeStaysAuthenticatingUntilANewCodeIsRequested() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["OLD01", "NEW02"])
@@ -1348,7 +1398,7 @@ final class PutioSessionStoreTests: XCTestCase {
     let (store, _) = makeStore(token: nil)
     await store.signInWithDeviceCode()
     XCTAssertEqual(store.state, .authenticating)
-    XCTAssertEqual(store.deviceCodeSignIn, .expired(code: "OLD01"))
+    XCTAssertEqual(store.deviceCodeSignIn, .expired(PutioDeviceCode(code: "OLD01")))
     XCTAssertThrowsError(try store.beginSignIn())
 
     fixtures.gate(renewedPoll)
@@ -1358,7 +1408,7 @@ final class PutioSessionStoreTests: XCTestCase {
       polled, store: store, task: renewal, route: renewedPoll)
     XCTAssertEqual(result, .completed)
     guard result == .completed else { return }
-    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "NEW02"))
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "NEW02")))
     fixtures.release(renewedPoll)
     await renewal.value
     guard case .signedIn = store.state else {
@@ -1366,6 +1416,58 @@ final class PutioSessionStoreTests: XCTestCase {
     }
     XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
     XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 1)
+  }
+
+  func testTheQRImageJoinsItsCodeAndANewCodeBeforeExpiryReplacesBoth() async throws {
+    stubDeviceCodeIssue(["QRA01", "QRB02"], withQRCodes: true)
+    for code in ["QRA01", "QRB02"] {
+      fixtures.fixtures["GET /v2/oauth2/oob/code/\(code)"] = (200, Self.pendingCode)
+    }
+    let images = QRImageFixture()
+    let (store, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: nil), loadImage: { try await images.load($0) })
+    let first = Task { await store.signInWithDeviceCode() }
+    try await waitUntil { await images.requested.contains("QRA01") }
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "QRA01")))
+
+    await images.deliver("QRA01", Self.png)
+    try await waitUntil { store.deviceCodeSignIn?.deviceCode?.qrCode != nil }
+    XCTAssertEqual(
+      store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "QRA01", qrCode: Self.png)))
+
+    let second = Task { await store.signInWithDeviceCode() }
+    try await waitUntil { await images.requested.contains("QRB02") }
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "QRB02")))
+    await images.deliver("QRB02", Data("not an image".utf8))
+    try await Task.sleep(for: .milliseconds(50))
+    XCTAssertEqual(
+      store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "QRB02")),
+      "an unreadable image must leave the code without a QR")
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
+    store.cancelSignIn()
+    await first.value
+    await second.value
+  }
+
+  func testAQRImageForAReplacedCodeNeverShows() async throws {
+    stubDeviceCodeIssue(["OLDQR", "NEWQR"], withQRCodes: true)
+    for code in ["OLDQR", "NEWQR"] {
+      fixtures.fixtures["GET /v2/oauth2/oob/code/\(code)"] = (200, Self.pendingCode)
+    }
+    let images = QRImageFixture()
+    let (store, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: nil), loadImage: { try await images.load($0) })
+    let first = Task { await store.signInWithDeviceCode() }
+    try await waitUntil { await images.requested.contains("OLDQR") }
+    let second = Task { await store.signInWithDeviceCode() }
+    try await waitUntil { await images.requested.contains("NEWQR") }
+
+    await images.deliver("OLDQR", Self.png)
+    try await Task.sleep(for: .milliseconds(50))
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "NEWQR")))
+    store.cancelSignIn()
+    await first.value
+    await second.value
   }
 
   func testCancellingDeviceCodeSignInStopsPollingAndReturnsSignedOut() async throws {
@@ -1378,7 +1480,7 @@ final class PutioSessionStoreTests: XCTestCase {
       polled, store: store, task: signIn, route: "GET /v2/oauth2/oob/code/WAIT1")
     XCTAssertEqual(result, .completed)
     guard result == .completed else { return }
-    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "WAIT1"))
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(PutioDeviceCode(code: "WAIT1")))
     let pollsAtCancel = fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
     store.cancelSignIn()
     XCTAssertEqual(store.state, .signedOut(nil))
@@ -1465,5 +1567,42 @@ final class PutioSessionStoreTests: XCTestCase {
       .queryItems?
       .first(where: { $0.name == "state" })?
       .value
+  }
+}
+
+extension PutioSessionStoreTests {
+  /// A one-pixel PNG.
+  fileprivate static let png = Data(
+    base64Encoded:
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+  )!
+
+  fileprivate func waitUntil(
+    timeout: Duration = .seconds(5), _ condition: @MainActor () async -> Bool
+  ) async throws {
+    let deadline = ContinuousClock.now.advanced(by: timeout)
+    while await !condition() {
+      guard ContinuousClock.now < deadline else {
+        XCTFail("condition never held")
+        throw CancellationError()
+      }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+  }
+}
+
+/// Holds each QR image request until the test delivers its bytes.
+private actor QRImageFixture {
+  private(set) var requested: [String] = []
+  private var waiting: [String: CheckedContinuation<Data, Never>] = [:]
+
+  func load(_ url: URL) async throws -> Data {
+    let code = url.lastPathComponent
+    requested.append(code)
+    return await withCheckedContinuation { waiting[code] = $0 }
+  }
+
+  func deliver(_ code: String, _ data: Data) {
+    waiting.removeValue(forKey: code)?.resume(returning: data)
   }
 }

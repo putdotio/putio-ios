@@ -31,7 +31,8 @@ public final class PutioRuntime {
       signOutIntentStore: signOutIntentStore,
       callbackScheme: callbackScheme,
       deviceCodePollInterval: deviceCodePollInterval,
-      supportIdentityPlatform: supportIdentityPlatform
+      supportIdentityPlatform: supportIdentityPlatform,
+      loadImage: PutioSessionStore.loadImage(using: urlSession)
     )
   }
 

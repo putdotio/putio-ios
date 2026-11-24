@@ -1191,6 +1191,22 @@ public struct SimulatorHarness {
         else {
           throw HarnessFailure("device sign-in screenshots do not differ meaningfully")
         }
+        let recoveryBundle = platformDirectory.appending(path: ".session-recovery.xcresult")
+        let recoveryScreenshots = try runJourneyPreflightTest(
+          identifier: DeviceSignInJourneyContract.sessionRecoveryTestIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: recoveryBundle,
+          attachmentNames: DeviceSignInJourneyContract.sessionRecoveryAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 120,
+          maximumExecutionTimeAllowance: 180
+        )
+        for (name, screenshot) in zip(
+          DeviceSignInJourneyContract.sessionRecoveryAttachmentNames, recoveryScreenshots)
+        {
+          _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
+        }
         let historyTrashBundle = platformDirectory.appending(path: ".tv-history-trash.xcresult")
         let historyTrashScreenshots = try runJourneyPreflightTest(
           identifier: TVAccountJourneyContract.historyTrashTestIdentifier,
@@ -1308,12 +1324,13 @@ public struct SimulatorHarness {
         try requireRevision(sourceRevision)
         let bundles =
           [
-            resultBundle, historyTrashBundle, settingsBundle, browseBundle, searchBundle,
+            resultBundle, recoveryBundle, historyTrashBundle, settingsBundle, browseBundle,
+            searchBundle,
           ] + playbackBundles
         for bundle in bundles where fileManager.fileExists(atPath: bundle.path) {
           try fileManager.removeItem(at: bundle)
         }
-        let artifacts = screenshots + accountScreenshots
+        let artifacts = screenshots + recoveryScreenshots + accountScreenshots
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
