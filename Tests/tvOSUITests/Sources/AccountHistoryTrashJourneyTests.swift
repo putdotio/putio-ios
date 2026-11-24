@@ -47,7 +47,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(focus("history.item.808"))
     remote.press(.select)
     XCTAssertTrue(label(containing: "File not found").waitForExistence(timeout: 10))
-    attach("runtime-tv-history-file-gone")
+    attach("runtime-tv-history-open-failure")
     XCTAssertFalse(element("history.open-retry").exists, "a missing file can't be retried")
 
     XCTAssertTrue(focus("history.item.809"))
