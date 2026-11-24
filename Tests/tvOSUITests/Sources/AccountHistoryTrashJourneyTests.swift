@@ -114,7 +114,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-trash-modal")
     XCTAssertTrue(selectModalButton("trash.item-delete"))
     XCTAssertTrue(
-      label(containing: "Could not permanently delete item").waitForExistence(timeout: 5),
+      label(containing: "The request could not start").waitForExistence(timeout: 5),
       "a failed delete must say so")
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.progress").exists })
     XCTAssertTrue(element("trash.item.420").exists, "a failed delete keeps the row")
