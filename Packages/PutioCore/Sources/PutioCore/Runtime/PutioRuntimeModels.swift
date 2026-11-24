@@ -64,6 +64,18 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     public static var fullMessage: String {
       String(localized: "Full. Empty trash or delete files to make room.", bundle: .module)
     }
+
+    /// Share of the quota in use from which storage counts as almost full.
+    public static let almostFullFraction = 0.95
+
+    /// Nearly out of room but not yet full.
+    public var isAlmostFull: Bool {
+      !isFull && totalBytes > 0 && Double(usedBytes) / Double(totalBytes) >= Self.almostFullFraction
+    }
+
+    public static var almostFullMessage: String {
+      String(localized: "Almost full. Empty trash or delete files to make room.", bundle: .module)
+    }
   }
 
   public enum Status: Equatable, Sendable {
@@ -497,22 +509,6 @@ public struct PutioPlaybackRoute: Equatable, Sendable, Identifiable {
 
   var hasOwnDescription: Bool {
     !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && description != name
-  }
-}
-
-public struct PutioProxyChoices: Equatable, Sendable {
-  public static let directRouteName = "default"
-
-  public let suggested: [PutioPlaybackRoute]
-  public let locations: [PutioPlaybackRoute]
-
-  public init(routes: [PutioPlaybackRoute], current: String) {
-    let listed = routes.filter { $0.name != Self.directRouteName }
-    let unlisted =
-      current.isEmpty || current == Self.directRouteName || routes.contains { $0.name == current }
-      ? [] : [PutioPlaybackRoute(name: current, description: "")]
-    suggested = unlisted + listed.filter(\.hasOwnDescription)
-    locations = listed.filter { !$0.hasOwnDescription }
   }
 }
 

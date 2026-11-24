@@ -1,17 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "%@ (build %@)" : {
-      "comment" : "android: mobile_settings_about_version_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ (build %@)"
-          }
-        }
-      }
-    },
     "%@ free" : {
       "comment" : "android: mobile_downloads_free",
       "localizations" : {
@@ -292,17 +281,6 @@
         }
       }
     },
-    "Account settings could not be confirmed. Refresh to continue." : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Account settings could not be confirmed. Refresh to continue."
-          }
-        }
-      }
-    },
     "Added" : {
       "comment" : "android: mobile_files_detail_added",
       "localizations" : {
@@ -398,17 +376,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "App info"
-          }
-        }
-      }
-    },
-    "App Store" : {
-      "comment" : "ios-only: App info channel for App Store installs",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "App Store"
           }
         }
       }
@@ -634,17 +601,6 @@
         }
       }
     },
-    "Channel" : {
-      "comment" : "android: mobile_settings_about_channel",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Channel"
-          }
-        }
-      }
-    },
     "Check your connection and try again." : {
       "comment" : "android: mobile_state_error_message",
       "localizations" : {
@@ -663,17 +619,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Checking your session"
-          }
-        }
-      }
-    },
-    "Choose another one." : {
-      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose another one."
           }
         }
       }
@@ -949,17 +894,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Could not save downloads"
-          }
-        }
-      }
-    },
-    "Couldn’t check your session" : {
-      "comment" : "android: mobile_auth_unavailable_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t check your session"
           }
         }
       }
@@ -1352,17 +1286,6 @@
         }
       }
     },
-    "Turning off trash empties it now. Files you delete after that can’t be restored." : {
-      "comment" : "android: mobile_settings_trash_confirm_message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turning off trash empties it now. Files you delete after that can’t be restored."
-          }
-        }
-      }
-    },
     "Deleted items stay 14 days" : {
       "comment" : "android: mobile_trash_retention | differs: iOS board wording; Android lowercases it after the size",
       "localizations" : {
@@ -1403,28 +1326,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Destroying your account deletes your files and history and cancels your subscription. There is no way back."
-          }
-        }
-      }
-    },
-    "Device" : {
-      "comment" : "android: mobile_settings_about_device",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Device"
-          }
-        }
-      }
-    },
-    "Direct" : {
-      "comment" : "android: mobile_settings_tunnel_route_default",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Direct"
           }
         }
       }
@@ -1616,50 +1517,6 @@
         }
       }
     },
-    "Downloads stay on this iPad and come back when you sign in again." : {
-      "comment" : "android: mobile_account_sign_out_message | differs: names the iPad",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads stay on this iPad and come back when you sign in again."
-          }
-        }
-      }
-    },
-    "Downloads stay on this iPhone and come back when you sign in again." : {
-      "comment" : "android: mobile_account_sign_out_message | differs: names the iPhone",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads stay on this iPhone and come back when you sign in again."
-          }
-        }
-      }
-    },
-    "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
-      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads use %@ and stay on this iPad. They come back when you sign in again."
-          }
-        }
-      }
-    },
-    "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
-      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloads use %@ and stay on this iPhone. They come back when you sign in again."
-          }
-        }
-      }
-    },
     "Empty trash" : {
       "comment" : "android: mobile_trash_empty_action",
       "localizations" : {
@@ -1704,17 +1561,6 @@
         }
       }
     },
-    "Every folder will use your account’s default sort." : {
-      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Every folder will use your account’s default sort."
-          }
-        }
-      }
-    },
     "Every item in trash will be removed right away. This cannot be undone." : {
       "comment" : "android: mobile_trash_empty_confirm_message",
       "localizations" : {
@@ -1755,17 +1601,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Exclusive links"
-          }
-        }
-      }
-    },
-    "Existing history will be cleared and new account events will no longer be saved." : {
-      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Existing history will be cleared and new account events will no longer be saved."
           }
         }
       }
@@ -2290,17 +2125,6 @@
         }
       }
     },
-    "iOS" : {
-      "comment" : "ios-only: the App info row naming the operating system version",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "iOS"
-          }
-        }
-      }
-    },
     "It may have been moved or deleted." : {
       "comment" : "android: mobile_downloads_status_failed_unavailable | differs: iOS board wording",
       "localizations" : {
@@ -2787,17 +2611,6 @@
         }
       }
     },
-    "Nightly" : {
-      "comment" : "ios-only: App info channel for the Nightly app; Android adds the build type",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nightly"
-          }
-        }
-      }
-    },
     "No exclusive links" : {
       "comment" : "android: mobile_public_links_empty_title",
       "localizations" : {
@@ -2948,17 +2761,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing was removed because this iPhone could not save the change. Remove the downloads again."
-          }
-        }
-      }
-    },
-    "Nothing was saved, so you can try again." : {
-      "comment" : "android: mobile_welcome_failed",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing was saved, so you can try again."
           }
         }
       }
@@ -3322,17 +3124,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Playback speed %@"
-          }
-        }
-      }
-    },
-    "Player" : {
-      "comment" : "android: mobile_settings_about_player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Player"
           }
         }
       }
@@ -3733,17 +3524,6 @@
         }
       }
     },
-    "TestFlight" : {
-      "comment" : "ios-only: App info channel for TestFlight installs",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "TestFlight"
-          }
-        }
-      }
-    },
     "Text size" : {
       "comment" : "android: playback_text_size",
       "localizations" : {
@@ -3784,17 +3564,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "They will be removed from trash right away. This cannot be undone."
-          }
-        }
-      }
-    },
-    "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
-      "comment" : "android: mobile_settings_open_source_licenses_description",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
           }
         }
       }
@@ -4107,17 +3876,6 @@
         }
       }
     },
-    "Refreshing…" : {
-      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refreshing…"
-          }
-        }
-      }
-    },
     "Remove" : {
       "comment" : "android: mobile_downloads_remove_confirm",
       "localizations" : {
@@ -4140,17 +3898,6 @@
         }
       }
     },
-    "Reset all folder sorts?" : {
-      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset all folder sorts?"
-          }
-        }
-      }
-    },
     "Reset all sort settings" : {
       "comment" : "android: mobile_settings_reset_sorts",
       "localizations" : {
@@ -4158,28 +3905,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset all sort settings"
-          }
-        }
-      }
-    },
-    "Reset and sign in" : {
-      "comment" : "android: mobile_auth_storage_reset",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset and sign in"
-          }
-        }
-      }
-    },
-    "Reset folder sorts" : {
-      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset folder sorts"
           }
         }
       }
@@ -4283,28 +4008,6 @@
         }
       }
     },
-    "Route streams and downloads through a put.io proxy closer to you." : {
-      "comment" : "android: mobile_settings_tunnel_route_description",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Route streams and downloads through a put.io proxy closer to you."
-          }
-        }
-      }
-    },
-    "Saving settings" : {
-      "comment" : "ios-only: no Android string for the iOS file settings screen",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saving settings"
-          }
-        }
-      }
-    },
     "Search" : {
       "comment" : "android: mobile_shortcut_search",
       "localizations" : {
@@ -4334,17 +4037,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Searching files"
-          }
-        }
-      }
-    },
-    "Secure storage is unavailable" : {
-      "comment" : "android: mobile_auth_storage_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Secure storage is unavailable"
           }
         }
       }
@@ -4503,50 +4195,6 @@
         }
       }
     },
-    "Sign out and remove downloads" : {
-      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox; at the largest text size the size moves to the message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out and remove downloads"
-          }
-        }
-      }
-    },
-    "Sign out and remove downloads (%@)" : {
-      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox and carries its size",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out and remove downloads (%@)"
-          }
-        }
-      }
-    },
-    "Sign out of put.io?" : {
-      "comment" : "android: mobile_account_sign_out_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign out of put.io?"
-          }
-        }
-      }
-    },
-    "Sign-in didn’t finish" : {
-      "comment" : "android: mobile_welcome_failed_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sign-in didn’t finish"
-          }
-        }
-      }
-    },
     "Signing out" : {
       "comment" : "android: mobile_auth_signing_out",
       "localizations" : {
@@ -4624,17 +4272,6 @@
         }
       }
     },
-    "Straight from put.io, no proxy." : {
-      "comment" : "android: mobile_settings_tunnel_route_default_description",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Straight from put.io, no proxy."
-          }
-        }
-      }
-    },
     "Stream it anywhere." : {
       "comment" : "android: mobile_welcome_caption_stream",
       "localizations" : {
@@ -4679,17 +4316,6 @@
         }
       }
     },
-    "That proxy isn’t available for your account." : {
-      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That proxy isn’t available for your account."
-          }
-        }
-      }
-    },
     "The conversion did not finish. Try again." : {
       "comment" : "ios-only: no Android string for the iOS offline downloads",
       "localizations" : {
@@ -4719,17 +4345,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This device is out of space, so changes to your downloads were not saved. Free up storage and try again."
-          }
-        }
-      }
-    },
-    "This erases every saved playback position on your account, on all devices." : {
-      "comment" : "android: mobile_settings_resume_confirm_message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This erases every saved playback position on your account, on all devices."
           }
         }
       }
@@ -4811,50 +4426,6 @@
         }
       }
     },
-    "Turn off history?" : {
-      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn off history?"
-          }
-        }
-      }
-    },
-    "Turn off" : {
-      "comment" : "android: mobile_settings_turn_off",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn off"
-          }
-        }
-      }
-    },
-    "Turn off resume?" : {
-      "comment" : "android: mobile_settings_resume_confirm_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn off resume?"
-          }
-        }
-      }
-    },
-    "Turn off trash?" : {
-      "comment" : "android: mobile_settings_trash_confirm_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Turn off trash?"
-          }
-        }
-      }
-    },
     "Turn on" : {
       "comment" : "android: mobile_downloads_notifications_turn_on",
       "localizations" : {
@@ -4928,17 +4499,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updating Trash…"
-          }
-        }
-      }
-    },
-    "Version" : {
-      "comment" : "android: mobile_settings_about_version",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version"
           }
         }
       }
@@ -5075,28 +4635,6 @@
         }
       }
     },
-    "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again." : {
-      "comment" : "android: mobile_auth_storage_message | differs: names the iPad instead of the device",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again."
-          }
-        }
-      }
-    },
-    "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again." : {
-      "comment" : "android: mobile_auth_storage_message | differs: names the iPhone instead of the device",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again."
-          }
-        }
-      }
-    },
     "Your session expired. Sign in again to continue." : {
       "comment" : "android: mobile_welcome_expired",
       "localizations" : {
@@ -5104,17 +4642,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your session expired. Sign in again to continue."
-          }
-        }
-      }
-    },
-    "Your sign-in is still saved. Check your connection and try again." : {
-      "comment" : "android: mobile_auth_unavailable_message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your sign-in is still saved. Check your connection and try again."
           }
         }
       }

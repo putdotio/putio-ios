@@ -56,6 +56,12 @@ public final class PutioAppConfigModel {
   /// `false` until the document loads, matching the server default.
   public var autoplayNextVideo: Bool { config?.autoplayNextVideo ?? false }
   /// `true` until the document loads, matching the server default.
+  /// Autoplay is offered once the document loads, and only to accounts
+  /// put.io suggests a next video for.
+  public func offersAutoplay(suggestsNextVideo: Bool) -> Bool {
+    config != nil && suggestsNextVideo
+  }
+
   public var autoRotateVideo: Bool { config?.autoRotateVideo ?? true }
   public var playbackMethod: PutioPlaybackMethod { config?.playbackMethod ?? .standard }
   public var isBusy: Bool { isLoading || isSaving }

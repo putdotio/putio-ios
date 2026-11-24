@@ -51,9 +51,9 @@ final class TVSessionRenderingTests: XCTestCase {
           account: Self.account(hideSubtitles: true, trashEnabled: false),
           appInfo: Self.appInfo,
           status: TVAccountStatus(
-            failure:
+            message:
               "Saved, but the latest account settings could not be loaded. Refresh to continue.",
-            isStale: true, canSave: false),
+            retryTitle: "Refresh account", canSave: false),
           locale: Locale(identifier: "en_US")
         ) {}
       },
@@ -66,12 +66,13 @@ final class TVSessionRenderingTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-proxy-chooser",
       view: TVProxyChooserScreen(
-        currentRoute: "edge",
-        routes: [
-          PutioPlaybackRoute(name: "default", description: "Amsterdam (Direct)"),
-          PutioPlaybackRoute(name: "edge", description: "Alternate proxy"),
-          PutioPlaybackRoute(name: "london", description: ""),
-        ]),
+        selection: "edge",
+        choices: PutioProxyChoices(
+          routes: [
+            PutioPlaybackRoute(name: "default", description: "Amsterdam (Direct)"),
+            PutioPlaybackRoute(name: "edge", description: "Alternate proxy"),
+            PutioPlaybackRoute(name: "london", description: ""),
+          ], current: "edge")),
       size: viewport
     )
   }
@@ -184,7 +185,8 @@ final class TVSessionRenderingTests: XCTestCase {
     HarnessSeededAPI.failNextAccountRefresh()
     await TVAccountView.refreshAfterReturning(model: model)
     XCTAssertEqual(model.failure, "Could not refresh account settings. Try again.")
-    XCTAssertEqual(TVAccountStatus(model: model).failure, model.failure)
+    XCTAssertEqual(TVAccountStatus(model: model).message, model.failure)
+    XCTAssertEqual(TVAccountStatus(model: model).retryTitle, "Refresh account")
   }
 
   @MainActor
@@ -204,11 +206,13 @@ final class TVSessionRenderingTests: XCTestCase {
       .expired(code: "AB12C"))
     XCTAssertEqual(
       TVSignInPhase(state: .signedOut(.authenticationFailed("nope")), deviceCodeSignIn: nil),
-      .failed(message: "nope", canRetryRestore: false))
+      .failed(PutioSignedOutNotice(kind: .signInFailed, device: .appleTV)))
     XCTAssertEqual(
       TVSignInPhase(
         state: .signedOut(.restoreFailed(.sessionCheck, message: "offline")), deviceCodeSignIn: nil),
-      .failed(message: "offline", canRetryRestore: true))
+      .failed(PutioSignedOutNotice(kind: .restoreFailed(.sessionCheck), device: .appleTV)))
+    XCTAssertEqual(
+      TVSignInPhase(state: .signedOut(.sessionExpired), deviceCodeSignIn: nil), .fetchingCode)
   }
 
   /// A signed-in runtime against the seeded API, with its fixture counters
@@ -235,8 +239,9 @@ final class TVSessionRenderingTests: XCTestCase {
 
   private static let trashNow = ISO8601DateFormatter().date(from: "2026-09-10T12:00:00Z")!
 
-  private static let appInfo = TVAppInfo(
-    app: "io.put.dev.tvos@1.0+1", device: "Living Room - Apple TV", system: "tvOS 27.0")
+  private static let appInfo = PutioAppInfo(
+    version: "1.0", build: "1", channel: .appStore, device: "Apple TV", systemName: "tvOS",
+    systemVersion: "27.0")
 
   private static let account = account()
 

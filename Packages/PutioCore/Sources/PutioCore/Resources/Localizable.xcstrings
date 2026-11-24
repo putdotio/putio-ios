@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (build %@)" : {
+      "comment" : "android: mobile_settings_about_version_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (build %@)"
+          }
+        }
+      }
+    },
     "%@ (track %lld)" : {
       "comment" : "android: playback_track_disambiguated",
       "localizations" : {
@@ -216,6 +227,17 @@
         }
       }
     },
+    "Account settings could not be confirmed. Refresh to continue." : {
+      "comment" : "ios-only: no Android string for the iOS file settings screen",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account settings could not be confirmed. Refresh to continue."
+          }
+        }
+      }
+    },
     "Account storage could not be updated after the last deletion." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -245,6 +267,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Activity"
+          }
+        }
+      }
+    },
+    "Almost full. Empty trash or delete files to make room." : {
+      "comment" : "ios-only: tvOS storage warning (rd-tvos-acc-13-storage-full); Android has no almost-full state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Almost full. Empty trash or delete files to make room."
           }
         }
       }
@@ -293,6 +326,17 @@
         }
       }
     },
+    "App Store" : {
+      "comment" : "ios-only: App info channel for App Store installs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App Store"
+          }
+        }
+      }
+    },
     "Ascending" : {
       "comment" : "ios-only: no Android string for the shared file actions and sorting",
       "localizations" : {
@@ -337,6 +381,17 @@
         }
       }
     },
+    "Can’t connect to put.io" : {
+      "comment" : "ios-only: tvOS offline launch (rd-tvos-ses-06-offline); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can’t connect to put.io"
+          }
+        }
+      }
+    },
     "Can’t play this file" : {
       "comment" : "android: mobile_playback_unsupported_title",
       "localizations" : {
@@ -370,6 +425,17 @@
         }
       }
     },
+    "Channel" : {
+      "comment" : "android: mobile_settings_about_channel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Channel"
+          }
+        }
+      }
+    },
     "Check your connection and try again." : {
       "comment" : "android: mobile_state_error_message",
       "localizations" : {
@@ -388,6 +454,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check your internet connection and try again."
+          }
+        }
+      }
+    },
+    "Check your internet connection. Your sign-in is saved, and the app tries again on its own." : {
+      "comment" : "ios-only: tvOS offline launch (rd-tvos-ses-06-offline); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check your internet connection. Your sign-in is saved, and the app tries again on its own."
+          }
+        }
+      }
+    },
+    "Choose another one." : {
+      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose another one."
           }
         }
       }
@@ -784,6 +872,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t change sorting."
+          }
+        }
+      }
+    },
+    "Couldn’t check your session" : {
+      "comment" : "android: mobile_auth_unavailable_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t check your session"
           }
         }
       }
@@ -1209,6 +1308,17 @@
         }
       }
     },
+    "Device" : {
+      "comment" : "android: mobile_settings_about_device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device"
+          }
+        }
+      }
+    },
     "Diagnostics" : {
       "comment" : "android: privacy_diagnostics",
       "localizations" : {
@@ -1249,6 +1359,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Diagnostics on"
+          }
+        }
+      }
+    },
+    "Direct" : {
+      "comment" : "android: mobile_settings_tunnel_route_default",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct"
           }
         }
       }
@@ -1297,6 +1418,50 @@
         }
       }
     },
+    "Downloads stay on this iPad and come back when you sign in again." : {
+      "comment" : "android: mobile_account_sign_out_message | differs: names the iPad",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads stay on this iPad and come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads stay on this iPhone and come back when you sign in again." : {
+      "comment" : "android: mobile_account_sign_out_message | differs: names the iPhone",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads stay on this iPhone and come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads use %@ and stay on this iPad. They come back when you sign in again." : {
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPad. They come back when you sign in again."
+          }
+        }
+      }
+    },
+    "Downloads use %@ and stay on this iPhone. They come back when you sign in again." : {
+      "comment" : "ios-only: at the largest text size the stock dialog cannot fit the size in the remove action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloads use %@ and stay on this iPhone. They come back when you sign in again."
+          }
+        }
+      }
+    },
     "Empty trash" : {
       "comment" : "android: mobile_trash_empty_action",
       "localizations" : {
@@ -1319,6 +1484,17 @@
         }
       }
     },
+    "Every folder will use your account’s default sort." : {
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every folder will use your account’s default sort."
+          }
+        }
+      }
+    },
     "Every item in trash will be removed right away. This cannot be undone." : {
       "comment" : "android: mobile_trash_empty_confirm_message",
       "localizations" : {
@@ -1326,6 +1502,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Every item in trash will be removed right away. This cannot be undone."
+          }
+        }
+      }
+    },
+    "Existing history will be cleared and new account events will no longer be saved." : {
+      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Existing history will be cleared and new account events will no longer be saved."
           }
         }
       }
@@ -1817,6 +2004,17 @@
         }
       }
     },
+    "Nightly" : {
+      "comment" : "ios-only: App info channel for the Nightly app; Android adds the build type",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nightly"
+          }
+        }
+      }
+    },
     "No activity yet" : {
       "comment" : "ios-only: the tvOS History board's empty state",
       "localizations" : {
@@ -1879,6 +2077,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing here yet."
+          }
+        }
+      }
+    },
+    "Nothing was saved, so you can try again." : {
+      "comment" : "android: mobile_welcome_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was saved, so you can try again."
+          }
+        }
+      }
+    },
+    "Off: the Home tab hides and the app opens on Files." : {
+      "comment" : "ios-only: tvOS Account panel (rd-tvos-acc-14-show-home-off); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off: the Home tab hides and the app opens on Files."
           }
         }
       }
@@ -2015,6 +2235,28 @@
         }
       }
     },
+    "Player" : {
+      "comment" : "android: mobile_settings_about_player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Player"
+          }
+        }
+      }
+    },
+    "Please sign in again" : {
+      "comment" : "ios-only: tvOS sign-in subtitle (rd-tvos-ses-05-session-expired); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please sign in again"
+          }
+        }
+      }
+    },
     "Privacy controls" : {
       "comment" : "android: mobile_settings_privacy_controls",
       "localizations" : {
@@ -2070,6 +2312,61 @@
         }
       }
     },
+    "Refresh account" : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh account"
+          }
+        }
+      }
+    },
+    "Refreshing…" : {
+      "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refreshing…"
+          }
+        }
+      }
+    },
+    "Reset all folder sorts?" : {
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset all folder sorts?"
+          }
+        }
+      }
+    },
+    "Reset and sign in" : {
+      "comment" : "android: mobile_auth_storage_reset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset and sign in"
+          }
+        }
+      }
+    },
+    "Reset folder sorts" : {
+      "comment" : "ios-only: Account board wording; Android has no reset-sorts action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset folder sorts"
+          }
+        }
+      }
+    },
     "Restore" : {
       "comment" : "android: mobile_trash_restore",
       "localizations" : {
@@ -2110,6 +2407,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore started"
+          }
+        }
+      }
+    },
+    "Route streams and downloads through a put.io proxy closer to you." : {
+      "comment" : "android: mobile_settings_tunnel_route_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Route streams and downloads through a put.io proxy closer to you."
           }
         }
       }
@@ -2213,6 +2521,17 @@
         }
       }
     },
+    "Saving settings" : {
+      "comment" : "ios-only: no Android string for the iOS file settings screen",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saving settings"
+          }
+        }
+      }
+    },
     "Scan to add files from your phone. What you watch and pin shows up here." : {
       "comment" : "ios-only: tvOS empty Home (rd-tvos-home-06-empty); the Android snapshot covers mobile only",
       "localizations" : {
@@ -2235,6 +2554,17 @@
         }
       }
     },
+    "Secure storage is unavailable" : {
+      "comment" : "android: mobile_auth_storage_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secure storage is unavailable"
+          }
+        }
+      }
+    },
     "Select all" : {
       "comment" : "android: mobile_selection_select_all",
       "localizations" : {
@@ -2242,6 +2572,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Select all"
+          }
+        }
+      }
+    },
+    "Session expired" : {
+      "comment" : "ios-only: tvOS sign-in title (rd-tvos-ses-05-session-expired); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session expired"
           }
         }
       }
@@ -2257,6 +2598,28 @@
         }
       }
     },
+    "Show Home" : {
+      "comment" : "ios-only: tvOS Account row (rd-tvos-acc-14-show-home-off); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Home"
+          }
+        }
+      }
+    },
+    "Sign in again" : {
+      "comment" : "android: mobile_downloads_meta_failed_authentication",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in again"
+          }
+        }
+      }
+    },
     "Sign in to continue" : {
       "comment" : "ios-only: no Android string for the shared session errors",
       "localizations" : {
@@ -2268,6 +2631,61 @@
         }
       }
     },
+    "Sign out" : {
+      "comment" : "android: mobile_account_sign_out",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        }
+      }
+    },
+    "Sign out and remove downloads" : {
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox; at the largest text size the size moves to the message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out and remove downloads"
+          }
+        }
+      }
+    },
+    "Sign out and remove downloads (%@)" : {
+      "comment" : "ios-only: one action replaces Android's remove-downloads checkbox and carries its size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out and remove downloads (%@)"
+          }
+        }
+      }
+    },
+    "Sign out of put.io?" : {
+      "comment" : "android: mobile_account_sign_out_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out of put.io?"
+          }
+        }
+      }
+    },
+    "Sign out?" : {
+      "comment" : "ios-only: tvOS sign-out confirmation (rd-tvos-acc-11-sign-out); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out?"
+          }
+        }
+      }
+    },
     "Sign-in did not complete. Try again." : {
       "comment" : "android: mobile_welcome_failed_title | differs: iOS board wording",
       "localizations" : {
@@ -2275,6 +2693,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in did not complete. Try again."
+          }
+        }
+      }
+    },
+    "Sign-in didn’t finish" : {
+      "comment" : "android: mobile_welcome_failed_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in didn’t finish"
           }
         }
       }
@@ -2400,6 +2829,17 @@
         }
       }
     },
+    "Straight from put.io, no proxy." : {
+      "comment" : "android: mobile_settings_tunnel_route_default_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Straight from put.io, no proxy."
+          }
+        }
+      }
+    },
     "Strictly necessary" : {
       "comment" : "android: privacy_strictly_necessary",
       "localizations" : {
@@ -2422,6 +2862,17 @@
         }
       }
     },
+    "TestFlight" : {
+      "comment" : "ios-only: App info channel for TestFlight installs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TestFlight"
+          }
+        }
+      }
+    },
     "That device code was not found. Check the code on the device and try again." : {
       "comment" : "ios-only: no Android string for the shared account security errors",
       "localizations" : {
@@ -2429,6 +2880,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That device code was not found. Check the code on the device and try again."
+          }
+        }
+      }
+    },
+    "That proxy isn’t available for your account." : {
+      "comment" : "android: mobile_settings_tunnel_route_unavailable | differs: split at the sentence into the alert title and message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That proxy isn’t available for your account."
           }
         }
       }
@@ -2488,6 +2950,17 @@
         }
       }
     },
+    "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
+      "comment" : "android: mobile_settings_open_source_licenses_description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code."
+          }
+        }
+      }
+    },
     "This device can’t play the original file, and it has no converted version." : {
       "comment" : "android: mobile_playback_unsupported_video_message",
       "localizations" : {
@@ -2506,6 +2979,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This device's keychain is unavailable. Try again."
+          }
+        }
+      }
+    },
+    "This erases every saved playback position on your account, on all devices." : {
+      "comment" : "android: mobile_settings_resume_confirm_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This erases every saved playback position on your account, on all devices."
           }
         }
       }
@@ -2697,6 +3181,61 @@
         }
       }
     },
+    "Try now" : {
+      "comment" : "ios-only: tvOS offline launch action (rd-tvos-ses-06-offline); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try now"
+          }
+        }
+      }
+    },
+    "Turn off" : {
+      "comment" : "android: mobile_settings_turn_off",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off"
+          }
+        }
+      }
+    },
+    "Turn off history?" : {
+      "comment" : "ios-only: the history confirmation is on the Account board; Android has no key for it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off history?"
+          }
+        }
+      }
+    },
+    "Turn off resume?" : {
+      "comment" : "android: mobile_settings_resume_confirm_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off resume?"
+          }
+        }
+      }
+    },
+    "Turn off trash?" : {
+      "comment" : "android: mobile_settings_trash_confirm_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off trash?"
+          }
+        }
+      }
+    },
     "Turn on product analytics?" : {
       "comment" : "android: mobile_product_analytics_prompt_title",
       "localizations" : {
@@ -2704,6 +3243,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turn on product analytics?"
+          }
+        }
+      }
+    },
+    "Turning off trash empties it now. Files you delete after that can’t be restored." : {
+      "comment" : "android: mobile_settings_trash_confirm_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning off trash empties it now. Files you delete after that can’t be restored."
           }
         }
       }
@@ -2792,6 +3342,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Uploaded"
+          }
+        }
+      }
+    },
+    "Version" : {
+      "comment" : "android: mobile_settings_about_version",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
           }
         }
       }
@@ -3050,6 +3611,50 @@
         }
       }
     },
+    "Your session couldn’t be read or saved safely on this Apple TV. Reset clears it so you can sign in again." : {
+      "comment" : "android: mobile_auth_storage_message | differs: names the Apple TV, as the iPhone and iPad keys name theirs",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session couldn’t be read or saved safely on this Apple TV. Reset clears it so you can sign in again."
+          }
+        }
+      }
+    },
+    "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again." : {
+      "comment" : "android: mobile_auth_storage_message | differs: names the iPad instead of the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again."
+          }
+        }
+      }
+    },
+    "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again." : {
+      "comment" : "android: mobile_auth_storage_message | differs: names the iPhone instead of the device",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again."
+          }
+        }
+      }
+    },
+    "Your sign-in is still saved. Check your connection and try again." : {
+      "comment" : "android: mobile_auth_unavailable_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your sign-in is still saved. Check your connection and try again."
+          }
+        }
+      }
+    },
     "Your trash is empty" : {
       "comment" : "android: mobile_trash_empty_title",
       "localizations" : {
@@ -3057,6 +3662,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your trash is empty"
+          }
+        }
+      }
+    },
+    "You’ll need a new code to sign in on this Apple TV again." : {
+      "comment" : "ios-only: tvOS sign-out confirmation (rd-tvos-acc-11-sign-out); the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You’ll need a new code to sign in on this Apple TV again."
           }
         }
       }

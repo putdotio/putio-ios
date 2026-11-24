@@ -380,7 +380,8 @@ let project = Project(
         "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
         "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
       ]),
-      resources: .resources(brandFontResourceElements(for: "tvos") + [privacyManifest("tvOS")]),
+      resources: .resources(
+        brandFontResourceElements(for: "tvos") + [openSourceLicenses, privacyManifest("tvOS")]),
       buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       scripts: [
         .post(

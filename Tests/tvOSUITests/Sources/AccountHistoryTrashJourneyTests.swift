@@ -226,15 +226,15 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "Off" })
     XCTAssertFalse(element("account.manage-trash").exists)
 
-    // With Trash off its row is the last setting; the app, device, and OS
-    // rows below it must still come on screen with the remote.
-    let system = element("account.system")
+    // With Trash off its row is the last setting; the app info rows below it
+    // must still come on screen with the remote.
+    let system = element("account.app-info.player")
     XCTAssertTrue(focus("account.trash"))
-    for _ in 0..<6 where !isOnScreen(system) {
+    for _ in 0..<8 where !isOnScreen(system) {
       remote.press(.down)
       pause(0.5)
     }
-    XCTAssertTrue(isOnScreen(system), "the operating system row never scrolled into view")
+    XCTAssertTrue(isOnScreen(system), "the last app info row never scrolled into view")
     attach("runtime-tv-account-about")
     XCTAssertTrue(focus("account.trash"))
     remote.press(.select)

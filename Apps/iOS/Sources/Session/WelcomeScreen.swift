@@ -10,14 +10,7 @@ struct WelcomeScreen: View {
     case restoreFailed(PutioRestoreFailureCause)
   }
 
-  enum DeviceNoun: Equatable {
-    case iPhone
-    case iPad
-
-    @MainActor static var current: DeviceNoun {
-      UIDevice.current.userInterfaceIdiom == .pad ? .iPad : .iPhone
-    }
-  }
+  typealias DeviceNoun = PutioDevice
 
   let mode: Mode
   var isCheckingSession = false
@@ -103,41 +96,14 @@ struct WelcomeScreen: View {
   }
 
   private var notice: WelcomeNotice? {
+    let kind: PutioSignedOutNotice.Kind
     switch mode {
-    case .fresh, .sessionExpired:
-      nil
-    case .signInFailed:
-      WelcomeNotice(
-        title: String(localized: "Sign-in didn’t finish"),
-        message: String(localized: "Nothing was saved, so you can try again.")
-      )
-    case .restoreFailed(.sessionCheck):
-      WelcomeNotice(
-        title: String(localized: "Couldn’t check your session"),
-        message: String(
-          localized: "Your sign-in is still saved. Check your connection and try again.")
-      )
-    case .restoreFailed(.secureStorage):
-      WelcomeNotice(
-        title: String(localized: "Secure storage is unavailable"),
-        message: secureStorageMessage
-      )
+    case .fresh, .sessionExpired: return nil
+    case .signInFailed: kind = .signInFailed
+    case .restoreFailed(let cause): kind = .restoreFailed(cause)
     }
-  }
-
-  private var secureStorageMessage: String {
-    switch deviceNoun {
-    case .iPhone:
-      String(
-        localized:
-          "Your session couldn’t be read or saved safely on this iPhone. Reset clears it so you can sign in again."
-      )
-    case .iPad:
-      String(
-        localized:
-          "Your session couldn’t be read or saved safely on this iPad. Reset clears it so you can sign in again."
-      )
-    }
+    let notice = PutioSignedOutNotice(kind: kind, device: deviceNoun)
+    return WelcomeNotice(title: notice.title, message: notice.message)
   }
 
   private func actions(bottomPadding: CGFloat) -> some View {
@@ -152,10 +118,14 @@ struct WelcomeScreen: View {
         )
         .accessibilityIdentifier("auth.sign-in")
       case .restoreFailed(let cause):
-        WelcomeButton(String(localized: "Try again"), prominent: true, action: retryRestore)
-          .accessibilityIdentifier("auth.retry")
-        WelcomeButton(discardTitle(cause), prominent: false, action: discardCredential)
-          .accessibilityIdentifier("auth.discard-credential")
+        if let actions = PutioSignedOutNotice(kind: .restoreFailed(cause), device: deviceNoun)
+          .restoreActions
+        {
+          WelcomeButton(actions.retryTitle, prominent: true, action: retryRestore)
+            .accessibilityIdentifier("auth.retry")
+          WelcomeButton(actions.discardTitle, prominent: false, action: discardCredential)
+            .accessibilityIdentifier("auth.discard-credential")
+        }
       }
     }
     .padding(.horizontal, WelcomeMetrics.sideMargin)
@@ -164,13 +134,6 @@ struct WelcomeScreen: View {
     .padding(.bottom, bottomPadding)
     .frame(maxWidth: .infinity)
     .background(PutioTheme.Colors.background)
-  }
-
-  private func discardTitle(_ cause: PutioRestoreFailureCause) -> String {
-    switch cause {
-    case .sessionCheck: String(localized: "Sign in again")
-    case .secureStorage: String(localized: "Reset and sign in")
-    }
   }
 
   private var primaryTitle: String {
@@ -197,7 +160,8 @@ struct WelcomeScreen: View {
       String(localized: "Your session expired. Sign in again to continue.")
     case .fresh, .signInFailed, .restoreFailed:
       switch deviceNoun {
-      case .iPhone: String(localized: "Your put.io files, streaming and offline on this iPhone.")
+      case .iPhone, .appleTV:
+        String(localized: "Your put.io files, streaming and offline on this iPhone.")
       case .iPad: String(localized: "Your put.io files, streaming and offline on this iPad.")
       }
     }
