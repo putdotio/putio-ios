@@ -52,6 +52,7 @@ jobs:
       build: ${{ inputs.verify || steps.filter.outputs.build == 'true' }}
       ios: ${{ inputs.verify || steps.filter.outputs.ios == 'true' }}
       tvos: ${{ inputs.verify || steps.filter.outputs.tvos == 'true' }}
+      release-schemes: ${{ steps.release-schemes.outputs.schemes }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -100,6 +101,29 @@ jobs:
             # match every entry in a list.
             store:
               - '{scripts/app-store*.ts,mise.toml,mise.lock,.github/workflows/ci-next.yml}'
+            # PutioNightly compiles Putio's sources with Putio's flags; only its
+            # manifest, resources, and toolchain can break it alone.
+            nightly:
+              - '{Project.swift,Tuist.swift,Tuist/**,Apps/iOS/Resources/**,Config/**,Packages/GoogleCastSDK/**,Packages/SentrySDK/**,mise.toml,mise.lock,.xcode-version,scripts/build.sh,scripts/generate.sh,.github/workflows/ci-next.yml,.github/actions/setup-apple/**}'
+
+      # The Release build compiles only the shells whose test lane runs. A change
+      # that selects neither test lane, such as scripts/build.sh, builds all three.
+      - name: Select Release shells
+        id: release-schemes
+        env:
+          VERIFY_ALL: ${{ github.event_name == 'workflow_dispatch' }}
+          IOS: ${{ steps.filter.outputs.ios }}
+          NIGHTLY: ${{ steps.filter.outputs.nightly }}
+          TVOS: ${{ steps.filter.outputs.tvos }}
+        run: |
+          schemes=()
+          if [[ "$VERIFY_ALL" != true ]]; then
+            [[ "$IOS" == true ]] && schemes+=(Putio:iOS)
+            [[ "$IOS" == true && "$NIGHTLY" == true ]] && schemes+=(PutioNightly:iOS)
+            [[ "$TVOS" == true ]] && schemes+=(PutioTV:tvOS)
+          fi
+          [[ ${#schemes[@]} -eq 0 ]] && schemes=(Putio:iOS PutioNightly:iOS PutioTV:tvOS)
+          echo "schemes=${schemes[*]}" >> "$GITHUB_OUTPUT"
 
       - name: Check Markdown links
         uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
@@ -314,7 +338,9 @@ jobs:
         with:
           lane: build
 
-      - name: Build every app shell in Release
+      - name: Build the affected app shells in Release
+        env:
+          PUTIO_BUILD_SCHEMES: ${{ needs.changes.outputs.release-schemes }}
         run: ./scripts/verify.sh build
 
       - name: Save Xcode compilation cache
