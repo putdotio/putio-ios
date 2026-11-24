@@ -118,28 +118,44 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(element("trash.item.421").waitForExistence(timeout: 10))
 
-    // The item modal's first permanent delete fails; the second commits.
+    // Selecting a row moves to its panel. Delete confirms with Cancel
+    // focused; the first permanent delete fails, the second commits and
+    // hands focus to the next row.
     XCTAssertTrue(focus("trash.item.420"))
+    XCTAssertTrue(element("trash.panel").exists, "Trash shows the focused item's panel")
     remote.press(.select)
-    XCTAssertTrue(element("trash.item-delete").waitForExistence(timeout: 5))
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("trash.panel.restore") })
+    attach("runtime-tv-trash-panel")
+    XCTAssertTrue(focus("trash.panel.delete", moving: .down, limit: 3))
+    remote.press(.select)
+    XCTAssertTrue(element("trash.delete-confirm").waitForExistence(timeout: 5))
+    XCTAssertTrue(modalFocusIs("trash.delete-cancel"), "Delete must open on Cancel")
     attach("runtime-tv-trash-modal")
-    XCTAssertTrue(selectModalButton("trash.item-delete"))
+    XCTAssertTrue(selectModalButton("trash.delete-confirm"))
     XCTAssertTrue(
-      label(containing: "Could not permanently delete item").waitForExistence(timeout: 5),
+      label(containing: "The request could not start").waitForExistence(timeout: 5),
       "a failed delete must say so")
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.progress").exists })
     XCTAssertTrue(element("trash.item.420").exists, "a failed delete keeps the row")
-    XCTAssertTrue(element("trash.item.419").exists, "the modal deleted, not restored")
-    XCTAssertTrue(focus("trash.item.420"))
+    XCTAssertTrue(focus("trash.panel.delete", moving: .down, limit: 3))
     remote.press(.select)
-    XCTAssertTrue(element("trash.item-delete").waitForExistence(timeout: 5))
-    XCTAssertTrue(selectModalButton("trash.item-delete"))
+    XCTAssertTrue(element("trash.delete-confirm").waitForExistence(timeout: 5))
+    XCTAssertTrue(selectModalButton("trash.delete-confirm"))
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.item.420").exists })
+    XCTAssertTrue(element("trash.item.419").exists, "the panel deleted, not restored")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("trash.item.421") },
+      "a deleted row hands focus to the next row")
 
-    if app.tabBars.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch.exists {
-      remote.press(.down)
-    }
-    XCTAssertTrue(focus("trash.restore-all", moving: .up))
+    // Restoring the last row starts, then hands focus to Restore all.
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("trash.panel.restore") })
+    remote.press(.select)
+    XCTAssertTrue(label(containing: "Restore started").waitForExistence(timeout: 5))
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.item.421").exists })
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("trash.restore-all") },
+      "the last restored row hands focus to Restore all")
     remote.press(.select)
     XCTAssertTrue(element("trash.empty-state").waitForExistence(timeout: 15))
     XCTAssertTrue(isCentered(element("trash.empty-state")), "Trash's empty state is off-center")
