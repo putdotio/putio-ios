@@ -807,8 +807,8 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
         chooseStart: PutioVideoStart.choice(
           for: shown.start, remembersPosition: true,
           durationSeconds: { _ in 5400 },
-          ask: {
-            asked.append($0)
+          ask: { position, _ in
+            asked.append(position)
             return choice
           }),
         resolve: { try await resolver.resolve($0) }

@@ -115,7 +115,7 @@ struct PutioVideoPlaybackView: View {
         chooseStart: PutioVideoStart.choice(
           for: route.start, remembersPosition: remembersPlaybackPosition,
           durationSeconds: { await PutioVideoLength.seconds(of: $0) },
-          ask: { await resumePrompter.ask(positionSeconds: $0) }),
+          ask: { await resumePrompter.ask(positionSeconds: $0, durationSeconds: $1) }),
         handOffConverted: castHandOff,
         resolveConverted: resolveConverted.map { resolveConverted in
           { fileID in

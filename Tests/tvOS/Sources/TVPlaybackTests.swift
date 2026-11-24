@@ -120,7 +120,7 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.last?.1 ?? 0, 589, "the end reset the position")
   }
 
-  /// Start from the beginning plays from zero and reports the position it
+  /// Start over plays from zero and reports the position it
   /// reached; an account that does not remember positions reports nothing.
   func testStartOverPlaysFromZeroAndRememberOffReportsNothing() async throws {
     let (server, base) = try await serveMedia()
@@ -310,7 +310,8 @@ final class TVPlaybackTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-resume",
       view: TVResumePromptView(
-        fileName: "The.Wire.S03E04.Back.Burners.1080p.BluRay.x264-DEMAND.mkv", prompt: prompt
+        fileName: "The.Wire.S03E04.Back.Burners.1080p.BluRay.x264-DEMAND.mkv",
+        positionSeconds: prompt.positionSeconds, prompt: prompt
       ) { _ in },
       size: viewport)
   }
@@ -323,8 +324,8 @@ final class TVPlaybackTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-resume-start-over",
       view: TVResumePromptView(
-        fileName: "The.Wire.S03E04.Back.Burners.1080p.BluRay.x264-DEMAND.mkv", prompt: prompt,
-        initialChoice: .startOver
+        fileName: "The.Wire.S03E04.Back.Burners.1080p.BluRay.x264-DEMAND.mkv",
+        positionSeconds: prompt.positionSeconds, prompt: prompt, initialChoice: .startOver
       ) { _ in },
       size: viewport)
   }

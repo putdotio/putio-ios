@@ -635,17 +635,6 @@
         }
       }
     },
-    "Continue from %@" : {
-      "comment" : "android: playback_resume_title | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue from %@"
-          }
-        }
-      }
-    },
     "Conversion failed" : {
       "comment" : "android: mobile_playback_conversion_failed | differs: the board splits it into a title and a message",
       "localizations" : {
@@ -2906,6 +2895,17 @@
         }
       }
     },
+    "Resume" : {
+      "comment" : "android: playback_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume"
+          }
+        }
+      }
+    },
     "Resume where you left off" : {
       "comment" : "android: mobile_settings_resume_playback",
       "localizations" : {
@@ -3364,17 +3364,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sort by"
-          }
-        }
-      }
-    },
-    "Start from the beginning" : {
-      "comment" : "android: playback_start_over | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start from the beginning"
           }
         }
       }
@@ -4521,6 +4510,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Resume from %@"
+          }
+        }
+      }
+    },
+    "Resume from %@?" : {
+      "comment" : "android: playback_resume_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume from %@?"
           }
         }
       }

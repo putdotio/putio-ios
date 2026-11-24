@@ -18,11 +18,11 @@ public struct PutioVideoTimeline: Equatable, Sendable {
   }
 
   public var elapsedText: String {
-    Self.clock(elapsedSeconds)
+    PutioPlaybackClock.text(elapsedSeconds)
   }
 
   public var remainingText: String {
-    remainingSeconds.map { "-" + Self.clock($0) } ?? "--:--"
+    remainingSeconds.map { "-" + PutioPlaybackClock.text($0) } ?? "--:--"
   }
 
   public func target(skippingBy seconds: Double) -> Double {
@@ -34,18 +34,6 @@ public struct PutioVideoTimeline: Equatable, Sendable {
     return durationSeconds.map { min(lower, $0) } ?? lower
   }
 
-  public static func clock(_ seconds: Double) -> String {
-    let total = seconds.isFinite ? Int(max(seconds, 0).rounded(.down)) : 0
-    let hours = total / 3600
-    let minutes = total % 3600 / 60
-    let remainder = total % 60
-    guard hours > 0 else { return "\(minutes):\(twoDigits(remainder))" }
-    return "\(hours):\(twoDigits(minutes)):\(twoDigits(remainder))"
-  }
-
-  private static func twoDigits(_ value: Int) -> String {
-    value < 10 ? "0\(value)" : "\(value)"
-  }
 }
 
 public struct PutioVideoPlayhead: Equatable, Sendable {

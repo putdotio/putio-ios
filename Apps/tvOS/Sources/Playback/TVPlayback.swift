@@ -55,21 +55,14 @@ struct TVVideoCover<Content: View>: View {
   }
 }
 
-/// What the screen shows once the source resolved.
-private enum TVPlaybackStage {
-  case measuring
-  case asking(AVPlayerItem, PutioPlaybackSource, PutioVideoResumePrompt)
-  case playing(AVPlayerItem, PutioPlaybackSource)
-  case ended
-}
-
 /// The video screen: conversion gate, pre-play resume decision, the system
 /// player, and the successor once it ends. State comes from the shared
 /// playback models; this screen owns presentation and remote input.
 struct TVVideoPlaybackView: View {
   @State private var model: PutioVideoPlaybackModel
   @State private var nextVideoModel: PutioVideoUpNextModel
-  @State private var stage: TVPlaybackStage = .measuring
+  @State private var resumePrompter: PutioVideoResumePrompter
+  @State private var ended = false
   @State private var retrySequence: UInt64 = 0
   @State private var probes = TVPlaybackProbes()
   @State private var nextVideoTask: Task<Void, Never>?
@@ -106,13 +99,21 @@ struct TVVideoPlaybackView: View {
     self.onPlayNext = onPlayNext
     self.onPlayerReportsSettled = onPlayerReportsSettled
     self.onFinish = onFinish
+    let resumePrompter = PutioVideoResumePrompter()
+    _resumePrompter = State(initialValue: resumePrompter)
+    // Without a choice from the browser, the player asks.
+    let start = route.start == .asksAfterConversion ? .asksInPlayer : route.start
     _model = State(
       initialValue: PutioVideoPlaybackModel(
         fileID: route.id,
         initialResolution: route.initialResolution,
         conversionPollInterval: media.isHarness ? .milliseconds(1_200) : .seconds(3),
         startConversion: { try await runtime.startVideoConversion(fileID: $0) },
-        loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) }
+        loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+        chooseStart: PutioVideoStart.choice(
+          for: start, remembersPosition: account.rememberVideoTime,
+          durationSeconds: { await PutioVideoLength.seconds(of: $0) },
+          ask: { await resumePrompter.ask(positionSeconds: $0, durationSeconds: $1) })
       ) { fileID in
         await pipeline.waitForPendingReports(fileID: fileID)
         return try await media.resolve(fileID)
@@ -151,11 +152,10 @@ struct TVVideoPlaybackView: View {
         guard retrySequence > 0 else { return }
         await model.retry()
       }
-      .task(id: readySource) {
-        guard let source = readySource else { return }
-        await prepare(source)
+      .onChange(of: model.state) { _, state in
+        probes.record(state)
+        if case .ready(let source) = state { probes.resumePosition = source.startFromSeconds }
       }
-      .onChange(of: model.state) { _, state in probes.record(state) }
       .onChange(of: nextVideoModel.state) { _, state in
         guard case .playing(let next) = state else { return }
         onPlayNext(next)
@@ -172,6 +172,18 @@ struct TVVideoPlaybackView: View {
 
   @ViewBuilder
   private var content: some View {
+    if resumePrompter.isAsking {
+      TVResumePromptView(
+        fileName: route.title, positionSeconds: resumePrompter.positionSeconds,
+        prompt: resumePrompter.prompt
+      ) { resumePrompter.answer($0) }
+    } else {
+      stateContent
+    }
+  }
+
+  @ViewBuilder
+  private var stateContent: some View {
     switch model.state {
     case .loading:
       PutioLoadingStateView(title: "Preparing video")
@@ -190,24 +202,26 @@ struct TVVideoPlaybackView: View {
         }
       }
 
-    case .ready:
-      readyContent
+    case .ready(let source):
+      readyContent(source)
     }
   }
 
   @ViewBuilder
-  private var readyContent: some View {
-    switch stage {
-    case .measuring:
-      PutioLoadingStateView(title: "Preparing video")
-        .accessibilityIdentifier("video.preparing")
-    case .asking(let item, let source, let prompt):
-      TVResumePromptView(fileName: route.title, prompt: prompt) { choice in
-        stage = .playing(item, source.starting(at: prompt.startSeconds(for: choice)))
-      }
-    case .playing(let item, let source):
+  private func readyContent(_ source: PutioPlaybackSource) -> some View {
+    if ended {
+      TVNextVideoStage(
+        model: nextVideoModel,
+        play: { runNextVideo { await nextVideoModel.playNext() } },
+        retry: { runNextVideo { await nextVideoModel.retry() } },
+        close: {
+          nextVideoModel.cancel()
+          onFinish()
+        })
+    } else {
       TVSystemVideoPlayer(
-        item: item, source: source, fileID: route.id, remembersPosition: remembersPosition,
+        title: route.title, source: source, fileID: route.id,
+        remembersPosition: remembersPosition,
         pipeline: pipeline,
         reportPosition: { [runtime] fileID, seconds in
           try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
@@ -219,15 +233,7 @@ struct TVVideoPlaybackView: View {
         onFailure: playerFailed
       )
       .ignoresSafeArea()
-    case .ended:
-      TVNextVideoStage(
-        model: nextVideoModel,
-        play: { runNextVideo { await nextVideoModel.playNext() } },
-        retry: { runNextVideo { await nextVideoModel.retry() } },
-        close: {
-          nextVideoModel.cancel()
-          onFinish()
-        })
+      .id(model.playerAttempt)
     }
   }
 
@@ -240,27 +246,6 @@ struct TVVideoPlaybackView: View {
       if showsProbes { probes.failureReport = report }
     }
     model.playerFailed(failure.error.fault)
-  }
-
-  /// Loads the stream's duration for the resume decision; the same item then
-  /// plays, so the manifest is not fetched twice.
-  private func prepare(_ source: PutioPlaybackSource) async {
-    stage = .measuring
-    probes.resumePosition = source.startFromSeconds
-    let asset = AVURLAsset(url: source.url)
-    let item = Self.playerItem(asset: asset, title: route.title)
-    let duration = try? await asset.load(.duration)
-    guard !Task.isCancelled else { return }
-    let seconds = duration.map(CMTimeGetSeconds)
-    switch PutioVideoStart.prompted(
-      startFromSeconds: source.startFromSeconds, durationSeconds: seconds,
-      remembersPosition: remembersPosition)
-    {
-    case .ask(let prompt):
-      stage = .asking(item, source, prompt)
-    case .play(let startSeconds):
-      stage = .playing(item, source.starting(at: startSeconds))
-    }
   }
 
   private static func makeSubtitleMemory() -> PutioSubtitleMemory {
@@ -285,7 +270,7 @@ struct TVVideoPlaybackView: View {
 
   private func playbackEnded() {
     probes.ended = true
-    stage = .ended
+    ended = true
     runNextVideo {
       await nextVideoModel.playbackEnded()
       if nextVideoModel.upcoming == nil { await nextVideoModel.lookUp() }
@@ -341,7 +326,8 @@ struct TVPlaybackMedia {
 /// leaves the screen like any pushed screen.
 struct TVResumePromptView: View {
   let fileName: String
-  let prompt: PutioVideoResumePrompt
+  let positionSeconds: Int
+  let prompt: PutioVideoResumePrompt?
   var initialChoice: PutioVideoResumePrompt.Choice = .resume
   let choose: (PutioVideoResumePrompt.Choice) -> Void
 
@@ -353,7 +339,7 @@ struct TVResumePromptView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      Text("Continue watching")
+      Text(PutioVideoResumePrompt.question(positionSeconds: positionSeconds))
         .putioFont(PutioTheme.TV.Typography.label)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .accessibilityAddTraits(.isHeader)
@@ -364,12 +350,15 @@ struct TVResumePromptView: View {
         .fixedSize(horizontal: false, vertical: true)
         .padding(.top, TVResumePromptLayout.titleGap)
         .accessibilityIdentifier("video.resume.file-name")
-      TVResumeProgress(fraction: prompt.progress(for: previewedChoice))
-        .padding(.top, TVResumePromptLayout.progressGap)
+      if let prompt {
+        TVResumeProgress(fraction: prompt.progress(for: previewedChoice))
+          .padding(.top, TVResumePromptLayout.progressGap)
+      }
       VStack(spacing: TVResumePromptLayout.buttonGap) {
         choiceButton(
-          prompt.resumeTitle, choice: .resume,
-          accessibilityLabel: prompt.resumeAccessibilityLabel,
+          PutioVideoResumePrompt.resumeTitle, choice: .resume,
+          accessibilityLabel: PutioVideoResumePrompt.resumeAccessibilityLabel(
+            positionSeconds: positionSeconds),
           identifier: "video.resume.continue")
         choiceButton(
           PutioVideoResumePrompt.startOverTitle, choice: .startOver,
@@ -610,7 +599,7 @@ struct TVUpNextView: View {
 /// are AVKit's own; the shared session starts it at the chosen position,
 /// applies the start subtitle, and reports positions.
 private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
-  let item: AVPlayerItem
+  let title: String
   let source: PutioPlaybackSource
   let fileID: PutioFileID
   let remembersPosition: Bool
@@ -632,7 +621,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
     let probes = probes
     let report = reportPosition
     context.coordinator.start(
-      item: item, source: source, fileID: fileID, remembersPosition: remembersPosition,
+      item: TVVideoPlaybackView.playerItem(asset: AVURLAsset(url: source.url), title: title),
+      source: source, fileID: fileID, remembersPosition: remembersPosition,
       pipeline: pipeline,
       reportPosition: { fileID, seconds in
         try await report(fileID, seconds)
