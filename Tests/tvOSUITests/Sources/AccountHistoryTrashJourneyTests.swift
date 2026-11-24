@@ -256,14 +256,20 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
+  /// Menus open on their checked item; moving past an end closes them, so
+  /// focus walks down only.
   private func focusMenuItem(_ item: XCUIElement) -> Bool {
-    for direction in [XCUIRemote.Button.down, .up] {
-      for _ in 0..<6 {
-        if waitUntil(timeout: 0.75, { item.hasFocus }) { return true }
-        remote.press(direction)
-      }
+    let isFocused = {
+      item.hasFocus
+        || item.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
     }
-    return item.hasFocus
+    for _ in 0..<6 {
+      if waitUntil(timeout: 1, isFocused) { return true }
+      guard item.exists else { return false }
+      remote.press(.down)
+    }
+    return isFocused()
   }
 
   private func element(_ identifier: String) -> XCUIElement {

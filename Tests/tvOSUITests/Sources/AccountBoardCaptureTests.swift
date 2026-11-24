@@ -79,6 +79,7 @@ final class AccountBoardCaptureTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { !TVTabBar(self.app).item("Home").exists })
     attach("rd-tvos-acc-14-show-home-off")
+    XCTAssertTrue(focus("account.show-home"))
     remote.press(.select)
     XCTAssertTrue(TVTabBar(app).item("Home").waitForExistence(timeout: 5))
   }
@@ -115,14 +116,20 @@ final class AccountBoardCaptureTests: XCTestCase {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
+  /// Menus open on their checked item; moving past an end closes them, so
+  /// focus walks down only.
   private func focusMenuItem(_ item: XCUIElement) -> Bool {
-    for direction in [XCUIRemote.Button.down, .up] {
-      for _ in 0..<6 {
-        if waitUntil(timeout: 0.75, { item.hasFocus }) { return true }
-        remote.press(direction)
-      }
+    let isFocused = {
+      item.hasFocus
+        || item.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
     }
-    return item.hasFocus
+    for _ in 0..<6 {
+      if waitUntil(timeout: 1, isFocused) { return true }
+      guard item.exists else { return false }
+      remote.press(.down)
+    }
+    return isFocused()
   }
 
   private func element(_ identifier: String) -> XCUIElement {

@@ -25,4 +25,14 @@ enum HarnessLaunch {
   static func honoredArguments(_ launchArguments: [String], isEnabled: Bool) -> [String] {
     isEnabled ? launchArguments : []
   }
+
+  /// The seeded fixture account's id.
+  static let seededAccountID = 1001
+
+  /// Seeded launches start with Home shown, whatever an earlier run on the
+  /// same simulator chose.
+  @MainActor static func resetSeededDeviceChoices() {
+    guard arguments.contains(HarnessScenario.launchArgument) else { return }
+    PutioShowHomePreference.clear(accountID: seededAccountID)
+  }
 }
