@@ -5921,6 +5921,7 @@ final class BoardCaptureTests: XCTestCase {
     if ProcessInfo.processInfo.environment["PUTIO_BOARD_TEXT_AUDIT"] == "1" {
       let auditedApp: XCUIApplication = app
       var unlabeledSignOutClips = 0
+      var unlabeledDialogClips = 0
       let pinnedSheets = app.descendants(matching: .any)
         .matching(identifier: "harness.content-height-sheet").allElementsBoundByIndex
         .map(\.frame)
@@ -5931,7 +5932,11 @@ final class BoardCaptureTests: XCTestCase {
           return unlabeledSignOutClips == 1
         }
         guard let element = issue.element else {
-          return Self.isInFullWidthSystemDialog(issue, app: auditedApp)
+          guard Self.fullWidthDialogClipBoards.contains(board),
+            Self.isInFullWidthSystemDialog(issue, app: auditedApp)
+          else { return false }
+          unlabeledDialogClips += 1
+          return unlabeledDialogClips == 1
         }
         if Self.isAboveTextSizeCap(issue),
           pinnedSheets.contains(where: {
@@ -5965,6 +5970,8 @@ final class BoardCaptureTests: XCTestCase {
   private static func isAboveTextSizeCap(_ issue: XCUIAccessibilityAuditIssue) -> Bool {
     issue.detailedDescription.contains("at larger Dynamic Type sizes")
   }
+
+  private static let fullWidthDialogClipBoards: Set<String> = ["rd-ios-ses-08-sign-out"]
 
   private static func isInFullWidthSystemDialog(
     _ issue: XCUIAccessibilityAuditIssue, app: XCUIApplication

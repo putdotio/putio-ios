@@ -59,7 +59,7 @@ final class ConversionGateJourneyTests: XCTestCase {
 
   func testCompletedConversionPlaysWithoutATap() {
     launch(conversion: "completes")
-    openEpisode()
+    openEpisode(mayStartPlaying: true)
 
     XCTAssertTrue(
       element("video.ready").appears(within: 20), "the converted episode never started playing")
@@ -138,15 +138,16 @@ final class ConversionGateJourneyTests: XCTestCase {
     XCTAssertTrue(season.appears(within: 10), "the season never opened")
   }
 
-  private func openEpisode() {
+  private func openEpisode(mayStartPlaying: Bool = false) {
     let episode = element("files.item.441")
     XCTAssertTrue(
       episode.appears(within: 10), "the first episode never appeared: \(app.debugDescription)")
     episode.tap()
     let detailPlay = element("files.detail.play")
     if detailPlay.appears(within: 3) { detailPlay.tap() }
-    XCTAssertTrue(
-      app.videoClose.appears(within: 10) || element("video.ready").exists, "the gate never opened")
+    let opened =
+      app.videoClose.appears(within: 10) || (mayStartPlaying && element("video.ready").exists)
+    XCTAssertTrue(opened, "the gate never opened")
     XCTAssertEqual(
       app.readVideoControl(element("video.title"))?.label,
       "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv")
