@@ -8,9 +8,8 @@ struct TVHomeScreen: View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       if let notice {
         TVInactiveAccountNotice(notice: notice)
-      } else {
-        TVHomeEmptyState()
       }
+      TVHomeEmptyState()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
