@@ -73,9 +73,9 @@ struct TVHistoryView: View {
         case .event(let id):
           shownEventID = id
           showsPanel = true
-        case .clear, .moreRetry:
+        case .moreRetry:
           showsPanel = false
-        case nil:
+        case .clear, nil:
           break
         }
       }
