@@ -81,8 +81,8 @@ final class DeviceSignInJourneyTests: XCTestCase {
   }
 
   /// A saved sign-in put.io can't check at launch shows the offline notice and
-  /// restores on its own; a session put.io later rejects returns to sign-in
-  /// with the expired-session title.
+  /// restores on its own; when Files then finds the session rejected, sign-in
+  /// returns with the expired-session title.
   func testOfflineLaunchRestoresOnItsOwnAndAnExpiredSessionAsksToSignIn() {
     continueAfterFailure = false
     let app = XCUIApplication()
@@ -102,11 +102,12 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["auth.discard-credential"].exists)
     attach("runtime-tv-session-offline")
 
+    XCTAssertTrue(
+      TVTabBar(app).open("Files", timeout: 40), "the saved session never restored on its own")
+    XCTAssertFalse(failure.exists)
     let expired = app.staticTexts["auth.session-expired"]
     XCTAssertTrue(
-      expired.waitForExistence(timeout: 40),
-      "the saved session never restored on its own, or its rejection never asked to sign in")
-    XCTAssertFalse(failure.exists)
+      expired.waitForExistence(timeout: 15), "a session put.io rejects never asked to sign in")
     let code = app.descendants(matching: .any)["auth.device-code"]
     XCTAssertTrue(code.waitForExistence(timeout: 15))
     attach("runtime-tv-session-expired")
