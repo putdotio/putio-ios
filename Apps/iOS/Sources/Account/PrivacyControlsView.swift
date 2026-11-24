@@ -15,12 +15,9 @@ struct PrivacyControlsView: View {
     List {
       if model.isStale {
         Section {
-          Text(
-            model.failure
-              ?? String(localized: "Account settings could not be confirmed. Refresh to continue.")
-          )
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          Button(model.isRefreshing ? "Refreshing…" : "Refresh account") {
+          Text(model.statusMessage ?? PutioAccountPreferencesModel.staleMessage)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+          Button(model.retryTitle) {
             Task { await model.retryRefresh() }
           }
           .disabled(model.isBusy)
@@ -69,7 +66,7 @@ struct PrivacyControlsView: View {
         .listRowBackground(PutioTheme.Colors.surface)
       }
       if model.isSaving {
-        ProgressView("Saving settings")
+        ProgressView(PutioAccountPreferencesModel.savingTitle)
           .listRowBackground(PutioTheme.Colors.surface)
           .accessibilityIdentifier("privacy.saving")
       }
