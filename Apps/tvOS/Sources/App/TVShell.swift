@@ -8,15 +8,16 @@ enum TVTab: Hashable, CaseIterable {
   case history
   case account
 
-  func isAvailable(for account: PutioAccountSnapshot) -> Bool {
+  func isAvailable(for account: PutioAccountSnapshot, showsHome: Bool = true) -> Bool {
     switch self {
+    case .home: showsHome
     case .history: account.historyEnabled
-    case .home, .files, .search, .account: true
+    case .files, .search, .account: true
     }
   }
 
-  static func tabs(for account: PutioAccountSnapshot) -> [TVTab] {
-    allCases.filter { $0.isAvailable(for: account) }
+  static func tabs(for account: PutioAccountSnapshot, showsHome: Bool = true) -> [TVTab] {
+    allCases.filter { $0.isAvailable(for: account, showsHome: showsHome) }
   }
 
   var title: String {
@@ -51,15 +52,16 @@ enum TVTab: Hashable, CaseIterable {
 }
 
 enum TVRoute: Hashable {
-  case proxy
   case trash
+  case privacy
+  case licenses
   case folder(PutioFolderRoute)
   case file(PutioFileItem)
 
   func isAvailable(for account: PutioAccountSnapshot) -> Bool {
     switch self {
     case .trash: account.trashEnabled
-    case .proxy, .folder, .file: true
+    case .privacy, .licenses, .folder, .file: true
     }
   }
 
@@ -88,8 +90,8 @@ struct TVShellNavigation: Equatable {
     paths[tab] = allowed.isEmpty ? nil : allowed
   }
 
-  mutating func reconcile(account: PutioAccountSnapshot) {
-    let tabs = TVTab.tabs(for: account)
+  mutating func reconcile(account: PutioAccountSnapshot, showsHome: Bool = true) {
+    let tabs = TVTab.tabs(for: account, showsHome: showsHome)
     for tab in TVTab.allCases {
       guard tabs.contains(tab) else {
         paths[tab] = nil
@@ -106,15 +108,25 @@ struct TVSignedInShell: View {
   let account: PutioAccountSnapshot
 
   @Environment(\.scenePhase) private var scenePhase
-  @State private var navigation = TVShellNavigation()
+  @State private var navigation: TVShellNavigation
+  @State private var showHome: PutioShowHomePreference
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var historyActivations = 0
 
+  init(runtime: PutioRuntime, account: PutioAccountSnapshot) {
+    self.runtime = runtime
+    self.account = account
+    let showHome = PutioShowHomePreference(accountID: account.id)
+    _showHome = State(initialValue: showHome)
+    _navigation = State(
+      initialValue: TVShellNavigation(selection: showHome.isShown ? .home : .files))
+  }
+
   var body: some View {
     TabView(selection: $navigation.selection) {
-      ForEach(TVTab.tabs(for: account), id: \.self) { tab in
+      ForEach(TVTab.tabs(for: account, showsHome: showHome.isShown), id: \.self) { tab in
         Tab(value: tab, role: tab == .search ? .search : nil) {
           stack(for: tab)
         } label: {
@@ -140,7 +152,10 @@ struct TVSignedInShell: View {
       PutioAccountPreferencesReconciliation.apply(
         previous: previous, current: current, folders: folderRefreshRequests,
         trash: trashReconciliation)
-      navigation.reconcile(account: current)
+      navigation.reconcile(account: current, showsHome: showHome.isShown)
+    }
+    .onChange(of: showHome.isShown) { _, shown in
+      navigation.reconcile(account: account, showsHome: shown)
     }
     .onChange(of: navigation.selection) { _, tab in
       if tab == .home { Task { await runtime.refreshAccount() } }
@@ -181,7 +196,7 @@ struct TVSignedInShell: View {
       TVHistoryView(runtime: runtime, open: { open($0, in: tab) })
         .environment(\.tvHistoryActivations, historyActivations)
     case .account:
-      TVAccountView(runtime: runtime)
+      TVAccountView(runtime: runtime, showHome: showHome)
     }
   }
 
@@ -192,12 +207,14 @@ struct TVSignedInShell: View {
   @ViewBuilder
   private func destination(for route: TVRoute, in tab: TVTab) -> some View {
     switch route {
-    case .proxy:
-      TVProxyChooserView(runtime: runtime)
     case .trash:
       TVTrashView(
         runtime: runtime, reconciliation: trashReconciliation,
         refreshRequests: folderRefreshRequests)
+    case .privacy:
+      TVPrivacyControlsView(runtime: runtime)
+    case .licenses:
+      TVLicensesView()
     case .folder(let folder):
       TVFolderView(
         route: folder, runtime: runtime, account: account,
@@ -247,8 +264,9 @@ extension TVRoute {
 
   var identifier: String {
     switch self {
-    case .proxy: "proxy"
     case .trash: "trash"
+    case .privacy: "privacy"
+    case .licenses: "licenses"
     case .folder(let folder): "folder.\(folder.id.rawValue)"
     case .file(let item): "file.\(item.id.rawValue)"
     }

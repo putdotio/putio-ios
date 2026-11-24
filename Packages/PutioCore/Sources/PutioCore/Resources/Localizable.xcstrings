@@ -23,6 +23,17 @@
         }
       }
     },
+    "%@ in trash" : {
+      "comment" : "ios-only: the trash size under the Manage your trash panel (rd-tvos-acc-01); Android TV shows the size in the row only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ in trash"
+          }
+        }
+      }
+    },
     "%@ of %@" : {
       "comment" : "android: account_storage_full_value",
       "localizations" : {
@@ -216,6 +227,17 @@
         }
       }
     },
+    "About" : {
+      "comment" : "android: mobile_settings_section_about",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        }
+      }
+    },
     "Account" : {
       "comment" : "android: mobile_destination_account",
       "localizations" : {
@@ -282,6 +304,17 @@
         }
       }
     },
+    "Always on" : {
+      "comment" : "android: privacy_strictly_necessary_state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Always on"
+          }
+        }
+      }
+    },
     "Analytics off" : {
       "comment" : "android: mobile_settings_analytics_off",
       "localizations" : {
@@ -326,6 +359,17 @@
         }
       }
     },
+    "App info" : {
+      "comment" : "android: mobile_settings_about",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App info"
+          }
+        }
+      }
+    },
     "App Store" : {
       "comment" : "ios-only: App info channel for App Store installs",
       "localizations" : {
@@ -344,6 +388,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ascending"
+          }
+        }
+      }
+    },
+    "Autoplay next video" : {
+      "comment" : "android: mobile_settings_autoplay_next",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoplay next video"
           }
         }
       }
@@ -448,7 +503,7 @@
       }
     },
     "Check your internet connection and try again." : {
-      "comment" : "ios-only: the tvOS History board's first-load error",
+      "comment" : "android: tv_error_network | differs: rd-tvos-acc-15 asks to try again under its retry button",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -487,6 +542,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Choose another one."
+          }
+        }
+      }
+    },
+    "Choose your proxy" : {
+      "comment" : "android: mobile_settings_tunnel_route",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your proxy"
           }
         }
       }
@@ -964,6 +1030,17 @@
         }
       }
     },
+    "Couldn’t load proxies" : {
+      "comment" : "android: mobile_settings_tunnel_route_error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load proxies"
+          }
+        }
+      }
+    },
     "Couldn’t load this" : {
       "comment" : "android: mobile_state_error_title",
       "localizations" : {
@@ -982,6 +1059,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load your history."
+          }
+        }
+      }
+    },
+    "Couldn’t load your settings." : {
+      "comment" : "android: tv_account_settings_error | differs: rd-tvos-acc-15 drops the error detail and puts the hint on its own line",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load your settings."
           }
         }
       }
@@ -1174,6 +1262,17 @@
         }
       }
     },
+    "Default sort order" : {
+      "comment" : "android: mobile_settings_default_sort",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Default sort order"
+          }
+        }
+      }
+    },
     "Delete" : {
       "comment" : "android: mobile_files_delete",
       "localizations" : {
@@ -1282,6 +1381,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Deleted items stay 14 days"
+          }
+        }
+      }
+    },
+    "Deleted items stay 14 days, then they’re gone for good. Trash counts toward your storage." : {
+      "comment" : "android: tv_trash_info | differs: the rd-tvos-acc-01 panel also says trash counts toward storage",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deleted items stay 14 days, then they’re gone for good. Trash counts toward your storage."
           }
         }
       }
@@ -1815,6 +1925,17 @@
         }
       }
     },
+    "Keep account history" : {
+      "comment" : "android: mobile_settings_history",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep account history"
+          }
+        }
+      }
+    },
     "Largest first" : {
       "comment" : "android: mobile_files_sort_largest_first",
       "localizations" : {
@@ -1822,6 +1943,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Largest first"
+          }
+        }
+      }
+    },
+    "Library" : {
+      "comment" : "android: mobile_settings_section_library",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library"
+          }
+        }
+      }
+    },
+    "Licenses" : {
+      "comment" : "android: mobile_settings_open_source_licenses | differs: the tvOS About row on rd-tvos-acc-09 shortens it",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licenses"
           }
         }
       }
@@ -1870,6 +2013,17 @@
         }
       }
     },
+    "Loading proxies…" : {
+      "comment" : "android: mobile_settings_tunnel_route_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading proxies…"
+          }
+        }
+      }
+    },
     "Loading trash…" : {
       "comment" : "android: mobile_trash_loading",
       "localizations" : {
@@ -1877,6 +2031,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading trash…"
+          }
+        }
+      }
+    },
+    "Manage account on the web" : {
+      "comment" : "android: tv_account_manage_account | differs: rd-tvos-acc-10 names where the account is managed instead of the domain",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage account on the web"
+          }
+        }
+      }
+    },
+    "Manage your trash" : {
+      "comment" : "android: tv_account_manage_trash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manage your trash"
           }
         }
       }
@@ -1933,6 +2109,17 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "Move deleted files to trash" : {
+      "comment" : "android: mobile_settings_trash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move deleted files to trash"
           }
         }
       }
@@ -2033,6 +2220,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Name, Z to A"
+          }
+        }
+      }
+    },
+    "Need help? Scan to contact support." : {
+      "comment" : "android: tv_account_about_support | differs: rd-tvos-acc-09 asks first and keeps one line",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Need help? Scan to contact support."
           }
         }
       }
@@ -2158,6 +2356,17 @@
         }
       }
     },
+    "Off" : {
+      "comment" : "android: mobile_playback_subtitles_disabled",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
     "Off: the Home tab hides and the app opens on Files." : {
       "comment" : "ios-only: tvOS Account panel (rd-tvos-acc-14-show-home-off); the Android snapshot covers mobile only",
       "localizations" : {
@@ -2213,6 +2422,17 @@
         }
       }
     },
+    "On" : {
+      "comment" : "ios-only: two-factor state value on the iOS Account list",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        }
+      }
+    },
     "On this iPad" : {
       "comment" : "android: mobile_files_downloaded | differs: names the iPad",
       "localizations" : {
@@ -2235,6 +2455,17 @@
         }
       }
     },
+    "On: deleted files wait in trash for 14 days. Off: deleting removes files right away." : {
+      "comment" : "ios-only: the tvOS panel that explains the focused setting (rd-tvos-acc-02); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On: deleted files wait in trash for 14 days. Off: deleting removes files right away."
+          }
+        }
+      }
+    },
     "Opening file" : {
       "comment" : "ios-only: no Android string for the iOS history screen",
       "localizations" : {
@@ -2253,6 +2484,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "or"
+          }
+        }
+      }
+    },
+    "Order" : {
+      "comment" : "android: mobile_files_sort_order",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Order"
           }
         }
       }
@@ -2290,6 +2532,28 @@
         }
       }
     },
+    "Pick matching subtitles" : {
+      "comment" : "android: mobile_settings_auto_select_subtitles",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick matching subtitles"
+          }
+        }
+      }
+    },
+    "Plan, billing, security and sessions live on the web. Scan with your phone." : {
+      "comment" : "ios-only: the tvOS panel that explains the focused setting (rd-tvos-acc-10); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plan, billing, security and sessions live on the web. Scan with your phone."
+          }
+        }
+      }
+    },
     "Play" : {
       "comment" : "android: mobile_now_playing_play",
       "localizations" : {
@@ -2297,6 +2561,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Play"
+          }
+        }
+      }
+    },
+    "Playback" : {
+      "comment" : "android: mobile_settings_section_playback",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback"
           }
         }
       }
@@ -2345,6 +2620,17 @@
         }
       }
     },
+    "Privacy" : {
+      "comment" : "android: mobile_settings_section_privacy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
+          }
+        }
+      }
+    },
     "Privacy controls" : {
       "comment" : "android: mobile_settings_privacy_controls",
       "localizations" : {
@@ -2352,6 +2638,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Privacy controls"
+          }
+        }
+      }
+    },
+    "Privacy policy" : {
+      "comment" : "android: privacy_policy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy policy"
           }
         }
       }
@@ -2407,6 +2704,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Queued · #%lld in line"
+          }
+        }
+      }
+    },
+    "Read the policy and the services we use on the web. Scan with your phone." : {
+      "comment" : "ios-only: the privacy policy QR panel on tvOS (rd-tvos-acc-08); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the policy and the services we use on the web. Scan with your phone."
           }
         }
       }
@@ -2521,6 +2829,17 @@
         }
       }
     },
+    "Resume where you left off" : {
+      "comment" : "android: mobile_settings_resume_playback",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume where you left off"
+          }
+        }
+      }
+    },
     "Route streams and downloads through a put.io proxy closer to you." : {
       "comment" : "android: mobile_settings_tunnel_route_description",
       "localizations" : {
@@ -2631,6 +2950,17 @@
         }
       }
     },
+    "Saves your place in every video and picks up from there on any device." : {
+      "comment" : "ios-only: the tvOS panel that explains the focused setting (rd-tvos-acc-04); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saves your place in every video and picks up from there on any device."
+          }
+        }
+      }
+    },
     "Saving settings" : {
       "comment" : "ios-only: no Android string for the iOS file settings screen",
       "localizations" : {
@@ -2726,6 +3056,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Home"
+          }
+        }
+      }
+    },
+    "Show subtitles" : {
+      "comment" : "android: mobile_settings_show_subtitles",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show subtitles"
           }
         }
       }
@@ -2851,6 +3192,17 @@
         }
       }
     },
+    "Signs this Apple TV out. Your files and settings stay on your account." : {
+      "comment" : "ios-only: the tvOS panel that explains the focused setting (rd-tvos-acc-11); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signs this Apple TV out. Your files and settings stay on your account."
+          }
+        }
+      }
+    },
     "Size" : {
       "comment" : "android: mobile_files_sort_field_size",
       "localizations" : {
@@ -2928,6 +3280,17 @@
         }
       }
     },
+    "Sort by" : {
+      "comment" : "android: mobile_files_sort_by",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort by"
+          }
+        }
+      }
+    },
     "Start from the beginning" : {
       "comment" : "android: playback_start_over | differs: iOS board wording",
       "localizations" : {
@@ -2990,6 +3353,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Subtitle %lld"
+          }
+        }
+      }
+    },
+    "Subtitles" : {
+      "comment" : "android: mobile_playback_subtitles_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtitles"
           }
         }
       }
@@ -3397,6 +3771,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Turning off trash empties it now. Files you delete after that can’t be restored."
+          }
+        }
+      }
+    },
+    "Turns on subtitles in your language when a video has them." : {
+      "comment" : "ios-only: the tvOS panel that explains the focused setting (rd-tvos-acc-07); Android TV has no panel copy",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turns on subtitles in your language when a video has them."
           }
         }
       }

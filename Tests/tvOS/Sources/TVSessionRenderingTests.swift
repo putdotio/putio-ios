@@ -72,17 +72,11 @@ final class TVSessionRenderingTests: XCTestCase {
       name: "tv-session-checking", view: TVSessionCheckingView(), size: viewport)
   }
 
+  /// rd-tvos-acc-01: the profile and Library, with Manage your trash
+  /// explained beside them.
   @MainActor
   func testAccountMatchesBaseline() throws {
-    _ = try assertRenderingSnapshot(
-      name: "tv-account",
-      view: NavigationStack {
-        TVAccountScreen(
-          account: Self.account, appInfo: Self.appInfo, locale: Locale(identifier: "en_US")
-        ) {}
-      },
-      size: viewport
-    )
+    _ = try assertRenderingSnapshot(name: "tv-account", view: accountScreen(), size: viewport)
   }
 
   /// Hidden subtitles and disabled Trash drop their dependent rows; a stale
@@ -91,35 +85,72 @@ final class TVSessionRenderingTests: XCTestCase {
   func testAccountWithDependentRowsHiddenAndStaleSettingsMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-account-stale",
-      view: NavigationStack {
-        TVAccountScreen(
-          account: Self.account(hideSubtitles: true, trashEnabled: false),
-          appInfo: Self.appInfo,
-          status: TVAccountStatus(
-            message:
-              "Saved, but the latest account settings could not be loaded. Refresh to continue.",
-            retryTitle: "Refresh account", canSave: false),
-          locale: Locale(identifier: "en_US")
-        ) {}
-      },
+      view: accountScreen(
+        account: Self.account(hideSubtitles: true, trashEnabled: false),
+        status: TVAccountStatus(
+          message:
+            "Saved, but the latest account settings could not be loaded. Refresh to continue.",
+          retryTitle: "Refresh account", canSave: false)),
       size: viewport
     )
   }
 
+  /// Each row's panel, as the boards draw it with that row focused.
   @MainActor
-  func testProxyChooserMatchesBaseline() throws {
+  func testAccountPanelsMatchBaselines() throws {
+    let panels: [(String, TVAccountRow)] = [
+      ("tv-account-trash-toggle", .trash),
+      ("tv-account-resume", .resume),
+      ("tv-account-subtitles", .subtitleSelection),
+      ("tv-account-app-info", .appInfo),
+      ("tv-account-manage", .manageAccount),
+      ("tv-account-sign-out", .signOut),
+      ("tv-account-show-home", .showHome),
+    ]
+    for (name, row) in panels {
+      _ = try assertRenderingSnapshot(
+        name: name, view: accountScreen(initialRow: row, showsHome: row != .showHome),
+        size: viewport)
+    }
+  }
+
+  /// rd-tvos-acc-13: almost full turns the meter red and warns under it.
+  @MainActor
+  func testAccountAlmostFullMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
-      name: "tv-proxy-chooser",
-      view: TVProxyChooserScreen(
-        selection: "edge",
-        choices: PutioProxyChoices(
-          routes: [
-            PutioPlaybackRoute(name: "default", description: "Amsterdam (Direct)"),
-            PutioPlaybackRoute(name: "edge", description: "Alternate proxy"),
-            PutioPlaybackRoute(name: "london", description: ""),
-          ], current: "edge")),
-      size: viewport
-    )
+      name: "tv-account-almost-full",
+      view: accountScreen(account: Self.account(usedBytes: 1_077_521_395_220)),
+      size: viewport)
+  }
+
+  /// rd-tvos-acc-15: settings that never loaded replace the list.
+  @MainActor
+  func testAccountLoadFailureMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-account-load-failure", view: TVAccountLoadFailure {}, size: viewport)
+  }
+
+  /// rd-tvos-acc-08: the privacy controls with the policy beside them.
+  @MainActor
+  func testPrivacyControlsMatchBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-privacy-controls",
+      view: NavigationStack { TVPrivacyControlsScreen(account: Self.account) },
+      size: viewport)
+  }
+
+  @MainActor
+  private func accountScreen(
+    account: PutioAccountSnapshot = TVSessionRenderingTests.account,
+    status: TVAccountStatus = .idle, initialRow: TVAccountRow? = nil, showsHome: Bool = true
+  ) -> some View {
+    NavigationStack {
+      TVAccountScreen(
+        account: account, appInfo: Self.appInfo, status: status,
+        locale: Locale(identifier: "en_US"), showsHome: showsHome, autoplay: false,
+        initialRow: initialRow
+      ) {}
+    }
   }
 
   @MainActor
@@ -312,7 +343,7 @@ final class TVSessionRenderingTests: XCTestCase {
   private static let account = account()
 
   private static func account(
-    hideSubtitles: Bool = false, trashEnabled: Bool = true
+    hideSubtitles: Bool = false, trashEnabled: Bool = true, usedBytes: Int64 = 30_617_800_704
   ) -> PutioAccountSnapshot {
     PutioAccountSnapshot(
       id: 1001,
@@ -324,9 +355,9 @@ final class TVSessionRenderingTests: XCTestCase {
       historyEnabled: true,
       trashEnabled: trashEnabled,
       storage: PutioAccountSnapshot.Storage(
-        availableBytes: 1_068_893_827_072,
+        availableBytes: 1_099_511_627_776 - usedBytes,
         totalBytes: 1_099_511_627_776,
-        usedBytes: 30_617_800_704
+        usedBytes: usedBytes
       ),
       routeName: "edge",
       hideSubtitles: hideSubtitles,

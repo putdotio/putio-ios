@@ -165,9 +165,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-trash-empty")
   }
 
-  /// Settings cycle in place, the proxy chooser recovers a failed listing, a
-  /// failed save, and a failed confirmation refresh, and turning Trash off
-  /// is confirmed in a centered modal.
+  /// Settings cycle in place, the proxy menu recovers a failed listing, a
+  /// failed save, and a failed confirmation refresh, turning Trash off is
+  /// confirmed in an alert, and the focused row's panel explains it.
   func testSettingsCycleProxyChooserAndTrashToggle() {
     app.launchArguments = [
       "--putio-harness-scenario", "signed-in", "--putio-harness-playback-preferences",
@@ -183,9 +183,12 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     let proxyRetry = element("proxy.retry")
     XCTAssertTrue(proxyRetry.waitForExistence(timeout: 10))
-    XCTAssertTrue(isCentered(proxyRetry), "the proxy listing failure is off-center")
     attach("runtime-tv-proxy-failure")
     XCTAssertTrue(focus("proxy.retry"))
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { !proxyRetry.exists })
+
+    XCTAssertTrue(focus("account.proxy"))
     remote.press(.select)
     XCTAssertTrue(element("proxy.route.edge").waitForExistence(timeout: 10))
     attach("runtime-tv-proxy-chooser")
@@ -193,17 +196,21 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
 
     // The first save fails, then the committed save's account reload fails
-    // once; each offers a retry until the chooser closes on the new route.
+    // once; each offers a retry until the account confirms the new route.
+    let settingsRetry = element("account.settings-retry")
     var retries = 0
-    while retries < 3, waitUntil(timeout: 8, { proxyRetry.exists && proxyRetry.isEnabled }) {
-      XCTAssertTrue(focus("proxy.retry", moving: .up))
+    while retries < 3, waitUntil(timeout: 8, { settingsRetry.exists && settingsRetry.isEnabled }) {
+      XCTAssertTrue(focus("account.settings-retry", moving: .up, limit: 16))
       remote.press(.select)
       retries += 1
-      _ = waitUntil(timeout: 5) { !(proxyRetry.exists && proxyRetry.isEnabled) }
+      _ = waitUntil(timeout: 5) { !(settingsRetry.exists && settingsRetry.isEnabled) }
     }
     XCTAssertEqual(retries, 2)
-    XCTAssertTrue(element("account.proxy").waitForExistence(timeout: 10))
-    XCTAssertTrue(element("account.proxy").label.contains("edge"))
+    let proxy = element("account.proxy")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) {
+        proxy.label.contains("edge") || (proxy.value as? String)?.contains("edge") == true
+      })
 
     let subtitles = element("account.show-subtitles")
     XCTAssertTrue(focus("account.show-subtitles"))
@@ -227,17 +234,14 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "Off" })
     XCTAssertFalse(element("account.manage-trash").exists)
 
-    // With Trash off its row is the last setting; the app info rows below it
-    // must still come on screen with the remote.
-    let system = element("account.app-info.player")
-    XCTAssertTrue(focus("account.trash"))
-    for _ in 0..<8 where !isOnScreen(system) {
-      remote.press(.down)
-      pause(0.5)
-    }
-    XCTAssertTrue(isOnScreen(system), "the last app info row never scrolled into view")
+    // App info sits near the end of the list; its panel lists the details
+    // support asks for.
+    XCTAssertTrue(focus("account.app-info", moving: .down, limit: 16))
+    let player = element("account.app-info.player")
+    XCTAssertTrue(player.waitForExistence(timeout: 5))
+    XCTAssertTrue(isOnScreen(player), "the app info panel is off screen")
     attach("runtime-tv-account-about")
-    XCTAssertTrue(focus("account.trash"))
+    XCTAssertTrue(focus("account.trash", moving: .up, limit: 16))
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
     XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
