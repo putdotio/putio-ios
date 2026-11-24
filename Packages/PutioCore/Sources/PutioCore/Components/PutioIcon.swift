@@ -7,6 +7,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case arrowCircleDownFill = "arrow-circle-down-fill"
   case arrowCounterClockwise = "arrow-counter-clockwise-regular"
   case arrowSquareOut = "arrow-square-out-regular"
+  case arrowsClockwise = "arrows-clockwise-regular"
   case bug = "bug-regular"
   case caretDown = "caret-down-regular"
   case caretLeft = "caret-left-regular"

@@ -249,7 +249,7 @@ struct TVTrashView: View {
           .accessibilityIdentifier("trash.progress")
       }
       PutioButton(
-        String(localized: "Refresh", bundle: .putioCore), icon: .refresh,
+        String(localized: "Refresh", bundle: .putioCore), icon: .arrowsClockwise,
         tier: .secondary
       ) {
         guard model.canMutate else { return }
