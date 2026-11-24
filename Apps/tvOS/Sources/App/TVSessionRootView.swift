@@ -31,6 +31,9 @@ struct TVSessionRootView: View {
           session: runtime.session,
           tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
     #endif
+    .onChange(of: runtime.session.state, initial: true) { _, state in
+      PutioDiagnostics.sessionDidChange(state)
+    }
     .task {
       await runtime.session.restore()
     }

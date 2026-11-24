@@ -1,6 +1,6 @@
 # Telemetry
 
-The iOS app reports crashes and errors to Sentry under the account's
+The iOS and tvOS apps report crashes and errors to Sentry under the account's
 Diagnostics choice ([#139](https://github.com/putdotio/putio-ios/issues/139)).
 
 ## Diagnostics
@@ -12,14 +12,14 @@ Diagnostics choice ([#139](https://github.com/putdotio/putio-ios/issues/139)).
 | `PUTIO_SENTRY_ENVIRONMENT` | `development` in Debug, `production` in Release (`nightly` for the nightly flavor) | Sentry environment                                                     |
 
 The release is `<bundle id>@<version>+<build>`.
-[SentryConfiguration](../Apps/iOS/Sources/Telemetry/SentryConfiguration.swift)
+[SentryConfiguration](../Apps/Shared/Telemetry/SentryConfiguration.swift)
 reads these from Info.plist and swaps the DSN host for `relay.put.io`, which
 forwards only allowlisted project ids.
 
 [PutioDiagnosticsConsent](../Packages/PutioCore/Sources/PutioCore/Account/DiagnosticsConsent.swift)
 follows `diagnostics_enabled`: signed out or not yet answered counts as on, and
 the last account answer is kept so a cold launch honors an opt-out before the
-session restores. [PutioDiagnostics](../Apps/iOS/Sources/Telemetry/PutioDiagnostics.swift)
+session restores. [PutioDiagnostics](../Apps/Shared/Telemetry/PutioDiagnostics.swift)
 starts Sentry at launch and on every session change, including the Account ›
 Privacy toggle, so turning Diagnostics off closes the SDK in the running app.
 A failed restore that keeps the credential leaves the answer as it was.
@@ -39,7 +39,7 @@ session delegate cancels every upload while it is off.
 
 ## What leaves the device
 
-[SentryTelemetry](../Apps/iOS/Sources/Telemetry/SentryTelemetry.swift) is the
+[SentryTelemetry](../Apps/Shared/Telemetry/SentryTelemetry.swift) is the
 only file that imports Sentry; `scripts/test.sh` fails on an import anywhere
 else in the apps. Breadcrumbs and failed-request capture are off. `beforeSend`
 drops everything while diagnostics are off; otherwise it rebuilds each event,

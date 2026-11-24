@@ -166,7 +166,7 @@ let project = Project(
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [openSourceLicenses, privacyManifest("iOS")]),
-      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       scripts: [
         .post(
           script: """
@@ -254,7 +254,7 @@ let project = Project(
           .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets")),
         ]
       ),
-      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       dependencies: [
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
@@ -376,9 +376,12 @@ let project = Project(
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
+        "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
+        "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
+        "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
       ]),
       resources: .resources(brandFontResourceElements(for: "tvos") + [privacyManifest("tvOS")]),
-      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
+      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources", "Apps/Shared/Telemetry"],
       scripts: [
         .post(
           script: """
@@ -399,9 +402,12 @@ let project = Project(
         )
       ],
       dependencies: [
-        .package(product: "PutioCore")
+        .package(product: "PutioCore"),
+        .external(name: "Sentry"),
       ],
-      settings: .settings(base: oauthBuildSettings)
+      settings: .settings(
+        base: oauthBuildSettings.merging(sentryBuildSettings) { $1 },
+        configurations: sentrySettings(releaseEnvironment: "production"))
     ),
     .target(
       name: "PutioTVFeatureTests",

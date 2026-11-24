@@ -5,6 +5,10 @@ import SwiftUI
 struct PutioTVApp: App {
   private let scenario = HarnessLaunch.scenario
 
+  init() {
+    PutioDiagnostics.start()
+  }
+
   var body: some Scene {
     WindowGroup {
       Group {

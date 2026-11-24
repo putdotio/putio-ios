@@ -56,6 +56,12 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(
       playbackNotice.label.contains("scheduled to be deleted in 12 days."), playbackNotice.label)
     XCTAssertFalse(element("video.retry").exists, "the generic playback error still shows")
+    let report = element("video.failure-report")
+    XCTAssertTrue(report.waitForExistence(timeout: 5), "the refused stream sent no failure report")
+    XCTAssertEqual(
+      report.value as? String,
+      "platform=tvos;player=avplayer;playback_outcome=failed;failure_mode=load;"
+        + "source_request_status=403")
     attach("runtime-tv-inactive-playback")
 
     remote.press(.menu)
