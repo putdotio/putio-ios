@@ -225,7 +225,7 @@ jobs:
     name: Checks
     needs: changes
     concurrency:
-      group: next-ci-${{ github.job }}-${{ github.event_name == 'push' && 'next' || github.run_id }}
+      group: next-ci-checks-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.checks == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
@@ -246,7 +246,7 @@ jobs:
     name: tvOS tests
     needs: changes
     concurrency:
-      group: next-ci-${{ github.job }}-${{ github.event_name == 'push' && 'next' || github.run_id }}
+      group: next-ci-tvos-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.tvos == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
@@ -286,7 +286,7 @@ jobs:
     name: iOS tests
     needs: changes
     concurrency:
-      group: next-ci-${{ github.job }}-${{ github.event_name == 'push' && 'next' || github.run_id }}
+      group: next-ci-ios-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 40
@@ -351,7 +351,7 @@ jobs:
     name: Builds
     needs: changes
     concurrency:
-      group: next-ci-${{ github.job }}-${{ github.event_name == 'push' && 'next' || github.run_id }}
+      group: next-ci-build-${{ github.event_name == 'push' && 'next' || github.run_id }}
     if: ${{ !cancelled() && needs.changes.outputs.build == 'true' }}
     runs-on: xcode-27
     timeout-minutes: 30
