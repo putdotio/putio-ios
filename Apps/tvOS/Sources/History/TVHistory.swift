@@ -216,7 +216,7 @@ struct TVHistoryView: View {
         event: event, presentation: presentation, locale: locale,
         secondary: AnyShapeStyle(PutioTheme.TV.Colors.textSecondary))
     } facts: {
-      if let size = presentation.sizeBytes, event.fileID != nil {
+      if let size = presentation.sizeBytes, size > 0, event.fileID != nil {
         TVDetailFact(
           label: String(localized: "Size", bundle: .putioCore),
           value: PutioFileRowModel.sizeText(bytes: size, locale: locale))
