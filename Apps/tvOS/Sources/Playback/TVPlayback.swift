@@ -44,8 +44,8 @@ struct TVVideoSession: View {
 /// What the screen shows once the source resolved.
 private enum TVPlaybackStage {
   case measuring
-  case asking(AVPlayerItem, PutioVideoResumePrompt)
-  case playing(AVPlayerItem, startSeconds: Int)
+  case asking(AVPlayerItem, PutioPlaybackSource, PutioVideoResumePrompt)
+  case playing(AVPlayerItem, PutioPlaybackSource)
   case ended
 }
 
@@ -59,10 +59,12 @@ struct TVVideoPlaybackView: View {
   @State private var retrySequence: UInt64 = 0
   @State private var probes = TVPlaybackProbes()
   @State private var nextVideoTask: Task<Void, Never>?
+  @State private var subtitleMemory = TVVideoPlaybackView.makeSubtitleMemory()
 
   private let route: PutioVideoRoute
   private let account: PutioAccountSnapshot
   private let remembersPosition: Bool
+  private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let pipeline: PutioPlaybackPositionPipeline
   private let runtime: PutioRuntime
   private let showsProbes: Bool
@@ -81,6 +83,9 @@ struct TVVideoPlaybackView: View {
     self.route = route
     self.account = account
     self.remembersPosition = account.rememberVideoTime
+    self.subtitlePolicy = PutioSubtitleStartupPolicy(
+      hideSubtitles: account.hideSubtitles,
+      dontAutoSelectSubtitles: account.dontAutoSelectSubtitles)
     self.pipeline = pipeline
     self.runtime = runtime
     self.showsProbes = media.isHarness
@@ -183,17 +188,17 @@ struct TVVideoPlaybackView: View {
     case .measuring:
       PutioLoadingStateView(title: "Preparing video")
         .accessibilityIdentifier("video.preparing")
-    case .asking(let item, let prompt):
+    case .asking(let item, let source, let prompt):
       TVResumePromptView(fileName: route.title, prompt: prompt) { choice in
-        stage = .playing(item, startSeconds: prompt.startSeconds(for: choice))
+        stage = .playing(item, source.starting(at: prompt.startSeconds(for: choice)))
       }
-    case .playing(let item, let startSeconds):
+    case .playing(let item, let source):
       TVSystemVideoPlayer(
-        item: item, fileID: route.id, startSeconds: startSeconds,
-        remembersPosition: remembersPosition, pipeline: pipeline,
+        item: item, source: source, fileID: route.id, remembersPosition: remembersPosition, pipeline: pipeline,
         reportPosition: { [runtime] fileID, seconds in
           try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         },
+        subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         onEnded: playbackEnded,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
@@ -208,7 +213,7 @@ struct TVVideoPlaybackView: View {
     }
   }
 
-  private func playerFailed(_ failure: TVPlayerFailure) {
+  private func playerFailed(_ failure: PutioVideoPlayerFailure) {
     if let source = readySource {
       let report = PutioPlaybackFailureReport(
         platform: .tvos, fileID: route.id, source: source, error: failure.error,
@@ -234,10 +239,18 @@ struct TVVideoPlaybackView: View {
       remembersPosition: remembersPosition)
     {
     case .ask(let prompt):
-      stage = .asking(item, prompt)
+      stage = .asking(item, source, prompt)
     case .play(let startSeconds):
-      stage = .playing(item, startSeconds: startSeconds)
+      stage = .playing(item, source.starting(at: startSeconds))
     }
+  }
+
+  private static func makeSubtitleMemory() -> PutioSubtitleMemory {
+    #if DEBUG
+      HarnessSubtitleMemory.make()
+    #else
+      PutioSubtitleMemory()
+    #endif
   }
 
   /// The system player shows the item's title over its transport bar and in
@@ -542,22 +555,24 @@ struct TVUpNextView: View {
 }
 
 /// The system player. Transport, info panels, subtitles, audio, and speed
-/// are AVKit's own; the coordinator only starts it at the chosen position
-/// and reports positions.
+/// are AVKit's own; the shared session starts it at the chosen position,
+/// applies the start subtitle, and reports positions.
 private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let item: AVPlayerItem
+  let source: PutioPlaybackSource
   let fileID: PutioFileID
-  let startSeconds: Int
   let remembersPosition: Bool
   let pipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
+  let subtitlePolicy: PutioSubtitleStartupPolicy
+  let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
   let onEnded: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
-  let onFailure: @MainActor (TVPlayerFailure) -> Void
+  let onFailure: @MainActor (PutioVideoPlayerFailure) -> Void
 
   func makeCoordinator() -> TVVideoPlayerCoordinator {
-    TVVideoPlayerCoordinator()
+    TVVideoPlayerCoordinator(subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory)
   }
 
   func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -565,8 +580,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
     let probes = probes
     let report = reportPosition
     context.coordinator.start(
-      item: item, fileID: fileID, startSeconds: startSeconds,
-      remembersPosition: remembersPosition, pipeline: pipeline,
+      item: item, source: source, fileID: fileID, remembersPosition: remembersPosition,
+      pipeline: pipeline,
       reportPosition: { fileID, seconds in
         try await report(fileID, seconds)
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
@@ -586,51 +601,51 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   }
 }
 
-struct TVPlayerFailure {
-  let error: PutioPlayerError
-  let beforeFirstFrame: Bool
+extension AVPlayerViewController: PutioVideoPlayerSurface {
+  public var showsFirstFrame: Bool { isReadyForDisplay }
 }
 
-/// Starts the system player at the chosen position, applies the server's
-/// default subtitle before controls appear, and hands position reports to
-/// the shared reporter. Every new playback starts at the system's 1× rate;
-/// the speed control belongs to AVKit, which keeps the chosen rate through
-/// pause, seeking, and Picture in Picture.
+/// The shared AVPlayer session in the system player. The speed the viewer
+/// picks is remembered for the next video, as on iOS, and a subtitle picked
+/// once the controls show is remembered for the start pick.
 @MainActor
 final class TVVideoPlayerCoordinator {
-  private(set) var player: AVPlayer?
-  private var reporter: PutioVideoPositionReporter?
-  private var statusObservation: NSKeyValueObservation?
-  private var rateObservations: [NSKeyValueObservation] = []
-  private var notificationObservations: [NSObjectProtocol] = []
-  private var positionObservation: Any?
-  private var generation: UInt64 = 0
-  private var readyReported = false
-  private var failureReported = false
-  private var audioSessionIsActive = false
-  private var probes: TVPlaybackProbes?
-  private var onEnded: (@MainActor () -> Void)?
+  private var session: PutioVideoPlayerSession?
+  private var observations: [NSKeyValueObservation] = []
+  private var selectionObservation: NSObjectProtocol?
   private var onReportsSettled: (@MainActor () -> Void)?
   private var waitForReports: (@MainActor () async -> Void)?
-  private var onFailure: (@MainActor (TVPlayerFailure) -> Void)?
-  private weak var controller: AVPlayerViewController?
+  private let subtitlePolicy: PutioSubtitleStartupPolicy
+  private let subtitleMemory: PutioSubtitleMemory?
+  private let speedStore: PutioAudioSpeedStore
   private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
-  private let applyDefaultSubtitle: @MainActor (AVPlayerItem, AVPlayer) async -> Void
+  private let applyStartSubtitle: @MainActor (AVPlayerItem, AVPlayer?) async -> Void
+
+  var player: AVPlayer? { session?.player }
 
   init(
+    subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
+    subtitleMemory: PutioSubtitleMemory? = nil,
+    speedStore: PutioAudioSpeedStore = .video(),
     makePlayer: @escaping @MainActor (AVPlayerItem) -> AVPlayer = { AVPlayer(playerItem: $0) },
-    applyDefaultSubtitle: @escaping @MainActor (AVPlayerItem, AVPlayer) async -> Void = {
-      await TVVideoPlayerCoordinator.selectDefaultSubtitle(in: $0, for: $1)
-    }
+    applyStartSubtitle: (@MainActor (AVPlayerItem, AVPlayer?) async -> Void)? = nil
   ) {
+    self.subtitlePolicy = subtitlePolicy
+    self.subtitleMemory = subtitleMemory
+    self.speedStore = speedStore
     self.makePlayer = makePlayer
-    self.applyDefaultSubtitle = applyDefaultSubtitle
+    self.applyStartSubtitle =
+      applyStartSubtitle ?? { item, player in
+        await TVVideoPlayerCoordinator.selectStartSubtitle(
+          in: item, for: player, policy: subtitlePolicy, remembered: subtitleMemory?.remembered)
+      }
   }
 
   func start(
     item: AVPlayerItem,
+    source: PutioPlaybackSource? = nil,
     fileID: PutioFileID,
-    startSeconds: Int,
+    startSeconds: Int? = nil,
     remembersPosition: Bool,
     pipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport,
@@ -638,135 +653,78 @@ final class TVVideoPlayerCoordinator {
     probes: TVPlaybackProbes? = nil,
     onEnded: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
-    onFailure: @escaping @MainActor (TVPlayerFailure) -> Void
+    onFailure: @escaping @MainActor (PutioVideoPlayerFailure) -> Void
   ) {
-    generation &+= 1
-    let playbackGeneration = generation
-    readyReported = false
-    failureReported = false
-    reporter?.cancel()
-    self.probes = probes
-    self.onEnded = onEnded
+    if let session { stop(session, controller: controller, settles: false) }
+    let speed = speedStore.load()
+    let makePlayer = makePlayer
+    let applyStartSubtitle = applyStartSubtitle
+    weak var created: AVPlayer?
+    let session = PutioVideoPlayerSession(
+      makeDriver: { item in
+        let player = makePlayer(item)
+        player.defaultRate = speed.rawValue
+        created = player
+        return PutioVideoPlayerDriver(player: player)
+      },
+      audioSession: PutioPlaybackAudioSession(),
+      notificationCenter: .default,
+      backgroundNotification: nil,
+      positionPipeline: pipeline,
+      applyDefaultSubtitle: { item in await applyStartSubtitle(item, created) })
+    self.session = session
     self.onReportsSettled = onReportsSettled
     waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
-    self.onFailure = onFailure
-    self.controller = controller
+    session.onSubtitleSelected = probes.map { probes in { probes.subtitle = $0 } }
 
-    let player = makePlayer(item)
-    self.player = player
-    let reporter = PutioVideoPositionReporter(
-      fileID: fileID, remembersPosition: remembersPosition, pipeline: pipeline,
-      report: reportPosition,
-      currentPosition: { [weak self, weak player] in
-        guard let self, let player, self.player === player else { return nil }
-        return PutioVideoPositionReporter.normalizedPosition(
-          seconds: CMTimeGetSeconds(player.currentTime()))
-      },
-      endOfPlayback: .keepsPosition)
-    self.reporter = reporter
-
-    // Controls stay hidden until the default subtitle is applied, so no
-    // subtitle choice can be made before it and then overridden.
-    controller.showsPlaybackControls = false
-    // tvOS offers no speed control until the player lists its speeds.
     controller.speeds = AVPlaybackSpeed.systemDefaultSpeeds
-    controller.player = player
-
-    statusObservation = item.observe(\.status, options: [.initial, .new]) {
-      [weak self, weak controller] observed, _ in
-      let status = observed.status
-      Task { @MainActor [weak self, weak controller] in
-        self?.itemStatusChanged(
-          status, item: item, controller: controller, generation: playbackGeneration)
-      }
-    }
-    let center = NotificationCenter.default
-    notificationObservations = [
-      center.addObserver(
-        forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
-      ) { [weak self] notification in
-        let error = PutioPlayerError(
-          avPlayerError: notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey]
-            as? Error)
-        MainActor.assumeIsolated { self?.reportFailure(error, generation: playbackGeneration) }
+    let base =
+      source
+      ?? PutioPlaybackSource(
+        url: (item.asset as? AVURLAsset)?.url ?? URL(fileURLWithPath: "/dev/null"),
+        startFromSeconds: 0)
+    session.start(
+      fileID: fileID, source: base.starting(at: startSeconds ?? base.startFromSeconds),
+      preparedItem: item, remembersPlaybackPosition: remembersPosition,
+      reportPosition: reportPosition, in: controller,
+      onReady: { [weak self, weak controller] in
+        probes?.isReady = true
+        guard let self, let controller else { return }
+        self.watchSubtitlePicks(of: item, controller: controller)
       },
-      center.addObserver(
-        forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated { self?.reportEnded(generation: playbackGeneration) }
-      },
-    ]
-    if let probes {
-      probes.speeds = controller.speeds.map { TVPlaybackProbes.format($0.rate) }
-      observe(player: player, item: item, probes: probes, generation: playbackGeneration)
-    }
-
-    do {
-      let session = AVAudioSession.sharedInstance()
-      try session.setCategory(.playback, mode: .moviePlayback)
-      try session.setActive(true)
-      audioSessionIsActive = true
-    } catch {
-      Task { @MainActor [weak self] in
-        self?.reportFailure(PutioPlayerError(avPlayerError: error), generation: playbackGeneration)
+      observesPlaybackState: probes != nil,
+      onAudioSelected: { probes?.audioLanguage = $0 },
+      onPositionChanged: { probes?.currentPosition = $0 },
+      onPlaybackEnded: { onEnded() },
+      onFailure: onFailure)
+    if let player = session.player {
+      if let chosen = controller.speeds.first(where: { $0.rate == speed.rawValue }) {
+        controller.selectSpeed(chosen)
       }
-      return
+      observe(player, probes: probes)
     }
-
-    guard startSeconds > 0 else {
-      reporter.positionEstablished()
-      player.play()
-      return
-    }
-    let startTime = CMTime(seconds: Double(startSeconds), preferredTimescale: 600)
-    player.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero) {
-      [weak self, weak player] finished in
-      Task { @MainActor [weak self, weak player] in
-        guard let self, let player, generation == playbackGeneration, self.player === player,
-          !failureReported
-        else { return }
-        guard finished else {
-          reportFailure(PutioPlayerError(avPlayerError: nil), generation: playbackGeneration)
-          return
-        }
-        reporter.positionEstablished()
-        reporter.startReporting()
-        player.play()
-      }
-    }
+    probes?.speeds = controller.speeds.map { TVPlaybackProbes.format($0.rate) }
   }
 
   func stop(controller: AVPlayerViewController) {
-    reporter?.stop()
-    reporter = nil
-    generation &+= 1
-    statusObservation?.invalidate()
-    statusObservation = nil
-    for observation in rateObservations { observation.invalidate() }
-    rateObservations = []
-    for observation in notificationObservations {
-      NotificationCenter.default.removeObserver(observation)
+    guard let session else { return }
+    stop(session, controller: controller, settles: true)
+  }
+
+  private func stop(
+    _ session: PutioVideoPlayerSession, controller: AVPlayerViewController, settles: Bool
+  ) {
+    for observation in observations { observation.invalidate() }
+    observations = []
+    if let selectionObservation {
+      NotificationCenter.default.removeObserver(selectionObservation)
     }
-    notificationObservations = []
-    if let positionObservation, let player {
-      player.removeTimeObserver(positionObservation)
-    }
-    positionObservation = nil
-    onEnded = nil
-    onFailure = nil
-    self.controller = nil
-    player?.currentItem?.cancelPendingSeeks()
-    player?.pause()
-    player?.replaceCurrentItem(with: nil)
-    player = nil
-    controller.player = nil
-    if audioSessionIsActive {
-      try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-      audioSessionIsActive = false
-    }
+    selectionObservation = nil
+    session.stop(surface: controller)
+    self.session = nil
     // The final position is enqueued by now; the callback follows it, and
     // every report before it, to the server.
-    if let settled = onReportsSettled, let waitForReports {
+    if settles, let settled = onReportsSettled, let waitForReports {
       Task { @MainActor in
         await waitForReports()
         settled()
@@ -776,142 +734,70 @@ final class TVVideoPlayerCoordinator {
     waitForReports = nil
   }
 
-  private func itemStatusChanged(
-    _ status: AVPlayerItem.Status, item: AVPlayerItem, controller: AVPlayerViewController?,
-    generation playbackGeneration: UInt64
-  ) {
-    guard generation == playbackGeneration else { return }
-    switch status {
-    case .readyToPlay:
-      guard !readyReported, !failureReported else { return }
-      readyReported = true
-      // Playing already, so the end and the exit must count from here, even
-      // while the subtitle default is still loading.
-      reporter?.ready()
-      probes?.isReady = true
-      let applyDefaultSubtitle = applyDefaultSubtitle
-      Task { @MainActor [weak self, weak controller, weak player] in
-        if let player { await applyDefaultSubtitle(item, player) }
-        guard let self, generation == playbackGeneration else { return }
-        controller?.showsPlaybackControls = true
-        reportMediaSelection(for: item, generation: playbackGeneration)
+  private func observe(_ player: AVPlayer, probes: TVPlaybackProbes?) {
+    let speedStore = speedStore
+    observations = [
+      player.observe(\.defaultRate, options: [.initial, .new]) { [weak probes] player, _ in
+        let rate = player.defaultRate
+        Task { @MainActor in
+          probes?.speed = rate
+          if let speed = PutioAudioSpeed(rawValue: rate) { speedStore.save(speed) }
+        }
       }
-    case .failed:
-      reportFailure(PutioPlayerError(avPlayerError: item.error), generation: playbackGeneration)
-    case .unknown:
-      break
-    @unknown default:
-      break
+    ]
+    if let probes {
+      observations.append(
+        player.observe(\.rate, options: [.initial, .new]) { [weak probes] player, _ in
+          let rate = player.rate
+          Task { @MainActor in probes?.rate = rate }
+        })
     }
   }
 
-  /// put.io marks the first subtitle `DEFAULT` unless the account disables
-  /// auto-selection, and omits subtitles when they are hidden. Automatic
-  /// selection leaves that default off under the system subtitle setting,
-  /// and the tvOS player re-applies it once playback starts, so the legible
-  /// criteria name the default's language before it is selected. Only the
-  /// legible group changes: audio keeps the system's automatic choice, as on
-  /// iOS.
-  static func selectDefaultSubtitle(in item: AVPlayerItem, for player: AVPlayer) async {
-    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
-      let option = group.defaultOption
-    else { return }
-    if let language = option.extendedLanguageTag ?? option.locale?.identifier {
-      player.setMediaSelectionCriteria(
+  private func watchSubtitlePicks(of item: AVPlayerItem, controller: AVPlayerViewController) {
+    guard let subtitleMemory else { return }
+    selectionObservation = NotificationCenter.default.addObserver(
+      forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
+    ) { [weak controller] _ in
+      MainActor.assumeIsolated {
+        guard controller?.showsPlaybackControls == true else { return }
+        Task { @MainActor in
+          guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible) else {
+            return
+          }
+          let picked = item.currentMediaSelection.selectedMediaOption(in: group)
+          guard picked.map({ !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) }) ?? true
+          else { return }
+          subtitleMemory.remember(
+            picked.map {
+              PutioSubtitleTrack(
+                id: 0, title: $0.displayName,
+                languageTag: $0.extendedLanguageTag ?? $0.locale?.identifier)
+            })
+        }
+      }
+    }
+  }
+
+  /// The shared start pick, from the account's subtitle settings and the
+  /// remembered language. The tvOS player re-applies automatic selection once
+  /// playback starts, so the legible criteria name the pick's language before
+  /// it is selected. Only the legible group changes: audio keeps the system's
+  /// automatic choice.
+  static func selectStartSubtitle(
+    in item: AVPlayerItem, for player: AVPlayer?, policy: PutioSubtitleStartupPolicy,
+    remembered: PutioRememberedSubtitle?
+  ) async {
+    await PutioVideoTracks.selectStartSubtitle(in: item, policy: policy, remembered: remembered) {
+      guard let language = $0.extendedLanguageTag ?? $0.locale?.identifier else { return }
+      player?.setMediaSelectionCriteria(
         AVPlayerMediaSelectionCriteria(
           preferredLanguages: [language], preferredMediaCharacteristics: nil),
         forMediaCharacteristic: .legible)
     }
-    item.select(option, in: group)
   }
 
-  private func reportFailure(
-    _ error: PutioPlayerError, generation playbackGeneration: UInt64
-  ) {
-    guard generation == playbackGeneration, !failureReported else { return }
-    failureReported = true
-    onFailure?(
-      TVPlayerFailure(error: error, beforeFirstFrame: controller?.isReadyForDisplay != true))
-  }
-
-  private func reportEnded(generation playbackGeneration: UInt64) {
-    guard generation == playbackGeneration, readyReported, !failureReported,
-      reporter?.playbackEnded() == true
-    else { return }
-    onEnded?()
-  }
-
-  // MARK: Harness probes
-
-  private func observe(
-    player: AVPlayer, item: AVPlayerItem, probes: TVPlaybackProbes,
-    generation playbackGeneration: UInt64
-  ) {
-    positionObservation = player.addPeriodicTimeObserver(
-      forInterval: CMTime(seconds: 0.25, preferredTimescale: 600), queue: .main
-    ) { [weak probes] time in
-      MainActor.assumeIsolated {
-        probes?.currentPosition = PutioVideoPositionReporter.normalizedPosition(
-          seconds: CMTimeGetSeconds(time))
-      }
-    }
-    rateObservations = [
-      player.observe(\.rate, options: [.initial, .new]) { [weak probes] player, _ in
-        let rate = player.rate
-        Task { @MainActor in probes?.rate = rate }
-      },
-      player.observe(\.defaultRate, options: [.initial, .new]) { [weak probes] player, _ in
-        let rate = player.defaultRate
-        Task { @MainActor in probes?.speed = rate }
-      },
-    ]
-    notificationObservations.append(
-      NotificationCenter.default.addObserver(
-        forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
-      ) { [weak self] _ in
-        MainActor.assumeIsolated {
-          self?.reportMediaSelection(for: item, generation: playbackGeneration)
-        }
-      })
-  }
-
-  private func reportMediaSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
-    guard let probes else { return }
-    Task { @MainActor [weak self, weak probes] in
-      let selection = await TVMediaSelection.current(in: item)
-      guard let self, generation == playbackGeneration, let probes else { return }
-      probes.audioLanguage = selection.audio
-      probes.subtitle = selection.subtitle
-    }
-  }
-}
-
-/// The audible and legible options in effect, as language codes.
-@MainActor
-enum TVMediaSelection {
-  /// `subtitle` is `off` when the stream offers subtitles but none is
-  /// selected, and `unavailable` when it offers none.
-  static func current(in item: AVPlayerItem) async -> (audio: String?, subtitle: String) {
-    let audio: String?
-    if let group = try? await item.asset.loadMediaSelectionGroup(for: .audible),
-      let option = item.currentMediaSelection.selectedMediaOption(in: group)
-    {
-      audio = languageCode(of: option)
-    } else {
-      audio = nil
-    }
-    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible) else {
-      return (audio, "unavailable")
-    }
-    guard let option = item.currentMediaSelection.selectedMediaOption(in: group) else {
-      return (audio, "off")
-    }
-    return (audio, languageCode(of: option))
-  }
-
-  /// "eng", "en-US", and "en" all read as "en".
-  nonisolated static func languageCode(of option: AVMediaSelectionOption) -> String {
-    let raw = option.extendedLanguageTag ?? option.locale?.identifier ?? "und"
-    return Locale.Language(identifier: raw).languageCode?.identifier(.alpha2) ?? raw
+  static func selectDefaultSubtitle(in item: AVPlayerItem, for player: AVPlayer) async {
+    await selectStartSubtitle(in: item, for: player, policy: .accountDefault, remembered: nil)
   }
 }

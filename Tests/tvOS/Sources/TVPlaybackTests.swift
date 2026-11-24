@@ -67,17 +67,18 @@ final class TVPlaybackTests: XCTestCase {
       let audibleGroup = try await item.asset.loadMediaSelectionGroup(for: .audible)
       let audible = try XCTUnwrap(audibleGroup)
       let turkish = try XCTUnwrap(
-        audible.options.first { TVMediaSelection.languageCode(of: $0) == "tr" })
+        audible.options.first { PutioMediaSelection.languageCode(of: $0) == "tr" })
       item.select(turkish, in: audible)
 
       await TVVideoPlayerCoordinator.selectDefaultSubtitle(in: item, for: player)
 
       await waitUntil("\(manifest) subtitle") {
-        await TVMediaSelection.current(in: item).subtitle == expected
+        await PutioMediaSelection.selectedSubtitle(in: item) == expected
       }
-      let selection = await TVMediaSelection.current(in: item)
-      XCTAssertEqual(selection.subtitle, expected, manifest)
-      XCTAssertEqual(selection.audio, "tr", "\(manifest): the subtitle default moved the audio")
+      let subtitle = await PutioMediaSelection.selectedSubtitle(in: item)
+      let audio = await PutioMediaSelection.selectedAudioLanguage(in: item)
+      XCTAssertEqual(subtitle, expected, manifest)
+      XCTAssertEqual(audio, "tr", "\(manifest): the subtitle default moved the audio")
       player.replaceCurrentItem(with: nil)
     }
   }
@@ -93,7 +94,7 @@ final class TVPlaybackTests: XCTestCase {
       base: base, startSeconds: 120, remembersPosition: true, pipeline: pipeline,
       reported: reported)
     let player = try XCTUnwrap(coordinator.player)
-    await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 120 }
+    await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 121 }
     XCTAssertTrue(probes.isReady)
 
     coordinator.stop(controller: controller)
@@ -117,8 +118,8 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.last?.1 ?? 0, 586, "the end reset the position")
   }
 
-  /// Start from the beginning plays from zero and still reports; an account
-  /// that does not remember positions reports nothing.
+  /// Start from the beginning plays from zero and reports the position it
+  /// reached; an account that does not remember positions reports nothing.
   func testStartOverPlaysFromZeroAndRememberOffReportsNothing() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
@@ -130,6 +131,7 @@ final class TVPlaybackTests: XCTestCase {
         reported: reported)
       let player = try XCTUnwrap(coordinator.player)
       XCTAssertLessThan(CMTimeGetSeconds(player.currentTime()), 5)
+      await waitUntil("playing") { CMTimeGetSeconds(player.currentTime()) >= 1 }
       coordinator.stop(controller: controller)
       await pipeline.waitForPendingReports(fileID: Self.fileID)
       if remembers {
@@ -142,14 +144,15 @@ final class TVPlaybackTests: XCTestCase {
   }
 
   /// The native speed control lists the system rates; the chosen rate is the
-  /// one playback resumes at after a pause and keeps through a seek, and a
-  /// new playback starts at 1x.
+  /// one playback resumes at after a pause and keeps through a seek, and the
+  /// next playback starts at it, as on iOS.
   func testSpeedControlOffersTheSystemRatesAndHoldsThroughPauseAndSeek() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
+    let speeds = speedStore()
     let (coordinator, controller, _) = try await startPlayer(
       base: base, startSeconds: 0, remembersPosition: false,
-      pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions())
+      pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions(), speeds: speeds)
     let player = try XCTUnwrap(coordinator.player)
     XCTAssertEqual(controller.speeds.map(\.rate), [2, 1.5, 1.25, 1, 0.5])
     XCTAssertEqual(player.defaultRate, 1)
@@ -173,9 +176,9 @@ final class TVPlaybackTests: XCTestCase {
 
     let (next, nextController, _) = try await startPlayer(
       base: base, startSeconds: 0, remembersPosition: false,
-      pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions())
-    XCTAssertEqual(next.player?.defaultRate, 1, "a new playback starts at 1x")
-    XCTAssertEqual(nextController.selectedSpeed?.rate, 1)
+      pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions(), speeds: speeds)
+    XCTAssertEqual(next.player?.defaultRate, 1.5, "the next playback forgot the speed")
+    XCTAssertEqual(nextController.selectedSpeed?.rate, 1.5)
     next.stop(controller: nextController)
   }
 
@@ -186,7 +189,7 @@ final class TVPlaybackTests: XCTestCase {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
     // Stands in for a Turkish system language, in place before the item loads.
-    let coordinator = TVVideoPlayerCoordinator(makePlayer: { item in
+    let coordinator = TVVideoPlayerCoordinator(speedStore: speedStore(), makePlayer: { item in
       let player = AVPlayer()
       player.setMediaSelectionCriteria(
         AVPlayerMediaSelectionCriteria(
@@ -220,7 +223,9 @@ final class TVPlaybackTests: XCTestCase {
       let gate = Gate()
       let reported = ReportedPositions()
       let pipeline = PutioPlaybackPositionPipeline()
-      let coordinator = TVVideoPlayerCoordinator { _, _ in await gate.wait() }
+      let coordinator = TVVideoPlayerCoordinator(speedStore: speedStore()) { _, _ in
+        await gate.wait()
+      }
       let controller = AVPlayerViewController()
       let item = AVPlayerItem(url: base.appending(path: "runtime-proof.m3u8"))
       var ended = false
@@ -262,7 +267,7 @@ final class TVPlaybackTests: XCTestCase {
     registration.activate()
     let route = PutioVideoRoute(id: Self.fileID, parentID: .root, title: "Root Movie.mkv")
     var reportLanded = false
-    let coordinator = TVVideoPlayerCoordinator()
+    let coordinator = TVVideoPlayerCoordinator(speedStore: speedStore())
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     coordinator.start(
@@ -339,6 +344,13 @@ final class TVPlaybackTests: XCTestCase {
 
   private static let fileID = PutioFileID(rawValue: 412)
 
+  private func speedStore() -> PutioAudioSpeedStore {
+    let suite = "io.put.tests.tv-playback-speed"
+    let defaults = UserDefaults(suiteName: suite) ?? .standard
+    defaults.removePersistentDomain(forName: suite)
+    return PutioAudioSpeedStore(defaults: defaults, key: PutioAudioSpeedStore.videoKey)
+  }
+
   private func serveMedia() async throws -> (LoopbackMediaServer, URL) {
     let playlist = try XCTUnwrap(
       Bundle.main.url(
@@ -352,9 +364,9 @@ final class TVPlaybackTests: XCTestCase {
   private func startPlayer(
     base: URL, startSeconds: Int, remembersPosition: Bool,
     pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions,
-    onEnded: @escaping @MainActor () -> Void = {}
+    speeds: PutioAudioSpeedStore? = nil, onEnded: @escaping @MainActor () -> Void = {}
   ) async throws -> (TVVideoPlayerCoordinator, AVPlayerViewController, TVPlaybackProbes) {
-    let coordinator = TVVideoPlayerCoordinator()
+    let coordinator = TVVideoPlayerCoordinator(speedStore: speeds ?? speedStore())
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     coordinator.start(

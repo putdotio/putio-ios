@@ -37,61 +37,6 @@ enum PutioAudioPlayerState: Equatable {
   }
 }
 
-/// Speeds the current app exposes. The chosen rate persists across launches
-/// and applies to every track without asking again.
-enum PutioAudioSpeed: Float, CaseIterable, Sendable {
-  case quarter = 0.25
-  case half = 0.5
-  case slower = 0.75
-  case normal = 1
-  case faster = 1.25
-  case fast = 1.5
-  case double = 2
-  case doubleAndHalf = 2.5
-  case triple = 3
-  case tripleAndHalf = 3.5
-  case quadruple = 4
-
-  /// Locale-independent so the label, identifier, and persisted value agree.
-  var title: String {
-    "\(identifier)×"
-  }
-
-  var identifier: String {
-    let value = Double(rawValue)
-    return value == value.rounded() ? String(Int(value)) : String(value)
-  }
-}
-
-@MainActor
-final class PutioAudioSpeedStore {
-  static let audioKey = "putio.audio.playback-speed"
-  static let videoKey = "putio.video.playback-speed"
-  private let defaults: UserDefaults
-  private let key: String
-
-  init(defaults: UserDefaults = .standard, key: String = audioKey) {
-    self.defaults = defaults
-    self.key = key
-  }
-
-  static func video(defaults: UserDefaults = .standard) -> PutioAudioSpeedStore {
-    #if DEBUG
-      HarnessPlaybackSpeed.resetUnlessKept(defaults)
-    #endif
-    return PutioAudioSpeedStore(defaults: defaults, key: videoKey)
-  }
-
-  func load() -> PutioAudioSpeed {
-    guard defaults.object(forKey: key) != nil else { return .normal }
-    return PutioAudioSpeed(rawValue: defaults.float(forKey: key)) ?? .normal
-  }
-
-  func save(_ speed: PutioAudioSpeed) {
-    defaults.set(speed.rawValue, forKey: key)
-  }
-}
-
 struct PutioNowPlayingInfo: Equatable, Sendable {
   let title: String
   let elapsedSeconds: Int

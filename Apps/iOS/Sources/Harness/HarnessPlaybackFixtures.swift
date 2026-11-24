@@ -9,39 +9,6 @@ import SwiftUI
   }
 
   @MainActor
-  enum HarnessSubtitleMemory {
-    private static let suite = "io.put.harness.subtitle-memory"
-    private static let launchDefaults: UserDefaults? = {
-      UserDefaults(suiteName: suite).map { defaults in
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
-      }
-    }()
-
-    static func make() -> PutioSubtitleMemory {
-      guard ProcessInfo.processInfo.arguments.contains(HarnessScenario.launchArgument),
-        let defaults = launchDefaults
-      else { return PutioSubtitleMemory() }
-      return PutioSubtitleMemory(defaults: defaults)
-    }
-  }
-
-  @MainActor
-  enum HarnessPlaybackSpeed {
-    static let keepArgument = "--putio-harness-keep-playback-speed"
-    private static var reset = false
-
-    static func resetUnlessKept(_ defaults: UserDefaults) {
-      let arguments = HarnessLaunch.arguments
-      guard !reset, arguments.contains(HarnessScenario.launchArgument),
-        !arguments.contains(keepArgument)
-      else { return }
-      reset = true
-      defaults.removeObject(forKey: PutioAudioSpeedStore.videoKey)
-    }
-  }
-
-  @MainActor
   enum HarnessSubtitleSize {
     private static var reset = false
 
