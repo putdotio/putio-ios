@@ -9,6 +9,7 @@ struct TVTrashView: View {
   @State private var confirmsEmpty = false
   @State private var toast: PutioToast?
   @State private var stillMoving: (title: String, message: String)?
+  @State private var showsPanel = true
   @FocusState private var focus: Focus?
   private let locale: Locale
   private let loadsOnAppear: Bool
@@ -17,6 +18,7 @@ struct TVTrashView: View {
     case item(PutioFileID)
     case restoreAll
     case panel
+    case moreRetry
   }
 
   init(
@@ -104,7 +106,15 @@ struct TVTrashView: View {
     .onAppear { if loadsOnAppear { now = .now } }
     .onDisappear { model.abandonListing() }
     .onChange(of: focus) { _, focus in
-      if case .item(let id) = focus { shownItemID = id }
+      switch focus {
+      case .item(let id):
+        shownItemID = id
+        showsPanel = true
+      case .moreRetry:
+        showsPanel = false
+      case .restoreAll, .panel, nil:
+        break
+      }
     }
     .onChange(of: model.page?.items.map(\.id) ?? []) { old, new in
       moveFocus(from: old, to: new)
@@ -206,8 +216,12 @@ struct TVTrashView: View {
             list(page)
           }
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-          if let item = page.items.first(where: { $0.id == shownItemID }) ?? page.items.first {
+          if showsPanel,
+            let item = page.items.first(where: { $0.id == shownItemID }) ?? page.items.first
+          {
             panel(item)
+          } else {
+            Color.clear.frame(width: TVDetailPanelLayout.width)
           }
         }
       }
@@ -282,7 +296,7 @@ struct TVTrashView: View {
         } label: {
           PutioFileRow(item.rowModel(relativeTo: now, locale: locale))
         }
-        .tvRowOpen(!isFocusedRow && shownItemID == item.id)
+        .tvRowOpen(!isFocusedRow && showsPanel && shownItemID == item.id)
         .focused($focus, equals: .item(item.id))
         .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
       }
@@ -290,7 +304,7 @@ struct TVTrashView: View {
         if model.paginationFailure != nil {
           TVLoadMoreFailedRow(
             message: String(localized: "Couldn’t load more items.", bundle: .putioCore),
-            identifier: "trash.more-retry"
+            identifier: "trash.more-retry", focus: $focus, focusValue: .moreRetry
           ) { await model.loadMore() }
         } else {
           ProgressView()
