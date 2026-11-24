@@ -4600,6 +4600,260 @@
           }
         }
       }
+    },
+    "Search your files" : {
+      "comment" : "android: mobile_files_search_hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search your files"
+          }
+        }
+      }
+    },
+    "Searching files" : {
+      "comment" : "android: mobile_search_loading | differs: iOS board wording",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Searching files"
+          }
+        }
+      }
+    },
+    "Type or dictate a file or folder name." : {
+      "comment" : "ios-only: Apple TV copy; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type or dictate a file or folder name."
+          }
+        }
+      }
+    },
+    "Find your files" : {
+      "comment" : "android: mobile_search_start_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find your files"
+          }
+        }
+      }
+    },
+    "Enter a name or keyword to search your put.io account." : {
+      "comment" : "android: mobile_search_start_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a name or keyword to search your put.io account."
+          }
+        }
+      }
+    },
+    "Can't connect to put.io" : {
+      "comment" : "ios-only: Apple TV copy; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't connect to put.io"
+          }
+        }
+      }
+    },
+    "Couldn’t search" : {
+      "comment" : "android: mobile_search_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t search"
+          }
+        }
+      }
+    },
+    "Nothing matches" : {
+      "comment" : "android: mobile_search_no_results_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing matches"
+          }
+        }
+      }
+    },
+    "No files or folders named %@. Try fewer words." : {
+      "comment" : "android: mobile_search_no_results_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No files or folders named %@. Try fewer words."
+          }
+        }
+      }
+    },
+    "Recent searches" : {
+      "comment" : "android: mobile_search_recent",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent searches"
+          }
+        }
+      }
+    },
+    "Remove from recent searches" : {
+      "comment" : "ios-only: Apple TV copy; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from recent searches"
+          }
+        }
+      }
+    },
+    "Remove %@ from recent searches" : {
+      "comment" : "android: mobile_search_remove_named",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@ from recent searches"
+          }
+        }
+      }
+    },
+    "Couldn’t update recent searches" : {
+      "comment" : "android: mobile_search_recent_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t update recent searches"
+          }
+        }
+      }
+    },
+    "Continue watching" : {
+      "comment" : "android: mobile_files_continue_watching",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue watching"
+          }
+        }
+      }
+    },
+    "Remove from Continue watching" : {
+      "comment" : "android: mobile_files_continue_watching_remove",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Continue watching"
+          }
+        }
+      }
+    },
+    "%@ left" : {
+      "comment" : "android: mobile_files_continue_watching_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ left"
+          }
+        }
+      }
+    },
+    "Resume %@, %@ left" : {
+      "comment" : "android: mobile_files_continue_watching_resume",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume %@, %@ left"
+          }
+        }
+      }
+    },
+    "Pinned" : {
+      "comment" : "android: mobile_files_pinned",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pinned"
+          }
+        }
+      }
+    },
+    "Nothing pinned yet." : {
+      "comment" : "ios-only: Apple TV copy; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing pinned yet."
+          }
+        }
+      }
+    },
+    "Pin a folder or file from its actions to keep it here." : {
+      "comment" : "ios-only: Apple TV copy; the Android snapshot covers mobile only",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin a folder or file from its actions to keep it here."
+          }
+        }
+      }
+    },
+    "%lld items" : {
+      "comment" : "android: mobile_files_item_count",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "in %@" : {
+      "comment" : "ios-only: Android pin rows show no location",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "in %@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

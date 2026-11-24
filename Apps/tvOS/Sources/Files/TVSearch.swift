@@ -57,7 +57,7 @@ struct TVSearchView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .tvOverscanPadding()
       .background(PutioTheme.Colors.background.ignoresSafeArea())
-      .searchable(text: $query, prompt: "Search your files")
+      .searchable(text: $query, prompt: PutioSearchResultPresentation.prompt)
       .task(id: Request(query: query, revision: refreshRequests.revision)) {
         guard searchesOnChange else { return }
         await model.apply(query: query, revision: refreshRequests.revision)
@@ -100,18 +100,24 @@ struct TVSearchView: View {
     case .idle:
       Color.clear
     case .loading:
-      PutioLoadingStateView(title: "Searching files")
+      PutioLoadingStateView(title: PutioSearchResultPresentation.searching)
     case .failed(let failure):
+      let copy = PutioSearchResultPresentation.failed(failure)
       PutioErrorStateView(
-        title: "Could not search files", message: failure.message, retryTitle: "Try again",
+        title: copy.title, message: copy.message, retryTitle: "Try again",
         retryIdentifier: "search.retry"
       ) {
         Task { await model.refresh(query: query, revision: refreshRequests.revision) }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextCursor == nil, model.refreshFailure == nil {
-        ContentUnavailableView.search(text: query)
-          .accessibilityIdentifier("search.empty")
+        let nothing = PutioSearchResultPresentation.nothingMatches(query)
+        PutioEmptyStateView(
+          kaomoji: nothing.copy.kaomoji ?? .uneasy, title: nothing.copy.title,
+          message: nothing.copy.message.replacingOccurrences(
+            of: PutioSearchResultPresentation.termMark, with: "“\(nothing.term)”")
+        )
+        .accessibilityIdentifier("search.empty")
       } else {
         list(page)
       }

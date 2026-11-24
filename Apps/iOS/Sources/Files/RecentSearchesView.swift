@@ -7,9 +7,8 @@ struct RecentSearchesView: View {
 
   var body: some View {
     if model.terms.isEmpty {
-      PutioEmptyStateView.textOnly(
-        title: String(localized: "Find your files"),
-        message: String(localized: "Enter a name or keyword to search your put.io account."))
+      let start = PutioSearchResultPresentation.start
+      PutioEmptyStateView.textOnly(title: start.title, message: start.message)
     } else {
       List {
         header
@@ -27,12 +26,12 @@ struct RecentSearchesView: View {
 
   private var header: some View {
     HStack(alignment: .firstTextBaseline) {
-      Text("Recent searches")
+      Text(PutioRecentSearchesCopy.title)
         .putioFont(PutioTheme.Typography.caption)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .accessibilityAddTraits(.isHeader)
       Spacer(minLength: PutioTheme.Spacing.space2)
-      Button("Clear") {
+      Button(PutioRecentSearchesCopy.clear) {
         Task { await model.clear() }
       }
       .putioFont(PutioTheme.Typography.caption)
@@ -87,7 +86,7 @@ private struct RecentSearchRow: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .accessibilityLabel(String(localized: "Remove \(term) from recent searches"))
+      .accessibilityLabel(PutioRecentSearchesCopy.remove(term))
       .accessibilityIdentifier("files.search-recent-remove.\(term)")
     }
     .listRowInsets(.vertical, PutioTheme.Spacing.space1)
