@@ -1,63 +1,31 @@
 import PutioCore
 import SwiftUI
 
-enum TVTrashPresentation {
-  static func row(
-    _ item: PutioTrashItem, now: Date, locale: Locale = .current
-  ) -> PutioFileRowModel {
-    let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
-    let deleted = PutioBrowserItemPresentation.relativeDateText(
-      for: item.deletedAt, relativeTo: now, locale: locale)
-    let expires = item.expiresAt.formatted(Date.FormatStyle(locale: locale).month(.wide).day())
-    return PutioFileRowModel(
-      name: item.name,
-      kind: PutioBrowserItemPresentation.rowKind(for: item.kind),
-      sizeText: "\(size) · Deleted \(deleted)",
-      secondaryText: "Expires on \(expires)",
-      showsDisclosure: false
-    )
-  }
-
-  static func toast(for outcome: PutioTrashMutationOutcome) -> PutioToast {
-    switch outcome {
-    case .restored:
-      PutioToast("Item restored")
-    case .permanentlyDeleted:
-      PutioToast("Item deleted")
-    case .restoredItems:
-      PutioToast("Items restored")
-    case .permanentlyDeletedItems:
-      PutioToast("Items deleted")
-    case .restoredAll:
-      PutioToast("Restore started!")
-    case .emptied:
-      PutioToast("Trash emptied")
-    case .failed(_, let failure):
-      PutioToast(failure.title)
-    }
-  }
-
-}
-
 struct TVTrashView: View {
   @State private var model: PutioTrashModel
   @State private var now: Date
   @State private var selectedItem: PutioTrashItem?
   @State private var confirmsEmpty = false
   @State private var toast: PutioToast?
+  @State private var stillMoving: (title: String, message: String)?
   private let locale: Locale
   private let loadsOnAppear: Bool
 
-  init(runtime: PutioRuntime, reconciliation: PutioTrashReconciliation) {
-    self.init(model: Self.model(runtime: runtime, reconciliation: reconciliation))
+  init(
+    runtime: PutioRuntime, reconciliation: PutioTrashReconciliation,
+    refreshRequests: PutioFolderRefreshRequests
+  ) {
+    self.init(
+      model: Self.model(
+        runtime: runtime, reconciliation: reconciliation, refreshRequests: refreshRequests))
   }
 
   static func model(
-    runtime: PutioRuntime, reconciliation: PutioTrashReconciliation
+    runtime: PutioRuntime, reconciliation: PutioTrashReconciliation,
+    refreshRequests: PutioFolderRefreshRequests
   ) -> PutioTrashModel {
-    // Restores never reload account storage, and one can commit after Trash
-    // is gone; Account's trash size must still follow it.
-    PutioTrashModel(runtime: runtime, reconciliation: reconciliation) { _ in
+    PutioTrashModel(runtime: runtime, reconciliation: reconciliation) { destinationID in
+      PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
       Task { await runtime.refreshAccount() }
     }
   }
@@ -119,6 +87,15 @@ struct TVTrashView: View {
     } message: {
       Text("Every item in Trash will be deleted and cannot be restored.")
     }
+    .alert(
+      stillMoving?.title ?? "",
+      isPresented: Binding(get: { stillMoving != nil }, set: { if !$0 { stillMoving = nil } })
+    ) {
+      Button("OK", role: .cancel) {}
+        .accessibilityIdentifier("trash.still-moving.ok")
+    } message: {
+      Text(stillMoving?.message ?? "")
+    }
     .putioToast($toast)
     .overlay {
       if model.activeMutation != nil {
@@ -146,8 +123,27 @@ struct TVTrashView: View {
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
       guard let outcome else { return }
-      toast = TVTrashPresentation.toast(for: outcome)
+      present(outcome.notice)
       model.clearMutationOutcome()
+    }
+  }
+
+  private func present(_ notice: PutioTrashNotice) {
+    switch notice {
+    case .done(let text):
+      toast = PutioToast(text)
+    case .failed(let text):
+      toast = PutioToast(text, icon: .warning, width: .fit)
+    case .restoreFailed(let text, let items):
+      toast = PutioToast(
+        text,
+        action: PutioToast.Action("Try again") { [model] in
+          let listed = items.filter { model.page?.items.contains($0) == true }
+          guard !listed.isEmpty else { return }
+          Task { await model.restore(listed) }
+        })
+    case .stillMoving(let title, let message):
+      stillMoving = (title, message)
     }
   }
 
@@ -215,7 +211,7 @@ struct TVTrashView: View {
           Button {
             selectedItem = item
           } label: {
-            PutioFileRow(TVTrashPresentation.row(item, now: now, locale: locale))
+            PutioFileRow(item.rowModel(relativeTo: now, locale: locale))
           }
           .disabled(!model.canMutate)
           .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
