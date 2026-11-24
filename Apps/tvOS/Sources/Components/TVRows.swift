@@ -5,11 +5,15 @@ struct TVRowList<Content: View>: View {
   @ViewBuilder let content: Content
 
   var body: some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        content
+    GeometryReader { proxy in
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+          content
+        }
+        .padding(.vertical, PutioTheme.TV.Spacing.small)
       }
-      .padding(.vertical, PutioTheme.TV.Spacing.small)
+      .padding(
+        .bottom, max(0, TVRowLayout.bottomClearance - proxy.safeAreaInsets.bottom))
     }
     .buttonStyle(TVRowButtonStyle())
   }
@@ -115,6 +119,7 @@ struct TVScreenHeader<Actions: View>: View {
 enum TVRowLayout {
   static let iconSize = PutioTheme.TV.Typography.label.size
   static let disclosureSize = PutioTheme.TV.Typography.caption.size
+  static let bottomClearance: CGFloat = 60
   static let shadowOpacity = 0.45
   static let shadowRadius: CGFloat = 15
   static let shadowOffset: CGFloat = 12

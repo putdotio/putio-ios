@@ -266,7 +266,7 @@ enum PutioToastLayout {
     static let textVerticalPadding: CGFloat = 0
     static let alignment = Alignment.topTrailing
     static let edge = Edge.top
-    static let presentationInsets = EdgeInsets(top: 52, leading: 0, bottom: 0, trailing: 80)
+    static let presentationInsets = EdgeInsets(top: 52, leading: 0, bottom: 0, trailing: 0)
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
     static func fillsWidth(_ toast: PutioToast) -> Bool { false }
