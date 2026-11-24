@@ -7,8 +7,9 @@ cd "$repo_root"
 # Debug shells compile in the iOS and tvOS test lanes. Compile
 # every shell's Release branches here; Putio builds its embedded watch app. This
 # checks that non-Debug code compiles, so one architecture and no optimizer are
-# enough; archives optimize.
-for scheme_platform in Putio:iOS PutioNightly:iOS PutioTV:tvOS; do
+# enough; archives optimize. CI narrows PUTIO_BUILD_SCHEMES to the affected shells.
+read -ra scheme_platforms <<<"${PUTIO_BUILD_SCHEMES:-Putio:iOS PutioNightly:iOS PutioTV:tvOS}"
+for scheme_platform in "${scheme_platforms[@]}"; do
   started=$SECONDS
   xcodebuild build -quiet \
     -workspace Putio.xcworkspace \
