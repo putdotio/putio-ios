@@ -276,7 +276,8 @@ final class TVSessionRenderingTests: XCTestCase {
     let runtime = try await Self.seededRuntime()
     let model = PutioAccountPreferencesModel(actions: .init(runtime: runtime))
     HarnessSeededAPI.failNextAccountRefresh()
-    await TVAccountView.refreshAfterReturning(model: model)
+    await TVAccountView.refreshAfterReturning(
+      model: model, appConfig: PutioAppConfigModel(actions: .init(runtime: runtime)))
     XCTAssertEqual(model.failure, "Could not refresh account settings. Try again.")
     XCTAssertEqual(TVAccountStatus(model: model).message, model.failure)
     XCTAssertEqual(TVAccountStatus(model: model).retryTitle, "Refresh account")

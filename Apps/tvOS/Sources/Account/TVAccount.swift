@@ -222,6 +222,7 @@ struct TVAccountStatus: Equatable {
   var isSaving = false
   var isRefreshing = false
   var canSave = true
+  var showsAppConfigFailure = false
 
   static let idle = TVAccountStatus()
 
@@ -231,6 +232,20 @@ struct TVAccountStatus: Equatable {
     isSaving = model.isSaving
     isRefreshing = model.isRefreshing
     canSave = model.canSave
+  }
+
+  /// The account status, else a failed playback-settings load that hid
+  /// Autoplay, with its retry.
+  @MainActor init(
+    model: PutioAccountPreferencesModel, appConfig: PutioAppConfigModel, suggestsNextVideo: Bool
+  ) {
+    self.init(model: model)
+    guard message == nil, retryTitle == nil, suggestsNextVideo, appConfig.config == nil,
+      !appConfig.isLoading, let failure = appConfig.failure
+    else { return }
+    message = failure
+    retryTitle = String(localized: "Try again", bundle: .putioCore)
+    showsAppConfigFailure = true
   }
 
   init(
@@ -275,7 +290,7 @@ struct TVAccountView: View {
         TVAccountScreen(
           account: account,
           appInfo: .currentTV(channel: channel),
-          status: TVAccountStatus(model: model),
+          status: status(for: account),
           showsHome: showHome.isShown,
           autoplay: appConfig.offersAutoplay(suggestsNextVideo: account.suggestNextVideo)
             ? appConfig.autoplayNextVideo : nil,
@@ -292,7 +307,15 @@ struct TVAccountView: View {
           setAutoplay: { enabled in
             Task { report(await appConfig.setAutoplayNextVideo(enabled)) }
           },
-          retry: { Task { await model.retry() } },
+          retry: {
+            Task {
+              if status(for: account).showsAppConfigFailure {
+                await appConfig.retry()
+              } else {
+                await model.retry()
+              }
+            }
+          },
           signOut: {
             let accountID = account.id
             await runtime.session.signOut()
@@ -307,7 +330,7 @@ struct TVAccountView: View {
     }
     .onAppear {
       if hasAppeared, !model.isBusy {
-        Task { await Self.refreshAfterReturning(model: model) }
+        Task { await Self.refreshAfterReturning(model: model, appConfig: appConfig) }
       }
       hasAppeared = true
     }
@@ -317,6 +340,11 @@ struct TVAccountView: View {
     .task { channel = await PutioReleaseChannel.current() }
   }
 
+  private func status(for account: PutioAccountSnapshot) -> TVAccountStatus {
+    TVAccountStatus(
+      model: model, appConfig: appConfig, suggestsNextVideo: account.suggestNextVideo)
+  }
+
   private func report(_ outcome: PutioSettingSaveOutcome) {
     if outcome == .failed || outcome == .unavailable {
       toast = PutioToast(TVAccountScreen.saveFailedMessage, icon: .warning)
@@ -324,9 +352,13 @@ struct TVAccountView: View {
   }
 
   /// Back from Trash: restores and deletions change the trash size. The
-  /// model's refresh reports a failure with its retry.
-  static func refreshAfterReturning(model: PutioAccountPreferencesModel) async {
+  /// model's refresh reports a failure with its retry; playback settings that
+  /// never loaded load again.
+  static func refreshAfterReturning(
+    model: PutioAccountPreferencesModel, appConfig: PutioAppConfigModel
+  ) async {
     await model.retryRefresh()
+    await appConfig.loadIfNeeded()
   }
 }
 
