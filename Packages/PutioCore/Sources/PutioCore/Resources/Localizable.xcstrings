@@ -182,6 +182,17 @@
         }
       }
     },
+    "Account" : {
+      "comment" : "android: mobile_destination_account",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        }
+      }
+    },
     "Account storage could not be updated after the last deletion." : {
       "comment" : "ios-only: no Android string for the shared trash errors",
       "localizations" : {
@@ -1241,6 +1252,17 @@
         }
       }
     },
+    "Home" : {
+      "comment" : "ios-only: the tvOS tab bar's Home tab; Android mobile has no Home destination",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home"
+          }
+        }
+      }
+    },
     "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." : {
       "comment" : "android: mobile_product_analytics_prompt_body",
       "localizations" : {
@@ -1767,6 +1789,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Saved, but the latest account settings could not be loaded. Refresh to continue."
+          }
+        }
+      }
+    },
+    "Search" : {
+      "comment" : "android: mobile_shortcut_search",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
           }
         }
       }
