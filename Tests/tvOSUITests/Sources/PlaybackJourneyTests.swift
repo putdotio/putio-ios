@@ -142,7 +142,9 @@ final class PlaybackJourneyTests: XCTestCase {
     // is two steps up; a step down from 0.5× would close the menu.
     XCTAssertTrue(backOut(toFocus: "label == 'Playback Speed'"))
     remote.press(.select)
-    XCTAssertTrue(focus(where: "label == '1×'", moving: []), "the speed menu opens on 1×")
+    XCTAssertTrue(
+      focus(where: "label == '1×' OR label ENDSWITH ', 1×'", moving: []),
+      "the speed menu opens on 1×")
     // The rate label follows the device locale's decimal separator.
     XCTAssertTrue(focus(where: "label IN {'1.5×', '1,5×'}", moving: [.up]))
     attach("runtime-tv-playback-speed")
