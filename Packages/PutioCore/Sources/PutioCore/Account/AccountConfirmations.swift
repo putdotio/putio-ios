@@ -57,7 +57,8 @@ public enum PutioAccountConfirmations {
   public static var resetFolderSorts: PutioConfirmation {
     PutioConfirmation(
       title: String(localized: "Reset all folder sorts?", bundle: .module),
-      message: String(localized: "Every folder will use your account’s default sort.", bundle: .module),
+      message: String(
+        localized: "Every folder will use your account’s default sort.", bundle: .module),
       confirmTitle: String(localized: "Reset folder sorts", bundle: .module))
   }
 

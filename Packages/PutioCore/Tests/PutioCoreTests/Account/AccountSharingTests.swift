@@ -31,11 +31,13 @@ final class ProxyChooserModelTests: XCTestCase {
 
   func testAFailedListingOffersARetryThatLoadsTheRoutes() async {
     var calls = 0
-    let (model, _) = makeModel(route: "default", listRoutes: {
-      calls += 1
-      if calls == 1 { throw PutioRuntimeError.transient }
-      return self.routes
-    })
+    let (model, _) = makeModel(
+      route: "default",
+      listRoutes: {
+        calls += 1
+        if calls == 1 { throw PutioRuntimeError.transient }
+        return self.routes
+      })
     await model.loadIfNeeded()
     XCTAssertNotNil(model.loadFailure)
     XCTAssertEqual(model.failure, model.loadFailure)
@@ -47,9 +49,11 @@ final class ProxyChooserModelTests: XCTestCase {
   }
 
   func testARefusedRouteIsUnavailableAndKeepsTheAccountRoute() async {
-    let (model, session) = makeModel(route: "default", routes: routes, save: { _ in
-      throw PutioPlaybackRouteUnavailable()
-    })
+    let (model, session) = makeModel(
+      route: "default", routes: routes,
+      save: { _ in
+        throw PutioPlaybackRouteUnavailable()
+      })
     await model.loadIfNeeded()
 
     let outcome = await model.select("cdn77")
@@ -62,10 +66,12 @@ final class ProxyChooserModelTests: XCTestCase {
 
   func testChoosingTheCurrentRouteSavesNothing() async {
     var saves = 0
-    let (model, _) = makeModel(route: "cdn77", routes: routes, save: { _ in
-      saves += 1
-      return PutioAccountPreferencesMutationResult(accountRefreshed: true)
-    })
+    let (model, _) = makeModel(
+      route: "cdn77", routes: routes,
+      save: { _ in
+        saves += 1
+        return PutioAccountPreferencesMutationResult(accountRefreshed: true)
+      })
     await model.loadIfNeeded()
 
     let outcome = await model.select("cdn77")
@@ -77,11 +83,13 @@ final class ProxyChooserModelTests: XCTestCase {
   /// route is confirmed only after the retry refreshes it.
   func testTheRequestIsConfirmedOnlyOnceTheAccountShowsItAndIsFresh() async {
     var fixture: ProxySessionFixture?
-    let (model, session) = makeModel(route: "default", routes: routes, save: { mutation in
-      if case .route(let name) = mutation { fixture?.account = Self.account(route: name) }
-      fixture?.isStale = true
-      return PutioAccountPreferencesMutationResult(accountRefreshed: false)
-    })
+    let (model, session) = makeModel(
+      route: "default", routes: routes,
+      save: { mutation in
+        if case .route(let name) = mutation { fixture?.account = Self.account(route: name) }
+        fixture?.isStale = true
+        return PutioAccountPreferencesMutationResult(accountRefreshed: false)
+      })
     fixture = session
     session.onRefresh = {
       session.isStale = false
@@ -245,7 +253,8 @@ final class AccountConfirmationTests: XCTestCase {
       compact.removeDownloadsTitle(downloadedBytes: 2_000_000_000, locale: locale).contains("("))
 
     let large = PutioSignOutPrompt(device: .iPhone, sizeInMessage: true)
-    XCTAssertTrue(large.message(downloadedBytes: 2_000_000_000, locale: locale).hasPrefix("Downloads use"))
+    XCTAssertTrue(
+      large.message(downloadedBytes: 2_000_000_000, locale: locale).hasPrefix("Downloads use"))
     XCTAssertEqual(
       large.removeDownloadsTitle(downloadedBytes: 2_000_000_000, locale: locale),
       "Sign out and remove downloads")

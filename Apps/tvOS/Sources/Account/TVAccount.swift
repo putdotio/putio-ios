@@ -36,7 +36,10 @@ enum TVAccountSection: CaseIterable, Identifiable {
     case .storage:
       account.trashEnabled ? [.trash, .manageTrash] : [.trash]
     case .about:
-      [.appInfo("version"), .appInfo("channel"), .appInfo("device"), .appInfo("os"), .appInfo("player")]
+      [
+        .appInfo("version"), .appInfo("channel"), .appInfo("device"), .appInfo("os"),
+        .appInfo("player"),
+      ]
     }
   }
 }
