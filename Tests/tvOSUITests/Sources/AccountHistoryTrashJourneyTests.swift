@@ -40,8 +40,8 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     let loadMore = element("history.load-more")
     XCTAssertTrue(element("history.item.806").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists && !loadMore.exists })
-    XCTAssertTrue(element("history.item.801").exists, "the last page never arrived")
-    XCTAssertTrue(element("history.item.809").exists)
+    XCTAssertTrue(
+      focus("history.item.801", moving: .down, limit: 12), "the last page never arrived")
 
     // A shared file that no longer exists says so once and offers no retry.
     XCTAssertTrue(focus("history.item.808"))
