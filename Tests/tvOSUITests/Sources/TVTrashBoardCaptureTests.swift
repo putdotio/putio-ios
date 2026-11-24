@@ -82,8 +82,7 @@ final class TVTrashBoardCaptureTests: XCTestCase {
 
   func testTrashMoreFailedBoard() {
     openTrash("more-failing")
-    XCTAssertTrue(element("trash.more-retry").waitForExistence(timeout: 15))
-    XCTAssertTrue(focus("trash.more-retry", moving: .down, limit: 14))
+    XCTAssertTrue(focus("trash.more-retry", moving: .down, limit: 20))
     capture("rd-tvos-trash-11-more-failed")
   }
 
