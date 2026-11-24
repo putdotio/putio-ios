@@ -137,11 +137,14 @@ final class PlaybackJourneyTests: XCTestCase {
     pause(1.5)
     attach("runtime-tv-playback-subtitle-selected")
 
-    // Back to the transport bar, then the speed menu beside Subtitles.
+    // Back to the transport bar, then the speed menu beside Subtitles. It
+    // lists the fastest speed first and opens on the current one, so 1.5×
+    // is two steps up; a step down from 0.5× would close the menu.
     XCTAssertTrue(backOut(toFocus: "label == 'Playback Speed'"))
     remote.press(.select)
+    XCTAssertTrue(focus(where: "label == '1×'", moving: []), "the speed menu opens on 1×")
     // The rate label follows the device locale's decimal separator.
-    XCTAssertTrue(focus(where: "label IN {'1.5×', '1,5×'}", moving: [.down, .up]))
+    XCTAssertTrue(focus(where: "label IN {'1.5×', '1,5×'}", moving: [.up]))
     attach("runtime-tv-playback-speed")
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.speed") == "1.5" })
@@ -258,10 +261,12 @@ final class PlaybackJourneyTests: XCTestCase {
     for direction in directions {
       for _ in 0..<6 {
         if waitUntil(timeout: 0.75, { target.exists }) { return true }
+        let before = focusedFrame()
         remote.press(direction)
+        _ = waitUntil(timeout: 3) { self.focusedFrame() != before }
       }
     }
-    if waitUntil(timeout: 1.5, { target.exists }) { return true }
+    if waitUntil(timeout: 5, { target.exists }) { return true }
     if dumpsOnMiss { dump("focus-miss-\(predicate)") }
     return false
   }
@@ -287,6 +292,14 @@ final class PlaybackJourneyTests: XCTestCase {
   private func label(containing text: String) -> XCUIElement {
     app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text))
       .firstMatch
+  }
+
+  /// Each press waits for focus to move, so a slow host never stacks
+  /// presses past the target.
+  private func focusedFrame() -> CGRect? {
+    let focused = app.descendants(matching: .any)
+      .matching(NSPredicate(format: "hasFocus == true")).firstMatch
+    return focused.exists ? focused.frame : nil
   }
 
   private func focusIsSettled() -> Bool {
