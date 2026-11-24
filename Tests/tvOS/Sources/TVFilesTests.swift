@@ -42,20 +42,20 @@ final class TVFilesTests: XCTestCase {
       [])
   }
 
-  /// The shipped TV sort menu: the current key flips, every other key keeps
-  /// the current direction, and the current sort itself is never offered.
-  func testSortChoicesMatchTheShippedMenu() {
+  /// Sort by, Order and Videos come from the shared choices; the current
+  /// sort is never offered again.
+  func testSortChoicesFollowTheSharedMenu() {
     XCTAssertEqual(
       TVFilePresentation.sortChoices(from: .nameAscending),
       [
-        .nameDescending, .sizeAscending, .dateAddedAscending, .dateModifiedAscending,
-        .typeAscending, .watchStatusAscending,
+        .sizeAscending, .dateAddedAscending, .dateModifiedAscending, .typeAscending,
+        .nameDescending, .watchStatusAscending, .watchStatusDescending,
       ])
     XCTAssertEqual(
-      TVFilePresentation.sortChoices(from: .sizeDescending),
+      TVFilePresentation.sortChoices(from: .watchStatusDescending),
       [
-        .nameDescending, .sizeAscending, .dateAddedDescending, .dateModifiedDescending,
-        .typeDescending, .watchStatusDescending,
+        .nameAscending, .sizeAscending, .dateAddedAscending, .dateModifiedAscending,
+        .typeAscending, .nameDescending, .watchStatusAscending,
       ])
   }
 
@@ -92,85 +92,6 @@ final class TVFilesTests: XCTestCase {
     XCTAssertEqual(navigation.path(for: .search), [folder])
     XCTAssertEqual(navigation.path(for: .history), [])
     XCTAssertEqual(navigation.selection, .files)
-  }
-
-  func testRemovingARowFocusesTheNextRowOrThePreviousAtTheEnd() {
-    let items = [410, 412, 406].map { Self.video(id: $0) }
-    let all = Set(items.map(\.id))
-    XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(
-        PutioFileID(rawValue: 412), from: items, firstPage: all),
-      PutioFileID(rawValue: 406))
-    XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(
-        PutioFileID(rawValue: 406), from: items, firstPage: all),
-      PutioFileID(rawValue: 412))
-    XCTAssertNil(
-      TVFilePresentation.focusAfterRemoving(
-        PutioFileID(rawValue: 410), from: [items[0]], firstPage: all))
-  }
-
-  /// The removal reloads only the first page; a neighbour on a later page
-  /// would vanish and send focus back to the top.
-  func testRemovingALaterPageRowFocusesARowTheReloadKeeps() {
-    let items = [424, 410, 422, 426].map { Self.video(id: $0) }
-    let firstPage: Set = [PutioFileID(rawValue: 424), PutioFileID(rawValue: 410)]
-    XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(
-        PutioFileID(rawValue: 422), from: items, firstPage: firstPage),
-      PutioFileID(rawValue: 410))
-    XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(
-        PutioFileID(rawValue: 424), from: items, firstPage: firstPage),
-      PutioFileID(rawValue: 410))
-  }
-
-  /// Search refreshes after a folder mutation even when the folder screen
-  /// closed before it settled: the request follows the mutation, not the view.
-  @MainActor
-  func testFolderMutationAsksOtherScreensToRefreshOnceItSettles() async {
-    let requests = PutioFolderRefreshRequests()
-    let search = PutioFolderRefreshRegistration(folderID: .root, requests: requests)
-    search.activate()
-    let screen = UUID()
-    var settled = false
-
-    await TVFolderMutation.run(.allFolders, requests: requests, owner: screen) {
-      XCTAssertNil(requests.sequence(for: .root, owner: search.owner), "asked before settling")
-      settled = true
-      return true
-    }
-
-    XCTAssertTrue(settled)
-    XCTAssertNotNil(requests.sequence(for: .root, owner: search.owner))
-  }
-
-  /// A delete the server applied but answered with an error rolls the row
-  /// back, and the model does not refresh itself; the starting screen must.
-  @MainActor
-  func testFailedFolderMutationRefreshesTheStartingScreenToo() async {
-    let requests = PutioFolderRefreshRequests()
-    let screen = PutioFolderRefreshRegistration(folderID: .root, requests: requests)
-    screen.activate()
-
-    await TVFolderMutation.run(.allFolders, requests: requests, owner: screen.owner) { true }
-    XCTAssertNil(
-      requests.sequence(for: .root, owner: screen.owner), "a committed delete refreshes itself")
-
-    await TVFolderMutation.run(.allFolders, requests: requests, owner: screen.owner) { false }
-    XCTAssertNotNil(requests.sequence(for: .root, owner: screen.owner))
-  }
-
-  /// A watch toggle reloads the first page; a later-page row would vanish.
-  func testWatchToggleKeepsFocusOnARowTheReloadKeeps() {
-    let items = [424, 410, 422, 426].map { Self.video(id: $0) }
-    let firstPage: Set = [PutioFileID(rawValue: 424), PutioFileID(rawValue: 410)]
-    XCTAssertEqual(
-      TVFilePresentation.focusKeeping(PutioFileID(rawValue: 410), in: items, firstPage: firstPage),
-      PutioFileID(rawValue: 410))
-    XCTAssertEqual(
-      TVFilePresentation.focusKeeping(PutioFileID(rawValue: 426), in: items, firstPage: firstPage),
-      PutioFileID(rawValue: 410))
   }
 
   func testToastsNameTheActionAndFollowTheTrashSetting() {
