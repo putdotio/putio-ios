@@ -361,37 +361,23 @@ private struct TVSignInCodeTiles: View {
   }
 }
 
-/// put.io's QR image for the code on screen, scaled without smoothing so its
-/// modules stay sharp. An image that does not decode shows nothing.
+/// put.io's QR image for the code on screen, dimmed once the code expires.
 struct TVSignInQRCode: View {
   let png: Data
   var isDimmed = false
 
   var body: some View {
-    if let image = UIImage(data: png) {
-      Image(uiImage: image)
-        .interpolation(.none)
-        .resizable()
-        .scaledToFit()
-        .padding(TVSignInLayout.qrSize * TVSignInLayout.qrPaddingRatio)
-        .frame(width: TVSignInLayout.qrSize, height: TVSignInLayout.qrSize)
-        .background(
-          TVSignInLayout.qrBackground,
-          in: RoundedRectangle(cornerRadius: TVSignInLayout.qrCornerRadius, style: .continuous)
-        )
-        .opacity(isDimmed ? TVSignInLayout.dimmedOpacity : 1)
-        .accessibilityElement()
-        .accessibilityLabel(Text("QR code to sign in on your phone", bundle: .putioCore))
-        .accessibilityIdentifier("auth.qr-code")
-    }
+    PutioQRCodeView(png: png, size: TVSignInLayout.qrSize)
+      .opacity(isDimmed ? TVSignInLayout.dimmedOpacity : 1)
+      .accessibilityElement()
+      .accessibilityLabel(Text("QR code to sign in on your phone", bundle: .putioCore))
+      .accessibilityIdentifier("auth.qr-code")
   }
 }
 
 enum TVSignInLayout {
   static let qrSize: CGFloat = 300
-  static let qrPaddingRatio: CGFloat = 0.12
   static let qrCornerRadius: CGFloat = 36
-  static let qrBackground = Color(.sRGB, red: 0.925, green: 0.925, blue: 0.925, opacity: 1)
   static let dimmedOpacity = 0.3
   static let tileWidth: CGFloat = 92
   static let tileHeight: CGFloat = 116
