@@ -252,12 +252,7 @@ struct PutioFolderScreen: View {
       }
     }
     .task(id: route.id) {
-      refreshRegistration.activate()
-      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      // A fresh initial load already reflects any request that predates it.
-      let loaded = await model.loadIfNeeded()
-      guard loaded, let pending, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
+      await refreshRegistration.loadIfNeeded(model)
     }
     .task(id: retryRequest) {
       await runRetryRequest()
@@ -272,17 +267,9 @@ struct PutioFolderScreen: View {
     // initial load was in flight is retried once the folder is loaded.
     .task(
       id: PendingRefresh(
-        sequence: refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner),
-        loaded: model.isLoaded)
+        sequence: refreshRegistration.pendingSequence, loaded: model.isLoaded)
     ) {
-      guard model.isLoaded,
-        let sequence = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      else { return }
-      // A request stays pending until a refresh actually ran. One queued
-      // behind a mutation is awaited so its success consumes the request too.
-      let refreshed = await model.refreshWhenIdle()
-      guard refreshed, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
+      guard await refreshRegistration.refreshPending(model), !Task.isCancelled else { return }
       await pinnedSectionContext?.model.load()
     }
     .onChange(of: model.state, initial: true) { _, state in
@@ -1033,27 +1020,9 @@ struct PutioFolderScreen: View {
     return false
   }
 
-  private static func offlineRetryDelay(attempt: Int) -> Duration {
-    .seconds(min(3 << min(attempt, 4), 30))
-  }
-
   private func retryWhileOffline() async {
-    var attempt = 0
-    while isOffline, retryRequest == nil {
-      do {
-        try await Task.sleep(for: Self.offlineRetryDelay(attempt: attempt))
-      } catch {
-        return
-      }
-      guard isOffline, retryRequest == nil else { return }
-      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      if await model.retryKeepingFailure() {
-        if let pending, !Task.isCancelled {
-          refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
-        }
-        return
-      }
-      attempt += 1
+    await PutioOfflineRetry().run(while: { isOffline && retryRequest == nil }) {
+      await refreshRegistration.retryKeepingFailure(model)
     }
   }
 
@@ -1072,23 +1041,13 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
-      // A fresh load already reflects any refresh request made before it.
-      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      await model.retry()
-      if model.isLoaded, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
-      }
+      await refreshRegistration.retry(model)
     case .refresh:
       guard model.refreshFailure != nil else {
         retryRequest = nil
         return
       }
-      // A successful retry is as current as the pending request asked for.
-      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
-      let refreshed = await model.refresh()
-      if refreshed, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
-      }
+      await refreshRegistration.refresh(model)
     }
     guard retryRequest == request else { return }
     retryRequest = nil

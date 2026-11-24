@@ -71,16 +71,16 @@ struct TVSearchView: View {
         item: $menuItem, account: account, canDelete: itemActions.canDelete,
         setWatched: { item, watched in
           if case .loaded(let page) = model.state {
-            focusTarget = TVFilePresentation.focusKeeping(
-              item.id, in: page.items, firstPage: model.firstPageIDs)
+            focusTarget = PutioFolderContents.neighbour(
+              keeping: item.id, in: page.items, firstPage: model.firstPageIDs)
           }
           Task { await itemActions.setWatched(item, watched) }
         },
         delete: { item in
           guard case .loaded(let page) = model.state else { return }
           let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
-          focusTarget = TVFilePresentation.focusAfterRemoving(
-            item.id, from: visible, firstPage: model.firstPageIDs)
+          focusTarget = PutioFolderContents.neighbour(
+            afterRemoving: item.id, from: visible, firstPage: model.firstPageIDs)
           if account.trashEnabled { itemActions.hideForTrash(item) }
           Task { await itemActions.delete(item) }
         }

@@ -143,6 +143,69 @@ public final class PutioFolderRefreshRegistration {
     requests.register(folderID: folderID, owner: owner)
   }
 
+  public var pendingSequence: PutioFolderRefreshRequests.Sequence? {
+    requests.sequence(for: folderID, owner: owner)
+  }
+
+  /// Activates the registration and runs the folder's first load. A fresh
+  /// load already reflects any request that predates it.
+  @discardableResult
+  public func loadIfNeeded(_ model: PutioFolderModel) async -> Bool {
+    activate()
+    return await consuming { await model.loadIfNeeded() }
+  }
+
+  @discardableResult
+  public func refresh(_ model: PutioFolderModel) async -> Bool {
+    await consuming { await model.refresh() }
+  }
+
+  /// Serves a pending request once the folder is loaded. A request stays
+  /// pending until a refresh ran; one queued behind a mutation is awaited so
+  /// its success consumes the request too.
+  @discardableResult
+  public func refreshPending(_ model: PutioFolderModel) async -> Bool {
+    guard model.isLoaded, pendingSequence != nil else { return false }
+    return await consuming { await model.refreshWhenIdle() }
+  }
+
+  @discardableResult
+  public func retry(_ model: PutioFolderModel) async -> Bool {
+    await consuming {
+      await model.retry()
+      return model.isLoaded
+    }
+  }
+
+  @discardableResult
+  public func retryKeepingFailure(_ model: PutioFolderModel) async -> Bool {
+    await consuming { await model.retryKeepingFailure() }
+  }
+
+  /// Runs a mutation, then asks the other mounted screens to refresh. The
+  /// request follows the mutation, not the screen, so it is sent even if the
+  /// screen closed meanwhile. A failed mutation may still have reached the
+  /// server and the model only rolls back, so this screen refreshes too.
+  public func mutate(
+    _ scope: PutioFolderMutationScope, operation: @MainActor () async -> Bool
+  ) async {
+    let committed = await operation()
+    let excluded = committed ? owner : nil
+    switch scope {
+    case .allFolders: requests.requestAllLoadedFolders(excludingOwner: excluded)
+    case .folder(let id): requests.request(folderID: id, excludingOwner: excluded)
+    }
+  }
+
+  private func consuming(_ operation: @MainActor () async -> Bool) async -> Bool {
+    let pending = pendingSequence
+    let succeeded = await operation()
+    if succeeded, let pending, !Task.isCancelled {
+      requests.markConsumed(pending, for: folderID, owner: owner)
+    }
+    return succeeded
+  }
+
   deinit {
     guard isActive else { return }
     let folderID = self.folderID
@@ -150,4 +213,10 @@ public final class PutioFolderRefreshRegistration {
     let owner = self.owner
     Task { @MainActor in requests.unregister(folderID: folderID, owner: owner) }
   }
+}
+
+public enum PutioFolderMutationScope: Equatable, Sendable {
+  /// A deleted folder can contain any other mounted folder.
+  case allFolders
+  case folder(PutioFileID)
 }
