@@ -7,11 +7,6 @@ import PutioCore
 import SwiftUI
 import UIKit
 
-struct PutioVideoTrackSelection: Equatable {
-  let audio: Int?
-  let subtitle: Int?
-}
-
 final class PutioVideoSurfaceView: UIView {
   var onPlayerChange: (@MainActor (_ old: AVPlayer?, _ new: AVPlayer?) -> Void)?
   var onPlaybackControlsChange: (@MainActor (Bool) -> Void)?
@@ -198,12 +193,7 @@ struct PutioVideoAirPlay: Equatable {
 @MainActor
 @Observable
 final class PutioVideoTransport {
-  struct Track: Identifiable, Equatable {
-    let id: Int
-    let title: String
-    var detail: String?
-    var languageTag: String?
-  }
+  typealias Track = PutioVideoAudioTrack
 
   private(set) var isPlaying = false
   private var playhead = PutioVideoPlayhead()
@@ -513,7 +503,7 @@ final class PutioVideoTransport {
     guard let item = player?.currentItem, let audible, audible.options.indices.contains(index),
       index != selectedAudio
     else { return }
-    let rendition = Self.rendition(
+    let rendition = PutioVideoTracks.rendition(
       of: audible.options[index], at: index, count: audible.options.count, in: audioRenditions)
     let now = Date()
     let pending = audioSwitch.flatMap { $0.isOver(at: now) ? nil : $0 }
@@ -539,7 +529,7 @@ final class PutioVideoTransport {
     guard var audioSwitch else { return }
     if audioSwitch.playlist == nil, let selectedAudio,
       audible.options.indices.contains(selectedAudio),
-      let playlist = Self.rendition(
+      let playlist = PutioVideoTracks.rendition(
         of: audible.options[selectedAudio], at: selectedAudio, count: audible.options.count,
         in: audioRenditions)?.uri
     {
@@ -885,17 +875,18 @@ final class PutioVideoTransport {
     guard let item = player?.currentItem, trackLoad == nil else { return }
     captionFeed.attach(to: item)
     trackLoad = Task { @MainActor [weak self] in
-      async let renditions = Self.audioRenditions(of: item)
+      async let renditions = PutioVideoTracks.audioRenditions(of: item)
       let audibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .audible)
       let legibleGroup = try? await item.asset.loadMediaSelectionGroup(for: .legible)
       guard let self, !Task.isCancelled, player?.currentItem === item else { return }
-      let details = Self.details(for: audibleGroup?.options ?? [], streams: originalAudioStreams)
+      let details = PutioVideoTracks.details(
+        for: audibleGroup?.options ?? [], streams: originalAudioStreams)
       let playable = (audibleGroup?.options ?? []).filter(\.isPlayable)
       audible = audibleGroup.map { ($0, playable) }
       legible = legibleGroup.map { group in
         (group, group.options.filter { !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) })
       }
-      audioTracks = Self.audioTracks(playable, details: details, renditions: [])
+      audioTracks = PutioVideoTracks.audioTracks(playable, details: details, renditions: [])
       watchAudioFailures(of: item)
       nameSubtitles()
       selectionObservation = NotificationCenter.default.addObserver(
@@ -908,7 +899,7 @@ final class PutioVideoTransport {
       let loaded = await renditions
       guard !Task.isCancelled, player?.currentItem === item, !loaded.isEmpty else { return }
       audioRenditions = loaded
-      audioTracks = Self.audioTracks(playable, details: details, renditions: loaded)
+      audioTracks = PutioVideoTracks.audioTracks(playable, details: details, renditions: loaded)
       checkAudioFailure(of: item)
     }
   }
@@ -949,88 +940,8 @@ final class PutioVideoTransport {
         zip(legible.group.options, subtitleNames).compactMap { option, name in
           name.map { (option, $0) }
         }, uniquingKeysWith: { first, _ in first }) : [:]
-    subtitles = Self.subtitleTracks(
+    subtitles = PutioVideoTracks.subtitleTracks(
       legible.options, defaultOption: legible.group.defaultOption, names: names)
-  }
-
-  static func subtitleTracks(
-    _ options: [AVMediaSelectionOption], defaultOption: AVMediaSelectionOption?,
-    names: [AVMediaSelectionOption: String] = [:]
-  ) -> [PutioSubtitleTrack] {
-    options.enumerated().map { index, option in
-      PutioSubtitleTrack(
-        id: index, title: names[option] ?? option.displayName(with: PutioTrackLabel.english),
-        languageTag: option.extendedLanguageTag ?? option.locale?.identifier,
-        isDefault: option == defaultOption)
-    }
-  }
-
-  private static func audioTracks(
-    _ options: [AVMediaSelectionOption], details: [AVMediaSelectionOption: String],
-    renditions: [PutioAudioRendition]
-  ) -> [Track] {
-    let renditions = options.enumerated().map { index, option in
-      rendition(of: option, at: index, count: options.count, in: renditions)
-    }
-    let languages = options.enumerated().map { index, option in
-      option.extendedLanguageTag ?? option.locale?.identifier ?? renditions[index]?.languageTag
-    }
-    let titles = PutioTrackLabel.distinct(
-      languages.enumerated().map { index, language in
-        PutioTrackLabel.audioTitle(language: language, name: nil, index: index)
-      })
-    return options.enumerated().map { index, option in
-      Track(
-        id: index, title: titles[index],
-        detail: details[option]
-          ?? renditions[index].flatMap {
-            PutioTrackLabel.audioDetail(codec: $0.codec, profile: nil, channels: $0.channels)
-          },
-        languageTag: languages[index])
-    }
-  }
-
-  private static func rendition(
-    of option: AVMediaSelectionOption, at index: Int, count: Int,
-    in renditions: [PutioAudioRendition]
-  ) -> PutioAudioRendition? {
-    let named = renditions.filter { $0.name == option.displayName }
-    if named.count == 1 { return named[0] }
-    return renditions.count == count ? renditions[index] : nil
-  }
-
-  private static let masterPlaylistLimit = 256 * 1024
-
-  private static func audioRenditions(of item: AVPlayerItem) async -> [PutioAudioRendition] {
-    guard let master = (item.asset as? AVURLAsset)?.url,
-      master.scheme == "http" || master.scheme == "https",
-      master.pathExtension.lowercased() == "m3u8",
-      let (bytes, _) = try? await URLSession.shared.bytes(
-        for: URLRequest(url: master, timeoutInterval: 10))
-    else { return [] }
-    var data = Data()
-    do {
-      for try await byte in bytes {
-        data.append(byte)
-        guard data.count <= masterPlaylistLimit else { return [] }
-      }
-    } catch {
-      return []
-    }
-    guard let text = String(data: data, encoding: .utf8) else { return [] }
-    return PutioAudioRendition.parse(masterPlaylist: text, relativeTo: master)
-  }
-
-  private static func details(
-    for options: [AVMediaSelectionOption], streams: [PutioOriginalAudioStream]
-  ) -> [AVMediaSelectionOption: String] {
-    guard !streams.isEmpty, options.count == streams.count else { return [:] }
-    var details: [AVMediaSelectionOption: String] = [:]
-    for (option, stream) in zip(options, streams) {
-      details[option] = PutioTrackLabel.audioDetail(
-        codec: stream.codec, profile: stream.profile, channels: stream.channels)
-    }
-    return details
   }
 }
 

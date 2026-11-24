@@ -1384,12 +1384,9 @@ final class PutioOfflineQueue {
     return (audio, subtitles)
   }
 
-  /// Language codes normalise to the two-letter form so "eng", "en-US", and
-  /// "en" all compare equal.
   nonisolated static func track(_ option: AVMediaSelectionOption) -> PutioOfflineTrack {
-    let raw = option.extendedLanguageTag ?? option.locale?.identifier ?? "und"
-    return PutioOfflineTrack(
-      languageCode: PutioOfflineLanguage.normalize(raw), displayName: option.displayName)
+    PutioOfflineTrack(
+      languageCode: PutioMediaSelection.languageCode(of: option), displayName: option.displayName)
   }
 }
 

@@ -45,43 +45,25 @@ runs:
         restore-keys: |
           ${{ runner.os }}-pnpm-
 
-    - name: Restore and save SwiftPM repository cache
-      if: github.event_name == 'push'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/Library/Caches/org.swift.swiftpm
-        key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-swiftpm-
-
-    - name: Restore SwiftPM repository cache
-      if: github.event_name != 'push'
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ~/Library/Caches/org.swift.swiftpm
-        key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
-        restore-keys: |
-          ${{ runner.os }}-swiftpm-
-
     - name: Restore and save Tuist dependency cache
       id: tuist-dependencies
       if: github.event_name == 'push'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: Tuist/.build
-        key: ${{ runner.os }}-tuist-build-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift', 'Packages/SentrySDK/Package.swift') }}
-        restore-keys: |
-          ${{ runner.os }}-tuist-build-
+        path: |
+          Tuist/.build
+          !Tuist/.build/repositories
+        key: ${{ runner.os }}-tuist-build-v2-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift', 'Packages/SentrySDK/Package.swift') }}
 
     - name: Restore Tuist dependency cache
       id: tuist-dependencies-restore
       if: github.event_name != 'push'
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: Tuist/.build
-        key: ${{ runner.os }}-tuist-build-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift', 'Packages/SentrySDK/Package.swift') }}
-        restore-keys: |
-          ${{ runner.os }}-tuist-build-
+        path: |
+          Tuist/.build
+          !Tuist/.build/repositories
+        key: ${{ runner.os }}-tuist-build-v2-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift', 'Packages/SentrySDK/Package.swift') }}
 
     # An exact hit is what tuist install would produce, so generation skips it.
     - name: Skip tuist install on an exact cache hit
@@ -97,6 +79,24 @@ runs:
       with:
         path: ~/.cache/putio-harness
         key: ${{ runner.os }}-${{ runner.arch }}-putio-harness-${{ hashFiles('Tools/PutioHarness/Package.swift', 'Tools/PutioHarness/Sources/**') }}
+
+    - name: Restore and save SwiftPM repository cache
+      if: github.event_name == 'push' && (env.PUTIO_TUIST_DEPENDENCIES_CACHED != '1' || steps.harness-binary.outputs.cache-hit != 'true')
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/Library/Caches/org.swift.swiftpm
+        key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swiftpm-
+
+    - name: Restore SwiftPM repository cache
+      if: github.event_name != 'push' && (env.PUTIO_TUIST_DEPENDENCIES_CACHED != '1' || steps.harness-binary.outputs.cache-hit != 'true')
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/Library/Caches/org.swift.swiftpm
+        key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
+        restore-keys: |
+          ${{ runner.os }}-swiftpm-
 
     - name: Build the harness binary
       if: steps.harness-binary.outputs.cache-hit != 'true'
