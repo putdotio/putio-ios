@@ -215,6 +215,17 @@
         }
       }
     },
+    "Activity" : {
+      "comment" : "ios-only: the tvOS History list heading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activity"
+          }
+        }
+      }
+    },
     "Analytics off" : {
       "comment" : "android: mobile_settings_analytics_off",
       "localizations" : {
@@ -343,6 +354,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Check your connection and try again."
+          }
+        }
+      }
+    },
+    "Check your internet connection and try again." : {
+      "comment" : "ios-only: the tvOS History board's first-load error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check your internet connection and try again."
+          }
+        }
+      }
+    },
+    "Clear" : {
+      "comment" : "android: mobile_history_clear_confirm",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        }
+      }
+    },
+    "Clear history" : {
+      "comment" : "android: mobile_history_clear",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear history"
+          }
+        }
+      }
+    },
+    "Clear history?" : {
+      "comment" : "android: mobile_history_clear_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear history?"
           }
         }
       }
@@ -710,6 +765,17 @@
         }
       }
     },
+    "Couldn’t clear history" : {
+      "comment" : "android: mobile_history_clear_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t clear history"
+          }
+        }
+      }
+    },
     "Couldn’t create a link. %@" : {
       "comment" : "android: mobile_public_links_create_failed",
       "localizations" : {
@@ -732,6 +798,17 @@
         }
       }
     },
+    "Couldn’t load more activity." : {
+      "comment" : "ios-only: the tvOS History board's load-more failure",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load more activity."
+          }
+        }
+      }
+    },
     "Couldn’t load more files." : {
       "comment" : "android: mobile_files_paging_error",
       "localizations" : {
@@ -750,6 +827,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load this"
+          }
+        }
+      }
+    },
+    "Couldn’t load your history." : {
+      "comment" : "ios-only: the tvOS History board's first-load error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load your history."
           }
         }
       }
@@ -805,6 +893,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Create folder"
+          }
+        }
+      }
+    },
+    "Date" : {
+      "comment" : "ios-only: the tvOS History panel's date fact",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
           }
         }
       }
@@ -1119,6 +1218,17 @@
         }
       }
     },
+    "File not found" : {
+      "comment" : "android: mobile_files_folder_not_found",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "File not found"
+          }
+        }
+      }
+    },
     "Filenames or media titles" : {
       "comment" : "android: mobile_product_analytics_prompt_never_names",
       "localizations" : {
@@ -1137,6 +1247,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files"
+          }
+        }
+      }
+    },
+    "Files you watch, upload or share show up here." : {
+      "comment" : "ios-only: the tvOS History board's empty state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files you watch, upload or share show up here."
           }
         }
       }
@@ -1181,6 +1302,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Full. Empty trash or delete files to make room."
+          }
+        }
+      }
+    },
+    "Go to folder" : {
+      "comment" : "ios-only: the tvOS History panel action",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to folder"
           }
         }
       }
@@ -1314,6 +1446,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading files"
+          }
+        }
+      }
+    },
+    "Loading history" : {
+      "comment" : "android: mobile_history_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading history"
+          }
+        }
+      }
+    },
+    "Loading more history" : {
+      "comment" : "android: mobile_history_loading_more",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading more history"
           }
         }
       }
@@ -1496,6 +1650,17 @@
         }
       }
     },
+    "No activity yet" : {
+      "comment" : "ios-only: the tvOS History board's empty state",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No activity yet"
+          }
+        }
+      }
+    },
     "No files whatsoever!" : {
       "comment" : "android: mobile_files_empty_title",
       "localizations" : {
@@ -1606,6 +1771,17 @@
         }
       }
     },
+    "Opening file" : {
+      "comment" : "ios-only: no Android string for the iOS history screen",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opening file"
+          }
+        }
+      }
+    },
     "Pause download" : {
       "comment" : "android: mobile_downloads_ring_pause",
       "localizations" : {
@@ -1624,6 +1800,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paused"
+          }
+        }
+      }
+    },
+    "Play" : {
+      "comment" : "android: mobile_now_playing_play",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play"
           }
         }
       }
@@ -2141,6 +2328,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This item is no longer available."
+          }
+        }
+      }
+    },
+    "This removes all activity from your put.io history." : {
+      "comment" : "android: mobile_history_clear_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes all activity from your put.io history."
           }
         }
       }

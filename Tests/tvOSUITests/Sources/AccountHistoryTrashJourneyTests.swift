@@ -50,6 +50,19 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-history-open-failure")
     XCTAssertFalse(element("history.open-retry").exists, "a missing file can't be retried")
 
+    // A failed transfer's panel shows no actions.
+    XCTAssertTrue(focus("history.item.806"))
+    XCTAssertTrue(waitUntil(timeout: 5) { !self.element("history.panel.play").exists })
+
+    // The panel follows the focused event and opens its folder.
+    XCTAssertTrue(focus("history.item.809"))
+    XCTAssertTrue(label(containing: "1.07 GB").waitForExistence(timeout: 5))
+    remote.press(.right)
+    XCTAssertTrue(focus("history.panel.folder", moving: .down, limit: 3))
+    remote.press(.select)
+    XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10), "no folder opened")
+    remote.press(.menu)
+
     XCTAssertTrue(focus("history.item.809"))
     remote.press(.select)
     // A video event opens that file's player; this one waits on its
@@ -59,16 +72,20 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.menu)
     XCTAssertTrue(element("history.item.809").waitForExistence(timeout: 5))
 
-    // The fixture's first clear fails; its retry empties History.
+    // The fixture's first clear fails with a toast; clearing again empties
+    // History. Delete confirmations open on Cancel.
     XCTAssertTrue(focus("history.clear", moving: .up))
     remote.press(.select)
     XCTAssertTrue(element("history.clear-confirm").waitForExistence(timeout: 5))
+    pause(1)
+    XCTAssertTrue(
+      modalFocusIs("history.clear-cancel"), "the clear confirmation must open on Cancel")
     attach("runtime-tv-history-clear-modal")
     XCTAssertTrue(selectModalButton("history.clear-confirm"))
-    let mutationRetry = element("history.mutation-retry")
-    XCTAssertTrue(mutationRetry.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus("history.mutation-retry"))
+    XCTAssertTrue(label(containing: "Couldn’t clear history").waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("history.clear", moving: .up))
     remote.press(.select)
+    XCTAssertTrue(selectModalButton("history.clear-confirm"))
     XCTAssertTrue(element("history.empty").waitForExistence(timeout: 10))
     XCTAssertTrue(isCentered(element("history.empty")), "History's empty state is off-center")
     attach("runtime-tv-history-empty")
@@ -281,6 +298,14 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
       pause(0.5)
     }
     return false
+  }
+
+  private func modalFocusIs(_ identifier: String) -> Bool {
+    let target = app.buttons[identifier]
+    let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+    guard target.exists, focused.exists else { return false }
+    return abs(focused.frame.midX - target.frame.midX) < 4
+      && abs(focused.frame.midY - target.frame.midY) < 4
   }
 
   private func pause(_ seconds: TimeInterval) {
