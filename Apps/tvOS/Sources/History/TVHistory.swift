@@ -118,13 +118,7 @@ struct TVHistoryView: View {
           list(page)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
           if let event = shownEvent(in: page) {
-            TVHistoryPanel(
-              event: event, now: groupingDate, locale: locale,
-              isOpening: model.openingEventID == event.id,
-              play: { play(event) }, goToFolder: { goToFolder(event) }
-            )
-            .frame(width: TVHistoryLayout.panelWidth)
-            .frame(maxHeight: .infinity, alignment: .top)
+            panel(event)
           }
         }
       }
@@ -172,7 +166,10 @@ struct TVHistoryView: View {
         }
         if let before = page.nextBefore, model.refreshFailure == nil {
           if model.loadMoreFailure != nil {
-            TVHistoryMoreFailedRow { await model.loadMore() }
+            TVLoadMoreFailedRow(
+              message: String(localized: "Couldn’t load more activity.", bundle: .putioCore),
+              identifier: "history.more-retry"
+            ) { await model.loadMore() }
           } else {
             ProgressView()
               .accessibilityLabel(String(localized: "Loading more history", bundle: .putioCore))
@@ -190,6 +187,42 @@ struct TVHistoryView: View {
       }
       .focusSection()
     }
+  }
+
+  private func panel(_ event: PutioHistoryEventItem) -> some View {
+    let presentation = PutioHistoryEventPresentation(event)
+    return TVDetailPanel(
+      icon: presentation.icon, title: presentation.name, identifier: "history.panel"
+    ) {
+      TVHistoryEventLine(
+        event: event, presentation: presentation, locale: locale,
+        secondary: AnyShapeStyle(PutioTheme.TV.Colors.textSecondary))
+    } facts: {
+      if let size = presentation.sizeBytes, event.fileID != nil {
+        TVDetailFact(
+          label: String(localized: "Size", bundle: .putioCore),
+          value: PutioFileRowModel.sizeText(bytes: size, locale: locale))
+      } else {
+        TVDetailFact(
+          label: String(localized: "Date", bundle: .putioCore),
+          value: PutioHistoryDay.group([event], now: groupingDate, locale: locale).first?.title
+            ?? "")
+      }
+    } actions: {
+      if presentation.offersFileActions {
+        TVDetailAction(title: String(localized: "Play", bundle: .putioCore), icon: .playFill) {
+          play(event)
+        }
+        .accessibilityIdentifier("history.panel.play")
+        TVDetailAction(
+          title: String(localized: "Go to folder", bundle: .putioCore), icon: .folder
+        ) {
+          goToFolder(event)
+        }
+        .accessibilityIdentifier("history.panel.folder")
+      }
+    }
+    .disabled(model.openingEventID == event.id)
   }
 
   private func eventRow(_ event: PutioHistoryEventItem) -> some View {
@@ -288,142 +321,4 @@ private struct TVHistoryEventLine: View {
     .putioFont(PutioTheme.TV.Typography.caption)
     .lineLimit(1)
   }
-}
-
-private struct TVHistoryPanel: View {
-  let event: PutioHistoryEventItem
-  let now: Date
-  let locale: Locale
-  let isOpening: Bool
-  let play: () -> Void
-  let goToFolder: () -> Void
-
-  var body: some View {
-    let presentation = PutioHistoryEventPresentation(event)
-    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
-      HStack(spacing: PutioTheme.TV.Spacing.medium) {
-        Image(putioIcon: presentation.icon)
-          .resizable()
-          .scaledToFit()
-          .frame(width: TVHistoryLayout.tileIconSize, height: TVHistoryLayout.tileIconSize)
-          .foregroundStyle(PutioTheme.Colors.accent)
-          .frame(width: TVHistoryLayout.tileWidth, height: TVHistoryLayout.tileHeight)
-          .background(
-            PutioTheme.Colors.surfaceActive,
-            in: RoundedRectangle(cornerRadius: PutioTheme.TV.radius, style: .continuous)
-          )
-          .accessibilityHidden(true)
-        VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xxs) {
-          Text(presentation.name)
-            .putioFont(PutioTheme.TV.Typography.label)
-            .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-            .lineLimit(1)
-          TVHistoryEventLine(
-            event: event, presentation: presentation, locale: locale,
-            secondary: AnyShapeStyle(PutioTheme.TV.Colors.textSecondary))
-        }
-      }
-      Grid(
-        alignment: .leading, horizontalSpacing: PutioTheme.TV.Spacing.medium,
-        verticalSpacing: PutioTheme.TV.Spacing.xs
-      ) {
-        if let size = presentation.sizeBytes, event.fileID != nil {
-          fact(
-            String(localized: "Size", bundle: .putioCore),
-            PutioFileRowModel.sizeText(bytes: size, locale: locale))
-        } else {
-          fact(String(localized: "Date", bundle: .putioCore), day)
-        }
-      }
-      if presentation.offersFileActions {
-        VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
-          action(String(localized: "Play", bundle: .putioCore), icon: .playFill, play)
-            .accessibilityIdentifier("history.panel.play")
-          action(
-            String(localized: "Go to folder", bundle: .putioCore), icon: .folder, goToFolder
-          )
-          .accessibilityIdentifier("history.panel.folder")
-        }
-        .buttonStyle(TVRowButtonStyle())
-        .disabled(isOpening)
-      }
-    }
-    .padding(PutioTheme.TV.Spacing.medium)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .background(
-      PutioTheme.Colors.surface,
-      in: RoundedRectangle(cornerRadius: TVHistoryLayout.panelRadius, style: .continuous)
-    )
-    .padding(.bottom, TVRowLayout.bottomClearance)
-    .focusSection()
-    .accessibilityElement(children: .contain)
-    .accessibilityIdentifier("history.panel")
-  }
-
-  private var day: String {
-    PutioHistoryDay.group([event], now: now, locale: locale).first?.title ?? ""
-  }
-
-  private func fact(_ label: String, _ value: String) -> some View {
-    GridRow {
-      Text(label)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      Text(value)
-        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-    }
-    .putioFont(PutioTheme.TV.Typography.caption)
-  }
-
-  private func action(
-    _ title: String, icon: PutioIcon, _ perform: @escaping () -> Void
-  ) -> some View {
-    Button(action: perform) {
-      HStack(spacing: PutioTheme.TV.Spacing.small) {
-        Image(putioIcon: icon)
-          .resizable()
-          .scaledToFit()
-          .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-          .foregroundStyle(.putioRowIcon)
-          .accessibilityHidden(true)
-        Text(title)
-          .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(.putioRowPrimary)
-      }
-      .tvRowPadding()
-    }
-  }
-}
-
-private struct TVHistoryMoreFailedRow: View {
-  let retry: @MainActor () async -> Void
-
-  var body: some View {
-    HStack(spacing: PutioTheme.TV.Spacing.small) {
-      Image(putioIcon: .warningCircle)
-        .resizable()
-        .scaledToFit()
-        .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        .accessibilityHidden(true)
-      Text(String(localized: "Couldn’t load more activity.", bundle: .putioCore))
-        .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-      Spacer(minLength: PutioTheme.TV.Spacing.medium)
-      PutioButton(String(localized: "Try again", bundle: .putioCore), tier: .secondary) {
-        Task { await retry() }
-      }
-      .accessibilityIdentifier("history.more-retry")
-    }
-    .padding(.horizontal, PutioTheme.TV.Spacing.medium)
-    .focusSection()
-    .accessibilityIdentifier("history.more-error")
-  }
-}
-
-enum TVHistoryLayout {
-  static let panelWidth: CGFloat = 640
-  static let panelRadius: CGFloat = 40
-  static let tileWidth: CGFloat = 160
-  static let tileHeight: CGFloat = 90
-  static let tileIconSize: CGFloat = 40
 }
