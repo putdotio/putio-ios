@@ -160,3 +160,27 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
     assert.deepEqual(lanes(path), every, path);
   }
 });
+
+test("PutioNightly builds only when a path its sources share with Putio can't cover changes", async () => {
+  const nightly = (await laneFilters()).get("nightly") ?? [];
+  const builds = (path: string) => nightly.every((pattern) => picomatch(pattern, { dot: true })(path));
+
+  for (const path of [
+    "Project.swift",
+    "Tuist/Package.resolved",
+    "Apps/iOS/Resources/Nightly.xcassets/AppIcon.appiconset/Contents.json",
+    "Packages/SentrySDK/Package.swift",
+    "scripts/build.sh",
+    ".github/workflows/ci-next.yml",
+  ]) {
+    assert.equal(builds(path), true, path);
+  }
+  for (const path of [
+    "Apps/iOS/Sources/Files/FileRow.swift",
+    "Apps/Shared/Sources/Session.swift",
+    "Packages/PutioCore/Sources/Session.swift",
+    "Apps/tvOS/Sources/App.swift",
+  ]) {
+    assert.equal(builds(path), false, path);
+  }
+});
