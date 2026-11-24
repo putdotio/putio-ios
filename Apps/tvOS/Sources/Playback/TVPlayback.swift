@@ -337,6 +337,7 @@ struct TVResumePromptView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(TVResumePromptLayout.backdrop.ignoresSafeArea())
     .defaultFocus($focusedChoice, initialChoice)
+    .task { focusedChoice = initialChoice }
   }
 
   private func choiceButton(
@@ -523,6 +524,7 @@ struct TVUpNextView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(TVResumePromptLayout.backdrop.ignoresSafeArea())
     .defaultFocus($focusedAction, .play)
+    .task { focusedAction = .play }
   }
 
   private func actionButton(

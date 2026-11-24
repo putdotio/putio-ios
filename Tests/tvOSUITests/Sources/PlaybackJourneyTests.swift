@@ -215,9 +215,8 @@ final class PlaybackJourneyTests: XCTestCase {
     app.launchArguments = ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"]
     if subtitled { app.launchArguments.append("--putio-harness-subtitled-stream") }
     app.launch()
-    XCTAssertTrue(element("home.files").waitForExistence(timeout: 15))
-    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("home.files") })
-    remote.press(.select)
+    XCTAssertTrue(TVTabBar(app).open("Files"))
+    remote.press(.down)
   }
 
   private func openFile(_ identifier: String) {

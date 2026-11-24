@@ -55,6 +55,7 @@ struct TVHistoryView: View {
   let open: (PutioFileItem) -> Void
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.tvHistoryActivations) private var activations
   @State private var model: PutioHistoryModel
   @State private var groupingDate: Date
   @State private var confirmsClear = false
@@ -98,6 +99,10 @@ struct TVHistoryView: View {
       Text("Every event will be removed from your history. Your files will stay in place.")
     }
     .task { await model.loadIfNeeded() }
+    .onChange(of: activations) {
+      guard case .loaded = model.state else { return }
+      Task { await model.refresh() }
+    }
     .onDisappear { model.cancelOpen() }
     .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
       groupingDate = .now
@@ -228,17 +233,17 @@ struct TVHistoryEventRow: View {
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-        .foregroundStyle(PutioTheme.Components.FileRow.icon)
+        .foregroundStyle(.putioRowIcon)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(TVHistoryPresentation.title(event))
           .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .foregroundStyle(.putioRowPrimary)
           .lineLimit(1)
           .truncationMode(.middle)
         Text(TVHistoryPresentation.detail(event, now: now, locale: locale))
           .putioFont(PutioTheme.TV.Typography.caption)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .foregroundStyle(.putioRowSecondary)
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }

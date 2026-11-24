@@ -26,7 +26,7 @@
     "berkeley-mono-variable.otf": {
       "path": "fonts/berkeley-mono/variable/otf/berkeley-mono-variable.otf",
       "sha256": "32386a75d675d497f11f9514779fbd4555574f3f8635a807e4d9530f71b7a569",
-      "platforms": ["ios", "watchos"]
+      "platforms": ["ios", "watchos", "tvos"]
     }
   }
 }

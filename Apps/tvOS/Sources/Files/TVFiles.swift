@@ -125,6 +125,7 @@ struct TVFileRowButton: View {
     .onChange(of: isMenuOpen) { _, isOpen in
       if !isOpen { endsLongPress = false }
     }
+    .tvRowOpen(isMenuOpen)
     .accessibilityIdentifier(identifier)
   }
 }

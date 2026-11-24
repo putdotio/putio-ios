@@ -396,17 +396,17 @@ struct TVValueRow: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(title)
           .putioFont(TVValueRow.titleFont)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .foregroundStyle(.putioRowPrimary)
         if let caption {
           Text(caption)
             .putioFont(PutioTheme.TV.Typography.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .foregroundStyle(.putioRowSecondary)
         }
       }
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       Text(value)
         .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .foregroundStyle(.putioRowSecondary)
         .lineLimit(1)
         .truncationMode(.middle)
       if opens { TVDisclosure() }
@@ -607,18 +607,22 @@ struct TVChoiceLabel: View {
   let title: String
   let isSelected: Bool
 
+  @Environment(\.putioTVRowState) private var rowState
+
   var body: some View {
     HStack(spacing: PutioTheme.TV.Spacing.small) {
       Image(putioIcon: .checkCircle)
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-        .foregroundStyle(PutioTheme.Colors.accent)
+        .foregroundStyle(
+          rowState == .focused ? PutioTVRowFocus.foreground : PutioTheme.Colors.accent
+        )
         .opacity(isSelected ? 1 : 0)
         .accessibilityHidden(true)
       Text(title)
         .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        .foregroundStyle(.putioRowPrimary)
     }
   }
 }

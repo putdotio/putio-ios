@@ -25,21 +25,19 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(notice.label.contains("Your account has been deactivated"), notice.label)
     XCTAssertTrue(notice.label.contains("scheduled to be deleted in 12 days."), notice.label)
     XCTAssertFalse(notice.buttons.firstMatch.exists, "the notice offers an action")
-    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("home.files") }, "the notice took focus")
+    let tabs = TVTabBar(app)
+    XCTAssertTrue(tabs.open("Account"), "the notice took focus")
     attach("runtime-tv-inactive-home")
-
-    XCTAssertTrue(focus("home.account"))
-    remote.press(.select)
+    remote.press(.down)
     let accountNotice = element("account.status-notice")
     XCTAssertTrue(accountNotice.waitForExistence(timeout: 15), "Account has no inactive notice")
     XCTAssertTrue(accountNotice.label.contains("12 days."), accountNotice.label)
     XCTAssertTrue(element("account.proxy").exists, "the notice blocked Account")
     attach("runtime-tv-inactive-account")
-    remote.press(.menu)
-
+    XCTAssertTrue(tabs.open("Home"))
     XCTAssertTrue(notice.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus("home.files"))
-    remote.press(.select)
+    XCTAssertTrue(tabs.open("Files"))
+    remote.press(.down)
     XCTAssertTrue(element("files.item.412").waitForExistence(timeout: 15), "browsing stopped")
     XCTAssertTrue(focus("files.item.412"))
     remote.press(.select)
@@ -66,7 +64,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
 
     remote.press(.menu)
     XCTAssertTrue(element("files.item.412").waitForExistence(timeout: 10))
-    remote.press(.menu)
+    XCTAssertTrue(tabs.open("Home"))
     XCTAssertTrue(notice.waitForExistence(timeout: 10))
 
     remote.press(.home)
@@ -88,8 +86,8 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertFalse(notice.label.contains("deleted"), "the family notice names a date")
     attach("runtime-tv-inactive-family")
 
-    XCTAssertTrue(focus("home.account"))
-    remote.press(.select)
+    XCTAssertTrue(TVTabBar(app).open("Account"))
+    remote.press(.down)
     let accountNotice = element("account.status-notice")
     XCTAssertTrue(accountNotice.waitForExistence(timeout: 15), "Account has no family notice")
     XCTAssertTrue(
@@ -99,10 +97,11 @@ final class InactiveAccountJourneyTests: XCTestCase {
   func testActiveAccountSeesNoNotice() {
     app.launch()
 
-    XCTAssertTrue(element("home.files").waitForExistence(timeout: 15))
+    let tabs = TVTabBar(app)
+    XCTAssertTrue(tabs.item("Files").waitForExistence(timeout: 15))
     XCTAssertFalse(element("account.inactive-notice").exists, "an active account sees a notice")
-    XCTAssertTrue(focus("home.account"))
-    remote.press(.select)
+    XCTAssertTrue(tabs.open("Account"))
+    remote.press(.down)
     XCTAssertTrue(element("account.proxy").waitForExistence(timeout: 15))
     XCTAssertFalse(element("account.status-notice").exists, "Account shows an active notice")
   }

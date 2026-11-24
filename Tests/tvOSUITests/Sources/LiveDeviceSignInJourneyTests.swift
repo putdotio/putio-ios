@@ -21,10 +21,9 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
     XCTAssertFalse(issuedCode.isEmpty)
     attach("live-tv-sign-in-code")
 
-    let homeAccount = app.buttons["home.account"]
-    XCTAssertTrue(homeAccount.waitForExistence(timeout: 180), "the approved code never signed in")
-    XCTAssertTrue(focus(homeAccount, moving: .down))
-    XCUIRemote.shared.press(.select)
+    XCTAssertTrue(
+      TVTabBar(app).open("Account", timeout: 180), "the approved code never signed in")
+    XCUIRemote.shared.press(.down)
     let username = app.descendants(matching: .any)["account.username"]
     XCTAssertTrue(username.waitForExistence(timeout: 30))
     XCTAssertFalse(username.label.isEmpty)

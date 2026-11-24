@@ -1,23 +1,65 @@
 import PutioCore
 import SwiftUI
 
-/// A scrolling column of rows. Rows that act as controls use the stock card
-/// style, which owns the focus lift; the shipped app's lists are this shape.
 struct TVRowList<Content: View>: View {
   @ViewBuilder let content: Content
 
   var body: some View {
-    ScrollView {
-      LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        content
+    GeometryReader { proxy in
+      ScrollView {
+        LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+          content
+        }
+        .padding(.vertical, PutioTheme.TV.Spacing.small)
       }
-      .padding(.vertical, PutioTheme.TV.Spacing.small)
+      .padding(
+        .bottom, max(0, TVRowLayout.bottomClearance - proxy.safeAreaInsets.bottom))
     }
-    // Keep the scroll view's clipping. A lazy stack that draws rows past its
-    // bounds can leave a row focused on screen but unfocused to accessibility
-    // once a refresh inserts rows above it. The vertical padding holds the
-    // card lift.
-    .buttonStyle(.card)
+    .buttonStyle(TVRowButtonStyle())
+  }
+}
+
+struct TVRowButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    TVRowButtonBody(configuration: configuration)
+  }
+}
+
+private struct TVRowButtonBody: View {
+  let configuration: ButtonStyleConfiguration
+  @Environment(\.isFocused) private var isFocused
+  @Environment(\.putioTVRowState) private var inherited
+
+  private var state: PutioTVRowState {
+    isFocused ? .focused : inherited
+  }
+
+  var body: some View {
+    configuration.label
+      .environment(\.putioTVRowState, state)
+      .background {
+        RoundedRectangle(cornerRadius: PutioTVRowFocus.cornerRadius, style: .continuous)
+          .fill(fill)
+          .shadow(
+            color: .black.opacity(state == .focused ? TVRowLayout.shadowOpacity : 0),
+            radius: TVRowLayout.shadowRadius, y: TVRowLayout.shadowOffset)
+      }
+      .opacity(configuration.isPressed ? TVRowLayout.pressedOpacity : 1)
+      .animation(.easeOut(duration: TVRowLayout.focusDuration), value: state)
+  }
+
+  private var fill: Color {
+    switch state {
+    case .focused: PutioTVRowFocus.fill
+    case .open: PutioTVRowFocus.openFill
+    case .resting: .clear
+    }
+  }
+}
+
+extension View {
+  func tvRowOpen(_ isOpen: Bool) -> some View {
+    environment(\.putioTVRowState, isOpen ? .open : .resting)
   }
 }
 
@@ -40,7 +82,7 @@ struct TVDisclosure: View {
       .resizable()
       .scaledToFit()
       .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
-      .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      .foregroundStyle(.putioRowSecondary)
       .accessibilityHidden(true)
   }
 }
@@ -77,6 +119,12 @@ struct TVScreenHeader<Actions: View>: View {
 enum TVRowLayout {
   static let iconSize = PutioTheme.TV.Typography.label.size
   static let disclosureSize = PutioTheme.TV.Typography.caption.size
+  static let bottomClearance: CGFloat = 60
+  static let shadowOpacity = 0.45
+  static let shadowRadius: CGFloat = 15
+  static let shadowOffset: CGFloat = 12
+  static let pressedOpacity = 0.85
+  static let focusDuration = 0.15
 }
 
 /// A failure message with its retry, and optionally a way to set it aside.

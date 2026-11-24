@@ -4,26 +4,30 @@ import XCTest
 @testable import PutioTV
 
 final class TVAccountHistoryTrashTests: XCTestCase {
-  func testTurningHistoryOffClosesHistoryAndTheFileItOpened() {
-    let path: [TVRoute] = [.history, .file(Self.file)]
-    XCTAssertEqual(TVRoute.reconcile(path, account: Self.account()), path)
-    XCTAssertEqual(TVRoute.reconcile(path, account: Self.account(historyEnabled: false)), [])
+  func testTurningHistoryOffClosesItsTabAndTheFileItOpened() {
+    var navigation = TVShellNavigation(selection: .history)
+    navigation.setPath([.file(Self.file)], for: .history, account: Self.account())
+    navigation.reconcile(account: Self.account())
+    XCTAssertEqual(navigation.path(for: .history), [.file(Self.file)])
+    navigation.reconcile(account: Self.account(historyEnabled: false))
+    XCTAssertEqual(navigation.path(for: .history), [])
+    XCTAssertEqual(navigation.selection, .home)
   }
 
-  func testTurningTrashOffClosesTrashButKeepsAccount() {
-    let path: [TVRoute] = [.account, .trash]
-    XCTAssertEqual(TVRoute.reconcile(path, account: Self.account()), path)
-    XCTAssertEqual(TVRoute.reconcile(path, account: Self.account(trashEnabled: false)), [.account])
-    XCTAssertEqual(
-      TVRoute.reconcile([.account, .proxy], account: Self.account(trashEnabled: false)),
-      [.account, .proxy])
+  func testTurningTrashOffClosesTrashButKeepsTheProxyChooser() {
+    var navigation = TVShellNavigation(selection: .account)
+    navigation.setPath([.trash], for: .account, account: Self.account())
+    navigation.reconcile(account: Self.account(trashEnabled: false))
+    XCTAssertEqual(navigation.path(for: .account), [])
+    navigation.setPath([.proxy], for: .account, account: Self.account(trashEnabled: false))
+    XCTAssertEqual(navigation.path(for: .account), [.proxy])
   }
 
-  func testHomeListsHistoryOnlyWhileTheAccountKeepsIt() {
+  func testTabBarOffersHistoryOnlyWhileTheAccountKeepsIt() {
     XCTAssertEqual(
-      TVHomeEntry.entries(for: Self.account()), [.files, .search, .history, .account])
+      TVTab.tabs(for: Self.account()), [.home, .files, .search, .history, .account])
     XCTAssertEqual(
-      TVHomeEntry.entries(for: Self.account(historyEnabled: false)), [.files, .search, .account])
+      TVTab.tabs(for: Self.account(historyEnabled: false)), [.home, .files, .search, .account])
   }
 
   func testAccountRowsFollowTheSettingsTheyDependOn() {

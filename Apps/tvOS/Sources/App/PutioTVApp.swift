@@ -22,7 +22,14 @@ struct PutioTVApp: App {
         }
       }
       .preferredColorScheme(.dark)
-      .tint(PutioTheme.Colors.accent)
+      .progressViewStyle(TVAccentProgressStyle())
     }
+  }
+}
+
+struct TVAccentProgressStyle: ProgressViewStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    ProgressView(configuration)
+      .tint(PutioTheme.Colors.accent)
   }
 }

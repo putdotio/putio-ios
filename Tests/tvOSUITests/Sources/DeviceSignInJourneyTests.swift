@@ -28,11 +28,8 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     XCTAssertTrue(waitForValue(code, "TVOK2", timeout: 10))
     XCTAssertFalse(expired.exists)
-    // Signing in lands on Home; Account is one of its rows.
-    let homeAccount = app.buttons["home.account"]
-    XCTAssertTrue(homeAccount.waitForExistence(timeout: 15))
-    XCTAssertTrue(focus(homeAccount))
-    XCUIRemote.shared.press(.select)
+    XCTAssertTrue(TVTabBar(app).open("Account"))
+    XCUIRemote.shared.press(.down)
     let username = app.descendants(matching: .any)["account.username"]
     XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertEqual(username.label, "moviebuff")
@@ -45,10 +42,9 @@ final class DeviceSignInJourneyTests: XCTestCase {
     // The keychain session restores to Home without showing a code.
     app.terminate()
     app.launch()
-    XCTAssertTrue(homeAccount.waitForExistence(timeout: 15))
+    XCTAssertTrue(TVTabBar(app).open("Account"))
     XCTAssertFalse(code.exists)
-    XCTAssertTrue(focus(homeAccount))
-    XCUIRemote.shared.press(.select)
+    XCUIRemote.shared.press(.down)
     XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     XCTAssertTrue(focus(signOut, moving: .up))
