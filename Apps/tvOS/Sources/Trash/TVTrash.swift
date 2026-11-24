@@ -239,7 +239,7 @@ struct TVTrashView: View {
       }
       .putioFont(PutioTheme.TV.Typography.caption)
       .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      .lineLimit(1)
+      .lineLimit(2)
       .accessibilityElement(children: .combine)
       .accessibilityIdentifier("trash.summary")
       Spacer(minLength: PutioTheme.TV.Spacing.small)
@@ -255,6 +255,7 @@ struct TVTrashView: View {
         guard model.canMutate else { return }
         Task { await model.refresh() }
       }
+      .fixedSize()
       .accessibilityIdentifier("trash.refresh")
       if model.hasContents {
         PutioButton(
@@ -264,6 +265,7 @@ struct TVTrashView: View {
           guard model.canMutate else { return }
           Task { await model.restoreAll() }
         }
+        .fixedSize()
         .focused($focus, equals: .restoreAll)
         .accessibilityIdentifier("trash.restore-all")
         PutioButton(
@@ -272,6 +274,7 @@ struct TVTrashView: View {
           guard model.canMutate else { return }
           confirmsEmpty = true
         }
+        .fixedSize()
         .accessibilityIdentifier("trash.empty")
       }
     }
