@@ -1,6 +1,7 @@
 import Foundation
 
 #if canImport(UIKit) && !os(watchOS)
+  import PutioCore
   import UIKit
 #endif
 
