@@ -18,6 +18,13 @@ enum TVFilePresentation {
     }
   }
 
+  /// A folder without its own sort follows the account default.
+  static func effectiveSort(
+    _ folderSort: PutioFolderSort?, account: PutioAccountSnapshot
+  ) -> PutioFolderSort {
+    folderSort ?? account.defaultSort ?? .nameAscending
+  }
+
   /// Sort by, then Order, then Videos, as on iOS. The current sort is not
   /// offered again.
   static func sortChoices(from current: PutioFolderSort) -> [PutioFolderSort] {
