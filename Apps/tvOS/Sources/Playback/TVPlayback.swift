@@ -626,13 +626,13 @@ final class TVVideoPlayerCoordinator {
   init(
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
-    speedStore: PutioAudioSpeedStore = .video(),
+    speedStore: PutioAudioSpeedStore? = nil,
     makePlayer: @escaping @MainActor (AVPlayerItem) -> AVPlayer = { AVPlayer(playerItem: $0) },
     applyStartSubtitle: (@MainActor (AVPlayerItem, AVPlayer?) async -> Void)? = nil
   ) {
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
-    self.speedStore = speedStore
+    self.speedStore = speedStore ?? .video()
     self.makePlayer = makePlayer
     self.applyStartSubtitle =
       applyStartSubtitle ?? { item, player in
