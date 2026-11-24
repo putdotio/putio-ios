@@ -125,6 +125,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("trash.item-delete"))
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.item.420").exists })
 
+    if app.tabBars.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch.exists {
+      remote.press(.down)
+    }
     XCTAssertTrue(focus("trash.restore-all", moving: .up))
     remote.press(.select)
     XCTAssertTrue(element("trash.empty-state").waitForExistence(timeout: 15))
