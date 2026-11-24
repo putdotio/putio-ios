@@ -221,7 +221,6 @@ struct TVSessionCheckingView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
-    .accessibilityIdentifier("auth.checking-session")
   }
 }
 

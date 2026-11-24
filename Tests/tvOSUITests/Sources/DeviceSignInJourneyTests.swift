@@ -89,11 +89,11 @@ final class DeviceSignInJourneyTests: XCTestCase {
     app.launchArguments = [
       "--putio-harness-scenario", "device-sign-in",
       "--putio-harness-saved-credential-at-launch", "--putio-harness-restore-offline-once",
-      "--putio-harness-restore-seconds", "2", "--putio-harness-session-expires",
+      "--putio-harness-restore-seconds", "8", "--putio-harness-session-expires",
     ]
     app.launch()
 
-    let checking = app.descendants(matching: .any)["auth.checking-session"]
+    let checking = app.staticTexts["Checking your session"].firstMatch
     XCTAssertTrue(checking.waitForExistence(timeout: 10), "the session check never showed")
     attach("runtime-tv-session-checking")
     let failure = app.staticTexts["auth.failure"]
