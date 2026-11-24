@@ -168,6 +168,7 @@ jobs:
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           version: "2026.11.12"
+          cache_save: ${{ github.event_name == 'push' }}
           install_args: node pnpm
 
       - name: Verify tooling
@@ -195,6 +196,7 @@ jobs:
         uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
         with:
           version: "2026.11.12"
+          cache_save: ${{ github.event_name == 'push' }}
           install_args: node pnpm github:rorkai/App-Store-Connect-CLI
 
       # The second status runs without the variable, so the check fails if
@@ -378,3 +380,36 @@ jobs:
         with:
           path: build/DerivedData/CompilationCache.noindex
           key: ${{ runner.os }}-xcode-cas-build-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
+
+  # Each push saves new compilation caches under its own commit, and a changed
+  # lockfile saves a new dependency cache. Only the newest entry of each key
+  # family is ever restored, so the rest go before they evict the Simulator
+  # template from the repository's 10 GB budget.
+  prune-caches:
+    name: Prune superseded caches
+    needs: [checks, tvos, ios, build]
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: jdx/mise-action@924e7c586e33d7d4bae9c14e26c5d22e2beb6e78 # v5.3.0
+        with:
+          version: "2026.11.12"
+          cache_save: false
+          install_args: node
+
+      - name: Delete superseded cache entries on next
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PRUNE_REF: refs/heads/next
+        run: node scripts/prune-actions-caches.ts
