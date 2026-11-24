@@ -56,6 +56,7 @@ final class TVHistoryBoardCaptureTests: XCTestCase {
   func testHistoryErrorBoard() {
     openHistory("failing", waitForList: false)
     XCTAssertTrue(element("history.retry").waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("history.retry", moving: .down, limit: 3))
     capture("rd-tvos-hist-08-error")
   }
 
