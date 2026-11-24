@@ -68,7 +68,22 @@ struct Badge: View {
 }
 `;
 
-const run = async (changes: { ios?: Record<string, Entry>; swift?: string; core?: string; coreCatalog?: Record<string, Entry> }) => {
+const baseTV = `import PutioCore
+import SwiftUI
+
+struct TVBadge: View {
+  var body: some View { Text(String(localized: "Watched", bundle: .putioCore)) }
+}
+`;
+
+const run = async (changes: {
+  ios?: Record<string, Entry>;
+  swift?: string;
+  core?: string;
+  coreCatalog?: Record<string, Entry>;
+  tv?: string;
+  tvPath?: string;
+}) => {
   const root = await mkdtemp(join(tmpdir(), "putio-string-catalog-"));
   try {
     const write = async (path: string, text: string) => {
@@ -94,6 +109,8 @@ const run = async (changes: { ios?: Record<string, Entry>; swift?: string; core?
     await write(coreCatalog, catalog(changes.coreCatalog ?? { Watched: { comment: "android: mobile_files_watched" } }));
     await write("Apps/iOS/Sources/Cast/CastView.swift", changes.swift ?? baseSwift);
     await write("Packages/PutioCore/Sources/PutioCore/Components/Badge.swift", changes.core ?? baseCore);
+    await write(changes.tvPath ?? "Apps/tvOS/Sources/App/TVBadge.swift", changes.tv ?? baseTV);
+    await write("Apps/Shared/Sources/App/RuntimeFactory.swift", "enum RuntimeFactory {}\n");
     return spawnSync(process.execPath, [join(root, "scripts/string-catalog.ts"), "--check"], { encoding: "utf8" });
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -105,6 +122,14 @@ test("a fully recorded catalog passes and lists ios-only strings", async () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /\[iOS\] Loading on %@ — no Android string for the iOS Chromecast controls/);
   assert.match(result.stdout, /5 catalog keys: 3 mapped to Android \(1 intended differences\), 2 ios-only/);
+});
+
+test("listed tvOS files may keep bare literals", async () => {
+  const result = await run({
+    tvPath: "Apps/tvOS/Sources/Files/TVSearch.swift",
+    tv: baseTV.replace('Text(String(localized: "Watched", bundle: .putioCore))', 'Text("Watched")\n  var error: String { "Could not search files" }'),
+  });
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("keys that differ only in their format specifiers are both used", async () => {
@@ -174,6 +199,21 @@ test("check fails on each broken rule", async (t) => {
       "code comment on a localized string",
       { swift: baseSwift.replace('String(localized: "Could not cast")', 'String(localized: "Could not cast", comment: "Cast error")') },
       /CastView.swift:\d+: move the comment into the catalog record/,
+    ],
+    [
+      "unlocalized tvOS literal",
+      { tv: baseTV.replace("  var body", '  var error: String { "Could not search files" }\n  var body') },
+      /TVBadge.swift:\d+: user-facing literal "Could not search files" is not localized/,
+    ],
+    [
+      "tvOS lookup without the PutioCore bundle",
+      { tv: baseTV.replace(", bundle: .putioCore", "") },
+      /TVBadge.swift:\d+: "Watched" must look up in PutioCore with bundle: .putioCore/,
+    ],
+    [
+      "localized file still listed as unlocalized",
+      { tvPath: "Apps/tvOS/Sources/Files/TVSearch.swift" },
+      /TVSearch.swift: its copy is localized; remove it from unlocalizedTVOSFiles/,
     ],
     ["PutioCore lookup without its bundle", { core: baseCore.replace(", bundle: .module", "") }, /"Watched" must look up in PutioCore with bundle: .module/],
     [

@@ -83,7 +83,7 @@ enum TVRowLayout {
 struct TVRetrySection: View {
   let message: String
   let identifier: String
-  var retryTitle = "Try again"
+  var retryTitle = String(localized: "Try again", bundle: .putioCore)
   var dismiss: (() -> Void)?
   let retry: @MainActor () async -> Void
 
@@ -97,8 +97,10 @@ struct TVRetrySection: View {
         PutioButton(retryTitle, tier: .secondary) { Task { await retry() } }
           .accessibilityIdentifier(identifier)
         if let dismiss {
-          PutioButton("Dismiss", tier: .secondary, action: dismiss)
-            .accessibilityIdentifier("\(identifier).dismiss")
+          PutioButton(
+            String(localized: "Dismiss", bundle: .putioCore), tier: .secondary, action: dismiss
+          )
+          .accessibilityIdentifier("\(identifier).dismiss")
         }
       }
     }

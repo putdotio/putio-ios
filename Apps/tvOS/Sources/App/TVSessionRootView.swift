@@ -18,7 +18,7 @@ struct TVSessionRootView: View {
       case .signedOut, .authenticating:
         TVSignInView(session: runtime.session)
       case .signingOut:
-        PutioLoadingStateView(title: "Signing out…")
+        PutioLoadingStateView(title: String(localized: "Signing out", bundle: .putioCore))
       case .signedIn(let account):
         TVSignedInShell(runtime: runtime, account: account)
           .id(account.id)

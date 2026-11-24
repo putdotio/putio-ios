@@ -1042,6 +1042,17 @@
         }
       }
     },
+    "Dismiss" : {
+      "comment" : "android: mobile_action_dismiss",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dismiss"
+          }
+        }
+      }
+    },
     "Done selecting" : {
       "comment" : "android: mobile_selection_clear | differs: the selection boards label the close button Done selecting",
       "localizations" : {
@@ -1800,6 +1811,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in did not complete. Try again."
+          }
+        }
+      }
+    },
+    "Signing out" : {
+      "comment" : "android: mobile_auth_signing_out",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing out"
           }
         }
       }

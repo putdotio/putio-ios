@@ -32,32 +32,52 @@ export type Catalog = {
   version: string;
 };
 
+export type CatalogSource = { path: string; bundle?: string };
+
 export type CatalogTarget = {
   name: string;
   catalog: string;
-  sources: string[];
-  bundle?: string;
+  sources: CatalogSource[];
 };
 
 export const targets: CatalogTarget[] = [
   {
     name: "iOS",
     catalog: "Apps/iOS/Sources/Localizable.xcstrings",
-    sources: ["Apps/iOS/Sources"],
+    sources: [{ path: "Apps/iOS/Sources" }],
   },
   {
     name: "PutioCore",
     catalog: "Packages/PutioCore/Sources/PutioCore/Resources/Localizable.xcstrings",
-    sources: ["Packages/PutioCore/Sources/PutioCore"],
-    bundle: ".module",
+    sources: [
+      { path: "Packages/PutioCore/Sources/PutioCore", bundle: ".module" },
+      { path: "Apps/tvOS/Sources", bundle: ".putioCore" },
+      { path: "Apps/Shared/Sources", bundle: ".putioCore" },
+    ],
   },
 ];
 
 export const excludedPaths = [
   "Apps/iOS/Sources/Harness/",
+  "Apps/tvOS/Sources/Harness/",
+  "Apps/Shared/Sources/Harness/",
   "Packages/PutioCore/Sources/PutioCore/Harness/",
   "Packages/PutioCore/Sources/PutioCore/Generated/",
   "Packages/PutioCore/Sources/PutioCore/Components/PutioComponentGallery.swift",
+];
+
+/** tvOS files whose copy is still bare literals, each listed under the lane
+ * epic that localizes it. A lane removes its files as it moves their copy into
+ * the PutioCore catalog; new tvOS files are checked from the start. */
+export const unlocalizedTVOSFiles: { file: string; epic: string }[] = [
+  { file: "Apps/tvOS/Sources/Account/TVAccount.swift", epic: "#1311" },
+  { file: "Apps/tvOS/Sources/App/TVHome.swift", epic: "#1295" },
+  { file: "Apps/tvOS/Sources/Files/TVFiles.swift", epic: "#1304" },
+  { file: "Apps/tvOS/Sources/Files/TVSearch.swift", epic: "#1304" },
+  { file: "Apps/tvOS/Sources/History/TVHistory.swift", epic: "#1308" },
+  { file: "Apps/tvOS/Sources/Playback/TVPlayback.swift", epic: "#1297" },
+  { file: "Apps/tvOS/Sources/Session/TVSignIn.swift", epic: "#1311" },
+  { file: "Apps/tvOS/Sources/Trash/TVTrash.swift", epic: "#1308" },
 ];
 
 export const exemptLiterals: { file: string; text: string; reason: string }[] = [
@@ -580,39 +600,52 @@ export const checkRepository = async (root: string): Promise<CheckResult> => {
     }
 
     const used = new Set<string>();
-    for (const file of (await Promise.all(target.sources.map((dir) => listSwiftFiles(root, dir)))).flat()) {
+    const files = await Promise.all(
+      target.sources.map(async (source) =>
+        (await listSwiftFiles(root, source.path)).map((file) => ({ file, bundle: source.bundle })),
+      ),
+    );
+    for (const { file, bundle } of files.flat()) {
       const source = await readFile(join(root, file), "utf8");
+      const fileProblems: string[] = [];
       if (/==\s*1\s*\?\s*(?:String\(localized:\s*)?"[a-z]/.test(source)) {
-        problems.push(`${file}: pluralize with a catalog plural variation, not a count == 1 word ternary`);
+        fileProblems.push(`${file}: pluralize with a catalog plural variation, not a count == 1 word ternary`);
       }
       for (const literal of scanSwift(source, file)) {
         if (literal.label === "comment" && (literal.callee === "String" || literal.callee === "Text")) {
-          problems.push(`${file}:${literal.line}: move the comment into the catalog record`);
+          fileProblems.push(`${file}:${literal.line}: move the comment into the catalog record`);
           continue;
         }
-        const verdict = classify(literal, target.bundle);
+        const verdict = classify(literal, bundle);
         if (verdict === "ignored") continue;
         if (exemptLiterals.some((exempt) => exempt.file === file && exempt.text === literal.template)) continue;
         const where = `${file}:${literal.line}`;
         const shown = literal.template.replaceAll(PLACEHOLDER, "\\(…)");
         if (verdict === "unlocalized") {
-          problems.push(`${where}: user-facing literal "${shown}" is not localized; wrap it in String(localized:) or a SwiftUI title`);
+          fileProblems.push(`${where}: user-facing literal "${shown}" is not localized; wrap it in String(localized:) or a SwiftUI title`);
           continue;
         }
         if (verdict === "missing-bundle") {
-          problems.push(`${where}: "${shown}" must look up in ${target.name} with bundle: ${target.bundle}`);
+          fileProblems.push(`${where}: "${shown}" must look up in ${target.name} with bundle: ${bundle}`);
           continue;
         }
         const keys = templates.get(literal.template);
         if (keys === undefined) {
-          problems.push(`${where}: "${shown}" is not in ${target.catalog}`);
+          fileProblems.push(`${where}: "${shown}" is not in ${target.catalog}`);
           continue;
         }
         for (const key of keys) used.add(key);
       }
+      if (!unlocalizedTVOSFiles.some((pending) => pending.file === file)) {
+        problems.push(...fileProblems);
+      } else if (fileProblems.length === 0) {
+        problems.push(`${file}: its copy is localized; remove it from unlocalizedTVOSFiles`);
+      }
     }
     for (const key of Object.keys(catalog.strings)) {
-      if (!used.has(key)) problems.push(`${target.catalog}: "${key}" is not used in ${target.sources.join(", ")}`);
+      if (!used.has(key)) {
+        problems.push(`${target.catalog}: "${key}" is not used in ${target.sources.map((source) => source.path).join(", ")}`);
+      }
     }
   }
   iosOnly.sort((a, b) => (a.key < b.key ? -1 : 1));
