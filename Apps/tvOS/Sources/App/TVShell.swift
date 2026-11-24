@@ -79,6 +79,10 @@ struct TVShellNavigation: Equatable {
     paths[tab] ?? []
   }
 
+  var showsFullScreen: Bool {
+    path(for: selection).last?.isFullScreen ?? false
+  }
+
   mutating func setPath(_ path: [TVRoute], for tab: TVTab, account: PutioAccountSnapshot) {
     let allowed = TVRoute.reconcile(path, account: account)
     paths[tab] = allowed.isEmpty ? nil : allowed
@@ -128,7 +132,9 @@ struct TVSignedInShell: View {
         }
       }
     }
-    .overlay(alignment: .topLeading) { TVWordmark() }
+    .overlay(alignment: .topLeading) {
+      if !navigation.showsFullScreen { TVWordmark() }
+    }
     .onChange(of: account) { previous, current in
       PutioAccountPreferencesReconciliation.apply(
         previous: previous, current: current, folders: folderRefreshRequests,
@@ -196,6 +202,7 @@ struct TVSignedInShell: View {
         TVVideoSession(
           route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
           refreshRequests: folderRefreshRequests)
+        .toolbar(.hidden, for: .tabBar)
       } else {
         TVFileScreen(item: item)
       }
@@ -226,6 +233,12 @@ enum TVShellLayout {
 }
 
 extension TVRoute {
+  var isFullScreen: Bool {
+    guard case .file(let item) = self else { return false }
+    if case .video = PutioFileRoute(item: item).openAction { return true }
+    return false
+  }
+
   var identifier: String {
     switch self {
     case .proxy: "proxy"
