@@ -590,7 +590,9 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
 
   func testInterruptedCurrentResumeSeekReportsRecoverableFailure() async throws {
     let audioSession = PlaybackAudioSessionSpy()
-    let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: audioSession, statusObservation: statusObservation)
     let surface = PutioVideoSurfaceView()
     var failures = 0
 
@@ -601,9 +603,36 @@ final class PutioVideoPlayerCoordinatorTests: XCTestCase {
     await waitUntil { driver.events == ["seek"] }
 
     driver.completeSeek(false)
+    statusObservation.emit(.readyToPlay)
     await waitUntil { failures == 1 }
 
     XCTAssertEqual(driver.events, ["seek"])
+    XCTAssertEqual(failures, 1)
+    coordinator.stop(surface: surface)
+  }
+
+  /// A refused stream cancels its resume seek before the item fails; the
+  /// item's failure, with its HTTP status, is the one reported.
+  func testSeekInterruptedBeforeTheItemSettlesWaitsForTheItemFailure() async throws {
+    let audioSession = PlaybackAudioSessionSpy()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: audioSession, statusObservation: statusObservation)
+    let surface = PutioVideoSurfaceView()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 90), in: surface) { _ in
+      failures += 1
+    }
+    let driver = try XCTUnwrap(capture.driver)
+    await waitUntil { driver.events == ["seek"] }
+
+    driver.completeSeek(false)
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertEqual(failures, 0, "the empty seek failure raced the item's own")
+
+    statusObservation.emit(.failed)
+    await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
     coordinator.stop(surface: surface)
   }

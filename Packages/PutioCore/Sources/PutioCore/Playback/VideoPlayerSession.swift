@@ -185,6 +185,7 @@
     private var readyReported = false
     private var defaultSubtitleRequested = false
     private var failureReported = false
+    private var seekInterruptedBeforeReady = false
     private var positionEstablished = false
     private var recoveredStartSeconds: Int?
     private var fileID: PutioFileID?
@@ -320,6 +321,7 @@
       readyReported = false
       defaultSubtitleRequested = false
       failureReported = false
+      seekInterruptedBeforeReady = false
       positionEstablished = false
       recoveredStartSeconds = nil
       pendingControlGates = [.audio, .defaultSubtitle, .position]
@@ -340,6 +342,11 @@
         Task { @MainActor [weak self] in
           switch status {
           case .readyToPlay:
+            if self?.seekInterruptedBeforeReady == true {
+              self?.reportFailure(
+                PutioPlayerError(avPlayerError: item.error), generation: playbackGeneration)
+              return
+            }
             if let restoredTracks {
               await self?.restoreTracksOnce(
                 restoredTracks, to: item, generation: playbackGeneration)
@@ -529,9 +536,13 @@
           guard let self, generation == playbackGeneration, self.driver === driver else { return }
           guard !failureReported else { return }
           guard finished else {
+            let item = driver.player.currentItem
+            guard item?.error != nil || item?.status == .readyToPlay else {
+              seekInterruptedBeforeReady = true
+              return
+            }
             reportFailure(
-              PutioPlayerError(avPlayerError: driver.player.currentItem?.error),
-              generation: playbackGeneration)
+              PutioPlayerError(avPlayerError: item?.error), generation: playbackGeneration)
             return
           }
           positionEstablished = true
