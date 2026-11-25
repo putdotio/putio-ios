@@ -613,6 +613,17 @@
         }
       }
     },
+    "Close" : {
+      "comment" : "ios-only: the board's Up next dismissal with autoplay off; Android TV has no key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
     "Completed transfers and shared files will appear here." : {
       "comment" : "android: mobile_history_empty_message",
       "localizations" : {
@@ -2069,6 +2080,17 @@
         }
       }
     },
+    "Loading" : {
+      "comment" : "android: tv_player_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading"
+          }
+        }
+      }
+    },
     "Loading files" : {
       "comment" : "android: mobile_files_loading",
       "localizations" : {
@@ -2168,6 +2190,50 @@
         }
       }
     },
+    "Next file" : {
+      "comment" : "android: tv_player_next_track",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next file"
+          }
+        }
+      }
+    },
+    "Play next" : {
+      "comment" : "ios-only: the board's Up next action with autoplay off; Android TV has no key",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play next"
+          }
+        }
+      }
+    },
+    "Play now" : {
+      "comment" : "android: tv_player_play_now",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Play now"
+          }
+        }
+      }
+    },
+    "Playing in %lld" : {
+      "comment" : "android: tv_player_up_next_countdown",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing in %lld"
+          }
+        }
+      }
+    },
     "Sort, %@" : {
       "comment" : "ios-only: tvOS Files spoken label for the sort pill",
       "localizations" : {
@@ -2175,6 +2241,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sort, %@"
+          }
+        }
+      }
+    },
+    "Up next" : {
+      "comment" : "android: tv_player_up_next",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next"
+          }
+        }
+      }
+    },
+    "Up next in %@" : {
+      "comment" : "android: tv_player_up_next_in",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next in %@"
+          }
+        }
+      }
+    },
+    "Up next, %@" : {
+      "comment" : "ios-only: VoiceOver label for the Up next title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next, %@"
           }
         }
       }

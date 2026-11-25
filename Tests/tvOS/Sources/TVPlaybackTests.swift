@@ -103,6 +103,24 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
   }
 
+  func testGoingToTheBackgroundReportsThePosition() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    let reported = ReportedPositions()
+    let pipeline = PutioPlaybackPositionPipeline()
+    let (coordinator, controller, _) = try await startPlayer(
+      base: base, startSeconds: 120, remembersPosition: true, pipeline: pipeline,
+      reported: reported)
+    let player = try XCTUnwrap(coordinator.player)
+    await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 121 }
+
+    NotificationCenter.default.post(name: Self.background, object: nil)
+    await pipeline.waitForPendingReports(fileID: Self.fileID)
+    XCTAssertEqual(reported.reports.map(\.0), [Self.fileID])
+    XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
+    coordinator.stop(controller: controller)
+  }
+
   /// The latest start the resume prompt offers sits just short of the
   /// watched mark, 95% of the 590-second fixture.
   func testPlayingToTheEndKeepsTheEndPosition() async throws {
@@ -145,10 +163,10 @@ final class TVPlaybackTests: XCTestCase {
     }
   }
 
-  /// The native speed control lists the system rates; the chosen rate is the
+  /// The speed control lists the board's nine rates; the chosen rate is the
   /// one playback resumes at after a pause and keeps through a seek, and the
   /// next playback starts at it, as on iOS.
-  func testSpeedControlOffersTheSystemRatesAndHoldsThroughPauseAndSeek() async throws {
+  func testSpeedControlOffersTheBoardRatesAndHoldsThroughPauseAndSeek() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
     let speeds = speedStore()
@@ -156,7 +174,8 @@ final class TVPlaybackTests: XCTestCase {
       base: base, startSeconds: 0, remembersPosition: false,
       pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions(), speeds: speeds)
     let player = try XCTUnwrap(coordinator.player)
-    XCTAssertEqual(controller.speeds.map(\.rate), [2, 1.5, 1.25, 1, 0.5])
+    XCTAssertEqual(controller.speeds.map(\.rate), [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4])
+    XCTAssertEqual(controller.speeds.first?.localizedName, "0.25×")
     XCTAssertEqual(player.defaultRate, 1)
 
     let faster = try XCTUnwrap(controller.speeds.first { $0.rate == 1.5 })
@@ -330,6 +349,13 @@ final class TVPlaybackTests: XCTestCase {
       size: viewport)
   }
 
+  func testLoadingMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-loading",
+      view: TVPlaybackLoadingView(title: "Big Buck Bunny.mp4"),
+      size: viewport)
+  }
+
   func testConversionProgressMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-converting",
@@ -342,16 +368,30 @@ final class TVPlaybackTests: XCTestCase {
   func testUpNextMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-up-next",
-      view: TVUpNextView(
-        nextVideo: PutioNextVideo(
-          id: PutioFileID(rawValue: 414), parentID: .root, name: "Root Movie 2.mkv"),
-        autoplaySecondsRemaining: 3, onPlay: {}, onCancel: {}),
+      view: TVUpNextCard(
+        next: Self.nextVideo, folderName: "Big Buck Bunny", secondsLeft: 8, play: {}, close: {}
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testUpNextWithoutAutoplayMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-up-next-off",
+      view: TVUpNextCard(
+        next: Self.nextVideo, folderName: "Big Buck Bunny", secondsLeft: nil, play: {}, close: {}
+      )
+      .background(Color.gray),
       size: viewport)
   }
 
   // MARK: Helpers
 
   private static let fileID = PutioFileID(rawValue: 412)
+  private static let background = Notification.Name("TVPlaybackTests.background")
+  private static let nextVideo = PutioNextVideo(
+    id: PutioFileID(rawValue: 414), parentID: PutioFileID(rawValue: 40),
+    name: "Big Buck Bunny.part2.mp4")
 
   private func speedStore() -> PutioAudioSpeedStore {
     let suite = "io.put.tests.tv-playback-speed"
@@ -375,7 +415,8 @@ final class TVPlaybackTests: XCTestCase {
     pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions,
     speeds: PutioAudioSpeedStore? = nil, onEnded: @escaping @MainActor () -> Void = {}
   ) async throws -> (TVVideoPlayerCoordinator, AVPlayerViewController, TVPlaybackProbes) {
-    let coordinator = TVVideoPlayerCoordinator(speedStore: speeds ?? speedStore())
+    let coordinator = TVVideoPlayerCoordinator(
+      speedStore: speeds ?? speedStore(), backgroundNotification: Self.background)
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     coordinator.start(

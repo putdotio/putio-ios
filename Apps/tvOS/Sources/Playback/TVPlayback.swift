@@ -63,6 +63,8 @@ struct TVVideoPlaybackView: View {
   @State private var nextVideoModel: PutioVideoUpNextModel
   @State private var resumePrompter: PutioVideoResumePrompter
   @State private var ended = false
+  @State private var leftPlayer = false
+  @State private var upNextFolder: String?
   @State private var retrySequence: UInt64 = 0
   @State private var playerFailureTask: Task<Void, Never>?
   @State private var probes = TVPlaybackProbes()
@@ -149,6 +151,13 @@ struct TVVideoPlaybackView: View {
       .accessibilityIdentifier("video.screen.\(route.id.rawValue)")
       .task { await model.loadIfNeeded() }
       .task { await nextVideoModel.lookUp() }
+      .task(id: nextVideoModel.upcoming?.parentID) {
+        guard let parent = nextVideoModel.upcoming?.parentID, parent != .root else {
+          upNextFolder = nil
+          return
+        }
+        upNextFolder = try? await runtime.getFile(fileID: parent).name
+      }
       .task(id: retrySequence) {
         guard retrySequence > 0 else { return }
         await model.retry()
@@ -189,8 +198,7 @@ struct TVVideoPlaybackView: View {
   private var stateContent: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: "Preparing video")
-        .accessibilityIdentifier("video.loading")
+      TVPlaybackLoadingView(title: route.title)
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
       TVConversionStatusView(state: model.state)
     case .failed(let failure):
@@ -215,11 +223,14 @@ struct TVVideoPlaybackView: View {
 
   @ViewBuilder
   private func readyContent(_ source: PutioPlaybackSource) -> some View {
-    if ended {
+    if showsNextVideoStage {
       TVNextVideoStage(
         model: nextVideoModel,
         play: { runNextVideo { await nextVideoModel.playNext() } },
-        retry: { runNextVideo { await nextVideoModel.retry() } },
+        retry: {
+          leftPlayer = true
+          runNextVideo { await nextVideoModel.retry() }
+        },
         close: {
           nextVideoModel.cancel()
           onFinish()
@@ -235,7 +246,10 @@ struct TVVideoPlaybackView: View {
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         onReady: { model.playerReady() },
+        onNextFile: nextFileAction,
+        upNext: upNextProposal,
         onEnded: playbackEnded,
+        onRestarted: playbackRestarted,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onFailure: playerFailed
       )
@@ -271,6 +285,40 @@ struct TVVideoPlaybackView: View {
     titleMetadata.extendedLanguageTag = "und"
     item.externalMetadata = [titleMetadata]
     return item
+  }
+
+  private var showsNextVideoStage: Bool {
+    if leftPlayer { return true }
+    guard ended else { return false }
+    switch nextVideoModel.state {
+    case .failed: return true
+    case .idle: return nextVideoModel.lookupFailed
+    case .finding, .countingDown, .playing: return false
+    }
+  }
+
+  private var nextFileAction: (@MainActor () -> Void)? {
+    guard nextVideoModel.upcoming != nil else { return nil }
+    return { playNextFile() }
+  }
+
+  private var upNextProposal: TVUpNextProposal? {
+    guard let next = nextVideoModel.upcoming else { return nil }
+    return TVUpNextProposal(
+      next: next, folderName: upNextFolder, model: nextVideoModel,
+      accept: { runNextVideo { await nextVideoModel.playNext() } },
+      reject: { nextVideoModel.cancel() })
+  }
+
+  private func playNextFile() {
+    leftPlayer = true
+    runNextVideo { await nextVideoModel.playNext() }
+  }
+
+  private func playbackRestarted() {
+    probes.ended = false
+    ended = false
+    nextVideoModel.cancel()
   }
 
   private func playbackEnded() {
@@ -603,9 +651,28 @@ struct TVUpNextView: View {
   }
 }
 
-/// The system player. Transport, info panels, subtitles, audio, and speed
-/// are AVKit's own; the shared session starts it at the chosen position,
-/// applies the start subtitle, and reports positions.
+struct TVPlaybackLoadingView: View {
+  let title: String
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      PutioLoadingStateView(title: String(localized: "Loading", bundle: .putioCore))
+        .accessibilityIdentifier("video.loading")
+      Text(title)
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .lineLimit(1)
+        .accessibilityIdentifier("video.loading.title")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .tvOverscanPadding()
+    }
+    .background(Color.black.ignoresSafeArea())
+  }
+}
+
+/// The system player. Transport, info panels, subtitles, and audio are
+/// AVKit's own; the shared session starts it at the chosen position, applies
+/// the start subtitle, and reports positions.
 private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let title: String
   let source: PutioPlaybackSource
@@ -617,7 +684,10 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
   let onReady: @MainActor () -> Void
+  let onNextFile: (@MainActor () -> Void)?
+  let upNext: TVUpNextProposal?
   let onEnded: @MainActor () -> Void
+  let onRestarted: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
   let onFailure: @MainActor (PutioVideoPlayerFailure) -> Void
 
@@ -638,12 +708,15 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
       in: controller, probes: probes, onReady: onReady, onEnded: onEnded,
-      onReportsSettled: onReportsSettled, onFailure: onFailure)
+      onRestarted: onRestarted, onReportsSettled: onReportsSettled, onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
   }
 
-  func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {}
+  func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+    context.coordinator.showNextFile(onNextFile, in: controller)
+    context.coordinator.propose(upNext, in: controller)
+  }
 
   static func dismantleUIViewController(
     _ controller: AVPlayerViewController, coordinator: TVVideoPlayerCoordinator
@@ -669,21 +742,29 @@ final class TVVideoPlayerCoordinator {
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let subtitleMemory: PutioSubtitleMemory?
   private let speedStore: PutioAudioSpeedStore
+  private let backgroundNotification: Notification.Name?
   private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
   private let applyStartSubtitle: @MainActor (AVPlayerItem, AVPlayer?) async -> Void
 
   var player: AVPlayer? { session?.player }
+  private var nextFile: (@MainActor () -> Void)?
+  private let proposalDelegate = TVUpNextProposalDelegate()
+  private var proposalController: TVUpNextProposalController?
+  private var proposed: (id: PutioFileID, folderName: String?)?
 
   init(
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
     speedStore: PutioAudioSpeedStore? = nil,
+    backgroundNotification: Notification.Name? = PutioVideoPlayerSession
+      .applicationBackgroundNotification,
     makePlayer: @escaping @MainActor (AVPlayerItem) -> AVPlayer = { AVPlayer(playerItem: $0) },
     applyStartSubtitle: (@MainActor (AVPlayerItem, AVPlayer?) async -> Void)? = nil
   ) {
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
     self.speedStore = speedStore ?? .video()
+    self.backgroundNotification = backgroundNotification
     self.makePlayer = makePlayer
     self.applyStartSubtitle =
       applyStartSubtitle ?? { item, player in
@@ -704,6 +785,7 @@ final class TVVideoPlayerCoordinator {
     probes: TVPlaybackProbes? = nil,
     onReady: @escaping @MainActor () -> Void = {},
     onEnded: @escaping @MainActor () -> Void = {},
+    onRestarted: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
     onFailure: @escaping @MainActor (PutioVideoPlayerFailure) -> Void
   ) {
@@ -721,7 +803,7 @@ final class TVVideoPlayerCoordinator {
       },
       audioSession: PutioPlaybackAudioSession(),
       notificationCenter: .default,
-      backgroundNotification: nil,
+      backgroundNotification: backgroundNotification,
       positionPipeline: pipeline,
       applyDefaultSubtitle: { item in await applyStartSubtitle(item, created) })
     self.session = session
@@ -729,7 +811,9 @@ final class TVVideoPlayerCoordinator {
     waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
     session.onSubtitleSelected = probes.map { probes in { probes.subtitle = $0 } }
 
-    controller.speeds = AVPlaybackSpeed.systemDefaultSpeeds
+    controller.speeds = PutioAudioSpeed.tvMenu.map {
+      AVPlaybackSpeed(rate: $0.rawValue, localizedName: $0.title)
+    }
     let base =
       source
       ?? PutioPlaybackSource(
@@ -744,12 +828,16 @@ final class TVVideoPlayerCoordinator {
         onReady()
         guard let self, let controller else { return }
         self.watchSubtitlePicks(of: item, controller: controller)
+        self.propose(self.proposalDelegate.proposal, in: controller)
       },
       observesPlaybackState: probes != nil,
       onAudioSelected: { probes?.audioLanguage = $0 },
       onPositionChanged: { probes?.currentPosition = $0 },
       onPlaybackEnded: { onEnded() },
+      onPlaybackRestarted: { onRestarted() },
       onFailure: onFailure)
+    controller.delegate = proposalDelegate
+    proposed = nil
     if let player = session.player {
       if let chosen = controller.speeds.first(where: { $0.rate == speed.rawValue }) {
         controller.selectSpeed(chosen)
@@ -757,6 +845,45 @@ final class TVVideoPlayerCoordinator {
       observe(player, probes: probes)
     }
     probes?.speeds = controller.speeds.map { TVPlaybackProbes.format($0.rate) }
+  }
+
+  func showNextFile(_ action: (@MainActor () -> Void)?, in controller: AVPlayerViewController) {
+    let shown = nextFile != nil
+    nextFile = action
+    guard shown != (action != nil) else { return }
+    controller.transportBarCustomMenuItems =
+      action == nil
+      ? []
+      : [
+        UIAction(
+          title: String(localized: "Next file", bundle: .putioCore),
+          image: UIImage(systemName: "forward.end.fill")
+        ) { [weak self] _ in self?.nextFile?() }
+      ]
+  }
+
+  func propose(_ proposal: TVUpNextProposal?, in controller: AVPlayerViewController) {
+    proposalDelegate.proposal = proposal
+    guard let item = player?.currentItem else { return }
+    guard let proposal else {
+      proposed = nil
+      item.nextContentProposal = nil
+      return
+    }
+    if let proposed, proposed.id == proposal.next.id, proposed.folderName == proposal.folderName {
+      return
+    }
+    proposed = (proposal.next.id, proposal.folderName)
+    let card = proposalController ?? TVUpNextProposalController()
+    proposalController = card
+    card.willAccept = { [weak self, weak controller] in
+      guard let self, let controller else { return }
+      self.stop(controller: controller)
+    }
+    card.show(proposal)
+    controller.contentProposalViewController = card
+    item.nextContentProposal = AVContentProposal(
+      contentTimeForTransition: .indefinite, title: proposal.next.name, previewImage: nil)
   }
 
   func stop(controller: AVPlayerViewController) {

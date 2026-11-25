@@ -104,9 +104,9 @@ final class PlaybackJourneyTests: XCTestCase {
     leavePlayer()
   }
 
-  /// Subtitles and speed are AVKit's own controls. The server's default
-  /// subtitle is on, choosing Turkish keeps English audio, and the chosen
-  /// speed holds through pause and seeking without touching either track.
+  /// The server's default subtitle is on, choosing Turkish keeps English
+  /// audio, the chosen speed holds through pause and seeking without touching
+  /// either track, and Next file opens the folder's next video.
   func testSubtitleAndSpeedControlsKeepTheAudioTrack() {
     launch(subtitled: true)
     openFile("files.item.412")
@@ -116,7 +116,7 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" })
     XCTAssertEqual(probeValue("video.audio-language"), "en")
     XCTAssertEqual(probeValue("video.speed"), "1", "a new session starts at 1x")
-    XCTAssertEqual(probeValue("video.speeds"), "2,1.5,1.25,1,0.5")
+    XCTAssertEqual(probeValue("video.speeds"), "0.25,0.5,0.75,1,1.25,1.5,2,3,4")
 
     // Select shows the transport bar and pauses; up reaches its menus.
     remote.press(.select)
@@ -138,15 +138,14 @@ final class PlaybackJourneyTests: XCTestCase {
     attach("runtime-tv-playback-subtitle-selected")
 
     // Back to the transport bar, then the speed menu beside Subtitles. It
-    // lists the fastest speed first and opens on the current one, so 1.5×
-    // is two steps up; a step down from 0.5× would close the menu.
+    // lists the slowest speed first and opens on the current one, so 1.5×
+    // is two steps down.
     XCTAssertTrue(backOut(toFocus: "label == 'Playback Speed'"))
     remote.press(.select)
     XCTAssertTrue(
       focus(where: "label == '1×' OR label ENDSWITH ', 1×'", moving: []),
       "the speed menu opens on 1×")
-    // The rate label follows the device locale's decimal separator.
-    XCTAssertTrue(focus(where: "label IN {'1.5×', '1,5×'}", moving: [.up]))
+    XCTAssertTrue(focus(where: "label == '1.5×'", moving: [.down]))
     attach("runtime-tv-playback-speed")
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.speed") == "1.5" })
@@ -177,7 +176,16 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertEqual(probeValue("video.speed"), "1.5", "seeking keeps the chosen speed")
     XCTAssertEqual(probeValue("video.subtitle"), "tr")
     XCTAssertEqual(probeValue("video.audio-language"), "en")
-    leavePlayer()
+
+    // Next file sits in the transport bar while the folder has a next video.
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" })
+    remote.press(.up)
+    XCTAssertTrue(focus(where: "label == 'Next file'", moving: [.right, .left]))
+    attach("runtime-tv-playback-next-file")
+    remote.press(.select)
+    XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30))
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
   }
 
   /// The first conversion request fails with a retry; the retried one

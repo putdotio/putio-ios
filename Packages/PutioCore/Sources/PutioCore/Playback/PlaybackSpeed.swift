@@ -15,6 +15,11 @@ public enum PutioAudioSpeed: Float, CaseIterable, Sendable {
   case tripleAndHalf = 3.5
   case quadruple = 4
 
+  /// The tvOS speed menu, slowest first.
+  public static let tvMenu: [PutioAudioSpeed] = [
+    .quarter, .half, .slower, .normal, .faster, .fast, .double, .triple, .quadruple,
+  ]
+
   /// Locale-independent so the label, identifier, and persisted value agree.
   public var title: String {
     "\(identifier)×"
