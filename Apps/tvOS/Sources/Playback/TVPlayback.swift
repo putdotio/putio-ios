@@ -849,7 +849,18 @@ private struct TVTakesFocus: ViewModifier {
   func body(content: Content) -> some View {
     content
       .focusScope(scope)
-      .task { resetFocus(in: scope) }
+      .task {
+        for _ in 0..<20 where !Task.isCancelled && !Self.screenHasFocus {
+          resetFocus(in: scope)
+          try? await Task.sleep(for: .milliseconds(50))
+        }
+      }
+  }
+
+  private static var screenHasFocus: Bool {
+    UIApplication.shared.connectedScenes.contains {
+      ($0 as? UIWindowScene)?.focusSystem?.focusedItem != nil
+    }
   }
 }
 
