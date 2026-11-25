@@ -86,10 +86,6 @@ final class AudioJourneyTests: XCTestCase {
       .firstMatch
   }
 
-  private func hasFocus(_ identifier: String) -> Bool {
-    focused("identifier == '\(identifier)'").exists
-  }
-
   private func focused(_ predicate: String) -> XCUIElement {
     app.descendants(matching: .any)
       .matching(NSPredicate(format: "(\(predicate)) AND hasFocus == true")).firstMatch
