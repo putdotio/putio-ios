@@ -397,6 +397,8 @@ let project = Project(
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/audio/runtime-proof-audio.m4a" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-play/runtime-proof-direct.mkv" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-subtitles.srt" "$destination/"
             cp "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.m3u8 "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.ts \
               "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.vtt "$destination/multi-audio/"
             """,

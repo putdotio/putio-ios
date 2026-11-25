@@ -104,6 +104,55 @@ final class PlaybackJourneyTests: XCTestCase {
     leavePlayer()
   }
 
+  /// Direct play opens the original MKV in the engine with put.io controls:
+  /// the server's default subtitle renders its first cue, right skips ten
+  /// seconds forward, and a click pauses.
+  func testDirectPlayEngineWithPutioControls() {
+    launch(directPlay: true)
+    openFile("files.item.412")
+
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+    XCTAssertEqual(probeValue("video.source"), "original-engine")
+    XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.rate") == "1" })
+    XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" })
+    XCTAssertTrue(
+      label(containing: "Previously on Blue Lights.").waitForExistence(timeout: 10),
+      "the put.io subtitle renders its first cue")
+
+    let before = Int(probeValue("video.current-position") ?? "") ?? 0
+    remote.press(.right)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) {
+        (Int(self.probeValue("video.current-position") ?? "") ?? 0) >= before + 10
+      }, "right skips ten seconds forward")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.controls") == "shown" },
+      "a skip shows the controls")
+    attach("runtime-tv-playback-direct-controls")
+
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" }, "a click pauses")
+
+    // The end proposes the next file over the ended player; Cancel keeps it.
+    remote.press(.playPause)
+    XCTAssertTrue(probe("video.ended").waitForExistence(timeout: 40))
+    let nextTitle = element("video.next-title")
+    XCTAssertTrue(nextTitle.waitForExistence(timeout: 30))
+    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.play-next") })
+    attach("runtime-tv-playback-direct-up-next")
+    remote.press(.down)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.cancel-next") })
+    remote.press(.select)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { !self.element("video.next-title").exists }, "Cancel hides Up next")
+    XCTAssertTrue(element("video.screen.412").exists, "Cancel stays on the ended video")
+
+    remote.press(.playPause)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { !self.probe("video.ended").exists }, "Play restarts the video")
+  }
+
   /// The server's default subtitle is on, choosing Turkish keeps English
   /// audio, the chosen speed holds through pause and seeking without touching
   /// either track, Next file opens the folder's next video, and a subtitle
@@ -264,9 +313,12 @@ final class PlaybackJourneyTests: XCTestCase {
 
   // MARK: Helpers
 
-  private func launch(subtitled: Bool = false, subtitleTracks: String? = nil) {
+  private func launch(
+    subtitled: Bool = false, subtitleTracks: String? = nil, directPlay: Bool = false
+  ) {
     app.launchArguments = ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"]
     if subtitled { app.launchArguments.append("--putio-harness-subtitled-stream") }
+    if directPlay { app.launchArguments.append("--putio-harness-direct-play") }
     if let subtitleTracks {
       app.launchArguments += ["--putio-harness-subtitle-tracks", subtitleTracks]
     }

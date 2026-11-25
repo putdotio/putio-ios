@@ -1259,6 +1259,11 @@ enum TVPlaybackJourneyContract {
     "runtime-tv-playback-conversion-failure", "runtime-tv-playback-converting",
     "runtime-tv-playback-converted-resume",
   ]
+  static let directPlayTestIdentifier =
+    "PutioTVUITests/PlaybackJourneyTests/testDirectPlayEngineWithPutioControls"
+  static let directPlayAttachmentNames = [
+    "runtime-tv-playback-direct-controls", "runtime-tv-playback-direct-up-next",
+  ]
   static let audioTestIdentifier =
     "PutioTVUITests/AudioJourneyTests/testNowPlayingSleepTimerAndMiniPlayer"
   static let audioAttachmentNames = [
@@ -1288,16 +1293,18 @@ struct TVJourneyStep: Equatable, Sendable {
   let defaultAllowance: Int
   let maximumAllowance: Int
   let playsMedia: Bool
+  let checksWholeFrame: Bool
 
   init(
     _ name: String, _ testIdentifier: String, _ attachmentNames: [String],
-    allowance: (Int, Int), playsMedia: Bool = false
+    allowance: (Int, Int), playsMedia: Bool = false, checksWholeFrame: Bool = false
   ) {
     self.name = name
     self.testIdentifier = testIdentifier
     self.attachmentNames = attachmentNames
     (defaultAllowance, maximumAllowance) = allowance
     self.playsMedia = playsMedia
+    self.checksWholeFrame = checksWholeFrame
   }
 }
 
@@ -1332,6 +1339,10 @@ enum TVJourneyContract {
       "playback-conversion", TVPlaybackJourneyContract.conversionTestIdentifier,
       TVPlaybackJourneyContract.conversionAttachmentNames, allowance: (300, 420),
       playsMedia: true),
+    TVJourneyStep(
+      "playback-direct-play", TVPlaybackJourneyContract.directPlayTestIdentifier,
+      TVPlaybackJourneyContract.directPlayAttachmentNames, allowance: (180, 300),
+      playsMedia: true, checksWholeFrame: true),
     TVJourneyStep(
       "audio", TVPlaybackJourneyContract.audioTestIdentifier,
       TVPlaybackJourneyContract.audioAttachmentNames, allowance: (300, 420), playsMedia: true),

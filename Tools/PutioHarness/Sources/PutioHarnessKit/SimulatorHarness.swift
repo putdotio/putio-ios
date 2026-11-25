@@ -1180,6 +1180,8 @@ public struct SimulatorHarness {
             ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
             ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
             ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
+            ("runtime-proof-direct.mkv", "runtime-proof Direct play original"),
+            ("runtime-proof-subtitles.srt", "runtime-proof SRT subtitle"),
           ] {
             try requireNonemptyFile(mediaDirectory.appending(path: path), context: fixture)
           }
@@ -1207,7 +1209,8 @@ public struct SimulatorHarness {
             maximumExecutionTimeAllowance: step.maximumAllowance
           )
           let pixels = try zip(step.attachmentNames, screenshots).map {
-            try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+            try requireMeaningfulScreenshot(
+              $1, context: "\($0) attachment", wholeFrame: step.checksWholeFrame)
           }
           if step.name == "sign-in" {
             guard pixels[0].differsMeaningfully(from: pixels[1]),

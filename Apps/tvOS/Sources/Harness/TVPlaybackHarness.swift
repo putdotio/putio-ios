@@ -17,6 +17,7 @@ import SwiftUI
       _ resolution: PutioPlaybackResolution, account: PutioAccountSnapshot
     ) -> PutioPlaybackResolution {
       guard case .ready(let source) = resolution else { return resolution }
+      if let original = source.original { return .ready(direct(source, original: original)) }
       guard !HarnessSeededAPI.refusesPlayback else {
         return .ready(
           PutioPlaybackSource(
@@ -29,6 +30,23 @@ import SwiftUI
           url: baseURL.appending(path: subtitled ?? "runtime-proof.m3u8"),
           startFromSeconds: subtitled == nil ? source.startFromSeconds : 0))
     }
+
+    /// Direct play swaps the original for the MKV fixture and every put.io
+    /// subtitle for the SRT fixture, as the iOS journey does.
+    private func direct(
+      _ source: PutioPlaybackSource, original: PutioOriginalPlayback
+    ) -> PutioPlaybackSource {
+      let subtitles = original.subtitles.map { subtitle in
+        PutioCastSubtitle(
+          key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
+          name: subtitle.name, source: subtitle.source,
+          url: baseURL.appending(path: "runtime-proof-subtitles.srt"))
+      }
+      return PutioPlaybackSource(
+        url: baseURL.appending(path: "runtime-proof-direct.mkv"),
+        startFromSeconds: 0,
+        original: original.subtitles(subtitles, defaultKey: original.defaultSubtitleKey))
+    }
   }
 #endif
 
@@ -38,6 +56,8 @@ import SwiftUI
 @Observable
 final class TVPlaybackProbes {
   var resumePosition: Int?
+  var source: String?
+  var controlsShown: Bool?
   var isReady = false
   var currentPosition: Int?
   var audioLanguage: String?
@@ -72,6 +92,7 @@ final class TVPlaybackProbes {
       values.append(Probe("video.resume-position", "Resume position", "\(resumePosition)"))
     }
     if isReady { values.append(Probe("video.ready", "Video ready", "")) }
+    if let source { values.append(Probe("video.source", "Playback source", source)) }
     if let currentPosition {
       values.append(
         Probe("video.current-position", "Current playback position", "\(currentPosition)"))
@@ -82,6 +103,9 @@ final class TVPlaybackProbes {
     if let subtitle { values.append(Probe("video.subtitle", "Selected subtitle", subtitle)) }
     if let speed { values.append(Probe("video.speed", "Selected speed", Self.format(speed))) }
     if let rate { values.append(Probe("video.rate", "Current rate", Self.format(rate))) }
+    if let controlsShown {
+      values.append(Probe("video.controls", "Player controls", controlsShown ? "shown" : "hidden"))
+    }
     if ended { values.append(Probe("video.ended", "Playback reached end", "")) }
     if let speeds {
       values.append(Probe("video.speeds", "Offered speeds", speeds.joined(separator: ",")))
