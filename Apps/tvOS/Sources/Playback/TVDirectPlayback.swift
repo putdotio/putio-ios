@@ -310,7 +310,9 @@ struct TVDirectVideoPlayer: View {
       visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: transport.isPlaying)
     }
     .onChange(of: transport.isPlaying) { _, _ in visibility.interacted() }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("video.direct-player")
+    .accessibilityValue(transport.isPlaying ? "playing" : "paused")
   }
 
   private var showsControls: Bool {

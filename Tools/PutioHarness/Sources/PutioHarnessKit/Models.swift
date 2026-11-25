@@ -1259,6 +1259,11 @@ enum TVPlaybackJourneyContract {
     "runtime-tv-playback-conversion-failure", "runtime-tv-playback-converting",
     "runtime-tv-playback-converted-resume",
   ]
+  static let directPlayTestIdentifier =
+    "PutioTVUITests/PlaybackJourneyTests/testDirectPlayEngineWithPutioControls"
+  static let directPlayAttachmentNames = [
+    "runtime-tv-playback-direct-play", "runtime-tv-playback-direct-controls",
+  ]
   static let audioTestIdentifier =
     "PutioTVUITests/AudioJourneyTests/testNowPlayingSleepTimerAndMiniPlayer"
   static let audioAttachmentNames = [
@@ -1331,6 +1336,10 @@ enum TVJourneyContract {
     TVJourneyStep(
       "playback-conversion", TVPlaybackJourneyContract.conversionTestIdentifier,
       TVPlaybackJourneyContract.conversionAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
+    TVJourneyStep(
+      "playback-direct-play", TVPlaybackJourneyContract.directPlayTestIdentifier,
+      TVPlaybackJourneyContract.directPlayAttachmentNames, allowance: (180, 300),
       playsMedia: true),
     TVJourneyStep(
       "audio", TVPlaybackJourneyContract.audioTestIdentifier,

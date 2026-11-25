@@ -1180,6 +1180,8 @@ public struct SimulatorHarness {
             ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
             ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
             ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
+            ("runtime-proof-direct.mkv", "runtime-proof Direct play original"),
+            ("runtime-proof-subtitles.srt", "runtime-proof SRT subtitle"),
           ] {
             try requireNonemptyFile(mediaDirectory.appending(path: path), context: fixture)
           }

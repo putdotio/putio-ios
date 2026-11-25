@@ -82,8 +82,10 @@ import Foundation
     /// Unset like a fresh account, so playback holds landscape by default.
     nonisolated(unsafe) private static var autoRotateVideo: Bool? =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-rotate-off") ? false : nil
+    static let directPlayArgument = "--putio-harness-direct-play"
     nonisolated(unsafe) private static var streamingMethod: String? =
-      failingOriginal == nil ? nil : "file"
+      failingOriginal != nil || ProcessInfo.processInfo.arguments.contains(directPlayArgument)
+      ? "file" : nil
     nonisolated(unsafe) private static var streamingMethodSaveFailed = false
     /// Journeys never meet the analytics prompt: the document answers it
     /// unless a run asks for the prompt, which leaves the key unset.

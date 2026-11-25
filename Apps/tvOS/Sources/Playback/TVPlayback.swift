@@ -177,7 +177,10 @@ struct TVVideoPlaybackView: View {
       }
       .onChange(of: model.state) { _, state in
         probes.record(state)
-        if case .ready(let source) = state { probes.resumePosition = source.startFromSeconds }
+        if case .ready(let source) = state {
+          probes.resumePosition = source.startFromSeconds
+          probes.source = source.original?.player == .engine ? "original-engine" : "stream"
+        }
       }
       .onChange(of: nextVideoModel.state) { _, state in
         guard case .playing(let next) = state else { return }
