@@ -63,12 +63,12 @@ final class HomeJourneyTests: XCTestCase {
     XCTAssertTrue(card(414).waitForExistence(timeout: 15), "the card survives a relaunch")
 
     XCTAssertTrue(TVTabBar(app).open("Account"))
-    XCTAssertTrue(focus("auth.sign-out", moving: .down, limit: 14))
+    let signOut = app.buttons["auth.sign-out"]
+    XCTAssertTrue(focusButton(signOut))
     remote.press(.select)
-    let confirm = element("auth.sign-out-confirm")
+    let confirm = app.buttons["auth.sign-out-confirm"]
     XCTAssertTrue(confirm.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus("auth.sign-out-confirm", moving: .down, limit: 4))
-    remote.press(.select)
+    XCTAssertTrue(selectAlertButton(confirm))
     XCTAssertTrue(waitUntil(timeout: 15) { !self.app.tabBars.firstMatch.exists })
 
     relaunch(["--putio-harness-continue-watching", "keep"])
@@ -191,6 +191,38 @@ final class HomeJourneyTests: XCTestCase {
     pause(0.5)
     remote.press(.select)
     pause(1)
+  }
+
+  /// Account's sign-out is the last row of the settings list.
+  private func focusButton(_ button: XCUIElement) -> Bool {
+    for _ in 0..<24 {
+      if waitUntil(timeout: 1, { button.exists && button.hasFocus }) { return true }
+      remote.press(.down)
+    }
+    return waitUntil(timeout: 2) { button.exists && button.hasFocus }
+  }
+
+  /// Each alert button appears twice in the tree and only the outer copy
+  /// reports focus, so the focused copy is matched to the target by frame.
+  private func selectAlertButton(_ target: XCUIElement) -> Bool {
+    pause(1)
+    let goal = target.frame
+    for _ in 0..<6 {
+      let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists else { return false }
+      let current = focused.frame
+      if abs(current.midX - goal.midX) < 4, abs(current.midY - goal.midY) < 4 {
+        remote.press(.select)
+        return true
+      }
+      if abs(current.midY - goal.midY) >= 4 {
+        remote.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        remote.press(goal.midX > current.midX ? .right : .left)
+      }
+      pause(0.5)
+    }
+    return false
   }
 
   private func openFile(_ identifier: String) {
