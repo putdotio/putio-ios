@@ -2,22 +2,6 @@ import PutioCore
 import SwiftUI
 
 enum TVFilePresentation {
-  /// The rows a long press performs today, from the shared menu with the
-  /// Apple TV preset. Trash waits for the account's trash setting.
-  static func menuActions(
-    for item: PutioFileItem, account: PutioAccountSnapshot, canDelete: Bool
-  ) -> [PutioFileMenuRow] {
-    let menu = PutioFileMenu(
-      item: item, capabilities: .tv(tracksWatched: account.rememberVideoTime, pinned: nil))
-    return menu.sections.joined().filter { row in
-      switch row {
-      case .markWatched, .markUnwatched: true
-      case .trash: canDelete
-      default: false
-      }
-    }
-  }
-
   /// A folder without its own sort follows the account default.
   static func effectiveSort(
     _ folderSort: PutioFolderSort?, account: PutioAccountSnapshot
@@ -30,46 +14,6 @@ extension TVRoute {
   /// Folders open the browser; any other file opens its own screen.
   static func opening(_ item: PutioFileItem) -> TVRoute {
     item.kind == .folder ? .folder(PutioFolderRoute(id: item.id, title: item.name)) : .file(item)
-  }
-}
-
-/// A focusable file row: select opens it, a long press asks for its menu.
-struct TVFileRowButton: View {
-  let presentation: PutioBrowserItemPresentation
-  let identifier: String
-  /// Whether this row's menu is up.
-  let isMenuOpen: Bool
-  let open: () -> Void
-  let showMenu: () -> Void
-
-  @State private var endsLongPress = false
-
-  var body: some View {
-    Button {
-      // tvOS still delivers the select that ends a long press, however long
-      // it was held; that one belongs to the menu, not to opening the row.
-      if endsLongPress || isMenuOpen {
-        endsLongPress = false
-        return
-      }
-      open()
-    } label: {
-      PutioFileRow(presentation.row)
-    }
-    // A plain long-press modifier never sees the press a tvOS button owns.
-    .simultaneousGesture(
-      LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-        endsLongPress = true
-        showMenu()
-      }
-    )
-    // Answering the menu takes another press, so the long one has ended by
-    // the time it closes, whether or not its select reached the row.
-    .onChange(of: isMenuOpen) { _, isOpen in
-      if !isOpen { endsLongPress = false }
-    }
-    .tvRowOpen(isMenuOpen)
-    .accessibilityIdentifier(identifier)
   }
 }
 
@@ -97,78 +41,6 @@ struct TVFocusHandoff: ViewModifier {
     guard let row = target else { return }
     target = nil
     focusedRow.wrappedValue = row
-  }
-}
-
-/// The long-press menu and the permanent-delete confirmation, both centered
-/// alerts. Trash moves are recoverable and run without a confirmation.
-struct TVFileMenuModifier: ViewModifier {
-  @Binding var item: PutioFileItem?
-  let account: PutioAccountSnapshot
-  let canDelete: Bool
-  let setWatched: (PutioFileItem, Bool) -> Void
-  let delete: (PutioFileItem) -> Void
-
-  @State private var confirmingDelete: PutioFileItem?
-
-  func body(content: Content) -> some View {
-    let confirmation = confirmingDelete.map { item in
-      PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) { delete(item) }
-    }
-    content
-      .alert(
-        item?.name ?? "",
-        isPresented: Binding(get: { item != nil }, set: { if !$0 { item = nil } }),
-        presenting: item
-      ) { item in
-        let actions = TVFilePresentation.menuActions(
-          for: item, account: account, canDelete: canDelete)
-        ForEach(actions, id: \.self) { row in
-          let title = row.title(for: item, trashEnabled: account.trashEnabled) ?? ""
-          switch PutioFileItemActionRequest(row: row, item: item)?.step(
-            trashEnabled: account.trashEnabled)
-          {
-          case .setWatched(_, let watched):
-            Button(title) { setWatched(item, watched) }
-              .accessibilityIdentifier(watched ? "files.menu.watched" : "files.menu.unwatched")
-          case .trash:
-            Button(title, role: .destructive) { delete(item) }
-              .accessibilityIdentifier("files.menu.delete")
-          case .confirmPermanentDelete:
-            Button(title, role: .destructive) { confirmingDelete = item }
-              .accessibilityIdentifier("files.menu.delete")
-          case .askForName, .pickDestination, nil:
-            EmptyView()
-          }
-        }
-        Button("Cancel", role: .cancel) {}
-      }
-      .alert(
-        confirmation?.title ?? "",
-        isPresented: Binding(
-          get: { confirmingDelete != nil }, set: { if !$0 { confirmingDelete = nil } }),
-        presenting: confirmingDelete
-      ) { item in
-        Button(confirmation?.confirmTitle ?? "", role: .destructive) { delete(item) }
-          .accessibilityIdentifier("files.delete-confirm")
-        Button("Cancel", role: .cancel) {}
-          .accessibilityIdentifier("files.delete-cancel")
-      } message: { _ in
-        Text(confirmation?.message ?? "")
-      }
-  }
-}
-
-extension View {
-  func tvFileMenu(
-    item: Binding<PutioFileItem?>, account: PutioAccountSnapshot, canDelete: Bool,
-    setWatched: @escaping (PutioFileItem, Bool) -> Void,
-    delete: @escaping (PutioFileItem) -> Void
-  ) -> some View {
-    modifier(
-      TVFileMenuModifier(
-        item: item, account: account, canDelete: canDelete, setWatched: setWatched,
-        delete: delete))
   }
 }
 
@@ -294,7 +166,11 @@ struct TVFolderView: View {
         Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
       }
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
-      .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
+      .modifier(
+        TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast) {
+          focusTarget = shownItemID
+        }
+      )
       .putioToast($toast)
       .task(id: route.id) {
         guard loadsOnAppear else { return }
@@ -334,7 +210,7 @@ struct TVFolderView: View {
       }
       .onChange(of: model.actionOutcome) { _, outcome in
         guard let outcome else { return }
-        toast = Self.toast(for: outcome, trashEnabled: account.trashEnabled)
+        toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         model.clearActionOutcome()
       }
       .onChange(of: pins?.editFailure) { _, failure in
@@ -347,20 +223,6 @@ struct TVFolderView: View {
   private var deleteConfirmation: PutioConfirmAlert? {
     confirmingDelete.map { _ in
       PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) {}
-    }
-  }
-
-  static func toast(for outcome: PutioFileActionOutcome, trashEnabled: Bool) -> PutioToast? {
-    guard let title = outcome.toastTitle(trashEnabled: trashEnabled) else { return nil }
-    switch outcome {
-    case .failed:
-      return PutioToast(title, icon: .warning, width: .fit)
-    case .succeeded(.delete):
-      return PutioToast(title, icon: .symbol(.trash), width: .fit)
-    case .succeeded(.setWatched(_, _, _, let watched)):
-      return PutioToast(title, icon: .symbol(watched ? .eye : .eyeSlash), width: .fit)
-    case .succeeded:
-      return PutioToast(title, width: .fit)
     }
   }
 
@@ -578,57 +440,20 @@ struct TVFolderView: View {
     return { pins.isPinned($0) }
   }
 
-  private func panelRows(for item: PutioFileItem) -> [[PutioFileMenuRow]] {
+  private func panel(_ item: PutioFileItem) -> some View {
     let menu = PutioFileMenu(
       item: item,
       capabilities: .tv(
         tracksWatched: account.rememberVideoTime, pinned: pinnedState(item.id)))
-    return menu.sections.map { section in
-      section.filter { row in
-        switch row {
-        case .open, .play, .markWatched, .markUnwatched, .rename, .pin, .unpin: true
-        case .startOver: play != nil
-        case .openInVLC: externalPlayback != nil
-        case .trash: model.canDelete
-        default: false
-        }
-      }
-    }
-    .filter { !$0.isEmpty }
-  }
-
-  private func panel(_ item: PutioFileItem) -> some View {
-    let row = PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale, sort: sort)
-      .row
-    let sections = panelRows(for: item)
-    return TVDetailPanel(icon: row.kind.icon, title: item.name, identifier: "files.panel") {
-      HStack(spacing: PutioTheme.TV.Spacing.xs) {
-        if let size = row.sizeText {
-          Text(size)
-            .putioFont(PutioTheme.TV.Typography.numeric)
-          Text(verbatim: "·").accessibilityHidden(true)
-        }
-        Text(row.dateText ?? "")
-      }
-    } facts: {
-      EmptyView()
-    } actions: {
-      ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
-        if section.contains(.trash) { TVDetailDivider() }
-        ForEach(section, id: \.panelSlot) { menuRow in
-          if let title = menuRow.title(
-            for: item, style: .panel, trashEnabled: account.trashEnabled)
-          {
-            TVDetailAction(
-              title: title, icon: menuRow.icon, isDestructive: menuRow.isDestructive
-            ) {
-              perform(menuRow, on: item)
-            }
-            .accessibilityIdentifier("files.panel.\(menuRow.rawValue)")
-          }
-        }
-      }
-    }
+    return TVFilePanel(
+      item: item,
+      row: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale, sort: sort)
+        .row,
+      sections: TVFilePresentation.panelRows(
+        menu, canStartOver: play != nil, canOpenInVLC: externalPlayback != nil,
+        canDelete: model.canDelete),
+      trashEnabled: account.trashEnabled, identifier: "files.panel"
+    ) { perform($0, on: item) }
     .disabled(!model.canStartAction)
   }
 
@@ -701,16 +526,6 @@ struct TVFolderView: View {
   private struct PendingRefresh: Equatable {
     let sequence: PutioFolderRefreshRequests.Sequence?
     let loaded: Bool
-  }
-}
-
-extension PutioFileMenuRow {
-  fileprivate var panelSlot: String {
-    switch self {
-    case .unpin: PutioFileMenuRow.pin.rawValue
-    case .markUnwatched: PutioFileMenuRow.markWatched.rawValue
-    default: rawValue
-    }
   }
 }
 

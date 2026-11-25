@@ -105,11 +105,13 @@ public struct PutioEmptyStateView: View {
     message: String? = nil,
     actionTitle: String? = nil,
     actionIcon: PutioIcon? = nil,
+    actionIdentifier: String? = nil,
     action: (() -> Void)? = nil
   ) {
     self.init(
       kaomoji: kaomoji, title: title, attributedMessage: message.map(AttributedString.init),
-      actionTitle: actionTitle, actionIcon: actionIcon, action: action)
+      actionTitle: actionTitle, actionIcon: actionIcon, actionIdentifier: actionIdentifier,
+      action: action)
   }
 
   public init(
@@ -118,13 +120,14 @@ public struct PutioEmptyStateView: View {
     attributedMessage: AttributedString?,
     actionTitle: String? = nil,
     actionIcon: PutioIcon? = nil,
+    actionIdentifier: String? = nil,
     action: (() -> Void)? = nil
   ) {
     self.glyph = .kaomoji(kaomoji)
     self.title = title
     self.message = attributedMessage
     self.action = PutioScreenStateAction.optional(
-      title: actionTitle, icon: actionIcon, perform: action)
+      title: actionTitle, icon: actionIcon, identifier: actionIdentifier, perform: action)
   }
 
   public static func folder(createFolder: (() -> Void)? = nil) -> Self {

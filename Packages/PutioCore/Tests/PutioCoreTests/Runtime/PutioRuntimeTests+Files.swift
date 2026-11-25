@@ -27,6 +27,28 @@ extension PutioRuntimeTests {
     XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
+  func testOfflineSearchesFailAsOfflineAndKeepTheSession() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    fixtures.setNetworkFailure(true, for: Self.searchRoute)
+    fixtures.setNetworkFailure(true, for: Self.searchContinueRoute)
+    do {
+      _ = try await runtime.searchFiles(query: "sintel")
+      XCTFail("expected offline")
+    } catch {
+      XCTAssertEqual(error as? PutioFolderLoadError, .offline)
+    }
+    do {
+      _ = try await runtime.continueFileSearch(cursor: "next")
+      XCTFail("expected offline")
+    } catch {
+      XCTAssertEqual(error as? PutioFolderLoadError, .offline)
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("an offline search ended the session")
+    }
+    XCTAssertNotNil(try? tokenStore.read())
+  }
+
   func testListNamesForbiddenUnavailableAndOfflineFoldersWithoutExpiringTheSession() async {
     let cases: [(statusCode: Int?, expected: PutioFolderLoadError)] = [
       (403, .forbidden), (503, .unavailable), (nil, .offline),

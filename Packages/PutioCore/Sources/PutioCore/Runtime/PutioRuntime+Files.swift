@@ -81,14 +81,22 @@ extension PutioRuntime {
   ) async throws -> PutioFileSearchPage {
     let types = Self.searchTypes(filter)
     let result = try await performAuthenticatedOperation {
-      try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query, types: types))
+      do {
+        return try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query, types: types))
+      } catch let error as PutioSDKError where Self.folderLoadError(error) == .offline {
+        throw PutioFolderLoadError.offline
+      }
     }
     return try searchPage(from: result)
   }
 
   public func continueFileSearch(cursor: String) async throws -> PutioFileSearchPage {
     let result = try await performAuthenticatedOperation {
-      try await sdk.continueFileSearch(cursor: cursor)
+      do {
+        return try await sdk.continueFileSearch(cursor: cursor)
+      } catch let error as PutioSDKError where Self.folderLoadError(error) == .offline {
+        throw PutioFolderLoadError.offline
+      }
     }
     if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
       throw PutioRuntimeError.invalidResponse
