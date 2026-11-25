@@ -66,6 +66,9 @@ Videos play in the system player, which owns transport, subtitles, audio, and
 speed. A saved position asks first in a centered pre-play overlay: the raw
 filename, a progress preview of the focused choice, and two stacked buttons with
 the system focus fill. Up Next uses the same overlay shape.
+A pushed screen always keeps something focusable: with nothing to focus, focus
+falls to the tab bar and Menu quits the app, so empty states take focus
+without a highlight (`.focusable().focusEffectDisabled()`).
 
 Watch interactions are counts, states, and remote control, with one action per
 screen. File browsing and text entry belong on the phone.
