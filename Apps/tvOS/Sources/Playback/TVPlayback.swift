@@ -729,7 +729,9 @@ final class TVVideoPlayerCoordinator {
     waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
     session.onSubtitleSelected = probes.map { probes in { probes.subtitle = $0 } }
 
-    controller.speeds = AVPlaybackSpeed.systemDefaultSpeeds
+    controller.speeds = PutioAudioSpeed.tvMenu.map {
+      AVPlaybackSpeed(rate: $0.rawValue, localizedName: $0.title)
+    }
     let base =
       source
       ?? PutioPlaybackSource(

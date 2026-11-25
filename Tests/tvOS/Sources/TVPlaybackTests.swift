@@ -145,10 +145,10 @@ final class TVPlaybackTests: XCTestCase {
     }
   }
 
-  /// The native speed control lists the system rates; the chosen rate is the
+  /// The speed control lists the board's nine rates; the chosen rate is the
   /// one playback resumes at after a pause and keeps through a seek, and the
   /// next playback starts at it, as on iOS.
-  func testSpeedControlOffersTheSystemRatesAndHoldsThroughPauseAndSeek() async throws {
+  func testSpeedControlOffersTheBoardRatesAndHoldsThroughPauseAndSeek() async throws {
     let (server, base) = try await serveMedia()
     defer { server.stop() }
     let speeds = speedStore()
@@ -156,7 +156,8 @@ final class TVPlaybackTests: XCTestCase {
       base: base, startSeconds: 0, remembersPosition: false,
       pipeline: PutioPlaybackPositionPipeline(), reported: ReportedPositions(), speeds: speeds)
     let player = try XCTUnwrap(coordinator.player)
-    XCTAssertEqual(controller.speeds.map(\.rate), [2, 1.5, 1.25, 1, 0.5])
+    XCTAssertEqual(controller.speeds.map(\.rate), [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4])
+    XCTAssertEqual(controller.speeds.first?.localizedName, "0.25×")
     XCTAssertEqual(player.defaultRate, 1)
 
     let faster = try XCTUnwrap(controller.speeds.first { $0.rate == 1.5 })
