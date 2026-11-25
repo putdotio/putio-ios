@@ -89,12 +89,12 @@ struct TVPrivacyControlsScreen: View {
     save mutation: @escaping (Bool) -> PutioAccountPreferenceMutation
   ) -> some View {
     Button {
+      guard status.canSave else { return }
       save(mutation(!isOn))
     } label: {
       TVPrivacyRow(control: control, value: TVAccountScreen.onOff(isOn))
         .tvRowPadding()
     }
-    .disabled(!status.canSave)
     .accessibilityIdentifier(identifier)
     .accessibilityValue(TVAccountScreen.onOff(isOn))
   }
@@ -156,6 +156,7 @@ struct TVLicensesView: View {
             .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
             .padding(.horizontal, PutioTheme.TV.Spacing.medium)
             .fixedSize(horizontal: false, vertical: true)
+            .tvFocusAnchor(notices.isEmpty)
           ForEach(notices) { notice in
             Button {
             } label: {

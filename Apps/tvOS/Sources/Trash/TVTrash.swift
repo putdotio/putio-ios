@@ -199,7 +199,9 @@ struct TVTrashView: View {
     case .loading:
       titled {
         PutioLoadingStateView(
-          title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden)
+          title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden
+        )
+        .tvFocusAnchor()
       }
     case .failed:
       titled {
@@ -225,6 +227,7 @@ struct TVTrashView: View {
               localized: "Files you move to trash stay here for 14 days.", bundle: .putioCore)
           )
           .accessibilityIdentifier("trash.empty-state")
+          .tvFocusAnchor()
         }
       } else {
         HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {

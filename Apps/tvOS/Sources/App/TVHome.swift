@@ -35,8 +35,7 @@ struct TVHomeEmptyState: View {
         .accessibilityLabel(Text("QR code that opens put.io", bundle: .putioCore))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .focusable()
-    .focusEffectDisabled()
+    .tvFocusAnchor()
     .accessibilityIdentifier("home.empty")
   }
 }

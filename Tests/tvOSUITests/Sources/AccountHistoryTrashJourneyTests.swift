@@ -163,6 +163,20 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(element("trash.empty-state").waitForExistence(timeout: 15))
     XCTAssertTrue(isCentered(element("trash.empty-state")), "Trash's empty state is off-center")
     attach("runtime-tv-trash-empty")
+    XCTAssertTrue(menuReturnsToAccount(), "Menu left the empty trash's app")
+
+    // A trash that never finishes loading still answers Menu.
+    app.terminate()
+    app.launchArguments = [
+      "--putio-harness-scenario", "signed-in", "--putio-harness-trash", "slow",
+    ]
+    app.launch()
+    XCTAssertTrue(TVTabBar(app).open("Account"))
+    remote.press(.down)
+    XCTAssertTrue(focus("account.manage-trash"))
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 10) { self.app.activityIndicators.count > 0 })
+    XCTAssertTrue(menuReturnsToAccount(), "Menu left the loading trash's app")
   }
 
   /// Settings cycle in place, the proxy menu recovers a failed listing, a
@@ -253,6 +267,29 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
     XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
+
+    // A privacy toggle keeps focus while it saves.
+    XCTAssertTrue(focus("account.privacy"))
+    remote.press(.select)
+    let diagnostics = element("privacy.diagnostics")
+    XCTAssertTrue(diagnostics.waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("privacy.diagnostics"))
+    let before = diagnostics.value as? String
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 10) { diagnostics.value as? String != before })
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("privacy.diagnostics") },
+      "saving a privacy toggle took its focus")
+    remote.press(.menu)
+    XCTAssertTrue(
+      element("account.privacy").waitForExistence(timeout: 5), "Menu left the privacy controls' app"
+    )
+  }
+
+  private func menuReturnsToAccount() -> Bool {
+    remote.press(.menu)
+    return element("account.manage-trash").waitForExistence(timeout: 5)
+      && app.state == .runningForeground
   }
 
   // MARK: - Remote helpers
