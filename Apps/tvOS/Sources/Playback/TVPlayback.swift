@@ -988,7 +988,7 @@ final class TVVideoPlayerCoordinator {
     }
     checkedErrorEvents = events.count
     let failing = Set(fresh.compactMap { $0.uri.flatMap(URL.init(string:))?.absoluteURL })
-    let failedSegment = failing.contains { $0.pathExtension.lowercased() == "vtt" }
+    let failedSegments = failing.filter { $0.pathExtension.lowercased() == "vtt" }
     guard !failing.isEmpty else { return }
     let renditions = subtitleRenditions
     Task { @MainActor [weak self] in
@@ -999,7 +999,14 @@ final class TVVideoPlayerCoordinator {
         renditions.count == group.options.count ? renditions[$0] : nil
       }
       let failedPlaylist = rendition.map(failing.contains) ?? !failing.isDisjoint(with: renditions)
-      guard let self, failedPlaylist || failedSegment else { return }
+      var failedSegment = rendition == nil && !failedSegments.isEmpty
+      if !failedPlaylist, !failedSegments.isEmpty, let rendition {
+        failedSegment =
+          await Self.segments(of: rendition).map { !$0.isDisjoint(with: failedSegments) } ?? false
+      }
+      guard let self, failedPlaylist || failedSegment,
+        item.currentMediaSelection.selectedMediaOption(in: group) == selected
+      else { return }
       failureTurnedSubtitlesOff = true
       item.select(nil, in: group)
       subtitleMemory?.forget(
@@ -1009,6 +1016,13 @@ final class TVVideoPlayerCoordinator {
       probes?.subtitle = "off"
       onSubtitleFailed?()
     }
+  }
+
+  private static func segments(of rendition: URL) async -> Set<URL>? {
+    guard let (data, _) = try? await URLSession.shared.data(from: rendition),
+      let text = String(data: data, encoding: .utf8)
+    else { return nil }
+    return PutioSubtitleRenditions.segments(inMediaPlaylist: text, relativeTo: rendition)
   }
 
   private func watchSubtitlePicks(of item: AVPlayerItem, controller: AVPlayerViewController) {

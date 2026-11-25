@@ -182,4 +182,12 @@ public enum PutioSubtitleRenditions {
     }
     return uris
   }
+
+  public static func segments(inMediaPlaylist text: String, relativeTo base: URL) -> Set<URL> {
+    Set(
+      text.split(whereSeparator: \.isNewline)
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.isEmpty && !$0.hasPrefix("#") }
+        .compactMap { URL(string: $0, relativeTo: base)?.absoluteURL })
+  }
 }
