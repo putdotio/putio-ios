@@ -30,20 +30,16 @@ final class FileRowGalleryTests: XCTestCase {
 
     for entry in cases {
       let name = "Blue.Lights.S04E\(entry.episode).1080p.HDTV.H264-ORGANiC.mkv"
+      let control = revealedButton("\(entry.label), \(name)")
+      XCTAssertTrue(
+        control.appears(within: 5) && control.becomesHittable(within: 5),
+        "no trailing control for \(name)")
+      control.tap()
+      revealTop()
       let expected = "Last action: \(entry.reported) \(name)"
-      let previous = reported.label
-      for _ in 0..<2 {
-        let control = revealedButton("\(entry.label), \(name)")
-        XCTAssertTrue(
-          control.appears(within: 5) && control.becomesHittable(within: 5),
-          "no trailing control for \(name)")
-        control.tap()
-        revealTop()
-        let landed = XCTNSPredicateExpectation(
-          predicate: NSPredicate(format: "label == %@", expected), object: reported)
-        _ = XCTWaiter.wait(for: [landed], timeout: 5 * XCUIElement.timeoutScale)
-        if reported.label != previous { break }
-      }
+      let landed = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "label == %@", expected), object: reported)
+      _ = XCTWaiter.wait(for: [landed], timeout: 5 * XCUIElement.timeoutScale)
       XCTAssertEqual(reported.label, expected)
     }
   }
@@ -52,7 +48,7 @@ final class FileRowGalleryTests: XCTestCase {
     let button = app.buttons[label]
     var swipes = 0
     while !button.isHittable, swipes < 6 {
-      app.swipeUp()
+      drag(from: 0.7, to: 0.3)
       swipes += 1
     }
     return button
@@ -61,8 +57,15 @@ final class FileRowGalleryTests: XCTestCase {
   private func revealTop() {
     var swipes = 0
     while !app.staticTexts["gallery.files.reported-action"].isHittable, swipes < 6 {
-      app.swipeDown()
+      drag(from: 0.3, to: 0.7)
       swipes += 1
     }
+  }
+
+  private func drag(from start: CGFloat, to end: CGFloat) {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start)).press(
+      forDuration: 0.05,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: end)),
+      withVelocity: .slow, thenHoldForDuration: 0.2)
   }
 }
