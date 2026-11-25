@@ -350,16 +350,29 @@ final class TVPlaybackTests: XCTestCase {
   func testUpNextMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-up-next",
-      view: TVUpNextView(
-        nextVideo: PutioNextVideo(
-          id: PutioFileID(rawValue: 414), parentID: .root, name: "Root Movie 2.mkv"),
-        autoplaySecondsRemaining: 3, onPlay: {}, onCancel: {}),
+      view: TVUpNextCard(
+        next: Self.nextVideo, folderName: "Big Buck Bunny", secondsLeft: 8, play: {}, close: {}
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testUpNextWithoutAutoplayMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-up-next-off",
+      view: TVUpNextCard(
+        next: Self.nextVideo, folderName: "Big Buck Bunny", secondsLeft: nil, play: {}, close: {}
+      )
+      .background(Color.gray),
       size: viewport)
   }
 
   // MARK: Helpers
 
   private static let fileID = PutioFileID(rawValue: 412)
+  private static let nextVideo = PutioNextVideo(
+    id: PutioFileID(rawValue: 414), parentID: PutioFileID(rawValue: 40),
+    name: "Big Buck Bunny.part2.mp4")
 
   private func speedStore() -> PutioAudioSpeedStore {
     let suite = "io.put.tests.tv-playback-speed"
