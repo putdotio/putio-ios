@@ -113,8 +113,7 @@ final class PlaybackJourneyTests: XCTestCase {
 
     XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
     XCTAssertEqual(probeValue("video.source"), "original-engine")
-    let player = element("video.direct-player")
-    XCTAssertTrue(player.waitForExistence(timeout: 5))
+    XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.rate") == "1" })
     XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" })
     XCTAssertTrue(
       label(containing: "Previously on Blue Lights.").waitForExistence(timeout: 10),
@@ -131,8 +130,7 @@ final class PlaybackJourneyTests: XCTestCase {
     attach("runtime-tv-playback-direct-controls")
 
     remote.press(.select)
-    XCTAssertTrue(
-      waitUntil(timeout: 5) { player.value as? String == "paused" }, "a click pauses")
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" }, "a click pauses")
   }
 
   /// The server's default subtitle is on, choosing Turkish keeps English

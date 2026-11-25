@@ -229,6 +229,7 @@ struct TVDirectVideoPlayer: View {
   let reportPosition: PutioPlaybackPositionReport
   let callbacks: PutioVideoPlayerCallbacks
   let onReportsSettled: @MainActor () -> Void
+  let onRateChanged: @MainActor (Float) -> Void
   let onExit: @MainActor () -> Void
 
   init(
@@ -237,6 +238,7 @@ struct TVDirectVideoPlayer: View {
     pipeline: PutioPlaybackPositionPipeline, reportPosition: @escaping PutioPlaybackPositionReport,
     wait: PutioVideoWaitModel, callbacks: PutioVideoPlayerCallbacks,
     onReportsSettled: @escaping @MainActor () -> Void = {},
+    onRateChanged: @escaping @MainActor (Float) -> Void = { _ in },
     onExit: @escaping @MainActor () -> Void
   ) {
     self.title = title
@@ -249,6 +251,7 @@ struct TVDirectVideoPlayer: View {
     self.reportPosition = reportPosition
     self.callbacks = callbacks
     self.onReportsSettled = onReportsSettled
+    self.onRateChanged = onRateChanged
     self.onExit = onExit
     _transport = State(initialValue: TVDirectTransport(wait: wait))
   }
@@ -310,9 +313,10 @@ struct TVDirectVideoPlayer: View {
       visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: transport.isPlaying)
     }
     .onChange(of: transport.isPlaying) { _, _ in visibility.interacted() }
-    .accessibilityElement(children: .contain)
+    .onChange(of: transport.isPlaying, initial: true) { _, playing in
+      onRateChanged(playing ? transport.speed.rawValue : 0)
+    }
     .accessibilityIdentifier("video.direct-player")
-    .accessibilityValue(transport.isPlaying ? "playing" : "paused")
   }
 
   private var showsControls: Bool {
