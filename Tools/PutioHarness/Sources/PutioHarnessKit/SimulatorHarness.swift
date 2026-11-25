@@ -1219,8 +1219,8 @@ public struct SimulatorHarness {
           resultBundle: settingsBundle,
           attachmentNames: TVAccountJourneyContract.settingsAttachmentNames,
           artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 240,
-          maximumExecutionTimeAllowance: 360
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 300
         )
         let browseBundle = platformDirectory.appending(path: ".tv-browse.xcresult")
         let browseScreenshots = try runJourneyPreflightTest(

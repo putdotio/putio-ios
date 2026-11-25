@@ -234,7 +234,6 @@ struct TVFolderView: View {
         header(nil, showsActions: true)
         PutioLoadingStateView(title: TVFolderCopy.loading, titleVisibility: .hidden)
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .tvFocusAnchor()
       }
     case .failed:
       PutioErrorStateView(

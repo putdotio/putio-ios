@@ -199,9 +199,7 @@ struct TVTrashView: View {
     case .loading:
       titled {
         PutioLoadingStateView(
-          title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden
-        )
-        .tvFocusAnchor()
+          title: String(localized: "Loading trash…", bundle: .putioCore), titleVisibility: .hidden)
       }
     case .failed:
       titled {
