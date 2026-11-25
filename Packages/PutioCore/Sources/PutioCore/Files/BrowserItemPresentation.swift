@@ -31,14 +31,12 @@ public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     row = PutioFileRowModel(
       name: item.name,
       kind: Self.rowKind(for: item.kind),
-      sizeText: Self.showsDetail(item)
-        ? PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale) : nil,
-      dateText: Self.showsDetail(item)
-        ? Self.relativeDateText(
-          for: sort?.key == .dateAdded ? item.createdAt : item.updatedAt,
-          relativeTo: referenceDate,
-          locale: locale
-        ) : nil,
+      sizeText: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale),
+      dateText: Self.relativeDateText(
+        for: sort?.key == .dateAdded ? item.createdAt : item.updatedAt,
+        relativeTo: referenceDate,
+        locale: locale
+      ),
       isWatched: item.isWatched
     )
   }
@@ -54,14 +52,6 @@ public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     case .other("ARCHIVE"): .archive
     case .other: .file
     }
-  }
-
-  private static func showsDetail(_ item: PutioFileItem) -> Bool {
-    #if os(tvOS)
-      item.kind != .folder
-    #else
-      true
-    #endif
   }
 
   /// A named relative date such as "yesterday" or "3 days ago".

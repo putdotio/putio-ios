@@ -148,7 +148,7 @@ public struct PutioButton: View {
 extension PutioButtonSize {
   // Native control box, brand face at the medium control weight, sized from
   // the token type scale at the step closest to each native control size.
-  var brandLabel: PutioFontRole {
+  public var brandLabel: PutioFontRole {
     #if os(tvOS)
       PutioFontRole(
         fontName: PutioTheme.Components.Button.label.fontName,

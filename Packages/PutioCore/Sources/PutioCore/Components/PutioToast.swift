@@ -13,6 +13,7 @@ public struct PutioToast: Identifiable, Equatable, Sendable {
 
   public enum Icon: Sendable {
     case warning
+    case symbol(PutioIcon)
   }
 
   public enum Width: Sendable {
@@ -71,11 +72,9 @@ public struct PutioToastView: View {
 
   public var body: some View {
     HStack(spacing: PutioToastLayout.contentGap) {
-      #if !os(tvOS)
-        if let icon = toast.icon {
-          PutioToastIcon(icon: icon)
-        }
-      #endif
+      if let icon = toast.icon {
+        PutioToastIcon(icon: icon)
+      }
       Text(toast.text)
         .putioFont(PutioToastLayout.textFont)
         .foregroundStyle(PutioToastLayout.textColor)
@@ -109,20 +108,22 @@ public struct PutioToastView: View {
   }
 }
 
-#if !os(tvOS)
-  private struct PutioToastIcon: View {
-    let icon: PutioToast.Icon
+private struct PutioToastIcon: View {
+  let icon: PutioToast.Icon
 
-    var body: some View {
-      switch icon {
-      case .warning:
-        PutioIconView(.warningCircleFill, size: PutioToastLayout.iconSize)
-          .foregroundStyle(PutioTheme.Colors.destructive)
-          .accessibilityHidden(true)
-      }
+  var body: some View {
+    switch icon {
+    case .warning:
+      PutioIconView(.warningCircleFill, size: PutioToastLayout.iconSize)
+        .foregroundStyle(PutioTheme.Colors.destructive)
+        .accessibilityHidden(true)
+    case .symbol(let symbol):
+      PutioIconView(symbol, size: PutioToastLayout.iconSize)
+        .foregroundStyle(PutioTheme.Colors.accent)
+        .accessibilityHidden(true)
     }
   }
-#endif
+}
 
 private struct PutioToastSurface: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {
@@ -269,6 +270,8 @@ enum PutioToastLayout {
     static let presentationInsets = EdgeInsets(top: 52, leading: 0, bottom: 0, trailing: 0)
     static let zIndex = PutioTheme.TV.ZIndex.toast
     static let duration = Duration.seconds(3)
+    static let iconSize = PutioMetricRole(
+      value: PutioTVTypeScale.label.size, relativeTo: PutioTVTypeScale.label.textStyle)
     static func fillsWidth(_ toast: PutioToast) -> Bool { false }
   #else
     static let textFont = PutioTheme.Typography.body
