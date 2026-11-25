@@ -14,7 +14,10 @@ enum TVAudioPlayback {
       sessionEvents: PutioSystemAudioSessionEvents(),
       speedStore: PutioAudioSpeedStore(),
       positionPipeline: pipeline,
-      remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
+      remembersPlaybackPosition: {
+        guard case .signedIn(let account) = runtime.session.state else { return false }
+        return account.rememberVideoTime
+      },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       },

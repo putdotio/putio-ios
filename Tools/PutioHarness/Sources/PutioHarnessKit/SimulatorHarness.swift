@@ -1176,6 +1176,7 @@ public struct SimulatorHarness {
           for (path, fixture) in [
             ("runtime-proof.m3u8", "runtime-proof HLS playlist"),
             ("runtime-proof-000.ts", "runtime-proof HLS segment"),
+            ("runtime-proof-audio.m4a", "runtime-proof audio file"),
             ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
             ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
             ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
