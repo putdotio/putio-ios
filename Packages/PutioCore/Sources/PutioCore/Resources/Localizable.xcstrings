@@ -1075,6 +1075,17 @@
         }
       }
     },
+    "Couldn’t load your files." : {
+      "comment" : "ios-only: the tvOS Files board's first-load error",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load your files."
+          }
+        }
+      }
+    },
     "Couldn’t load your history." : {
       "comment" : "ios-only: the tvOS History board's first-load error",
       "localizations" : {
@@ -1716,6 +1727,17 @@
         }
       }
     },
+    "Files you add to this folder on put.io show up here." : {
+      "comment" : "ios-only: the tvOS Files board's empty folder",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Files you add to this folder on put.io show up here."
+          }
+        }
+      }
+    },
     "Files you move to trash stay here for 14 days." : {
       "comment" : "android: mobile_trash_empty_message",
       "localizations" : {
@@ -2014,6 +2036,17 @@
         }
       }
     },
+    "Loading more files" : {
+      "comment" : "ios-only: tvOS Files spoken label for the next page's spinner",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading more files"
+          }
+        }
+      }
+    },
     "Loading more history" : {
       "comment" : "android: mobile_history_loading_more",
       "localizations" : {
@@ -2076,6 +2109,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Maybe you’d like to create a new folder?"
+          }
+        }
+      }
+    },
+    "Sort, %@" : {
+      "comment" : "ios-only: tvOS Files spoken label for the sort pill",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sort, %@"
+          }
+        }
+      }
+    },
+    "Your files" : {
+      "comment" : "ios-only: the tvOS Files boards' screen caption",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your files"
           }
         }
       }

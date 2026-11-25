@@ -42,23 +42,6 @@ final class TVFilesTests: XCTestCase {
       [])
   }
 
-  /// Sort by, Order and Videos come from the shared choices; the current
-  /// sort is never offered again.
-  func testSortChoicesFollowTheSharedMenu() {
-    XCTAssertEqual(
-      TVFilePresentation.sortChoices(from: .nameAscending),
-      [
-        .sizeAscending, .dateAddedAscending, .dateModifiedAscending, .typeAscending,
-        .nameDescending, .watchStatusAscending, .watchStatusDescending,
-      ])
-    XCTAssertEqual(
-      TVFilePresentation.sortChoices(from: .watchStatusDescending),
-      [
-        .nameAscending, .sizeAscending, .dateAddedAscending, .dateModifiedAscending,
-        .typeAscending, .nameDescending, .watchStatusAscending,
-      ])
-  }
-
   func testAFolderWithoutItsOwnSortFollowsTheAccountDefault() {
     XCTAssertEqual(
       TVFilePresentation.effectiveSort(.sizeAscending, account: Self.account(defaultSort: nil)),

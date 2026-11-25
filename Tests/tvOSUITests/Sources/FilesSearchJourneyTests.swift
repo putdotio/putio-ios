@@ -1,8 +1,8 @@
 import XCTest
 
 /// Drives Your Files and Search against the seeded API with the Siri Remote,
-/// recording the browser, sort and long-press menus, system search, and the
-/// empty, error, and recovery states.
+/// recording the browser and its panel, the sort menu, system search, the
+/// search long-press menu, and the empty, error, and recovery states.
 final class FilesSearchJourneyTests: XCTestCase {
   private var app: XCUIApplication!
   private let remote = XCUIRemote.shared
@@ -13,7 +13,8 @@ final class FilesSearchJourneyTests: XCTestCase {
   }
 
   /// The root pages through a failed continuation, sorts on the server, and
-  /// round-trips watch status and a Trash move whose first attempt fails.
+  /// round-trips watch status, a pin, and a Trash move whose first attempt
+  /// fails from the panel.
   /// Folders open, refetch on return, and show their empty and error states;
   /// a non-video file explains the app plays video only.
   func testBrowseSortMenuAndRecovery() {
@@ -45,44 +46,45 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
     XCTAssertTrue(focus("files.sort", moving: .right, limit: 2))
     remote.press(.select)
-    XCTAssertTrue(element("files.sort.NAME_DESC").waitForExistence(timeout: 5))
+    let descending = menuItem("Z to A")
+    XCTAssertTrue(descending.waitForExistence(timeout: 5))
     attach("runtime-tv-files-sort")
-    XCTAssertTrue(selectModalButton("files.sort.NAME_DESC"))
+    XCTAssertTrue(focusMenuItem(descending))
+    remote.press(.select)
     XCTAssertTrue(
-      waitUntil(timeout: 10) { self.element("files.sort").label.contains("descending") })
+      waitUntil(timeout: 10) { self.element("files.sort").label.contains("Z to A") })
     // The fixture reverses the first page, so the last folders now lead.
     XCTAssertTrue(waitUntil(timeout: 10) { self.isAbove("files.item.424", "files.item.413") })
 
-    // Long press opens the centered menu without opening the row, however
-    // long Select is held.
+    // The panel follows the focused row and acts on it; acting keeps focus
+    // on the row.
     XCTAssertTrue(focus("files.item.412"))
-    remote.press(.select, forDuration: 6.5)
-    XCTAssertTrue(element("files.menu.unwatched").waitForExistence(timeout: 5))
-    XCTAssertFalse(
-      element("video.screen.412").exists, "the long press opened the video")
-    XCTAssertTrue(element("files.menu.delete").exists)
-    attach("runtime-tv-files-menu")
-    XCTAssertTrue(selectModalButton("files.menu.unwatched"))
+    XCTAssertTrue(element("files.panel").waitForExistence(timeout: 5))
+    XCTAssertFalse(element("files.panel.move").exists, "Move waits for a folder picker")
+    attach("runtime-tv-files-panel")
+    XCTAssertTrue(panelAction("files.panel.markUnwatched", on: "files.item.412"))
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !movie.label.contains("Watched") })
-    XCTAssertTrue(element("files.item.412").exists, "the long press must not open the video")
+    XCTAssertFalse(element("video.screen.412").exists, "the panel action opened the video")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.412") }, "focus left the row")
 
-    XCTAssertTrue(focus("files.item.412"))
-    longPress()
-    XCTAssertTrue(selectModalButton("files.menu.watched"))
+    XCTAssertTrue(panelAction("files.panel.markWatched", on: "files.item.412"))
     XCTAssertTrue(waitUntil(timeout: 10) { movie.label.contains("Watched") })
+
+    // Pin flips to Unpin and back.
+    XCTAssertTrue(panelAction("files.panel.pin", on: "files.item.412"))
+    XCTAssertTrue(element("files.panel.unpin").waitForExistence(timeout: 10))
+    XCTAssertTrue(panelAction("files.panel.unpin", on: "files.item.412"))
+    XCTAssertTrue(element("files.panel.pin").waitForExistence(timeout: 10))
 
     // The fixture's first Trash move fails and keeps the row; the second
     // removes it and focus stays on a visible row.
-    XCTAssertTrue(focus("files.item.412"))
-    longPress()
-    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))
     XCTAssertTrue(label(containing: "Could not move item to Trash").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { movie.exists })
     attach("runtime-tv-files-action-failure")
-    XCTAssertTrue(focus("files.item.412"))
-    longPress()
-    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))
     XCTAssertTrue(label(containing: "Moved to trash").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !movie.exists })
     // Under the reversed sort the row after the movie is Harness Folder.
@@ -95,8 +97,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     // A later-page row: the Trash move reloads only the first page, so focus
     // goes to that page's last row instead of a neighbour the reload drops.
     XCTAssertTrue(focus("files.item.422", moving: .down, limit: 4))
-    longPress()
-    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.422"))
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.item.422").exists })
     XCTAssertTrue(element("files.item.426").waitForExistence(timeout: 10))
     XCTAssertTrue(
@@ -130,7 +131,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("files.item.423"))
     remote.press(.select)
     XCTAssertTrue(element("files.empty").waitForExistence(timeout: 10))
-    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("files.refresh") })
+    XCTAssertFalse(element("files.refresh").exists, "an empty folder shows no actions")
     attach("runtime-tv-files-empty")
     remote.press(.menu)
 
@@ -313,6 +314,39 @@ final class FilesSearchJourneyTests: XCTestCase {
       remote.press(direction)
     }
     return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
+  }
+
+  /// Moves right from the row into its panel and selects the action.
+  private func panelAction(_ action: String, on row: String) -> Bool {
+    guard focus(row) else { return false }
+    remote.press(.right)
+    guard focus(action, moving: .down, limit: 8) || focus(action, moving: .up, limit: 8) else {
+      return false
+    }
+    remote.press(.select)
+    return true
+  }
+
+  /// A system menu's item: menus drop the identifiers of their buttons, so
+  /// items are found by title.
+  private func menuItem(_ title: String) -> XCUIElement {
+    app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  /// Menus open on their checked item; moving past an end closes them, so
+  /// focus walks down only.
+  private func focusMenuItem(_ item: XCUIElement) -> Bool {
+    let isFocused = {
+      item.hasFocus
+        || item.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
+    }
+    for _ in 0..<12 {
+      if waitUntil(timeout: 1, isFocused) { return true }
+      guard item.exists else { return false }
+      remote.press(.down)
+    }
+    return isFocused()
   }
 
   private func longPress() {

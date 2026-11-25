@@ -840,6 +840,10 @@ import Foundation
     private static var holdsSeasonListing: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-season-listing")
     }
+    /// Never answers the root listing, so Your Files stays loading.
+    private static var holdsRootListing: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-root-listing")
+    }
     private static var holdsSeasonContinuation: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-season-more-held")
     }
@@ -1427,7 +1431,8 @@ import Foundation
       } else if Self.delaysGalleryContinuation(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
       } else if Self.holdsPreviewLookup(url) || Self.holdsMoveFolderListing(url)
-        || Self.holdsSeasonFolderListing(url) || Self.holdsSeasonPage(replayableRequest)
+        || Self.holdsSeasonFolderListing(url) || Self.holdsRootFolderListing(url)
+        || Self.holdsSeasonPage(replayableRequest)
         || (Self.holdsSearch && url.path == "/v2/files/search")
         || Self.holdsDeviceLink(replayableRequest)
         || HarnessHistory.holdsPage(method: request.httpMethod ?? "GET", url: url)
@@ -1524,6 +1529,12 @@ import Foundation
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
       return query.contains { $0.name == "parent_id" && $0.value == "410" }
         && query.contains { $0.name == "file_type" && $0.value == "FOLDER" }
+    }
+
+    private static func holdsRootFolderListing(_ url: URL) -> Bool {
+      guard holdsRootListing, url.path == "/v2/files/list" else { return false }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+      return query.contains { $0.name == "parent_id" && $0.value == "0" }
     }
 
     private static func holdsSeasonFolderListing(_ url: URL) -> Bool {
