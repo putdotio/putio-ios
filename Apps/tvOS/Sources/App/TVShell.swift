@@ -216,10 +216,7 @@ struct TVSignedInShell: View {
       TVHomeScreen(
         runtime: runtime, account: account, continueWatching: continueWatching,
         open: { open($0, in: tab) },
-        play: {
-          navigation.setPath(
-            navigation.path(for: tab) + [.continueWatching($0)], for: tab, account: account)
-        }
+        play: { resume($0, in: tab) }
       )
     case .files:
       TVFolderView(
@@ -255,6 +252,12 @@ struct TVSignedInShell: View {
     audioPlayback.stop()
     navigation.setPath(
       navigation.path(for: tab) + [.video(item, choice)], for: tab, account: account)
+  }
+
+  private func resume(_ entry: PutioContinueWatchingEntry, in tab: TVTab) {
+    audioPlayback.stop()
+    navigation.setPath(
+      navigation.path(for: tab) + [.continueWatching(entry)], for: tab, account: account)
   }
 
   private func presentAudio(_ route: PutioAudioRoute) {
