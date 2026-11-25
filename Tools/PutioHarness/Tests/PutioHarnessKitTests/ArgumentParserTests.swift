@@ -78,6 +78,12 @@ import Testing
       == .journey(
         platform: .ios, scenario: .filesBrowser, runID: nil,
         only: ["accessibility-files", "file-actions"], output: .text))
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "files-browser", "--only", "walk",
+    ])
+      == .journey(
+        platform: .ios, scenario: .filesBrowser, runID: nil, only: ["walk"], output: .text))
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
       "journey", "--platform", "ios", "--scenario", "files-browser", "--only", "file-action",

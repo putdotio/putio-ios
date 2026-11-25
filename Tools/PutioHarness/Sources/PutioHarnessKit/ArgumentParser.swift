@@ -7,7 +7,7 @@ public enum HarnessArgumentParser {
       putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery|signed-in] [--output text|json]
       putio-harness <build|launch|proof> --platform tvos --device <udid|identifier|name> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
-      putio-harness journey --platform ios --scenario files-browser [--only PREFLIGHT[,PREFLIGHT...]] [--run-id ID] [--output text|json]
+      putio-harness journey --platform ios --scenario files-browser [--only CHECK[,CHECK...]] [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --boards BOARD[,BOARD...] [--device iphone|ipad|duo-folded|duo-open] [--orientation portrait|landscape] [--xxl] [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
@@ -174,10 +174,10 @@ public enum HarnessArgumentParser {
     guard scenario == .filesBrowser else {
       throw HarnessFailure("--only is supported only by the files-browser journey")
     }
-    let known = BrowserJourneyContract.preflights.map(\.name)
+    let known = BrowserJourneyContract.preflights.map(\.name) + [BrowserJourneyContract.walkName]
     let names = value.split(separator: ",").map(String.init)
     guard !names.isEmpty, names.allSatisfy(known.contains) else {
-      throw HarnessFailure("--only takes preflight names: \(known.joined(separator: ", "))")
+      throw HarnessFailure("--only takes preflight names or walk: \(known.joined(separator: ", "))")
     }
     return names
   }

@@ -5,6 +5,7 @@
 ```bash
 mise run harness -- journey --platform ios --scenario files-browser
 mise run harness -- journey --platform ios --scenario files-browser --only file-actions,history
+mise run harness -- journey --platform ios --scenario files-browser --only walk
 ```
 
 The [verify](../../../../scripts/verify.sh) `journeys` lane runs it.
@@ -21,9 +22,9 @@ The [UI tests](../../../../Tests/iOSUITests/Sources) own the assertions.
   on the scheme leaves them out.
 - Every selected preflight runs, even after one fails. The journey then names
   every failed preflight and skips the walk.
-- `--only` takes preflight names from the table. It skips the walk, and its
-  manifest names the preflights it proved. Use it to iterate on one feature or
-  to loop a flaky preflight.
+- `--only` takes preflight names from the table, plus `walk` for the recorded
+  walk. It runs only the checks it names, and its manifest names them. Use it
+  to prove one area, iterate on one feature, or loop a flaky check.
 - The walk records sign-in, playback, and sign-out. The recording is trimmed
   around screenshot-matched landmarks, without setup and teardown.
 

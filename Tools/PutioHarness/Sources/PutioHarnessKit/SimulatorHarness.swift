@@ -1013,9 +1013,7 @@ public struct SimulatorHarness {
           try? fileManager.removeItem(
             at: platformDirectory.appending(path: ".\(preflight.name).xcresult"))
         }
-        // A partial run proves only its preflights; its manifest says so, and
-        // it records no walk.
-        if !only.isEmpty {
+        if !only.isEmpty && !only.contains(BrowserJourneyContract.walkName) {
           try requireCleanSource()
           try requireRevision(sourceRevision)
           let manifest = try writeManifest(
@@ -1129,7 +1127,7 @@ public struct SimulatorHarness {
           preflightScreenshots + screenshots + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
-          command: "journey",
+          command: only.isEmpty ? "journey" : "journey --only \(only.joined(separator: ","))",
           runID: runID,
           commit: sourceRevision,
           session: session,
@@ -1141,7 +1139,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifactURLs + [manifest],
           message:
-            "runtime-proof journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+            "\(preflights.count) journey preflights and the walk passed in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {
