@@ -96,12 +96,15 @@ final class TVSearchBoardCaptureTests: XCTestCase {
       )
     ).firstMatch
     for _ in 0..<8 {
-      _ = waitUntil(timeout: 3) { self.focusIsSettled() }
-      if !below.exists, app.keyboards.firstMatch.exists { return true }
+      if waitUntil(timeout: 3, { self.focusIsSettled() }), !below.exists,
+        app.keyboards.firstMatch.exists
+      {
+        return true
+      }
       remote.press(.up)
       pause(0.5)
     }
-    return !below.exists && app.keyboards.firstMatch.exists
+    return focusIsSettled() && !below.exists && app.keyboards.firstMatch.exists
   }
 
   private func menuItem(_ title: String) -> XCUIElement {

@@ -17,6 +17,7 @@ struct TVSearchView: View {
   @State private var folderNames: PutioFolderNames?
   @State private var externalPlayback: PutioExternalPlaybackModel?
   @FocusState private var focusedRow: PutioFileID?
+  @FocusState private var focusedRecent: String?
   @State private var focusTarget: PutioFileID?
   @State private var shownItemID: PutioFileID?
   @State private var showsPanel = false
@@ -226,7 +227,15 @@ struct TVSearchView: View {
           .contextMenu {
             Button {
               recordedQuery = nil
-              Task { await recent.remove(term) }
+              let terms = recent.terms
+              let next = terms.firstIndex(of: term).flatMap { index in
+                terms.indices.contains(index + 1)
+                  ? terms[index + 1] : index > 0 ? terms[index - 1] : nil
+              }
+              Task {
+                await recent.remove(term)
+                focusedRecent = next
+              }
             } label: {
               Label {
                 Text(PutioRecentSearchesCopy.remove)
@@ -236,6 +245,7 @@ struct TVSearchView: View {
             }
             .accessibilityIdentifier("search.recent-remove")
           }
+          .focused($focusedRecent, equals: term)
           .accessibilityIdentifier("search.recent.\(term)")
         }
       }

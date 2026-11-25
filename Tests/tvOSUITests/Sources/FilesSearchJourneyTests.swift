@@ -194,6 +194,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("search.recent.mp3").exists })
     XCTAssertTrue(element("search.recent.sintel").exists)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("search.recent.tree rings") },
+      "focus left the recent searches")
 
     XCTAssertTrue(focusKeyboard())
     field.typeText("   \n")
@@ -314,12 +317,15 @@ final class FilesSearchJourneyTests: XCTestCase {
       )
     ).firstMatch
     for _ in 0..<8 {
-      _ = waitUntil(timeout: 3) { self.focusIsSettled() }
-      if !below.exists, app.keyboards.firstMatch.exists { return true }
+      if waitUntil(timeout: 3, { self.focusIsSettled() }), !below.exists,
+        app.keyboards.firstMatch.exists
+      {
+        return true
+      }
       remote.press(.up)
       pause(0.5)
     }
-    return !below.exists && app.keyboards.firstMatch.exists
+    return focusIsSettled() && !below.exists && app.keyboards.firstMatch.exists
   }
 
   private func focusIsSettled() -> Bool {
