@@ -28,22 +28,29 @@ final class ExternalPlaybackTests: XCTestCase {
       item: BrowserTestFixtures.item(id: 412, parentID: 410, name: "Movie.mkv", kind: kind))
   }
 
-  func testStreamURLCarriesTheSourceAndAnOptionalReturnLink() throws {
-    let url = try XCTUnwrap(
-      PutioVLCHandoff.streamURL(for: source.url, returnTo: PutioFileID(rawValue: 410)))
-    let components = try XCTUnwrap(URLComponents(url: url, resolvingAgainstBaseURL: false))
-    XCTAssertEqual(components.scheme, "vlc-x-callback")
-    XCTAssertEqual(components.host, "x-callback-url")
-    XCTAssertEqual(components.path, "/stream")
-    XCTAssertEqual(
-      components.queryItems?.first { $0.name == "url" }?.value, source.url.absoluteString)
-    XCTAssertEqual(
-      components.queryItems?.first { $0.name == "x-success" }?.value, "putio:///files/410")
+  /// VLC's `URLHandler` splits the raw query on `&`, then each pair on the
+  /// first `=`, then percent-decodes.
+  private func vlcParameters(_ url: URL) -> [String: String] {
+    let query = url.absoluteString.split(separator: "?", maxSplits: 1).last.map(String.init) ?? ""
+    var parameters: [String: String] = [:]
+    for pair in query.split(separator: "&") {
+      let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+      guard parts.count == 2 else { continue }
+      parameters[parts[0]] = parts[1].removingPercentEncoding
+    }
+    return parameters
+  }
 
-    let detached = try XCTUnwrap(PutioVLCHandoff.streamURL(for: source.url, returnTo: nil))
-    XCTAssertNil(
-      URLComponents(url: detached, resolvingAgainstBaseURL: false)?.queryItems?
-        .first { $0.name == "x-success" })
+  func testStreamURLSurvivesVLCsQueryParsing() throws {
+    let source = URL(string: "https://api.put.io/v2/files/412/download?oauth_token=secret&mp4=1")!
+    let url = try XCTUnwrap(
+      PutioVLCHandoff.streamURL(for: source, returnTo: PutioFileID(rawValue: 410)))
+    XCTAssertTrue(url.absoluteString.hasPrefix("vlc-x-callback://x-callback-url/stream?"))
+    XCTAssertEqual(
+      vlcParameters(url), ["url": source.absoluteString, "x-success": "putio:///files/410"])
+
+    let detached = try XCTUnwrap(PutioVLCHandoff.streamURL(for: source, returnTo: nil))
+    XCTAssertEqual(vlcParameters(detached), ["url": source.absoluteString])
   }
 
   func testInstalledHandoffOpensTheOriginalStreamOnce() async throws {

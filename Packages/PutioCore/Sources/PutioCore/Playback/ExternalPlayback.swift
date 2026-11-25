@@ -18,13 +18,21 @@ public enum PutioVLCHandoff {
     components.scheme = scheme
     components.host = "x-callback-url"
     components.path = "/stream"
-    var items = [URLQueryItem(name: "url", value: source.absoluteString)]
+    var items = [URLQueryItem(name: "url", value: encoded(source.absoluteString))]
     if let folderID {
       items.append(
-        URLQueryItem(name: "x-success", value: "putio:///files/\(folderID.rawValue)"))
+        URLQueryItem(name: "x-success", value: encoded("putio:///files/\(folderID.rawValue)")))
     }
-    components.queryItems = items
+    components.percentEncodedQueryItems = items
     return components.url
+  }
+
+  /// VLC splits the raw query on `&` and `=` before decoding, so nested URLs
+  /// encode both.
+  private static func encoded(_ value: String) -> String? {
+    var allowed = CharacterSet.urlQueryAllowed
+    allowed.remove(charactersIn: "&=+")
+    return value.addingPercentEncoding(withAllowedCharacters: allowed)
   }
 
   /// Nightly installs beside the store app without the `putio` scheme, so its
