@@ -365,7 +365,9 @@
     }
 
     private func reportPlaybackEnded() {
-      guard readyReported, !failureReported, positionReporter?.playbackEnded() == true else { return }
+      guard readyReported, !failureReported, positionReporter?.playbackEnded() == true else {
+        return
+      }
       callbacks.onPlaybackEnded()
     }
 

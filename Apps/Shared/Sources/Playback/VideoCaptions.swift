@@ -134,7 +134,8 @@
         }
         .ignoresSafeArea()
         ZStack(alignment: .bottom) {
-          let texts = cues.compactMap { cue in cue.text.flatMap { $0.characters.isEmpty ? nil : $0 } }
+          let texts = cues.compactMap { cue in cue.text.flatMap { $0.characters.isEmpty ? nil : $0 }
+          }
           if !texts.isEmpty {
             caption(texts)
               .padding(.horizontal, PutioTheme.Spacing.space4)
