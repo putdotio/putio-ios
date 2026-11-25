@@ -227,7 +227,10 @@ struct TVVideoPlaybackView: View {
       TVNextVideoStage(
         model: nextVideoModel,
         play: { runNextVideo { await nextVideoModel.playNext() } },
-        retry: { runNextVideo { await nextVideoModel.retry() } },
+        retry: {
+          leftPlayer = true
+          runNextVideo { await nextVideoModel.retry() }
+        },
         close: {
           nextVideoModel.cancel()
           onFinish()
