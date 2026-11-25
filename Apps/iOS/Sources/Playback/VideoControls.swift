@@ -352,15 +352,7 @@ final class PutioVideoTransport {
       .store(in: &engineObservations)
     engine.$subtitleTracks.combineLatest(engine.$activeSubtitleTrackIndex)
       .sink { [weak self] tracks, active in
-        self?.subtitles = tracks.enumerated().map { index, track in
-          PutioSubtitleTrack(
-            id: track.id,
-            title: track.isExternal
-              ? track.name
-              : PutioTrackLabel.subtitleTitle(
-                language: track.language, name: track.name, index: index),
-            languageTag: track.language)
-        }
+        self?.subtitles = PutioEngineTracks.subtitles(tracks)
         self?.selectedSubtitle = active
       }
       .store(in: &engineObservations)
@@ -371,12 +363,9 @@ final class PutioVideoTransport {
       .combineLatest(engine.$sourceVideoWidth, engine.$sourceVideoHeight, engine.$videoRoute)
       .sink { [weak self, weak engine] display, width, height, _ in
         guard let self, let engine else { return }
-        let coded = CGSize(width: Int(width), height: Int(height))
-        picture = PutioVideoPicture(
-          coded: coded,
-          display: display
-            ?? CGSize(
-              width: coded.width * engine.sourceVideoPixelAspectRatio, height: coded.height))
+        picture = PutioEngineTracks.picture(
+          width: width, height: height, display: display,
+          pixelAspectRatio: engine.sourceVideoPixelAspectRatio)
       }
       .store(in: &engineObservations)
     routeObservation = NotificationCenter.default.addObserver(
@@ -787,6 +776,7 @@ final class PutioVideoTransport {
   }
 
   private func engineStateChanged(_ state: PlaybackState) {
+    playhead.ended(state == .ended)
     switch state {
     case .playing:
       isPlaying = true
@@ -806,22 +796,7 @@ final class PutioVideoTransport {
   }
 
   private func engineAudioChanged(_ tracks: [TrackInfo], active: Int?) {
-    let decodable = tracks.enumerated().filter {
-      PutioDirectPlayDecoders.canDecodeAudio(codec: $0.element.codec)
-    }
-    let titles = PutioTrackLabel.distinct(
-      decodable.map { index, track in
-        PutioTrackLabel.audioTitle(language: track.language, name: track.name, index: index)
-      })
-    audioTracks = zip(decodable, titles).map { entry, title in
-      Track(
-        id: entry.element.id, title: title,
-        detail: PutioTrackLabel.audioDetail(
-          codec: entry.element.codec, profile: entry.element.profile,
-          channels: entry.element.channels),
-        languageTag: entry.element.language)
-    }
-    selectedAudio = active.flatMap { id in audioTracks.contains { $0.id == id } ? id : nil }
+    (audioTracks, selectedAudio) = PutioEngineTracks.audio(tracks, active: active)
   }
 
   private func engineRouteChanged(
@@ -858,8 +833,7 @@ final class PutioVideoTransport {
 
   private func showCues(_ cues: [SubtitleCue], at time: Double) {
     engineCues = (cues, time)
-    let shifted = time - subtitleTiming.seconds
-    let showing = cues.filter { $0.startTime <= shifted && shifted < $0.endTime }
+    let showing = PutioEngineTracks.showing(cues, at: time, delay: subtitleTiming.seconds)
     guard showing.map(\.id) != subtitleCues.map(\.id) else { return }
     showCaption(showing.map(PutioVideoCue.init), at: time)
   }

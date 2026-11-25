@@ -40,10 +40,18 @@ public struct PutioVideoPlayhead: Equatable, Sendable {
   public private(set) var timeline = PutioVideoTimeline(elapsedSeconds: 0, durationSeconds: nil)
   private var seeks: UInt64 = 0
   private var pendingSeek: UInt64?
+  private var holdsEnd = false
 
   public init() {}
 
+  public mutating func ended(_ ended: Bool) {
+    holdsEnd = ended
+    guard ended, pendingSeek == nil, let duration = timeline.durationSeconds else { return }
+    timeline = PutioVideoTimeline(elapsedSeconds: duration, durationSeconds: duration)
+  }
+
   public mutating func seekStarted(to seconds: Double) -> UInt64 {
+    holdsEnd = false
     timeline = PutioVideoTimeline(
       elapsedSeconds: timeline.clamped(seconds), durationSeconds: timeline.durationSeconds)
     seeks &+= 1
@@ -58,7 +66,7 @@ public struct PutioVideoPlayhead: Equatable, Sendable {
 
   public mutating func observed(elapsedSeconds: Double, durationSeconds: Double?) {
     timeline = PutioVideoTimeline(
-      elapsedSeconds: pendingSeek == nil ? elapsedSeconds : timeline.elapsedSeconds,
+      elapsedSeconds: pendingSeek == nil && !holdsEnd ? elapsedSeconds : timeline.elapsedSeconds,
       durationSeconds: durationSeconds)
   }
 }

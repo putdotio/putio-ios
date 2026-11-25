@@ -72,6 +72,9 @@ struct TVVideoPlaybackView: View {
   @State private var nextVideoTask: Task<Void, Never>?
   @State private var subtitleMemory = TVVideoPlaybackView.makeSubtitleMemory()
   @State private var wait = PutioVideoWaitModel()
+  @State private var switchesToStream = false
+  @State private var announcedFallback = false
+  @State private var dismissedUpNext = false
 
   private let route: PutioVideoRoute
   private let account: PutioAccountSnapshot
@@ -79,6 +82,7 @@ struct TVVideoPlaybackView: View {
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let pipeline: PutioPlaybackPositionPipeline
   private let runtime: PutioRuntime
+  private let convertedFallbacks: PutioConvertedFallbacks
   private let showsProbes: Bool
   private let onPlayNext: @MainActor (PutioPlayableNextVideo) -> Void
   private let onPlayerReportsSettled: @MainActor (PutioVideoRoute) -> Void
@@ -91,7 +95,10 @@ struct TVVideoPlaybackView: View {
     onPlayerReportsSettled: @escaping @MainActor (PutioVideoRoute) -> Void,
     onFinish: @escaping @MainActor () -> Void
   ) {
-    let media = TVPlaybackMedia(runtime: runtime, account: account)
+    let convertedFallbacks = PutioConvertedFallbacks(accountID: account.id)
+    let media = TVPlaybackMedia(
+      runtime: runtime, account: account, convertedFallbacks: convertedFallbacks)
+    self.convertedFallbacks = convertedFallbacks
     self.route = route
     self.account = account
     self.remembersPosition = account.rememberVideoTime
@@ -118,7 +125,11 @@ struct TVVideoPlaybackView: View {
         chooseStart: PutioVideoStart.choice(
           for: start, remembersPosition: account.rememberVideoTime,
           durationSeconds: { await PutioVideoLength.seconds(of: $0) },
-          ask: { await resumePrompter.ask(positionSeconds: $0, durationSeconds: $1) })
+          ask: { await resumePrompter.ask(positionSeconds: $0, durationSeconds: $1) }),
+        resolveConverted: { fileID in
+          await pipeline.waitForPendingReports(fileID: fileID)
+          return try await media.resolve(fileID, playsConverted: true)
+        }
       ) { fileID in
         await pipeline.waitForPendingReports(fileID: fileID)
         return try await media.resolve(fileID)
@@ -200,7 +211,11 @@ struct TVVideoPlaybackView: View {
   private var stateContent: some View {
     switch model.state {
     case .loading:
-      TVPlaybackLoadingView(title: route.title)
+      TVPlaybackLoadingView(
+        title: route.title,
+        status: switchesToStream
+          ? String(localized: "Switching to streaming…", bundle: .putioCore)
+          : String(localized: "Loading", bundle: .putioCore))
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
       TVConversionStatusView(state: model.state)
     case .failed(let failure):
@@ -239,6 +254,32 @@ struct TVVideoPlaybackView: View {
           nextVideoModel.cancel()
           onFinish()
         })
+    } else if source.original?.player == .engine {
+      TVDirectVideoPlayer(
+        title: route.title, fileID: route.id, source: source,
+        remembersPosition: remembersPosition, subtitlePolicy: subtitlePolicy,
+        subtitleMemory: subtitleMemory, pipeline: pipeline,
+        reportPosition: { [runtime] fileID, seconds in
+          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+        },
+        wait: wait, callbacks: directCallbacks,
+        onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
+        onExit: onFinish
+      )
+      .disabled(showsEngineUpNext)
+      .overlay {
+        if showsEngineUpNext {
+          TVNextVideoStage(
+            model: nextVideoModel,
+            play: { runNextVideo { await nextVideoModel.playNext() } },
+            retry: { runNextVideo { await nextVideoModel.retry() } },
+            close: dismissEngineUpNext
+          )
+          .onExitCommand(perform: dismissEngineUpNext)
+        }
+      }
+      .id(model.playerAttempt)
+      .putioToast($toast)
     } else {
       TVSystemVideoPlayer(
         title: route.title, source: source, fileID: route.id,
@@ -250,7 +291,7 @@ struct TVVideoPlaybackView: View {
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         wait: wait,
-        onReady: { model.playerReady() },
+        onReady: playerReady,
         onNextFile: nextFileAction,
         upNext: upNextProposal,
         onSubtitleFailed: {
@@ -269,13 +310,39 @@ struct TVVideoPlaybackView: View {
     }
   }
 
+  private var directCallbacks: PutioVideoPlayerCallbacks {
+    PutioVideoPlayerCallbacks(
+      onReady: playerReady,
+      observesPlaybackState: showsProbes,
+      onAudioSelected: { [probes] in probes.audioLanguage = $0 },
+      onSubtitleSelected: { [probes] in probes.subtitle = $0 },
+      onPositionChanged: { [probes] in probes.currentPosition = $0 },
+      onPlaybackEnded: playbackEnded,
+      onPlaybackRestarted: playbackRestarted,
+      onFailure: playerFailed)
+  }
+
+  private func playerReady() {
+    model.playerReady()
+    probes.isReady = true
+    switchesToStream = false
+    guard model.playsConvertedFallback, !announcedFallback else { return }
+    announcedFallback = true
+    convertedFallbacks.remember(route.id)
+    toast = PutioToast(
+      String(localized: "Playing the streaming version", bundle: .putioCore),
+      icon: .symbol(.info), width: .fit)
+  }
+
   private func playerFailed(_ failure: PutioVideoPlayerFailure) {
     playerFailureTask?.cancel()
-    playerFailureTask =
-      model.handlePlayerFailure(failure, platform: .tvos) { [probes, showsProbes] report in
-        SentryTelemetry.report(report)
-        if showsProbes { probes.failureReport = report }
-      }.recovery
+    let handled = model.handlePlayerFailure(failure, platform: .tvos) {
+      [probes, showsProbes] report in
+      SentryTelemetry.report(report)
+      if showsProbes { probes.failureReport = report }
+    }
+    switchesToStream = handled.fellBack
+    playerFailureTask = handled.recovery
   }
 
   private static func makeSubtitleMemory() -> PutioSubtitleMemory {
@@ -308,6 +375,10 @@ struct TVVideoPlaybackView: View {
     }
   }
 
+  private var showsEngineUpNext: Bool {
+    ended && !dismissedUpNext && nextVideoModel.upcoming != nil
+  }
+
   private var nextFileAction: (@MainActor () -> Void)? {
     guard nextVideoModel.upcoming != nil else { return nil }
     return { playNextFile() }
@@ -321,6 +392,11 @@ struct TVVideoPlaybackView: View {
       reject: { nextVideoModel.cancel() })
   }
 
+  private func dismissEngineUpNext() {
+    dismissedUpNext = true
+    nextVideoModel.cancel()
+  }
+
   private func playNextFile() {
     leftPlayer = true
     runNextVideo { await nextVideoModel.playNext() }
@@ -329,12 +405,14 @@ struct TVVideoPlaybackView: View {
   private func playbackRestarted() {
     probes.ended = false
     ended = false
+    dismissedUpNext = false
     nextVideoModel.cancel()
   }
 
   private func playbackEnded() {
     probes.ended = true
     ended = true
+    dismissedUpNext = false
     runNextVideo {
       await nextVideoModel.playbackEnded()
       if nextVideoModel.upcoming == nil { await nextVideoModel.lookUp() }
@@ -365,6 +443,7 @@ struct TVVideoPlaybackView: View {
 struct TVPlaybackMedia {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
+  let convertedFallbacks: PutioConvertedFallbacks
 
   var isHarness: Bool {
     #if DEBUG
@@ -374,8 +453,16 @@ struct TVPlaybackMedia {
     #endif
   }
 
-  func resolve(_ fileID: PutioFileID) async throws -> PutioPlaybackResolution {
-    let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+  /// The account's playback method picks the source, as on iOS: Direct play
+  /// plays the original unless an earlier attempt fell back to streaming.
+  func resolve(
+    _ fileID: PutioFileID, playsConverted: Bool = false
+  ) async throws -> PutioPlaybackResolution {
+    let method = (try? await runtime.appConfig().playbackMethod) ?? .standard
+    let resolution = try await runtime.resolveVideoPlayback(
+      fileID: fileID, method: method,
+      playsConverted: playsConverted || convertedFallbacks.contains(fileID),
+      isPlayableInAVPlayer: { PutioDirectPlayback.isPlayableInAVPlayer($0) })
     #if DEBUG
       if let harness = TVHarnessMedia.current {
         return harness.substituting(resolution, account: account)
@@ -664,10 +751,11 @@ struct TVUpNextView: View {
 
 struct TVPlaybackLoadingView: View {
   let title: String
+  var status = String(localized: "Loading", bundle: .putioCore)
 
   var body: some View {
     ZStack(alignment: .topLeading) {
-      PutioLoadingStateView(title: String(localized: "Loading", bundle: .putioCore))
+      PutioLoadingStateView(title: status)
         .accessibilityIdentifier("video.loading")
       Text(title)
         .putioFont(PutioTheme.TV.Typography.caption)
