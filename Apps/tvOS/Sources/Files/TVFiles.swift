@@ -166,7 +166,11 @@ struct TVFolderView: View {
         Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
       }
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
-      .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
+      .modifier(
+        TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast) {
+          focusTarget = shownItemID
+        }
+      )
       .putioToast($toast)
       .task(id: route.id) {
         guard loadsOnAppear else { return }

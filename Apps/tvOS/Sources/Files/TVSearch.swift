@@ -130,7 +130,11 @@ struct TVSearchView: View {
         toast = PutioToast(PutioScreenErrorKind.failed.message, icon: .warning, width: .fit)
         pins?.clearEditFailure()
       }
-      .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
+      .modifier(
+        TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast) {
+          focusTarget = shownItemID
+        }
+      )
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .task(id: recentFocusTarget) {
         guard let target = recentFocusTarget else { return }

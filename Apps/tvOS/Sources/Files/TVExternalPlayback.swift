@@ -33,6 +33,7 @@ enum TVExternalPlayback {
 struct TVExternalPlaybackPresentation: ViewModifier {
   let model: PutioExternalPlaybackModel?
   @Binding var toast: PutioToast?
+  let onDismiss: () -> Void
 
   func body(content: Content) -> some View {
     content
@@ -40,7 +41,11 @@ struct TVExternalPlaybackPresentation: ViewModifier {
         PutioVLCHandoff.missingTitle,
         isPresented: Binding(
           get: { model?.missingVLCRoute != nil },
-          set: { if !$0 { model?.dismissMissingVLC() } })
+          set: {
+            guard !$0 else { return }
+            model?.dismissMissingVLC()
+            onDismiss()
+          })
       ) {
         Button(String(localized: "OK", bundle: .putioCore), role: .cancel) {}
           .accessibilityIdentifier("vlc.ok")

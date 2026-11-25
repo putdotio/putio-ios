@@ -94,7 +94,9 @@ final class FilesSearchJourneyTests: XCTestCase {
       "a missing VLC raised no alert")
     attach("runtime-tv-files-vlc-missing")
     XCTAssertTrue(selectModalButton("vlc.ok"))
-    XCTAssertTrue(movie.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.412") },
+      "focus left the file after the VLC alert")
 
     // The fixture's first Trash move fails and keeps the row; the second
     // removes it and focus stays on a visible row.
@@ -244,8 +246,10 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(
       label(containing: "Install VLC from the App Store on Apple TV").waitForExistence(timeout: 10))
     XCTAssertTrue(selectModalButton("vlc.ok"))
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("search.item.411") },
+      "focus left the result after the VLC alert")
 
-    if panelHasFocus() { remote.press(.left) }
     XCTAssertTrue(focus("search.item.410"))
     remote.press(.select)
     XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10))
