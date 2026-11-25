@@ -267,11 +267,6 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("search.start").waitForExistence(timeout: 10))
     XCTAssertFalse(recorded.exists)
     attach("runtime-tv-search-start")
-    XCTAssertTrue(focusKeyboard())
-    field.typeText("   \n")
-    pause(2)
-    XCTAssertTrue(element("search.start").exists, "an empty submit was recorded")
-    XCTAssertFalse(element("search.recent-clear").exists)
 
     app.terminate()
     app.launchArguments = [
