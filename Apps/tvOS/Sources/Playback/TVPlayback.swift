@@ -65,6 +65,7 @@ struct TVVideoPlaybackView: View {
   @State private var ended = false
   @State private var leftPlayer = false
   @State private var upNextFolder: String?
+  @State private var toast: PutioToast?
   @State private var retrySequence: UInt64 = 0
   @State private var playerFailureTask: Task<Void, Never>?
   @State private var probes = TVPlaybackProbes()
@@ -248,6 +249,11 @@ struct TVVideoPlaybackView: View {
         onReady: { model.playerReady() },
         onNextFile: nextFileAction,
         upNext: upNextProposal,
+        onSubtitleFailed: {
+          toast = PutioToast(
+            String(localized: "Couldn’t load subtitles", bundle: .putioCore), icon: .warning,
+            width: .fit)
+        },
         onEnded: playbackEnded,
         onRestarted: playbackRestarted,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
@@ -255,6 +261,7 @@ struct TVVideoPlaybackView: View {
       )
       .ignoresSafeArea()
       .id(model.playerAttempt)
+      .putioToast($toast)
     }
   }
 
@@ -686,6 +693,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let onReady: @MainActor () -> Void
   let onNextFile: (@MainActor () -> Void)?
   let upNext: TVUpNextProposal?
+  let onSubtitleFailed: @MainActor () -> Void
   let onEnded: @MainActor () -> Void
   let onRestarted: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
@@ -707,7 +715,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         try await report(fileID, seconds)
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
-      in: controller, probes: probes, onReady: onReady, onEnded: onEnded,
+      in: controller, probes: probes, onReady: onReady, onSubtitleFailed: onSubtitleFailed,
+      onEnded: onEnded,
       onRestarted: onRestarted, onReportsSettled: onReportsSettled, onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
@@ -751,6 +760,11 @@ final class TVVideoPlayerCoordinator {
   private let proposalDelegate = TVUpNextProposalDelegate()
   private var proposalController: TVUpNextProposalController?
   private var proposed: (id: PutioFileID, folderName: String?)?
+  private var errorLogObservation: NSObjectProtocol?
+  private var subtitleRenditions: [URL] = []
+  private var renditionLoad: Task<Void, Never>?
+  private var checkedErrorEvents = 0
+  private var onSubtitleFailed: (@MainActor () -> Void)?
 
   init(
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
@@ -784,6 +798,7 @@ final class TVVideoPlayerCoordinator {
     in controller: AVPlayerViewController,
     probes: TVPlaybackProbes? = nil,
     onReady: @escaping @MainActor () -> Void = {},
+    onSubtitleFailed: @escaping @MainActor () -> Void = {},
     onEnded: @escaping @MainActor () -> Void = {},
     onRestarted: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
@@ -807,6 +822,7 @@ final class TVVideoPlayerCoordinator {
       positionPipeline: pipeline,
       applyDefaultSubtitle: { item in await applyStartSubtitle(item, created) })
     self.session = session
+    self.onSubtitleFailed = onSubtitleFailed
     self.onReportsSettled = onReportsSettled
     waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
     session.onSubtitleSelected = probes.map { probes in { probes.subtitle = $0 } }
@@ -828,6 +844,7 @@ final class TVVideoPlayerCoordinator {
         onReady()
         guard let self, let controller else { return }
         self.watchSubtitlePicks(of: item, controller: controller)
+        self.watchSubtitleFailures(of: item, probes: probes)
         self.propose(self.proposalDelegate.proposal, in: controller)
       },
       observesPlaybackState: probes != nil,
@@ -900,6 +917,14 @@ final class TVVideoPlayerCoordinator {
       NotificationCenter.default.removeObserver(selectionObservation)
     }
     selectionObservation = nil
+    if let errorLogObservation {
+      NotificationCenter.default.removeObserver(errorLogObservation)
+    }
+    errorLogObservation = nil
+    renditionLoad?.cancel()
+    renditionLoad = nil
+    subtitleRenditions = []
+    checkedErrorEvents = 0
     session.stop(surface: controller)
     self.session = nil
     // The final position is enqueued by now; the callback follows it, and
@@ -931,6 +956,55 @@ final class TVVideoPlayerCoordinator {
           let rate = player.rate
           Task { @MainActor in probes?.rate = rate }
         })
+    }
+  }
+
+  private func watchSubtitleFailures(of item: AVPlayerItem, probes: TVPlaybackProbes?) {
+    errorLogObservation = NotificationCenter.default.addObserver(
+      forName: AVPlayerItem.newErrorLogEntryNotification, object: item, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated { self?.checkSubtitleFailures(of: item, probes: probes) }
+    }
+    guard let master = (item.asset as? AVURLAsset)?.url,
+      master.scheme == "http" || master.scheme == "https",
+      master.pathExtension.lowercased() == "m3u8"
+    else { return }
+    renditionLoad = Task { @MainActor [weak self] in
+      guard let (data, _) = try? await URLSession.shared.data(from: master),
+        let text = String(data: data, encoding: .utf8)
+      else { return }
+      guard let self, !Task.isCancelled else { return }
+      subtitleRenditions = PutioSubtitleRenditions.uris(inMasterPlaylist: text, relativeTo: master)
+      checkSubtitleFailures(of: item, probes: probes)
+    }
+  }
+
+  private func checkSubtitleFailures(of item: AVPlayerItem, probes: TVPlaybackProbes?) {
+    guard !subtitleRenditions.isEmpty, let events = item.errorLog()?.events else { return }
+    let fresh = events.dropFirst(checkedErrorEvents).filter {
+      $0.errorComment?.contains(#/HTTP [45]\d\d/#) == true
+    }
+    checkedErrorEvents = events.count
+    let failing = Set(fresh.compactMap { $0.uri.flatMap(URL.init(string:))?.absoluteURL })
+    let failedSegment = failing.contains { $0.pathExtension.lowercased() == "vtt" }
+    guard !failing.isEmpty else { return }
+    let renditions = subtitleRenditions
+    Task { @MainActor [weak self] in
+      guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
+        let selected = item.currentMediaSelection.selectedMediaOption(in: group)
+      else { return }
+      let rendition = group.options.firstIndex(of: selected).flatMap {
+        renditions.count == group.options.count ? renditions[$0] : nil
+      }
+      let failedPlaylist = rendition.map(failing.contains) ?? !failing.isDisjoint(with: renditions)
+      guard let self, failedPlaylist || failedSegment else { return }
+      item.select(nil, in: group)
+      subtitleMemory?.forget(
+        PutioSubtitleTrack(
+          id: 0, title: selected.displayName,
+          languageTag: selected.extendedLanguageTag ?? selected.locale?.identifier))
+      probes?.subtitle = "off"
+      onSubtitleFailed?()
     }
   }
 
