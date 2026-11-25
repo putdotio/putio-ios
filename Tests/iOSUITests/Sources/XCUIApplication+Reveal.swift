@@ -28,17 +28,19 @@ extension XCUIApplication {
   }
 
   /// Lazy List rows below the fold, such as the Account list's Sign out, are
-  /// absent from the accessibility tree until scrolled into view. Bounded so
-  /// a missing row still fails instead of scrolling forever.
+  /// absent from the accessibility tree until scrolled into view. An absent
+  /// row swipes after a short look, because waiting never brings it in.
+  /// Bounded so a missing row still fails instead of scrolling forever.
   func revealed(
     _ identifier: String, maximumSwipes: Int = 6, swipingIn container: XCUIElement? = nil
   ) -> XCUIElement {
     let target = descendants(matching: .any)[identifier]
     var swipes = 0
-    while !target.appears(within: 3), swipes < maximumSwipes {
+    while !target.shows(within: 1), swipes < maximumSwipes {
       (container.flatMap { $0.exists ? $0 : nil } ?? self).swipeUp()
       swipes += 1
     }
+    _ = target.appears(within: 3)
     return target
   }
 
