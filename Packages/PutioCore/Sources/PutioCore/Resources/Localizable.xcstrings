@@ -426,6 +426,17 @@
         }
       }
     },
+    "Back" : {
+      "comment" : "android: mobile_action_back",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
     "Callback failed" : {
       "comment" : "android: mobile_history_kind_callback_failed",
       "localizations" : {
@@ -1148,6 +1159,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t load your trash."
+          }
+        }
+      }
+    },
+    "Couldn’t play this audio" : {
+      "comment" : "android: mobile_playback_error_title_audio",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t play this audio"
           }
         }
       }
@@ -1970,6 +1992,52 @@
         }
       }
     },
+    "In %lld hours" : {
+      "comment" : "ios-only: tvOS sleep timer menu (rd-tvos-pb-20-sleep-timer); Android TV has no audio player",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld hour"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld hours"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "In %lld minutes" : {
+      "comment" : "ios-only: tvOS sleep timer menu (rd-tvos-pb-20-sleep-timer); Android TV has no audio player",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "In a browser" : {
       "comment" : "android: tv_link_browser_title",
       "localizations" : {
@@ -2212,6 +2280,28 @@
         }
       }
     },
+    "Now playing" : {
+      "comment" : "ios-only: tvOS Now Playing status (rd-tvos-pb-18-now-playing); Android TV has no audio player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now playing"
+          }
+        }
+      }
+    },
+    "Open player" : {
+      "comment" : "android: mobile_now_playing_open",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open player"
+          }
+        }
+      }
+    },
     "Play next" : {
       "comment" : "ios-only: the board's Up next action with autoplay off; Android TV has no key",
       "localizations" : {
@@ -2234,6 +2324,28 @@
         }
       }
     },
+    "Playback position" : {
+      "comment" : "android: mobile_playback_position",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback position"
+          }
+        }
+      }
+    },
+    "Playback speed" : {
+      "comment" : "android: mobile_playback_speed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback speed"
+          }
+        }
+      }
+    },
     "Playing in %lld" : {
       "comment" : "android: tv_player_up_next_countdown",
       "localizations" : {
@@ -2245,6 +2357,50 @@
         }
       }
     },
+    "Preparing audio" : {
+      "comment" : "android: mobile_playback_loading_audio",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing audio"
+          }
+        }
+      }
+    },
+    "Sleep in %@" : {
+      "comment" : "ios-only: tvOS sleep timer button while it runs (rd-tvos-pb-18-now-playing); Android TV has no audio player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep in %@"
+          }
+        }
+      }
+    },
+    "Sleep timer" : {
+      "comment" : "android: mobile_now_playing_sleep_timer",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer"
+          }
+        }
+      }
+    },
+    "Sleep timer, %@ left" : {
+      "comment" : "android: mobile_now_playing_sleep_timer_left",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer, %@ left"
+          }
+        }
+      }
+    },
     "Sort, %@" : {
       "comment" : "ios-only: tvOS Files spoken label for the sort pill",
       "localizations" : {
@@ -2252,6 +2408,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sort, %@"
+          }
+        }
+      }
+    },
+    "Speed" : {
+      "comment" : "android: tv_player_speed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Speed"
+          }
+        }
+      }
+    },
+    "Stop playback" : {
+      "comment" : "android: mobile_now_playing_dismiss",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop playback"
           }
         }
       }
