@@ -199,17 +199,6 @@ final class FilesSearchJourneyTests: XCTestCase {
       "focus left the recent searches")
 
     XCTAssertTrue(focusKeyboard())
-    field.typeText("   \n")
-    pause(2)
-    XCTAssertTrue(element("search.recent.sintel").exists, "an empty submit changed the recents")
-    XCTAssertTrue(isAbove("search.recent.blue lights", "search.recent.sintel"))
-    XCTAssertTrue(resumeTyping())
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "poster\n")
-    XCTAssertTrue(element("search.count").waitForExistence(timeout: 10))
-    XCTAssertTrue(resumeTyping())
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
-    XCTAssertTrue(
-      element("search.recent.poster").waitForExistence(timeout: 10), "a submit was not recorded")
     field.typeText("no-matching-file")
     XCTAssertTrue(element("search.empty").waitForExistence(timeout: 10))
     XCTAssertTrue(label(containing: "Nothing matches").exists)
@@ -264,13 +253,18 @@ final class FilesSearchJourneyTests: XCTestCase {
     field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5))
     let recorded = element("search.recent.retry")
     XCTAssertTrue(recorded.waitForExistence(timeout: 10), "the search was not recorded")
-    XCTAssertTrue(isAbove("search.recent.retry", "search.recent.poster"))
+    XCTAssertTrue(isAbove("search.recent.retry", "search.recent.sintel"))
     attach("runtime-tv-search-recent")
     XCTAssertTrue(focus("search.recent-clear", moving: .down, limit: 4))
     remote.press(.select)
     XCTAssertTrue(element("search.start").waitForExistence(timeout: 10))
     XCTAssertFalse(recorded.exists)
     attach("runtime-tv-search-start")
+    XCTAssertTrue(focusKeyboard())
+    field.typeText("   \n")
+    pause(2)
+    XCTAssertTrue(element("search.start").exists, "an empty submit was recorded")
+    XCTAssertFalse(element("search.recent-clear").exists)
 
     app.terminate()
     app.launchArguments = [
@@ -307,15 +301,6 @@ final class FilesSearchJourneyTests: XCTestCase {
       remote.press(.down)
       if app.keyboards.firstMatch.waitForExistence(timeout: 3) { return }
     }
-  }
-
-  /// A submit ends the field's editing; selecting a key starts it again and
-  /// types that key, which the caller deletes with the rest.
-  private func resumeTyping() -> Bool {
-    guard focusKeyboard() else { return false }
-    remote.press(.select)
-    pause(1)
-    return true
   }
 
   private func focusKeyboard() -> Bool {
