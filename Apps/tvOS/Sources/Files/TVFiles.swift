@@ -181,7 +181,7 @@ struct TVFolderView: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let open: (PutioFileItem) -> Void
-  let play: ((PutioVideoRoute) -> Void)?
+  let play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)?
 
   @State private var model: PutioFolderModel
   @State private var refreshRegistration: PutioFolderRefreshRegistration
@@ -203,7 +203,7 @@ struct TVFolderView: View {
   init(
     route: PutioFolderRoute, runtime: PutioRuntime, account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests, open: @escaping (PutioFileItem) -> Void,
-    play: ((PutioVideoRoute) -> Void)? = nil
+    play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)? = nil
   ) {
     self.init(
       route: route,
@@ -225,7 +225,7 @@ struct TVFolderView: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     now: Date = .now, locale: Locale = .current, loadsOnAppear: Bool = true,
     shownItemID: PutioFileID? = nil, open: @escaping (PutioFileItem) -> Void,
-    play: ((PutioVideoRoute) -> Void)? = nil
+    play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)? = nil
   ) {
     self.route = route
     self.account = account
@@ -558,26 +558,14 @@ struct TVFolderView: View {
 
   private var isRowFocused: Bool { focusedRow != nil }
 
-  /// Select on a row opens a folder and plays a video; any other file opens
-  /// its own screen.
+  /// Select on a row opens it; a video asks to resume where it left off.
   private func activate(_ item: PutioFileItem) {
-    if item.kind == .video, let video = videoRoute(item) {
-      play(video, item.resumePositionSeconds > 0 ? .resume : .startOver, fallback: item)
-    } else {
-      open(item)
-    }
+    open(item)
   }
 
-  private func videoRoute(_ item: PutioFileItem) -> PutioVideoRoute? {
-    if case .video(let video) = PutioFileRoute(item: item).openAction { return video }
-    return nil
-  }
-
-  private func play(
-    _ video: PutioVideoRoute, _ choice: PutioVideoResumePrompt.Choice, fallback item: PutioFileItem
-  ) {
+  private func play(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice) {
     guard let play else { return open(item) }
-    play(video.starting(with: choice))
+    play(item, choice)
   }
 
   private var pinnedState: (PutioFileID) -> Bool? {
@@ -643,9 +631,9 @@ struct TVFolderView: View {
     case .open:
       open(item)
     case .play:
-      if let video = videoRoute(item) { play(video, .resume, fallback: item) } else { open(item) }
+      play(item, .resume)
     case .startOver:
-      if let video = videoRoute(item) { play(video, .startOver, fallback: item) }
+      play(item, .startOver)
     case .pin:
       Task { await pins?.pin(item, in: route.id == .root ? nil : title) }
     case .unpin:

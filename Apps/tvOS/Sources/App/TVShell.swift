@@ -57,11 +57,12 @@ enum TVRoute: Hashable {
   case licenses
   case folder(PutioFolderRoute)
   case file(PutioFileItem)
+  case video(PutioFileItem, PutioVideoResumePrompt.Choice)
 
   func isAvailable(for account: PutioAccountSnapshot) -> Bool {
     switch self {
     case .trash: account.trashEnabled
-    case .privacy, .licenses, .folder, .file: true
+    case .privacy, .licenses, .folder, .file, .video: true
     }
   }
 
@@ -187,7 +188,8 @@ struct TVSignedInShell: View {
     case .files:
       TVFolderView(
         route: .root, runtime: runtime, account: account,
-        refreshRequests: folderRefreshRequests, open: { open($0, in: tab) })
+        refreshRequests: folderRefreshRequests, open: { open($0, in: tab) },
+        play: { play($0, $1, in: tab) })
     case .search:
       TVSearchView(
         runtime: runtime, account: account, refreshRequests: folderRefreshRequests,
@@ -204,6 +206,11 @@ struct TVSignedInShell: View {
     navigation.setPath(navigation.path(for: tab) + [.opening(item)], for: tab, account: account)
   }
 
+  private func play(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice, in tab: TVTab) {
+    navigation.setPath(
+      navigation.path(for: tab) + [.video(item, choice)], for: tab, account: account)
+  }
+
   @ViewBuilder
   private func destination(for route: TVRoute, in tab: TVTab) -> some View {
     switch route {
@@ -218,12 +225,23 @@ struct TVSignedInShell: View {
     case .folder(let folder):
       TVFolderView(
         route: folder, runtime: runtime, account: account,
-        refreshRequests: folderRefreshRequests, open: { open($0, in: tab) })
+        refreshRequests: folderRefreshRequests, open: { open($0, in: tab) },
+        play: { play($0, $1, in: tab) })
     case .file(let item):
       if case .video(let video) = PutioFileRoute(item: item).openAction {
         TVVideoSession(
           route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
           refreshRequests: folderRefreshRequests
+        )
+        .toolbar(.hidden, for: .tabBar)
+      } else {
+        TVFileScreen(item: item)
+      }
+    case .video(let item, let choice):
+      if case .video(let video) = PutioFileRoute(item: item).openAction {
+        TVVideoSession(
+          route: video.starting(with: choice), runtime: runtime, account: account,
+          pipeline: playbackPositionPipeline, refreshRequests: folderRefreshRequests
         )
         .toolbar(.hidden, for: .tabBar)
       } else {
@@ -257,6 +275,7 @@ enum TVShellLayout {
 
 extension TVRoute {
   var isFullScreen: Bool {
+    if case .video = self { return true }
     guard case .file(let item) = self else { return false }
     if case .video = PutioFileRoute(item: item).openAction { return true }
     return false
@@ -269,6 +288,7 @@ extension TVRoute {
     case .licenses: "licenses"
     case .folder(let folder): "folder.\(folder.id.rawValue)"
     case .file(let item): "file.\(item.id.rawValue)"
+    case .video(let item, _): "video.\(item.id.rawValue)"
     }
   }
 }

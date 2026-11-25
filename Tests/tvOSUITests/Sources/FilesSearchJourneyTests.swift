@@ -62,6 +62,17 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.panel").waitForExistence(timeout: 5))
     XCTAssertFalse(element("files.panel.move").exists, "Move waits for a folder picker")
     attach("runtime-tv-files-panel")
+
+    // Start over opens the player at the beginning without asking.
+    XCTAssertTrue(panelAction("files.panel.startOver", on: "files.item.412"))
+    XCTAssertTrue(element("video.screen.412").waitForExistence(timeout: 10))
+    XCTAssertFalse(
+      waitUntil(timeout: 3) { self.element("video.resume.continue").exists },
+      "Start over asked to resume")
+    remote.press(.menu)
+    if !movie.waitForExistence(timeout: 5) { remote.press(.menu) }
+    XCTAssertTrue(movie.waitForExistence(timeout: 10))
+
     XCTAssertTrue(panelAction("files.panel.markUnwatched", on: "files.item.412"))
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !movie.label.contains("Watched") })
