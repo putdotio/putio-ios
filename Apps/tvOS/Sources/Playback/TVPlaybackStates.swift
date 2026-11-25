@@ -32,6 +32,7 @@ struct TVPlaybackFailureScreen: View {
         title: String(localized: "Back", bundle: .putioCore), icon: .arrowLeft,
         identifier: "video.back", action: back)
     }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("video.failure.\(copy.identifier)")
   }
 }
@@ -89,6 +90,7 @@ struct TVPlaybackStalledScreen: View {
         title: String(localized: "Back", bundle: .putioCore), icon: .arrowLeft,
         identifier: "video.stalled.back", action: back)
     }
+    .accessibilityElement(children: .contain)
     .accessibilityIdentifier("video.stalled")
     .task { await preferences.loadSettingsIfNeeded() }
     .task { await proxy.loadIfNeeded() }
