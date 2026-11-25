@@ -868,6 +868,10 @@ final class TVVideoPlayerCoordinator {
     proposed = (proposal.next.id, proposal.folderName)
     let card = proposalController ?? TVUpNextProposalController()
     proposalController = card
+    card.willAccept = { [weak self, weak controller] in
+      guard let self, let controller else { return }
+      self.stop(controller: controller)
+    }
     card.show(proposal)
     controller.contentProposalViewController = card
     item.nextContentProposal = AVContentProposal(

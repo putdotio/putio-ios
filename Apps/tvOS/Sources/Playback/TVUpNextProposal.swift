@@ -12,12 +12,16 @@ struct TVUpNextProposal {
 
 final class TVUpNextProposalController: AVContentProposalViewController {
   private let host = UIHostingController<AnyView?>(rootView: nil)
+  var willAccept: @MainActor () -> Void = {}
 
   func show(_ proposal: TVUpNextProposal) {
     host.rootView = AnyView(
       TVUpNextModelCard(
         next: proposal.next, folderName: proposal.folderName, model: proposal.model,
-        play: { [weak self] in self?.dismissContentProposal(for: .accept, animated: true) },
+        play: { [weak self] in
+          self?.willAccept()
+          self?.dismissContentProposal(for: .accept, animated: true)
+        },
         close: { [weak self] in self?.dismissContentProposal(for: .reject, animated: true) }))
   }
 
