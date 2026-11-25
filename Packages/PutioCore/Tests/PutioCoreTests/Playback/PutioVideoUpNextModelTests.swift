@@ -149,6 +149,22 @@ final class PutioVideoUpNextModelTests: XCTestCase {
     XCTAssertEqual(recorder.operations, ["find:441", "reset:441", "find:441"])
   }
 
+  func testALookupThatKeepsFailingIsNotAnEmptyFolder() async {
+    let recorder = UpNextRecorder()
+    recorder.autoplay = false
+    recorder.findResults = [.failure(UpNextFailure()), .failure(UpNextFailure()), .success(nil)]
+    let model = model(recorder)
+    await model.lookUp()
+    XCTAssertTrue(model.lookupFailed)
+    await model.playbackEnded()
+    XCTAssertEqual(model.state, .idle)
+    XCTAssertNil(model.upcoming)
+    XCTAssertTrue(model.lookupFailed, "a failed retry still isn't a confirmed last video")
+    await model.retry()
+    XCTAssertNil(model.upcoming)
+    XCTAssertFalse(model.lookupFailed, "an empty answer confirms the last video")
+  }
+
   func testCancelDuringTheCountdownKeepsTheFinishedVideo() async {
     let recorder = UpNextRecorder()
     let model = model(recorder)
