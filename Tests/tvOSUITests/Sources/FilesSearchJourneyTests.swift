@@ -66,6 +66,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.screen.412").waitForExistence(timeout: 10))
     XCTAssertTrue(element("video.retry").waitForExistence(timeout: 20))
     XCTAssertFalse(element("video.resume.continue").exists, "Start over asked to resume")
+    XCTAssertTrue(focus("video.retry", moving: .down, limit: 3))
     remote.press(.menu)
     XCTAssertTrue(movie.waitForExistence(timeout: 10))
 
