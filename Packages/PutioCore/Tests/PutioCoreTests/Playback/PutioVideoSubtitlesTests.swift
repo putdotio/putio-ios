@@ -92,7 +92,8 @@ final class PutioVideoSubtitlesTests: XCTestCase {
       https://cdn.put.io/s/2.vtt?t=1
       #EXT-X-ENDLIST
       """
-    let base = try XCTUnwrap(URL(string: "http://127.0.0.1:8080/multi-audio/multi-subtitle-English.m3u8"))
+    let base = try XCTUnwrap(
+      URL(string: "http://127.0.0.1:8080/multi-audio/multi-subtitle-English.m3u8"))
 
     XCTAssertEqual(
       PutioSubtitleRenditions.segments(inMediaPlaylist: playlist, relativeTo: base),
