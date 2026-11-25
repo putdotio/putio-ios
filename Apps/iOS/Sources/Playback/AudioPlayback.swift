@@ -76,19 +76,6 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
   }
 }
 
-@MainActor
-final class PutioSystemAudioSession: PutioAudioSessioning {
-  func activate() throws {
-    let session = AVAudioSession.sharedInstance()
-    try session.setCategory(.playback, mode: .default)
-    try session.setActive(true)
-  }
-
-  func deactivate() {
-    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-  }
-}
-
 struct PutioAudioRoutePicker: UIViewRepresentable {
   func makeUIView(context: Context) -> AVRoutePickerView {
     let picker = AVRoutePickerView()
