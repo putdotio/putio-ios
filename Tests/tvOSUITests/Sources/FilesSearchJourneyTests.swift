@@ -65,7 +65,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(panelAction("files.panel.startOver", on: "files.item.412"))
     XCTAssertTrue(element("video.screen.412").waitForExistence(timeout: 10))
     XCTAssertTrue(element("video.retry").waitForExistence(timeout: 20))
-    XCTAssertTrue(focus("video.retry", moving: .down, limit: 3))
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("video.retry") },
+      "the failure screen opened without focus, so Menu would quit the app")
     remote.press(.menu)
     XCTAssertTrue(movie.waitForExistence(timeout: 10))
 

@@ -41,6 +41,20 @@ struct TVVideoSession: View {
   }
 }
 
+struct TVVideoCover<Content: View>: View {
+  @ViewBuilder let content: () -> Content
+
+  @Environment(\.dismiss) private var dismiss
+  @State private var presented = false
+
+  var body: some View {
+    Color.black
+      .ignoresSafeArea()
+      .onAppear { presented = true }
+      .fullScreenCover(isPresented: $presented, onDismiss: { dismiss() }, content: content)
+  }
+}
+
 /// What the screen shows once the source resolved.
 private enum TVPlaybackStage {
   case measuring
