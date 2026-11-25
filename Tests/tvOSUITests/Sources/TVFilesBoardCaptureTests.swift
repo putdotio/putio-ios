@@ -92,6 +92,8 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     guard focus(action, moving: .down, limit: 8) || focus(action, moving: .up, limit: 8) else {
       return false
     }
+    let target = element(action)
+    guard waitUntil(timeout: 10, { target.isEnabled }) else { return false }
     remote.press(.select)
     return true
   }
