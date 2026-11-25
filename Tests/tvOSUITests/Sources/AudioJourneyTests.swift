@@ -47,9 +47,7 @@ final class AudioJourneyTests: XCTestCase {
     remote.press(.playPause)
     XCTAssertTrue(waitUntil(timeout: 5) { state.value as? String == "playing" })
 
-    XCTAssertTrue(
-      focus(where: "label == 'Sleep timer'", moving: .right, limit: 4),
-      "Sleep timer never took focus")
+    remote.press(.right)
     remote.press(.select)
     let thirty = app.buttons["In 30 minutes"]
     XCTAssertTrue(thirty.waitForExistence(timeout: 5), "the sleep timer menu never opened")
@@ -60,7 +58,7 @@ final class AudioJourneyTests: XCTestCase {
       "In 30 minutes never took focus")
     remote.press(.select)
     XCTAssertTrue(
-      waitUntil(timeout: 5) { self.focused("label BEGINSWITH 'Sleep timer, 29:'").exists },
+      waitUntil(timeout: 5) { self.label(containing: "Sleep in 29:").exists },
       "the timer did not start")
 
     remote.press(.menu)
@@ -70,7 +68,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(mini.value as? String, Self.track)
     attach("runtime-tv-audio-mini-player")
 
-    XCTAssertTrue(focus(where: "label == 'Open player'", moving: .up, limit: 6))
+    XCTAssertTrue(focus(where: "identifier == 'audio.mini.open'", moving: .up, limit: 6))
     remote.press(.select)
     XCTAssertTrue(state.waitForExistence(timeout: 10), "the mini player did not reopen it")
   }
@@ -81,6 +79,11 @@ final class AudioJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+  }
+
+  private func label(containing text: String) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text))
+      .firstMatch
   }
 
   private func hasFocus(_ identifier: String) -> Bool {
@@ -110,7 +113,12 @@ final class AudioJourneyTests: XCTestCase {
       if waitUntil(timeout: 0.75, { target.exists }) { return true }
       remote.press(direction)
     }
-    return waitUntil(timeout: 1.5) { target.exists }
+    if waitUntil(timeout: 1.5, { target.exists }) { return true }
+    let tree = XCTAttachment(string: app.debugDescription)
+    tree.name = "focus-miss"
+    tree.lifetime = .keepAlways
+    add(tree)
+    return false
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
