@@ -81,6 +81,8 @@ final class FilesSearchJourneyTests: XCTestCase {
 
     XCTAssertTrue(panelAction("files.panel.pin", on: "files.item.412"))
     XCTAssertTrue(element("files.panel.unpin").waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      waitUntil(timeout: 3) { self.hasFocus("files.panel.unpin") }, "focus left the panel action")
     XCTAssertTrue(panelAction("files.panel.unpin", on: "files.item.412"))
     XCTAssertTrue(element("files.panel.pin").waitForExistence(timeout: 10))
 

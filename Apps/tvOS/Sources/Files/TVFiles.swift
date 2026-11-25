@@ -610,7 +610,7 @@ struct TVFolderView: View {
     } actions: {
       ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
         if section.contains(.trash) { TVDetailDivider() }
-        ForEach(section, id: \.self) { menuRow in
+        ForEach(section, id: \.panelSlot) { menuRow in
           if let title = menuRow.title(
             for: item, style: .panel, trashEnabled: account.trashEnabled)
           {
@@ -694,6 +694,16 @@ struct TVFolderView: View {
   private struct PendingRefresh: Equatable {
     let sequence: PutioFolderRefreshRequests.Sequence?
     let loaded: Bool
+  }
+}
+
+extension PutioFileMenuRow {
+  fileprivate var panelSlot: String {
+    switch self {
+    case .unpin: PutioFileMenuRow.pin.rawValue
+    case .markUnwatched: PutioFileMenuRow.markWatched.rawValue
+    default: rawValue
+    }
   }
 }
 
