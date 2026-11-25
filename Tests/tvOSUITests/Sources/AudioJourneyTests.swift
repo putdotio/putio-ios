@@ -49,13 +49,15 @@ final class AudioJourneyTests: XCTestCase {
 
     remote.press(.right)
     remote.press(.select)
-    let thirty = app.buttons["In 30 minutes"]
+    let thirty = menuRow("In 30 minutes")
     XCTAssertTrue(thirty.waitForExistence(timeout: 5), "the sleep timer menu never opened")
-    XCTAssertTrue(app.buttons["In 1 hour"].exists, "the menu misses an hour")
+    XCTAssertTrue(menuRow("In 1 hour").exists, "the menu misses an hour")
     attach("runtime-tv-audio-sleep-menu")
-    XCTAssertTrue(
-      focus(where: "label == 'In 30 minutes'", moving: .down, limit: 4),
-      "In 30 minutes never took focus")
+    for _ in 0..<4 where !thirty.hasFocus {
+      remote.press(.down)
+      _ = waitUntil(timeout: 1) { thirty.hasFocus }
+    }
+    XCTAssertTrue(thirty.hasFocus, "In 30 minutes never took focus")
     remote.press(.select)
     XCTAssertTrue(
       waitUntil(timeout: 5) { self.label(containing: "Sleep in 29:").exists },
@@ -79,6 +81,10 @@ final class AudioJourneyTests: XCTestCase {
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+  }
+
+  private func menuRow(_ title: String) -> XCUIElement {
+    app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
   private func label(containing text: String) -> XCUIElement {
