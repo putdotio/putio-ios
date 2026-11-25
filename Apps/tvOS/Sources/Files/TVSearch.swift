@@ -18,6 +18,7 @@ struct TVSearchView: View {
   @State private var externalPlayback: PutioExternalPlaybackModel?
   @FocusState private var focusedRow: PutioFileID?
   @FocusState private var focusedRecent: String?
+  @State private var recentFocusTarget: String?
   @State private var focusTarget: PutioFileID?
   @State private var shownItemID: PutioFileID?
   @State private var showsPanel = false
@@ -131,6 +132,13 @@ struct TVSearchView: View {
       }
       .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
+      .task(id: recentFocusTarget) {
+        guard let target = recentFocusTarget else { return }
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        recentFocusTarget = nil
+        focusedRecent = target
+      }
       .putioToast($toast)
   }
 
@@ -232,10 +240,8 @@ struct TVSearchView: View {
                 terms.indices.contains(index + 1)
                   ? terms[index + 1] : index > 0 ? terms[index - 1] : nil
               }
-              Task {
-                await recent.remove(term)
-                focusedRecent = next
-              }
+              recentFocusTarget = next
+              Task { await recent.remove(term) }
             } label: {
               Label {
                 Text(PutioRecentSearchesCopy.remove)
