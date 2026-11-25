@@ -193,9 +193,8 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(label(containing: "Could not convert video").exists)
     attach("runtime-tv-playback-conversion-failure")
     XCTAssertTrue(
-      waitUntil(timeout: 5) { self.hasFocus("video.retry") || self.hasFocus("video.back") },
+      waitUntil(timeout: 5) { self.hasFocus("video.retry") },
       "the failure screen opened without focus, so Menu would quit the app")
-    XCTAssertTrue(focus("video.retry", moving: .right, limit: 2))
     remote.press(.select)
 
     XCTAssertTrue(element("video.conversion-progress").waitForExistence(timeout: 30))

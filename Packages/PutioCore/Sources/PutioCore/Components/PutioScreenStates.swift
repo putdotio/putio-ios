@@ -463,12 +463,21 @@ private struct PutioScreenStateContent<Glyph: View>: View {
       }
     } actions: {
       HStack(spacing: PutioScreenStateLayout.contentGap) {
-        if let secondary {
-          PutioScreenStateButton(action: secondary, size: secondarySize)
-        }
-        if let action {
-          PutioScreenStateButton(action: action, size: actionSize)
-        }
+        #if os(tvOS)
+          if let action {
+            PutioScreenStateButton(action: action, size: actionSize)
+          }
+          if let secondary {
+            PutioScreenStateButton(action: secondary, size: secondarySize)
+          }
+        #else
+          if let secondary {
+            PutioScreenStateButton(action: secondary, size: secondarySize)
+          }
+          if let action {
+            PutioScreenStateButton(action: action, size: actionSize)
+          }
+        #endif
       }
       .padding(.top, spacesActionsFromTitle ? PutioScreenStateLayout.contentGap : 0)
     }
