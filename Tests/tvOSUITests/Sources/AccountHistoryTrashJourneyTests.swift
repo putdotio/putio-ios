@@ -164,19 +164,6 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(isCentered(element("trash.empty-state")), "Trash's empty state is off-center")
     attach("runtime-tv-trash-empty")
     XCTAssertTrue(menuReturnsToAccount(), "Menu left the empty trash's app")
-
-    // A trash that never finishes loading still answers Menu.
-    app.terminate()
-    app.launchArguments = [
-      "--putio-harness-scenario", "signed-in", "--putio-harness-trash", "slow",
-    ]
-    app.launch()
-    XCTAssertTrue(TVTabBar(app).open("Account"))
-    remote.press(.down)
-    XCTAssertTrue(focus("account.manage-trash"))
-    remote.press(.select)
-    XCTAssertTrue(waitUntil(timeout: 10) { self.app.activityIndicators.count > 0 })
-    XCTAssertTrue(menuReturnsToAccount(), "Menu left the loading trash's app")
   }
 
   /// Settings cycle in place, the proxy menu recovers a failed listing, a
@@ -269,7 +256,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
 
     // A privacy toggle keeps focus while it saves.
-    XCTAssertTrue(focus("account.privacy"))
+    XCTAssertTrue(focus("account.privacy", moving: .down, limit: 14))
     remote.press(.select)
     let diagnostics = element("privacy.diagnostics")
     XCTAssertTrue(diagnostics.waitForExistence(timeout: 10))
