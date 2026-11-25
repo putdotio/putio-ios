@@ -108,14 +108,13 @@ final class TVPlaybackTests: XCTestCase {
     defer { server.stop() }
     let reported = ReportedPositions()
     let pipeline = PutioPlaybackPositionPipeline()
-    let notifications = NotificationCenter()
     let (coordinator, controller, _) = try await startPlayer(
       base: base, startSeconds: 120, remembersPosition: true, pipeline: pipeline,
-      reported: reported, notifications: notifications)
+      reported: reported)
     let player = try XCTUnwrap(coordinator.player)
     await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 121 }
 
-    notifications.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+    NotificationCenter.default.post(name: Self.background, object: nil)
     await pipeline.waitForPendingReports(fileID: Self.fileID)
     XCTAssertEqual(reported.reports.map(\.0), [Self.fileID])
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
@@ -389,6 +388,7 @@ final class TVPlaybackTests: XCTestCase {
   // MARK: Helpers
 
   private static let fileID = PutioFileID(rawValue: 412)
+  private static let background = Notification.Name("TVPlaybackTests.background")
   private static let nextVideo = PutioNextVideo(
     id: PutioFileID(rawValue: 414), parentID: PutioFileID(rawValue: 40),
     name: "Big Buck Bunny.part2.mp4")
@@ -413,11 +413,10 @@ final class TVPlaybackTests: XCTestCase {
   private func startPlayer(
     base: URL, startSeconds: Int, remembersPosition: Bool,
     pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions,
-    speeds: PutioAudioSpeedStore? = nil, notifications: NotificationCenter = NotificationCenter(),
-    onEnded: @escaping @MainActor () -> Void = {}
+    speeds: PutioAudioSpeedStore? = nil, onEnded: @escaping @MainActor () -> Void = {}
   ) async throws -> (TVVideoPlayerCoordinator, AVPlayerViewController, TVPlaybackProbes) {
     let coordinator = TVVideoPlayerCoordinator(
-      speedStore: speeds ?? speedStore(), notificationCenter: notifications)
+      speedStore: speeds ?? speedStore(), backgroundNotification: Self.background)
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     coordinator.start(
