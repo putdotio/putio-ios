@@ -356,6 +356,17 @@ final class TVPlaybackTests: XCTestCase {
       size: viewport)
   }
 
+  func testSubtitleFailureToastMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-subtitles-failed",
+      view: Color.gray.putioToast(
+        .constant(
+          PutioToast(
+            String(localized: "Couldn’t load subtitles", bundle: .putioCore), icon: .warning,
+            width: .fit))),
+      size: viewport)
+  }
+
   func testConversionProgressMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-converting",
