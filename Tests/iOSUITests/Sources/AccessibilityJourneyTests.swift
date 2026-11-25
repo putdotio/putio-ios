@@ -150,7 +150,9 @@ final class AccessibilityJourneyTests: XCTestCase {
   private func signOut() {
     XCUIDevice.shared.orientation = .portrait
     selectTab("Account")
-    reachable(app.buttons["auth.sign-out"], maximumSwipes: 12).tap()
+    let signOut = reachable(app.buttons["auth.sign-out"], maximumSwipes: 12)
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out never settled")
+    signOut.tap()
     app.confirmSignOut()
     XCTAssertTrue(app.buttons["auth.sign-in"].appears(within: 10))
   }
