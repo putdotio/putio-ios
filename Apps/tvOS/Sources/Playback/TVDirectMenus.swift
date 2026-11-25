@@ -135,6 +135,12 @@ extension TVDirectChip {
   }
 }
 
+/// The full-screen surface under the controls: it takes the remote's clicks
+/// and swipes while the controls are hidden, and draws nothing.
+struct TVDirectSurfaceStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View { configuration.label }
+}
+
 private struct TVDirectChipStyle: ButtonStyle {
   let isOpen: Bool
   let isDimmed: Bool

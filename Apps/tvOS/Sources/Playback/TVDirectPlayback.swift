@@ -373,11 +373,10 @@ struct TVDirectVideoPlayer: View {
         cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture,
         bottomInset: showsControls
           ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset)
-      Color.clear
-        .contentShape(Rectangle())
-        .focusable(menu == nil && !showsControls)
+      Button(action: playPause) { Color.clear.contentShape(Rectangle()) }
+        .buttonStyle(TVDirectSurfaceStyle())
+        .disabled(menu != nil || showsControls)
         .focused($focus, equals: .surface)
-        .onTapGesture { playPause() }
         .onMoveCommand(perform: surfaceMoved)
         .accessibilityIdentifier("video.direct-player")
       if let badge {
