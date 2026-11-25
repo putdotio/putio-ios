@@ -70,7 +70,8 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(mini.value as? String, Self.track)
     attach("runtime-tv-audio-mini-player")
 
-    XCTAssertTrue(focus(where: "identifier == 'audio.mini.open'", moving: .up, limit: 6))
+    XCTAssertTrue(focus(where: "identifier == 'tab.files'", moving: .up, limit: 6))
+    XCTAssertTrue(focus(where: "identifier == 'audio.mini.open'", moving: .right, limit: 6))
     remote.press(.select)
     XCTAssertTrue(state.waitForExistence(timeout: 10), "the mini player did not reopen it")
   }

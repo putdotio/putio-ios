@@ -65,8 +65,8 @@ struct TVAudioMiniPlayer: View {
     return min(max(CGFloat(model.elapsedSeconds) / CGFloat(duration), 0), 1)
   }
 
-  static let width: CGFloat = 420
-  static let height: CGFloat = 72
+  static let width: CGFloat = 360
+  static let height: CGFloat = 50
   private static let leading: CGFloat = 22
   private static let trailing: CGFloat = 26
   private static let glyph: CGFloat = 30

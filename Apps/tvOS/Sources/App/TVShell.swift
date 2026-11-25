@@ -316,7 +316,7 @@ enum TVShellLayout {
   static let wordmarkHeight: CGFloat = 40
   static let wordmarkLeading: CGFloat = 80
   static let wordmarkTop: CGFloat = 64
-  static let miniPlayerTrailing: CGFloat = 80
+  static let miniPlayerTrailing: CGFloat = 0
   static let miniPlayerTop: CGFloat = 54
 }
 
