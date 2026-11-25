@@ -169,15 +169,31 @@ struct TVDirectPlayerView: UIViewRepresentable {
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
   let callbacks: PutioVideoPlayerCallbacks
+  let onReportsSettled: @MainActor () -> Void
 
-  func makeCoordinator() -> PutioDirectPlayCoordinator {
-    PutioDirectPlayCoordinator(positionPipeline: positionPipeline)
+  final class Coordinator {
+    let playback: PutioDirectPlayCoordinator
+    let settles: @MainActor () async -> Void
+
+    init(playback: PutioDirectPlayCoordinator, settles: @escaping @MainActor () async -> Void) {
+      self.playback = playback
+      self.settles = settles
+    }
+  }
+
+  func makeCoordinator() -> Coordinator {
+    Coordinator(
+      playback: PutioDirectPlayCoordinator(positionPipeline: positionPipeline),
+      settles: { [fileID, positionPipeline, onReportsSettled] in
+        await positionPipeline.waitForPendingReports(fileID: fileID)
+        onReportsSettled()
+      })
   }
 
   func makeUIView(context: Context) -> AetherPlayerView {
     let view = AetherPlayerView()
     view.backgroundColor = .black
-    context.coordinator.start(
+    context.coordinator.playback.start(
       fileID: fileID, source: source, transport: transport,
       preferredAudioLanguages: Locale.preferredLanguages,
       remembersPlaybackPosition: remembersPlaybackPosition,
@@ -189,8 +205,10 @@ struct TVDirectPlayerView: UIViewRepresentable {
 
   func updateUIView(_ view: AetherPlayerView, context: Context) {}
 
-  static func dismantleUIView(_ view: AetherPlayerView, coordinator: PutioDirectPlayCoordinator) {
-    coordinator.stop()
+  static func dismantleUIView(_ view: AetherPlayerView, coordinator: Coordinator) {
+    coordinator.playback.stop()
+    let settles = coordinator.settles
+    Task { @MainActor in await settles() }
   }
 }
 
@@ -207,6 +225,7 @@ struct TVDirectVideoPlayer: View {
   let pipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
   let callbacks: PutioVideoPlayerCallbacks
+  let onReportsSettled: @MainActor () -> Void
   let onExit: @MainActor () -> Void
 
   init(
@@ -214,6 +233,7 @@ struct TVDirectVideoPlayer: View {
     subtitlePolicy: PutioSubtitleStartupPolicy, subtitleMemory: PutioSubtitleMemory,
     pipeline: PutioPlaybackPositionPipeline, reportPosition: @escaping PutioPlaybackPositionReport,
     wait: PutioVideoWaitModel, callbacks: PutioVideoPlayerCallbacks,
+    onReportsSettled: @escaping @MainActor () -> Void = {},
     onExit: @escaping @MainActor () -> Void
   ) {
     self.title = title
@@ -225,6 +245,7 @@ struct TVDirectVideoPlayer: View {
     self.pipeline = pipeline
     self.reportPosition = reportPosition
     self.callbacks = callbacks
+    self.onReportsSettled = onReportsSettled
     self.onExit = onExit
     _transport = State(initialValue: TVDirectTransport(wait: wait))
   }
@@ -239,7 +260,7 @@ struct TVDirectVideoPlayer: View {
         fileID: fileID, source: source, transport: transport,
         remembersPlaybackPosition: remembersPosition, subtitlePolicy: subtitlePolicy,
         subtitleMemory: subtitleMemory, positionPipeline: pipeline,
-        reportPosition: reportPosition, callbacks: callbacks
+        reportPosition: reportPosition, callbacks: callbacks, onReportsSettled: onReportsSettled
       )
       .ignoresSafeArea()
       PutioVideoSubtitleOverlay(

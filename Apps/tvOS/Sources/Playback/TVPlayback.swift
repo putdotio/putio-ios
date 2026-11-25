@@ -261,7 +261,9 @@ struct TVVideoPlaybackView: View {
         reportPosition: { [runtime] fileID, seconds in
           try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         },
-        wait: wait, callbacks: directCallbacks, onExit: onFinish
+        wait: wait, callbacks: directCallbacks,
+        onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
+        onExit: onFinish
       )
       .id(model.playerAttempt)
       .putioToast($toast)
@@ -355,9 +357,16 @@ struct TVVideoPlaybackView: View {
     guard ended else { return false }
     switch nextVideoModel.state {
     case .failed: return true
-    case .idle: return nextVideoModel.lookupFailed
-    case .finding, .countingDown, .playing: return false
+    case .idle:
+      return nextVideoModel.lookupFailed || (playsEngine && nextVideoModel.upcoming != nil)
+    case .countingDown: return playsEngine
+    case .finding, .playing: return false
     }
+  }
+
+  private var playsEngine: Bool {
+    guard case .ready(let source) = model.state else { return false }
+    return source.original?.player == .engine
   }
 
   private var nextFileAction: (@MainActor () -> Void)? {
