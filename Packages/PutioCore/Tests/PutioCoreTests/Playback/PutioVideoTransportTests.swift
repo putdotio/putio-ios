@@ -27,6 +27,24 @@ final class PutioVideoTransportTests: XCTestCase {
       PutioVideoTimeline(elapsedSeconds: 585, durationSeconds: 590).target(skippingBy: 10), 590)
   }
 
+  func testTheEndHoldsTheDurationUntilASeekOrARestart() {
+    var playhead = PutioVideoPlayhead()
+    playhead.observed(elapsedSeconds: 29, durationSeconds: 30)
+
+    playhead.ended(true)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 30, "the end stayed on the last frame")
+    playhead.observed(elapsedSeconds: 29, durationSeconds: 30)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 30, "a late tick moved back from the end")
+
+    let seek = playhead.seekStarted(to: playhead.timeline.target(skippingBy: -10))
+    playhead.seekFinished(seek)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 20, "a skip after the end was lost")
+
+    playhead.ended(false)
+    playhead.observed(elapsedSeconds: 0, durationSeconds: 30)
+    XCTAssertEqual(playhead.timeline.elapsedSeconds, 0, "a restart kept the end")
+  }
+
   func testTicksBeforeASeekLandsKeepTheTarget() {
     var playhead = PutioVideoPlayhead()
     playhead.observed(elapsedSeconds: 50, durationSeconds: 600)

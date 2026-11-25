@@ -44,7 +44,10 @@ final class TVDirectTransport: PutioDirectPlayTransport {
     self.engine = engine
     engine.setSoftwareSubtitleDelay(subtitleTiming.seconds)
     engine.$state
-      .sink { [weak self] state in self?.isPlaying = state == .playing }
+      .sink { [weak self] state in
+        self?.isPlaying = state == .playing
+        self?.playhead.ended(state == .ended)
+      }
       .store(in: &observations)
     engine.$playbackPhase
       .sink { [weak self] phase in

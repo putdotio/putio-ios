@@ -776,6 +776,7 @@ final class PutioVideoTransport {
   }
 
   private func engineStateChanged(_ state: PlaybackState) {
+    playhead.ended(state == .ended)
     switch state {
     case .playing:
       isPlaying = true
