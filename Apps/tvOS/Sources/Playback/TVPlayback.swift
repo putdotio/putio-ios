@@ -189,8 +189,7 @@ struct TVVideoPlaybackView: View {
   private var stateContent: some View {
     switch model.state {
     case .loading:
-      PutioLoadingStateView(title: "Preparing video")
-        .accessibilityIdentifier("video.loading")
+      TVPlaybackLoadingView(title: route.title)
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
       TVConversionStatusView(state: model.state)
     case .failed(let failure):
@@ -606,6 +605,25 @@ struct TVUpNextView: View {
     .buttonStyle(.bordered)
     .tint(nil)
     .focused($focusedAction, equals: action)
+  }
+}
+
+struct TVPlaybackLoadingView: View {
+  let title: String
+
+  var body: some View {
+    ZStack(alignment: .topLeading) {
+      PutioLoadingStateView(title: String(localized: "Loading", bundle: .putioCore))
+        .accessibilityIdentifier("video.loading")
+      Text(title)
+        .putioFont(PutioTheme.TV.Typography.caption)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .lineLimit(1)
+        .accessibilityIdentifier("video.loading.title")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .tvOverscanPadding()
+    }
+    .background(Color.black.ignoresSafeArea())
   }
 }
 

@@ -2069,6 +2069,17 @@
         }
       }
     },
+    "Loading" : {
+      "comment" : "android: tv_player_loading",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading"
+          }
+        }
+      }
+    },
     "Loading files" : {
       "comment" : "android: mobile_files_loading",
       "localizations" : {

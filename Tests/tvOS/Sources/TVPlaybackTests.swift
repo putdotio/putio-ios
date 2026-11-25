@@ -331,6 +331,13 @@ final class TVPlaybackTests: XCTestCase {
       size: viewport)
   }
 
+  func testLoadingMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-loading",
+      view: TVPlaybackLoadingView(title: "Big Buck Bunny.mp4"),
+      size: viewport)
+  }
+
   func testConversionProgressMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-converting",
