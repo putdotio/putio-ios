@@ -229,20 +229,24 @@ struct TVSignedInShell: View {
         play: { play($0, $1, in: tab) })
     case .file(let item):
       if case .video(let video) = PutioFileRoute(item: item).openAction {
-        TVVideoSession(
-          route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
-          refreshRequests: folderRefreshRequests
-        )
+        TVVideoCover {
+          TVVideoSession(
+            route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
+            refreshRequests: folderRefreshRequests
+          )
+        }
         .toolbar(.hidden, for: .tabBar)
       } else {
         TVFileScreen(item: item)
       }
     case .video(let item, _):
       if let video = route.videoRoute {
-        TVVideoSession(
-          route: video, runtime: runtime, account: account,
-          pipeline: playbackPositionPipeline, refreshRequests: folderRefreshRequests
-        )
+        TVVideoCover {
+          TVVideoSession(
+            route: video, runtime: runtime, account: account,
+            pipeline: playbackPositionPipeline, refreshRequests: folderRefreshRequests
+          )
+        }
         .toolbar(.hidden, for: .tabBar)
       } else {
         TVFileScreen(item: item)

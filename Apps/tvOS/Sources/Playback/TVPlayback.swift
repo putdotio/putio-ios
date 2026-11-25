@@ -41,6 +41,20 @@ struct TVVideoSession: View {
   }
 }
 
+struct TVVideoCover<Content: View>: View {
+  @ViewBuilder let content: () -> Content
+
+  @Environment(\.dismiss) private var dismiss
+  @State private var presented = false
+
+  var body: some View {
+    Color.black
+      .ignoresSafeArea()
+      .onAppear { presented = true }
+      .fullScreenCover(isPresented: $presented, onDismiss: { dismiss() }, content: content)
+  }
+}
+
 /// What the screen shows once the source resolved.
 private enum TVPlaybackStage {
   case measuring
@@ -174,7 +188,6 @@ struct TVVideoPlaybackView: View {
         ) {
           retrySequence &+= 1
         }
-        .takesFocus()
       }
 
     case .ready:
@@ -518,7 +531,6 @@ private struct TVNextVideoStage: View {
       .secondaryAction(
         String(localized: "Cancel"), identifier: "video.next-error.cancel", perform: close
       )
-      .takesFocus()
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("video.next-error")
     case .idle, .finding, .playing:
@@ -840,31 +852,4 @@ final class TVVideoPlayerCoordinator {
   static func selectDefaultSubtitle(in item: AVPlayerItem, for player: AVPlayer) async {
     await selectStartSubtitle(in: item, for: player, policy: .accountDefault, remembered: nil)
   }
-}
-
-private struct TVTakesFocus: ViewModifier {
-  @Namespace private var scope
-  @Environment(\.resetFocus) private var resetFocus
-
-  func body(content: Content) -> some View {
-    content
-      .focusScope(scope)
-      .task {
-        let stale = Self.focusedItem
-        for _ in 0..<20 where !Task.isCancelled && Self.focusedItem === stale {
-          resetFocus(in: scope)
-          try? await Task.sleep(for: .milliseconds(50))
-        }
-      }
-  }
-
-  private static var focusedItem: AnyObject? {
-    UIApplication.shared.connectedScenes.lazy
-      .compactMap { ($0 as? UIWindowScene)?.focusSystem?.focusedItem }
-      .first
-  }
-}
-
-extension View {
-  fileprivate func takesFocus() -> some View { modifier(TVTakesFocus()) }
 }
