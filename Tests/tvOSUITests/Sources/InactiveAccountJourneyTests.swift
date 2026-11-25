@@ -46,7 +46,12 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(timeout: 30) { playbackNotice.exists || resume.exists },
       "the refused video never settled")
-    if resume.exists { remote.press(.select) }
+    if resume.exists {
+      XCTAssertTrue(
+        waitUntil(timeout: 5) { self.hasFocus("video.resume.continue") },
+        "the resume prompt never took focus")
+      remote.press(.select)
+    }
     XCTAssertTrue(
       playbackNotice.waitForExistence(timeout: 30), "a refused stream did not show the notice")
     XCTAssertTrue(
