@@ -211,13 +211,7 @@ extension PutioOfflineQueueFactory {
 enum PutioExternalPlaybackOpener {
   static func make(scenario: HarnessScenario) -> PutioExternalURLOpening {
     #if DEBUG
-      if scenario == .filesBrowser {
-        let arguments = ProcessInfo.processInfo.arguments
-        return HarnessExternalURLOpener(
-          vlcInstalled: arguments.contains("--putio-harness-vlc-installed"),
-          hidesVLCAtHandoff: arguments.contains("--putio-harness-vlc-removed"),
-          refusesFirstHandoff: arguments.contains("--putio-harness-vlc-refuses-once"))
-      }
+      if scenario == .filesBrowser { return HarnessExternalURLOpener.launchArguments() }
     #endif
     return PutioSystemURLOpener()
   }

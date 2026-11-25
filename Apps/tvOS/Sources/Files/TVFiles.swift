@@ -186,6 +186,7 @@ struct TVFolderView: View {
   @State private var model: PutioFolderModel
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var pins: PutioPinnedFilesModel?
+  @State private var externalPlayback: PutioExternalPlaybackModel?
   @FocusState private var focusedRow: PutioFileID?
   @FocusState private var focusesMoreRetry: Bool?
   @State private var focusTarget: PutioFileID?
@@ -214,6 +215,7 @@ struct TVFolderView: View {
         actions: PutioFileActions(runtime: runtime)),
       pins: PutioPinnedFilesModel(
         actions: PutioPinnedFilesActions(runtime: runtime), rootName: TVFolderCopy.yourFiles),
+      externalPlayback: TVExternalPlayback.model(runtime: runtime),
       account: account, refreshRequests: refreshRequests, open: open, play: play)
   }
 
@@ -221,7 +223,7 @@ struct TVFolderView: View {
   /// rendering a fixed state.
   init(
     route: PutioFolderRoute, model: PutioFolderModel, pins: PutioPinnedFilesModel? = nil,
-    account: PutioAccountSnapshot,
+    externalPlayback: PutioExternalPlaybackModel? = nil, account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     now: Date = .now, locale: Locale = .current, loadsOnAppear: Bool = true,
     shownItemID: PutioFileID? = nil, open: @escaping (PutioFileItem) -> Void,
@@ -236,6 +238,7 @@ struct TVFolderView: View {
     self.loadsOnAppear = loadsOnAppear
     _model = State(initialValue: model)
     _pins = State(initialValue: pins)
+    _externalPlayback = State(initialValue: externalPlayback)
     _refreshRegistration = State(
       initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     _now = State(initialValue: now)
@@ -291,6 +294,7 @@ struct TVFolderView: View {
         Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
       }
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
+      .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
       .putioToast($toast)
       .task(id: route.id) {
         guard loadsOnAppear else { return }
@@ -584,6 +588,7 @@ struct TVFolderView: View {
         switch row {
         case .open, .play, .markWatched, .markUnwatched, .rename, .pin, .unpin: true
         case .startOver: play != nil
+        case .openInVLC: externalPlayback != nil
         case .trash: model.canDelete
         default: false
         }
@@ -642,6 +647,8 @@ struct TVFolderView: View {
     case .rename:
       proposedName = item.name
       renaming = item
+    case .openInVLC:
+      Task { await externalPlayback?.open(PutioFileRoute(item: item)) }
     default:
       switch PutioFileItemActionRequest(row: row, item: item)?.step(
         trashEnabled: account.trashEnabled)

@@ -86,6 +86,14 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(panelAction("files.panel.unpin", on: "files.item.412"))
     XCTAssertTrue(element("files.panel.pin").waitForExistence(timeout: 10))
 
+    XCTAssertTrue(panelAction("files.panel.openInVLC", on: "files.item.412"))
+    XCTAssertTrue(
+      label(containing: "Install VLC from the App Store on Apple TV").waitForExistence(timeout: 10),
+      "a missing VLC raised no alert")
+    attach("runtime-tv-files-vlc-missing")
+    XCTAssertTrue(selectModalButton("vlc.ok"))
+    XCTAssertTrue(movie.waitForExistence(timeout: 5))
+
     // The fixture's first Trash move fails and keeps the row; the second
     // removes it and focus stays on a visible row.
     XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))

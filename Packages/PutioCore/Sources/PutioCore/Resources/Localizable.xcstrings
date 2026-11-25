@@ -1130,6 +1130,28 @@
         }
       }
     },
+    "Couldn’t prepare “%@” for VLC. %@" : {
+      "comment" : "android: mobile_files_vlc_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t prepare “%@” for VLC. %@"
+          }
+        }
+      }
+    },
+    "Couldn’t prepare “%@” for VLC. Sign in again." : {
+      "comment" : "android: mobile_files_vlc_unavailable",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t prepare “%@” for VLC. Sign in again."
+          }
+        }
+      }
+    },
     "Couldn’t restore %lld items from trash" : {
       "comment" : "android: mobile_files_undo_failed_many | differs: the board drops the reason and the period",
       "localizations" : {
@@ -1926,6 +1948,28 @@
         }
       }
     },
+    "Install VLC from the App Store on Apple TV to stream this file there." : {
+      "comment" : "ios-only: the Apple TV missing-VLC alert; Android TV has no Open in VLC",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install VLC from the App Store on Apple TV to stream this file there."
+          }
+        }
+      }
+    },
+    "Install VLC to open “%@”." : {
+      "comment" : "android: mobile_files_vlc_missing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Install VLC to open “%@”."
+          }
+        }
+      }
+    },
     "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." : {
       "comment" : "android: mobile_product_analytics_prompt_body",
       "localizations" : {
@@ -2120,6 +2164,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sort, %@"
+          }
+        }
+      }
+    },
+    "VLC is not installed" : {
+      "comment" : "android: mobile_files_vlc_missing | differs: the iOS alert splits it into a title and a message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "VLC is not installed"
           }
         }
       }
