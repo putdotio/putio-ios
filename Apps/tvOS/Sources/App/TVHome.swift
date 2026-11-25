@@ -168,6 +168,7 @@ struct TVHomeScreen: View {
       .buttonStyle(TVHomeCardButtonStyle())
     }
     .scrollClipDisabled()
+    .fixedSize(horizontal: false, vertical: true)
     .focusSection()
   }
 
