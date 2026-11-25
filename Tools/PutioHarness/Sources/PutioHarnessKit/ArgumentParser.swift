@@ -181,7 +181,8 @@ public enum HarnessArgumentParser {
     case .deviceSignIn:
       known = TVJourneyContract.steps.map(\.name)
     default:
-      throw HarnessFailure("--only is supported only by the files-browser and device-sign-in journeys")
+      throw HarnessFailure(
+        "--only is supported only by the files-browser and device-sign-in journeys")
     }
     let names = value.split(separator: ",").map(String.init)
     guard !names.isEmpty, names.allSatisfy(known.contains) else {
