@@ -7,6 +7,7 @@ struct PutioTVApp: App {
 
   init() {
     PutioDiagnostics.start()
+    HarnessLaunch.resetSeededDeviceChoices()
   }
 
   var body: some Scene {

@@ -165,9 +165,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-trash-empty")
   }
 
-  /// Settings cycle in place, the proxy chooser recovers a failed listing, a
-  /// failed save, and a failed confirmation refresh, and turning Trash off
-  /// is confirmed in a centered modal.
+  /// Settings cycle in place, the proxy menu recovers a failed listing, a
+  /// failed save, and a failed confirmation refresh, turning Trash off is
+  /// confirmed in an alert, and the focused row's panel explains it.
   func testSettingsCycleProxyChooserAndTrashToggle() {
     app.launchArguments = [
       "--putio-harness-scenario", "signed-in", "--putio-harness-playback-preferences",
@@ -181,29 +181,44 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
 
     XCTAssertTrue(focus("account.proxy"))
     remote.press(.select)
-    let proxyRetry = element("proxy.retry")
+    let proxyRetry = menuItem("Try again")
     XCTAssertTrue(proxyRetry.waitForExistence(timeout: 10))
-    XCTAssertTrue(isCentered(proxyRetry), "the proxy listing failure is off-center")
     attach("runtime-tv-proxy-failure")
-    XCTAssertTrue(focus("proxy.retry"))
+    XCTAssertTrue(focusMenuItem(proxyRetry))
     remote.press(.select)
-    XCTAssertTrue(element("proxy.route.edge").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitUntil(timeout: 5) { !proxyRetry.exists })
+
+    // A menu keeps the items it opened with, so it reopens until the
+    // retried listing has loaded.
+    let edge = menuItem("edge")
+    for _ in 0..<4 {
+      XCTAssertTrue(focus("account.proxy"))
+      remote.press(.select)
+      if edge.waitForExistence(timeout: 3) { break }
+      remote.press(.menu)
+      pause(1)
+    }
+    XCTAssertTrue(edge.exists, "the retried proxy listing never loaded")
     attach("runtime-tv-proxy-chooser")
-    XCTAssertTrue(focus("proxy.route.edge"))
+    XCTAssertTrue(focusMenuItem(edge))
     remote.press(.select)
 
     // The first save fails, then the committed save's account reload fails
-    // once; each offers a retry until the chooser closes on the new route.
+    // once; each offers a retry until the account confirms the new route.
+    let settingsRetry = element("account.settings-retry")
     var retries = 0
-    while retries < 3, waitUntil(timeout: 8, { proxyRetry.exists && proxyRetry.isEnabled }) {
-      XCTAssertTrue(focus("proxy.retry", moving: .up))
+    while retries < 3, waitUntil(timeout: 8, { settingsRetry.exists && settingsRetry.isEnabled }) {
+      XCTAssertTrue(focus("account.settings-retry", moving: .up, limit: 16))
       remote.press(.select)
       retries += 1
-      _ = waitUntil(timeout: 5) { !(proxyRetry.exists && proxyRetry.isEnabled) }
+      _ = waitUntil(timeout: 5) { !(settingsRetry.exists && settingsRetry.isEnabled) }
     }
     XCTAssertEqual(retries, 2)
-    XCTAssertTrue(element("account.proxy").waitForExistence(timeout: 10))
-    XCTAssertTrue(element("account.proxy").label.contains("edge"))
+    XCTAssertTrue(focus("account.proxy"))
+    let proxy = element("account.proxy")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { proxy.exists && (proxy.value as? String) == "edge" },
+      "the account never confirmed the new route")
 
     let subtitles = element("account.show-subtitles")
     XCTAssertTrue(focus("account.show-subtitles"))
@@ -227,23 +242,42 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "Off" })
     XCTAssertFalse(element("account.manage-trash").exists)
 
-    // With Trash off its row is the last setting; the app info rows below it
-    // must still come on screen with the remote.
-    let system = element("account.app-info.player")
-    XCTAssertTrue(focus("account.trash"))
-    for _ in 0..<8 where !isOnScreen(system) {
-      remote.press(.down)
-      pause(0.5)
-    }
-    XCTAssertTrue(isOnScreen(system), "the last app info row never scrolled into view")
+    // App info sits near the end of the list; its panel lists the details
+    // support asks for.
+    XCTAssertTrue(focus("account.app-info", moving: .down, limit: 16))
+    let player = element("account.app-info.player")
+    XCTAssertTrue(player.waitForExistence(timeout: 5))
+    XCTAssertTrue(isOnScreen(player), "the app info panel is off screen")
     attach("runtime-tv-account-about")
-    XCTAssertTrue(focus("account.trash"))
+    XCTAssertTrue(focus("account.trash", moving: .up, limit: 16))
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
     XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
   }
 
   // MARK: - Remote helpers
+
+  /// A system menu's item: menus drop the identifiers of their buttons, so
+  /// items are found by title.
+  private func menuItem(_ title: String) -> XCUIElement {
+    app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  /// Menus open on their checked item; moving past an end closes them, so
+  /// focus walks down only.
+  private func focusMenuItem(_ item: XCUIElement) -> Bool {
+    let isFocused = {
+      item.hasFocus
+        || item.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
+    }
+    for _ in 0..<6 {
+      if waitUntil(timeout: 1, isFocused) { return true }
+      guard item.exists else { return false }
+      remote.press(.down)
+    }
+    return isFocused()
+  }
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
@@ -270,11 +304,21 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
       && frame.midY < screen.minY + screen.height * 0.75
   }
 
+  /// Account's menus never report `hasFocus`; the panel names the row they
+  /// focus instead.
   private func hasFocus(_ identifier: String) -> Bool {
-    app.descendants(matching: .any)
+    if Self.menuRows.contains(identifier) {
+      return app.descendants(matching: .any)["account.panel.\(identifier)"].exists
+        && !app.descendants(matching: .any)
+          .matching(NSPredicate(format: "identifier BEGINSWITH 'account.' AND hasFocus == true"))
+          .firstMatch.exists
+    }
+    return app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
       .firstMatch.exists
   }
+
+  private static let menuRows: Set<String> = ["account.default-sort", "account.proxy"]
 
   /// Moves focus onto the element with the remote: down first, then up,
   /// bounded so a screen that never offers it still fails.

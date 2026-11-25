@@ -32,7 +32,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     let accountNotice = element("account.status-notice")
     XCTAssertTrue(accountNotice.waitForExistence(timeout: 15), "Account has no inactive notice")
     XCTAssertTrue(accountNotice.label.contains("12 days."), accountNotice.label)
-    XCTAssertTrue(element("account.proxy").exists, "the notice blocked Account")
+    XCTAssertTrue(element("account.trash").exists, "the notice blocked Account")
     attach("runtime-tv-inactive-account")
     XCTAssertTrue(tabs.open("Home"))
     XCTAssertTrue(notice.waitForExistence(timeout: 10))
@@ -102,7 +102,7 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertFalse(element("account.inactive-notice").exists, "an active account sees a notice")
     XCTAssertTrue(tabs.open("Account"))
     remote.press(.down)
-    XCTAssertTrue(element("account.proxy").waitForExistence(timeout: 15))
+    XCTAssertTrue(element("account.trash").waitForExistence(timeout: 15))
     XCTAssertFalse(element("account.status-notice").exists, "Account shows an active notice")
   }
 

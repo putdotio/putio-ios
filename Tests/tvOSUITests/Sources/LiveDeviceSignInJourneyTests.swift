@@ -27,17 +27,14 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
     let username = app.descendants(matching: .any)["account.username"]
     XCTAssertTrue(username.waitForExistence(timeout: 30))
     XCTAssertFalse(username.label.isEmpty)
-    let signOut = app.buttons["auth.sign-out"]
-    XCTAssertTrue(signOut.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus(signOut, moving: .up))
     attach("live-tv-account")
+    let signOut = app.buttons["auth.sign-out"]
+    XCTAssertTrue(focus(signOut, moving: .down))
 
     XCUIRemote.shared.press(.select)
     let confirm = app.buttons["auth.sign-out-confirm"]
     XCTAssertTrue(confirm.waitForExistence(timeout: 5))
-    // The dialog opens on Cancel with the destructive action to its right.
-    XCUIRemote.shared.press(.right)
-    XCUIRemote.shared.press(.select)
+    XCTAssertTrue(selectAlertButton(confirm, in: app))
 
     // Signing out revokes the grant and asks put.io for a fresh code.
     XCTAssertTrue(awaiting.waitForExistence(timeout: 30), "sign-out did not return to a code")
@@ -49,11 +46,34 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
   /// Moves focus onto `element` with the remote, bounded so a screen that
   /// never offers it still fails instead of looping.
   private func focus(_ element: XCUIElement, moving direction: XCUIRemote.Button) -> Bool {
-    for _ in 0..<8 {
-      if waitUntil(timeout: 1, { element.hasFocus }) { return true }
+    for _ in 0..<24 {
+      if waitUntil(timeout: 1, { element.exists && element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }
-    return waitUntil(timeout: 2) { element.hasFocus }
+    return waitUntil(timeout: 2) { element.exists && element.hasFocus }
+  }
+
+  /// Steers the remote to an alert button by frame and selects it; only the
+  /// outer copy of each alert button reports focus.
+  private func selectAlertButton(_ target: XCUIElement, in app: XCUIApplication) -> Bool {
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    let goal = target.frame
+    for _ in 0..<6 {
+      let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists else { return false }
+      let current = focused.frame
+      if abs(current.midX - goal.midX) < 4, abs(current.midY - goal.midY) < 4 {
+        XCUIRemote.shared.press(.select)
+        return true
+      }
+      if abs(current.midY - goal.midY) >= 4 {
+        XCUIRemote.shared.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        XCUIRemote.shared.press(goal.midX > current.midX ? .right : .left)
+      }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+    }
+    return false
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {

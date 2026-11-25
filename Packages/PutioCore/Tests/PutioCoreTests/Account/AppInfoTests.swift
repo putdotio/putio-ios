@@ -32,6 +32,16 @@ final class AppInfoTests: XCTestCase {
     XCTAssertEqual(tv.fields.map(\.title), ["Version", "Channel", "Device", "tvOS", "Player"])
   }
 
+  func testSupportMailtoAddressesSupportWithTheAppInfoAsBody() throws {
+    let tv = PutioAppInfo(
+      version: "3.2.0", build: "4188", channel: .appStore, device: "Apple TV",
+      systemName: "tvOS", systemVersion: "27.0")
+    let link = try XCTUnwrap(URLComponents(string: tv.supportMailto))
+    XCTAssertEqual(link.scheme, "mailto")
+    XCTAssertEqual(link.path, "support@put.io")
+    XCTAssertEqual(link.queryItems?.first { $0.name == "body" }?.value, tv.supportText)
+  }
+
   func testLicenseNoticesPutTheAppFirstWithTheRunningVersion() throws {
     let json = Data(
       #"""

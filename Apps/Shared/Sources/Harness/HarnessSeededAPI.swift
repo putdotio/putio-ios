@@ -269,6 +269,12 @@ import Foundation
       ProcessInfo.processInfo.arguments.contains(storageFullArgument)
     }
 
+    static let storageAlmostFullArgument = "--putio-harness-account-storage-almost-full"
+
+    private static var storageAlmostFull: Bool {
+      ProcessInfo.processInfo.arguments.contains(storageAlmostFullArgument)
+    }
+
     private static var inactiveAccount: InactiveAccount? {
       let arguments = ProcessInfo.processInfo.arguments
       guard let flag = arguments.firstIndex(of: inactiveAccountArgument),
@@ -3783,7 +3789,10 @@ import Foundation
           && !(historyDisablesAfterLoad && historyListRequests > 0)
       let defaultSort = usesFilePreferences ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC"
       let usedBytes =
-        storageFull ? diskTotalBytes - trashFreedBytes : diskUsedBytes - trashFreedBytes
+        storageFull
+        ? diskTotalBytes - trashFreedBytes
+        : storageAlmostFull
+          ? diskTotalBytes / 100 * 98 - trashFreedBytes : diskUsedBytes - trashFreedBytes
       let trashSizeBytes = Int64(trashFolders.count) * trashFolderBytes
       return """
         {

@@ -43,10 +43,9 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertEqual(username.label, "moviebuff")
     XCTAssertTrue(app.descendants(matching: .any)["account.storage"].exists)
-    let signOut = app.buttons["auth.sign-out"]
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
-    XCTAssertTrue(focus(signOut, moving: .up))
     attach("runtime-tv-account")
+    let signOut = app.buttons["auth.sign-out"]
+    XCTAssertTrue(focus(signOut, moving: .down))
 
     // The keychain session restores to Home without showing a code.
     app.terminate()
@@ -55,8 +54,7 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertFalse(code.exists)
     XCUIRemote.shared.press(.down)
     XCTAssertTrue(username.waitForExistence(timeout: 15))
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
-    XCTAssertTrue(focus(signOut, moving: .up))
+    XCTAssertTrue(focus(signOut, moving: .down))
 
     // Menu dismisses the confirmation without signing out.
     XCUIRemote.shared.press(.select)
@@ -64,16 +62,12 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertTrue(confirm.waitForExistence(timeout: 5))
     XCUIRemote.shared.press(.menu)
     XCTAssertTrue(waitUntil(timeout: 5) { !confirm.exists })
-    XCTAssertTrue(username.exists)
+    XCTAssertTrue(signOut.exists)
 
-    XCTAssertTrue(focus(signOut, moving: .up))
+    XCTAssertTrue(focus(signOut, moving: .down))
     XCUIRemote.shared.press(.select)
     XCTAssertTrue(confirm.waitForExistence(timeout: 5))
-    // The dialog opens on Cancel with the destructive action to its right.
-    // Alert buttons never report `hasFocus`, so the fresh code below is the
-    // proof that Select landed on Sign out.
-    XCUIRemote.shared.press(.right)
-    XCUIRemote.shared.press(.select)
+    XCTAssertTrue(selectAlertButton(confirm, in: app))
 
     // The relaunched process issues codes from the start of the seeded sequence.
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
@@ -129,19 +123,43 @@ final class DeviceSignInJourneyTests: XCTestCase {
   private func focus(_ element: XCUIElement) -> Bool {
     let directions: [XCUIRemote.Button] = [.down, .down, .up, .down, .down, .down]
     for direction in directions {
-      if waitUntil(timeout: 1, { element.hasFocus }) { return true }
+      if waitUntil(timeout: 1, { element.exists && element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }
-    return waitUntil(timeout: 2) { element.hasFocus }
+    return waitUntil(timeout: 2) { element.exists && element.hasFocus }
   }
 
-  /// Account's sign-out sits in the header above the settings list.
+  /// Account's sign-out is the last row of the settings list.
   private func focus(_ element: XCUIElement, moving direction: XCUIRemote.Button) -> Bool {
-    for _ in 0..<8 {
-      if waitUntil(timeout: 1, { element.hasFocus }) { return true }
+    for _ in 0..<24 {
+      if waitUntil(timeout: 1, { element.exists && element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }
-    return waitUntil(timeout: 2) { element.hasFocus }
+    return waitUntil(timeout: 2) { element.exists && element.hasFocus }
+  }
+
+  /// Steers the remote to an alert button and selects it. Each alert button
+  /// appears twice in the tree, with only the outer copy reporting focus, so
+  /// the focused copy is matched to the target by frame.
+  private func selectAlertButton(_ target: XCUIElement, in app: XCUIApplication) -> Bool {
+    RunLoop.current.run(until: Date().addingTimeInterval(1))
+    let goal = target.frame
+    for _ in 0..<6 {
+      let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists else { return false }
+      let current = focused.frame
+      if abs(current.midX - goal.midX) < 4, abs(current.midY - goal.midY) < 4 {
+        XCUIRemote.shared.press(.select)
+        return true
+      }
+      if abs(current.midY - goal.midY) >= 4 {
+        XCUIRemote.shared.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        XCUIRemote.shared.press(goal.midX > current.midX ? .right : .left)
+      }
+      RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+    }
+    return false
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval)
