@@ -6,6 +6,7 @@ struct TVTrashView: View {
   @State private var now: Date
   @State private var shownItemID: PutioFileID?
   @State private var deleting: PutioTrashItem?
+  @State private var confirmedDeletion: PutioTrashItem?
   @State private var confirmsEmpty = false
   @State private var toast: PutioToast?
   @State private var stillMoving: (title: String, message: String)?
@@ -18,6 +19,7 @@ struct TVTrashView: View {
     case item(PutioFileID)
     case restoreAll
     case panel
+    case panelDelete
     case moreRetry
   }
 
@@ -64,7 +66,7 @@ struct TVTrashView: View {
         presenting: deleting
       ) { item in
         Button(String(localized: "Delete", bundle: .putioCore), role: .destructive) {
-          mutate(item) { await model.permanentlyDelete(item) }
+          confirmedDeletion = item
         }
         .accessibilityIdentifier("trash.delete-confirm")
         Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
@@ -109,8 +111,12 @@ struct TVTrashView: View {
           showsPanel = true
         case .moreRetry:
           showsPanel = false
-        case .restoreAll, .panel, nil:
+        case .restoreAll, .panel, .panelDelete, nil:
           break
+        }
+        if focus != nil, let item = confirmedDeletion {
+          confirmedDeletion = nil
+          mutate(item) { await model.permanentlyDelete(item) }
         }
       }
       .onChange(of: model.page?.items.map(\.id) ?? []) { old, new in
@@ -377,6 +383,7 @@ struct TVTrashView: View {
         guard model.canMutate else { return }
         deleting = item
       }
+      .focused($focus, equals: .panelDelete)
       .accessibilityIdentifier("trash.panel.delete")
     }
   }
