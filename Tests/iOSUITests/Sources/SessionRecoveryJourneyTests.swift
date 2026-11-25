@@ -15,7 +15,8 @@ final class SessionRecoveryJourneyTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     app = XCUIApplication()
     app.launchArguments = [
-      "--putio-harness-scenario", "files-browser", "--putio-harness-restore-seconds", "3",
+      "--putio-harness-scenario", "files-browser", "--putio-harness-restore-seconds",
+      String(3 * XCUIElement.timeoutScale),
     ]
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])

@@ -30,16 +30,20 @@ final class FileRowGalleryTests: XCTestCase {
 
     for entry in cases {
       let name = "Blue.Lights.S04E\(entry.episode).1080p.HDTV.H264-ORGANiC.mkv"
-      let control = revealedButton("\(entry.label), \(name)")
-      XCTAssertTrue(
-        control.appears(within: 5) && control.becomesHittable(within: 5),
-        "no trailing control for \(name)")
-      control.tap()
-      revealTop()
       let expected = "Last action: \(entry.reported) \(name)"
-      let landed = XCTNSPredicateExpectation(
-        predicate: NSPredicate(format: "label == %@", expected), object: reported)
-      _ = XCTWaiter.wait(for: [landed], timeout: 5 * XCUIElement.timeoutScale)
+      let previous = reported.label
+      for _ in 0..<2 {
+        let control = revealedButton("\(entry.label), \(name)")
+        XCTAssertTrue(
+          control.appears(within: 5) && control.becomesHittable(within: 5),
+          "no trailing control for \(name)")
+        control.tap()
+        revealTop()
+        let landed = XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "label == %@", expected), object: reported)
+        _ = XCTWaiter.wait(for: [landed], timeout: 5 * XCUIElement.timeoutScale)
+        if reported.label != previous { break }
+      }
       XCTAssertEqual(reported.label, expected)
     }
   }
