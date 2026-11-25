@@ -52,7 +52,7 @@ final class HomeJourneyTests: XCTestCase {
     XCTAssertTrue(element("home.pinned.empty").exists)
     attach("runtime-tv-home-fed")
 
-    XCTAssertTrue(focus("home.continue-watching.item.414", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.continue-watching.item.414"))
     remote.press(.select)
     XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30), "the card plays")
     XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
@@ -96,7 +96,7 @@ final class HomeJourneyTests: XCTestCase {
     XCTAssertFalse(pinned(412).label.contains("item"), pinned(412).label)
     attach("runtime-tv-home-cards")
 
-    XCTAssertTrue(focus("home.continue-watching.item.411", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.continue-watching.item.411"))
     remote.press(.select, forDuration: 1.2)
     let remove = menuItem("Remove from Continue watching")
     XCTAssertTrue(remove.waitForExistence(timeout: 5))
@@ -108,7 +108,7 @@ final class HomeJourneyTests: XCTestCase {
       waitUntil(timeout: 5) { self.hasFocus("home.continue-watching.item.412") },
       "focus moves to the next card")
 
-    XCTAssertTrue(focus("home.pinned.item.410", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.pinned.item.410"))
     remote.press(.select, forDuration: 1.2)
     let open = menuItem("Open")
     let unpin = menuItem("Unpin from Home")
@@ -121,13 +121,13 @@ final class HomeJourneyTests: XCTestCase {
     remote.press(.menu)
     XCTAssertTrue(pinned(410).waitForExistence(timeout: 10))
 
-    XCTAssertTrue(focus("home.pinned.item.410", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.pinned.item.410"))
     unpinFocused()
     XCTAssertTrue(waitUntil(timeout: 10) { !self.pinned(410).exists }, "Unpin drops 410")
-    XCTAssertTrue(focus("home.pinned.item.412", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.pinned.item.412"))
     unpinFocused()
     XCTAssertTrue(element("home.pinned.empty").waitForExistence(timeout: 10))
-    XCTAssertTrue(focus("home.continue-watching.item.412", moving: .up, limit: 4))
+    XCTAssertTrue(steer(to: "home.continue-watching.item.412"))
     remote.press(.down)
     pause(1)
     XCTAssertTrue(
@@ -144,14 +144,14 @@ final class HomeJourneyTests: XCTestCase {
     XCTAssertTrue(pinned(410).waitForExistence(timeout: 15), "Home reloads its pins")
 
     for id in [412, 414] {
-      XCTAssertTrue(focus("home.continue-watching.item.\(id)", moving: .down, limit: 4))
+      XCTAssertTrue(steer(to: "home.continue-watching.item.\(id)"))
       remote.press(.select, forDuration: 1.2)
       XCTAssertTrue(menuItem("Remove from Continue watching").waitForExistence(timeout: 5))
       remote.press(.select)
       XCTAssertTrue(waitUntil(timeout: 10) { !self.card(id).exists })
       pause(1)
     }
-    XCTAssertTrue(focus("home.pinned.item.410", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.pinned.item.410"))
     unpinFocused()
     XCTAssertTrue(element("home.empty").waitForExistence(timeout: 10))
     XCTAssertTrue(label(containing: "QR code that opens put.io").exists)
@@ -251,6 +251,34 @@ final class HomeJourneyTests: XCTestCase {
 
   private func menuItem(_ title: String) -> XCUIElement {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  /// Moves focus to `identifier` by comparing the focused frame with the
+  /// target's, entering the content from the tab bar first.
+  private func steer(to identifier: String) -> Bool {
+    let target = element(identifier)
+    guard target.waitForExistence(timeout: 10) else { return false }
+    for _ in 0..<12 {
+      if waitUntil(timeout: 1, { self.hasFocus(identifier) }) { return true }
+      let focused = app.descendants(matching: .any)
+        .matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists,
+        !app.tabBars.buttons.matching(
+          NSPredicate(format: "hasFocus == true")
+        ).firstMatch.exists
+      else {
+        remote.press(.down)
+        continue
+      }
+      let current = focused.frame
+      let goal = target.frame
+      if abs(current.midY - goal.midY) >= 40 {
+        remote.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        remote.press(goal.midX > current.midX ? .right : .left)
+      }
+    }
+    return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
   }
 
   private func element(_ identifier: String) -> XCUIElement {

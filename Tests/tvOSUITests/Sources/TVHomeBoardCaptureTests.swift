@@ -16,7 +16,7 @@ final class TVHomeBoardCaptureTests: XCTestCase {
     XCTAssertTrue(element("home.pinned.item.412").waitForExistence(timeout: 15))
     pause(1)
     capture("rd-tvos-home-01-launch")
-    XCTAssertTrue(focus("home.continue-watching.item.411", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.continue-watching.item.411"))
     pause(1)
     capture("rd-tvos-home-02-card")
     remote.press(.select, forDuration: 1.2)
@@ -25,7 +25,7 @@ final class TVHomeBoardCaptureTests: XCTestCase {
     capture("rd-tvos-home-03-card-menu")
     remote.press(.menu)
     pause(1.5)
-    XCTAssertTrue(focus("home.pinned.item.410", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.pinned.item.410"))
     remote.press(.select, forDuration: 1.2)
     XCTAssertTrue(menuItem("Open").waitForExistence(timeout: 5))
     pause(1)
@@ -35,7 +35,7 @@ final class TVHomeBoardCaptureTests: XCTestCase {
   func testNothingPinnedBoard() {
     launch(cards)
     XCTAssertTrue(element("home.pinned.empty").waitForExistence(timeout: 15))
-    XCTAssertTrue(focus("home.continue-watching.item.411", moving: .down, limit: 4))
+    XCTAssertTrue(steer(to: "home.continue-watching.item.411"))
     pause(1)
     capture("rd-tvos-home-05-nothing-pinned")
   }
@@ -63,6 +63,34 @@ final class TVHomeBoardCaptureTests: XCTestCase {
 
   private func menuItem(_ title: String) -> XCUIElement {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
+  }
+
+  /// Moves focus to `identifier` by comparing the focused frame with the
+  /// target's, entering the content from the tab bar first.
+  private func steer(to identifier: String) -> Bool {
+    let target = element(identifier)
+    guard target.waitForExistence(timeout: 10) else { return false }
+    for _ in 0..<12 {
+      if waitUntil(timeout: 1, { self.hasFocus(identifier) }) { return true }
+      let focused = app.descendants(matching: .any)
+        .matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists,
+        !app.tabBars.buttons.matching(
+          NSPredicate(format: "hasFocus == true")
+        ).firstMatch.exists
+      else {
+        remote.press(.down)
+        continue
+      }
+      let current = focused.frame
+      let goal = target.frame
+      if abs(current.midY - goal.midY) >= 40 {
+        remote.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        remote.press(goal.midX > current.midX ? .right : .left)
+      }
+    }
+    return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
   }
 
   private func element(_ identifier: String) -> XCUIElement {
