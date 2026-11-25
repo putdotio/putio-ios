@@ -243,7 +243,7 @@ struct TVVideoPlaybackView: View {
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         onReady: { model.playerReady() },
-        onNextFile: nextVideoModel.upcoming == nil ? nil : playNextFile,
+        onNextFile: nextFileAction,
         upNext: upNextProposal,
         onEnded: playbackEnded,
         onRestarted: playbackRestarted,
@@ -292,6 +292,11 @@ struct TVVideoPlaybackView: View {
     case .idle: return nextVideoModel.lookupFailed
     case .finding, .countingDown, .playing: return false
     }
+  }
+
+  private var nextFileAction: (@MainActor () -> Void)? {
+    guard nextVideoModel.upcoming != nil else { return nil }
+    return { playNextFile() }
   }
 
   private var upNextProposal: TVUpNextProposal? {
