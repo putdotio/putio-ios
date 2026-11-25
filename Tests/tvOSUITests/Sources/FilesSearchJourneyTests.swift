@@ -310,22 +310,12 @@ final class FilesSearchJourneyTests: XCTestCase {
   }
 
   private func focusKeyboard() -> Bool {
-    let below = app.descendants(matching: .any).matching(
-      NSPredicate(
-        format:
-          "hasFocus == true AND (identifier BEGINSWITH 'search.' OR identifier BEGINSWITH 'tab.')"
-      )
-    ).firstMatch
+    let keyboard = app.keyboards.firstMatch
     for _ in 0..<8 {
-      if waitUntil(timeout: 3, { self.focusIsSettled() }), !below.exists,
-        app.keyboards.firstMatch.exists
-      {
-        return true
-      }
+      if waitUntil(timeout: 2, { keyboard.exists && keyboard.hasFocus }) { return true }
       remote.press(.up)
-      pause(0.5)
     }
-    return focusIsSettled() && !below.exists && app.keyboards.firstMatch.exists
+    return keyboard.exists && keyboard.hasFocus
   }
 
   private func focusIsSettled() -> Bool {

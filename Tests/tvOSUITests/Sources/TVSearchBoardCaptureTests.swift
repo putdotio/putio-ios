@@ -89,22 +89,12 @@ final class TVSearchBoardCaptureTests: XCTestCase {
   }
 
   private func focusKeyboard() -> Bool {
-    let below = app.descendants(matching: .any).matching(
-      NSPredicate(
-        format:
-          "hasFocus == true AND (identifier BEGINSWITH 'search.' OR identifier BEGINSWITH 'tab.')"
-      )
-    ).firstMatch
+    let keyboard = app.keyboards.firstMatch
     for _ in 0..<8 {
-      if waitUntil(timeout: 3, { self.focusIsSettled() }), !below.exists,
-        app.keyboards.firstMatch.exists
-      {
-        return true
-      }
+      if waitUntil(timeout: 2, { keyboard.exists && keyboard.hasFocus }) { return true }
       remote.press(.up)
-      pause(0.5)
     }
-    return focusIsSettled() && !below.exists && app.keyboards.firstMatch.exists
+    return keyboard.exists && keyboard.hasFocus
   }
 
   private func menuItem(_ title: String) -> XCUIElement {
@@ -138,11 +128,6 @@ final class TVSearchBoardCaptureTests: XCTestCase {
       remote.press(direction)
     }
     return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
-  }
-
-  private func focusIsSettled() -> Bool {
-    app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
-      .firstMatch.exists
   }
 
   private func pause(_ seconds: TimeInterval) {
