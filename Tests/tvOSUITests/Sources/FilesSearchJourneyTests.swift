@@ -78,6 +78,8 @@ final class FilesSearchJourneyTests: XCTestCase {
 
     XCTAssertTrue(panelAction("files.panel.markWatched", on: "files.item.412"))
     XCTAssertTrue(waitUntil(timeout: 10) { movie.label.contains("Watched") })
+    pause(2)
+    XCTAssertTrue(hasFocus("files.item.412"), "focus left the row for the panel")
 
     XCTAssertTrue(panelAction("files.panel.pin", on: "files.item.412"))
     XCTAssertTrue(element("files.panel.unpin").waitForExistence(timeout: 10))

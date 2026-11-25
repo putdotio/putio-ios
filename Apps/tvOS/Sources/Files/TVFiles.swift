@@ -531,7 +531,6 @@ struct TVFolderView: View {
         }
         .tvRowOpen(!isRowFocused && showsPanel && shownItem(in: contents)?.id == item.id)
         .focused($focusedRow, equals: item.id)
-        .disabled(!model.canStartAction)
         .accessibilityIdentifier("files.item.\(item.id.rawValue)")
       }
       if contents.nextCursor != nil {
@@ -561,6 +560,7 @@ struct TVFolderView: View {
   private var isRowFocused: Bool { focusedRow != nil }
 
   private func activate(_ item: PutioFileItem) {
+    guard model.canStartAction else { return }
     open(item)
   }
 
@@ -624,10 +624,10 @@ struct TVFolderView: View {
         }
       }
     }
-    .disabled(!model.canStartAction)
   }
 
   private func perform(_ row: PutioFileMenuRow, on item: PutioFileItem) {
+    guard model.canStartAction else { return }
     switch row {
     case .open:
       open(item)
