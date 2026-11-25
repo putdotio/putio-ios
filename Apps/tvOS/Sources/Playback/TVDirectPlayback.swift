@@ -7,8 +7,9 @@ import SwiftUI
 /// and captions draw, and the actions the Siri Remote sends.
 @MainActor
 @Observable
-final class TVDirectTransport: PutioDirectPlayTransport {
+final class TVDirectTransport: PutioDirectPlayTransport, PutioDirectPlayAudioSwitching {
   private(set) var isPlaying = false
+  private(set) var ended = false
   private(set) var controlsEnabled = false
   private(set) var speed: PutioAudioSpeed
   private(set) var audioTracks: [PutioVideoAudioTrack] = []
@@ -18,22 +19,38 @@ final class TVDirectTransport: PutioDirectPlayTransport {
   private(set) var subtitleCues: [PutioVideoCue] = []
   private(set) var picture = PutioVideoPicture.unknown
   private(set) var subtitleTiming = PutioSubtitleTiming()
+  private(set) var subtitleSize: PutioSubtitleTextSize
+  private(set) var switchingAudio = false
   private var playhead = PutioVideoPlayhead()
   let wait: PutioVideoWaitModel
   @ObservationIgnored var onEngineRestart: (@MainActor (Double) -> Void)?
   @ObservationIgnored var onReload: (@MainActor (PutioVideoTrackSelection?) -> Void)?
+  @ObservationIgnored var onAudioSwitch:
+    (@MainActor (Int, @escaping @MainActor (Bool) -> Void) -> Void)?
+  @ObservationIgnored var onAudioSwitchFailed: (@MainActor () -> Void)?
+  @ObservationIgnored var onSubtitlePicked: (@MainActor (PutioSubtitleTrack?) -> Void)?
 
   @ObservationIgnored private var engine: AetherEngine?
   @ObservationIgnored private var observations: Set<AnyCancellable> = []
   @ObservationIgnored private var attachment: UInt64 = 0
   @ObservationIgnored private let speedStore: PutioAudioSpeedStore
+  @ObservationIgnored private let sizeMemory: PutioSubtitleSizeMemory
+  @ObservationIgnored private var engineCues: (cues: [SubtitleCue], time: Double) = ([], 0)
 
-  init(wait: PutioVideoWaitModel? = nil, speedStore: PutioAudioSpeedStore? = nil) {
+  init(
+    wait: PutioVideoWaitModel? = nil, speedStore: PutioAudioSpeedStore? = nil,
+    sizeMemory: PutioSubtitleSizeMemory? = nil
+  ) {
     self.wait = wait ?? PutioVideoWaitModel()
     let speedStore = speedStore ?? .video()
     self.speedStore = speedStore
     speed = speedStore.load()
+    let sizeMemory = sizeMemory ?? PutioSubtitleSizeMemory()
+    self.sizeMemory = sizeMemory
+    subtitleSize = sizeMemory.size
   }
+
+  var subtitleMenu: PutioSubtitleMenu { PutioSubtitleMenu(tracks: subtitles) }
 
   var timeline: PutioVideoTimeline { playhead.timeline }
 
@@ -45,7 +62,8 @@ final class TVDirectTransport: PutioDirectPlayTransport {
     engine.setSoftwareSubtitleDelay(subtitleTiming.seconds)
     engine.$state
       .sink { [weak self] state in
-        self?.isPlaying = state == .playing
+        if state != .seeking, state != .loading { self?.isPlaying = state == .playing }
+        self?.ended = state == .ended
         self?.playhead.ended(state == .ended)
       }
       .store(in: &observations)
@@ -93,6 +111,7 @@ final class TVDirectTransport: PutioDirectPlayTransport {
     guard engine === self.engine else { return }
     onEngineRestart = nil
     onReload = nil
+    onAudioSwitch = nil
     detach()
     attachment &+= 1
   }
@@ -131,7 +150,65 @@ final class TVDirectTransport: PutioDirectPlayTransport {
     }
   }
 
+  func setSpeed(_ speed: PutioAudioSpeed) {
+    self.speed = speed
+    speedStore.save(speed)
+    engine?.setRate(speed.rawValue)
+  }
+
+  func pickSubtitle(_ index: Int?) {
+    guard controlsEnabled, let engine else { return }
+    if let index {
+      guard subtitles.contains(where: { $0.id == index }) else { return }
+      engine.selectSubtitleTrack(index: index)
+    } else {
+      engine.clearSubtitle()
+    }
+    selectedSubtitle = index
+    onSubtitlePicked?(index.flatMap { index in subtitles.first { $0.id == index } })
+  }
+
+  func selectAudio(_ index: Int) {
+    guard controlsEnabled, !switchingAudio, index != selectedAudio,
+      audioTracks.contains(where: { $0.id == index }), let onAudioSwitch
+    else { return }
+    switchingAudio = true
+    let attachment = attachment
+    onAudioSwitch(index) { [weak self] switched in
+      guard let self, self.attachment == attachment else { return }
+      switchingAudio = false
+      if speed != .normal { engine?.setRate(speed.rawValue) }
+      if !switched { onAudioSwitchFailed?() }
+    }
+  }
+
+  func setSubtitleSize(_ size: PutioSubtitleTextSize) {
+    subtitleSize = size
+    sizeMemory.size = size
+  }
+
+  func moveSubtitlesEarlier() {
+    subtitleTiming.moveEarlier()
+    subtitleTimingChanged()
+  }
+
+  func moveSubtitlesLater() {
+    subtitleTiming.moveLater()
+    subtitleTimingChanged()
+  }
+
+  func resetSubtitleTiming() {
+    subtitleTiming.reset()
+    subtitleTimingChanged()
+  }
+
+  private func subtitleTimingChanged() {
+    engine?.setSoftwareSubtitleDelay(subtitleTiming.seconds)
+    showCues(engineCues.cues, at: engineCues.time)
+  }
+
   private func showCues(_ cues: [SubtitleCue], at time: Double) {
+    engineCues = (cues, time)
     let showing = PutioEngineTracks.showing(cues, at: time, delay: subtitleTiming.seconds)
     guard showing.map(\.id) != subtitleCues.map(\.id) else { return }
     subtitleCues = showing.map(PutioVideoCue.init)
@@ -142,12 +219,15 @@ final class TVDirectTransport: PutioDirectPlayTransport {
     engine = nil
     controlsEnabled = false
     isPlaying = false
+    ended = false
     playhead = PutioVideoPlayhead()
     audioTracks = []
     selectedAudio = nil
     subtitles = []
     selectedSubtitle = nil
     subtitleCues = []
+    engineCues = ([], 0)
+    switchingAudio = false
     picture = .unknown
   }
 
@@ -216,8 +296,8 @@ struct TVDirectPlayerView: UIViewRepresentable {
 }
 
 /// Direct play with put.io controls over the engine. Click and Play/Pause
-/// pause or play, left and right skip ten seconds, and Menu hides the
-/// controls before it leaves.
+/// pause or play, left and right skip ten seconds, up or down reach the
+/// chips, and Menu steps back one level before it leaves.
 struct TVDirectVideoPlayer: View {
   let title: String
   let fileID: PutioFileID
@@ -228,9 +308,12 @@ struct TVDirectVideoPlayer: View {
   let pipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
   let callbacks: PutioVideoPlayerCallbacks
+  let onNextFile: (@MainActor () -> Void)?
   let onReportsSettled: @MainActor () -> Void
   let onRateChanged: @MainActor (Float) -> Void
   let onControlsShown: @MainActor (Bool) -> Void
+  let onBadgeShown: @MainActor (TVDirectBadge) -> Void
+  let onFocusChanged: @MainActor (String) -> Void
   let onExit: @MainActor () -> Void
 
   init(
@@ -238,9 +321,13 @@ struct TVDirectVideoPlayer: View {
     subtitlePolicy: PutioSubtitleStartupPolicy, subtitleMemory: PutioSubtitleMemory,
     pipeline: PutioPlaybackPositionPipeline, reportPosition: @escaping PutioPlaybackPositionReport,
     wait: PutioVideoWaitModel, callbacks: PutioVideoPlayerCallbacks,
+    onNextFile: (@MainActor () -> Void)? = nil,
+    onAudioSwitchFailed: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
     onRateChanged: @escaping @MainActor (Float) -> Void = { _ in },
     onControlsShown: @escaping @MainActor (Bool) -> Void = { _ in },
+    onBadgeShown: @escaping @MainActor (TVDirectBadge) -> Void = { _ in },
+    onFocusChanged: @escaping @MainActor (String) -> Void = { _ in },
     onExit: @escaping @MainActor () -> Void
   ) {
     self.title = title
@@ -252,16 +339,25 @@ struct TVDirectVideoPlayer: View {
     self.pipeline = pipeline
     self.reportPosition = reportPosition
     self.callbacks = callbacks
+    self.onNextFile = onNextFile
     self.onReportsSettled = onReportsSettled
     self.onRateChanged = onRateChanged
     self.onControlsShown = onControlsShown
+    self.onBadgeShown = onBadgeShown
+    self.onFocusChanged = onFocusChanged
     self.onExit = onExit
-    _transport = State(initialValue: TVDirectTransport(wait: wait))
+    let transport = TVDirectTransport(wait: wait)
+    transport.onAudioSwitchFailed = onAudioSwitchFailed
+    transport.onSubtitlePicked = { [subtitleMemory] in subtitleMemory.remember($0) }
+    _transport = State(initialValue: transport)
   }
 
   @State private var transport: TVDirectTransport
   @State private var visibility = PutioVideoControlsVisibility()
-  @FocusState private var focused: Bool
+  @State private var menu: TVDirectMenu?
+  @State private var skipBadge: TVDirectBadge?
+  @State private var skipBadges: UInt64 = 0
+  @FocusState private var focus: TVDirectFocus?
   @Environment(\.isEnabled) private var isEnabled
 
   var body: some View {
@@ -274,57 +370,155 @@ struct TVDirectVideoPlayer: View {
       )
       .ignoresSafeArea()
       PutioVideoSubtitleOverlay(
-        cues: transport.subtitleCues, size: .medium, picture: transport.picture,
+        cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture,
         bottomInset: showsControls
           ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset)
-      if showsControls {
-        TVDirectControls(title: title, timeline: transport.timeline)
-          .transition(.opacity)
+      Color.clear
+        .contentShape(Rectangle())
+        .focusable(menu == nil && !showsControls)
+        .focused($focus, equals: .surface)
+        .onTapGesture { playPause() }
+        .onMoveCommand(perform: surfaceMoved)
+        .accessibilityIdentifier("video.direct-player")
+      if let badge {
+        TVDirectBadgeView(badge: badge).transition(.opacity)
       }
+      TVDirectControls(
+        title: title, timeline: transport.timeline, dimmed: menu != nil, menu: { menuPanel }
+      ) {
+        TVDirectChipRow(
+          speed: transport.speed, audioEnabled: transport.audioTracks.count > 1,
+          showsNextFile: onNextFile != nil, openChip: menu?.chip, focus: $focus,
+          select: chipSelected
+        )
+        .onMoveCommand { direction in
+          if direction == .up, menu == nil { hideControls() }
+        }
+      }
+      .opacity(showsControls ? 1 : 0)
+      .disabled(!showsControls)
+      .accessibilityHidden(!showsControls)
       if transport.wait.state.showsSpinner {
         PutioLoadingStateView(title: nil).allowsHitTesting(false)
       }
     }
     .animation(.easeInOut(duration: 0.2), value: showsControls)
-    .focusable()
-    .focused($focused)
-    .onAppear { focused = true }
+    .animation(.easeInOut(duration: 0.2), value: badge)
+    .defaultFocus($focus, .chip(.subtitles))
+    .onAppear { focus = .surface }
     .onChange(of: isEnabled) { _, enabled in
-      if enabled { focused = true }
+      if enabled { focus = .surface }
     }
     .onPlayPauseCommand { playPause() }
-    .onTapGesture { playPause() }
-    .onMoveCommand { direction in
-      switch direction {
-      case .left: skip(by: -PutioVideoTimeline.skipInterval)
-      case .right: skip(by: PutioVideoTimeline.skipInterval)
-      default: visibility.interacted()
-      }
-    }
-    .onExitCommand {
-      if showsControls, transport.isPlaying {
-        withAnimation {
-          visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: true)
-        }
-      } else {
-        onExit()
-      }
-    }
+    .onExitCommand(perform: exitPressed)
     .task(id: visibility.idleGeneration) {
       try? await Task.sleep(for: PutioVideoControlsVisibility.idleDelay)
       guard !Task.isCancelled else { return }
       visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: transport.isPlaying)
     }
+    .task(id: skipBadges) {
+      guard skipBadge != nil else { return }
+      try? await Task.sleep(for: TVDirectControlsMetrics.skipBadgeDuration)
+      guard !Task.isCancelled else { return }
+      skipBadge = nil
+    }
     .onChange(of: transport.isPlaying) { _, _ in visibility.interacted() }
+    .onChange(of: pinsControls) { _, pinned in visibility.set(.menu, pinned) }
     .onChange(of: transport.isPlaying, initial: true) { _, playing in
       onRateChanged(playing ? transport.speed.rawValue : 0)
     }
+    .onChange(of: transport.speed) { _, speed in
+      if transport.isPlaying { onRateChanged(speed.rawValue) }
+    }
     .onChange(of: showsControls, initial: true) { _, shown in onControlsShown(shown) }
-    .accessibilityIdentifier("video.direct-player")
+    .onChange(of: focus, initial: true) { _, focus in onFocusChanged(focus?.identifier ?? "none") }
+    .onChange(of: badge) { _, badge in
+      if let badge { onBadgeShown(badge) }
+    }
   }
 
   private var showsControls: Bool {
     visibility.isVisible && !transport.wait.state.hidesControls
+  }
+
+  private var pinsControls: Bool { menu != nil }
+
+  private func hideControls() {
+    withAnimation {
+      visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: true)
+    }
+  }
+
+  private var badge: TVDirectBadge? {
+    if let skipBadge { return skipBadge }
+    let paused =
+      transport.controlsEnabled && !transport.isPlaying && !transport.ended
+      && !transport.wait.state.showsSpinner && menu == nil
+    return paused ? .paused : nil
+  }
+
+  @ViewBuilder private var menuPanel: some View {
+    if let menu {
+      TVDirectMenuPanel(menu: menu, rows: rows(for: menu), focus: $focus, onMove: rowMoved)
+    }
+  }
+
+  private func rows(for menu: TVDirectMenu) -> [TVDirectMenuRow] {
+    TVDirectMenuRows.rows(
+      for: menu, transport: transport,
+      close: { closeMenu() }, open: { open($0) })
+  }
+
+  private func surfaceMoved(_ direction: MoveCommandDirection) {
+    switch direction {
+    case .left: skip(by: -PutioVideoTimeline.skipInterval)
+    case .right: skip(by: PutioVideoTimeline.skipInterval)
+    default:
+      withAnimation { visibility.interacted() }
+    }
+  }
+
+  private func rowMoved(_ id: String, _ direction: MoveCommandDirection) {
+    guard id == TVDirectMenuRows.delayID else { return }
+    switch direction {
+    case .left: transport.moveSubtitlesEarlier()
+    case .right: transport.moveSubtitlesLater()
+    default: break
+    }
+  }
+
+  private func chipSelected(_ chip: TVDirectChip) {
+    switch chip {
+    case .subtitles: open(.subtitles)
+    case .audio: open(.audio)
+    case .speed: open(.speed)
+    case .nextFile: onNextFile?()
+    }
+  }
+
+  private func open(_ menu: TVDirectMenu) {
+    self.menu = menu
+    let rows = rows(for: menu)
+    focus = .row((rows.first(where: \.checked) ?? rows.first)?.id ?? "")
+  }
+
+  private func closeMenu() {
+    guard let open = menu else { return }
+    menu = nil
+    focus = .chip(open.chip)
+  }
+
+  private func exitPressed() {
+    if menu == .sizeAndTiming {
+      menu = .subtitles
+      focus = .row(TVDirectMenuRows.sizeAndTimingID)
+    } else if menu != nil {
+      closeMenu()
+    } else if showsControls {
+      hideControls()
+    } else {
+      onExit()
+    }
   }
 
   private func playPause() {
@@ -333,23 +527,121 @@ struct TVDirectVideoPlayer: View {
   }
 
   private func skip(by seconds: Double) {
-    visibility.interacted()
     transport.skip(by: seconds)
+    skipBadge = seconds < 0 ? .skippedBack : .skippedForward
+    skipBadges &+= 1
+  }
+}
+
+extension TVDirectMenu {
+  var title: String {
+    switch self {
+    case .subtitles: String(localized: "Subtitles", bundle: .putioCore)
+    case .sizeAndTiming: String(localized: "Size and timing", bundle: .putioCore)
+    case .audio: String(localized: "Audio", bundle: .putioCore)
+    case .speed: String(localized: "Speed", bundle: .putioCore)
+    }
+  }
+}
+
+/// The rows of each Direct play menu, in the order of the HLS menus.
+@MainActor
+enum TVDirectMenuRows {
+  static let sizeAndTimingID = "video.subtitles.size-and-timing"
+  static let delayID = "video.subtitle-timing"
+
+  static func rows(
+    for menu: TVDirectMenu, transport: TVDirectTransport,
+    close: @escaping @MainActor () -> Void, open: @escaping @MainActor (TVDirectMenu) -> Void
+  ) -> [TVDirectMenuRow] {
+    switch menu {
+    case .subtitles:
+      let off = TVDirectMenuRow(
+        id: "video.subtitles.off", title: String(localized: "Off", bundle: .putioCore),
+        checked: transport.selectedSubtitle == nil
+      ) {
+        transport.pickSubtitle(nil)
+        close()
+      }
+      let tracks = transport.subtitleMenu.rows.map { row in
+        TVDirectMenuRow(
+          id: "video.subtitles.\(row.track.id)", title: row.title,
+          checked: transport.selectedSubtitle == row.track.id
+        ) {
+          transport.pickSubtitle(row.track.id)
+          close()
+        }
+      }
+      let sizeAndTiming = TVDirectMenuRow(
+        id: sizeAndTimingID, title: String(localized: "Size and timing", bundle: .putioCore),
+        icon: .textAa, startsSection: true
+      ) { open(.sizeAndTiming) }
+      return [off] + tracks + [sizeAndTiming]
+    case .sizeAndTiming:
+      return [
+        TVDirectMenuRow(
+          id: "video.subtitle-size", title: String(localized: "Text size", bundle: .putioCore),
+          detail: transport.subtitleSize.title
+        ) {
+          let sizes = PutioSubtitleTextSize.allCases
+          let next = sizes.firstIndex(of: transport.subtitleSize).map { ($0 + 1) % sizes.count }
+          transport.setSubtitleSize(sizes[next ?? 0])
+        },
+        TVDirectMenuRow(
+          id: delayID, title: String(localized: "Delay", bundle: .putioCore),
+          detail: transport.subtitleTiming.text
+        ) {},
+        TVDirectMenuRow(
+          id: "video.subtitle-timing.reset", title: String(localized: "Reset", bundle: .putioCore)
+        ) { transport.resetSubtitleTiming() },
+      ]
+    case .audio:
+      return transport.audioTracks.map { track in
+        TVDirectMenuRow(
+          id: "video.audio.\(track.id)",
+          title: track.detail.map { "\(track.title) (\($0))" } ?? track.title,
+          checked: transport.selectedAudio == track.id
+        ) {
+          transport.selectAudio(track.id)
+          close()
+        }
+      }
+    case .speed:
+      return PutioAudioSpeed.tvMenu.map { speed in
+        TVDirectMenuRow(
+          id: "video.speed.\(speed.identifier)", title: speed.title,
+          checked: transport.speed == speed
+        ) {
+          transport.setSpeed(speed)
+          close()
+        }
+      }
+    }
   }
 }
 
 enum TVDirectControlsMetrics {
+  static let skipBadgeDuration = Duration.milliseconds(900)
   static let captionInset = PutioTheme.TV.Spacing.large
   static let captionLift: CGFloat = 280
-  static let progressHeight: CGFloat = 12
+  static let progressHeight: CGFloat = 10
+  static let chipsToProgress: CGFloat = 38
+  static let progressToTimes: CGFloat = 24
+  static let bottomLift: CGFloat = 14
   static let scrimHeight: CGFloat = 480
 }
 
-/// The transport overlay of board `rd-tvos-dp-01-controls`: the file name,
-/// the progress bar, elapsed and remaining time over a bottom scrim.
-struct TVDirectControls: View {
+/// The transport overlay of board `rd-tvos-dp-01-controls`: the file name and
+/// chips, the progress bar, elapsed and remaining time over a bottom scrim,
+/// with an open chip's menu above the row.
+struct TVDirectControls<Menu: View, Chips: View>: View {
   let title: String
   let timeline: PutioVideoTimeline
+  var dimmed = false
+  @ViewBuilder let menu: Menu
+  @ViewBuilder let chips: Chips
+
+  private var shade: Color { dimmed ? TVDirectMenuMetrics.dimmed : .white }
 
   private var fraction: Double {
     guard let duration = timeline.durationSeconds, duration > 0 else { return 0 }
@@ -362,14 +654,29 @@ struct TVDirectControls: View {
         .frame(height: TVDirectControlsMetrics.scrimHeight)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .ignoresSafeArea()
-      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        Text(title)
-          .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .lineLimit(1)
-          .accessibilityIdentifier("video.title")
+        .allowsHitTesting(false)
+      if dimmed {
+        Color.black.opacity(TVDirectMenuMetrics.scrim).ignoresSafeArea().allowsHitTesting(false)
+      }
+      VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .trailing, spacing: TVDirectMenuMetrics.menuGap) {
+          menu
+          HStack(alignment: .center, spacing: PutioTheme.TV.Spacing.medium) {
+            Text(title)
+              .putioFont(PutioTheme.TV.Typography.body)
+              .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+              .lineLimit(1)
+              .colorMultiply(shade)
+              .accessibilityIdentifier("video.title")
+            Spacer(minLength: 0)
+            chips
+          }
+          .frame(maxWidth: .infinity)
+        }
         TVDirectProgressBar(fraction: fraction)
           .frame(height: TVDirectControlsMetrics.progressHeight)
+          .padding(.top, TVDirectControlsMetrics.chipsToProgress)
+          .colorMultiply(shade)
           .accessibilityElement()
           .accessibilityIdentifier("video.progress")
           .accessibilityValue(timeline.elapsedText)
@@ -382,11 +689,19 @@ struct TVDirectControls: View {
         }
         .putioFont(PutioTheme.TV.Typography.numeric)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .colorMultiply(shade)
+        .padding(.top, TVDirectControlsMetrics.progressToTimes)
       }
+      .padding(.bottom, TVDirectControlsMetrics.bottomLift)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
       .tvOverscanPadding()
     }
-    .allowsHitTesting(false)
+  }
+}
+
+extension TVDirectControls where Menu == EmptyView, Chips == EmptyView {
+  init(title: String, timeline: PutioVideoTimeline) {
+    self.init(title: title, timeline: timeline, menu: { EmptyView() }, chips: { EmptyView() })
   }
 }
 

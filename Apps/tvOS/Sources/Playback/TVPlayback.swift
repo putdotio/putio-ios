@@ -269,10 +269,17 @@ struct TVVideoPlaybackView: View {
         remembersPosition: remembersPosition, subtitlePolicy: subtitlePolicy,
         subtitleMemory: subtitleMemory, pipeline: pipeline,
         reportPosition: feedingReport,
-        wait: wait, callbacks: directCallbacks,
+        wait: wait, callbacks: directCallbacks, onNextFile: nextFileAction,
+        onAudioSwitchFailed: {
+          toast = PutioToast(
+            String(localized: "Couldn’t switch audio track", bundle: .putioCore), icon: .warning,
+            width: .fit)
+        },
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onRateChanged: { [probes] in probes.rate = $0 },
         onControlsShown: { [probes] in probes.controlsShown = $0 },
+        onBadgeShown: { [probes] in probes.lastBadge = $0.identifier },
+        onFocusChanged: { [probes] in probes.focus = $0 },
         onExit: onFinish
       )
       .disabled(showsEngineUpNext)

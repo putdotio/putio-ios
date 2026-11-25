@@ -97,14 +97,3 @@ extension PutioSubtitleSizeMemory {
     return PutioSubtitleSizeMemory()
   }
 }
-
-extension PutioSubtitleTextSize {
-  var title: String {
-    switch self {
-    case .small: String(localized: "Small")
-    case .medium: String(localized: "Medium")
-    case .large: String(localized: "Large")
-    case .extraLarge: String(localized: "Extra large")
-    }
-  }
-}

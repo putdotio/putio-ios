@@ -106,7 +106,8 @@ final class PlaybackJourneyTests: XCTestCase {
 
   /// Direct play opens the original MKV in the engine with put.io controls:
   /// the server's default subtitle renders its first cue, right skips ten
-  /// seconds forward, and a click pauses.
+  /// seconds forward under a badge, down reaches the chips and their menus,
+  /// back steps out of each, and a click pauses.
   func testDirectPlayEngineWithPutioControls() {
     launch(directPlay: true)
     openFile("files.item.412")
@@ -119,19 +120,51 @@ final class PlaybackJourneyTests: XCTestCase {
       label(containing: "Previously on Blue Lights.").waitForExistence(timeout: 10),
       "the put.io subtitle renders its first cue")
 
+    XCTAssertTrue(
+      waitUntil(timeout: 15) { self.probeValue("video.controls") == "hidden" },
+      "the controls hide while the video plays")
     let before = Int(probeValue("video.current-position") ?? "") ?? 0
     remote.press(.right)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.last-badge") == "forward" },
+      "a skip shows its badge")
     XCTAssertTrue(
       waitUntil(timeout: 10) {
         (Int(self.probeValue("video.current-position") ?? "") ?? 0) >= before + 10
       }, "right skips ten seconds forward")
+    XCTAssertEqual(probeValue("video.controls"), "hidden", "a skip keeps the controls hidden")
+
+    remote.press(.down)
     XCTAssertTrue(
       waitUntil(timeout: 5) { self.probeValue("video.controls") == "shown" },
-      "a skip shows the controls")
+      "down shows the controls")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.focus") == "chip.subtitles" },
+      "the subtitles chip has focus, not \(probeValue("video.focus") ?? "nothing")")
     attach("runtime-tv-playback-direct-controls")
+    remote.press(.select)
+    XCTAssertTrue(
+      element("video.subtitles.size-and-timing").waitForExistence(timeout: 5),
+      "the subtitles chip opens its menu")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { !self.element("video.subtitles.size-and-timing").exists },
+      "back closes the menu")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.focus") == "chip.subtitles" },
+      "the subtitles chip has focus, not \(probeValue("video.focus") ?? "nothing")")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.controls") == "hidden" },
+      "back from the chips hides the controls")
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.focus") == "surface" })
+    XCTAssertTrue(element("video.screen.412").exists, "back from the chips stays in the player")
 
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" }, "a click pauses")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.last-badge") == "paused" },
+      "a pause shows its badge")
 
     // The end proposes the next file over the ended player; Cancel keeps it.
     remote.press(.playPause)

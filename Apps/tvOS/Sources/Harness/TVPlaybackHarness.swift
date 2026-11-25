@@ -58,6 +58,8 @@ final class TVPlaybackProbes {
   var resumePosition: Int?
   var source: String?
   var controlsShown: Bool?
+  var lastBadge: String?
+  var focus: String?
   var isReady = false
   var currentPosition: Int?
   var audioLanguage: String?
@@ -106,6 +108,8 @@ final class TVPlaybackProbes {
     if let controlsShown {
       values.append(Probe("video.controls", "Player controls", controlsShown ? "shown" : "hidden"))
     }
+    if let focus { values.append(Probe("video.focus", "Player focus", focus)) }
+    if let lastBadge { values.append(Probe("video.last-badge", "Last player badge", lastBadge)) }
     if ended { values.append(Probe("video.ended", "Playback reached end", "")) }
     if let speeds {
       values.append(Probe("video.speeds", "Offered speeds", speeds.joined(separator: ",")))

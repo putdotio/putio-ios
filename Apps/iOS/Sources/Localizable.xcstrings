@@ -1437,17 +1437,6 @@
         }
       }
     },
-    "Extra large" : {
-      "comment" : "android: playback_size_extra_large",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Extra large"
-          }
-        }
-      }
-    },
     "Files" : {
       "comment" : "android: mobile_destination_files",
       "localizations" : {
@@ -1603,17 +1592,6 @@
         }
       }
     },
-    "Large" : {
-      "comment" : "android: playback_size_large",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Large"
-          }
-        }
-      }
-    },
     "Local network access is off" : {
       "comment" : "ios-only: Apple-only Local Network permission prompt",
       "localizations" : {
@@ -1632,17 +1610,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Looking for devices…"
-          }
-        }
-      }
-    },
-    "Medium" : {
-      "comment" : "android: playback_size_medium",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Medium"
           }
         }
       }
@@ -3033,17 +3000,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sleep timer, %@ left"
-          }
-        }
-      }
-    },
-    "Small" : {
-      "comment" : "android: playback_size_small",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Small"
           }
         }
       }

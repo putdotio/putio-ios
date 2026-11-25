@@ -415,6 +415,17 @@
         }
       }
     },
+    "Audio" : {
+      "comment" : "android: mobile_playback_audio_control",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        }
+      }
+    },
     "Autoplay next video" : {
       "comment" : "android: mobile_settings_autoplay_next",
       "localizations" : {
@@ -433,6 +444,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Back"
+          }
+        }
+      }
+    },
+    "Back %lld seconds" : {
+      "comment" : "android: mobile_playback_seek_back",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Back %lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Back %lld seconds"
+                }
+              }
+            }
           }
         }
       }
@@ -1252,6 +1286,17 @@
         }
       }
     },
+    "Couldn’t switch audio track" : {
+      "comment" : "android: mobile_playback_audio_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t switch audio track"
+          }
+        }
+      }
+    },
     "Crash reports, error details, and limited playback diagnostics, so we can fix problems." : {
       "comment" : "android: privacy_diagnostics_description",
       "localizations" : {
@@ -1380,6 +1425,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Default sort order"
+          }
+        }
+      }
+    },
+    "Delay" : {
+      "comment" : "ios-only: subtitle delay row in the tvOS Direct play Size and timing panel, board rd-tvos-dp-07",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delay"
           }
         }
       }
@@ -1760,6 +1816,17 @@
         }
       }
     },
+    "Extra large" : {
+      "comment" : "android: playback_size_extra_large",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extra large"
+          }
+        }
+      }
+    },
     "Features you use" : {
       "comment" : "android: mobile_product_analytics_prompt_send_features",
       "localizations" : {
@@ -1855,6 +1922,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Folder not found"
+          }
+        }
+      }
+    },
+    "Forward %lld seconds" : {
+      "comment" : "android: mobile_playback_seek_forward",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Forward %lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Forward %lld seconds"
+                }
+              }
+            }
           }
         }
       }
@@ -2126,6 +2216,17 @@
         }
       }
     },
+    "Large" : {
+      "comment" : "android: playback_size_large",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large"
+          }
+        }
+      }
+    },
     "Largest first" : {
       "comment" : "android: mobile_files_sort_largest_first",
       "localizations" : {
@@ -2280,6 +2381,17 @@
         }
       }
     },
+    "Medium" : {
+      "comment" : "android: playback_size_medium",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
+          }
+        }
+      }
+    },
     "Next file" : {
       "comment" : "android: tv_player_next_track",
       "localizations" : {
@@ -2423,6 +2535,28 @@
         }
       }
     },
+    "Reset" : {
+      "comment" : "android: playback_subtitle_reset",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset"
+          }
+        }
+      }
+    },
+    "Size and timing" : {
+      "comment" : "android: playback_size_and_timing",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size and timing"
+          }
+        }
+      }
+    },
     "Sleep in %@" : {
       "comment" : "ios-only: tvOS sleep timer button while it runs (rd-tvos-pb-18-now-playing); Android TV has no audio player",
       "localizations" : {
@@ -2452,6 +2586,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sleep timer, %@ left"
+          }
+        }
+      }
+    },
+    "Small" : {
+      "comment" : "android: playback_size_small",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small"
           }
         }
       }
@@ -2507,6 +2652,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Switching to streaming…"
+          }
+        }
+      }
+    },
+    "Text size" : {
+      "comment" : "android: playback_text_size",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text size"
           }
         }
       }

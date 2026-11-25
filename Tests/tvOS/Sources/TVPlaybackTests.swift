@@ -379,12 +379,120 @@ final class TVPlaybackTests: XCTestCase {
   func testDirectPlayControlsMatchBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-direct-controls",
-      view: TVDirectControls(
-        title: "Sintel.2010.1080p.mkv",
-        timeline: PutioVideoTimeline(elapsedSeconds: 190, durationSeconds: 634)
+      view: TVDirectControlsBoard().background(Color.gray),
+      size: viewport)
+  }
+
+  func testDirectPlayPausedMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-paused",
+      view: ZStack {
+        TVDirectBadgeView(badge: .paused)
+        TVDirectControlsBoard(elapsed: 391, duration: 888)
+      }
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testDirectPlaySkipBadgesMatchBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-skip-forward",
+      view: TVDirectBadgeView(badge: .skippedForward).background(Color.gray), size: viewport)
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-skip-back",
+      view: TVDirectBadgeView(badge: .skippedBack).background(Color.gray), size: viewport)
+  }
+
+  func testDirectPlaySubtitlesMenuMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-subtitles",
+      view: TVDirectControlsBoard(
+        menu: .subtitles, highlighted: "external",
+        rows: [
+          row("off", "Off"),
+          row("external", "English - Sintel.2010.1080p", checked: true),
+          row("embedded-en", "English (embedded)"),
+          row("embedded-tr", "Turkish (embedded)"),
+          TVDirectMenuRow(
+            id: "size", title: "Size and timing", icon: .textAa, startsSection: true, action: {}),
+        ]
       )
       .background(Color.gray),
       size: viewport)
+  }
+
+  func testDirectPlayLongSubtitlesMenuStaysOnScreen() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-subtitles-long",
+      view: TVDirectControlsBoard(
+        menu: .subtitles, highlighted: "off",
+        rows: [row("off", "Off", checked: true)]
+          + (1...20).map { row("track-\($0)", "Track \($0) (embedded)") }
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testDirectPlaySizeAndTimingMatchesBaseline() throws {
+    var timing = PutioSubtitleTiming()
+    for _ in 0..<5 { timing.moveLater() }
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-size-timing",
+      view: TVDirectControlsBoard(
+        menu: .sizeAndTiming, highlighted: "delay",
+        rows: [
+          row("size", "Text size", detail: PutioSubtitleTextSize.medium.title),
+          row("delay", "Delay", detail: timing.text),
+          row("reset", "Reset"),
+        ]
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testDirectPlayAudioMenuMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-audio",
+      view: TVDirectControlsBoard(
+        menu: .audio, highlighted: "truehd",
+        rows: [
+          row("truehd", "English (TrueHD Atmos 7.1)", checked: true),
+          row("ac3", "English (AC3 5.1)"),
+          row("commentary", "Commentary (AAC Stereo)"),
+        ]
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testDirectPlaySpeedMenuMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-speed",
+      view: TVDirectControlsBoard(
+        menu: .speed, highlighted: "1",
+        rows: PutioAudioSpeed.tvMenu.map {
+          row($0.identifier, $0.title, checked: $0 == .normal)
+        }
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
+  func testAudioSwitchFailureToastMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-audio-failed",
+      view: Color.gray.putioToast(
+        .constant(
+          PutioToast(
+            String(localized: "Couldn’t switch audio track", bundle: .putioCore), icon: .warning,
+            width: .fit))),
+      size: viewport)
+  }
+
+  private func row(
+    _ id: String, _ title: String, detail: String? = nil, checked: Bool = false
+  ) -> TVDirectMenuRow {
+    TVDirectMenuRow(id: id, title: title, detail: detail, checked: checked, action: {})
   }
 
   func testSubtitleFailureToastMatchesBaseline() throws {
@@ -482,5 +590,33 @@ final class TVPlaybackTests: XCTestCase {
     }
     if await condition() { return }
     XCTFail("timed out waiting for \(what)", file: file, line: line)
+  }
+}
+
+/// Boards `rd-tvos-dp-*`: the Direct play controls with the chips and, when
+/// given, an open menu with one highlighted row.
+private struct TVDirectControlsBoard: View {
+  var elapsed: Double = 190
+  var duration: Double = 634
+  var menu: TVDirectMenu?
+  var highlighted: String?
+  var rows: [TVDirectMenuRow] = []
+  @FocusState private var focus: TVDirectFocus?
+
+  var body: some View {
+    TVDirectControls(
+      title: "Sintel.2010.1080p.mkv",
+      timeline: PutioVideoTimeline(elapsedSeconds: elapsed, durationSeconds: duration),
+      dimmed: menu != nil,
+      menu: {
+        if let menu {
+          TVDirectMenuPanel(menu: menu, rows: rows, focus: $focus, highlighted: highlighted)
+        }
+      },
+      chips: {
+        TVDirectChipRow(
+          speed: .normal, audioEnabled: true, showsNextFile: true, openChip: menu?.chip,
+          focus: $focus, select: { _ in })
+      })
   }
 }
