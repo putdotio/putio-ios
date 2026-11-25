@@ -78,13 +78,15 @@ final class TVPlaybackStatesTests: XCTestCase {
 
   private static let videoName = "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv"
 
-  private func assertFailure(_ failure: PutioVideoPlaybackFailure, name: String) throws {
+  private func assertFailure(
+    _ failure: PutioVideoPlaybackFailure, name: String, testName: String = #function
+  ) throws {
     _ = try assertRenderingSnapshot(
       name: name,
       view: TVPlaybackFailureScreen(
         failure: failure, fileID: PutioFileID(rawValue: 441), fileName: Self.videoName,
         retry: {}, back: {}),
-      size: viewport)
+      size: viewport, testName: testName)
   }
 
   /// A track 12:04 into its 54:14, in a three-track Podcasts folder.

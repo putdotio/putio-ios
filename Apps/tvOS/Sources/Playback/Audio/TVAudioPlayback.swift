@@ -326,7 +326,7 @@ extension View {
 }
 
 enum TVNowPlayingLayout {
-  static let inset: CGFloat = 200
+  static let inset: CGFloat = 120
   static let gap: CGFloat = 96
   static let artwork: CGFloat = 560
   static let artworkRadius: CGFloat = 40
