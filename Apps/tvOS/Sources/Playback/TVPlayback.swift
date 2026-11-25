@@ -165,6 +165,8 @@ struct TVVideoPlaybackView: View {
         nextVideoTask?.cancel()
         nextVideoTask = nil
         nextVideoModel.cancel()
+        playerFailureTask?.cancel()
+        playerFailureTask = nil
       }
       .overlay {
         if showsProbes { TVPlaybackProbeView(probes: probes) }
@@ -232,6 +234,7 @@ struct TVVideoPlaybackView: View {
         },
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
+        onReady: { model.playerReady() },
         onEnded: playbackEnded,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onFailure: playerFailed
@@ -613,6 +616,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let subtitlePolicy: PutioSubtitleStartupPolicy
   let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
+  let onReady: @MainActor () -> Void
   let onEnded: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
   let onFailure: @MainActor (PutioVideoPlayerFailure) -> Void
@@ -633,8 +637,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         try await report(fileID, seconds)
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
-      in: controller, probes: probes, onEnded: onEnded, onReportsSettled: onReportsSettled,
-      onFailure: onFailure)
+      in: controller, probes: probes, onReady: onReady, onEnded: onEnded,
+      onReportsSettled: onReportsSettled, onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
   }
@@ -698,6 +702,7 @@ final class TVVideoPlayerCoordinator {
     reportPosition: @escaping PutioPlaybackPositionReport,
     in controller: AVPlayerViewController,
     probes: TVPlaybackProbes? = nil,
+    onReady: @escaping @MainActor () -> Void = {},
     onEnded: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
     onFailure: @escaping @MainActor (PutioVideoPlayerFailure) -> Void
@@ -736,6 +741,7 @@ final class TVVideoPlayerCoordinator {
       reportPosition: reportPosition, in: controller,
       onReady: { [weak self, weak controller] in
         probes?.isReady = true
+        onReady()
         guard let self, let controller else { return }
         self.watchSubtitlePicks(of: item, controller: controller)
       },
