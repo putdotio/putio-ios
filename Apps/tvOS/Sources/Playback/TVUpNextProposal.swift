@@ -37,6 +37,7 @@ final class TVUpNextProposalController: AVContentProposalViewController {
   override var preferredFocusEnvironments: [any UIFocusEnvironment] { [host] }
 }
 
+@MainActor
 final class TVUpNextProposalDelegate: NSObject, AVPlayerViewControllerDelegate {
   var proposal: TVUpNextProposal?
 
