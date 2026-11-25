@@ -48,7 +48,7 @@ final class FileRowGalleryTests: XCTestCase {
     let button = app.buttons[label]
     var swipes = 0
     while !button.isHittable, swipes < 6 {
-      app.swipeUp()
+      drag(from: 0.7, to: 0.3)
       swipes += 1
     }
     return button
@@ -57,8 +57,15 @@ final class FileRowGalleryTests: XCTestCase {
   private func revealTop() {
     var swipes = 0
     while !app.staticTexts["gallery.files.reported-action"].isHittable, swipes < 6 {
-      app.swipeDown()
+      drag(from: 0.3, to: 0.7)
       swipes += 1
     }
+  }
+
+  private func drag(from start: CGFloat, to end: CGFloat) {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: start)).press(
+      forDuration: 0.05,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: end)),
+      withVelocity: .slow, thenHoldForDuration: 0.2)
   }
 }

@@ -6,6 +6,7 @@
 mise run harness -- journey --platform ios --scenario files-browser
 mise run harness -- journey --platform ios --scenario files-browser --only file-actions,history
 mise run harness -- journey --platform ios --scenario files-browser --only walk
+mise run harness -- journey --platform ios --scenario files-browser --simulators 2
 ```
 
 The [verify](../../../../scripts/verify.sh) `journeys` lane runs it.
@@ -15,8 +16,10 @@ owns the run: an ordered `preflights` table (name, XCUITest, required
 screenshots, time allowance), then the recorded walk `testRunnableAlphaLoop`.
 The [UI tests](../../../../Tests/iOSUITests/Sources) own the assertions.
 
-- Each preflight is its own `xcodebuild test-without-building` call. All of
-  them share one simulator. Journeys select their UI tests from the
+- Each preflight is its own `xcodebuild test-without-building` call, on a
+  fresh install. `--simulators N` (1–4, default 1) splits the preflights
+  across N simulators; the walk runs after them. Use 2 only when the host's
+  load is under 8 and no other lane runs a heavy job there. Journeys select their UI tests from the
   [PutioJourneys](../../../../Tests/PutioJourneys.xctestplan) and
   [PutioTVJourneys](../../../../Tests/PutioTVJourneys.xctestplan) plans, so ⌘U
   on the scheme leaves them out.
