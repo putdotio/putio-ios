@@ -96,6 +96,29 @@ import Testing
   }
 }
 
+@Test func splitsTheFilesBrowserJourneyAcrossSimulators() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "files-browser", "--simulators", "2",
+    ])
+      == .journey(
+        platform: .ios, scenario: .filesBrowser, runID: nil, simulators: 2, output: .text))
+  for arguments in [
+    ["--scenario", "files-browser", "--simulators", "0"],
+    ["--scenario", "files-browser", "--simulators", "5"],
+    ["--scenario", "files-browser", "--simulators", "two"],
+  ] {
+    #expect(throws: HarnessFailure.self) {
+      try HarnessArgumentParser.parse(["journey", "--platform", "ios"] + arguments)
+    }
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "device-sign-in", "--simulators", "2",
+    ])
+  }
+}
+
 @Test func rejectsGalleryScenarioOutsideCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])

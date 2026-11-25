@@ -180,6 +180,7 @@ public enum HarnessInvocation: Equatable, Sendable {
     scenario: JourneyScenario,
     runID: String?,
     only: [String] = [],
+    simulators: Int = 1,
     output: OutputFormat
   )
   case boards(

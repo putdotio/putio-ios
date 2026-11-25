@@ -887,7 +887,8 @@ public struct SimulatorHarness {
     scenario: JourneyScenario,
     runID: String,
     sourceRevision: String,
-    only: [String] = []
+    only: [String] = [],
+    simulators: Int = 1
   ) throws -> SurfaceRun {
     guard scenario.platform == platform else {
       throw HarnessFailure(
@@ -916,7 +917,8 @@ public struct SimulatorHarness {
     try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
 
     do {
-      return try withSession(platform: platform, runID: runID) { session in
+      return try withSessions(platform: platform, runID: runID, count: simulators) { sessions in
+        let session = sessions[0]
         try buildJourneyTests(platform: platform, session: session)
         let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
         try requireNonemptyFile(
@@ -980,22 +982,13 @@ public struct SimulatorHarness {
         }
         var preflightScreenshots: [URL] = []
         var preflightFailures: [(name: String, failure: Error)] = []
-        for preflight in preflights {
-          do {
-            try resetAppState(platform: platform, session: session)
-            preflightScreenshots += try runJourneyPreflightTest(
-              identifier: preflight.testIdentifier,
-              platform: platform,
-              session: session,
-              mediaBaseURL: mediaBaseURL,
-              resultBundle: platformDirectory.appending(path: ".\(preflight.name).xcresult"),
-              attachmentNames: preflight.attachmentNames,
-              artifactDirectory: platformDirectory,
-              defaultExecutionTimeAllowance: preflight.timeAllowance,
-              maximumExecutionTimeAllowance: preflight.timeAllowance
-            )
-          } catch {
-            preflightFailures.append((preflight.name, error))
+        let outcomes = runJourneyPreflights(
+          preflights, sessions: sessions, platform: platform, mediaBaseURL: mediaBaseURL,
+          directory: platformDirectory)
+        for (preflight, outcome) in zip(preflights, outcomes) {
+          switch outcome {
+          case .success(let screenshots): preflightScreenshots += screenshots
+          case .failure(let error): preflightFailures.append((preflight.name, error))
           }
         }
         guard preflightFailures.isEmpty else {
@@ -1844,7 +1837,8 @@ public struct SimulatorHarness {
       throw HarnessFailure("journey preflight attachments require an artifact directory")
     }
 
-    let attachmentsDirectory = artifactDirectory.appending(path: ".preflight-attachments")
+    let attachmentsDirectory = URL(
+      fileURLWithPath: resultBundle.deletingPathExtension().path + "-attachments")
     defer { try? fileManager.removeItem(at: attachmentsDirectory) }
     _ = try runner.checked(
       "xcrun",
@@ -2116,6 +2110,77 @@ public struct SimulatorHarness {
     }
     do {
       try lifecycle.endSession { try session.cleanup() }
+    } catch {
+      switch result {
+      case .success:
+        throw error
+      case .failure(let operationError):
+        throw HarnessFailure("\(operationError)\ncleanup failed: \(error)")
+      }
+    }
+    return try result.get()
+  }
+
+  private func runJourneyPreflights(
+    _ preflights: [JourneyPreflight], sessions: [SimulatorSession], platform: HarnessPlatform,
+    mediaBaseURL: URL, directory: URL
+  ) -> [Result<[URL], Error>] {
+    nonisolated(unsafe) let harness = self
+    nonisolated(unsafe) let sessions = sessions
+    nonisolated(unsafe) var outcomes = [Result<[URL], Error>?](
+      repeating: nil, count: preflights.count)
+    nonisolated(unsafe) var next = 0
+    let lock = NSLock()
+    DispatchQueue.concurrentPerform(iterations: min(sessions.count, preflights.count)) { worker in
+      let session = sessions[worker]
+      while let index = lock.withLock({ () -> Int? in
+        guard next < preflights.count else { return nil }
+        defer { next += 1 }
+        return next
+      }) {
+        let preflight = preflights[index]
+        let outcome = Result {
+          try harness.resetAppState(platform: platform, session: session)
+          return try harness.runJourneyPreflightTest(
+            identifier: preflight.testIdentifier,
+            platform: platform,
+            session: session,
+            mediaBaseURL: mediaBaseURL,
+            resultBundle: directory.appending(path: ".\(preflight.name).xcresult"),
+            attachmentNames: preflight.attachmentNames,
+            artifactDirectory: directory,
+            defaultExecutionTimeAllowance: preflight.timeAllowance,
+            maximumExecutionTimeAllowance: preflight.timeAllowance
+          )
+        }
+        lock.withLock { outcomes[index] = outcome }
+      }
+    }
+    return outcomes.map { $0 ?? .failure(HarnessFailure("journey preflight never ran")) }
+  }
+
+  private func withSessions<T>(
+    platform: HarnessPlatform, runID: String, count: Int,
+    operation: ([SimulatorSession]) throws -> T
+  ) throws -> T {
+    var sessions: [SimulatorSession] = []
+    let result: Result<T, Error>
+    do {
+      for _ in 0..<count {
+        sessions.append(try createSession(platform: platform, runID: runID))
+      }
+      result = .success(try operation(sessions))
+    } catch {
+      result = .failure(error)
+    }
+    do {
+      try lifecycle.endSession {
+        var failures: [String] = []
+        for session in sessions {
+          do { try session.cleanup() } catch { failures.append(String(describing: error)) }
+        }
+        guard failures.isEmpty else { throw HarnessFailure(failures.joined(separator: "\n")) }
+      }
     } catch {
       switch result {
       case .success:

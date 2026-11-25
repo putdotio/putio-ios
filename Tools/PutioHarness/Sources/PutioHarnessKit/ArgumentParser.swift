@@ -7,7 +7,7 @@ public enum HarnessArgumentParser {
       putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery|signed-in] [--output text|json]
       putio-harness <build|launch|proof> --platform tvos --device <udid|identifier|name> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
-      putio-harness journey --platform ios --scenario files-browser [--only CHECK[,CHECK...]] [--run-id ID] [--output text|json]
+      putio-harness journey --platform ios --scenario files-browser [--only CHECK[,CHECK...]] [--simulators N] [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --boards BOARD[,BOARD...] [--device iphone|ipad|duo-folded|duo-open] [--orientation portrait|landscape] [--xxl] [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
@@ -81,7 +81,8 @@ public enum HarnessArgumentParser {
         ids: boards.map(\.id), xxl: options.flag("xxl"), device: device,
         orientation: orientation, runID: runID, output: output)
     case "journey":
-      try options.rejectUnknown(allowing: ["platform", "scenario", "only", "run-id", "output"])
+      try options.rejectUnknown(
+        allowing: ["platform", "scenario", "only", "simulators", "run-id", "output"])
       guard let platform = HarnessPlatform(rawValue: try options.required("platform")),
         platform == .ios || platform == .tvos
       else {
@@ -97,10 +98,12 @@ public enum HarnessArgumentParser {
           "journey: --scenario \(scenario.rawValue) runs only on \(scenario.platform.rawValue)")
       }
       let only = try parsePreflights(options.value("only"), scenario: scenario)
+      let simulators = try parseSimulators(options.value("simulators"), scenario: scenario)
       let runID = options.value("run-id")
       if let runID { try validateIdentifier(runID, label: "run id") }
       return .journey(
-        platform: platform, scenario: scenario, runID: runID, only: only, output: output)
+        platform: platform, scenario: scenario, runID: runID, only: only,
+        simulators: simulators, output: output)
     default:
       guard let command = SurfaceCommand(rawValue: commandName) else {
         throw HarnessFailure("unknown command: \(commandName)\n\n\(usage)")
@@ -180,6 +183,17 @@ public enum HarnessArgumentParser {
       throw HarnessFailure("--only takes preflight names or walk: \(known.joined(separator: ", "))")
     }
     return names
+  }
+
+  private static func parseSimulators(_ value: String?, scenario: JourneyScenario) throws -> Int {
+    guard let value else { return 1 }
+    guard scenario == .filesBrowser else {
+      throw HarnessFailure("--simulators is supported only by the files-browser journey")
+    }
+    guard let count = Int(value), (1...4).contains(count) else {
+      throw HarnessFailure("--simulators takes a count from 1 to 4")
+    }
+    return count
   }
 
   private static func validateIdentifier(_ value: String, label: String) throws {
