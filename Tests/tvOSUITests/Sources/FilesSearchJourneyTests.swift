@@ -212,7 +212,10 @@ final class FilesSearchJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(element("search.item.410").waitForExistence(timeout: 10))
     XCTAssertTrue(element("search.count").label.contains("2 results"))
-    XCTAssertFalse(element("search.panel").exists, "the panel shows before focus reaches a row")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("search.item.410") },
+      "focus did not move to the results after Try again")
+    XCTAssertTrue(element("search.panel").waitForExistence(timeout: 5))
 
     XCTAssertTrue(element("search.more-retry").waitForExistence(timeout: 10))
     XCTAssertTrue(focus("search.more-retry", moving: .down, limit: 6))
