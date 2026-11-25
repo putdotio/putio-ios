@@ -97,17 +97,32 @@ final class PutioVideoResumePromptTests: XCTestCase {
     XCTAssertEqual(prompt.progress(for: .startOver), 0)
   }
 
-  func testResumeTitleUsesClockTimeAndVoiceOverHearsADuration() throws {
+  func testOneCopySetUsesThePlaybackClockAndVoiceOverHearsADuration() throws {
     let short = try XCTUnwrap(
       PutioVideoResumePrompt(startFromSeconds: 1931, durationSeconds: 5400, remembersPosition: true)
     )
-    XCTAssertEqual(short.resumeTitle, "Continue from 0:32:11")
-    XCTAssertEqual(short.resumeAccessibilityLabel, "Continue from 32 minutes, 11 seconds")
+    XCTAssertEqual(
+      PutioVideoResumePrompt.question(positionSeconds: short.positionSeconds), "Resume from 32:11?")
+    XCTAssertEqual(
+      PutioVideoResumePrompt.resumeAccessibilityLabel(positionSeconds: short.positionSeconds),
+      "Resume from 32 minutes, 11 seconds")
     let long = try XCTUnwrap(
       PutioVideoResumePrompt(startFromSeconds: 3725, durationSeconds: 7200, remembersPosition: true)
     )
-    XCTAssertEqual(long.resumeTitle, "Continue from 1:02:05")
-    XCTAssertEqual(PutioVideoResumePrompt.startOverTitle, "Start from the beginning")
+    XCTAssertEqual(
+      PutioVideoResumePrompt.question(positionSeconds: long.positionSeconds), "Resume from 1:02:05?"
+    )
+    XCTAssertEqual(PutioVideoResumePrompt.question(positionSeconds: 37), "Resume from 0:37?")
+    XCTAssertEqual(PutioVideoResumePrompt.resumeTitle, "Resume")
+    XCTAssertEqual(PutioVideoResumePrompt.startOverTitle, "Start over")
+  }
+
+  func testThePlaybackClockDropsTheHourUnderAnHour() {
+    XCTAssertEqual(
+      [0, 37, 599, 3599, 3600, 3723, 36_000].map { PutioPlaybackClock.text(seconds: $0) },
+      ["0:00", "0:37", "9:59", "59:59", "1:00:00", "1:02:03", "10:00:00"])
+    XCTAssertEqual(PutioPlaybackClock.text(-.infinity), "0:00")
+    XCTAssertEqual(PutioPlaybackClock.text(59.9), "0:59")
   }
 }
 
@@ -135,22 +150,38 @@ final class PutioVideoStartTests: XCTestCase {
       PutioPlaybackSource(url: url, startFromSeconds: 0))
   }
 
-  func testAPlayerThatAsksAfterMeasuringPlaysAWatchedPositionFromTheStart() throws {
-    func start(_ saved: Int, _ duration: Double?, remembers: Bool = true)
-      -> PutioVideoPromptedStart
-    {
-      PutioVideoStart.prompted(
-        startFromSeconds: saved, durationSeconds: duration, remembersPosition: remembers)
+  @MainActor
+  func testThePlayerAsksOnlyShortOfTheWatchedMarkAndAWatchedPositionPlaysFromTheStart()
+    async throws
+  {
+    let url = try XCTUnwrap(URL(string: "https://media.example.test/video.m3u8"))
+    func start(_ saved: Int, _ duration: Double?, remembers: Bool = true) async -> (
+      asked: (Int, Double?)?, source: PutioPlaybackSource
+    ) {
+      var asked: (Int, Double?)?
+      let choose = PutioVideoStart.choice(
+        for: .asksInPlayer, remembersPosition: remembers, durationSeconds: { _ in duration },
+        ask: {
+          asked = ($0, $1)
+          return .resume
+        })
+      let source = await choose(PutioPlaybackSource(url: url, startFromSeconds: saved), false)
+      return (asked, source)
     }
-    let prompt = try XCTUnwrap(
-      PutioVideoResumePrompt(startFromSeconds: 5129, durationSeconds: 5400, remembersPosition: true)
-    )
-    XCTAssertEqual(start(5129, 5400), .ask(prompt), "just below 95%")
-    XCTAssertEqual(start(5130, 5400), .play(startSeconds: 0), "95%")
-    XCTAssertEqual(start(600, 590), .play(startSeconds: 0), "past the end")
-    XCTAssertEqual(start(1122, nil), .play(startSeconds: 1122), "unknown length")
-    XCTAssertEqual(start(1122, 5400, remembers: false), .play(startSeconds: 0), "setting off")
-    XCTAssertEqual(start(0, 5400), .play(startSeconds: 0), "no saved position")
+    let asked = await start(5129, 5400)
+    XCTAssertEqual(asked.asked?.0, 5129, "just below 95%")
+    XCTAssertEqual(asked.asked?.1, 5400)
+    for (saved, duration, remembers, label) in [
+      (5130, 5400.0, true, "95%"), (600, 590, true, "past the end"),
+      (1122, 5400, false, "setting off"), (0, 5400, true, "no saved position"),
+    ] {
+      let result = await start(saved, duration, remembers: remembers)
+      XCTAssertNil(result.asked, label)
+      XCTAssertEqual(result.source.startFromSeconds, saved, label)
+    }
+    let unknown = await start(1122, nil)
+    XCTAssertEqual(unknown.asked?.0, 1122, "an unknown length cannot be watched")
+    XCTAssertNil(unknown.asked?.1)
   }
 
   func testRouteCarriesTheChoiceMade() {
@@ -169,7 +200,13 @@ final class PutioVideoResumePrompterTests: XCTestCase {
     let asking = Task { await prompter.ask(positionSeconds: 1122) }
     while !prompter.isAsking { await Task.yield() }
     XCTAssertEqual(prompter.positionSeconds, 1122)
+    XCTAssertNil(prompter.prompt, "no length, no progress preview")
     prompter.answer(.startOver)
+    let measured = Task { await prompter.ask(positionSeconds: 1122, durationSeconds: 4488) }
+    while !prompter.isAsking { await Task.yield() }
+    XCTAssertEqual(prompter.prompt?.progress(for: .resume) ?? 0, 0.25, accuracy: 0.0001)
+    prompter.answer(.resume)
+    _ = await measured.value
     let choice = await asking.value
     XCTAssertEqual(choice, .startOver)
     XCTAssertFalse(prompter.isAsking)

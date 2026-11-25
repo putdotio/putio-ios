@@ -37,25 +37,42 @@ public struct PutioVideoResumePrompt: Equatable, Sendable {
     min(Double(startSeconds(for: choice)) / durationSeconds, 1)
   }
 
-  public var resumeTitle: String {
-    String(localized: "Continue from \(Self.clockTime(positionSeconds))", bundle: .module)
+  public static func question(positionSeconds: Int) -> String {
+    String(
+      localized: "Resume from \(PutioPlaybackClock.text(seconds: positionSeconds))?",
+      bundle: .module)
   }
 
   /// VoiceOver reads the position as a duration, not as clock digits.
-  public var resumeAccessibilityLabel: String {
-    let spoken = Duration.seconds(positionSeconds).formatted(
-      .units(allowed: [.hours, .minutes, .seconds], width: .wide))
-    return String(localized: "Continue from \(spoken)", bundle: .module)
+  public static func resumeAccessibilityLabel(positionSeconds: Int) -> String {
+    String(
+      localized: "Resume from \(PutioPlaybackClock.spoken(seconds: positionSeconds))",
+      bundle: .module)
   }
 
-  public static let startOverTitle = String(localized: "Start from the beginning", bundle: .module)
+  public static let resumeTitle = String(localized: "Resume", bundle: .module)
+  public static let startOverTitle = String(localized: "Start over", bundle: .module)
+}
 
-  /// `H:MM:SS`, hours unpadded.
-  static func clockTime(_ seconds: Int) -> String {
-    let hours = seconds / 3600
-    let minutes = seconds % 3600 / 60
-    let remainder = seconds % 60
+/// Playback positions and lengths as the players and file details show
+/// them: `M:SS` under an hour, `H:MM:SS` from an hour.
+public enum PutioPlaybackClock {
+  public static func text(seconds: Int) -> String {
+    let total = max(seconds, 0)
+    let hours = total / 3600
+    let minutes = total % 3600 / 60
+    let remainder = total % 60
+    guard hours > 0 else { return "\(minutes):\(twoDigits(remainder))" }
     return "\(hours):\(twoDigits(minutes)):\(twoDigits(remainder))"
+  }
+
+  public static func text(_ seconds: Double) -> String {
+    text(seconds: seconds.isFinite ? Int(max(seconds, 0).rounded(.down)) : 0)
+  }
+
+  public static func spoken(seconds: Int) -> String {
+    Duration.seconds(max(seconds, 0)).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .wide))
   }
 
   private static func twoDigits(_ value: Int) -> String {
@@ -80,11 +97,6 @@ public enum PutioVideoRouteStart: Equatable, Sendable {
   case asksInPlayer
   case chosen(PutioVideoResumePrompt.Choice)
   case resumes(atSeconds: Int)
-}
-
-public enum PutioVideoPromptedStart: Equatable, Sendable {
-  case ask(PutioVideoResumePrompt)
-  case play(startSeconds: Int)
 }
 
 public enum PutioVideoOpening: Equatable, Sendable {
@@ -112,7 +124,9 @@ public enum PutioVideoStart {
   public static func choice(
     for routeStart: PutioVideoRouteStart, remembersPosition: Bool,
     durationSeconds: @escaping @MainActor @Sendable (URL) async -> Double?,
-    ask: @escaping @MainActor @Sendable (Int) async -> PutioVideoResumePrompt.Choice?
+    ask:
+      @escaping @MainActor @Sendable (_ positionSeconds: Int, _ durationSeconds: Double?) async
+      -> PutioVideoResumePrompt.Choice?
   ) -> PutioVideoStartChoice {
     { source, afterConversion in
       switch routeStart {
@@ -132,24 +146,9 @@ public enum PutioVideoStart {
           savedSeconds: source.startFromSeconds, durationSeconds: duration,
           remembersPosition: true)
       else { return source }
-      let choice = await ask(source.startFromSeconds)
+      let choice = await ask(source.startFromSeconds, duration)
       return Self.source(source, startingWith: choice ?? .resume)
     }
-  }
-
-  public static func prompted(
-    startFromSeconds: Int, durationSeconds: Double?, remembersPosition: Bool
-  ) -> PutioVideoPromptedStart {
-    if let prompt = PutioVideoResumePrompt(
-      startFromSeconds: startFromSeconds, durationSeconds: durationSeconds,
-      remembersPosition: remembersPosition)
-    {
-      return .ask(prompt)
-    }
-    guard remembersPosition else { return .play(startSeconds: 0) }
-    return .play(
-      startSeconds: PutioPlaybackProgress.startSeconds(
-        savedSeconds: startFromSeconds, durationSeconds: durationSeconds))
   }
 
   public static func asksWhereToStart(
@@ -175,13 +174,19 @@ public enum PutioVideoStart {
 public final class PutioVideoResumePrompter {
   public private(set) var isAsking = false
   public private(set) var positionSeconds = 0
+  /// Set when the length is known, for the progress preview.
+  public private(set) var prompt: PutioVideoResumePrompt?
   @ObservationIgnored private var pending:
     (id: UInt64, continuation: CheckedContinuation<PutioVideoResumePrompt.Choice?, Never>)?
   @ObservationIgnored private var asked: UInt64 = 0
 
   public init() {}
 
-  public func ask(positionSeconds: Int) async -> PutioVideoResumePrompt.Choice? {
+  public func ask(
+    positionSeconds: Int, durationSeconds: Double? = nil
+  ) async -> PutioVideoResumePrompt.Choice? {
+    let prompt = PutioVideoResumePrompt(
+      startFromSeconds: positionSeconds, durationSeconds: durationSeconds, remembersPosition: true)
     answer(nil)
     asked &+= 1
     let id = asked
@@ -193,6 +198,7 @@ public final class PutioVideoResumePrompter {
         }
         pending = (id, continuation)
         self.positionSeconds = positionSeconds
+        self.prompt = prompt
         isAsking = true
       }
     } onCancel: {

@@ -11,7 +11,7 @@ final class PutioVideoTransportTests: XCTestCase {
     XCTAssertEqual(
       PutioVideoTimeline(elapsedSeconds: 1_122.6, durationSeconds: 2_989).remainingText, "-31:07",
       "elapsed and remaining do not add up to the duration")
-    XCTAssertEqual(PutioVideoTimeline.clock(3_723), "1:02:03")
+    XCTAssertEqual(PutioPlaybackClock.text(3_723), "1:02:03")
     XCTAssertEqual(
       PutioVideoTimeline(elapsedSeconds: 5, durationSeconds: nil).remainingText, "--:--")
     XCTAssertEqual(

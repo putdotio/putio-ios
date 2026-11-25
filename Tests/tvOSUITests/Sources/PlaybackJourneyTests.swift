@@ -31,7 +31,7 @@ final class PlaybackJourneyTests: XCTestCase {
     let resume = element("video.resume.continue")
     XCTAssertTrue(resume.waitForExistence(timeout: 30))
     XCTAssertEqual(element("video.resume.file-name").label, "Root Movie.mkv")
-    XCTAssertEqual(resume.label, "Continue from 9 minutes, 20 seconds")
+    XCTAssertEqual(resume.label, "Resume from 9 minutes, 20 seconds")
     XCTAssertTrue(
       waitUntil(timeout: 5) { self.hasFocus("video.resume.continue") },
       "Continue takes the first focus")
@@ -68,7 +68,7 @@ final class PlaybackJourneyTests: XCTestCase {
     let successorResume = element("video.resume.continue")
     XCTAssertTrue(successorResume.waitForExistence(timeout: 30))
     XCTAssertEqual(element("video.resume.file-name").label, "Root Movie 2.mkv")
-    XCTAssertEqual(successorResume.label, "Continue from 37 seconds")
+    XCTAssertEqual(successorResume.label, "Resume from 37 seconds")
     attach("runtime-tv-playback-successor-resume")
     remote.press(.down)
     XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.resume.start-over") })
@@ -77,7 +77,7 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
     XCTAssertTrue(
       waitUntil(timeout: 10) { (Int(self.probeValue("video.current-position") ?? "") ?? 99) < 10 },
-      "Start from the beginning plays from zero")
+      "Start over plays from zero")
     attach("runtime-tv-playback-playing")
     // The first sample lands one cadence after the player is ready.
     XCTAssertTrue(
@@ -203,7 +203,7 @@ final class PlaybackJourneyTests: XCTestCase {
 
     let resume = element("video.resume.continue")
     XCTAssertTrue(resume.waitForExistence(timeout: 30))
-    XCTAssertEqual(resume.label, "Continue from 1 minute, 30 seconds")
+    XCTAssertEqual(resume.label, "Resume from 1 minute, 30 seconds")
     XCTAssertEqual(probeValue("video.conversion-history"), "queued,converting,completed")
     attach("runtime-tv-playback-converted-resume")
     remote.press(.select)

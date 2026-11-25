@@ -168,4 +168,12 @@ public struct PutioVideoTrackSelection: Equatable, Sendable {
       }
     }
   }
+
+  public enum PutioVideoLength {
+    public static func seconds(of url: URL) async -> Double? {
+      guard let duration = try? await AVURLAsset(url: url).load(.duration), duration.isNumeric
+      else { return nil }
+      return CMTimeGetSeconds(duration)
+    }
+  }
 #endif
