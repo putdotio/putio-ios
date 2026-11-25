@@ -1898,6 +1898,7 @@ enum BrowserJourneyContract {
       ],
       timeAllowance: 210),
   ]
+  static let walkName = "walk"
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   static let timeAllowance = 120

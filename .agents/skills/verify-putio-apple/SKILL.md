@@ -49,8 +49,8 @@ Swift cannot compile the harness.
 | Real put.io account                          | `journey --scenario live-files-browser\|live-device-sign-in`                      | [live account](references/live-account.md) |
 
 The [feature map](features/README.md) names the preflight that proves each
-user-facing feature. `journey --only` runs just those preflights in a few minutes;
-the full iOS journey takes about 30.
+user-facing feature. `journey --only` runs just those checks, `walk` included, in
+minutes; the full iOS journey takes about 3 hours.
 
 `proof` checks a rendered launch, an exercised state transition, the app's
 semantic exercise signal, and process liveness. It then records the transition

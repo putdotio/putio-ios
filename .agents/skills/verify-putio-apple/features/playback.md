@@ -8,7 +8,7 @@ offline playback.
 
 - `video-wait` shows Preparing video, buffering, the 10-second label and the
   30-second stall, recovers on its own, and leaves or reloads from the stall.
-- The recorded walk, the journey without `--only`, signs in, recovers a failed
+- The recorded walk, `--only walk`, signs in, recovers a failed
   video load, plays to the end, autoplays the next episode at its saved
   position, and signs out.
 - `resume-persistence` asks Resume or Start over for a partly watched video, before the
@@ -100,7 +100,7 @@ Preconditions:
   `Root Movie.mkv` (412) starts with an invalid stream; its saved position is
   in [`HarnessSeededAPI`](../../../../Apps/Shared/Sources/Harness/HarnessSeededAPI.swift).
 
-- **Walk.** Run the full journey without `--only`. Screenshots:
+- **Walk.** Run `--only walk`. Screenshots:
   `runtime-sign-in`, `runtime-playback`, `runtime-signed-out`, plus
   `runtime-proof-walk.mp4`.
 - **Resume and transport.** Run `--only resume-persistence`. Screenshots:
