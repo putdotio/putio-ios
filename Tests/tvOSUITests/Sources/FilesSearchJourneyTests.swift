@@ -65,7 +65,6 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(panelAction("files.panel.startOver", on: "files.item.412"))
     XCTAssertTrue(element("video.screen.412").waitForExistence(timeout: 10))
     XCTAssertTrue(element("video.retry").waitForExistence(timeout: 20))
-    XCTAssertFalse(element("video.resume.continue").exists, "Start over asked to resume")
     XCTAssertTrue(focus("video.retry", moving: .down, limit: 3))
     remote.press(.menu)
     XCTAssertTrue(movie.waitForExistence(timeout: 10))
@@ -268,6 +267,12 @@ final class FilesSearchJourneyTests: XCTestCase {
       .firstMatch.exists
   }
 
+  private func panelHasFocus() -> Bool {
+    app.descendants(matching: .any)
+      .matching(NSPredicate(format: "identifier BEGINSWITH 'files.panel.' AND hasFocus == true"))
+      .firstMatch.exists
+  }
+
   private func hasFocus(_ identifier: String) -> Bool {
     app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
@@ -326,6 +331,7 @@ final class FilesSearchJourneyTests: XCTestCase {
   }
 
   private func panelAction(_ action: String, on row: String) -> Bool {
+    if panelHasFocus() { remote.press(.left) }
     guard focus(row) else { return false }
     remote.press(.right)
     guard focus(action, moving: .down, limit: 8) || focus(action, moving: .up, limit: 8) else {

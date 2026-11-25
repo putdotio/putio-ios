@@ -237,10 +237,10 @@ struct TVSignedInShell: View {
       } else {
         TVFileScreen(item: item)
       }
-    case .video(let item, let choice):
-      if case .video(let video) = PutioFileRoute(item: item).openAction {
+    case .video(let item, _):
+      if let video = route.videoRoute {
         TVVideoSession(
-          route: video.starting(with: choice), runtime: runtime, account: account,
+          route: video, runtime: runtime, account: account,
           pipeline: playbackPositionPipeline, refreshRequests: folderRefreshRequests
         )
         .toolbar(.hidden, for: .tabBar)
@@ -274,6 +274,13 @@ enum TVShellLayout {
 }
 
 extension TVRoute {
+  var videoRoute: PutioVideoRoute? {
+    guard case .video(let item, let choice) = self,
+      case .video(let video) = PutioFileRoute(item: item).openAction
+    else { return nil }
+    return video.starting(with: choice)
+  }
+
   var isFullScreen: Bool {
     if case .video = self { return true }
     guard case .file(let item) = self else { return false }

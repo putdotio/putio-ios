@@ -63,6 +63,13 @@ final class TVFilesTests: XCTestCase {
     XCTAssertEqual(TVRoute.opening(video), .file(video))
   }
 
+  func testAVideoRouteStartsWhereThePanelChose() {
+    let video = Self.video(resumePositionSeconds: 90)
+    XCTAssertEqual(TVRoute.video(video, .startOver).videoRoute?.start, .chosen(.startOver))
+    XCTAssertEqual(TVRoute.video(video, .resume).videoRoute?.start, .chosen(.resume))
+    XCTAssertNil(TVRoute.video(Self.video(kind: .other("ZIP")), .resume).videoRoute)
+  }
+
   func testBrowsingSurvivesHistoryTurningOffUnlessHistoryOpenedIt() {
     let folder = TVRoute.folder(PutioFolderRoute(id: PutioFileID(rawValue: 410), title: "F"))
     let account = Self.account()
