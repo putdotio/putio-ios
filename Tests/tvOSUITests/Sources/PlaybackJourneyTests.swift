@@ -126,7 +126,9 @@ final class PlaybackJourneyTests: XCTestCase {
       waitUntil(timeout: 10) {
         (Int(self.probeValue("video.current-position") ?? "") ?? 0) >= before + 10
       }, "right skips ten seconds forward")
-    XCTAssertTrue(element("video.progress").waitForExistence(timeout: 5), "a skip shows controls")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.controls") == "shown" },
+      "a skip shows the controls")
     attach("runtime-tv-playback-direct-controls")
 
     remote.press(.select)

@@ -268,6 +268,7 @@ struct TVVideoPlaybackView: View {
         wait: wait, callbacks: directCallbacks,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onRateChanged: { [probes] in probes.rate = $0 },
+        onControlsShown: { [probes] in probes.controlsShown = $0 },
         onExit: onFinish
       )
       .disabled(showsEngineUpNext)

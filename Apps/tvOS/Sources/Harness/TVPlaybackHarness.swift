@@ -57,6 +57,7 @@ import SwiftUI
 final class TVPlaybackProbes {
   var resumePosition: Int?
   var source: String?
+  var controlsShown: Bool?
   var isReady = false
   var currentPosition: Int?
   var audioLanguage: String?
@@ -102,6 +103,9 @@ final class TVPlaybackProbes {
     if let subtitle { values.append(Probe("video.subtitle", "Selected subtitle", subtitle)) }
     if let speed { values.append(Probe("video.speed", "Selected speed", Self.format(speed))) }
     if let rate { values.append(Probe("video.rate", "Current rate", Self.format(rate))) }
+    if let controlsShown {
+      values.append(Probe("video.controls", "Player controls", controlsShown ? "shown" : "hidden"))
+    }
     if ended { values.append(Probe("video.ended", "Playback reached end", "")) }
     if let speeds {
       values.append(Probe("video.speeds", "Offered speeds", speeds.joined(separator: ",")))
