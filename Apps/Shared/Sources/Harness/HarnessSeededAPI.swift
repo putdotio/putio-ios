@@ -840,7 +840,6 @@ import Foundation
     private static var holdsSeasonListing: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-season-listing")
     }
-    /// Never answers the root listing, so Your Files stays loading.
     private static var holdsRootListing: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-hold-root-listing")
     }

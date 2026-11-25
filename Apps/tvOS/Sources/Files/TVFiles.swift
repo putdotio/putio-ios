@@ -390,6 +390,8 @@ struct TVFolderView: View {
           )
           .accessibilityIdentifier("files.empty")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .focusable()
+          .focusEffectDisabled()
         }
       } else {
         split(panel: showsPanel ? shownItem(in: contents) : nil) {
@@ -558,7 +560,6 @@ struct TVFolderView: View {
 
   private var isRowFocused: Bool { focusedRow != nil }
 
-  /// Select on a row opens it; a video asks to resume where it left off.
   private func activate(_ item: PutioFileItem) {
     open(item)
   }

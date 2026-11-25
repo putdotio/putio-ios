@@ -1,7 +1,5 @@
 import XCTest
 
-/// Captures each rd-tvos-files board's state on the Apple TV simulator
-/// against the seeded API, named after its board.
 final class TVFilesBoardCaptureTests: XCTestCase {
   private var app: XCUIApplication!
   private let remote = XCUIRemote.shared
@@ -26,8 +24,6 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.more-retry").exists })
 
     XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
-    // A system menu's button never reports focus, so Sort is reached by
-    // one move right and proven by the menu it opens.
     remote.press(.right)
     pause(1)
     remote.press(.select)
@@ -37,7 +33,6 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     remote.press(.menu)
     pause(1)
 
-    // The fixture fails the video's first Trash move.
     XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))
     XCTAssertTrue(label(containing: "Could not move item to Trash").waitForExistence(timeout: 10))
     XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))
@@ -58,7 +53,6 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     capture("rd-tvos-files-06-empty")
     remote.press(.menu)
 
-    // The flaky folder's first listing fails.
     XCTAssertTrue(focus("files.item.424"))
     remote.press(.select)
     XCTAssertTrue(element("files.retry").waitForExistence(timeout: 10))
@@ -73,7 +67,6 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     capture("rd-tvos-files-05-loading")
   }
 
-  /// With Trash off, deleting asks first with Cancel focused.
   func testFilesPermanentDeleteBoard() {
     openFiles(["--putio-harness-trash-disabled"])
     XCTAssertTrue(panelAction("files.panel.trash", on: "files.item.412"))
@@ -103,8 +96,6 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     return true
   }
 
-  /// A system menu's item: menus drop the identifiers of their buttons, so
-  /// items are found by title.
   private func menuItem(_ title: String) -> XCUIElement {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
   }

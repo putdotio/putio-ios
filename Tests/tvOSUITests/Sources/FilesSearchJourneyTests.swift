@@ -44,8 +44,6 @@ final class FilesSearchJourneyTests: XCTestCase {
     // Sorting persists on the server and the list reloads in its order.
     // Up from the list lands on Refresh; Sort sits to its right.
     XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
-    // A system menu's button never reports focus, so Sort is reached by
-    // one move right and proven by the menu it opens.
     remote.press(.right)
     pause(1)
     remote.press(.select)
@@ -59,21 +57,16 @@ final class FilesSearchJourneyTests: XCTestCase {
     // The fixture reverses the first page, so the last folders now lead.
     XCTAssertTrue(waitUntil(timeout: 10) { self.isAbove("files.item.424", "files.item.413") })
 
-    // The panel follows the focused row and acts on it; acting keeps focus
-    // on the row.
     XCTAssertTrue(focus("files.item.412"))
     XCTAssertTrue(element("files.panel").waitForExistence(timeout: 5))
     XCTAssertFalse(element("files.panel.move").exists, "Move waits for a folder picker")
     attach("runtime-tv-files-panel")
 
-    // Start over opens the player at the beginning without asking.
     XCTAssertTrue(panelAction("files.panel.startOver", on: "files.item.412"))
     XCTAssertTrue(element("video.screen.412").waitForExistence(timeout: 10))
-    XCTAssertFalse(
-      waitUntil(timeout: 3) { self.element("video.resume.continue").exists },
-      "Start over asked to resume")
+    XCTAssertTrue(element("video.retry").waitForExistence(timeout: 20))
+    XCTAssertFalse(element("video.resume.continue").exists, "Start over asked to resume")
     remote.press(.menu)
-    if !movie.waitForExistence(timeout: 5) { remote.press(.menu) }
     XCTAssertTrue(movie.waitForExistence(timeout: 10))
 
     XCTAssertTrue(panelAction("files.panel.markUnwatched", on: "files.item.412"))
@@ -86,7 +79,6 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(panelAction("files.panel.markWatched", on: "files.item.412"))
     XCTAssertTrue(waitUntil(timeout: 10) { movie.label.contains("Watched") })
 
-    // Pin flips to Unpin and back.
     XCTAssertTrue(panelAction("files.panel.pin", on: "files.item.412"))
     XCTAssertTrue(element("files.panel.unpin").waitForExistence(timeout: 10))
     XCTAssertTrue(panelAction("files.panel.unpin", on: "files.item.412"))
@@ -148,6 +140,8 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertFalse(element("files.refresh").exists, "an empty folder shows no actions")
     attach("runtime-tv-files-empty")
     remote.press(.menu)
+    XCTAssertTrue(
+      element("files.item.423").waitForExistence(timeout: 5), "Menu left the empty folder's app")
 
     // The flaky folder's first listing fails; its retry loads it.
     XCTAssertTrue(focus("files.item.424"))
@@ -330,7 +324,6 @@ final class FilesSearchJourneyTests: XCTestCase {
     return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
   }
 
-  /// Moves right from the row into its panel and selects the action.
   private func panelAction(_ action: String, on row: String) -> Bool {
     guard focus(row) else { return false }
     remote.press(.right)
@@ -341,14 +334,10 @@ final class FilesSearchJourneyTests: XCTestCase {
     return true
   }
 
-  /// A system menu's item: menus drop the identifiers of their buttons, so
-  /// items are found by title.
   private func menuItem(_ title: String) -> XCUIElement {
     app.cells.containing(NSPredicate(format: "label == %@", title)).firstMatch
   }
 
-  /// Menus open on their checked item; moving past an end closes them, so
-  /// focus walks down only.
   private func focusMenuItem(_ item: XCUIElement) -> Bool {
     let isFocused = {
       item.hasFocus
