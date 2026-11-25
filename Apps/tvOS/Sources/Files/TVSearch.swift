@@ -1,20 +1,26 @@
 import PutioCore
 import SwiftUI
 
-/// Search through the system linear keyboard. Results use the browser's
-/// file rows and long-press menu; query, paging, and actions come from the
-/// shared search and item-action models.
+/// Search through the system linear keyboard. An empty query lists recent
+/// searches; results use the Files rows with a panel for the focused row.
 struct TVSearchView: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let open: (PutioFileItem) -> Void
+  let play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)?
 
   @State private var query: String
   @State private var model: PutioFileSearchModel
   @State private var itemActions: PutioFileItemActionModel
-  @State private var menuItem: PutioFileItem?
+  @State private var recent: PutioRecentSearchesModel?
+  @State private var pins: PutioPinnedFilesModel?
+  @State private var folderNames: PutioFolderNames?
+  @State private var externalPlayback: PutioExternalPlaybackModel?
   @FocusState private var focusedRow: PutioFileID?
   @State private var focusTarget: PutioFileID?
+  @State private var shownItemID: PutioFileID?
+  @State private var showsPanel = false
+  @State private var recordedQuery: String?
   @State private var toast: PutioToast?
   @State private var now: Date
   private let locale: Locale
@@ -22,93 +28,141 @@ struct TVSearchView: View {
 
   init(
     runtime: PutioRuntime, account: PutioAccountSnapshot,
-    refreshRequests: PutioFolderRefreshRequests, open: @escaping (PutioFileItem) -> Void
+    refreshRequests: PutioFolderRefreshRequests, open: @escaping (PutioFileItem) -> Void,
+    play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)? = nil
   ) {
     self.init(
       model: PutioFileSearchModel(
         search: { try await runtime.searchFiles(query: $0, filter: $1) },
         continueSearch: { try await runtime.continueFileSearch(cursor: $0) }),
-      actions: PutioFileActions(runtime: runtime), account: account,
-      refreshRequests: refreshRequests, open: open)
+      actions: PutioFileActions(runtime: runtime),
+      recent: PutioRecentSearchesModel(actions: PutioRecentSearchActions(runtime: runtime)),
+      pins: PutioPinnedFilesModel(
+        actions: PutioPinnedFilesActions(runtime: runtime), rootName: TVFolderCopy.yourFiles),
+      folderNames: PutioFolderNames(rootName: TVFolderCopy.yourFiles) {
+        try await runtime.getFile(fileID: $0)
+      },
+      externalPlayback: TVExternalPlayback.model(runtime: runtime),
+      account: account, refreshRequests: refreshRequests, open: open, play: play)
   }
 
   /// `searchesOnChange: false` keeps an already searched model as it is, for
   /// rendering a fixed state.
   init(
-    model: PutioFileSearchModel, actions: PutioFileActions, account: PutioAccountSnapshot,
+    model: PutioFileSearchModel, actions: PutioFileActions,
+    recent: PutioRecentSearchesModel? = nil, pins: PutioPinnedFilesModel? = nil,
+    folderNames: PutioFolderNames? = nil, externalPlayback: PutioExternalPlaybackModel? = nil,
+    account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     query: String = "", now: Date = .now, locale: Locale = .current,
-    searchesOnChange: Bool = true, open: @escaping (PutioFileItem) -> Void
+    searchesOnChange: Bool = true, open: @escaping (PutioFileItem) -> Void,
+    play: ((PutioFileItem, PutioVideoResumePrompt.Choice) -> Void)? = nil
   ) {
     self.account = account
     self.refreshRequests = refreshRequests
     self.open = open
+    self.play = play
     self.locale = locale
     self.searchesOnChange = searchesOnChange
     _query = State(initialValue: query)
     _model = State(initialValue: model)
     _itemActions = State(
       initialValue: PutioFileItemActionModel(actions: actions, refreshRequests: refreshRequests))
+    _recent = State(initialValue: recent)
+    _pins = State(initialValue: pins)
+    _folderNames = State(initialValue: folderNames)
+    _externalPlayback = State(initialValue: externalPlayback)
     _now = State(initialValue: now)
   }
 
   var body: some View {
-    results
+    content
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
       .tvOverscanPadding()
       .background(PutioTheme.Colors.background.ignoresSafeArea())
       .searchable(text: $query, prompt: PutioSearchResultPresentation.prompt)
+      .onSubmit(of: .search) { record(query) }
+      .task {
+        guard searchesOnChange else { return }
+        await recent?.load()
+      }
+      .task {
+        guard searchesOnChange else { return }
+        await pins?.load()
+      }
       .task(id: Request(query: query, revision: refreshRequests.revision)) {
         guard searchesOnChange else { return }
         await model.apply(query: query, revision: refreshRequests.revision)
       }
       .onAppear { if searchesOnChange { now = .now } }
-      // Reloaded results reflect every settled delete.
+      .onChange(of: query) {
+        showsPanel = false
+        shownItemID = nil
+      }
+      .onChange(of: focusedRow) { _, row in
+        guard let row else { return }
+        shownItemID = row
+        showsPanel = true
+        record(query)
+      }
       .onChange(of: model.resultsRevision) {
         itemActions.revealHiddenItems(reflecting: model.resultsRefreshRevision)
       }
-      .tvFileMenu(
-        item: $menuItem, account: account, canDelete: itemActions.canDelete,
-        setWatched: { item, watched in
-          if case .loaded(let page) = model.state {
-            focusTarget = PutioFolderContents.neighbour(
-              keeping: item.id, in: page.items, firstPage: model.firstPageIDs)
-          }
-          Task { await itemActions.setWatched(item, watched) }
-        },
-        delete: { item in
-          guard case .loaded(let page) = model.state else { return }
-          let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
-          focusTarget = PutioFolderContents.neighbour(
-            afterRemoving: item.id, from: visible, firstPage: model.firstPageIDs)
-          if account.trashEnabled { itemActions.hideForTrash(item) }
-          Task { await itemActions.delete(item) }
-        }
-      )
-      .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
+      .onChange(of: NamesRequest(id: panelItem?.parentID, revision: refreshRequests.revision)) {
+        _, request in
+        guard let id = request.id else { return }
+        folderNames?.resolve([id], revision: request.revision)
+      }
       .onChange(of: itemActions.outcome) { _, outcome in
         guard let outcome else { return }
-        toast = outcome.toastTitle(trashEnabled: account.trashEnabled).map { PutioToast($0) }
+        toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         itemActions.clearOutcome()
       }
+      .onChange(of: recent?.editFailure) { _, failure in
+        guard failure != nil else { return }
+        toast = PutioToast(PutioRecentSearchesCopy.editFailed, icon: .warning, width: .fit)
+        recent?.clearEditFailure()
+      }
+      .onChange(of: pins?.editFailure) { _, failure in
+        guard failure != nil else { return }
+        toast = PutioToast(PutioScreenErrorKind.failed.message, icon: .warning, width: .fit)
+        pins?.clearEditFailure()
+      }
+      .modifier(TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast))
+      .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .putioToast($toast)
   }
 
   @ViewBuilder
-  private var results: some View {
+  private var content: some View {
     switch model.state {
     case .idle:
-      Color.clear
+      if let recent, !recent.terms.isEmpty {
+        recentSearches(recent)
+      } else {
+        let start = PutioSearchResultPresentation.start
+        PutioEmptyStateView(
+          kaomoji: start.kaomoji ?? .curious, title: start.title, message: start.message
+        )
+        .accessibilityIdentifier("search.start")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      }
     case .loading:
-      PutioLoadingStateView(title: PutioSearchResultPresentation.searching)
+      PutioLoadingStateView(
+        title: PutioSearchResultPresentation.searching, titleVisibility: .hidden
+      )
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .failed(let failure):
       let copy = PutioSearchResultPresentation.failed(failure)
-      PutioErrorStateView(
-        title: copy.title, message: copy.message, retryTitle: "Try again",
-        retryIdentifier: "search.retry"
+      PutioEmptyStateView(
+        kaomoji: copy.kaomoji ?? .knockedOut, title: copy.title, message: copy.message,
+        actionTitle: String(localized: "Try again", bundle: .putioCore),
+        actionIcon: .arrowsClockwise, actionIdentifier: "search.retry"
       ) {
+        record(query)
         Task { await model.refresh(query: query, revision: refreshRequests.revision) }
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .loaded(let page):
       if page.items.isEmpty, page.nextCursor == nil, model.refreshFailure == nil {
         let nothing = PutioSearchResultPresentation.nothingMatches(query)
@@ -118,11 +172,86 @@ struct TVSearchView: View {
             of: PutioSearchResultPresentation.termMark, with: "“\(nothing.term)”")
         )
         .accessibilityIdentifier("search.empty")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        list(page)
+        HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {
+          list(page)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+          if showsPanel, let item = panelItem {
+            panel(item)
+          } else {
+            Color.clear.frame(width: TVDetailPanelLayout.width)
+          }
+        }
       }
     }
   }
+
+  private func recentSearches(_ recent: PutioRecentSearchesModel) -> some View {
+    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+      HStack(spacing: PutioTheme.TV.Spacing.small) {
+        Text(PutioRecentSearchesCopy.title)
+          .putioFont(PutioTheme.TV.Typography.caption)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .accessibilityAddTraits(.isHeader)
+        Spacer(minLength: PutioTheme.TV.Spacing.medium)
+        PutioButton(PutioRecentSearchesCopy.clear, icon: .x, tier: .secondary) {
+          Task { await recent.clear() }
+        }
+        .fixedSize()
+        .accessibilityIdentifier("search.recent-clear")
+      }
+      .focusSection()
+      TVRowList {
+        ForEach(recent.terms, id: \.self) { term in
+          Button {
+            query = term
+            record(term)
+          } label: {
+            HStack(spacing: PutioTheme.TV.Spacing.small) {
+              Image(putioIcon: .clockCounterClockwise)
+                .resizable()
+                .scaledToFit()
+                .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
+                .foregroundStyle(.putioRowIcon)
+                .accessibilityHidden(true)
+              Text(term)
+                .putioFont(PutioTheme.TV.Typography.label)
+                .foregroundStyle(.putioRowPrimary)
+                .lineLimit(1)
+            }
+            .tvRowPadding()
+          }
+          .contextMenu {
+            Button(role: .destructive) {
+              Task { await recent.remove(term) }
+            } label: {
+              Label {
+                Text(PutioRecentSearchesCopy.remove)
+              } icon: {
+                Image(putioIcon: .x)
+              }
+            }
+            .accessibilityIdentifier("search.recent-remove")
+          }
+          .accessibilityIdentifier("search.recent.\(term)")
+        }
+      }
+      .focusSection()
+    }
+  }
+
+  private var visibleItems: [PutioFileItem] {
+    guard case .loaded(let page) = model.state else { return [] }
+    return page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
+  }
+
+  private var panelItem: PutioFileItem? {
+    let items = visibleItems
+    return items.first { $0.id == shownItemID } ?? items.first
+  }
+
+  private var isRowFocused: Bool { focusedRow != nil }
 
   private func list(_ page: PutioFileSearchPage) -> some View {
     TVRowList {
@@ -139,24 +268,22 @@ struct TVSearchView: View {
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .accessibilityIdentifier("search.count")
       }
-      ForEach(page.items.filter { !itemActions.hiddenIDs.contains($0.id) }) { item in
-        TVFileRowButton(
-          presentation: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale),
-          identifier: "search.item.\(item.id.rawValue)",
-          isMenuOpen: menuItem?.id == item.id,
-          open: { open(item) },
-          showMenu: {
-            let actions = TVFilePresentation.menuActions(
-              for: item, account: account, canDelete: itemActions.canDelete)
-            if itemActions.canStartAction, !actions.isEmpty { menuItem = item }
-          }
-        )
+      ForEach(visibleItems) { item in
+        Button {
+          record(query)
+          open(item)
+        } label: {
+          PutioFileRow(
+            PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale).row)
+        }
+        .tvRowOpen(!isRowFocused && showsPanel && panelItem?.id == item.id)
         .focused($focusedRow, equals: item.id)
+        .disabled(!itemActions.canStartAction)
+        .accessibilityIdentifier("search.item.\(item.id.rawValue)")
       }
       if let cursor = page.nextCursor, model.refreshFailure == nil {
         if let failure = model.loadMoreFailure {
           TVRetrySection(message: failure.message, identifier: "search.more-retry") {
-            // Keeps focus at the end of the results as the retry row goes.
             focusedRow = page.items.last?.id
             await model.loadMore()
           }
@@ -174,10 +301,75 @@ struct TVSearchView: View {
         }
       }
     }
+    .focusSection()
+  }
+
+  private var pinnedState: (PutioFileID) -> Bool? {
+    guard let pins, case .loaded = pins.state else { return { _ in nil } }
+    return { pins.isPinned($0) }
+  }
+
+  private func panel(_ item: PutioFileItem) -> some View {
+    let menu = PutioFileMenu.searchResult(
+      item: item,
+      capabilities: .tv(tracksWatched: account.rememberVideoTime, pinned: pinnedState(item.id)))
+    return TVFilePanel(
+      item: item,
+      row: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale).row,
+      sections: TVFilePresentation.panelRows(
+        menu, canStartOver: play != nil, canOpenInVLC: externalPlayback != nil,
+        canDelete: itemActions.canDelete),
+      trashEnabled: account.trashEnabled, identifier: "search.panel"
+    ) { perform($0, on: item) }
+    .disabled(!itemActions.canStartAction)
+  }
+
+  private func perform(_ row: PutioFileMenuRow, on item: PutioFileItem) {
+    record(query)
+    switch row {
+    case .open:
+      open(item)
+    case .play:
+      playVideo(item, .resume)
+    case .startOver:
+      playVideo(item, .startOver)
+    case .pin:
+      let location = folderNames?.names[item.parentID]
+      Task { await pins?.pin(item, in: location) }
+    case .unpin:
+      Task { await pins?.unpin(item) }
+    case .openInVLC:
+      Task { await externalPlayback?.open(PutioFileRoute(item: item)) }
+    default:
+      if case .setWatched(_, let watched) = PutioFileItemActionRequest(row: row, item: item)?
+        .step(trashEnabled: account.trashEnabled)
+      {
+        focusTarget = PutioFolderContents.neighbour(
+          keeping: item.id, in: visibleItems, firstPage: model.firstPageIDs)
+        Task { await itemActions.setWatched(item, watched) }
+      }
+    }
+  }
+
+  private func playVideo(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice) {
+    guard let play else { return open(item) }
+    play(item, choice)
+  }
+
+  private func record(_ term: String) {
+    let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, trimmed != recordedQuery, let recent else { return }
+    recordedQuery = trimmed
+    Task { await recent.record(trimmed) }
   }
 
   private struct Request: Equatable {
     let query: String
+    let revision: UInt64
+  }
+
+  private struct NamesRequest: Equatable {
+    let id: PutioFileID?
     let revision: UInt64
   }
 

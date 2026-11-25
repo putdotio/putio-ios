@@ -1241,8 +1241,8 @@ public struct SimulatorHarness {
           resultBundle: searchBundle,
           attachmentNames: TVBrowseJourneyContract.searchAttachmentNames,
           artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 300
+          defaultExecutionTimeAllowance: 300,
+          maximumExecutionTimeAllowance: 420
         )
         let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
         for (path, fixture) in [

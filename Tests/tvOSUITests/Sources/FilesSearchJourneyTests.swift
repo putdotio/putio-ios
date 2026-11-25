@@ -167,13 +167,12 @@ final class FilesSearchJourneyTests: XCTestCase {
     attach("runtime-tv-files-recovered")
   }
 
-  /// Search types on the system keyboard. An empty result uses the system
-  /// empty state; a failed search and a failed second page each retry; the
-  /// results take the browser's long-press menu. Trash is off, so Delete
-  /// asks first: Cancel keeps the file and confirming deletes it once.
+  /// Search types on the system keyboard under its recent searches. A
+  /// failed search and a failed second page each retry; results open a panel
+  /// without Rename or Trash. Offline, recents stay and a search fails.
   func testSystemSearchEmptyErrorResultsAndMenu() {
     app.launchArguments = [
-      "--putio-harness-scenario", "signed-in", "--putio-harness-trash-disabled",
+      "--putio-harness-scenario", "signed-in", "--putio-harness-search-history", "seeded",
     ]
     app.launch()
 
@@ -181,11 +180,25 @@ final class FilesSearchJourneyTests: XCTestCase {
     let field = app.searchFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 10))
     showSearchKeyboard()
+    XCTAssertTrue(element("search.recent.tree rings").waitForExistence(timeout: 10))
+    XCTAssertTrue(label(containing: "Recent searches").exists)
     pause(1)
     attach("runtime-tv-search-keyboard")
 
+    XCTAssertTrue(focus("search.recent.mp3", moving: .down, limit: 8))
+    longPress()
+    let remove = menuItem("Remove from recent searches")
+    XCTAssertTrue(remove.waitForExistence(timeout: 5))
+    attach("runtime-tv-search-recent-menu")
+    XCTAssertTrue(focusMenuItem(remove))
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("search.recent.mp3").exists })
+    XCTAssertTrue(element("search.recent.sintel").exists)
+
+    XCTAssertTrue(focusKeyboard())
     field.typeText("no-matching-file")
     XCTAssertTrue(element("search.empty").waitForExistence(timeout: 10))
+    XCTAssertTrue(label(containing: "Nothing matches").exists)
     attach("runtime-tv-search-empty")
 
     field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 16) + "retry")
@@ -196,19 +209,22 @@ final class FilesSearchJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(element("search.item.410").waitForExistence(timeout: 10))
     XCTAssertTrue(element("search.count").label.contains("2 results"))
+    XCTAssertFalse(element("search.panel").exists, "the panel shows before focus reaches a row")
 
     XCTAssertTrue(element("search.more-retry").waitForExistence(timeout: 10))
     XCTAssertTrue(focus("search.more-retry", moving: .down, limit: 6))
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("search.item.410") })
     XCTAssertTrue(element("search.item.411").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("search.panel").waitForExistence(timeout: 5))
     attach("runtime-tv-search-results")
 
     XCTAssertTrue(focus("search.item.411", moving: .down, limit: 6))
-    longPress()
-    XCTAssertTrue(element("files.menu.unwatched").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("search.panel.markUnwatched").waitForExistence(timeout: 5))
+    XCTAssertFalse(element("search.panel.rename").exists, "search results offer Rename")
+    XCTAssertFalse(element("search.panel.trash").exists, "search results offer Trash")
+    XCTAssertTrue(panelAction("search.panel.markUnwatched", on: "search.item.411"))
     attach("runtime-tv-search-menu")
-    XCTAssertTrue(selectModalButton("files.menu.unwatched"))
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))
     // The action re-runs the search, whose rows now show the new state.
     let result = element("search.item.411")
@@ -218,39 +234,44 @@ final class FilesSearchJourneyTests: XCTestCase {
           && !result.label.contains("Watched")
       })
 
-    XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
+    XCTAssertTrue(panelAction("search.panel.openInVLC", on: "search.item.411"))
+    XCTAssertTrue(
+      label(containing: "Install VLC from the App Store on Apple TV").waitForExistence(timeout: 10))
+    XCTAssertTrue(selectModalButton("vlc.ok"))
+
+    if panelHasFocus() { remote.press(.left) }
+    XCTAssertTrue(focus("search.item.410"))
     remote.press(.select)
     XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10))
     remote.press(.menu)
+    XCTAssertTrue(element("search.item.410").waitForExistence(timeout: 10))
 
-    // A permanent delete asks first; Cancel keeps the folder.
-    let folder = element("search.item.410")
-    // The alert can hand focus back to the keyboard above the results.
-    XCTAssertTrue(focus("search.item.410"))
-    longPress()
-    XCTAssertTrue(element("files.menu.delete").waitForExistence(timeout: 5))
-    XCTAssertEqual(element("files.menu.delete").label, "Delete permanently")
-    XCTAssertTrue(selectModalButton("files.menu.delete"))
-    XCTAssertTrue(element("files.delete-confirm").waitForExistence(timeout: 5))
-    attach("runtime-tv-search-delete-confirm")
-    XCTAssertTrue(selectModalButton("files.delete-cancel"))
-    pause(2)
-    XCTAssertTrue(folder.exists, "Cancel deleted the folder")
-    XCTAssertFalse(label(containing: "Item deleted").exists)
+    XCTAssertTrue(focusKeyboard())
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5))
+    let recorded = element("search.recent.retry")
+    XCTAssertTrue(recorded.waitForExistence(timeout: 10), "the search was not recorded")
+    XCTAssertTrue(isAbove("search.recent.retry", "search.recent.tree rings"))
+    attach("runtime-tv-search-recent")
+    XCTAssertTrue(focus("search.recent-clear", moving: .down, limit: 4))
+    remote.press(.select)
+    XCTAssertTrue(element("search.start").waitForExistence(timeout: 10))
+    XCTAssertFalse(recorded.exists)
+    attach("runtime-tv-search-start")
 
-    // Confirming deletes it once: the fixture fails a repeated delete.
-    // The alert can hand focus back to the keyboard above the results.
-    XCTAssertTrue(focus("search.item.410"))
-    longPress()
-    XCTAssertTrue(selectModalButton("files.menu.delete"))
-    XCTAssertTrue(selectModalButton("files.delete-confirm"))
-    XCTAssertTrue(label(containing: "Item deleted").waitForExistence(timeout: 10))
-    // A second request would fail and replace that toast; watching for the
-    // whole three-second life of a toast means it cannot expire unseen.
-    let failed = label(containing: "Could not delete item")
-    XCTAssertFalse(
-      waitUntil(timeout: 6) { failed.exists }, "the delete was sent more than once")
-    XCTAssertFalse(folder.exists)
+    app.terminate()
+    app.launchArguments = [
+      "--putio-harness-scenario", "signed-in", "--putio-harness-search-history", "seeded",
+      "--putio-harness-search-offline",
+    ]
+    app.launch()
+    XCTAssertTrue(TVTabBar(app).open("Search"))
+    XCTAssertTrue(field.waitForExistence(timeout: 10))
+    showSearchKeyboard()
+    XCTAssertTrue(element("search.recent.sintel").waitForExistence(timeout: 10))
+    field.typeText("sintel")
+    XCTAssertTrue(label(containing: "Can't connect to put.io").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("search.retry").exists)
+    attach("runtime-tv-search-offline")
   }
 
   // MARK: - Remote helpers
@@ -274,6 +295,20 @@ final class FilesSearchJourneyTests: XCTestCase {
     }
   }
 
+  private func focusKeyboard() -> Bool {
+    let keyboard = app.keyboards.firstMatch
+    let hasKey = {
+      keyboard.exists
+        && keyboard.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
+    }
+    for _ in 0..<10 {
+      if waitUntil(timeout: 1, hasKey) { return true }
+      remote.press(.up)
+    }
+    return hasKey()
+  }
+
   private func focusIsSettled() -> Bool {
     app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
       .firstMatch.exists
@@ -281,7 +316,7 @@ final class FilesSearchJourneyTests: XCTestCase {
 
   private func panelHasFocus() -> Bool {
     app.descendants(matching: .any)
-      .matching(NSPredicate(format: "identifier BEGINSWITH 'files.panel.' AND hasFocus == true"))
+      .matching(NSPredicate(format: "identifier CONTAINS '.panel.' AND hasFocus == true"))
       .firstMatch.exists
   }
 

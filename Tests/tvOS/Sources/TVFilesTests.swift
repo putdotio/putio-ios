@@ -4,42 +4,20 @@ import XCTest
 @testable import PutioTV
 
 final class TVFilesTests: XCTestCase {
-  func testMenuOffersWatchStatusOnlyForVideosWhileRememberPositionIsOn() {
-    let account = Self.account()
+  func testSearchResultPanelsLeaveOutRenameAndTrash() {
+    let video = Self.video(resumePositionSeconds: 90)
+    let capabilities = PutioFileMenu.Capabilities.tv(tracksWatched: true, pinned: false)
+    let folderRows = TVFilePresentation.panelRows(
+      PutioFileMenu(item: video, capabilities: capabilities), canStartOver: true,
+      canOpenInVLC: true, canDelete: true
+    ).joined()
+    let searchRows = TVFilePresentation.panelRows(
+      PutioFileMenu.searchResult(item: video, capabilities: capabilities), canStartOver: true,
+      canOpenInVLC: true, canDelete: true
+    ).joined()
+    XCTAssertEqual(Set(folderRows).subtracting(searchRows), [.rename, .trash])
     XCTAssertEqual(
-      TVFilePresentation.menuActions(for: Self.video(), account: account, canDelete: true),
-      [.markWatched, .trash])
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(
-        for: Self.video(resumePositionSeconds: 90), account: account, canDelete: true),
-      [.markUnwatched, .trash])
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(
-        for: Self.video(), account: Self.account(rememberVideoTime: false), canDelete: true),
-      [.trash])
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(
-        for: Self.video(kind: .audio, resumePositionSeconds: 90), account: account,
-        canDelete: true),
-      [.trash])
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(for: Self.video(), account: account, canDelete: false),
-      [.markWatched], "Trash or Delete waits for the trash setting to be known")
-  }
-
-  /// The shipped app offers no actions on a file shared from another
-  /// account, so its long press opens nothing.
-  func testASharedFileHasNoMenuActions() {
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(
-        for: Self.video(resumePositionSeconds: 90, isShared: true), account: Self.account(),
-        canDelete: true),
-      [])
-    XCTAssertEqual(
-      TVFilePresentation.menuActions(
-        for: Self.video(kind: .other("ZIP"), isShared: true), account: Self.account(),
-        canDelete: true),
-      [])
+      Array(searchRows), [.play, .startOver, .openInVLC, .pin, .markUnwatched])
   }
 
   func testAFolderWithoutItsOwnSortFollowsTheAccountDefault() {
