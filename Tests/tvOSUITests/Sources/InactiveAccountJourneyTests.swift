@@ -76,9 +76,16 @@ final class InactiveAccountJourneyTests: XCTestCase {
     XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10), "the app never left")
     app.activate()
     XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "the app never returned")
+    XCTAssertTrue(notice.waitForNonExistence(timeout: 15), "renewing did not clear the Home notice")
     XCTAssertTrue(
-      waitUntil(timeout: 15) { !notice.exists }, "renewing did not clear the Home notice")
-    attach("runtime-tv-inactive-renewed")
+      waitUntil(timeout: 10) {
+        self.app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+          .firstMatch.exists
+      }, "the returned app never took focus")
+    guard let settled = settledScreenshot(timeout: 10) else {
+      return XCTFail("the screen never settled after returning")
+    }
+    attach("runtime-tv-inactive-renewed", screenshot: settled)
   }
 
   func testInactiveFamilyMemberSeesTheFamilyNoticeWithoutADate() {
@@ -140,8 +147,22 @@ final class InactiveAccountJourneyTests: XCTestCase {
     return condition()
   }
 
-  private func attach(_ name: String) {
-    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+  /// The app-switch snapshot fades out after the app returns, so the first
+  /// frame that matches the next one is the app's own.
+  private func settledScreenshot(timeout: TimeInterval) -> XCUIScreenshot? {
+    let deadline = Date().addingTimeInterval(timeout)
+    var previous = XCUIScreen.main.screenshot()
+    while Date() < deadline {
+      RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+      let current = XCUIScreen.main.screenshot()
+      if current.pngRepresentation == previous.pngRepresentation { return current }
+      previous = current
+    }
+    return nil
+  }
+
+  private func attach(_ name: String, screenshot: XCUIScreenshot = XCUIScreen.main.screenshot()) {
+    let attachment = XCTAttachment(screenshot: screenshot)
     attachment.name = name
     attachment.lifetime = .keepAlways
     add(attachment)
