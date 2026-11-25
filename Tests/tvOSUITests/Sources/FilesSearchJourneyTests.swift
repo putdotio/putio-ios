@@ -203,11 +203,11 @@ final class FilesSearchJourneyTests: XCTestCase {
     pause(2)
     XCTAssertTrue(element("search.recent.sintel").exists, "an empty submit changed the recents")
     XCTAssertTrue(isAbove("search.recent.blue lights", "search.recent.sintel"))
-    XCTAssertTrue(focusKeyboard())
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "poster\n")
+    XCTAssertTrue(resumeTyping())
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "poster\n")
     XCTAssertTrue(element("search.count").waitForExistence(timeout: 10))
-    XCTAssertTrue(focusKeyboard())
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6))
+    XCTAssertTrue(resumeTyping())
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 7))
     XCTAssertTrue(
       element("search.recent.poster").waitForExistence(timeout: 10), "a submit was not recorded")
     field.typeText("no-matching-file")
@@ -307,6 +307,15 @@ final class FilesSearchJourneyTests: XCTestCase {
       remote.press(.down)
       if app.keyboards.firstMatch.waitForExistence(timeout: 3) { return }
     }
+  }
+
+  /// A submit ends the field's editing; selecting a key starts it again and
+  /// types that key, which the caller deletes with the rest.
+  private func resumeTyping() -> Bool {
+    guard focusKeyboard() else { return false }
+    remote.press(.select)
+    pause(1)
+    return true
   }
 
   private func focusKeyboard() -> Bool {
