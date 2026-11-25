@@ -9,7 +9,7 @@ public enum HarnessArgumentParser {
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--only CHECK[,CHECK...]] [--simulators N] [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --boards BOARD[,BOARD...] [--device iphone|ipad|duo-folded|duo-open] [--orientation portrait|landscape] [--xxl] [--run-id ID] [--output text|json]
-      putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
+      putio-harness journey --platform tvos --scenario device-sign-in [--only CHECK[,CHECK...]] [--run-id ID] [--output text|json]
       putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario live-device-sign-in [--run-id ID] [--output text|json]
       putio-harness auth-status [--output text|json]
@@ -174,13 +174,18 @@ public enum HarnessArgumentParser {
     -> [String]
   {
     guard let value else { return [] }
-    guard scenario == .filesBrowser else {
-      throw HarnessFailure("--only is supported only by the files-browser journey")
+    let known: [String]
+    switch scenario {
+    case .filesBrowser:
+      known = BrowserJourneyContract.preflights.map(\.name) + [BrowserJourneyContract.walkName]
+    case .deviceSignIn:
+      known = TVJourneyContract.steps.map(\.name)
+    default:
+      throw HarnessFailure("--only is supported only by the files-browser and device-sign-in journeys")
     }
-    let known = BrowserJourneyContract.preflights.map(\.name) + [BrowserJourneyContract.walkName]
     let names = value.split(separator: ",").map(String.init)
     guard !names.isEmpty, names.allSatisfy(known.contains) else {
-      throw HarnessFailure("--only takes preflight names or walk: \(known.joined(separator: ", "))")
+      throw HarnessFailure("--only takes check names: \(known.joined(separator: ", "))")
     }
     return names
   }

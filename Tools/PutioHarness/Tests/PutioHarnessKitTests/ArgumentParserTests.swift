@@ -119,6 +119,21 @@ import Testing
   }
 }
 
+@Test func selectsTVJourneyStepsByName() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "device-sign-in", "--only", "history-trash",
+    ])
+      == .journey(
+        platform: .tvos, scenario: .deviceSignIn, runID: nil, only: ["history-trash"],
+        output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "device-sign-in", "--only", "walk",
+    ])
+  }
+}
+
 @Test func rejectsGalleryScenarioOutsideCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])

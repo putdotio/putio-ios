@@ -1275,6 +1275,71 @@ enum TVInactiveAccountJourneyContract {
     "PutioTVUITests/InactiveAccountJourneyTests/testActiveAccountSeesNoNotice"
 }
 
+struct TVJourneyStep: Equatable, Sendable {
+  let name: String
+  let testIdentifier: String
+  let attachmentNames: [String]
+  let defaultAllowance: Int
+  let maximumAllowance: Int
+  let playsMedia: Bool
+
+  init(
+    _ name: String, _ testIdentifier: String, _ attachmentNames: [String],
+    allowance: (Int, Int), playsMedia: Bool = false
+  ) {
+    self.name = name
+    self.testIdentifier = testIdentifier
+    self.attachmentNames = attachmentNames
+    (defaultAllowance, maximumAllowance) = allowance
+    self.playsMedia = playsMedia
+  }
+}
+
+enum TVJourneyContract {
+  static let steps = [
+    TVJourneyStep(
+      "sign-in", DeviceSignInJourneyContract.testIdentifier,
+      DeviceSignInJourneyContract.attachmentNames, allowance: (120, 180)),
+    TVJourneyStep(
+      "session-recovery", DeviceSignInJourneyContract.sessionRecoveryTestIdentifier,
+      DeviceSignInJourneyContract.sessionRecoveryAttachmentNames, allowance: (120, 180)),
+    TVJourneyStep(
+      "history-trash", TVAccountJourneyContract.historyTrashTestIdentifier,
+      TVAccountJourneyContract.historyTrashAttachmentNames, allowance: (300, 420)),
+    TVJourneyStep(
+      "settings", TVAccountJourneyContract.settingsTestIdentifier,
+      TVAccountJourneyContract.settingsAttachmentNames, allowance: (180, 300)),
+    TVJourneyStep(
+      "browse", TVBrowseJourneyContract.browseTestIdentifier,
+      TVBrowseJourneyContract.browseAttachmentNames, allowance: (360, 480)),
+    TVJourneyStep(
+      "search", TVBrowseJourneyContract.searchTestIdentifier,
+      TVBrowseJourneyContract.searchAttachmentNames, allowance: (300, 420)),
+    TVJourneyStep(
+      "playback-continuation", TVPlaybackJourneyContract.continuationTestIdentifier,
+      TVPlaybackJourneyContract.continuationAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
+    TVJourneyStep(
+      "playback-controls", TVPlaybackJourneyContract.controlsTestIdentifier,
+      TVPlaybackJourneyContract.controlsAttachmentNames, allowance: (300, 420), playsMedia: true),
+    TVJourneyStep(
+      "playback-conversion", TVPlaybackJourneyContract.conversionTestIdentifier,
+      TVPlaybackJourneyContract.conversionAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
+    TVJourneyStep(
+      "inactive-owner", TVInactiveAccountJourneyContract.ownerTestIdentifier,
+      TVInactiveAccountJourneyContract.ownerAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
+    TVJourneyStep(
+      "inactive-family", TVInactiveAccountJourneyContract.familyTestIdentifier,
+      TVInactiveAccountJourneyContract.familyAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
+    TVJourneyStep(
+      "active-account", TVInactiveAccountJourneyContract.activeTestIdentifier, [],
+      allowance: (300, 420), playsMedia: true),
+  ]
+}
+
 /// One XCUITest the iOS journey runs on its own before the recorded walk.
 struct JourneyPreflight: Equatable, Sendable {
   /// Names the test's result bundle, `.<name>.xcresult`.
