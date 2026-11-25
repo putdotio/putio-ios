@@ -26,7 +26,10 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.more-retry").exists })
 
     XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
-    XCTAssertTrue(focus("files.sort", moving: .right, limit: 2))
+    // A system menu's button never reports focus, so Sort is reached by
+    // one move right and proven by the menu it opens.
+    remote.press(.right)
+    pause(1)
     remote.press(.select)
     XCTAssertTrue(menuItem("Z to A").waitForExistence(timeout: 5))
     pause(1)

@@ -44,7 +44,10 @@ final class FilesSearchJourneyTests: XCTestCase {
     // Sorting persists on the server and the list reloads in its order.
     // Up from the list lands on Refresh; Sort sits to its right.
     XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
-    XCTAssertTrue(focus("files.sort", moving: .right, limit: 2))
+    // A system menu's button never reports focus, so Sort is reached by
+    // one move right and proven by the menu it opens.
+    remote.press(.right)
+    pause(1)
     remote.press(.select)
     let descending = menuItem("Z to A")
     XCTAssertTrue(descending.waitForExistence(timeout: 5))
