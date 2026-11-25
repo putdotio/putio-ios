@@ -193,7 +193,7 @@ struct TVSignedInShell: View {
     case .search:
       TVSearchView(
         runtime: runtime, account: account, refreshRequests: folderRefreshRequests,
-        open: { open($0, in: tab) })
+        open: { open($0, in: tab) }, play: { play($0, $1, in: tab) })
     case .history:
       TVHistoryView(runtime: runtime, open: { open($0, in: tab) })
         .environment(\.tvHistoryActivations, historyActivations)

@@ -151,11 +151,11 @@ final class PutioRuntimeTests: XCTestCase {
       }
     }
 
-    fixtures.setNetworkFailure(true, for: Self.searchProbeRoute)
+    fixtures.setNetworkFailure(true, for: "GET /v2/files/412")
     await assertRuntimeError(.transient) {
-      _ = try await runtime.searchFiles(query: "video")
+      _ = try await runtime.getFile(fileID: PutioFileID(rawValue: 412))
     }
-    fixtures.setNetworkFailure(false, for: Self.searchProbeRoute)
+    fixtures.setNetworkFailure(false, for: "GET /v2/files/412")
 
     fixtures.setFixture("{", for: Self.searchProbeRoute)
     await assertRuntimeError(.invalidResponse) {

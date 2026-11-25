@@ -196,6 +196,17 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("search.recent.sintel").exists)
 
     XCTAssertTrue(focusKeyboard())
+    field.typeText("   \n")
+    pause(2)
+    XCTAssertFalse(element("search.recent.").exists)
+    XCTAssertTrue(element("search.recent.sintel").exists, "an empty submit changed the recents")
+    showSearchKeyboard()
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "poster\n")
+    XCTAssertTrue(element("search.count").waitForExistence(timeout: 10))
+    XCTAssertTrue(focusKeyboard())
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 6))
+    XCTAssertTrue(
+      element("search.recent.poster").waitForExistence(timeout: 10), "a submit was not recorded")
     field.typeText("no-matching-file")
     XCTAssertTrue(element("search.empty").waitForExistence(timeout: 10))
     XCTAssertTrue(label(containing: "Nothing matches").exists)
@@ -250,7 +261,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5))
     let recorded = element("search.recent.retry")
     XCTAssertTrue(recorded.waitForExistence(timeout: 10), "the search was not recorded")
-    XCTAssertTrue(isAbove("search.recent.retry", "search.recent.tree rings"))
+    XCTAssertTrue(isAbove("search.recent.retry", "search.recent.poster"))
     attach("runtime-tv-search-recent")
     XCTAssertTrue(focus("search.recent-clear", moving: .down, limit: 4))
     remote.press(.select)
@@ -296,17 +307,19 @@ final class FilesSearchJourneyTests: XCTestCase {
   }
 
   private func focusKeyboard() -> Bool {
-    let keyboard = app.keyboards.firstMatch
-    let hasKey = {
-      keyboard.exists
-        && keyboard.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
-          .firstMatch.exists
-    }
-    for _ in 0..<10 {
-      if waitUntil(timeout: 1, hasKey) { return true }
+    let below = app.descendants(matching: .any).matching(
+      NSPredicate(
+        format:
+          "hasFocus == true AND (identifier BEGINSWITH 'search.' OR identifier BEGINSWITH 'tab.')"
+      )
+    ).firstMatch
+    for _ in 0..<8 {
+      _ = waitUntil(timeout: 3) { self.focusIsSettled() }
+      if !below.exists, app.keyboards.firstMatch.exists { return true }
       remote.press(.up)
+      pause(0.5)
     }
-    return hasKey()
+    return !below.exists && app.keyboards.firstMatch.exists
   }
 
   private func focusIsSettled() -> Bool {

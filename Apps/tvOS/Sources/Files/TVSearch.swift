@@ -196,6 +196,7 @@ struct TVSearchView: View {
           .accessibilityAddTraits(.isHeader)
         Spacer(minLength: PutioTheme.TV.Spacing.medium)
         PutioButton(PutioRecentSearchesCopy.clear, icon: .x, tier: .secondary) {
+          recordedQuery = nil
           Task { await recent.clear() }
         }
         .fixedSize()
@@ -223,7 +224,8 @@ struct TVSearchView: View {
             .tvRowPadding()
           }
           .contextMenu {
-            Button(role: .destructive) {
+            Button {
+              recordedQuery = nil
               Task { await recent.remove(term) }
             } label: {
               Label {
