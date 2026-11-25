@@ -196,6 +196,7 @@
 #endif
 
 #if os(iOS) || os(tvOS)
+  import MediaPlayer
   import UIKit
 
   @MainActor
@@ -272,6 +273,82 @@
         AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable
       else { return nil }
       return .outputLost
+    }
+  }
+
+  @MainActor
+  public final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
+    private var handler: (@MainActor (PutioRemoteAudioCommand) -> Void)?
+    private var targets: [(MPRemoteCommand, Any)] = []
+
+    public init() {}
+
+    public func publish(_ info: PutioNowPlayingInfo) {
+      var nowPlaying: [String: Any] = [
+        MPMediaItemPropertyTitle: info.title,
+        MPNowPlayingInfoPropertyElapsedPlaybackTime: Double(info.elapsedSeconds),
+        MPNowPlayingInfoPropertyPlaybackRate: Double(info.rate),
+      ]
+      if let duration = info.durationSeconds {
+        nowPlaying[MPMediaItemPropertyPlaybackDuration] = Double(duration)
+      }
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
+    }
+
+    public func clear() {
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    public func detachCommands() {
+      handler = nil
+      for (command, target) in targets {
+        command.removeTarget(target)
+        command.isEnabled = false
+      }
+      targets = []
+    }
+
+    public func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void)
+    {
+      self.handler = handler
+      let center = MPRemoteCommandCenter.shared()
+      register(center.playCommand) { _ in .play }
+      register(center.pauseCommand) { _ in .pause }
+      register(center.togglePlayPauseCommand) { _ in .toggle }
+      register(center.nextTrackCommand) { _ in .next }
+      register(center.previousTrackCommand) { _ in .previous }
+      let interval = PutioAudioPlayerModel.skipInterval
+      center.skipBackwardCommand.preferredIntervals = [NSNumber(value: interval)]
+      center.skipForwardCommand.preferredIntervals = [NSNumber(value: interval)]
+      register(center.skipBackwardCommand) { _ in .skip(seconds: -interval) }
+      register(center.skipForwardCommand) { _ in .skip(seconds: interval) }
+      register(center.changePlaybackPositionCommand) { event in
+        guard let event = event as? MPChangePlaybackPositionCommandEvent else { return nil }
+        return .seek(seconds: Int(event.positionTime.rounded(.down)))
+      }
+      setTrackCommands(previous: false, next: false)
+    }
+
+    public func setTrackCommands(previous: Bool, next: Bool) {
+      guard handler != nil else { return }
+      let center = MPRemoteCommandCenter.shared()
+      center.previousTrackCommand.isEnabled = previous
+      center.nextTrackCommand.isEnabled = next
+    }
+
+    private func register(
+      _ command: MPRemoteCommand,
+      map: @escaping @Sendable (MPRemoteCommandEvent) -> PutioRemoteAudioCommand?
+    ) {
+      // Command events arrive on the media framework's queue; the model is
+      // main-actor bound, so the hop is explicit.
+      let target = command.addTarget { [weak self] event in
+        guard let mapped = map(event) else { return .commandFailed }
+        Task { @MainActor [weak self] in self?.handler?(mapped) }
+        return .success
+      }
+      command.isEnabled = true
+      targets.append((command, target))
     }
   }
 #endif

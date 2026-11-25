@@ -32,6 +32,8 @@ public final class PutioVideoWaitModel {
   public static let stallDelay = Duration.seconds(30)
 
   public private(set) var state: PutioVideoWait = .preparing
+  /// Where the player was when the current wait began, if it said.
+  public private(set) var waitingFromSeconds: Int?
 
   @ObservationIgnored private let sleep: PutioVideoWaitSleep
   @ObservationIgnored private var timer: Task<Void, Never>?
@@ -41,13 +43,14 @@ public final class PutioVideoWaitModel {
     self.sleep = sleep
   }
 
-  public func activityChanged(_ activity: PutioVideoPlayerActivity) {
+  public func activityChanged(_ activity: PutioVideoPlayerActivity, atSeconds seconds: Int? = nil) {
     switch (state, activity) {
     case (.preparing, .playing), (.stalled, .playing):
       settle(.clear)
     case (.preparing, _), (.stalled, _), (.buffering, .waiting), (.bufferingLong, .waiting):
       return
     case (.clear, .waiting):
+      waitingFromSeconds = seconds
       startBuffering()
     case (_, .paused), (_, .playing):
       settle(.clear)

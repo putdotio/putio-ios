@@ -769,6 +769,23 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(model.state, .ready(moved), "a newer saved position lost to the old choice")
   }
 
+  func testARetryResumesWhereAStalledStreamStopped() async {
+    let saved = playbackSource()
+    let restarted = PutioPlaybackSource(url: saved.url, startFromSeconds: 0)
+    let resolver = PlaybackResolverStub([.success(.ready(saved)), .success(.ready(saved))])
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      chooseStart: { source, _ in PutioVideoStart.source(source, startingWith: .startOver) },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.state, .ready(restarted))
+
+    await model.retry(resumingAt: 734)
+    XCTAssertEqual(model.state, .ready(saved.resuming(at: 734)))
+  }
+
   func testAVideoThatNeedsConversionAsksWhereToStartExactlyOnce() async {
     let saved = playbackSource()
     let route = PutioVideoRoute(id: fileID, parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")

@@ -1259,6 +1259,12 @@ enum TVPlaybackJourneyContract {
     "runtime-tv-playback-conversion-failure", "runtime-tv-playback-converting",
     "runtime-tv-playback-converted-resume",
   ]
+  static let audioTestIdentifier =
+    "PutioTVUITests/AudioJourneyTests/testNowPlayingSleepTimerAndMiniPlayer"
+  static let audioAttachmentNames = [
+    "runtime-tv-audio-now-playing", "runtime-tv-audio-paused", "runtime-tv-audio-sleep-menu",
+    "runtime-tv-audio-mini-player",
+  ]
 }
 
 enum TVInactiveAccountJourneyContract {
@@ -1326,6 +1332,9 @@ enum TVJourneyContract {
       "playback-conversion", TVPlaybackJourneyContract.conversionTestIdentifier,
       TVPlaybackJourneyContract.conversionAttachmentNames, allowance: (300, 420),
       playsMedia: true),
+    TVJourneyStep(
+      "audio", TVPlaybackJourneyContract.audioTestIdentifier,
+      TVPlaybackJourneyContract.audioAttachmentNames, allowance: (300, 420), playsMedia: true),
     TVJourneyStep(
       "inactive-owner", TVInactiveAccountJourneyContract.ownerTestIdentifier,
       TVInactiveAccountJourneyContract.ownerAttachmentNames, allowance: (300, 420),

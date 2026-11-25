@@ -71,6 +71,7 @@ struct TVVideoPlaybackView: View {
   @State private var probes = TVPlaybackProbes()
   @State private var nextVideoTask: Task<Void, Never>?
   @State private var subtitleMemory = TVVideoPlaybackView.makeSubtitleMemory()
+  @State private var wait = PutioVideoWaitModel()
 
   private let route: PutioVideoRoute
   private let account: PutioAccountSnapshot
@@ -206,15 +207,9 @@ struct TVVideoPlaybackView: View {
       if let notice = failure.inactiveAccountNotice(for: account) {
         TVPlaybackAccountNotice(notice: notice)
       } else {
-        PutioErrorStateView(
-          title: failure.title, message: failure.message,
-          retryTitle: failure.recovery == .playElsewhere
-            ? nil : PutioVideoPlaybackFailure.Recovery.tryAgainTitle,
-          retryIdentifier: "video.retry"
-        ) {
-          retrySequence &+= 1
-        }
-        .secondaryAction(String(localized: "Back"), identifier: "video.back", perform: onFinish)
+        TVPlaybackFailureScreen(
+          failure: failure, fileID: route.id, fileName: route.title,
+          retry: { retrySequence &+= 1 }, back: onFinish)
       }
 
     case .ready(let source):
@@ -224,7 +219,15 @@ struct TVVideoPlaybackView: View {
 
   @ViewBuilder
   private func readyContent(_ source: PutioPlaybackSource) -> some View {
-    if showsNextVideoStage {
+    if wait.state == .stalled {
+      TVPlaybackStalledScreen(
+        fileName: route.title, runtime: runtime,
+        retry: {
+          let seconds = wait.waitingFromSeconds
+          wait.restart()
+          Task { await model.retry(resumingAt: seconds) }
+        }, back: onFinish)
+    } else if showsNextVideoStage {
       TVNextVideoStage(
         model: nextVideoModel,
         play: { runNextVideo { await nextVideoModel.playNext() } },
@@ -246,6 +249,7 @@ struct TVVideoPlaybackView: View {
         },
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
+        wait: wait,
         onReady: { model.playerReady() },
         onNextFile: nextFileAction,
         upNext: upNextProposal,
@@ -690,6 +694,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let subtitlePolicy: PutioSubtitleStartupPolicy
   let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
+  let wait: PutioVideoWaitModel
   let onReady: @MainActor () -> Void
   let onNextFile: (@MainActor () -> Void)?
   let upNext: TVUpNextProposal?
@@ -715,8 +720,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         try await report(fileID, seconds)
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
-      in: controller, probes: probes, onReady: onReady, onSubtitleFailed: onSubtitleFailed,
-      onEnded: onEnded,
+      in: controller, probes: probes, wait: wait, onReady: onReady,
+      onSubtitleFailed: onSubtitleFailed, onEnded: onEnded,
       onRestarted: onRestarted, onReportsSettled: onReportsSettled, onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
@@ -798,6 +803,7 @@ final class TVVideoPlayerCoordinator {
     reportPosition: @escaping PutioPlaybackPositionReport,
     in controller: AVPlayerViewController,
     probes: TVPlaybackProbes? = nil,
+    wait: PutioVideoWaitModel? = nil,
     onReady: @escaping @MainActor () -> Void = {},
     onSubtitleFailed: @escaping @MainActor () -> Void = {},
     onEnded: @escaping @MainActor () -> Void = {},
@@ -860,7 +866,7 @@ final class TVVideoPlayerCoordinator {
       if let chosen = controller.speeds.first(where: { $0.rate == speed.rawValue }) {
         controller.selectSpeed(chosen)
       }
-      observe(player, probes: probes)
+      observe(player, probes: probes, wait: wait)
     }
     probes?.speeds = controller.speeds.map { TVPlaybackProbes.format($0.rate) }
   }
@@ -941,8 +947,9 @@ final class TVVideoPlayerCoordinator {
     waitForReports = nil
   }
 
-  private func observe(_ player: AVPlayer, probes: TVPlaybackProbes?) {
+  private func observe(_ player: AVPlayer, probes: TVPlaybackProbes?, wait: PutioVideoWaitModel?) {
     let speedStore = speedStore
+    wait?.restart()
     observations = [
       player.observe(\.defaultRate, options: [.initial, .new]) { [weak probes] player, _ in
         let rate = player.defaultRate
@@ -952,6 +959,20 @@ final class TVVideoPlayerCoordinator {
         }
       }
     ]
+    if let wait {
+      observations.append(
+        player.observe(\.timeControlStatus, options: [.initial, .new]) { [weak wait] player, _ in
+          let activity: PutioVideoPlayerActivity =
+            switch player.timeControlStatus {
+            case .playing: .playing
+            case .waitingToPlayAtSpecifiedRate: .waiting
+            default: .paused
+            }
+          let time = player.currentTime().seconds
+          let seconds = time.isFinite ? Int(time) : nil
+          Task { @MainActor in wait?.activityChanged(activity, atSeconds: seconds) }
+        })
+    }
     if let probes {
       observations.append(
         player.observe(\.rate, options: [.initial, .new]) { [weak probes] player, _ in
