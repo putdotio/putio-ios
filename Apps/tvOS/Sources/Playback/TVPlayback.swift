@@ -174,6 +174,7 @@ struct TVVideoPlaybackView: View {
         ) {
           retrySequence &+= 1
         }
+        .takesFocus()
       }
 
     case .ready:
@@ -517,6 +518,7 @@ private struct TVNextVideoStage: View {
       .secondaryAction(
         String(localized: "Cancel"), identifier: "video.next-error.cancel", perform: close
       )
+      .takesFocus()
       .accessibilityElement(children: .contain)
       .accessibilityIdentifier("video.next-error")
     case .idle, .finding, .playing:
@@ -838,4 +840,19 @@ final class TVVideoPlayerCoordinator {
   static func selectDefaultSubtitle(in item: AVPlayerItem, for player: AVPlayer) async {
     await selectStartSubtitle(in: item, for: player, policy: .accountDefault, remembered: nil)
   }
+}
+
+private struct TVTakesFocus: ViewModifier {
+  @Namespace private var scope
+  @Environment(\.resetFocus) private var resetFocus
+
+  func body(content: Content) -> some View {
+    content
+      .focusScope(scope)
+      .task { resetFocus(in: scope) }
+  }
+}
+
+extension View {
+  fileprivate func takesFocus() -> some View { modifier(TVTakesFocus()) }
 }
