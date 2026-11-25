@@ -192,7 +192,8 @@ final class PlaybackJourneyTests: XCTestCase {
   }
 
   /// Turkish's playlist is missing: picking it turns subtitles off, says so,
-  /// and keeps the English audio.
+  /// and keeps the English audio. The next video starts with the account's
+  /// default subtitle again.
   private func checkAFailedSubtitleTurnsSubtitlesOffWithAToast() {
     app.terminate()
     launch(subtitleTracks: "failing")
@@ -216,6 +217,13 @@ final class PlaybackJourneyTests: XCTestCase {
     attach("runtime-tv-playback-subtitles-failed")
     XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "off" })
     XCTAssertEqual(probeValue("video.audio-language"), "en", "the failure moved the audio")
+
+    leavePlayer()
+    openFile("files.item.412")
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" },
+      "the failure was remembered as subtitles off")
   }
 
   /// The first conversion request fails with a retry; the retried one
