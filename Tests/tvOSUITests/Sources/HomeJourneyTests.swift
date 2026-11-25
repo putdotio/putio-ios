@@ -19,8 +19,8 @@ final class HomeJourneyTests: XCTestCase {
   }
 
   /// A video finished through to its successor gets no card, the started
-  /// successor does, the card resumes its video and survives a relaunch, and
-  /// sign-out clears it.
+  /// successor does, the card resumes its video and survives a relaunch,
+  /// sign-out clears it, and Direct play feeds a card too.
   func testPlaybackFeedsContinueWatchingAndSignOutClearsIt() {
     launch(["--putio-harness-tv-browse"])
     XCTAssertTrue(element("home.empty").waitForExistence(timeout: 15))
@@ -74,6 +74,35 @@ final class HomeJourneyTests: XCTestCase {
     relaunch(["--putio-harness-continue-watching", "keep"])
     XCTAssertTrue(element("home.empty").waitForExistence(timeout: 15), "sign-out clears the cards")
     XCTAssertFalse(card(414).exists)
+
+    relaunch(["--putio-harness-tv-browse", "--putio-harness-direct-play"])
+    XCTAssertTrue(TVTabBar(app).open("Files"))
+    remote.press(.down)
+    openFile("files.item.412")
+    let resume = element("video.resume.continue")
+    if resume.waitForExistence(timeout: 5) { remote.press(.select) }
+    XCTAssertTrue(element("video.ready").waitForExistence(timeout: 30))
+    XCTAssertEqual(element("video.source").value as? String, "original-engine")
+    XCTAssertTrue(
+      waitUntil(timeout: 20) {
+        (Int(self.element("video.current-position").value as? String ?? "") ?? 0) >= 12
+      }, "Direct play advances")
+    leaveDirectPlayer()
+    XCTAssertTrue(TVTabBar(app).open("Home"))
+    XCTAssertTrue(card(412).waitForExistence(timeout: 15), "Direct play feeds Continue watching")
+    XCTAssertTrue(card(412).label.hasPrefix("Resume Root Movie.mkv, "), card(412).label)
+    attach("runtime-tv-home-direct-fed")
+  }
+
+  private func leaveDirectPlayer() {
+    for _ in 0..<6 {
+      remote.press(.menu)
+      if waitUntil(timeout: 2, { !self.element("video.screen.412").exists }) {
+        pause(1)
+        return
+      }
+    }
+    XCTFail("Menu never left Direct play")
   }
 
   /// Cards keep their order, the Continue watching menu only removes, the

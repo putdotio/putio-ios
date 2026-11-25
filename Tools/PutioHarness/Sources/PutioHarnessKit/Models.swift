@@ -1277,7 +1277,9 @@ enum TVPlaybackJourneyContract {
 enum TVHomeJourneyContract {
   static let feedTestIdentifier =
     "PutioTVUITests/HomeJourneyTests/testPlaybackFeedsContinueWatchingAndSignOutClearsIt"
-  static let feedAttachmentNames = ["runtime-tv-home-empty", "runtime-tv-home-fed"]
+  static let feedAttachmentNames = [
+    "runtime-tv-home-empty", "runtime-tv-home-fed", "runtime-tv-home-direct-fed",
+  ]
   static let cardsTestIdentifier =
     "PutioTVUITests/HomeJourneyTests/testCardsMenusPinsAndEmptyStates"
   static let cardsAttachmentNames = [
@@ -1373,7 +1375,7 @@ enum TVJourneyContract {
       allowance: (300, 420), playsMedia: true),
     TVJourneyStep(
       "home-feed", TVHomeJourneyContract.feedTestIdentifier,
-      TVHomeJourneyContract.feedAttachmentNames, allowance: (300, 420), playsMedia: true),
+      TVHomeJourneyContract.feedAttachmentNames, allowance: (420, 540), playsMedia: true),
     TVJourneyStep(
       "home-cards", TVHomeJourneyContract.cardsTestIdentifier,
       TVHomeJourneyContract.cardsAttachmentNames, allowance: (360, 480), playsMedia: true),
