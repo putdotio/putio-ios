@@ -253,6 +253,7 @@ struct TVDirectVideoPlayer: View {
   @State private var transport: TVDirectTransport
   @State private var visibility = PutioVideoControlsVisibility()
   @FocusState private var focused: Bool
+  @Environment(\.isEnabled) private var isEnabled
 
   var body: some View {
     ZStack {
@@ -279,6 +280,9 @@ struct TVDirectVideoPlayer: View {
     .focusable()
     .focused($focused)
     .onAppear { focused = true }
+    .onChange(of: isEnabled) { _, enabled in
+      if enabled { focused = true }
+    }
     .onPlayPauseCommand { playPause() }
     .onTapGesture { playPause() }
     .onMoveCommand { direction in
