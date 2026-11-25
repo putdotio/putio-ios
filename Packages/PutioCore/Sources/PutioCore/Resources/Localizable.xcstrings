@@ -147,6 +147,29 @@
         }
       }
     },
+    "%lld minutes" : {
+      "comment" : "android: mobile_now_playing_sleep_minutes",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%lld results" : {
       "comment" : "android: mobile_search_total",
       "localizations" : {

@@ -666,6 +666,7 @@ struct MainTabView: View {
       engine: PutioSystemAudioEngine(),
       nowPlaying: PutioSystemNowPlayingSurface(),
       audioSession: PutioSystemAudioSession(),
+      sessionEvents: PutioSystemAudioSessionEvents(),
       speedStore: PutioAudioSpeedStore(),
       positionPipeline: playbackPositionPipeline,
       remembersPlaybackPosition: { runtime.remembersPlaybackPosition },

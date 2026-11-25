@@ -1,56 +1,58 @@
+import Foundation
 import Observation
-import SwiftUI
 
-enum PutioSleepTimerChoice: Int, CaseIterable, Identifiable, Sendable {
+public enum PutioSleepTimerChoice: Int, CaseIterable, Identifiable, Sendable {
   case fifteenMinutes = 15
   case thirtyMinutes = 30
   case fortyFiveMinutes = 45
   case oneHour = 60
 
-  var id: Int { rawValue }
+  public var id: Int { rawValue }
 
-  var duration: Duration { .seconds(rawValue * 60) }
+  public var duration: Duration { .seconds(rawValue * 60) }
 
-  var title: String {
+  public var title: String {
     rawValue.isMultiple(of: 60)
-      ? String(localized: "\(rawValue / 60) hours")
-      : String(localized: "\(rawValue) minutes")
+      ? String(localized: "\(rawValue / 60) hours", bundle: .module)
+      : String(localized: "\(rawValue) minutes", bundle: .module)
   }
 }
 
 @MainActor
-protocol PutioSleepTimerClock: AnyObject {
+public protocol PutioSleepTimerClock: AnyObject {
   var now: ContinuousClock.Instant { get }
   func sleep(until deadline: ContinuousClock.Instant) async throws
 }
 
 @MainActor
-final class PutioSystemSleepTimerClock: PutioSleepTimerClock {
-  var now: ContinuousClock.Instant { .now }
+public final class PutioSystemSleepTimerClock: PutioSleepTimerClock {
+  public init() {}
 
-  func sleep(until deadline: ContinuousClock.Instant) async throws {
+  public var now: ContinuousClock.Instant { .now }
+
+  public func sleep(until deadline: ContinuousClock.Instant) async throws {
     try await Task.sleep(until: deadline, clock: .continuous)
   }
 }
 
 @MainActor
 @Observable
-final class PutioAudioSleepTimer {
-  private(set) var choice: PutioSleepTimerChoice?
-  private(set) var remainingSeconds: Int?
+public final class PutioAudioSleepTimer {
+  public private(set) var choice: PutioSleepTimerChoice?
+  public private(set) var remainingSeconds: Int?
 
-  @ObservationIgnored let clock: any PutioSleepTimerClock
-  @ObservationIgnored var onExpire: (@MainActor () -> Void)?
+  @ObservationIgnored public let clock: any PutioSleepTimerClock
+  @ObservationIgnored public var onExpire: (@MainActor () -> Void)?
   @ObservationIgnored private var deadline: ContinuousClock.Instant?
   @ObservationIgnored private var task: Task<Void, Never>?
 
-  init(clock: any PutioSleepTimerClock) {
+  public init(clock: any PutioSleepTimerClock) {
     self.clock = clock
   }
 
-  var isRunning: Bool { choice != nil }
+  public var isRunning: Bool { choice != nil }
 
-  func start(_ choice: PutioSleepTimerChoice) {
+  public func start(_ choice: PutioSleepTimerChoice) {
     task?.cancel()
     let deadline = clock.now + choice.duration
     self.choice = choice
@@ -59,7 +61,7 @@ final class PutioAudioSleepTimer {
     task = Task { [weak self] in await self?.count(down: deadline) }
   }
 
-  func cancel() {
+  public func cancel() {
     task?.cancel()
     task = nil
     choice = nil

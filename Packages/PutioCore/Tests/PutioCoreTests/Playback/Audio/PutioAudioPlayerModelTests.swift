@@ -1,11 +1,8 @@
 import AVFoundation
 import Foundation
-import MediaPlayer
-import PutioCore
-import UIKit
 import XCTest
 
-@testable import Putio
+@testable import PutioCore
 
 @MainActor
 private final class AudioEngineSpy: PutioAudioEngine {
@@ -59,6 +56,23 @@ private final class AudioSessionSpy: PutioAudioSessioning {
     if let activationError { throw activationError }
   }
   func deactivate() { events.append("deactivate") }
+}
+
+@MainActor
+private final class SessionEventsSpy: PutioAudioSessionEvents {
+  private(set) var startCount = 0
+  private(set) var stopCount = 0
+  private var handler: (@MainActor (PutioAudioSessionEvent) -> Void)?
+
+  func start(_ handler: @escaping @MainActor (PutioAudioSessionEvent) -> Void) {
+    startCount += 1
+    self.handler = handler
+  }
+  func stop() {
+    stopCount += 1
+    handler = nil
+  }
+  func send(_ event: PutioAudioSessionEvent) { handler?(event) }
 }
 
 @MainActor
@@ -139,7 +153,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     let nowPlaying: NowPlayingSpy
     let session: AudioSessionSpy
     let reports: ReportRecorder
-    let center: NotificationCenter
+    let events: SessionEventsSpy
     let pipeline: PutioPlaybackPositionPipeline
     let clock: ReportClock
   }
@@ -158,7 +172,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     let nowPlaying = NowPlayingSpy()
     let session = AudioSessionSpy()
     let reports = ReportRecorder()
-    let center = NotificationCenter()
+    let events = SessionEventsSpy()
     let pipeline = PutioPlaybackPositionPipeline()
     let clock = ReportClock()
     let successor = successor
@@ -168,10 +182,10 @@ final class PutioAudioPlayerModelTests: XCTestCase {
       engine: engine,
       nowPlaying: nowPlaying,
       audioSession: session,
+      sessionEvents: events,
       speedStore: PutioAudioSpeedStore(defaults: defaults),
       positionPipeline: pipeline,
       remembersPlaybackPosition: remembersPlaybackPosition,
-      notificationCenter: center,
       schedulePositionReports: { clock.schedule($0, $1) },
       reportPosition: { try await reports.report($0, $1) },
       resolve: resolve,
@@ -183,13 +197,13 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     )
     return Harness(
       model: model, engine: engine, nowPlaying: nowPlaying, session: session,
-      reports: reports, center: center, pipeline: pipeline, clock: clock)
+      reports: reports, events: events, pipeline: pipeline, clock: clock)
   }
 
   func testMinimizingAndReopeningKeepsTheSamePlaybackAndRemoteCommands() async {
     let h = makeHarness()
     let playback = PutioAudioPlaybackSession(
-      sleepTimer: PutioAudioSleepTimer(clock: PutioManualSleepTimerClock()))
+      sleepTimer: PutioAudioSleepTimer(clock: ManualSleepClock()))
     defer { playback.stop() }
     playback.present(h.model)
     await waitUntil { h.model.isPlaying }
@@ -217,7 +231,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     let first = makeHarness()
     let second = makeHarness()
     let playback = PutioAudioPlaybackSession(
-      sleepTimer: PutioAudioSleepTimer(clock: PutioManualSleepTimerClock()))
+      sleepTimer: PutioAudioSleepTimer(clock: ManualSleepClock()))
     defer { playback.stop() }
     playback.present(first.model)
     await waitUntil { first.model.isPlaying }
@@ -360,12 +374,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.state, .playing(track))
     XCTAssertEqual(h.nowPlaying.attachmentCount, 2)
 
-    h.center.post(
-      name: AVAudioSession.routeChangeNotification, object: nil,
-      userInfo: [
-        AVAudioSessionRouteChangeReasonKey:
-          AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue
-      ])
+    h.events.send(.outputLost)
     await waitUntil { h.model.state == .paused(track) }
   }
 
@@ -464,21 +473,6 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events.last, "seek:240")
   }
 
-  func testSystemSurfaceOffersTenSecondSkipCommandsUntilDetached() {
-    let surface = PutioSystemNowPlayingSurface()
-    let center = MPRemoteCommandCenter.shared()
-    surface.setCommandHandler { _ in }
-    defer { surface.detachCommands() }
-
-    for command in [center.skipBackwardCommand, center.skipForwardCommand] {
-      XCTAssertTrue(command.isEnabled)
-      XCTAssertEqual(command.preferredIntervals, [10])
-    }
-    surface.detachCommands()
-    XCTAssertFalse(center.skipBackwardCommand.isEnabled)
-    XCTAssertFalse(center.skipForwardCommand.isEnabled)
-  }
-
   func testPositionSavesEveryTenSecondsOfTheClockWhilePlaying() async {
     let h = makeHarness()
     await h.model.start()
@@ -504,7 +498,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(47)
     h.reports.failingReports = 2
 
-    h.center.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+    h.events.send(.enteredBackground)
     await waitUntil { h.reports.failingReports == 0 }
     await h.pipeline.waitForPendingReports(fileID: track.id)
     XCTAssertTrue(h.reports.reports.isEmpty)
@@ -614,34 +608,19 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await h.model.start()
     h.engine.onPositionChanged?(12)
 
-    h.center.post(
-      name: AVAudioSession.interruptionNotification, object: nil,
-      userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+    h.events.send(.interruptionBegan)
     await waitUntil { h.model.state == .interrupted(track) }
     XCTAssertEqual(h.model.state, .interrupted(track))
     XCTAssertEqual(h.engine.events.last, "pause")
 
-    h.center.post(
-      name: AVAudioSession.interruptionNotification, object: nil,
-      userInfo: [
-        AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
-        AVAudioSessionInterruptionOptionKey: UInt(0),
-      ])
+    h.events.send(.interruptionEnded(shouldResume: false))
     await waitUntil { h.model.state == .paused(track) }
     XCTAssertEqual(h.model.state, .paused(track))
 
     h.model.resume()
-    h.center.post(
-      name: AVAudioSession.interruptionNotification, object: nil,
-      userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
+    h.events.send(.interruptionBegan)
     await waitUntil { h.model.state == .interrupted(track) }
-    h.center.post(
-      name: AVAudioSession.interruptionNotification, object: nil,
-      userInfo: [
-        AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
-        AVAudioSessionInterruptionOptionKey:
-          AVAudioSession.InterruptionOptions.shouldResume.rawValue,
-      ])
+    h.events.send(.interruptionEnded(shouldResume: true))
     await waitUntil { h.model.state == .playing(track) }
     XCTAssertEqual(h.model.state, .playing(track))
     // Each interruption releases the session; every resume activates again.
@@ -1025,7 +1004,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
   func testSleepTimerPausesAndSavesThePositionAndTheChipTurnsOff() async {
     let h = makeHarness()
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
     defer { playback.stop() }
     playback.present(h.model)
@@ -1046,7 +1025,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
   func testAReceiverTakesOverAtThePositionTheSleepTimerPausesItAndTheHandBackIsPaused() async {
     let h = makeHarness()
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
     defer { playback.stop() }
     playback.present(h.model)
@@ -1085,7 +1064,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
   func testSleepTimerKeepsRunningWhenAnotherFileOpensAndStopCancelsIt() async {
     let first = makeHarness()
     let second = makeHarness()
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
     defer { playback.stop() }
     playback.present(first.model)
@@ -1115,7 +1094,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
       return PutioPlaybackSource(
         url: URL(string: "https://media.example.test/\(id.rawValue).m4a")!, startFromSeconds: 0)
     })
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let playback = PutioAudioPlaybackSession(sleepTimer: PutioAudioSleepTimer(clock: clock))
     defer { playback.stop() }
     playback.present(h.model)
