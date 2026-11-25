@@ -256,8 +256,7 @@ struct TVFolderView: View {
           )
           .accessibilityIdentifier("files.empty")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-          .focusable()
-          .focusEffectDisabled()
+          .tvFocusAnchor()
         }
       } else {
         split(panel: showsPanel ? shownItem(in: contents) : nil) {

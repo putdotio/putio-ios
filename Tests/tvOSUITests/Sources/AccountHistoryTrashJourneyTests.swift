@@ -163,6 +163,10 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(element("trash.empty-state").waitForExistence(timeout: 15))
     XCTAssertTrue(isCentered(element("trash.empty-state")), "Trash's empty state is off-center")
     attach("runtime-tv-trash-empty")
+    remote.press(.menu)
+    XCTAssertTrue(
+      element("account.manage-trash").waitForExistence(timeout: 5),
+      "Menu left the empty trash's app")
   }
 
   /// Settings cycle in place, the proxy menu recovers a failed listing, a

@@ -225,6 +225,7 @@ struct TVTrashView: View {
               localized: "Files you move to trash stay here for 14 days.", bundle: .putioCore)
           )
           .accessibilityIdentifier("trash.empty-state")
+          .tvFocusAnchor()
         }
       } else {
         HStack(alignment: .top, spacing: PutioTheme.TV.Spacing.large) {
