@@ -1,6 +1,6 @@
 import XCTest
 
-@testable import Putio
+@testable import PutioCore
 
 @MainActor
 final class PutioAudioSleepTimerTests: XCTestCase {
@@ -23,7 +23,7 @@ final class PutioAudioSleepTimerTests: XCTestCase {
   }
 
   func testCountsDownAndExpiresOnceAtZero() async {
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let timer = PutioAudioSleepTimer(clock: clock)
     var expiries = 0
     timer.onExpire = { expiries += 1 }
@@ -48,7 +48,7 @@ final class PutioAudioSleepTimerTests: XCTestCase {
   }
 
   func testAnotherChoiceRestartsFromItsFullLength() async {
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let timer = PutioAudioSleepTimer(clock: clock)
     var expiries = 0
     timer.onExpire = { expiries += 1 }
@@ -67,7 +67,7 @@ final class PutioAudioSleepTimerTests: XCTestCase {
   }
 
   func testOffCancelsWithoutPausing() async {
-    let clock = PutioManualSleepTimerClock()
+    let clock = ManualSleepClock()
     let timer = PutioAudioSleepTimer(clock: clock)
     var expiries = 0
     timer.onExpire = { expiries += 1 }

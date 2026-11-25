@@ -528,14 +528,3 @@ private enum PutioNowPlayingMetrics {
     textStyle: .title3
   )
 }
-
-enum PutioAudioClock {
-  static func text(_ seconds: Int) -> String {
-    let hours = seconds / 3600
-    let minutes = seconds % 3600 / 60
-    let remainder = seconds % 60
-    return hours > 0
-      ? String(format: "%d:%02d:%02d", hours, minutes, remainder)
-      : String(format: "%d:%02d", minutes, remainder)
-  }
-}

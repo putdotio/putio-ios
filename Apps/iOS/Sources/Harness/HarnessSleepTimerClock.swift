@@ -1,5 +1,6 @@
 #if DEBUG
   import Foundation
+  import PutioCore
   import SwiftUI
 
   @MainActor

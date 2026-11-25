@@ -1,23 +1,6 @@
 import PutioCore
 import SwiftUI
 
-extension PutioAudioNeighbours {
-  static func stored(_ files: [PutioFileItem], around track: PutioAudioTrack)
-    -> PutioAudioNeighbours?
-  {
-    var queue =
-      files
-      .filter { $0.kind == .audio && $0.parentID == track.parentID }
-      .map { PutioQueuedAudio(id: $0.id, parentID: $0.parentID, name: $0.name) }
-    guard !queue.isEmpty else { return nil }
-    if !queue.contains(where: { $0.id == track.id }) {
-      queue.append(PutioQueuedAudio(id: track.id, parentID: track.parentID, name: track.title))
-      queue.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
-    return PutioAudioNeighbours(of: track.id, in: queue, folderName: nil)
-  }
-}
-
 struct PutioAudioUpNextSheet: View {
   let model: PutioAudioPlayerModel
   @Environment(\.dismiss) private var dismiss

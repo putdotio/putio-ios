@@ -2,41 +2,6 @@ import Observation
 import PutioCore
 import SwiftUI
 
-/// Playback belongs to the signed-in tab shell, not its dismissible sheet.
-@MainActor
-@Observable
-final class PutioAudioPlaybackSession {
-  private(set) var model: PutioAudioPlayerModel?
-  var isPresented = false
-  let sleepTimer: PutioAudioSleepTimer
-  @ObservationIgnored private var startTask: Task<Void, Never>?
-
-  init(sleepTimer: PutioAudioSleepTimer) {
-    self.sleepTimer = sleepTimer
-    sleepTimer.onExpire = { [weak self] in self?.model?.sleepTimerExpired() }
-  }
-
-  func present(_ model: PutioAudioPlayerModel) {
-    retire()
-    self.model = model
-    isPresented = true
-    startTask = Task { await model.start() }
-  }
-
-  func stop() {
-    sleepTimer.cancel()
-    retire()
-  }
-
-  func retire() {
-    startTask?.cancel()
-    startTask = nil
-    model?.stop()
-    model = nil
-    isPresented = false
-  }
-}
-
 @MainActor
 @Observable
 final class PutioAudioMiniPlayerPlacement {
