@@ -898,7 +898,7 @@ public struct SimulatorHarness {
       return try liveJourney(scenario, runID: runID, sourceRevision: sourceRevision)
     }
     if scenario == .deviceSignIn {
-      return try deviceSignInJourney(runID: runID, sourceRevision: sourceRevision)
+      return try deviceSignInJourney(runID: runID, sourceRevision: sourceRevision, only: only)
     }
     try requireCleanSource()
     try requireRevision(sourceRevision)
@@ -1144,7 +1144,9 @@ public struct SimulatorHarness {
   /// Drives the tvOS device-code sign-in against the seeded API: code display,
   /// expiry recovery, approval, relaunch persistence, and sign-out. Screenshots
   /// come from the recorded XCUITest attachments.
-  private func deviceSignInJourney(runID: String, sourceRevision: String) throws -> SurfaceRun {
+  private func deviceSignInJourney(
+    runID: String, sourceRevision: String, only: [String]
+  ) throws -> SurfaceRun {
     let platform = HarnessPlatform.tvos
     try requireCleanSource()
     try requireRevision(sourceRevision)
@@ -1165,168 +1167,64 @@ public struct SimulatorHarness {
     do {
       return try withSession(platform: platform, runID: runID) { session in
         try buildJourneyTests(platform: platform, session: session)
-        let resultBundle = platformDirectory.appending(path: ".device-sign-in.xcresult")
-        let screenshots = try runJourneyPreflightTest(
-          identifier: DeviceSignInJourneyContract.testIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: resultBundle,
-          attachmentNames: DeviceSignInJourneyContract.attachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 180
-        )
-        let pixels = try zip(DeviceSignInJourneyContract.attachmentNames, screenshots).map {
-          try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+        let steps = TVJourneyContract.steps.filter { only.isEmpty || only.contains($0.name) }
+        var mediaBaseURL: URL?
+        var mediaServer: HarnessMediaServer?
+        defer { mediaServer?.stop() }
+        if steps.contains(where: \.playsMedia) {
+          let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
+          for (path, fixture) in [
+            ("runtime-proof.m3u8", "runtime-proof HLS playlist"),
+            ("runtime-proof-000.ts", "runtime-proof HLS segment"),
+            ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
+            ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
+            ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
+          ] {
+            try requireNonemptyFile(mediaDirectory.appending(path: path), context: fixture)
+          }
+          let server = try HarnessMediaServer(mediaDirectory: mediaDirectory)
+          mediaServer = server
+          try lifecycle.register {
+            server.stop()
+          }
+          mediaBaseURL = try server.start()
         }
-        guard pixels[0].differsMeaningfully(from: pixels[1]),
-          pixels[0].differsMeaningfully(from: pixels[2])
-        else {
-          throw HarnessFailure("device sign-in screenshots do not differ meaningfully")
-        }
-        let recoveryBundle = platformDirectory.appending(path: ".session-recovery.xcresult")
-        let recoveryScreenshots = try runJourneyPreflightTest(
-          identifier: DeviceSignInJourneyContract.sessionRecoveryTestIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: recoveryBundle,
-          attachmentNames: DeviceSignInJourneyContract.sessionRecoveryAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 180
-        )
-        for (name, screenshot) in zip(
-          DeviceSignInJourneyContract.sessionRecoveryAttachmentNames, recoveryScreenshots)
-        {
-          _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
-        }
-        let historyTrashBundle = platformDirectory.appending(path: ".tv-history-trash.xcresult")
-        let historyTrashScreenshots = try runJourneyPreflightTest(
-          identifier: TVAccountJourneyContract.historyTrashTestIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: historyTrashBundle,
-          attachmentNames: TVAccountJourneyContract.historyTrashAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 300,
-          maximumExecutionTimeAllowance: 420
-        )
-        let settingsBundle = platformDirectory.appending(path: ".tv-settings.xcresult")
-        let settingsScreenshots = try runJourneyPreflightTest(
-          identifier: TVAccountJourneyContract.settingsTestIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: settingsBundle,
-          attachmentNames: TVAccountJourneyContract.settingsAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 300
-        )
-        let browseBundle = platformDirectory.appending(path: ".tv-browse.xcresult")
-        let browseScreenshots = try runJourneyPreflightTest(
-          identifier: TVBrowseJourneyContract.browseTestIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: browseBundle,
-          attachmentNames: TVBrowseJourneyContract.browseAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 360,
-          maximumExecutionTimeAllowance: 480
-        )
-        let searchBundle = platformDirectory.appending(path: ".tv-search.xcresult")
-        let searchScreenshots = try runJourneyPreflightTest(
-          identifier: TVBrowseJourneyContract.searchTestIdentifier,
-          platform: platform,
-          session: session,
-          resultBundle: searchBundle,
-          attachmentNames: TVBrowseJourneyContract.searchAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 300,
-          maximumExecutionTimeAllowance: 420
-        )
-        let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
-        for (path, fixture) in [
-          ("runtime-proof.m3u8", "runtime-proof HLS playlist"),
-          ("runtime-proof-000.ts", "runtime-proof HLS segment"),
-          ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
-          ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
-          ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
-        ] {
-          try requireNonemptyFile(mediaDirectory.appending(path: path), context: fixture)
-        }
-        let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
-        defer { mediaServer.stop() }
-        try lifecycle.register {
-          mediaServer.stop()
-        }
-        let mediaBaseURL = try mediaServer.start()
-        var playbackBundles: [URL] = []
-        var playbackScreenshots: [URL] = []
-        var playbackNames: [String] = []
-        for (identifier, names, bundleName) in [
-          (
-            TVPlaybackJourneyContract.continuationTestIdentifier,
-            TVPlaybackJourneyContract.continuationAttachmentNames, ".tv-playback-continuation"
-          ),
-          (
-            TVPlaybackJourneyContract.controlsTestIdentifier,
-            TVPlaybackJourneyContract.controlsAttachmentNames, ".tv-playback-controls"
-          ),
-          (
-            TVPlaybackJourneyContract.conversionTestIdentifier,
-            TVPlaybackJourneyContract.conversionAttachmentNames, ".tv-playback-conversion"
-          ),
-          (
-            TVInactiveAccountJourneyContract.ownerTestIdentifier,
-            TVInactiveAccountJourneyContract.ownerAttachmentNames, ".tv-inactive-owner"
-          ),
-          (
-            TVInactiveAccountJourneyContract.familyTestIdentifier,
-            TVInactiveAccountJourneyContract.familyAttachmentNames, ".tv-inactive-family"
-          ),
-          (TVInactiveAccountJourneyContract.activeTestIdentifier, [], ".tv-active-account"),
-        ] {
-          let bundle = platformDirectory.appending(path: "\(bundleName).xcresult")
-          playbackBundles.append(bundle)
-          playbackScreenshots += try runJourneyPreflightTest(
-            identifier: identifier,
+        var bundles: [URL] = []
+        var artifacts: [URL] = []
+        for step in steps {
+          let bundle = platformDirectory.appending(path: ".tv-\(step.name).xcresult")
+          bundles.append(bundle)
+          let screenshots = try runJourneyPreflightTest(
+            identifier: step.testIdentifier,
             platform: platform,
             session: session,
-            mediaBaseURL: mediaBaseURL,
+            mediaBaseURL: step.playsMedia ? mediaBaseURL : nil,
             resultBundle: bundle,
-            attachmentNames: names,
+            attachmentNames: step.attachmentNames,
             artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 300,
-            maximumExecutionTimeAllowance: 420
+            defaultExecutionTimeAllowance: step.defaultAllowance,
+            maximumExecutionTimeAllowance: step.maximumAllowance
           )
-          playbackNames += names
-        }
-        let accountScreenshots =
-          historyTrashScreenshots + settingsScreenshots + browseScreenshots + searchScreenshots
-          + playbackScreenshots
-        let accountNames =
-          TVAccountJourneyContract.historyTrashAttachmentNames
-          + TVAccountJourneyContract.settingsAttachmentNames
-          + TVBrowseJourneyContract.browseAttachmentNames
-          + TVBrowseJourneyContract.searchAttachmentNames
-          + playbackNames
-        for (name, screenshot) in zip(accountNames, accountScreenshots) {
-          _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
+          let pixels = try zip(step.attachmentNames, screenshots).map {
+            try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+          }
+          if step.name == "sign-in" {
+            guard pixels[0].differsMeaningfully(from: pixels[1]),
+              pixels[0].differsMeaningfully(from: pixels[2])
+            else {
+              throw HarnessFailure("device sign-in screenshots do not differ meaningfully")
+            }
+          }
+          artifacts += screenshots
         }
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        let bundles =
-          [
-            resultBundle, recoveryBundle, historyTrashBundle, settingsBundle, browseBundle,
-            searchBundle,
-          ] + playbackBundles
         for bundle in bundles where fileManager.fileExists(atPath: bundle.path) {
           try fileManager.removeItem(at: bundle)
         }
-        let artifacts = screenshots + recoveryScreenshots + accountScreenshots
         let manifest = try writeManifest(
           platform: platform,
-          command: "journey",
+          command: only.isEmpty ? "journey" : "journey --only \(only.joined(separator: ","))",
           runID: runID,
           commit: sourceRevision,
           session: session,
@@ -1338,7 +1236,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifacts + [manifest],
           message:
-            "device sign-in journey passed 11/11 tests in \(context.relativePath(for: platformDirectory))"
+            "device sign-in journey passed \(steps.count)/\(steps.count) tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {

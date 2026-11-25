@@ -138,10 +138,12 @@ A board state needs one row there and one seeded test step.
 
 ```bash
 mise run harness -- journey --platform tvos --scenario device-sign-in
+mise run harness -- journey --platform tvos --scenario device-sign-in --only history-trash
 ```
 
 [TVJourneyContract](../../../../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
-owns the tests and screenshots. Siri Remote input is simulated. HTTP responses
+owns the steps, in order, and their screenshots. `--only` takes step names
+from its table. Siri Remote input is simulated. HTTP responses
 are fixtures; device-code polling, the keychain, and the UI run in the app.
 
 - [DeviceSignInJourneyTests](../../../../Tests/tvOSUITests/Sources/DeviceSignInJourneyTests.swift):
