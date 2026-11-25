@@ -18,8 +18,8 @@ The [UI tests](../../../../Tests/iOSUITests/Sources) own the assertions.
 
 - Each preflight is its own `xcodebuild test-without-building` call, on a
   fresh install. `--simulators N` (1–4, default 1) splits the preflights
-  across N simulators; the walk runs after them. Each simulator adds host
-  load, so check `uptime` against the host's load limit first. Journeys select their UI tests from the
+  across N simulators; the walk runs after them. Use 2 only when the host's
+  load is under 8 and no other lane runs a heavy job there. Journeys select their UI tests from the
   [PutioJourneys](../../../../Tests/PutioJourneys.xctestplan) and
   [PutioTVJourneys](../../../../Tests/PutioTVJourneys.xctestplan) plans, so ⌘U
   on the scheme leaves them out.
