@@ -764,6 +764,7 @@ final class TVVideoPlayerCoordinator {
   private var subtitleRenditions: [URL] = []
   private var renditionLoad: Task<Void, Never>?
   private var checkedErrorEvents = 0
+  private var failureTurnedSubtitlesOff = false
   private var onSubtitleFailed: (@MainActor () -> Void)?
 
   init(
@@ -925,6 +926,7 @@ final class TVVideoPlayerCoordinator {
     renditionLoad = nil
     subtitleRenditions = []
     checkedErrorEvents = 0
+    failureTurnedSubtitlesOff = false
     session.stop(surface: controller)
     self.session = nil
     // The final position is enqueued by now; the callback follows it, and
@@ -998,6 +1000,7 @@ final class TVVideoPlayerCoordinator {
       }
       let failedPlaylist = rendition.map(failing.contains) ?? !failing.isDisjoint(with: renditions)
       guard let self, failedPlaylist || failedSegment else { return }
+      failureTurnedSubtitlesOff = true
       item.select(nil, in: group)
       subtitleMemory?.forget(
         PutioSubtitleTrack(
@@ -1012,7 +1015,7 @@ final class TVVideoPlayerCoordinator {
     guard let subtitleMemory else { return }
     selectionObservation = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
-    ) { [weak controller] _ in
+    ) { [weak self, weak controller] _ in
       MainActor.assumeIsolated {
         guard controller?.showsPlaybackControls == true else { return }
         Task { @MainActor in
@@ -1020,6 +1023,8 @@ final class TVVideoPlayerCoordinator {
             return
           }
           let picked = item.currentMediaSelection.selectedMediaOption(in: group)
+          if picked == nil, self?.failureTurnedSubtitlesOff == true { return }
+          self?.failureTurnedSubtitlesOff = false
           guard picked.map({ !$0.hasMediaCharacteristic(.containsOnlyForcedSubtitles) }) ?? true
           else { return }
           subtitleMemory.remember(
