@@ -27,7 +27,7 @@ final class AudioJourneyTests: XCTestCase {
     app.launch()
     XCTAssertTrue(TVTabBar(app).open("Files"))
     remote.press(.down)
-    XCTAssertTrue(element("files.item.3101").waitForExistence(timeout: 15))
+    XCTAssertTrue(element("files.item.412").waitForExistence(timeout: 15))
     XCTAssertTrue(focus("files.item.3101"))
     remote.press(.select)
     XCTAssertTrue(element("files.item.3103").waitForExistence(timeout: 10))
