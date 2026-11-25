@@ -15,7 +15,7 @@ extension PutioRuntimeTests {
     "device_check", "rescue_reason", "rescue_to", "engine_error_domain", "engine_error_category",
     "engine_error_code", "source_request_status", "file_id", "container_family", "video_codec",
     "video_profile", "video_level", "video_bit_depth", "video_resolution", "video_hdr",
-    "audio_codec", "audio_channels",
+    "audio_codec", "audio_channels", "error_reference",
   ]
 
   private static func reportFile(
@@ -76,8 +76,9 @@ extension PutioRuntimeTests {
         "source_request_status": "none", "file_id": "411", "container_family": "matroska",
         "video_codec": "hevc", "video_profile": "main 10", "video_level": "153",
         "video_bit_depth": "10", "video_resolution": "3840x2160", "video_hdr": "true",
-        "audio_codec": "dts", "audio_channels": "8",
+        "audio_codec": "dts", "audio_channels": "8", "error_reference": report.reference,
       ])
+    XCTAssertEqual(report.reference.count, 8)
     XCTAssertEqual(report.message, "playback rescued: decoder_error")
     XCTAssertEqual(report.fingerprint, ["ios", "rescued", "decoder_error", "none"])
 

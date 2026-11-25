@@ -664,17 +664,6 @@
         }
       }
     },
-    "Convert again" : {
-      "comment" : "android: mobile_playback_convert_again",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Convert again"
-          }
-        }
-      }
-    },
     "Converted fallbacks" : {
       "comment" : "ios-only: no Android string for the iOS video player",
       "localizations" : {
@@ -682,17 +671,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Converted fallbacks"
-          }
-        }
-      }
-    },
-    "Converting to MP4" : {
-      "comment" : "android: mobile_playback_conversion_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converting to MP4"
           }
         }
       }
@@ -2795,17 +2773,6 @@
         }
       }
     },
-    "Playback stalled" : {
-      "comment" : "android: mobile_playback_stalled",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback stalled"
-          }
-        }
-      }
-    },
     "Playback speed" : {
       "comment" : "android: mobile_playback_speed",
       "localizations" : {
@@ -4078,17 +4045,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Video ready"
-          }
-        }
-      }
-    },
-    "Waiting to convert" : {
-      "comment" : "android: mobile_playback_conversion_queued | differs: the board title drops the ellipsis",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Waiting to convert"
           }
         }
       }
