@@ -739,6 +739,7 @@ final class TVVideoPlayerCoordinator {
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let subtitleMemory: PutioSubtitleMemory?
   private let speedStore: PutioAudioSpeedStore
+  private let notificationCenter: NotificationCenter
   private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
   private let applyStartSubtitle: @MainActor (AVPlayerItem, AVPlayer?) async -> Void
 
@@ -752,12 +753,14 @@ final class TVVideoPlayerCoordinator {
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
     subtitleMemory: PutioSubtitleMemory? = nil,
     speedStore: PutioAudioSpeedStore? = nil,
+    notificationCenter: NotificationCenter = .default,
     makePlayer: @escaping @MainActor (AVPlayerItem) -> AVPlayer = { AVPlayer(playerItem: $0) },
     applyStartSubtitle: (@MainActor (AVPlayerItem, AVPlayer?) async -> Void)? = nil
   ) {
     self.subtitlePolicy = subtitlePolicy
     self.subtitleMemory = subtitleMemory
     self.speedStore = speedStore ?? .video()
+    self.notificationCenter = notificationCenter
     self.makePlayer = makePlayer
     self.applyStartSubtitle =
       applyStartSubtitle ?? { item, player in
@@ -795,7 +798,7 @@ final class TVVideoPlayerCoordinator {
         return PutioVideoPlayerDriver(player: player)
       },
       audioSession: PutioPlaybackAudioSession(),
-      notificationCenter: .default,
+      notificationCenter: notificationCenter,
       positionPipeline: pipeline,
       applyDefaultSubtitle: { item in await applyStartSubtitle(item, created) })
     self.session = session

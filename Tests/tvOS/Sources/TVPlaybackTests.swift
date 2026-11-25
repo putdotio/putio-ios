@@ -108,13 +108,14 @@ final class TVPlaybackTests: XCTestCase {
     defer { server.stop() }
     let reported = ReportedPositions()
     let pipeline = PutioPlaybackPositionPipeline()
+    let notifications = NotificationCenter()
     let (coordinator, controller, _) = try await startPlayer(
       base: base, startSeconds: 120, remembersPosition: true, pipeline: pipeline,
-      reported: reported)
+      reported: reported, notifications: notifications)
     let player = try XCTUnwrap(coordinator.player)
     await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 121 }
 
-    NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+    notifications.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
     await pipeline.waitForPendingReports(fileID: Self.fileID)
     XCTAssertEqual(reported.reports.map(\.0), [Self.fileID])
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
@@ -412,9 +413,11 @@ final class TVPlaybackTests: XCTestCase {
   private func startPlayer(
     base: URL, startSeconds: Int, remembersPosition: Bool,
     pipeline: PutioPlaybackPositionPipeline, reported: ReportedPositions,
-    speeds: PutioAudioSpeedStore? = nil, onEnded: @escaping @MainActor () -> Void = {}
+    speeds: PutioAudioSpeedStore? = nil, notifications: NotificationCenter = NotificationCenter(),
+    onEnded: @escaping @MainActor () -> Void = {}
   ) async throws -> (TVVideoPlayerCoordinator, AVPlayerViewController, TVPlaybackProbes) {
-    let coordinator = TVVideoPlayerCoordinator(speedStore: speeds ?? speedStore())
+    let coordinator = TVVideoPlayerCoordinator(
+      speedStore: speeds ?? speedStore(), notificationCenter: notifications)
     let controller = AVPlayerViewController()
     let probes = TVPlaybackProbes()
     coordinator.start(

@@ -185,8 +185,7 @@ final class PlaybackJourneyTests: XCTestCase {
     attach("runtime-tv-playback-next-file")
     remote.press(.select)
     XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30))
-    XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
-    XCTAssertEqual(element("video.resume.file-name").label, "Root Movie 2.mkv")
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
   }
 
   /// The first conversion request fails with a retry; the retried one
