@@ -407,6 +407,7 @@ let project = Project(
       dependencies: [
         .package(product: "PutioCore"),
         .external(name: "Sentry"),
+        .external(name: "AetherEngine"),
       ],
       settings: .settings(
         base: oauthBuildSettings.merging(sentryBuildSettings) { $1 },
