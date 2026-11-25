@@ -83,7 +83,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("files.item.412"))
     longPress()
     XCTAssertTrue(selectModalButton("files.menu.delete"))
-    XCTAssertTrue(label(containing: "Moved to Trash").waitForExistence(timeout: 10))
+    XCTAssertTrue(label(containing: "Moved to trash").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !movie.exists })
     // Under the reversed sort the row after the movie is Harness Folder.
     XCTAssertTrue(
@@ -208,7 +208,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("search.item.410"))
     longPress()
     XCTAssertTrue(element("files.menu.delete").waitForExistence(timeout: 5))
-    XCTAssertEqual(element("files.menu.delete").label, "Delete")
+    XCTAssertEqual(element("files.menu.delete").label, "Delete permanently")
     XCTAssertTrue(selectModalButton("files.menu.delete"))
     XCTAssertTrue(element("files.delete-confirm").waitForExistence(timeout: 5))
     attach("runtime-tv-search-delete-confirm")

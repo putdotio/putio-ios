@@ -189,3 +189,72 @@ public struct PutioMovePickerPolicy: Sendable {
     contents.items.filter { $0.kind == .folder }
   }
 }
+
+/// A name the server refused, or a name action that never settled.
+public struct PutioNameActionFailure: Error, Equatable, Sendable {
+  public init() {}
+}
+
+/// How a single-item move ends: the destination already holds the name, so
+/// the picker stays open, or it settled with an outcome to report.
+public enum PutioMoveSettlement: Equatable, Sendable {
+  case nameTaken(String)
+  case settled(PutioFileActionOutcome?)
+}
+
+extension PutioFolderModel {
+  /// Consumes the outcome of a create or rename the text field submitted,
+  /// throwing when it failed or never settled. `alreadyApplied` accepts a
+  /// listing that already shows the change.
+  public func settleNameAction(
+    matching isNameAction: (PutioFileAction) -> Bool,
+    alreadyApplied: () -> Bool = { false }
+  ) throws {
+    guard let outcome = actionOutcome, isNameAction(outcome.action) else {
+      if alreadyApplied() { return }
+      throw PutioNameActionFailure()
+    }
+    clearActionOutcome()
+    if case .failed = outcome { throw PutioNameActionFailure() }
+  }
+
+  public func settleRename(of item: PutioFileItem, to name: String) throws {
+    try settleNameAction { action in
+      guard case .rename(let fileID, _, _) = action else { return false }
+      return fileID == item.id
+    } alreadyApplied: {
+      guard case .loaded(let contents) = state else { return false }
+      return contents.items.contains { $0.id == item.id && $0.name == name }
+    }
+  }
+
+  /// `nil` outcome when the move did not belong to `item`.
+  public func settleMove(of item: PutioFileItem) -> PutioMoveSettlement {
+    guard let outcome = actionOutcome,
+      case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
+    else { return .settled(nil) }
+    if outcome.isNameTaken(movingFileID: item.id) {
+      clearActionOutcome()
+      return .nameTaken(item.name)
+    }
+    return .settled(outcome)
+  }
+}
+
+extension PutioFileItemActionModel {
+  public func settleRename(of item: PutioFileItem) throws {
+    guard case .succeeded(.rename) = outcome else {
+      if case .failed(.rename, _) = outcome { clearOutcome() }
+      throw PutioNameActionFailure()
+    }
+    clearOutcome()
+  }
+
+  public func settleMove(of item: PutioFileItem) -> PutioMoveSettlement {
+    if outcome?.isNameTaken(movingFileID: item.id) == true {
+      clearOutcome()
+      return .nameTaken(item.name)
+    }
+    return .settled(outcome)
+  }
+}

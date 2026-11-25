@@ -49,3 +49,75 @@ public enum PutioFileDetailText {
     }
   }
 }
+
+public struct PutioFileDetailFact: Equatable, Identifiable, Sendable {
+  public enum Kind: String, Sendable {
+    case size, added, length, subtitles, folder
+  }
+
+  public let kind: Kind
+  public let label: String
+  public let value: String
+
+  public var id: String { kind.rawValue }
+  public var isNumeric: Bool { kind == .size || kind == .length }
+}
+
+/// What a file's detail shows once loaded: its primary action title and its
+/// facts. Videos add their length and subtitle languages when put.io reports
+/// them.
+public struct PutioFileDetailModel: Equatable, Sendable {
+  public let item: PutioFileItem
+  public let isVideo: Bool
+  public let details: PutioVideoDetails?
+  public let folder: String?
+
+  public init(
+    item: PutioFileItem, isVideo: Bool, details: PutioVideoDetails?, folder: String?
+  ) {
+    self.item = item
+    self.isVideo = isVideo
+    self.details = details
+    self.folder = folder
+  }
+
+  public var resumePositionSeconds: Int {
+    details?.resumePositionSeconds ?? item.resumePositionSeconds
+  }
+
+  public var primaryTitle: String {
+    guard resumePositionSeconds > 0 else { return String(localized: "Play", bundle: .module) }
+    let time = PutioFileDetailText.clock(seconds: resumePositionSeconds)
+    return String(localized: "Resume from \(time)", bundle: .module)
+  }
+
+  public func facts(locale: Locale = .current) -> [PutioFileDetailFact] {
+    var facts = [
+      PutioFileDetailFact(
+        kind: .size, label: String(localized: "Size", bundle: .module),
+        value: PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)),
+      PutioFileDetailFact(
+        kind: .added, label: String(localized: "Added", bundle: .module),
+        value: item.createdAt.formatted(
+          .dateTime.month(.abbreviated).day().year().locale(locale))),
+    ]
+    if isVideo, let seconds = details?.durationSeconds {
+      facts.append(
+        PutioFileDetailFact(
+          kind: .length, label: String(localized: "Length", bundle: .module),
+          value: PutioFileDetailText.clock(seconds: seconds)))
+    }
+    if isVideo, let subtitles = details?.subtitles, !subtitles.isEmpty {
+      facts.append(
+        PutioFileDetailFact(
+          kind: .subtitles, label: String(localized: "Subtitles", bundle: .module),
+          value: subtitles.formatted(.list(type: .and, width: .narrow).locale(locale))))
+    }
+    if let folder {
+      facts.append(
+        PutioFileDetailFact(
+          kind: .folder, label: String(localized: "Folder", bundle: .module), value: folder))
+    }
+    return facts
+  }
+}

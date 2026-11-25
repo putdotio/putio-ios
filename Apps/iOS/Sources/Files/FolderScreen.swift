@@ -683,80 +683,63 @@ struct PutioFolderScreen: View {
   private func itemAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction? {
     let route = PutioFileRoute(item: item)
     let editingBlocked = !model.canStartAction || actionRequest != nil
+    let title = row.title(for: item, trashEnabled: trashEnabled) ?? ""
+    func action(
+      _ id: String, isDisabled: Bool = fileActionPending,
+      perform: @escaping @MainActor @Sendable () -> Void
+    ) -> PutioItemAction {
+      PutioItemAction(
+        id: id, title: title, icon: row.icon, isDisabled: isDisabled, perform: perform)
+    }
     switch row {
+    case .open, .startOver:
+      return nil
     case .play:
-      return PutioItemAction(
-        id: "play", title: String(localized: "Play"), icon: .play,
-        isDisabled: fileActionPending
-      ) { onFileSelected(route) }
+      return action("play") { onFileSelected(route) }
     case .playWithOtherMethod:
       return playWithOtherMethod?.action(for: route, isDisabled: fileActionPending)
     case .download:
-      return PutioItemAction(
-        id: "download", title: String(localized: "Download"), icon: .arrowCircleDown,
-        isDisabled: fileActionPending
-      ) { onDownload?(route) }
+      return action("download") { onDownload?(route) }
     case .downloadWithOtherMethod:
       return downloadWithOtherMethod?.action(for: route, isDisabled: fileActionPending)
     case .openInVLC:
-      return PutioItemAction(
-        id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone,
-        isDisabled: fileActionPending
-      ) { onExternalPlayback?(route) }
+      return action("open-in-vlc") { onExternalPlayback?(route) }
     case .share:
-      return PutioItemAction(
-        id: "share", title: String(localized: "Share"), icon: .export,
-        isDisabled: fileActionPending
-      ) { startShare(item) }
+      return action("share") { startShare(item) }
     case .select:
-      return PutioItemAction(
-        id: "select", title: String(localized: "Select"), icon: .checkCircle,
-        isDisabled: fileActionPending
-      ) {
+      return action("select") {
         selection.begin()
         selection.toggle(item.id)
       }
-    case .pin, .unpin:
+    case .pin:
       let pins = pinned?.model
       let location = folderTitle
-      return row == .pin
-        ? PutioItemAction(id: "pin", title: String(localized: "Pin"), icon: .pushPin) {
-          Task { await pins?.pin(item, in: location) }
-        }
-        : PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
-          Task { await pins?.unpin(item) }
-        }
+      return action("pin", isDisabled: false) { Task { await pins?.pin(item, in: location) } }
+    case .unpin:
+      let pins = pinned?.model
+      return action("unpin", isDisabled: false) { Task { await pins?.unpin(item) } }
     case .markWatched, .markUnwatched:
       let watched = row == .markWatched
-      return PutioItemAction(
-        id: watched ? "watched" : "unwatched",
-        title: watched
-          ? String(localized: "Mark as watched") : String(localized: "Mark as unwatched"),
-        icon: watched ? .eye : .eyeSlash,
-        isDisabled: editingBlocked
-      ) { actionRequest = .setWatched(item, watched) }
+      return action(watched ? "watched" : "unwatched", isDisabled: editingBlocked) {
+        actionRequest = .setWatched(item, watched)
+      }
     case .rename:
-      return PutioItemAction(
-        id: "rename", title: String(localized: "Rename"), icon: .pencilSimple,
-        isDisabled: editingBlocked
-      ) { nameAlert = renameAlert(for: item) }
+      return action("rename", isDisabled: editingBlocked) { nameAlert = renameAlert(for: item) }
     case .move:
-      return PutioItemAction(
-        id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
-        isDisabled: editingBlocked
-      ) { pendingMove = MoveSelection(items: [item], isBulk: false) }
+      return action("move", isDisabled: editingBlocked) {
+        pendingMove = MoveSelection(items: [item], isBulk: false)
+      }
     case .exclusiveLink:
       return .exclusiveLink(isDisabled: fileActionPending) { linkItem = item }
     case .makeCopy:
-      return PutioItemAction(
-        id: "make-copy", title: String(localized: "Make a copy"), icon: .copy,
-        isDisabled: fileActionPending || copyModel?.isRunning != false
+      return action(
+        "make-copy", isDisabled: fileActionPending || copyModel?.isRunning != false
       ) { pendingMove = MoveSelection(items: [item], isBulk: false, purpose: .copy) }
     case .trash:
       return PutioItemAction(
-        id: "trash", title: deleteActionTitle, icon: .trash, role: .destructive,
+        id: "trash", title: title, icon: row.icon, role: .destructive,
         isDisabled: !model.canDelete || actionRequest != nil,
-        subtitle: model.trashSettingKnown ? nil : PutioFileDeletionCopy.settingUnknown,
+        subtitle: model.trashSettingKnown ? nil : PutioFileDeletionPresentation.settingUnknown,
         asksFirst: !trashEnabled
       ) { requestDeletion(of: item) }
     }
@@ -801,7 +784,7 @@ struct PutioFolderScreen: View {
       trashingIDs.insert(item.id)
       actionRequest = .delete(item, permanently: false)
     } else {
-      confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
+      confirmAlert = PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) {
         startDeletion(.delete(item, permanently: true))
       }
     }
@@ -871,7 +854,7 @@ struct PutioFolderScreen: View {
     if trashEnabled {
       actionRequest = .bulkDelete(items)
     } else {
-      confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: items.count) {
+      confirmAlert = PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: items.count) {
         startDeletion(.bulkDelete(items))
       }
     }
@@ -1054,7 +1037,7 @@ struct PutioFolderScreen: View {
   }
 
   private var deleteActionTitle: String {
-    PutioFileDeletionCopy(trashEnabled: trashEnabled).actionTitle
+    PutioFileDeletionPresentation(trashEnabled: trashEnabled).actionTitle
   }
 
   private var deletionPresentation: PutioFileDeletionPresentation {
@@ -1106,13 +1089,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t rename.")
     ) { name in
       await model.rename(item, to: name)
-      try PutioNameActionSettlement.settle(model) { action in
-        guard case .rename(let fileID, _, _) = action else { return false }
-        return fileID == item.id
-      } alreadyApplied: {
-        guard case .loaded(let contents) = model.state else { return false }
-        return contents.items.contains { $0.id == item.id && $0.name == name }
-      }
+      try model.settleRename(of: item, to: name)
     }
   }
 
@@ -1126,7 +1103,7 @@ struct PutioFolderScreen: View {
       failureText: String(localized: "Couldn’t create folder.")
     ) { name in
       await model.createFolder(name: name)
-      try PutioNameActionSettlement.settle(model) { action in
+      try model.settleNameAction { action in
         guard case .createFolder = action else { return false }
         return true
       }
@@ -1138,15 +1115,15 @@ struct PutioFolderScreen: View {
   ) async -> PutioMoveSheetResult {
     await model.move(item, to: destination)
     releaseDetail(item.id)
-    guard let outcome = model.actionOutcome,
-      case .move(let fileID, _, _, _, _) = outcome.action, fileID == item.id
-    else { return .closed }
-    if outcome.isNameTaken(movingFileID: item.id) {
-      model.clearActionOutcome()
-      return .nameTaken(item.name)
+    switch model.settleMove(of: item) {
+    case .nameTaken(let name):
+      return .nameTaken(name)
+    case .settled(nil):
+      return .closed
+    case .settled:
+      presentActionOutcome()
+      return .closed
     }
-    presentActionOutcome()
-    return .closed
   }
 
   private func runActionRequest() async {
@@ -1216,15 +1193,15 @@ struct PutioFolderScreen: View {
     switch outcome {
     case .succeeded(.delete(_, _, let permanently)) where trashEnabled && !permanently:
       toast = PutioToast(
-        PutioFileDeletionCopy.trashed,
+        PutioFileDeletionPresentation.trashed,
         action: item.map { item in
-          PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: [item]) }
+          PutioToast.Action(PutioFileDeletionPresentation.undo) { undoTrash(of: [item]) }
         })
-    case .succeeded(let action):
-      toast = successToast(for: action)
+    case .succeeded:
+      toast = outcome.toastTitle(trashEnabled: false).map { PutioToast($0) }
     case .failed(.delete(_, _, let permanently), let failure):
       if failure.isTrashLimit, let item {
-        confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
+        confirmAlert = PutioFileDeletionPresentation.trashLimitAlert {
           startDeletion(.delete(item, permanently: true))
         }
       } else {
@@ -1232,8 +1209,8 @@ struct PutioFolderScreen: View {
           PutioFileDeletionPresentation(trashEnabled: trashEnabled && !permanently)
             .singleFailureTitle)
       }
-    case .failed(_, let failure):
-      toast = PutioToast(failure.title)
+    case .failed:
+      toast = outcome.toastTitle(trashEnabled: trashEnabled).map { PutioToast($0) }
     }
     model.clearActionOutcome()
   }
@@ -1283,15 +1260,13 @@ struct PutioFolderScreen: View {
       let trashed = outcome.succeeded
       return PutioToast(
         String(localized: "Moved \(count) items to trash"),
-        action: PutioToast.Action(PutioFileDeletionCopy.undo) { undoTrash(of: trashed) })
+        action: PutioToast.Action(PutioFileDeletionPresentation.undo) { undoTrash(of: trashed) })
     case .delete:
       return PutioToast(deletionPresentation.outcomeMessage(succeeded: count, failed: 0))
     case .move:
       return PutioToast(PutioMoveCopy.moved(count))
     case .setWatched(let watched):
-      return PutioToast(
-        watched
-          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
+      return PutioToast(PutioFileActionCopy.watchStatus(watched))
     }
   }
 
@@ -1321,23 +1296,6 @@ struct PutioFolderScreen: View {
       break
     }
     return String(localized: "Moving item \(currentCount) of \(progress.totalCount)…")
-  }
-
-  private func successToast(for action: PutioFileAction) -> PutioToast? {
-    switch action {
-    case .createFolder, .rename, .sort:
-      nil
-    case .delete:
-      PutioToast(PutioFileDeletionCopy.deleted)
-    case .restore:
-      nil
-    case .move:
-      PutioToast(PutioMoveCopy.moved(1))
-    case .setWatched(_, _, _, let watched):
-      PutioToast(
-        watched
-          ? String(localized: "Marked as watched") : String(localized: "Marked as unwatched"))
-    }
   }
 
   private enum RetryKind: Equatable {
@@ -1371,24 +1329,6 @@ struct PutioFolderScreen: View {
     }
   }
 }
-
-@MainActor
-private enum PutioNameActionSettlement {
-  static func settle(
-    _ model: PutioFolderModel,
-    matching isNameAction: (PutioFileAction) -> Bool,
-    alreadyApplied: () -> Bool = { false }
-  ) throws {
-    guard let outcome = model.actionOutcome, isNameAction(outcome.action) else {
-      if alreadyApplied() { return }
-      throw PutioNameActionFailure()
-    }
-    model.clearActionOutcome()
-    if case .failed = outcome { throw PutioNameActionFailure() }
-  }
-}
-
-private struct PutioNameActionFailure: Error {}
 
 private struct PutioBulkProgressSurface: ViewModifier {
   @ViewBuilder func body(content: Content) -> some View {

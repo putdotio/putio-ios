@@ -1092,7 +1092,7 @@ struct PutioPreviewView: View {
       actions.append(
         PutioItemAction(
           id: "trash",
-          title: PutioFileDeletionCopy(trashEnabled: fileActions.trashEnabled).actionTitle,
+          title: PutioFileDeletionPresentation(trashEnabled: fileActions.trashEnabled).actionTitle,
           icon: .trash, role: .destructive, isDisabled: !itemActions.canDelete
         ) { requestRemoval(of: item) })
     }
@@ -1104,7 +1104,7 @@ struct PutioPreviewView: View {
     if fileActions.trashEnabled {
       remove(item, permanently: false)
     } else {
-      confirmAlert = PutioFileDeletionCopy.permanentDeleteAlert(itemCount: 1) {
+      confirmAlert = PutioFileDeletionPresentation.permanentDeleteAlert(itemCount: 1) {
         remove(item, permanently: true)
       }
     }
@@ -1124,7 +1124,7 @@ struct PutioPreviewView: View {
         if !pager.remove(item.id) { onDismiss() }
         toast = removalToast(for: item, permanently: permanently, in: pager)
       case .failed(.delete, let failure) where failure.isTrashLimit && !pager.isClosed:
-        confirmAlert = PutioFileDeletionCopy.trashLimitAlert {
+        confirmAlert = PutioFileDeletionPresentation.trashLimitAlert {
           remove(item, permanently: true)
         }
       case .failed(.delete, _):
@@ -1140,10 +1140,10 @@ struct PutioPreviewView: View {
   private func removalToast(
     for item: PutioFileItem, permanently: Bool, in pager: PutioPreviewPager
   ) -> PutioToast {
-    guard !permanently else { return PutioToast(PutioFileDeletionCopy.deleted) }
+    guard !permanently else { return PutioToast(PutioFileDeletionPresentation.deleted) }
     return PutioToast(
-      PutioFileDeletionCopy.trashed,
-      action: PutioToast.Action(PutioFileDeletionCopy.undo) {
+      PutioFileDeletionPresentation.trashed,
+      action: PutioToast.Action(PutioFileDeletionPresentation.undo) {
         undoTrash(of: item, in: pager)
       })
   }

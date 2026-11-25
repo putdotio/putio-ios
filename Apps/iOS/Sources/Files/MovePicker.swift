@@ -13,19 +13,6 @@ enum PutioMoveLevelStatus: Equatable {
   case busy
 }
 
-extension PutioFileActionOutcome {
-  func isNameTaken(movingFileID id: PutioFileID) -> Bool {
-    guard case .failed(.move(let fileID, _, _, _, _), let failure) = self else { return false }
-    return fileID == id && failure.isNameTaken
-  }
-}
-
-enum PutioMoveCopy {
-  static func moved(_ count: Int) -> String {
-    String(localized: "\(count) items are in the selected folder.")
-  }
-}
-
 enum PutioSharedFileCopyMessage {
   static func text(for result: PutioSharedFileCopyResult) -> String {
     let name = result.name

@@ -406,37 +406,37 @@ struct FilesSearchView: View {
   private func menuAction(_ row: PutioFileMenuRow, for item: PutioFileItem) -> PutioItemAction? {
     let route = PutioFileRoute(item: item)
     let editingBlocked = !itemActions.canStartAction || itemAction != nil
+    let title = row.title(for: item, trashEnabled: false) ?? ""
+    func action(
+      _ id: String, isDisabled: Bool = false,
+      perform: @escaping @MainActor @Sendable () -> Void
+    ) -> PutioItemAction {
+      PutioItemAction(
+        id: id, title: title, icon: row.icon, isDisabled: isDisabled, perform: perform)
+    }
     switch row {
     case .play:
-      return PutioItemAction(id: "play", title: String(localized: "Play"), icon: .play) {
-        onFileSelected(route)
-      }
+      return action("play") { onFileSelected(route) }
     case .playWithOtherMethod:
       return playWithOtherMethod?.action(for: route)
     case .download:
-      return PutioItemAction(
-        id: "download", title: String(localized: "Download"), icon: .arrowCircleDown
-      ) { onDownload?(route) }
+      return action("download") { onDownload?(route) }
     case .downloadWithOtherMethod:
       return downloadWithOtherMethod?.action(for: route)
     case .openInVLC:
-      return PutioItemAction(
-        id: "open-in-vlc", title: String(localized: "Open in VLC"), icon: .trafficCone
-      ) { onExternalPlayback?(route) }
+      return action("open-in-vlc") { onExternalPlayback?(route) }
     case .share:
-      return PutioItemAction(id: "share", title: String(localized: "Share"), icon: .export) {
-        startShare(item)
-      }
+      return action("share") { startShare(item) }
     case .pin:
       let location = folderNames.names[item.parentID]
-      return PutioItemAction(id: "pin", title: String(localized: "Pin"), icon: .pushPin) {
+      return action("pin") {
         Task {
           await pins.pin(item, in: location)
           showPinFailure()
         }
       }
     case .unpin:
-      return PutioItemAction(id: "unpin", title: String(localized: "Unpin"), icon: .pushPinSlash) {
+      return action("unpin") {
         Task {
           await pins.unpin(item)
           showPinFailure()
@@ -444,19 +444,12 @@ struct FilesSearchView: View {
       }
     case .markWatched, .markUnwatched:
       let watched = row == .markWatched
-      return PutioItemAction(
-        id: watched ? "watched" : "unwatched",
-        title: watched
-          ? String(localized: "Mark as watched") : String(localized: "Mark as unwatched"),
-        icon: watched ? .eye : .eyeSlash,
-        isDisabled: editingBlocked
-      ) { itemAction = .setWatched(item, watched) }
+      return action(watched ? "watched" : "unwatched", isDisabled: editingBlocked) {
+        itemAction = .setWatched(item, watched)
+      }
     case .move:
-      return PutioItemAction(
-        id: "move", title: String(localized: "Move"), icon: .folderSimpleDashed,
-        isDisabled: editingBlocked
-      ) { itemAction = .move(item) }
-    case .select, .rename, .exclusiveLink, .trash, .makeCopy:
+      return action("move", isDisabled: editingBlocked) { itemAction = .move(item) }
+    case .open, .startOver, .select, .rename, .exclusiveLink, .trash, .makeCopy:
       return nil
     }
   }
