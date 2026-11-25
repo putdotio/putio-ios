@@ -10,7 +10,6 @@ struct TVHomeScreen: View {
   let open: (PutioFileItem) -> Void
   let play: (PutioContinueWatchingEntry) -> Void
 
-  @Environment(\.tvHomeActivations) private var activations
   @State private var pins: PutioPinnedFilesModel
   @State private var toast: PutioToast?
   @State private var focusTarget: TVHomeFocus?
@@ -53,7 +52,7 @@ struct TVHomeScreen: View {
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
     .putioToast($toast)
-    .task(id: activations) {
+    .task {
       await pins.load()
       await continueWatching.reconcile(loadFile: { try await runtime.getFile(fileID: $0) })
     }
@@ -392,8 +391,4 @@ struct TVHomeEmptyState: View {
     .tvFocusAnchor()
     .accessibilityIdentifier("home.empty")
   }
-}
-
-extension EnvironmentValues {
-  @Entry var tvHomeActivations = 0
 }

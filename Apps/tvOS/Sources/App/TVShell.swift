@@ -118,7 +118,6 @@ struct TVSignedInShell: View {
   @State private var historyActivations = 0
   @State private var audioPlayback = PutioAudioPlaybackSession(
     sleepTimer: PutioAudioSleepTimer(clock: PutioSystemSleepTimerClock()))
-  @State private var homeActivations = 0
   @State private var continueWatching: PutioContinueWatchingModel
 
   init(runtime: PutioRuntime, account: PutioAccountSnapshot) {
@@ -188,10 +187,7 @@ struct TVSignedInShell: View {
       navigation.reconcile(account: account, showsHome: shown)
     }
     .onChange(of: navigation.selection) { _, tab in
-      if tab == .home {
-        homeActivations &+= 1
-        Task { await runtime.refreshAccount() }
-      }
+      if tab == .home { Task { await runtime.refreshAccount() } }
       if tab == .history { historyActivations &+= 1 }
     }
     .onChange(of: scenePhase) { _, phase in
@@ -225,7 +221,6 @@ struct TVSignedInShell: View {
             navigation.path(for: tab) + [.continueWatching($0)], for: tab, account: account)
         }
       )
-      .environment(\.tvHomeActivations, homeActivations)
     case .files:
       TVFolderView(
         route: .root, runtime: runtime, account: account,
