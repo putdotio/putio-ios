@@ -115,6 +115,8 @@ struct TVSignedInShell: View {
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var historyActivations = 0
+  @State private var audioPlayback = PutioAudioPlaybackSession(
+    sleepTimer: PutioAudioSleepTimer(clock: PutioSystemSleepTimerClock()))
 
   init(runtime: PutioRuntime, account: PutioAccountSnapshot) {
     self.runtime = runtime
@@ -149,6 +151,24 @@ struct TVSignedInShell: View {
     .overlay(alignment: .topLeading) {
       if !navigation.showsFullScreen { TVWordmark() }
     }
+    .overlay(alignment: .topTrailing) {
+      if !navigation.showsFullScreen, let model = audioPlayback.model {
+        TVAudioMiniPlayer(
+          model: model, onOpen: { audioPlayback.isPresented = true },
+          onStop: { audioPlayback.stop() }
+        )
+        .focusSection()
+        .padding(.trailing, TVShellLayout.miniPlayerTrailing)
+        .padding(.top, TVShellLayout.miniPlayerTop)
+        .ignoresSafeArea()
+      }
+    }
+    .fullScreenCover(isPresented: $audioPlayback.isPresented) {
+      if let model = audioPlayback.model {
+        TVNowPlayingView(
+          playback: audioPlayback, model: model, onClose: { audioPlayback.isPresented = false })
+      }
+    }
     .onChange(of: account) { previous, current in
       PutioAccountPreferencesReconciliation.apply(
         previous: previous, current: current, folders: folderRefreshRequests,
@@ -165,6 +185,7 @@ struct TVSignedInShell: View {
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { Task { await runtime.refreshAccount() } }
     }
+    .onDisappear { audioPlayback.stop() }
   }
 
   private func stack(for tab: TVTab) -> some View {
@@ -203,12 +224,32 @@ struct TVSignedInShell: View {
   }
 
   private func open(_ item: PutioFileItem, in tab: TVTab) {
+    switch PutioFileRoute(item: item).openAction {
+    case .audio(let route):
+      presentAudio(route)
+      return
+    case .video:
+      audioPlayback.stop()
+    default:
+      break
+    }
     navigation.setPath(navigation.path(for: tab) + [.opening(item)], for: tab, account: account)
   }
 
   private func play(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice, in tab: TVTab) {
+    audioPlayback.stop()
     navigation.setPath(
       navigation.path(for: tab) + [.video(item, choice)], for: tab, account: account)
+  }
+
+  private func presentAudio(_ route: PutioAudioRoute) {
+    if audioPlayback.model?.track.id == route.id {
+      audioPlayback.isPresented = true
+      return
+    }
+    audioPlayback.retire()
+    audioPlayback.present(
+      TVAudioPlayback.makeModel(route: route, runtime: runtime, pipeline: playbackPositionPipeline))
   }
 
   @ViewBuilder
@@ -275,6 +316,8 @@ enum TVShellLayout {
   static let wordmarkHeight: CGFloat = 40
   static let wordmarkLeading: CGFloat = 80
   static let wordmarkTop: CGFloat = 64
+  static let miniPlayerTrailing: CGFloat = 80
+  static let miniPlayerTop: CGFloat = 54
 }
 
 extension TVRoute {

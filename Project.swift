@@ -395,6 +395,7 @@ let project = Project(
             fi
             mkdir -p "$destination/multi-audio"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/audio/runtime-proof-audio.m4a" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
             cp "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.m3u8 "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.ts \
               "${SRCROOT}"/Tests/HarnessMedia/multi-audio/*.vtt "$destination/multi-audio/"

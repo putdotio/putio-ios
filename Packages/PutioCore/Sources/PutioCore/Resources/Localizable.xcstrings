@@ -1903,6 +1903,17 @@
         }
       }
     },
+    "Go back and try again." : {
+      "comment" : "ios-only: tvOS link-expired screen (rd-tvos-pb-15-link-expired); Android TV's body names the web player",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go back and try again."
+          }
+        }
+      }
+    },
     "Go to %@ and enter" : {
       "comment" : "android: tv_link_browser_instruction",
       "localizations" : {
@@ -2324,6 +2335,28 @@
         }
       }
     },
+    "Playback error" : {
+      "comment" : "android: tv_player_error_crash",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback error"
+          }
+        }
+      }
+    },
+    "Playback link expired" : {
+      "comment" : "android: tv_player_error_link_expired_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback link expired"
+          }
+        }
+      }
+    },
     "Playback position" : {
       "comment" : "android: mobile_playback_position",
       "localizations" : {
@@ -2368,6 +2401,17 @@
         }
       }
     },
+    "QR code that opens this file on the web" : {
+      "comment" : "ios-only: accessibility label for the web QR on the tvOS unsupported-file screen (rd-tvos-pb-16-unsupported)",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QR code that opens this file on the web"
+          }
+        }
+      }
+    },
     "Sleep in %@" : {
       "comment" : "ios-only: tvOS sleep timer button while it runs (rd-tvos-pb-18-now-playing); Android TV has no audio player",
       "localizations" : {
@@ -2401,6 +2445,17 @@
         }
       }
     },
+    "Something unexpected happened." : {
+      "comment" : "android: tv_error_unexpected",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something unexpected happened."
+          }
+        }
+      }
+    },
     "Sort, %@" : {
       "comment" : "ios-only: tvOS Files spoken label for the sort pill",
       "localizations" : {
@@ -2430,6 +2485,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop playback"
+          }
+        }
+      }
+    },
+    "The stream stopped loading. Another proxy may be faster." : {
+      "comment" : "ios-only: tvOS stalled playback screen (rd-tvos-pb-13-stalled); Android TV has no stall screen",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stream stopped loading. Another proxy may be faster."
+          }
+        }
+      }
+    },
+    "This format doesn’t play on Apple TV. Scan to play it on the web." : {
+      "comment" : "ios-only: tvOS unsupported-file screen (rd-tvos-pb-16-unsupported); names Apple TV",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This format doesn’t play on Apple TV. Scan to play it on the web."
           }
         }
       }
