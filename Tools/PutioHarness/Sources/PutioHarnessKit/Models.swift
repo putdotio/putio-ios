@@ -1221,7 +1221,8 @@ enum TVBrowseJourneyContract {
     "PutioTVUITests/FilesSearchJourneyTests/testBrowseSortMenuAndRecovery"
   static let browseAttachmentNames = [
     "runtime-tv-home-files", "runtime-tv-files", "runtime-tv-files-more-recovery",
-    "runtime-tv-files-sort", "runtime-tv-files-panel", "runtime-tv-files-action-failure",
+    "runtime-tv-files-sort", "runtime-tv-files-panel", "runtime-tv-files-vlc-missing",
+    "runtime-tv-files-action-failure",
     "runtime-tv-files-trashed", "runtime-tv-folder", "runtime-tv-file-unsupported",
     "runtime-tv-files-empty", "runtime-tv-files-error", "runtime-tv-files-recovered",
   ]
