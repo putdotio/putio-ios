@@ -223,8 +223,9 @@ struct TVVideoPlaybackView: View {
       TVPlaybackStalledScreen(
         fileName: route.title, runtime: runtime,
         retry: {
+          let seconds = wait.waitingFromSeconds
           wait.restart()
-          retrySequence &+= 1
+          Task { await model.retry(resumingAt: seconds) }
         }, back: onFinish)
     } else if showsNextVideoStage {
       TVNextVideoStage(
@@ -967,7 +968,9 @@ final class TVVideoPlayerCoordinator {
             case .waitingToPlayAtSpecifiedRate: .waiting
             default: .paused
             }
-          Task { @MainActor in wait?.activityChanged(activity) }
+          let time = player.currentTime().seconds
+          let seconds = time.isFinite ? Int(time) : nil
+          Task { @MainActor in wait?.activityChanged(activity, atSeconds: seconds) }
         })
     }
     if let probes {

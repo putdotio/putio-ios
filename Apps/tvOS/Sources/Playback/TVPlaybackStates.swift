@@ -74,7 +74,10 @@ struct TVPlaybackStalledScreen: View {
         state: TVProxyMenuState(model: proxy),
         select: { name in
           Task {
-            if case .saved = await proxy.select(name) { retry() }
+            switch await proxy.select(name) {
+            case .saved, .savedUnconfirmed: retry()
+            default: break
+            }
           }
         },
         retry: { Task { await proxy.loadRoutes() } }

@@ -52,6 +52,14 @@ final class PutioVideoWaitModelTests: XCTestCase {
     XCTAssertEqual(clock.requested, [.seconds(10), .seconds(20)])
   }
 
+  func testAWaitRemembersWherePlaybackStopped() {
+    let (model, _) = makeModel()
+    model.activityChanged(.playing, atSeconds: 10)
+    model.activityChanged(.waiting, atSeconds: 734)
+    model.activityChanged(.waiting, atSeconds: 735)
+    XCTAssertEqual(model.waitingFromSeconds, 734)
+  }
+
   func testRecoveryClearsTheWaitAndItsPendingTimer() async {
     let (model, clock) = makeModel()
     model.activityChanged(.playing)

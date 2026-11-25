@@ -279,6 +279,13 @@ public final class PutioVideoPlaybackModel {
     await recover()
   }
 
+  /// Loads the source again from `seconds`, such as where a stalled stream
+  /// stopped, whatever the account's remember-position setting.
+  public func retry(resumingAt seconds: Int?) async {
+    if let seconds { heldSeconds = seconds }
+    await retry()
+  }
+
   private func recover() async {
     switch recovery {
     case .resolve:
