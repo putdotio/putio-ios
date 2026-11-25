@@ -278,7 +278,12 @@ final class HomeJourneyTests: XCTestCase {
         remote.press(goal.midX > current.midX ? .right : .left)
       }
     }
-    return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
+    if waitUntil(timeout: 1.5, { self.hasFocus(identifier) }) { return true }
+    let tree = XCTAttachment(string: app.debugDescription)
+    tree.name = "steer-miss-\(identifier)"
+    tree.lifetime = .keepAlways
+    add(tree)
+    return false
   }
 
   private func element(_ identifier: String) -> XCUIElement {

@@ -13,8 +13,8 @@ struct TVHomeScreen: View {
   @Environment(\.tvHomeActivations) private var activations
   @State private var pins: PutioPinnedFilesModel
   @State private var toast: PutioToast?
-  @State private var entryFocusTarget: PutioFileID?
-  @FocusState private var focusedEntry: PutioFileID?
+  @State private var focusTarget: TVHomeFocus?
+  @FocusState private var focused: TVHomeFocus?
 
   init(
     runtime: PutioRuntime, account: PutioAccountSnapshot,
@@ -57,12 +57,12 @@ struct TVHomeScreen: View {
       await pins.load()
       await continueWatching.reconcile(loadFile: { try await runtime.getFile(fileID: $0) })
     }
-    .task(id: entryFocusTarget) {
-      guard let target = entryFocusTarget else { return }
+    .task(id: focusTarget) {
+      guard let target = focusTarget else { return }
       try? await Task.sleep(for: .seconds(1))
       guard !Task.isCancelled else { return }
-      entryFocusTarget = nil
-      focusedEntry = target
+      focusTarget = nil
+      focused = target
     }
     .onChange(of: pins.editFailure) { _, failure in
       guard failure != nil else { return }
@@ -102,7 +102,7 @@ struct TVHomeScreen: View {
             }
             .accessibilityIdentifier("home.continue-watching.remove")
           }
-          .focused($focusedEntry, equals: entry.fileID)
+          .focused($focused, equals: .entry(entry.fileID))
           .accessibilityLabel(Text(PutioHomeCopy.resume(entry)))
           .accessibilityIdentifier("home.continue-watching.item.\(entry.fileID.rawValue)")
         }
@@ -145,6 +145,7 @@ struct TVHomeScreen: View {
                   .accessibilityIdentifier("home.pinned.\(row.rawValue)")
                 }
               }
+              .focused($focused, equals: .pin(pinned.item.id))
               .accessibilityIdentifier("home.pinned.item.\(pinned.item.id.rawValue)")
             }
           }
@@ -172,20 +173,37 @@ struct TVHomeScreen: View {
   }
 
   private func remove(_ entry: PutioContinueWatchingEntry) {
-    let ids = continueWatching.entries.map(\.fileID)
-    if let index = ids.firstIndex(of: entry.fileID) {
-      entryFocusTarget =
-        ids.indices.contains(index + 1) ? ids[index + 1] : index > 0 ? ids[index - 1] : nil
-    }
+    focusTarget = Self.neighbour(
+      of: .entry(entry.fileID), in: continueWatching.entries.map { .entry($0.fileID) },
+      else: pins.items.first.map { .pin($0.item.id) })
     continueWatching.remove(entry.fileID)
   }
 
   private func perform(_ row: PutioFileMenuRow, on item: PutioFileItem) {
     switch row {
-    case .unpin: Task { await pins.unpin(item) }
+    case .unpin:
+      focusTarget = Self.neighbour(
+        of: .pin(item.id), in: pins.items.map { .pin($0.item.id) },
+        else: continueWatching.entries.first.map { .entry($0.fileID) })
+      Task { await pins.unpin(item) }
     default: open(item)
     }
   }
+
+  /// The card that takes focus when `card` leaves its row: the next one, the
+  /// previous one, or `fallback` in the other row.
+  static func neighbour(
+    of card: TVHomeFocus, in row: [TVHomeFocus], else fallback: TVHomeFocus?
+  ) -> TVHomeFocus? {
+    guard let index = row.firstIndex(of: card) else { return fallback }
+    if row.indices.contains(index + 1) { return row[index + 1] }
+    return index > 0 ? row[index - 1] : fallback
+  }
+}
+
+enum TVHomeFocus: Hashable {
+  case entry(PutioFileID)
+  case pin(PutioFileID)
 }
 
 private struct TVContinueWatchingCard: View {
