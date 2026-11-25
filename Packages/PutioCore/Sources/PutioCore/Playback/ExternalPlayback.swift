@@ -76,7 +76,8 @@ public enum PutioExternalPlaybackFailure: Equatable {
   private static func reason(_ error: PutioRuntimeError) -> String {
     switch error {
     case .rateLimited:
-      String(localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
+      String(
+        localized: "put.io is receiving too many requests. Try again shortly.", bundle: .module)
     case .transient:
       String(localized: "Check your connection and try again.", bundle: .module)
     case .authenticationRequired, .sessionExpired, .notFound, .invalidResponse, .unknown:
