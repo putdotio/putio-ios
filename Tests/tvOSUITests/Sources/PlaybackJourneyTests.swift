@@ -104,9 +104,9 @@ final class PlaybackJourneyTests: XCTestCase {
     leavePlayer()
   }
 
-  /// Subtitles and speed are AVKit's own controls. The server's default
-  /// subtitle is on, choosing Turkish keeps English audio, and the chosen
-  /// speed holds through pause and seeking without touching either track.
+  /// The server's default subtitle is on, choosing Turkish keeps English
+  /// audio, the chosen speed holds through pause and seeking without touching
+  /// either track, and Next file opens the folder's next video.
   func testSubtitleAndSpeedControlsKeepTheAudioTrack() {
     launch(subtitled: true)
     openFile("files.item.412")
@@ -176,7 +176,17 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertEqual(probeValue("video.speed"), "1.5", "seeking keeps the chosen speed")
     XCTAssertEqual(probeValue("video.subtitle"), "tr")
     XCTAssertEqual(probeValue("video.audio-language"), "en")
-    leavePlayer()
+
+    // Next file sits in the transport bar while the folder has a next video.
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" })
+    remote.press(.up)
+    XCTAssertTrue(focus(where: "label == 'Next file'", moving: [.right, .left]))
+    attach("runtime-tv-playback-next-file")
+    remote.press(.select)
+    XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30))
+    XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
+    XCTAssertEqual(element("video.resume.file-name").label, "Root Movie 2.mkv")
   }
 
   /// The first conversion request fails with a retry; the retried one

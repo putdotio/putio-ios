@@ -235,6 +235,7 @@ struct TVVideoPlaybackView: View {
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         onReady: { model.playerReady() },
+        onNextFile: nextVideoModel.upcoming == nil ? nil : playNextFile,
         onEnded: playbackEnded,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onFailure: playerFailed
@@ -271,6 +272,11 @@ struct TVVideoPlaybackView: View {
     titleMetadata.extendedLanguageTag = "und"
     item.externalMetadata = [titleMetadata]
     return item
+  }
+
+  private func playNextFile() {
+    ended = true
+    runNextVideo { await nextVideoModel.playNext() }
   }
 
   private func playbackEnded() {
@@ -617,6 +623,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
   let onReady: @MainActor () -> Void
+  let onNextFile: (@MainActor () -> Void)?
   let onEnded: @MainActor () -> Void
   let onReportsSettled: @MainActor () -> Void
   let onFailure: @MainActor (PutioVideoPlayerFailure) -> Void
@@ -643,7 +650,9 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
     return controller
   }
 
-  func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {}
+  func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+    context.coordinator.showNextFile(onNextFile, in: controller)
+  }
 
   static func dismantleUIViewController(
     _ controller: AVPlayerViewController, coordinator: TVVideoPlayerCoordinator
@@ -673,6 +682,7 @@ final class TVVideoPlayerCoordinator {
   private let applyStartSubtitle: @MainActor (AVPlayerItem, AVPlayer?) async -> Void
 
   var player: AVPlayer? { session?.player }
+  private var nextFile: (@MainActor () -> Void)?
 
   init(
     subtitlePolicy: PutioSubtitleStartupPolicy = .accountDefault,
@@ -759,6 +769,21 @@ final class TVVideoPlayerCoordinator {
       observe(player, probes: probes)
     }
     probes?.speeds = controller.speeds.map { TVPlaybackProbes.format($0.rate) }
+  }
+
+  func showNextFile(_ action: (@MainActor () -> Void)?, in controller: AVPlayerViewController) {
+    let shown = nextFile != nil
+    nextFile = action
+    guard shown != (action != nil) else { return }
+    controller.transportBarCustomMenuItems =
+      action == nil
+      ? []
+      : [
+        UIAction(
+          title: String(localized: "Next file", bundle: .putioCore),
+          image: UIImage(systemName: "forward.end.fill")
+        ) { [weak self] _ in self?.nextFile?() }
+      ]
   }
 
   func stop(controller: AVPlayerViewController) {
