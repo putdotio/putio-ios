@@ -1272,6 +1272,20 @@ enum TVPlaybackJourneyContract {
   ]
 }
 
+/// TV Home: playback feeds Continue watching, cards resume and leave through
+/// their menus, pins open and unpin, and sign-out clears the cards.
+enum TVHomeJourneyContract {
+  static let feedTestIdentifier =
+    "PutioTVUITests/HomeJourneyTests/testPlaybackFeedsContinueWatchingAndSignOutClearsIt"
+  static let feedAttachmentNames = ["runtime-tv-home-empty", "runtime-tv-home-fed"]
+  static let cardsTestIdentifier =
+    "PutioTVUITests/HomeJourneyTests/testCardsMenusPinsAndEmptyStates"
+  static let cardsAttachmentNames = [
+    "runtime-tv-home-cards", "runtime-tv-home-card-menu", "runtime-tv-home-pinned-menu",
+    "runtime-tv-home-emptied",
+  ]
+}
+
 enum TVInactiveAccountJourneyContract {
   static let ownerTestIdentifier =
     "PutioTVUITests/InactiveAccountJourneyTests/testInactiveOwnerSeesTheNoticeAndPlaybackSaysWhyUntilRenewal"
@@ -1357,6 +1371,12 @@ enum TVJourneyContract {
     TVJourneyStep(
       "active-account", TVInactiveAccountJourneyContract.activeTestIdentifier, [],
       allowance: (300, 420), playsMedia: true),
+    TVJourneyStep(
+      "home-feed", TVHomeJourneyContract.feedTestIdentifier,
+      TVHomeJourneyContract.feedAttachmentNames, allowance: (300, 420), playsMedia: true),
+    TVJourneyStep(
+      "home-cards", TVHomeJourneyContract.cardsTestIdentifier,
+      TVHomeJourneyContract.cardsAttachmentNames, allowance: (360, 480), playsMedia: true),
   ]
 }
 

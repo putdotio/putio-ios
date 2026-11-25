@@ -58,11 +58,12 @@ enum TVRoute: Hashable {
   case folder(PutioFolderRoute)
   case file(PutioFileItem)
   case video(PutioFileItem, PutioVideoResumePrompt.Choice)
+  case continueWatching(PutioContinueWatchingEntry)
 
   func isAvailable(for account: PutioAccountSnapshot) -> Bool {
     switch self {
     case .trash: account.trashEnabled
-    case .privacy, .licenses, .folder, .file, .video: true
+    case .privacy, .licenses, .folder, .file, .video, .continueWatching: true
     }
   }
 
@@ -117,10 +118,18 @@ struct TVSignedInShell: View {
   @State private var historyActivations = 0
   @State private var audioPlayback = PutioAudioPlaybackSession(
     sleepTimer: PutioAudioSleepTimer(clock: PutioSystemSleepTimerClock()))
+  @State private var homeActivations = 0
+  @State private var continueWatching: PutioContinueWatchingModel
 
   init(runtime: PutioRuntime, account: PutioAccountSnapshot) {
     self.runtime = runtime
     self.account = account
+    #if DEBUG
+      HarnessContinueWatching.seed(scenario: HarnessLaunch.scenario, accountID: account.id)
+    #endif
+    _continueWatching = State(
+      initialValue: PutioContinueWatchingModel(
+        store: PutioContinueWatchingStore(accountID: account.id)))
     let showHome = PutioShowHomePreference(accountID: account.id)
     _showHome = State(initialValue: showHome)
     _navigation = State(
@@ -179,7 +188,10 @@ struct TVSignedInShell: View {
       navigation.reconcile(account: account, showsHome: shown)
     }
     .onChange(of: navigation.selection) { _, tab in
-      if tab == .home { Task { await runtime.refreshAccount() } }
+      if tab == .home {
+        homeActivations &+= 1
+        Task { await runtime.refreshAccount() }
+      }
       if tab == .history { historyActivations &+= 1 }
     }
     .onChange(of: scenePhase) { _, phase in
@@ -205,7 +217,15 @@ struct TVSignedInShell: View {
   private func root(for tab: TVTab) -> some View {
     switch tab {
     case .home:
-      TVHomeScreen(notice: PutioInactiveAccountNotice(account: account))
+      TVHomeScreen(
+        runtime: runtime, account: account, continueWatching: continueWatching,
+        open: { open($0, in: tab) },
+        play: {
+          navigation.setPath(
+            navigation.path(for: tab) + [.continueWatching($0)], for: tab, account: account)
+        }
+      )
+      .environment(\.tvHomeActivations, homeActivations)
     case .files:
       TVFolderView(
         route: .root, runtime: runtime, account: account,
@@ -273,7 +293,7 @@ struct TVSignedInShell: View {
         TVVideoCover {
           TVVideoSession(
             route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
-            refreshRequests: folderRefreshRequests
+            continueWatching: continueWatching, refreshRequests: folderRefreshRequests
           )
         }
         .toolbar(.hidden, for: .tabBar)
@@ -285,13 +305,23 @@ struct TVSignedInShell: View {
         TVVideoCover {
           TVVideoSession(
             route: video, runtime: runtime, account: account,
-            pipeline: playbackPositionPipeline, refreshRequests: folderRefreshRequests
+            pipeline: playbackPositionPipeline, continueWatching: continueWatching,
+            refreshRequests: folderRefreshRequests
           )
         }
         .toolbar(.hidden, for: .tabBar)
       } else {
         TVFileScreen(item: item)
       }
+    case .continueWatching(let entry):
+      TVVideoCover {
+        TVVideoSession(
+          route: entry.videoRoute, runtime: runtime, account: account,
+          pipeline: playbackPositionPipeline, continueWatching: continueWatching,
+          refreshRequests: folderRefreshRequests
+        )
+      }
+      .toolbar(.hidden, for: .tabBar)
     }
   }
 }
@@ -329,7 +359,10 @@ extension TVRoute {
   }
 
   var isFullScreen: Bool {
-    if case .video = self { return true }
+    switch self {
+    case .video, .continueWatching: return true
+    default: break
+    }
     guard case .file(let item) = self else { return false }
     if case .video = PutioFileRoute(item: item).openAction { return true }
     return false
@@ -343,6 +376,7 @@ extension TVRoute {
     case .folder(let folder): "folder.\(folder.id.rawValue)"
     case .file(let item): "file.\(item.id.rawValue)"
     case .video(let item, _): "video.\(item.id.rawValue)"
+    case .continueWatching(let entry): "continue-watching.\(entry.fileID.rawValue)"
     }
   }
 }

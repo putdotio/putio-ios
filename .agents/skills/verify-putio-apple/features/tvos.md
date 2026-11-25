@@ -14,6 +14,8 @@ History and Trash, and plays video with the system player and Siri Remote.
 - `search` shows empty, error, and result states from system search.
 - `playback` offers resume choices, continues episodes, keeps the audio track
   while subtitles and speed change, and waits for conversion.
+- `home` feeds Continue watching from playback, resumes and removes cards,
+  opens and unpins pins, and clears the cards on sign-out.
 - `inactive-account` shows the owner and family notices on Home, Account, and
   a refused video, clears them after renewal, and shows nothing to an active
   account.

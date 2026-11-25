@@ -174,6 +174,7 @@ import Foundation
       let seeded: [Int]
       switch pinsMode {
       case "three": seeded = [seasonFolderID, 410, 412]
+      case "home": seeded = [410, 412]
       case "seven": seeded = [seasonFolderID, 410, 412, 411, 413, imageFileID, 441]
       case "gone": seeded = [seasonFolderID, 999, 412]
       case "keep": seeded = UserDefaults.standard.array(forKey: pinsKey) as? [Int] ?? []
@@ -2357,7 +2358,12 @@ import Foundation
             fixtureError(statusCode: 503, type: "HARNESS_LINK_RETRY", message: "Retry file lookup")
           )
         }
-        return (200, folderEnvelope(id: 410, name: "Harness Folder", parentID: 0))
+        return (
+          200,
+          folderEnvelope(
+            id: 410, name: "Harness Folder", parentID: 0,
+            size: seasonFolderSeeded ? 0 : 1_073_741_824)
+        )
       case "GET /v2/files/\(seasonFolderID)" where seasonFolderSeeded:
         return (200, #"{"file":\#(seasonFolderObject(sortBy: nil))}"#)
       case "GET /v2/files/441" where seasonFolderSeeded:
@@ -3954,22 +3960,26 @@ import Foundation
         """
     }
 
-    private static func folderEnvelope(id: Int, name: String, parentID: Int) -> String {
+    private static func folderEnvelope(
+      id: Int, name: String, parentID: Int, size: Int64 = 0
+    ) -> String {
       """
       {
-        "file": \(folderObject(id: id, name: name, parentID: parentID))
+        "file": \(folderObject(id: id, name: name, parentID: parentID, size: size))
       }
       """
     }
 
-    private static func folderObject(id: Int, name: String, parentID: Int) -> String {
+    private static func folderObject(
+      id: Int, name: String, parentID: Int, size: Int64 = 0
+    ) -> String {
       """
       {
         "id": \(id),
         "name": \(jsonString(name)),
         "file_type": "FOLDER",
         "parent_id": \(parentID),
-        "size": 0,
+        "size": \(size),
         "created_at": "2026-09-01T20:00:00Z",
         "updated_at": "2026-09-01T20:00:00Z"
       }
