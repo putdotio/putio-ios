@@ -10,6 +10,7 @@ struct TVVideoSession: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
   let pipeline: PutioPlaybackPositionPipeline
+  let continueWatching: PutioContinueWatchingModel
   let refreshRequests: PutioFolderRefreshRequests
 
   @Environment(\.dismiss) private var dismiss
@@ -17,11 +18,13 @@ struct TVVideoSession: View {
 
   init(
     route: PutioVideoRoute, runtime: PutioRuntime, account: PutioAccountSnapshot,
-    pipeline: PutioPlaybackPositionPipeline, refreshRequests: PutioFolderRefreshRequests
+    pipeline: PutioPlaybackPositionPipeline, continueWatching: PutioContinueWatchingModel,
+    refreshRequests: PutioFolderRefreshRequests
   ) {
     self.runtime = runtime
     self.account = account
     self.pipeline = pipeline
+    self.continueWatching = continueWatching
     self.refreshRequests = refreshRequests
     _route = State(initialValue: route)
   }
@@ -29,6 +32,7 @@ struct TVVideoSession: View {
   var body: some View {
     TVVideoPlaybackView(
       route: route, runtime: runtime, account: account, pipeline: pipeline,
+      continueWatching: continueWatching,
       onPlayNext: { route = PutioVideoRoute(nextVideo: $0) },
       // A row shows its watched state once the player's last report
       // landed; the folder's own refresh on reappearing can run before it.
@@ -81,6 +85,7 @@ struct TVVideoPlaybackView: View {
   private let remembersPosition: Bool
   private let subtitlePolicy: PutioSubtitleStartupPolicy
   private let pipeline: PutioPlaybackPositionPipeline
+  private let continueWatching: PutioContinueWatchingModel
   private let runtime: PutioRuntime
   private let convertedFallbacks: PutioConvertedFallbacks
   private let showsProbes: Bool
@@ -90,7 +95,7 @@ struct TVVideoPlaybackView: View {
 
   init(
     route: PutioVideoRoute, runtime: PutioRuntime, account: PutioAccountSnapshot,
-    pipeline: PutioPlaybackPositionPipeline,
+    pipeline: PutioPlaybackPositionPipeline, continueWatching: PutioContinueWatchingModel,
     onPlayNext: @escaping @MainActor (PutioPlayableNextVideo) -> Void,
     onPlayerReportsSettled: @escaping @MainActor (PutioVideoRoute) -> Void,
     onFinish: @escaping @MainActor () -> Void
@@ -106,6 +111,7 @@ struct TVVideoPlaybackView: View {
       hideSubtitles: account.hideSubtitles,
       dontAutoSelectSubtitles: account.dontAutoSelectSubtitles)
     self.pipeline = pipeline
+    self.continueWatching = continueWatching
     self.runtime = runtime
     self.showsProbes = media.isHarness
     self.onPlayNext = onPlayNext
@@ -262,9 +268,7 @@ struct TVVideoPlaybackView: View {
         title: route.title, fileID: route.id, source: source,
         remembersPosition: remembersPosition, subtitlePolicy: subtitlePolicy,
         subtitleMemory: subtitleMemory, pipeline: pipeline,
-        reportPosition: { [runtime] fileID, seconds in
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-        },
+        reportPosition: feedingReport,
         wait: wait, callbacks: directCallbacks,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onRateChanged: { [probes] in probes.rate = $0 },
@@ -290,9 +294,8 @@ struct TVVideoPlaybackView: View {
         title: route.title, source: source, fileID: route.id,
         remembersPosition: remembersPosition,
         pipeline: pipeline,
-        reportPosition: { [runtime] fileID, seconds in
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-        },
+        reportPosition: feedingReport,
+        onDurationKnown: durationKnown,
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         wait: wait,
@@ -315,9 +318,23 @@ struct TVVideoPlaybackView: View {
     }
   }
 
+  private var feedingReport: PutioPlaybackPositionReport {
+    continueWatching.feeding { [runtime] fileID, seconds in
+      try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+    }
+  }
+
+  private var durationKnown: @MainActor @Sendable (Double) -> Void {
+    { [route, continueWatching] in
+      continueWatching.opened(
+        fileID: route.id, parentID: route.parentID, name: route.title, durationSeconds: $0)
+    }
+  }
+
   private var directCallbacks: PutioVideoPlayerCallbacks {
     PutioVideoPlayerCallbacks(
       onReady: playerReady,
+      onDurationKnown: durationKnown,
       observesPlaybackState: showsProbes,
       onAudioSelected: { [probes] in probes.audioLanguage = $0 },
       onSubtitleSelected: { [probes] in probes.subtitle = $0 },
@@ -784,6 +801,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let remembersPosition: Bool
   let pipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
+  let onDurationKnown: @MainActor (Double) -> Void
   let subtitlePolicy: PutioSubtitleStartupPolicy
   let subtitleMemory: PutioSubtitleMemory
   let probes: TVPlaybackProbes?
@@ -814,7 +832,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
       in: controller, probes: probes, wait: wait, onReady: onReady,
-      onSubtitleFailed: onSubtitleFailed, onEnded: onEnded,
+      onSubtitleFailed: onSubtitleFailed, onDurationKnown: onDurationKnown, onEnded: onEnded,
       onRestarted: onRestarted, onReportsSettled: onReportsSettled, onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
@@ -899,6 +917,7 @@ final class TVVideoPlayerCoordinator {
     wait: PutioVideoWaitModel? = nil,
     onReady: @escaping @MainActor () -> Void = {},
     onSubtitleFailed: @escaping @MainActor () -> Void = {},
+    onDurationKnown: @escaping @MainActor (Double) -> Void = { _ in },
     onEnded: @escaping @MainActor () -> Void = {},
     onRestarted: @escaping @MainActor () -> Void = {},
     onReportsSettled: @escaping @MainActor () -> Void = {},
@@ -947,6 +966,7 @@ final class TVVideoPlayerCoordinator {
         self.watchSubtitleFailures(of: item, probes: probes)
         self.propose(self.proposalDelegate.proposal, in: controller)
       },
+      onDurationKnown: onDurationKnown,
       observesPlaybackState: probes != nil,
       onAudioSelected: { probes?.audioLanguage = $0 },
       onPositionChanged: { probes?.currentPosition = $0 },

@@ -7,6 +7,7 @@ public enum PutioKaomoji: String, CaseIterable, Sendable {
   case nothingYet = "( ˘▽˘)っ"
   case curious = "(・ω・)"
   case emptyFolder = "[ ]"
+  case nothingHere = "ᕕ( ᐛ )ᕗ"
 }
 
 public enum PutioScreenErrorKind: CaseIterable, Sendable {

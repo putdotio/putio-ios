@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-public struct PutioContinueWatchingEntry: Identifiable, Codable, Equatable, Sendable {
+public struct PutioContinueWatchingEntry: Identifiable, Codable, Hashable, Sendable {
   public let fileID: PutioFileID
   public var parentID: PutioFileID
   public var name: String

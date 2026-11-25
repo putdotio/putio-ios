@@ -31,8 +31,11 @@ struct TVSessionRootView: View {
           session: runtime.session,
           tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
     #endif
-    .onChange(of: runtime.session.state, initial: true) { _, state in
+    .onChange(of: runtime.session.state, initial: true) { previous, state in
       PutioDiagnostics.sessionDidChange(state)
+      if case .signedIn(let account) = previous, case .signingOut = state {
+        PutioContinueWatchingStore.clear(accountID: account.id)
+      }
     }
     .task {
       await runtime.session.restore()
