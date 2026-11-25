@@ -71,7 +71,7 @@ struct FilesSearchView: View {
         }
         .navigationTitle("Search")
         .putioContentBackground()
-        .searchable(text: $query, prompt: "Search your files")
+        .searchable(text: $query, prompt: PutioSearchResultPresentation.prompt)
         .onSubmit(of: .search) {
           Task { await recent.record(query) }
         }
@@ -79,7 +79,7 @@ struct FilesSearchView: View {
         .onChange(of: recent.editFailure) { _, failure in
           guard failure != nil else { return }
           recent.clearEditFailure()
-          toast = PutioToast(String(localized: "Couldn’t update recent searches"))
+          toast = PutioToast(PutioRecentSearchesCopy.editFailed)
         }
         .task(id: Request(query: query, filter: filter, revision: refreshRequests.revision)) {
           await model.apply(query: query, filter: filter, revision: refreshRequests.revision)
@@ -203,11 +203,12 @@ struct FilesSearchView: View {
       }
     case .loading:
       PutioLoadingStateView(
-        title: String(localized: "Searching files"), titleVisibility: .hidden)
+        title: PutioSearchResultPresentation.searching, titleVisibility: .hidden)
     case .failed(let failure):
+      let copy = PutioSearchResultPresentation.failed(failure)
       PutioErrorStateView(
-        title: String(localized: "Couldn’t search"),
-        message: failure.message,
+        title: copy.title,
+        message: copy.message,
         retryTitle: String(localized: "Try again"),
         retryIdentifier: "files.search-retry"
       ) {
@@ -220,9 +221,10 @@ struct FilesSearchView: View {
       {
         GeometryReader { geometry in
           ScrollView {
+            let nothing = PutioSearchResultPresentation.nothingMatches(model.query)
             PutioEmptyStateView(
-              kaomoji: .shrug, title: String(localized: "Nothing matches"),
-              attributedMessage: noResultsMessage(model.query)
+              kaomoji: nothing.copy.kaomoji ?? .shrug, title: nothing.copy.title,
+              attributedMessage: noResultsMessage(nothing.copy.message, term: nothing.term)
             )
             .frame(minHeight: geometry.size.height)
           }
@@ -297,11 +299,10 @@ struct FilesSearchView: View {
     }
   }
 
-  private func noResultsMessage(_ query: String) -> AttributedString {
-    let mark = "\u{FFFC}"
-    let template = String(localized: "No files or folders named \(mark). Try fewer words.")
+  private func noResultsMessage(_ template: String, term shown: String) -> AttributedString {
+    let mark = PutioSearchResultPresentation.termMark
     let parts = template.components(separatedBy: mark)
-    var term = AttributedString(PutioFileSearchModel.shownTerm(query))
+    var term = AttributedString(shown)
     term.font = Self.termFont
     term.foregroundColor = PutioTheme.Colors.textPrimary
     var message = AttributedString(parts.first ?? "")

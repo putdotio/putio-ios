@@ -20,7 +20,7 @@ struct PutioContinueWatchingSection: View {
     let entries = context.model.entries
     if !entries.isEmpty {
       VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
-        Text("Continue watching")
+        Text(PutioHomeCopy.continueWatching)
           .putioFont(PutioTheme.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityAddTraits(.isHeader)
@@ -90,7 +90,7 @@ private struct PutioContinueWatchingCard: View {
         }
         ProgressView(value: entry.fraction)
           .tint(PutioTheme.Colors.accent)
-        Text("\(entry.remainingClock) left")
+        Text(PutioHomeCopy.timeLeft(entry))
           .putioFont(PutioTheme.Typography.numeric)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .lineLimit(1)
@@ -113,13 +113,13 @@ private struct PutioContinueWatchingCard: View {
           [
             PutioItemAction(
               id: "remove-continue-watching",
-              title: String(localized: "Remove from Continue watching"), icon: .x,
+              title: PutioHomeCopy.removeFromContinueWatching, icon: .x,
               isDisabled: isDisabled, perform: remove)
           ]
         ]))
     }
-    .accessibilityLabel(Text("Resume \(entry.name), \(entry.remainingSpoken) left"))
-    .accessibilityAction(named: Text("Remove from Continue watching")) {
+    .accessibilityLabel(Text(PutioHomeCopy.resume(entry)))
+    .accessibilityAction(named: Text(PutioHomeCopy.removeFromContinueWatching)) {
       if !isDisabled { remove() }
     }
     .accessibilityIdentifier("files.continue-watching.item.\(entry.fileID.rawValue)")

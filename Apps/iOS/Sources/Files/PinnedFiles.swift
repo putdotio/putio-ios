@@ -4,7 +4,7 @@ import SwiftUI
 
 extension PutioFolderRoute {
   static let pinnedList = PutioFolderRoute(
-    id: PutioFileID(rawValue: -1), title: String(localized: "Pinned"))
+    id: PutioFileID(rawValue: -1), title: PutioHomeCopy.pinned)
 }
 
 struct PutioPinnedFilesContext {
@@ -14,12 +14,6 @@ struct PutioPinnedFilesContext {
 
 extension EnvironmentValues {
   @Entry var putioPinnedFiles: PutioPinnedFilesContext? = nil
-}
-
-enum PutioPinnedCopy {
-  static func location(_ folder: String) -> String {
-    String(localized: "in \(folder)")
-  }
 }
 
 struct PutioPinnedSection: View {
@@ -46,7 +40,7 @@ struct PutioPinnedSection: View {
   private var header: some View {
     HStack(alignment: .firstTextBaseline) {
       Label {
-        Text("Pinned")
+        Text(PutioHomeCopy.pinned)
       } icon: {
         PutioIconView(.pushPin, size: Self.iconSize)
       }
@@ -240,7 +234,7 @@ struct PutioPinnedListScreen: View {
 
   var body: some View {
     List {
-      Text("\(model.items.count) items")
+      Text(PutioHomeCopy.itemCount(model.items.count))
         .putioFont(PutioTheme.Typography.numeric)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .accessibilityIdentifier("files.pinned-list.count")

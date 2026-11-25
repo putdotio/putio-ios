@@ -23,17 +23,6 @@
         }
       }
     },
-    "%@ left" : {
-      "comment" : "android: mobile_files_continue_watching_left",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ left"
-          }
-        }
-      }
-    },
     "%@ of %@" : {
       "comment" : "android: mobile_playback_position_value",
       "localizations" : {
@@ -675,17 +664,6 @@
         }
       }
     },
-    "Continue watching" : {
-      "comment" : "android: mobile_files_continue_watching",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Continue watching"
-          }
-        }
-      }
-    },
     "Convert again" : {
       "comment" : "android: mobile_playback_convert_again",
       "localizations" : {
@@ -1029,17 +1007,6 @@
         }
       }
     },
-    "Couldn’t search" : {
-      "comment" : "android: mobile_search_error_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t search"
-          }
-        }
-      }
-    },
     "Couldn’t switch audio track" : {
       "comment" : "android: mobile_playback_audio_failed",
       "localizations" : {
@@ -1047,17 +1014,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t switch audio track"
-          }
-        }
-      }
-    },
-    "Couldn’t update recent searches" : {
-      "comment" : "android: mobile_search_recent_error_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn’t update recent searches"
           }
         }
       }
@@ -1459,17 +1415,6 @@
         }
       }
     },
-    "Enter a name or keyword to search your put.io account." : {
-      "comment" : "android: mobile_search_start_message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter a name or keyword to search your put.io account."
-          }
-        }
-      }
-    },
     "Enter the code shown on your device to link it to your put.io account." : {
       "comment" : "ios-only: no Android string for the iOS account security, devices, data and About screens",
       "localizations" : {
@@ -1565,17 +1510,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Files you move to trash stay here for 14 days."
-          }
-        }
-      }
-    },
-    "Find your files" : {
-      "comment" : "android: mobile_search_start_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Find your files"
           }
         }
       }
@@ -1997,17 +1931,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tap a download to see it here."
-          }
-        }
-      }
-    },
-    "in %@" : {
-      "comment" : "ios-only: Android pin rows show no location",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "in %@"
           }
         }
       }
@@ -2465,17 +2388,6 @@
         }
       }
     },
-    "No files or folders named %@. Try fewer words." : {
-      "comment" : "android: mobile_search_no_results_message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No files or folders named %@. Try fewer words."
-          }
-        }
-      }
-    },
     "No folders here." : {
       "comment" : "android: mobile_files_move_empty",
       "localizations" : {
@@ -2538,17 +2450,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Nothing here identifies you or your files. Paste it into a support ticket."
-          }
-        }
-      }
-    },
-    "Nothing matches" : {
-      "comment" : "android: mobile_search_no_results_title",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing matches"
           }
         }
       }
@@ -3081,39 +2982,6 @@
         }
       }
     },
-    "Recent searches" : {
-      "comment" : "android: mobile_search_recent",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent searches"
-          }
-        }
-      }
-    },
-    "Remove %@ from recent searches" : {
-      "comment" : "android: mobile_search_remove_named",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove %@ from recent searches"
-          }
-        }
-      }
-    },
-    "Remove from Continue watching" : {
-      "comment" : "android: mobile_files_continue_watching_remove",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove from Continue watching"
-          }
-        }
-      }
-    },
     "Reset" : {
       "comment" : "android: playback_subtitle_reset",
       "localizations" : {
@@ -3121,17 +2989,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reset"
-          }
-        }
-      }
-    },
-    "Resume %@, %@ left" : {
-      "comment" : "android: mobile_files_continue_watching_resume",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resume %@, %@ left"
           }
         }
       }
@@ -3847,28 +3704,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search"
-          }
-        }
-      }
-    },
-    "Search your files" : {
-      "comment" : "android: mobile_files_search_hint",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search your files"
-          }
-        }
-      }
-    },
-    "Searching files" : {
-      "comment" : "android: mobile_search_loading | differs: iOS board wording",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Searching files"
           }
         }
       }

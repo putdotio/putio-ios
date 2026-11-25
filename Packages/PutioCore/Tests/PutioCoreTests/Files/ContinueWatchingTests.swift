@@ -34,6 +34,22 @@ final class ContinueWatchingTests: XCTestCase {
     model.positionSaved(fileID: PutioFileID(rawValue: id), seconds: seconds)
   }
 
+  func testAFedReportListsTheVideoOnlyOnceTheReportSucceeds() async throws {
+    let model = makeModel()
+    let id = PutioFileID(rawValue: 412)
+    model.opened(fileID: id, parentID: .root, name: "Sintel.mkv", durationSeconds: 1_000)
+    let failing = model.feeding { _, _ in throw URLError(.notConnectedToInternet) }
+    try? await failing(id, 300)
+    XCTAssertTrue(model.entries.isEmpty, "an unsaved position is not listed")
+
+    var reported: [Int] = []
+    let report = model.feeding { _, seconds in reported.append(seconds) }
+    try await report(id, 300)
+    XCTAssertEqual(reported, [300])
+    XCTAssertEqual(model.entries.map(\.positionSeconds), [300])
+    XCTAssertEqual(PutioHomeCopy.timeLeft(model.entries[0]), "11:40 left")
+  }
+
   func testInProgressIsAboveZeroBelowNinetyFivePercentAndMoreThanTenSecondsBeforeTheEnd() {
     let cases: [(position: Int, duration: Double, inProgress: Bool)] = [
       (0, 600, false), (1, 600, true), (569, 600, true), (570, 600, false),
