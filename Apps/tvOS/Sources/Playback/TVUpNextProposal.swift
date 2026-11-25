@@ -93,7 +93,8 @@ struct TVUpNextCard: View {
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         .lineLimit(1)
       Text(next.name)
-        .putioFont(PutioTheme.TV.Typography.label)
+        .putioFont(PutioTheme.TV.Typography.body)
+        .fontWeight(.semibold)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .lineLimit(2)
         .padding(.top, PutioTheme.TV.Spacing.xs)
@@ -165,7 +166,7 @@ private struct TVUpNextCountdownBar: View {
   var body: some View {
     GeometryReader { proxy in
       ZStack(alignment: .leading) {
-        Capsule().fill(PutioTheme.Colors.surfaceActive)
+        Capsule().fill(PutioTheme.TV.Colors.textTertiary.opacity(0.4))
         Capsule()
           .fill(PutioTheme.Colors.accent)
           .frame(width: proxy.size.width * fraction)
