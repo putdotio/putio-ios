@@ -58,10 +58,11 @@ token overscan ratios; adding both in full would double the margin. Device-code
 sign-in uses tabular figures and a solid surface; sign-out uses the native dialog.
 Settings rows put the label left and the value right: two-state values cycle on
 select, larger choices open a full-screen chooser, and there are no toggles.
-Destructive actions confirm in a centered alert. File rows open on select and
-offer their actions on a long press, in a centered alert; Trash moves are
+Destructive actions confirm in a centered alert. File rows open on select; the
+focused row's actions sit in a panel beside the list. Trash moves are
 recoverable and skip the confirmation. Search uses the system keyboard from
-`.searchable`, and its results reuse the browser's rows.
+`.searchable`, lists recent searches while the query is empty, and its results
+reuse the Files rows and panel without Rename or Trash.
 Videos play in the system player, which owns transport, subtitles, audio, and
 speed. A saved position asks first in a centered pre-play overlay: the raw
 filename, a progress preview of the focused choice, and two stacked buttons with
