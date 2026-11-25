@@ -356,6 +356,37 @@ final class TVPlaybackTests: XCTestCase {
       size: viewport)
   }
 
+  func testSwitchingToStreamingMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-switching",
+      view: TVPlaybackLoadingView(
+        title: "Sintel.2010.1080p.mkv",
+        status: String(localized: "Switching to streaming…", bundle: .putioCore)),
+      size: viewport)
+  }
+
+  func testStreamingFallbackToastMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-switched",
+      view: Color.gray.putioToast(
+        .constant(
+          PutioToast(
+            String(localized: "Playing the streaming version", bundle: .putioCore),
+            icon: .symbol(.info), width: .fit))),
+      size: viewport)
+  }
+
+  func testDirectPlayControlsMatchBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-controls",
+      view: TVDirectControls(
+        title: "Sintel.2010.1080p.mkv",
+        timeline: PutioVideoTimeline(elapsedSeconds: 190, durationSeconds: 634)
+      )
+      .background(Color.gray),
+      size: viewport)
+  }
+
   func testSubtitleFailureToastMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-subtitles-failed",

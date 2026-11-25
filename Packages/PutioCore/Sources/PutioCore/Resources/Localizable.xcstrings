@@ -2390,6 +2390,17 @@
         }
       }
     },
+    "Playing the streaming version" : {
+      "comment" : "ios-only: tvOS Direct play fallback toast, approved on #1303",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing the streaming version"
+          }
+        }
+      }
+    },
     "Preparing audio" : {
       "comment" : "android: mobile_playback_loading_audio",
       "localizations" : {
@@ -2485,6 +2496,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Stop playback"
+          }
+        }
+      }
+    },
+    "Switching to streaming…" : {
+      "comment" : "ios-only: tvOS Direct play fallback copy, approved on #1303",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switching to streaming…"
           }
         }
       }
