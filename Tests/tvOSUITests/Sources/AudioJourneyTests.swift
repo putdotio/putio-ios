@@ -37,7 +37,7 @@ final class AudioJourneyTests: XCTestCase {
     let state = element("audio.state")
     XCTAssertTrue(state.waitForExistence(timeout: 20), "Now Playing never opened")
     XCTAssertTrue(waitUntil(timeout: 10) { state.value as? String == "playing" })
-    XCTAssertEqual(element("audio.title").label, "FFTT Tree Rings October 23, 2026.mp3")
+    XCTAssertEqual(element("audio.title").label, Self.track)
     XCTAssertTrue(element("audio.folder").exists, "Now Playing does not name the folder")
     attach("runtime-tv-audio-now-playing")
 
@@ -66,7 +66,7 @@ final class AudioJourneyTests: XCTestCase {
     let mini = element("audio.mini.open")
     XCTAssertTrue(mini.waitForExistence(timeout: 10), "Menu did not leave a mini player")
     XCTAssertFalse(state.exists, "Now Playing stayed open")
-    XCTAssertEqual(element("audio.mini.title").label, "FFTT Tree Rings October 23, 2026.mp3")
+    XCTAssertEqual(element("audio.mini.title").label, Self.track)
     attach("runtime-tv-audio-mini-player")
 
     XCTAssertTrue(focus("audio.mini.open", moving: .up, limit: 6))
@@ -75,6 +75,8 @@ final class AudioJourneyTests: XCTestCase {
   }
 
   // MARK: Helpers
+
+  private static let track = "FFTT Tree Rings Open Air Session, October 13, 2026.mp3"
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
