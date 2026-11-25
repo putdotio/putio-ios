@@ -268,9 +268,7 @@ struct TVVideoPlaybackView: View {
         title: route.title, fileID: route.id, source: source,
         remembersPosition: remembersPosition, subtitlePolicy: subtitlePolicy,
         subtitleMemory: subtitleMemory, pipeline: pipeline,
-        reportPosition: { [runtime] fileID, seconds in
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-        },
+        reportPosition: feedingReport,
         wait: wait, callbacks: directCallbacks,
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onRateChanged: { [probes] in probes.rate = $0 },
@@ -296,13 +294,8 @@ struct TVVideoPlaybackView: View {
         title: route.title, source: source, fileID: route.id,
         remembersPosition: remembersPosition,
         pipeline: pipeline,
-        reportPosition: continueWatching.feeding { [runtime] fileID, seconds in
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-        },
-        onDurationKnown: { [route, continueWatching] in
-          continueWatching.opened(
-            fileID: route.id, parentID: route.parentID, name: route.title, durationSeconds: $0)
-        },
+        reportPosition: feedingReport,
+        onDurationKnown: durationKnown,
         subtitlePolicy: subtitlePolicy, subtitleMemory: subtitleMemory,
         probes: showsProbes ? probes : nil,
         wait: wait,
@@ -325,9 +318,23 @@ struct TVVideoPlaybackView: View {
     }
   }
 
+  private var feedingReport: PutioPlaybackPositionReport {
+    continueWatching.feeding { [runtime] fileID, seconds in
+      try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+    }
+  }
+
+  private var durationKnown: @MainActor @Sendable (Double) -> Void {
+    { [route, continueWatching] in
+      continueWatching.opened(
+        fileID: route.id, parentID: route.parentID, name: route.title, durationSeconds: $0)
+    }
+  }
+
   private var directCallbacks: PutioVideoPlayerCallbacks {
     PutioVideoPlayerCallbacks(
       onReady: playerReady,
+      onDurationKnown: durationKnown,
       observesPlaybackState: showsProbes,
       onAudioSelected: { [probes] in probes.audioLanguage = $0 },
       onSubtitleSelected: { [probes] in probes.subtitle = $0 },
