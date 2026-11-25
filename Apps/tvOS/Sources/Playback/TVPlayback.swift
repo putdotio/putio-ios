@@ -951,7 +951,6 @@ final class TVVideoPlayerCoordinator {
       fileID: fileID, source: base.starting(at: startSeconds ?? base.startFromSeconds),
       preparedItem: item, remembersPlaybackPosition: remembersPosition,
       reportPosition: reportPosition, in: controller,
-      onDurationKnown: onDurationKnown,
       onReady: { [weak self, weak controller] in
         probes?.isReady = true
         onReady()
@@ -960,6 +959,7 @@ final class TVVideoPlayerCoordinator {
         self.watchSubtitleFailures(of: item, probes: probes)
         self.propose(self.proposalDelegate.proposal, in: controller)
       },
+      onDurationKnown: onDurationKnown,
       observesPlaybackState: probes != nil,
       onAudioSelected: { probes?.audioLanguage = $0 },
       onPositionChanged: { probes?.currentPosition = $0 },
