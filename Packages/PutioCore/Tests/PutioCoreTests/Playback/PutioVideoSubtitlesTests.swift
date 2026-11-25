@@ -82,6 +82,27 @@ final class PutioVideoSubtitlesTests: XCTestCase {
       ])
   }
 
+  func testSegmentsComeFromTheMediaPlaylistURIs() throws {
+    let playlist = """
+      #EXTM3U
+      #EXT-X-TARGETDURATION:20
+      #EXTINF:20.000000,
+      multi-subtitle-English.vtt
+      #EXTINF:20.000000,
+      https://cdn.put.io/s/2.vtt?t=1
+      #EXT-X-ENDLIST
+      """
+    let base = try XCTUnwrap(
+      URL(string: "http://127.0.0.1:8080/multi-audio/multi-subtitle-English.m3u8"))
+
+    XCTAssertEqual(
+      PutioSubtitleRenditions.segments(inMediaPlaylist: playlist, relativeTo: base),
+      [
+        try XCTUnwrap(URL(string: "http://127.0.0.1:8080/multi-audio/multi-subtitle-English.vtt")),
+        try XCTUnwrap(URL(string: "https://cdn.put.io/s/2.vtt?t=1")),
+      ])
+  }
+
   func testRenditionsKeepTheirManifestNameLanguageAndDefault() {
     let master = """
       #EXTM3U

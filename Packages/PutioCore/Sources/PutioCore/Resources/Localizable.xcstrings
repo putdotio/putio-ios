@@ -1086,6 +1086,17 @@
         }
       }
     },
+    "Couldn’t load subtitles" : {
+      "comment" : "android: tv_player_subtitles_failed",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load subtitles"
+          }
+        }
+      }
+    },
     "Couldn’t load this" : {
       "comment" : "android: mobile_state_error_title",
       "localizations" : {

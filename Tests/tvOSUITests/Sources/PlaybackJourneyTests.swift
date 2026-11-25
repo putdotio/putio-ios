@@ -106,7 +106,8 @@ final class PlaybackJourneyTests: XCTestCase {
 
   /// The server's default subtitle is on, choosing Turkish keeps English
   /// audio, the chosen speed holds through pause and seeking without touching
-  /// either track, and Next file opens the folder's next video.
+  /// either track, Next file opens the folder's next video, and a subtitle
+  /// that fails to load turns subtitles off with a toast.
   func testSubtitleAndSpeedControlsKeepTheAudioTrack() {
     launch(subtitled: true)
     openFile("files.item.412")
@@ -186,6 +187,43 @@ final class PlaybackJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30))
     XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+
+    checkAFailedSubtitleTurnsSubtitlesOffWithAToast()
+  }
+
+  /// Turkish's playlist is missing: picking it turns subtitles off, says so,
+  /// and keeps the English audio. The next video starts with the account's
+  /// default subtitle again.
+  private func checkAFailedSubtitleTurnsSubtitlesOffWithAToast() {
+    app.terminate()
+    launch(subtitleTracks: "failing")
+    openFile("files.item.412")
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+    XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" })
+
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" })
+    remote.press(.up)
+    XCTAssertTrue(focus(where: "identifier == 'AVLegibleSettings'", moving: [.right, .left]))
+    remote.press(.select)
+    XCTAssertTrue(focus(where: "identifier == 'AVLanguagesMenu'", moving: [.down, .up]))
+    remote.press(.select)
+    XCTAssertTrue(focus(where: "label CONTAINS 'Turkish'", moving: [.down, .up]))
+    remote.press(.select)
+
+    XCTAssertTrue(
+      app.staticTexts["Couldn’t load subtitles"].waitForExistence(timeout: 15),
+      "a failed subtitle showed no toast")
+    attach("runtime-tv-playback-subtitles-failed")
+    XCTAssertTrue(waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "off" })
+    XCTAssertEqual(probeValue("video.audio-language"), "en", "the failure moved the audio")
+
+    leavePlayer()
+    openFile("files.item.412")
+    XCTAssertTrue(probe("video.ready").waitForExistence(timeout: 30))
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.probeValue("video.subtitle") == "en" },
+      "the failure was remembered as subtitles off")
   }
 
   /// The first conversion request fails with a retry; the retried one
@@ -226,9 +264,12 @@ final class PlaybackJourneyTests: XCTestCase {
 
   // MARK: Helpers
 
-  private func launch(subtitled: Bool = false) {
+  private func launch(subtitled: Bool = false, subtitleTracks: String? = nil) {
     app.launchArguments = ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"]
     if subtitled { app.launchArguments.append("--putio-harness-subtitled-stream") }
+    if let subtitleTracks {
+      app.launchArguments += ["--putio-harness-subtitle-tracks", subtitleTracks]
+    }
     app.launch()
     XCTAssertTrue(TVTabBar(app).open("Files"))
     remote.press(.down)
