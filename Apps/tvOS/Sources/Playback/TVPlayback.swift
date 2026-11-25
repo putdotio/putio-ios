@@ -796,7 +796,6 @@ final class TVVideoPlayerCoordinator {
       },
       audioSession: PutioPlaybackAudioSession(),
       notificationCenter: .default,
-      backgroundNotification: nil,
       positionPipeline: pipeline,
       applyDefaultSubtitle: { item in await applyStartSubtitle(item, created) })
     self.session = session

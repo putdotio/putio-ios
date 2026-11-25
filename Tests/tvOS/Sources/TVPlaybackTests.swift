@@ -103,6 +103,24 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
   }
 
+  func testGoingToTheBackgroundReportsThePosition() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    let reported = ReportedPositions()
+    let pipeline = PutioPlaybackPositionPipeline()
+    let (coordinator, controller, _) = try await startPlayer(
+      base: base, startSeconds: 120, remembersPosition: true, pipeline: pipeline,
+      reported: reported)
+    let player = try XCTUnwrap(coordinator.player)
+    await waitUntil("resumed") { CMTimeGetSeconds(player.currentTime()) >= 121 }
+
+    NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+    await pipeline.waitForPendingReports(fileID: Self.fileID)
+    XCTAssertEqual(reported.reports.map(\.0), [Self.fileID])
+    XCTAssertGreaterThanOrEqual(reported.reports.first?.1 ?? 0, 120)
+    coordinator.stop(controller: controller)
+  }
+
   /// The latest start the resume prompt offers sits just short of the
   /// watched mark, 95% of the 590-second fixture.
   func testPlayingToTheEndKeepsTheEndPosition() async throws {
