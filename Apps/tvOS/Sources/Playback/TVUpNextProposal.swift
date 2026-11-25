@@ -42,7 +42,7 @@ final class TVUpNextProposalController: AVContentProposalViewController {
 }
 
 @MainActor
-final class TVUpNextProposalDelegate: NSObject, AVPlayerViewControllerDelegate {
+final class TVUpNextProposalDelegate: NSObject, @preconcurrency AVPlayerViewControllerDelegate {
   var proposal: TVUpNextProposal?
 
   func playerViewController(
