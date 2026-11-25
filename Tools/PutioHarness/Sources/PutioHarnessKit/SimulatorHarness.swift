@@ -1209,7 +1209,8 @@ public struct SimulatorHarness {
             maximumExecutionTimeAllowance: step.maximumAllowance
           )
           let pixels = try zip(step.attachmentNames, screenshots).map {
-            try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+            try requireMeaningfulScreenshot(
+              $1, context: "\($0) attachment", wholeFrame: step.checksWholeFrame)
           }
           if step.name == "sign-in" {
             guard pixels[0].differsMeaningfully(from: pixels[1]),

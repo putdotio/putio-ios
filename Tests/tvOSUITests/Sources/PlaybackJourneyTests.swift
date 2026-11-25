@@ -118,7 +118,6 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(
       label(containing: "Previously on Blue Lights.").waitForExistence(timeout: 10),
       "the put.io subtitle renders its first cue")
-    attach("runtime-tv-playback-direct-play")
 
     let before = Int(probeValue("video.current-position") ?? "") ?? 0
     remote.press(.right)
