@@ -1263,6 +1263,7 @@ enum TVPlaybackJourneyContract {
     "PutioTVUITests/PlaybackJourneyTests/testDirectPlayEngineWithPutioControls"
   static let directPlayAttachmentNames = [
     "runtime-tv-playback-direct-play", "runtime-tv-playback-direct-controls",
+    "runtime-tv-playback-direct-up-next",
   ]
   static let audioTestIdentifier =
     "PutioTVUITests/AudioJourneyTests/testNowPlayingSleepTimerAndMiniPlayer"

@@ -133,6 +133,25 @@ final class PlaybackJourneyTests: XCTestCase {
 
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "0" }, "a click pauses")
+
+    // The end proposes the next file over the ended player; Cancel keeps it.
+    remote.press(.playPause)
+    XCTAssertTrue(probe("video.ended").waitForExistence(timeout: 40))
+    let nextTitle = element("video.next-title")
+    XCTAssertTrue(nextTitle.waitForExistence(timeout: 30))
+    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.play-next") })
+    attach("runtime-tv-playback-direct-up-next")
+    remote.press(.down)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.cancel-next") })
+    remote.press(.select)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { !self.element("video.next-title").exists }, "Cancel hides Up next")
+    XCTAssertTrue(element("video.screen.412").exists, "Cancel stays on the ended video")
+
+    remote.press(.playPause)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { !self.probe("video.ended").exists }, "Play restarts the video")
   }
 
   /// The server's default subtitle is on, choosing Turkish keeps English
