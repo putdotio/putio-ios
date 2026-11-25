@@ -47,8 +47,9 @@ final class AudioJourneyTests: XCTestCase {
     remote.press(.playPause)
     XCTAssertTrue(waitUntil(timeout: 5) { state.value as? String == "playing" })
 
-    let sleep = element("audio.sleep-timer")
-    XCTAssertTrue(focus("audio.sleep-timer", moving: .right, limit: 4))
+    XCTAssertTrue(
+      focus(where: "label == 'Sleep timer'", moving: .right, limit: 4),
+      "Sleep timer never took focus")
     remote.press(.select)
     let thirty = app.buttons["In 30 minutes"]
     XCTAssertTrue(thirty.waitForExistence(timeout: 5), "the sleep timer menu never opened")
@@ -59,17 +60,17 @@ final class AudioJourneyTests: XCTestCase {
       "In 30 minutes never took focus")
     remote.press(.select)
     XCTAssertTrue(
-      waitUntil(timeout: 5) { sleep.label.hasPrefix("Sleep timer, 29:") },
-      "the timer did not start: \(sleep.label)")
+      waitUntil(timeout: 5) { self.focused("label BEGINSWITH 'Sleep timer, 29:'").exists },
+      "the timer did not start")
 
     remote.press(.menu)
     let mini = element("audio.mini.open")
     XCTAssertTrue(mini.waitForExistence(timeout: 10), "Menu did not leave a mini player")
     XCTAssertFalse(state.exists, "Now Playing stayed open")
-    XCTAssertEqual(element("audio.mini.title").label, Self.track)
+    XCTAssertEqual(mini.value as? String, Self.track)
     attach("runtime-tv-audio-mini-player")
 
-    XCTAssertTrue(focus("audio.mini.open", moving: .up, limit: 6))
+    XCTAssertTrue(focus(where: "label == 'Open player'", moving: .up, limit: 6))
     remote.press(.select)
     XCTAssertTrue(state.waitForExistence(timeout: 10), "the mini player did not reopen it")
   }
