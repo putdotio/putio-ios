@@ -345,8 +345,8 @@ struct TVDirectControls: View {
         .putioFont(PutioTheme.TV.Typography.numeric)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
       }
-      .tvOverscanPadding()
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+      .tvOverscanPadding()
     }
     .allowsHitTesting(false)
   }
