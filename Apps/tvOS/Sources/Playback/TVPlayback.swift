@@ -74,6 +74,7 @@ struct TVVideoPlaybackView: View {
   @State private var wait = PutioVideoWaitModel()
   @State private var switchesToStream = false
   @State private var announcedFallback = false
+  @State private var dismissedUpNext = false
 
   private let route: PutioVideoRoute
   private let account: PutioAccountSnapshot
@@ -265,6 +266,18 @@ struct TVVideoPlaybackView: View {
         onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onExit: onFinish
       )
+      .disabled(showsEngineUpNext)
+      .overlay {
+        if showsEngineUpNext {
+          TVNextVideoStage(
+            model: nextVideoModel,
+            play: { runNextVideo { await nextVideoModel.playNext() } },
+            retry: { runNextVideo { await nextVideoModel.retry() } },
+            close: dismissEngineUpNext
+          )
+          .onExitCommand(perform: dismissEngineUpNext)
+        }
+      }
       .id(model.playerAttempt)
       .putioToast($toast)
     } else {
@@ -357,16 +370,13 @@ struct TVVideoPlaybackView: View {
     guard ended else { return false }
     switch nextVideoModel.state {
     case .failed: return true
-    case .idle:
-      return nextVideoModel.lookupFailed || (playsEngine && nextVideoModel.upcoming != nil)
-    case .countingDown: return playsEngine
-    case .finding, .playing: return false
+    case .idle: return nextVideoModel.lookupFailed
+    case .finding, .countingDown, .playing: return false
     }
   }
 
-  private var playsEngine: Bool {
-    guard case .ready(let source) = model.state else { return false }
-    return source.original?.player == .engine
+  private var showsEngineUpNext: Bool {
+    ended && !dismissedUpNext && nextVideoModel.upcoming != nil
   }
 
   private var nextFileAction: (@MainActor () -> Void)? {
@@ -382,6 +392,11 @@ struct TVVideoPlaybackView: View {
       reject: { nextVideoModel.cancel() })
   }
 
+  private func dismissEngineUpNext() {
+    dismissedUpNext = true
+    nextVideoModel.cancel()
+  }
+
   private func playNextFile() {
     leftPlayer = true
     runNextVideo { await nextVideoModel.playNext() }
@@ -390,12 +405,14 @@ struct TVVideoPlaybackView: View {
   private func playbackRestarted() {
     probes.ended = false
     ended = false
+    dismissedUpNext = false
     nextVideoModel.cancel()
   }
 
   private func playbackEnded() {
     probes.ended = true
     ended = true
+    dismissedUpNext = false
     runNextVideo {
       await nextVideoModel.playbackEnded()
       if nextVideoModel.upcoming == nil { await nextVideoModel.lookUp() }
