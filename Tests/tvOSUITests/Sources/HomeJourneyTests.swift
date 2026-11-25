@@ -18,8 +18,9 @@ final class HomeJourneyTests: XCTestCase {
     app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = mediaBaseURL
   }
 
-  /// A started video gets a card, a finished one doesn't, the card resumes
-  /// its video, the card survives a relaunch, and sign-out clears it.
+  /// A video finished through to its successor gets no card, the started
+  /// successor does, the card resumes its video and survives a relaunch, and
+  /// sign-out clears it.
   func testPlaybackFeedsContinueWatchingAndSignOutClearsIt() {
     launch(["--putio-harness-tv-browse"])
     XCTAssertTrue(element("home.empty").waitForExistence(timeout: 15))
@@ -28,39 +29,35 @@ final class HomeJourneyTests: XCTestCase {
 
     XCTAssertTrue(TVTabBar(app).open("Files"))
     remote.press(.down)
-    openFile("files.item.414")
+    openFile("files.item.412")
     XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
     remote.press(.select)
-    XCTAssertTrue(element("video.ready").waitForExistence(timeout: 30))
+    XCTAssertTrue(element("video.ended").waitForExistence(timeout: 60))
+    XCTAssertTrue(element("video.play-next").waitForExistence(timeout: 30))
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("video.play-next") })
+    remote.press(.select)
+    XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30))
+    XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
+    remote.press(.select)
     XCTAssertTrue(
-      waitUntil(timeout: 25) { self.reportedSeconds(for: 414).map { $0 >= 40 } ?? false },
+      waitUntil(timeout: 30) { self.reportedSeconds(for: 414).map { $0 >= 40 } ?? false },
       "playback reports a position past the saved one")
     leavePlayer()
 
     XCTAssertTrue(TVTabBar(app).open("Home"))
     XCTAssertTrue(card(414).waitForExistence(timeout: 15), "playback feeds Continue watching")
-    XCTAssertTrue(card(414).label.hasPrefix("Resume Root Movie 2.mkv, "))
+    XCTAssertTrue(card(414).label.hasPrefix("Resume Root Movie 2.mkv, "), card(414).label)
     XCTAssertTrue(card(414).label.hasSuffix(" left"))
+    XCTAssertFalse(card(412).exists, "a finished video gets no card")
     XCTAssertTrue(element("home.pinned.empty").exists)
     attach("runtime-tv-home-fed")
-
-    XCTAssertTrue(TVTabBar(app).open("Files"))
-    remote.press(.down)
-    openFile("files.item.412")
-    XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
-    remote.press(.select)
-    XCTAssertTrue(element("video.ended").waitForExistence(timeout: 60))
-    XCTAssertTrue(element("video.cancel-next").waitForExistence(timeout: 30))
-    leavePlayer()
-    XCTAssertTrue(TVTabBar(app).open("Home"))
-    XCTAssertTrue(card(414).waitForExistence(timeout: 15))
-    XCTAssertFalse(card(412).exists, "a finished video gets no card")
 
     XCTAssertTrue(focus("home.continue-watching.item.414", moving: .down, limit: 4))
     remote.press(.select)
     XCTAssertTrue(element("video.screen.414").waitForExistence(timeout: 30), "the card plays")
     XCTAssertTrue(element("video.resume.continue").waitForExistence(timeout: 30))
-    leavePlayer()
+    remote.press(.menu)
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("video.screen.414").exists })
 
     relaunch(["--putio-harness-continue-watching", "keep"])
     XCTAssertTrue(card(414).waitForExistence(timeout: 15), "the card survives a relaunch")
