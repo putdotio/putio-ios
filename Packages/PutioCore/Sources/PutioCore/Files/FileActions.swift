@@ -188,6 +188,20 @@ public struct PutioMovePickerPolicy: Sendable {
   public static func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
     contents.items.filter { $0.kind == .folder }
   }
+
+  /// How a listed folder offers itself as a destination: a moved folder
+  /// never opens, and the folder the items sit in is marked as theirs.
+  public func row(for folder: PutioFileItem) -> PutioMoveFolderRow {
+    if items.contains(where: { $0.kind == .folder && $0.id == folder.id }) { return .movedItem }
+    if items.contains(where: { $0.parentID == folder.id }) { return .currentFolder }
+    return .destination
+  }
+}
+
+public enum PutioMoveFolderRow: Equatable, Sendable {
+  case destination
+  case currentFolder
+  case movedItem
 }
 
 /// A name the server refused, or a name action that never settled.

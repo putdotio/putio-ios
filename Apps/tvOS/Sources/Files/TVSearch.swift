@@ -16,6 +16,7 @@ struct TVSearchView: View {
   @State private var pins: PutioPinnedFilesModel?
   @State private var folderNames: PutioFolderNames?
   @State private var externalPlayback: PutioExternalPlaybackModel?
+  @State private var moving: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
   @FocusState private var focusedRecent: String?
   @State private var recentFocusTarget: String?
@@ -27,6 +28,7 @@ struct TVSearchView: View {
   @State private var now: Date
   private let locale: Locale
   private let searchesOnChange: Bool
+  private let moveSource: TVMoveSource?
 
   init(
     runtime: PutioRuntime, account: PutioAccountSnapshot,
@@ -45,7 +47,7 @@ struct TVSearchView: View {
         try await runtime.getFile(fileID: $0)
       },
       externalPlayback: TVExternalPlayback.model(runtime: runtime),
-      account: account, refreshRequests: refreshRequests, open: open, play: play)
+      moveSource: TVMoveSource(runtime: runtime), account: account, refreshRequests: refreshRequests, open: open, play: play)
   }
 
   /// `searchesOnChange: false` keeps an already searched model as it is, for
@@ -54,7 +56,7 @@ struct TVSearchView: View {
     model: PutioFileSearchModel, actions: PutioFileActions,
     recent: PutioRecentSearchesModel? = nil, pins: PutioPinnedFilesModel? = nil,
     folderNames: PutioFolderNames? = nil, externalPlayback: PutioExternalPlaybackModel? = nil,
-    account: PutioAccountSnapshot,
+    moveSource: TVMoveSource? = nil, account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     query: String = "", now: Date = .now, locale: Locale = .current,
     searchesOnChange: Bool = true, open: @escaping (PutioFileItem) -> Void,
@@ -66,6 +68,7 @@ struct TVSearchView: View {
     self.play = play
     self.locale = locale
     self.searchesOnChange = searchesOnChange
+    self.moveSource = moveSource
     _query = State(initialValue: query)
     _model = State(initialValue: model)
     _itemActions = State(
@@ -136,6 +139,9 @@ struct TVSearchView: View {
         }
       )
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
+      .tvMoveSheet($moving, source: moveSource) { item, destination in
+        await move(item, to: destination)
+      }
       .task(id: recentFocusTarget) {
         guard let target = recentFocusTarget else { return }
         try? await Task.sleep(for: .seconds(1))
@@ -340,7 +346,7 @@ struct TVSearchView: View {
       row: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale).row,
       sections: TVFilePresentation.panelRows(
         menu, canStartOver: play != nil, canOpenInVLC: externalPlayback != nil,
-        canDelete: itemActions.canDelete),
+        canMove: moveSource != nil, canDelete: itemActions.canDelete),
       trashEnabled: account.trashEnabled, identifier: "search.panel"
     ) { perform($0, on: item) }
     .disabled(!itemActions.canStartAction)
@@ -362,6 +368,8 @@ struct TVSearchView: View {
       Task { await pins?.unpin(item) }
     case .openInVLC:
       Task { await externalPlayback?.open(PutioFileRoute(item: item)) }
+    case .move:
+      moving = item
     default:
       if case .setWatched(_, let watched) = PutioFileItemActionRequest(row: row, item: item)?
         .step(trashEnabled: account.trashEnabled)
@@ -371,6 +379,18 @@ struct TVSearchView: View {
         Task { await itemActions.setWatched(item, watched) }
       }
     }
+  }
+
+  /// A result stays listed where it moved; the sheet stays open only when
+  /// the destination already holds the name.
+  private func move(
+    _ item: PutioFileItem, to destination: PutioFolderRoute
+  ) async -> TVMoveResult {
+    await itemActions.move(item, to: destination)
+    if case .nameTaken(let name) = itemActions.settleMove(of: item) { return .nameTaken(name) }
+    focusTarget = item.id
+    moving = nil
+    return .closed
   }
 
   private func playVideo(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice) {

@@ -490,6 +490,21 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(PutioMovePickerPolicy(items: []).state(along: []), .currentFolder)
   }
 
+  func testMovePickerRowsMarkTheItemsFolderAndTheMovedFolder() {
+    let series = BrowserTestFixtures.item(id: 42, parentID: 0, name: "Series", kind: .folder)
+    let movedFolder = BrowserTestFixtures.item(
+      id: 7, parentID: 42, name: "Extras", kind: .folder)
+    let episode = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Episode.mkv")
+    let other = BrowserTestFixtures.item(id: 9, parentID: 0, name: "Movies", kind: .folder)
+
+    XCTAssertEqual(PutioMovePickerPolicy(items: [episode]).row(for: series), .currentFolder)
+    XCTAssertEqual(PutioMovePickerPolicy(items: [episode]).row(for: other), .destination)
+    XCTAssertEqual(PutioMovePickerPolicy(items: [movedFolder]).row(for: movedFolder), .movedItem)
+    XCTAssertEqual(PutioMovePickerPolicy(items: [movedFolder]).row(for: series), .currentFolder)
+    XCTAssertEqual(
+      PutioMovePickerPolicy(items: [episode]).row(for: movedFolder), .destination)
+  }
+
   func testInitialLoadRunsOnceAndUsesStableFolderID() async throws {
     let loader = ControlledFolderLoader()
     addTeardownBlock { await loader.cancelPending() }

@@ -75,6 +75,52 @@ final class TVFilesBoardCaptureTests: XCTestCase {
     capture("rd-tvos-files-10-delete")
   }
 
+  func testFilesMoveBoards() {
+    openFiles(["--putio-harness-tv-move"])
+    XCTAssertTrue(focus("files.item.410"))
+    remote.press(.select)
+    XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10))
+    XCTAssertTrue(panelAction("files.panel.move", on: "files.item.411"))
+    XCTAssertTrue(element("files.move-current.410").waitForExistence(timeout: 10))
+    // The harness root has a second page without folders; its first
+    // request may fail, so the button can read Try again once.
+    let more = element("files.move-more")
+    for _ in 0..<3 where more.waitForExistence(timeout: 3) {
+      XCTAssertTrue(focus("files.move-more", moving: .down, limit: 12))
+      remote.press(.select)
+      _ = waitUntil(timeout: 10) { !more.exists }
+    }
+    XCTAssertTrue(waitUntil(timeout: 10) { !more.exists })
+    XCTAssertTrue(focus("files.move-folder.480"))
+    pause(1)
+    capture("rd-tvos-files-11-move")
+
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-retry").waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("files.move-retry"))
+    pause(1)
+    capture("rd-tvos-files-14-move-error")
+
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-folder.481").waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("files.move-here", moving: .down, limit: 6))
+    pause(1)
+    capture("rd-tvos-files-12-move-inside")
+
+    XCTAssertTrue(focus("files.move-folder.481", moving: .up, limit: 6))
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-empty").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("files.move-here") })
+    pause(1)
+    capture("rd-tvos-files-13-move-empty")
+
+    remote.press(.select)
+    XCTAssertTrue(label(containing: "Moved to Nature").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.item.411").exists })
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("files.item.485") })
+    capture("rd-tvos-files-15-moved")
+  }
+
   private func openFiles(_ arguments: [String] = [], waitForList: Bool = true) {
     app.launchArguments =
       ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"] + arguments

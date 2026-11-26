@@ -9,15 +9,15 @@ final class TVFilesTests: XCTestCase {
     let capabilities = PutioFileMenu.Capabilities.tv(tracksWatched: true, pinned: false)
     let folderRows = TVFilePresentation.panelRows(
       PutioFileMenu(item: video, capabilities: capabilities), canStartOver: true,
-      canOpenInVLC: true, canDelete: true
+      canOpenInVLC: true, canMove: true, canDelete: true
     ).joined()
     let searchRows = TVFilePresentation.panelRows(
       PutioFileMenu.searchResult(item: video, capabilities: capabilities), canStartOver: true,
-      canOpenInVLC: true, canDelete: true
+      canOpenInVLC: true, canMove: true, canDelete: true
     ).joined()
     XCTAssertEqual(Set(folderRows).subtracting(searchRows), [.rename, .trash])
     XCTAssertEqual(
-      Array(searchRows), [.play, .startOver, .openInVLC, .pin, .markUnwatched])
+      Array(searchRows), [.play, .startOver, .openInVLC, .pin, .markUnwatched, .move])
   }
 
   func testAFolderWithoutItsOwnSortFollowsTheAccountDefault() {
