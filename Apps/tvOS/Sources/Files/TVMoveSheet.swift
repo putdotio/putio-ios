@@ -127,6 +127,13 @@ struct TVMoveSheet: View {
       Color.black.opacity(TVMoveSheetLayout.scrimOpacity)
         .ignoresSafeArea()
         .accessibilityHidden(true)
+      // Holds focus while nothing in the sheet can, so Back still reaches
+      // the sheet instead of dismissing it mid-move.
+      Color.clear
+        .frame(width: 1, height: 1)
+        .tvFocusAnchor(isMoving || settledTarget == .anchor)
+        .focused($focus, equals: .anchor)
+        .accessibilityHidden(true)
       sheet
     }
     .presentationBackground(.clear)
@@ -250,8 +257,6 @@ struct TVMoveSheet: View {
     case .loading:
       PutioLoadingStateView(title: TVMoveCopy.loading, titleVisibility: .hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .tvFocusAnchor()
-        .focused($focus, equals: .anchor)
     case .failed:
       PutioEmptyStateView(
         kaomoji: .uneasy, title: TVMoveCopy.loadFailed,
@@ -270,8 +275,6 @@ struct TVMoveSheet: View {
           kaomoji: .emptyFolder, title: TVMoveCopy.emptyTitle, message: TVMoveCopy.emptyMessage
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .tvFocusAnchor(!canMove)
-        .focused($focus, equals: .anchor)
         .accessibilityIdentifier("files.move-empty")
       } else {
         list(folders, hasMore: contents.nextCursor != nil)
@@ -402,8 +405,9 @@ struct TVMoveSheet: View {
   /// The next page's first folder takes focus from the button it replaced,
   /// or the last listed folder when the page added none.
   private func loadMore(after last: PutioFileID?) async {
+    let loading = model
     let before = Set(openableFolders)
-    guard await model.loadMore() else { return }
+    guard await loading.loadMore(), loading === model else { return }
     guard case .loaded(let contents) = model.state, contents.nextCursor == nil || focus == nil
     else { return }
     if let next = openableFolders.first(where: { !before.contains($0) }) {
@@ -418,6 +422,7 @@ struct TVMoveSheet: View {
     let destination = level.route.titled(root: TVFolderCopy.yourFiles)
     takenName = nil
     isMoving = true
+    focus = .anchor
     Task {
       let result = await move(destination)
       isMoving = false
