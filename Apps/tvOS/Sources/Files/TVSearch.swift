@@ -147,12 +147,10 @@ struct TVSearchView: View {
       } dismissed: {
         if focusTarget == nil { focusTarget = shownItemID }
       }
-      .onChange(of: recent?.terms) { _, terms in
-        guard let removal = recentRemoval, let terms, !terms.contains(removal.term) else {
-          return
-        }
+      .onChange(of: focusedRecent) { _, focused in
+        guard let removal = recentRemoval, focused == removal.term else { return }
         recentRemoval = nil
-        if let next = removal.next, terms.contains(next) { focusedRecent = next }
+        remove(removal)
       }
       .putioToast($toast)
   }
@@ -255,8 +253,8 @@ struct TVSearchView: View {
                 terms.indices.contains(index + 1)
                   ? terms[index + 1] : index > 0 ? terms[index - 1] : nil
               }
-              recentRemoval = TVRecentRemoval(term: term, next: next)
-              Task { await recent.remove(term) }
+              let removal = TVRecentRemoval(term: term, next: next)
+              if focusedRecent == term { remove(removal) } else { recentRemoval = removal }
             } label: {
               Label {
                 Text(PutioRecentSearchesCopy.remove)
@@ -409,6 +407,11 @@ struct TVSearchView: View {
   private func playVideo(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice) {
     guard let play else { return open(item) }
     play(item, choice)
+  }
+
+  private func remove(_ removal: TVRecentRemoval) {
+    if let next = removal.next { focusedRecent = next }
+    Task { await recent?.remove(removal.term) }
   }
 
   private func record(_ term: String) {
