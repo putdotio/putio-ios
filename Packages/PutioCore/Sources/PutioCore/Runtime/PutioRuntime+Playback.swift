@@ -179,6 +179,10 @@ extension PutioRuntime {
     try await setAppConfigValue(.streamingMethod, method.rawValue)
   }
 
+  public func setUsesPutioCastReceiver(_ enabled: Bool) async throws {
+    try await setAppConfigValue(.putioCastReceiver, enabled)
+  }
+
   public func markProductAnalyticsPromptAnswered() async throws {
     try await setAppConfigValue(.productAnalyticsPromptAnswered, true)
   }
@@ -225,7 +229,7 @@ extension PutioRuntime {
         durationSeconds: duration,
         startFromSeconds: PutioPlaybackProgress.startSeconds(
           savedSeconds: file.startFrom, durationSeconds: duration),
-        subtitleRenditions: renditions))
+        subtitleRenditions: renditions, downloadToken: token))
   }
 
   private nonisolated func subtitleRenditions(inMasterPlaylist url: URL) async

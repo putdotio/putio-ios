@@ -211,6 +211,38 @@ final class AppConfigModelTests: XCTestCase {
     XCTAssertEqual(try decode(#"{"streaming_method":true}"#), .standard)
   }
 
+  func testOnlyAReadableTrueOptsIntoThePutioCastReceiver() throws {
+    let decode = { (json: String) in
+      try JSONDecoder().decode(PutioAppConfig.self, from: Data(json.utf8)).usesPutioCastReceiver
+    }
+    XCTAssertFalse(try decode(#"{}"#))
+    XCTAssertFalse(try decode(#"{"beta.putio_cast_receiver":false}"#))
+    XCTAssertFalse(try decode(#"{"beta.putio_cast_receiver":"true"}"#))
+    XCTAssertTrue(try decode(#"{"beta.putio_cast_receiver":true}"#))
+  }
+
+  func testThePutioCastReceiverSwitchAppliesOnlyAfterTheServerSaves() async {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { PutioAppConfig() },
+        save: { write in
+          writes.append(write)
+          if writes.count == 1 { throw PutioRuntimeError.transient }
+        }))
+    await model.loadIfNeeded()
+    XCTAssertFalse(model.usesPutioCastReceiver)
+
+    let failed = await model.setUsesPutioCastReceiver(true)
+    XCTAssertEqual(failed, .failed)
+    XCTAssertFalse(model.usesPutioCastReceiver)
+
+    let saved = await model.setUsesPutioCastReceiver(true)
+    XCTAssertEqual(saved, .saved)
+    XCTAssertTrue(model.usesPutioCastReceiver)
+    XCTAssertEqual(writes, [.putioCastReceiver(true), .putioCastReceiver(true)])
+  }
+
   private func model(
     load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
     save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }

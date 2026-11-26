@@ -59,6 +59,7 @@ struct SessionRootView: View {
         if case .signingOut = state {
           PutioContinueWatchingStore.clear(accountID: previousAccount.id)
           PutioConvertedFallbacks.clear(accountID: previousAccount.id)
+          PutioCastReceiver.remember(usesPutioReceiver: false)
         }
       }
       if case .signedIn = state {

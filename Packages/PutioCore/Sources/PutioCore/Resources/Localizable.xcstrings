@@ -4121,7 +4121,7 @@
       }
     },
     "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code." : {
-      "comment" : "android: mobile_settings_open_source_licenses_description",
+      "comment" : "android: mobile_settings_open_source_licenses_description | differs: Android reworded it after the iOS board",
       "localizations" : {
         "en" : {
           "stringUnit" : {

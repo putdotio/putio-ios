@@ -825,13 +825,37 @@ struct PutioCastControllerError: Error {
 /// in Info.plist, which cannot change at runtime.
 enum PutioCastReceiver {
   static let fallbackAppID = "CC1AD845"
+  static let putioFallbackAppID = "E3A4ADFA"
+  private static let choiceKey = "cast.usesPutioReceiver"
 
   /// Receiver IDs are eight uppercase hexadecimal characters; anything else
   /// (including an unexpanded build-setting placeholder) falls back.
   static func appID(bundle: Bundle = .main) -> String {
-    let configured = bundle.object(forInfoDictionaryKey: "PUTIO_CHROMECAST_RECEIVER_APP_ID")
+    configuredID(bundle: bundle, key: "PUTIO_CHROMECAST_RECEIVER_APP_ID") ?? fallbackAppID
+  }
+
+  static func putioAppID(bundle: Bundle = .main) -> String {
+    configuredID(bundle: bundle, key: "PUTIO_CAST_RECEIVER_APP_ID") ?? putioFallbackAppID
+  }
+
+  /// The account's beta switch picks the receiver. The Cast context is set
+  /// once per process, so the app remembers the switch for its next launch.
+  static func appID(usesPutioReceiver: Bool, bundle: Bundle = .main) -> String {
+    usesPutioReceiver ? putioAppID(bundle: bundle) : appID(bundle: bundle)
+  }
+
+  static func rememberedChoice(in defaults: UserDefaults = .standard) -> Bool {
+    defaults.bool(forKey: choiceKey)
+  }
+
+  static func remember(usesPutioReceiver: Bool, in defaults: UserDefaults = .standard) {
+    defaults.set(usesPutioReceiver, forKey: choiceKey)
+  }
+
+  private static func configuredID(bundle: Bundle, key: String) -> String? {
+    let configured = bundle.object(forInfoDictionaryKey: key)
     let trimmed = (configured as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    return isValid(trimmed) ? trimmed : fallbackAppID
+    return isValid(trimmed) ? trimmed : nil
   }
 
   static func isValid(_ candidate: String) -> Bool {
