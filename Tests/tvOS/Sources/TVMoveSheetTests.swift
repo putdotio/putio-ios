@@ -51,7 +51,7 @@ final class TVMoveSheetTests: XCTestCase {
       name: "tv-files-move-error", view: sheet(levels), size: viewport)
   }
 
-  func testLongNamesCutInTheMiddleAndThePathFromTheStartMatchesBaseline() async throws {
+  func testLongNamesCutInTheMiddleAndThePathPerSegmentMatchesBaseline() async throws {
     let series = PutioFolderRoute(
       id: PutioFileID(rawValue: 60), title: "Blue Lights Complete Series Collection")
     let season = PutioFolderRoute(id: PutioFileID(rawValue: 61), title: "Season 04 (2026)")

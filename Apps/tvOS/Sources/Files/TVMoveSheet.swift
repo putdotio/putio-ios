@@ -231,17 +231,18 @@ struct TVMoveSheet: View {
         .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
         .accessibilityHidden(true)
       HStack(spacing: 0) {
-        if levels.count > 1 {
-          Text(
-            levels.dropLast().map { "\($0.route.title(root: TVFolderCopy.yourFiles)) / " }
-              .joined()
-          )
-          .truncationMode(.head)
+        ForEach(levels.indices.dropLast(), id: \.self) { index in
+          Text(levels[index].route.title(root: TVFolderCopy.yourFiles))
+            .truncationMode(.tail)
+            .layoutPriority(Double(index))
+          Text(verbatim: " / ")
+            .fixedSize()
         }
         Text(level.route.title(root: TVFolderCopy.yourFiles))
           .fontWeight(.medium)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .layoutPriority(1)
+          .truncationMode(.tail)
+          .layoutPriority(Double(levels.count))
       }
     }
     .putioFont(PutioTVTypeScale.caption)
@@ -267,6 +268,7 @@ struct TVMoveSheet: View {
       ) {
         Task { await model.retry() }
       }
+      .compact()
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .loaded(let contents):
       let folders = PutioMovePickerPolicy.folders(in: contents)
@@ -274,6 +276,7 @@ struct TVMoveSheet: View {
         PutioEmptyStateView(
           kaomoji: .emptyFolder, title: TVMoveCopy.emptyTitle, message: TVMoveCopy.emptyMessage
         )
+        .compact()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("files.move-empty")
       } else {
