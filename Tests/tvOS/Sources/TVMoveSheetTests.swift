@@ -68,8 +68,11 @@ final class TVMoveSheetTests: XCTestCase {
     ]
     let item = Self.file(
       id: 66, parentID: 62, name: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", kind: .video)
-    _ = try assertRenderingSnapshot(
+    let rendered = try assertRenderingSnapshot(
       name: "tv-files-move-long", view: sheet(levels, item: item), size: viewport)
+    let path = try XCTUnwrap(
+      rendered.cgImage?.cropping(to: CGRect(x: 1200, y: 170, width: 720, height: 60)))
+    try assertBaseline(UIImage(cgImage: path), named: "tv-files-move-long-path")
   }
 
   private func sheet(
