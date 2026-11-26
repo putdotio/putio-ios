@@ -36,6 +36,7 @@ final class PutioCastReceiverTests: XCTestCase {
         XCTAssertEqual(CastReceiver(applicationID: "CC1AD845"), .defaultMedia)
         XCTAssertNil(CastReceiver(applicationID: "ABCDEF12"))
         XCTAssertNil(CastReceiver(applicationID: nil))
+        XCTAssertEqual(ChromecastManager().sessionReceiver(nil), .defaultMedia)
     }
 
     func testOnlyAReadableTrueOptsIntoThePutioReceiver() throws {
