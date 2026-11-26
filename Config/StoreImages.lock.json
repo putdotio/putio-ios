@@ -25,7 +25,7 @@
     },
     "en-US/iphone-6.9-05-account.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-account.png",
-      "sha256": "7f4589082bdb8d0f0129c32594fb718fdd6cff4d9d043a3798936858ca156bd5"
+      "sha256": "0e11bb0183c6c9b62d4cca10dfc034ce0d5324ae5931b106ffdd1ef256e7d32e"
     },
     "en-US/ipad-13-01-files.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",
@@ -45,7 +45,7 @@
     },
     "en-US/ipad-13-05-account.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-account.png",
-      "sha256": "7f361bb261a437a48ffa46f0a5841662375a68d3f308db2e0f6ac84b996f3558"
+      "sha256": "904aee560cec392cf7fb6904cb89044f09e43bd941a60333359266ceb41e540e"
     }
   }
 }
