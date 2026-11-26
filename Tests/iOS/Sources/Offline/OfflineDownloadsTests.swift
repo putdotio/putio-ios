@@ -170,6 +170,8 @@ final class OfflineDownloadsTests: XCTestCase {
   private var runtimeCalls: [String] = []
   private var freeBytes: Int64 = 0
   private var serverWatched: [Int: Bool] = [:]
+  private var watchedThrottled = false
+  private var clock = ContinuousClock.now
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -185,6 +187,8 @@ final class OfflineDownloadsTests: XCTestCase {
     failuresNotified = []
     runtimeCalls = []
     serverWatched = [:]
+    watchedThrottled = false
+    clock = .now
   }
 
   override func tearDown() async throws {
@@ -281,7 +285,8 @@ final class OfflineDownloadsTests: XCTestCase {
     availableStorage: (@MainActor () -> Int64)? = nil,
     deletePackages: PutioOfflinePackageDeletion? = nil,
     watchedChanges: AsyncStream<PutioWatchedChange>? = nil,
-    watchedStatus: PutioOfflineWatchedStatus? = nil
+    watchedStatus: PutioOfflineWatchedStatus? = nil,
+    now: (@MainActor () -> ContinuousClock.Instant)? = nil
   ) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),
@@ -324,7 +329,8 @@ final class OfflineDownloadsTests: XCTestCase {
       isLive: isLive,
       deletePackages: deletePackages,
       watchedChanges: watchedChanges,
-      watchedStatus: watchedStatus
+      watchedStatus: watchedStatus,
+      now: now ?? { .now }
     )
   }
 
@@ -1307,6 +1313,42 @@ final class OfflineDownloadsTests: XCTestCase {
       runtimeCalls.filter { $0.hasPrefix("watched") }, ["watched 1", "watched 2", "watched 4"],
       "an offline queue asks put.io nothing")
     XCTAssertEqual(queue.item(for: watchedElsewhere)?.isWatched, true)
+  }
+
+  func testOpeningDownloadsReadsABoundedRotatingShareOfALargeLibrary() async throws {
+    try PutioOfflineStore(directory: directory).save(
+      items: (1...500).map { id in
+        PutioOfflineItem(
+          id: PutioFileID(rawValue: id), parentID: .root, name: "\(id).mkv", kind: .video,
+          createdAt: .now, stage: .completed, localPath: "\(id).movpkg", storedBytes: 64,
+          storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+          pendingPositionSeconds: nil, estimatedBytes: 64)
+      }, concurrencyLimit: 2)
+    let queue = makeQueue(
+      watchedStatus: { fileID in
+        self.runtimeCalls.append("watched \(fileID.rawValue)")
+        if self.watchedThrottled { throw PutioRuntimeError.rateLimited }
+        return true
+      }, now: { self.clock })
+    func reads() -> [String] { runtimeCalls.filter { $0.hasPrefix("watched") } }
+    let batch = PutioOfflineQueue.watchedRefreshBatch
+
+    await queue.refreshWatched()
+    XCTAssertEqual(reads(), (1...batch).map { "watched \($0)" }, "one pass reads one batch")
+
+    await queue.refreshWatched()
+    XCTAssertEqual(reads().count, batch, "reopening Downloads within the interval asks nothing")
+
+    clock += PutioOfflineQueue.watchedRefreshInterval
+    await queue.refreshWatched()
+    XCTAssertEqual(
+      Array(reads().dropFirst(batch)), ((batch + 1)...(2 * batch)).map { "watched \($0)" },
+      "the next pass reads the videos read longest ago")
+
+    clock += PutioOfflineQueue.watchedRefreshInterval
+    watchedThrottled = true
+    await queue.refreshWatched()
+    XCTAssertEqual(reads().count, 2 * batch + 1, "a throttled read ends the pass")
   }
 
   func testWatchingTheStoredCopyOfflineMarksItWatchedAcrossRelaunch() async {
