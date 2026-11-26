@@ -80,6 +80,7 @@ public struct PutioVideoControlsVisibility: Equatable, Sendable {
     case buffering
     case notice
     case upNext
+    case focus
   }
 
   public static let idleDelay = Duration.seconds(3)
@@ -106,6 +107,20 @@ public struct PutioVideoControlsVisibility: Equatable, Sendable {
   public mutating func set(_ pin: Pin, _ pinned: Bool) {
     if pinned { pins.insert(pin) } else { pins.remove(pin) }
     interacted()
+  }
+
+  /// Drops a pin without counting as an interaction, so the controls hide on
+  /// the next idle timeout.
+  public mutating func released(_ pin: Pin) {
+    pins.remove(pin)
+  }
+
+  /// The viewer asked the controls away: they hide now unless something other
+  /// than focus holds them.
+  public mutating func dismissed() {
+    pins.remove(.focus)
+    guard pins.isEmpty else { return }
+    isVisible = false
   }
 
   public mutating func idleElapsed(generation: UInt64, isPlaying: Bool) {

@@ -16,6 +16,15 @@ public enum PutioSubtitleTextSize: String, CaseIterable, Identifiable, Sendable 
     case .extraLarge: 1.5
     }
   }
+
+  public var title: String {
+    switch self {
+    case .small: String(localized: "Small", bundle: .module)
+    case .medium: String(localized: "Medium", bundle: .module)
+    case .large: String(localized: "Large", bundle: .module)
+    case .extraLarge: String(localized: "Extra large", bundle: .module)
+    }
+  }
 }
 
 public struct PutioSubtitleTiming: Equatable, Sendable {

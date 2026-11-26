@@ -66,6 +66,13 @@
   }
 
   @MainActor
+  protocol PutioDirectPlayAudioSwitching: AnyObject {
+    var onAudioSwitch: (@MainActor (Int, @escaping @MainActor (Bool) -> Void) -> Void)? {
+      get set
+    }
+  }
+
+  @MainActor
   final class PutioDirectPlayCoordinator {
     private let positionPipeline: PutioPlaybackPositionPipeline
     private var engine: AetherEngine?
@@ -77,6 +84,7 @@
     private var generation: UInt64 = 0
     private var failureReported = false
     private var readyReported = false
+    private var switchingAudio = false
     private var positionEstablished = false
     private var callbacks = PutioVideoPlayerCallbacks()
     private var source: PutioPlaybackSource?
@@ -100,6 +108,7 @@
     ) {
       generation &+= 1
       let playbackGeneration = generation
+      switchingAudio = false
       self.callbacks = callbacks
       self.source = source
       self.transport = transport
@@ -118,6 +127,11 @@
       transport.engineChanged(to: engine)
       transport.onEngineRestart = { [weak self] seconds in self?.restart(at: seconds) }
       transport.onReload = { [weak self] _ in self?.reload() }
+      (transport as? any PutioDirectPlayAudioSwitching)?.onAudioSwitch = {
+        [weak self] index, finished in
+        guard let self else { return finished(false) }
+        switchAudio(to: index, finished: finished)
+      }
 
       let reporter = PutioVideoPositionReporter(
         fileID: fileID,
@@ -151,8 +165,10 @@
             positionReporter?.savePosition()
           case .ended:
             reportPlaybackEnded()
-          case .error:
+          case .error where !switchingAudio:
             reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
+          case .error:
+            break
           case .idle, .loading, .playing, .seeking:
             break
           }
@@ -347,10 +363,59 @@
       }
     }
 
+    private func switchAudio(to index: Int, finished: @escaping @MainActor (Bool) -> Void) {
+      guard let engine, let source, generation > 0, readyReported else { return finished(false) }
+      let previous = engine.activeAudioTrackIndex
+      guard previous != index else { return finished(true) }
+      let playbackGeneration = generation
+      let seconds = engine.currentTime
+      var options = options
+      options.autoplay = engine.state == .playing
+      let subtitleTrack = engine.activeSubtitleTrackIndex
+      loading?.cancel()
+      switchingAudio = true
+      loading = Task { @MainActor [weak self] in
+        defer { if self?.generation == playbackGeneration { self?.switchingAudio = false } }
+        let switched: Bool
+        do {
+          try await engine.load(
+            url: source.url, startPosition: seconds, options: options,
+            audioSourceStreamIndex: Int32(index))
+          switched = engine.activeAudioTrackIndex == index
+        } catch is CancellationError {
+          return
+        } catch {
+          switched = false
+        }
+        guard let self, generation == playbackGeneration else { return }
+        if !switched {
+          do {
+            try await engine.load(
+              url: source.url, startPosition: seconds, options: options,
+              audioSourceStreamIndex: previous.map(Int32.init))
+          } catch is CancellationError {
+            return
+          } catch {
+            switchingAudio = false
+            reportFailure(Self.error(engine.errorInfo), generation: playbackGeneration)
+            return
+          }
+          guard generation == playbackGeneration else { return }
+        }
+        if let subtitleTrack {
+          engine.selectSubtitleTrack(index: subtitleTrack)
+        } else {
+          engine.clearSubtitle()
+        }
+        finished(switched)
+      }
+    }
+
     func stop() {
       positionReporter?.stop()
       positionReporter = nil
       generation &+= 1
+      switchingAudio = false
       loading?.cancel()
       loading = nil
       observations.removeAll()
