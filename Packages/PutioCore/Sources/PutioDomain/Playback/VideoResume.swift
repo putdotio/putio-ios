@@ -124,6 +124,7 @@ public enum PutioVideoStart {
   public static func choice(
     for routeStart: PutioVideoRouteStart, remembersPosition: Bool,
     durationSeconds: @escaping @MainActor @Sendable (URL) async -> Double?,
+    metadataDurationSeconds: @escaping @MainActor @Sendable () async -> Double? = { nil },
     ask:
       @escaping @MainActor @Sendable (_ positionSeconds: Int, _ durationSeconds: Double?) async
       -> PutioVideoResumePrompt.Choice?
@@ -140,7 +141,8 @@ public enum PutioVideoStart {
         break
       }
       guard remembersPosition, source.startFromSeconds > 0 else { return source }
-      let duration = await durationSeconds(source.url)
+      var duration = await durationSeconds(source.url)
+      if duration == nil { duration = await metadataDurationSeconds() }
       guard
         asksWhereToStart(
           savedSeconds: source.startFromSeconds, durationSeconds: duration,

@@ -184,6 +184,31 @@ final class PutioVideoStartTests: XCTestCase {
     XCTAssertNil(unknown.asked?.1)
   }
 
+  @MainActor
+  func testAnOriginalAVFoundationCannotMeasureUsesPutioMetadataForTheWatchedMark() async throws {
+    let url = try XCTUnwrap(URL(string: "https://media.example.test/original.mkv"))
+    func start(_ saved: Int, metadata: Double?) async -> (
+      asked: (Int, Double?)?, source: PutioPlaybackSource
+    ) {
+      var asked: (Int, Double?)?
+      let choose = PutioVideoStart.choice(
+        for: .asksInPlayer, remembersPosition: true, durationSeconds: { _ in nil },
+        metadataDurationSeconds: { metadata },
+        ask: {
+          asked = ($0, $1)
+          return .resume
+        })
+      let source = await choose(PutioPlaybackSource(url: url, startFromSeconds: saved), false)
+      return (asked, source)
+    }
+    let watched = await start(5300, metadata: 5400)
+    XCTAssertNil(watched.asked, "a watched original plays without asking")
+    XCTAssertEqual(watched.source.startFromSeconds, 5300)
+    let partway = await start(1122, metadata: 5400)
+    XCTAssertEqual(partway.asked?.0, 1122)
+    XCTAssertEqual(partway.asked?.1, 5400, "the prompt previews progress against put.io's length")
+  }
+
   func testRouteCarriesTheChoiceMade() {
     let route = PutioVideoRoute(
       id: PutioFileID(rawValue: 7), parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")

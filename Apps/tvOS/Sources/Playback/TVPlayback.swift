@@ -133,6 +133,9 @@ struct TVVideoPlaybackView: View {
         chooseStart: PutioVideoStart.choice(
           for: start, remembersPosition: account.rememberVideoTime,
           durationSeconds: { await PutioVideoLength.seconds(of: $0) },
+          metadataDurationSeconds: { [id = route.id] in
+            try? await runtime.videoStartPoint(fileID: id).durationSeconds
+          },
           ask: { await resumePrompter.ask(positionSeconds: $0, durationSeconds: $1) }),
         resolveConverted: { fileID in
           await pipeline.waitForPendingReports(fileID: fileID)
