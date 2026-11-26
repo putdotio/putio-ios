@@ -322,17 +322,6 @@
         }
       }
     },
-    "Audio player state" : {
-      "comment" : "ios-only: no Android string for the iOS audio player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Audio player state"
-          }
-        }
-      }
-    },
     "Audio: %@" : {
       "comment" : "android: playback_audio_chip",
       "localizations" : {
@@ -660,17 +649,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contact us"
-          }
-        }
-      }
-    },
-    "Converted fallbacks" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Converted fallbacks"
           }
         }
       }
@@ -1003,17 +981,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Creating link…"
-          }
-        }
-      }
-    },
-    "Current playback position" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Current playback position"
           }
         }
       }
@@ -1836,17 +1803,6 @@
         }
       }
     },
-    "Reported player failures" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reported player failures"
-          }
-        }
-      }
-    },
     "Tap a download to see it here." : {
       "comment" : "ios-only: the iPad Downloads detail empty state, after Android's Files detail empty copy",
       "localizations" : {
@@ -2410,17 +2366,6 @@
         }
       }
     },
-    "Observed conversion states" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Observed conversion states"
-          }
-        }
-      }
-    },
     "Off" : {
       "comment" : "android: mobile_playback_subtitles_disabled",
       "localizations" : {
@@ -2729,17 +2674,6 @@
         }
       }
     },
-    "Playback reached end" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Playback reached end"
-          }
-        }
-      }
-    },
     "Playback speed" : {
       "comment" : "android: mobile_playback_speed",
       "localizations" : {
@@ -2818,7 +2752,7 @@
       }
     },
     "Preparing…" : {
-      "comment" : "ios-only: no Android string for the iOS Chromecast controls",
+      "comment" : "ios-only: no Android string for the iOS share toast in FileDetail, Search and Folder",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2923,28 +2857,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "See all"
-          }
-        }
-      }
-    },
-    "Shown caption" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shown caption"
-          }
-        }
-      }
-    },
-    "Shown subtitle text" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Shown subtitle text"
           }
         }
       }
@@ -3345,17 +3257,6 @@
         }
       }
     },
-    "Video source" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Video source"
-          }
-        }
-      }
-    },
     "Videos" : {
       "comment" : "android: mobile_files_sort_videos",
       "localizations" : {
@@ -3521,17 +3422,6 @@
         }
       }
     },
-    "Resume position" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resume position"
-          }
-        }
-      }
-    },
     "Resume where you left off" : {
       "comment" : "android: mobile_settings_resume_playback",
       "localizations" : {
@@ -3616,28 +3506,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Selected"
-          }
-        }
-      }
-    },
-    "Selected audio language" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selected audio language"
-          }
-        }
-      }
-    },
-    "Selected subtitle" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Selected subtitle"
           }
         }
       }
@@ -4005,17 +3873,6 @@
         }
       }
     },
-    "Video ready" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Video ready"
-          }
-        }
-      }
-    },
     "Watched" : {
       "comment" : "android: mobile_files_watched",
       "localizations" : {
@@ -4200,17 +4057,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Next episode"
-          }
-        }
-      }
-    },
-    "Next video lookup" : {
-      "comment" : "ios-only: no Android string for the iOS video player",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Next video lookup"
           }
         }
       }

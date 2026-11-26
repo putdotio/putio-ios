@@ -127,20 +127,15 @@ struct PutioAudioPlayerView: View {
 
   @ViewBuilder
   private var harnessProbes: some View {
-    if showsHarnessReadiness {
-      Color.clear
-        .frame(width: 1, height: 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Audio player state")
-        .accessibilityValue(
-          Text(
-            verbatim:
-              "id=\(model.track.id.rawValue);state=\(stateName)\(model.isOnReceiver ? ";receiver" : "")"
+    #if DEBUG
+      if showsHarnessReadiness {
+        HarnessProbesView(probes: [
+          .audioState(
+            "id=\(model.track.id.rawValue);state=\(stateName)\(model.isOnReceiver ? ";receiver" : "")"
           )
-        )
-        .accessibilityIdentifier("audio.state")
-        .allowsHitTesting(false)
-    }
+        ])
+      }
+    #endif
   }
 
   @ViewBuilder
@@ -152,16 +147,18 @@ struct PutioAudioPlayerView: View {
     #endif
   }
 
-  private var stateName: String {
-    switch model.state {
-    case .loading: "loading"
-    case .playing: "playing"
-    case .paused: "paused"
-    case .interrupted: "interrupted"
-    case .failed: "failed"
-    case .ended: "ended"
+  #if DEBUG
+    private var stateName: String {
+      switch model.state {
+      case .loading: "loading"
+      case .playing: "playing"
+      case .paused: "paused"
+      case .interrupted: "interrupted"
+      case .failed: "failed"
+      case .ended: "ended"
+      }
     }
-  }
+  #endif
 }
 
 private struct PutioNowPlayingDetails: View {
