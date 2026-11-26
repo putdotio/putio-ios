@@ -232,9 +232,14 @@ struct TVMoveSheet: View {
         .accessibilityHidden(true)
       HStack(spacing: 0) {
         ForEach(levels.indices.dropLast(), id: \.self) { index in
-          Text(levels[index].route.title(root: TVFolderCopy.yourFiles))
-            .truncationMode(.tail)
-            .layoutPriority(Double(index))
+          ZStack(alignment: .leading) {
+            Text(verbatim: "…")
+              .fixedSize()
+              .hidden()
+            Text(levels[index].route.title(root: TVFolderCopy.yourFiles))
+              .truncationMode(.tail)
+          }
+          .layoutPriority(Double(index))
           Text(verbatim: " / ")
             .fixedSize()
         }
