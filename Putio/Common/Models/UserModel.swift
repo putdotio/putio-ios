@@ -81,10 +81,12 @@ extension UserSettings {
 class UserConfig: Object {
     @objc dynamic var chromecastPlaybackType: String = "hls"
     @objc dynamic var autoRotateVideo: Bool = true
+    @objc dynamic var usesPutioCastReceiver: Bool = false
 
     convenience init?(config: AppConfig) {
         self.init()
         self.chromecastPlaybackType = config.chromecastPlaybackType.rawValue
         self.autoRotateVideo = config.autoRotateVideo
+        self.usesPutioCastReceiver = config.usesPutioCastReceiver
     }
 }
