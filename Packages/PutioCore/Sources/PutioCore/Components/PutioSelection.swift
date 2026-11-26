@@ -262,12 +262,12 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
           Image(putioIcon: .x)
         }
         .disabled(isBusy)
-        .accessibilityLabel(Text("Done selecting", bundle: .module))
+        .accessibilityLabel(Text("Done selecting", bundle: .putioCore))
         .tint(PutioTheme.Colors.textPrimary)
         .accessibilityIdentifier("selection.close")
       }
       ToolbarItem(placement: .principal) {
-        Text("\(selection.count) selected", bundle: .module)
+        Text("\(selection.count) selected", bundle: .putioCore)
           .putioFont(PutioSelectionLayout.titleFont)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .accessibilityIdentifier("selection.count")
@@ -276,7 +276,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
         Button {
           selection.selectAll(among: ids)
         } label: {
-          Text("Select all", bundle: .module)
+          Text("Select all", bundle: .putioCore)
         }
         .disabled(ids.isEmpty || isBusy)
         .tint(PutioTheme.Colors.textPrimary)
@@ -319,7 +319,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
             }
           } label: {
             Label {
-              Text("More", bundle: .module)
+              Text("More", bundle: .putioCore)
             } icon: {
               Image(putioIcon: .dotsThreeCircle)
             }
@@ -360,7 +360,7 @@ private struct PutioRowActions<Swipe: View, Menu: View>: ViewModifier {
             }
           } label: {
             PutioSelectionBarItem(
-              title: String(localized: "More", bundle: .module), icon: .dotsThreeCircle,
+              title: String(localized: "More", bundle: .putioCore), icon: .dotsThreeCircle,
               isDestructive: false)
           }
           .accessibilityIdentifier("selection.action.more")

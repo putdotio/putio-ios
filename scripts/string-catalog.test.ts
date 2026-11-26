@@ -7,7 +7,7 @@ import test from "node:test";
 import { normalizeFormat, parseAndroidStrings } from "./string-catalog.ts";
 
 const iosCatalog = "Apps/iOS/Sources/Localizable.xcstrings";
-const coreCatalog = "Packages/PutioCore/Sources/PutioCore/Resources/Localizable.xcstrings";
+const coreCatalog = "Packages/PutioCore/Sources/PutioDomain/Resources/Localizable.xcstrings";
 
 type Entry = { comment?: string; value?: string; plural?: Record<string, string> };
 
@@ -108,7 +108,8 @@ const run = async (changes: {
     await write(iosCatalog, catalog(changes.ios ?? baseIOS));
     await write(coreCatalog, catalog(changes.coreCatalog ?? { Watched: { comment: "android: mobile_files_watched" } }));
     await write("Apps/iOS/Sources/Cast/CastView.swift", changes.swift ?? baseSwift);
-    await write("Packages/PutioCore/Sources/PutioCore/Components/Badge.swift", changes.core ?? baseCore);
+    await write("Packages/PutioCore/Sources/PutioDomain/Components/Badge.swift", changes.core ?? baseCore);
+    await write("Packages/PutioCore/Sources/PutioCore/Support/Export.swift", "@_exported import PutioDomain\n");
     await write(changes.tvPath ?? "Apps/tvOS/Sources/App/TVBadge.swift", changes.tv ?? baseTV);
     await write("Apps/Shared/Sources/App/RuntimeFactory.swift", "enum RuntimeFactory {}\n");
     return spawnSync(process.execPath, [join(root, "scripts/string-catalog.ts"), "--check"], { encoding: "utf8" });

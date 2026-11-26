@@ -1,0 +1,258 @@
+import Foundation
+import XCTest
+
+@testable import PutioDomain
+
+@MainActor
+final class AppConfigModelTests: XCTestCase {
+  func testAutoplayIsOffUntilTheDocumentLoads() async {
+    let model = model(load: { PutioAppConfig(autoplayNextVideo: true) })
+    XCTAssertFalse(model.autoplayNextVideo)
+    XCTAssertFalse(model.canSave)
+
+    await model.loadIfNeeded()
+
+    XCTAssertTrue(model.autoplayNextVideo)
+    XCTAssertTrue(model.canSave)
+  }
+
+  func testFailedLoadOffersRetryThatReloadsTheDocument() async {
+    var loads = 0
+    let model = model(load: {
+      loads += 1
+      if loads == 1 { throw PutioRuntimeError.transient }
+      return PutioAppConfig(autoplayNextVideo: true)
+    })
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.failure, "Check your connection and try again.")
+    XCTAssertNil(model.config)
+
+    await model.setAutoplayNextVideo(true)
+    XCTAssertEqual(loads, 1, "an unloaded document must not accept writes")
+
+    await model.retry()
+    XCTAssertNil(model.failure)
+    XCTAssertTrue(model.autoplayNextVideo)
+    XCTAssertEqual(loads, 2)
+  }
+
+  func testFailedSaveKeepsTheAuthoritativeValueAndRetryRepeatsOnlyTheWrite() async {
+    var loads = 0
+    var writes: [Bool] = []
+    let model = model(
+      load: {
+        loads += 1
+        return PutioAppConfig()
+      },
+      save: { enabled in
+        writes.append(enabled)
+        if writes.count == 1 { throw PutioRuntimeError.unknown }
+      })
+    await model.loadIfNeeded()
+
+    await model.setAutoplayNextVideo(true)
+    XCTAssertFalse(model.autoplayNextVideo)
+    XCTAssertEqual(model.failure, "Could not save playback settings. Try again.")
+    XCTAssertEqual(model.failedWrite, .autoplayNextVideo(true))
+
+    await model.retry()
+    XCTAssertTrue(model.autoplayNextVideo)
+    XCTAssertNil(model.failure)
+    XCTAssertNil(model.failedWrite)
+    XCTAssertEqual(writes, [true, true])
+    XCTAssertEqual(loads, 1)
+  }
+
+  func testUnchangedValueAndSessionFailuresProduceNoWriteOrMessage() async {
+    var writes: [Bool] = []
+    let model = model(
+      load: { PutioAppConfig(autoplayNextVideo: false) },
+      save: { enabled in
+        writes.append(enabled)
+        throw PutioRuntimeError.sessionExpired
+      })
+    await model.loadIfNeeded()
+
+    await model.setAutoplayNextVideo(false)
+    XCTAssertEqual(writes, [])
+
+    await model.setAutoplayNextVideo(true)
+    XCTAssertEqual(writes, [true])
+    XCTAssertNil(model.failure, "the session root owns expiry")
+    XCTAssertNil(model.failedWrite)
+    XCTAssertFalse(model.autoplayNextVideo)
+  }
+
+  func testAutoplayDecisionAwaitsTheLoadInFlight() async {
+    var loads = 0
+    let started = expectation(description: "config load started")
+    let decisionStarted = expectation(description: "autoplay decision started")
+    var release: CheckedContinuation<PutioAppConfig, Never>?
+    var isClosed = false
+    defer {
+      isClosed = true
+      release?.resume(returning: PutioAppConfig(autoplayNextVideo: false))
+    }
+    let model = model(load: {
+      guard !isClosed else { throw CancellationError() }
+      loads += 1
+      return await withCheckedContinuation {
+        release = $0
+        started.fulfill()
+      }
+    })
+
+    let load = Task { await model.loadIfNeeded() }
+    defer { load.cancel() }
+    await fulfillment(of: [started], timeout: 2)
+    guard release != nil else { return }
+    XCTAssertTrue(model.isLoading)
+    XCTAssertFalse(model.autoplayNextVideo, "an unloaded document reads as off")
+
+    var decisionCompleted = false
+    let decision = Task {
+      decisionStarted.fulfill()
+      let value = await model.resolveAutoplayNextVideo()
+      decisionCompleted = true
+      return value
+    }
+    await fulfillment(of: [decisionStarted], timeout: 2)
+    XCTAssertFalse(decisionCompleted, "the decision must wait for the loaded preference")
+    release?.resume(returning: PutioAppConfig(autoplayNextVideo: true))
+    release = nil
+
+    let autoplay = await decision.value
+    await load.value
+    XCTAssertTrue(autoplay)
+    XCTAssertEqual(loads, 1, "the decision joins the load in flight instead of starting another")
+    XCTAssertFalse(model.isLoading)
+  }
+
+  func testAutoplayDecisionLoadsAnUnloadedDocumentAndReadsItsValue() async {
+    var loads = 0
+    let model = model(load: {
+      loads += 1
+      return PutioAppConfig(autoplayNextVideo: false)
+    })
+
+    let autoplay = await model.resolveAutoplayNextVideo()
+
+    XCTAssertFalse(autoplay)
+    XCTAssertEqual(loads, 1)
+    XCTAssertTrue(model.canSave)
+
+    _ = await model.resolveAutoplayNextVideo()
+    XCTAssertEqual(loads, 1, "a loaded document is read, not reloaded")
+  }
+
+  func testAutoplayDecisionIsOffWhenTheDocumentCannotLoad() async {
+    let model = model(load: { throw PutioRuntimeError.transient })
+
+    let autoplay = await model.resolveAutoplayNextVideo()
+
+    XCTAssertFalse(autoplay)
+    XCTAssertEqual(model.failure, "Check your connection and try again.")
+  }
+
+  func testAutoRotateIsOnUntilTheDocumentSaysOtherwise() async throws {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { try JSONDecoder().decode(PutioAppConfig.self, from: Data(#"{}"#.utf8)) },
+        save: { writes.append($0) }))
+    XCTAssertTrue(model.autoRotateVideo)
+
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.autoRotateVideo, "a document without the key reads as on")
+
+    await model.setAutoRotateVideo(false)
+    XCTAssertFalse(model.autoRotateVideo)
+    XCTAssertEqual(writes, [.autoRotateVideo(false)])
+
+    let stored = try JSONDecoder().decode(
+      PutioAppConfig.self, from: Data(#"{"auto_rotate_video":false}"#.utf8))
+    XCTAssertFalse(stored.autoRotateVideo)
+  }
+
+  func testPlaybackMethodDefaultsToStandardAndAppliesOnlyAfterTheServerSaves() async throws {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { try JSONDecoder().decode(PutioAppConfig.self, from: Data(#"{}"#.utf8)) },
+        save: { write in
+          writes.append(write)
+          if writes.count == 1 { throw PutioRuntimeError.transient }
+        }))
+    XCTAssertEqual(model.playbackMethod, .standard)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.playbackMethod, .standard, "a document without the key reads as Standard")
+
+    let failed = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(failed, .failed)
+    XCTAssertEqual(model.playbackMethod, .standard)
+
+    let saved = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(saved, .saved)
+    XCTAssertEqual(model.playbackMethod, .directPlay)
+    let unchanged = await model.setPlaybackMethod(.directPlay)
+    XCTAssertEqual(unchanged, .skipped)
+    XCTAssertEqual(writes, [.playbackMethod(.directPlay), .playbackMethod(.directPlay)])
+  }
+
+  func testPlaybackMethodReadsTheAndroidStreamingMethodValues() async throws {
+    let decode = { (json: String) in
+      try JSONDecoder().decode(PutioAppConfig.self, from: Data(json.utf8)).playbackMethod
+    }
+    XCTAssertEqual(try decode(#"{"streaming_method":"file"}"#), .directPlay)
+    XCTAssertEqual(try decode(#"{"streaming_method":"hls"}"#), .standard)
+    XCTAssertEqual(try decode(#"{"streaming_method":"mp4"}"#), .standard)
+    XCTAssertEqual(try decode(#"{"streaming_method":true}"#), .standard)
+  }
+
+  func testOnlyAReadableTrueOptsIntoThePutioCastReceiver() async throws {
+    let decode = { (json: String) in
+      try JSONDecoder().decode(PutioAppConfig.self, from: Data(json.utf8)).usesPutioCastReceiver
+    }
+    XCTAssertFalse(try decode(#"{}"#))
+    XCTAssertFalse(try decode(#"{"beta.putio_cast_receiver":false}"#))
+    XCTAssertFalse(try decode(#"{"beta.putio_cast_receiver":"true"}"#))
+    XCTAssertTrue(try decode(#"{"beta.putio_cast_receiver":true}"#))
+  }
+
+  func testThePutioCastReceiverSwitchAppliesOnlyAfterTheServerSaves() async {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { PutioAppConfig() },
+        save: { write in
+          writes.append(write)
+          if writes.count == 1 { throw PutioRuntimeError.transient }
+        }))
+    await model.loadIfNeeded()
+    XCTAssertFalse(model.usesPutioCastReceiver)
+
+    let failed = await model.setUsesPutioCastReceiver(true)
+    XCTAssertEqual(failed, .failed)
+    XCTAssertFalse(model.usesPutioCastReceiver)
+
+    let saved = await model.setUsesPutioCastReceiver(true)
+    XCTAssertEqual(saved, .saved)
+    XCTAssertTrue(model.usesPutioCastReceiver)
+    XCTAssertEqual(writes, [.putioCastReceiver(true), .putioCastReceiver(true)])
+  }
+
+  private func model(
+    load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
+    save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }
+  ) -> PutioAppConfigModel {
+    PutioAppConfigModel(
+      actions: .init(
+        load: load,
+        save: { write in
+          guard case .autoplayNextVideo(let enabled) = write else { return XCTFail("\(write)") }
+          try await save(enabled)
+        }))
+  }
+}

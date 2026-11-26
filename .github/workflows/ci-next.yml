@@ -51,6 +51,7 @@ jobs:
     outputs:
       tooling: ${{ github.event_name != 'workflow_dispatch' || inputs.verify }}
       store: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.store == 'true' }}
+      linux: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.linux == 'true' }}
       checks: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.checks == 'true' }}
       build: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.build == 'true' }}
       ios: ${{ inputs.verify || steps.base.outputs.all == 'true' || steps.filter.outputs.ios == 'true' }}
@@ -120,6 +121,8 @@ jobs:
             # match every entry in a list.
             store:
               - '{scripts/app-store*.ts,mise.toml,mise.lock,.github/workflows/ci-next.yml}'
+            linux:
+              - '{Packages/PutioCore/**,.github/workflows/ci-next.yml}'
             # PutioNightly compiles Putio's sources with Putio's flags; only its
             # manifest, resources, and toolchain can break it alone.
             nightly:
@@ -173,6 +176,24 @@ jobs:
 
       - name: Verify tooling
         run: ./scripts/verify.sh tooling
+
+  linux:
+    name: PutioDomain on Linux
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.linux == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: swift:6.2.3-bookworm@sha256:5b36d0cbe21b24e22fb443abe7f0606e7ae05b7ecfd9479d058db9eebb3125cc
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test PutioDomain
+        run: swift test --package-path Packages/PutioCore
 
   # asc runs only here, on a fresh Linux runner: the locked, checksummed binary
   # with telemetry off, then the store tool's tests against it, offline.

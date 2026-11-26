@@ -84,10 +84,11 @@ below, and prints the new digest.
 
 Sync digest: `a9d215f9762bc33e1341863877a2ad697d4fc85dc96f8c715b16b3598caef96d`
 
-- `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
-- `Packages/PutioCore/Sources/PutioCore/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)
-- `Packages/PutioCore/Sources/PutioCore/Session/PutioTokenStore.swift` (sign-out mark on the saved credential)
-- `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
+- `Packages/PutioCore/Sources/PutioDomain/Session/PutioSessionStore.swift` (all session transitions)
+- `Packages/PutioCore/Sources/PutioDomain/Session/PutioSignOutIntentStore.swift` (persisted sign-out intent)
+- `Packages/PutioCore/Sources/PutioDomain/Session/PutioTokenStore.swift` (token store contract)
+- `Packages/PutioCore/Sources/PutioCore/Session/PutioKeychainTokenStore.swift` (sign-out mark on the saved credential)
+- `Packages/PutioCore/Sources/PutioDomain/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
 - `Apps/iOS/Sources/Session/WelcomeScreen.swift` (web sign-in, restore retry, discard)
 - `Apps/iOS/Sources/App/SessionRootView.swift` (launch restore)
 - `Apps/iOS/Sources/Account/AccountView.swift` (sign-out)

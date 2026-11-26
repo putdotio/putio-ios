@@ -1,37 +1,5 @@
 import SwiftUI
 
-public enum PutioKaomoji: String, CaseIterable, Sendable {
-  case shrug = "¯\\_(ツ)_/¯"
-  case knockedOut = "(×_×)"
-  case uneasy = "(・_・;)"
-  case nothingYet = "( ˘▽˘)っ"
-  case curious = "(・ω・)"
-  case emptyFolder = "[ ]"
-  case nothingHere = "ᕕ( ᐛ )ᕗ"
-}
-
-public enum PutioScreenErrorKind: CaseIterable, Sendable {
-  case failed
-  case offline
-
-  public var title: String {
-    switch self {
-    case .failed: String(localized: "Couldn’t load this", bundle: .module)
-    case .offline: String(localized: "put.io is out of reach", bundle: .module)
-    }
-  }
-
-  public var message: String {
-    switch self {
-    case .failed:
-      String(localized: "Check your connection and try again.", bundle: .module)
-    case .offline:
-      String(
-        localized: "Your connection dropped, or we did. Retrying on its own.", bundle: .module)
-    }
-  }
-}
-
 public struct PutioLoadingStateView: View {
   private let title: String?
   private let titleVisibility: Visibility
@@ -42,7 +10,7 @@ public struct PutioLoadingStateView: View {
   }
 
   public static var files: Self {
-    Self(title: String(localized: "Loading files", bundle: .module), titleVisibility: .hidden)
+    Self(title: String(localized: "Loading files", bundle: .putioCore), titleVisibility: .hidden)
   }
 
   public var body: some View {
@@ -135,9 +103,9 @@ public struct PutioEmptyStateView: View {
   public static func folder(createFolder: (() -> Void)? = nil) -> Self {
     Self(
       kaomoji: .shrug,
-      title: String(localized: "No files whatsoever!", bundle: .module),
-      message: String(localized: "Maybe you’d like to create a new folder?", bundle: .module),
-      actionTitle: String(localized: "Create folder", bundle: .module),
+      title: String(localized: "No files whatsoever!", bundle: .putioCore),
+      message: String(localized: "Maybe you’d like to create a new folder?", bundle: .putioCore),
+      actionTitle: String(localized: "Create folder", bundle: .putioCore),
       actionIcon: .folderSimplePlus,
       action: createFolder
     )
@@ -157,9 +125,9 @@ public struct PutioEmptyStateView: View {
   public static var history: Self {
     Self(
       kaomoji: .shrug,
-      title: String(localized: "No history yet", bundle: .module),
+      title: String(localized: "No history yet", bundle: .putioCore),
       message: String(
-        localized: "Completed transfers and shared files will appear here.", bundle: .module)
+        localized: "Completed transfers and shared files will appear here.", bundle: .putioCore)
     )
   }
 
@@ -350,10 +318,10 @@ public struct PutioErrorStateView: View {
     private var message: String {
       #if os(iOS)
         if UIDevice.current.userInterfaceIdiom == .pad {
-          return String(localized: "Offline. Showing what’s on this iPad.", bundle: .module)
+          return String(localized: "Offline. Showing what’s on this iPad.", bundle: .putioCore)
         }
       #endif
-      return String(localized: "Offline. Showing what’s on this iPhone.", bundle: .module)
+      return String(localized: "Offline. Showing what’s on this iPhone.", bundle: .putioCore)
     }
   }
 
@@ -384,7 +352,7 @@ public struct PutioErrorStateView: View {
 
     public static func files(retryIdentifier: String? = nil, retry: @escaping () -> Void) -> Self {
       Self(
-        message: String(localized: "Couldn’t load more files.", bundle: .module),
+        message: String(localized: "Couldn’t load more files.", bundle: .putioCore),
         retryIdentifier: retryIdentifier,
         retry: retry
       )
@@ -693,7 +661,7 @@ extension View {
 }
 
 enum PutioScreenStateLayout {
-  static var retryTitle: String { String(localized: "Try again", bundle: .module) }
+  static var retryTitle: String { String(localized: "Try again", bundle: .putioCore) }
 
   #if os(tvOS)
     static let titleFont = PutioTheme.TV.Typography.label

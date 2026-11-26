@@ -80,9 +80,9 @@ tokens and generated drift.
 
 User-facing strings live in String Catalogs, keyed by their English text: the
 [iOS catalog](Apps/iOS/Sources/Localizable.xcstrings) and the
-[PutioCore catalog](Packages/PutioCore/Sources/PutioCore/Resources/Localizable.xcstrings),
-which PutioCore looks up with `bundle: .module` and the tvOS and shared app
-code with `bundle: .putioCore`. Each key's comment records its
+[PutioCore catalog](Packages/PutioCore/Sources/PutioDomain/Resources/Localizable.xcstrings),
+which PutioDomain looks up with `bundle: .module` and PutioCore, the tvOS
+and shared app code with `bundle: .putioCore`. Each key's comment records its
 Android string as `android: <key>`, `android: <key> | differs: <reason>`, or
 `ios-only: <reason>`. The `checks` lane runs
 [the catalog check](scripts/string-catalog.ts) against the

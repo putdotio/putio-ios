@@ -26,9 +26,9 @@ public enum PutioReleaseChannel: Equatable, Sendable {
 
   public var title: String {
     switch self {
-    case .appStore: String(localized: "App Store", bundle: .module)
-    case .testFlight: String(localized: "TestFlight", bundle: .module)
-    case .nightly: String(localized: "Nightly", bundle: .module)
+    case .appStore: String(localized: "App Store", bundle: .putioCore)
+    case .testFlight: String(localized: "TestFlight", bundle: .putioCore)
+    case .nightly: String(localized: "Nightly", bundle: .putioCore)
     }
   }
 }
@@ -81,18 +81,19 @@ public struct PutioAppInfo: Equatable, Sendable {
   public var fields: [Field] {
     [
       Field(
-        id: "version", title: String(localized: "Version", bundle: .module),
-        value: String(localized: "\(version) (build \(build))", bundle: .module),
+        id: "version", title: String(localized: "Version", bundle: .putioCore),
+        value: String(localized: "\(version) (build \(build))", bundle: .putioCore),
         valueStyle: .measurement),
       Field(
-        id: "channel", title: String(localized: "Channel", bundle: .module), value: channel.title,
+        id: "channel", title: String(localized: "Channel", bundle: .putioCore),
+        value: channel.title,
         valueStyle: .text),
       Field(
-        id: "device", title: String(localized: "Device", bundle: .module), value: device,
+        id: "device", title: String(localized: "Device", bundle: .putioCore), value: device,
         valueStyle: .text),
       Field(id: "os", title: systemName, value: systemVersion, valueStyle: .measurement),
       Field(
-        id: "player", title: String(localized: "Player", bundle: .module), value: Self.player,
+        id: "player", title: String(localized: "Player", bundle: .putioCore), value: Self.player,
         valueStyle: .text),
     ]
   }
@@ -158,6 +159,6 @@ public struct PutioLicenseManifest: Decodable, Equatable, Sendable {
     String(
       localized:
         "This app and the native components it bundles are open source. Each comes under its own license, linked below with its source code.",
-      bundle: .module)
+      bundle: .putioCore)
   }
 }

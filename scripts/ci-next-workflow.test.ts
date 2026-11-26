@@ -177,6 +177,18 @@ test("pull requests start only the macOS lanes their paths reach", async () => {
   }
 });
 
+test("the Linux lane runs only for PutioCore and its own workflow", async () => {
+  const linux = (await laneFilters()).get("linux") ?? [];
+  const runs = (path: string) => linux.every((pattern) => picomatch(pattern, { dot: true })(path));
+
+  for (const path of ["Packages/PutioCore/Sources/PutioDomain/Runtime/PutioRuntime.swift", ".github/workflows/ci-next.yml"]) {
+    assert.equal(runs(path), true, path);
+  }
+  for (const path of ["Apps/iOS/Sources/Files/FileRow.swift", "Tools/PutioHarness/Package.swift", "docs/session.md"]) {
+    assert.equal(runs(path), false, path);
+  }
+});
+
 test("PutioNightly builds only when a path its sources share with Putio can't cover changes", async () => {
   const nightly = (await laneFilters()).get("nightly") ?? [];
   const builds = (path: string) => nightly.every((pattern) => picomatch(pattern, { dot: true })(path));

@@ -3,6 +3,7 @@ import XCTest
 
 @testable import Putio
 @testable import PutioCore
+@testable import PutioDomain
 
 @MainActor
 final class DeepLinkTests: XCTestCase {

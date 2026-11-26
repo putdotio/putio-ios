@@ -8,7 +8,7 @@ public struct PutioSheetDismissButton: Sendable {
   }
 
   public static var cancel: PutioSheetDismissButton {
-    PutioSheetDismissButton(title: String(localized: "Cancel", bundle: .module))
+    PutioSheetDismissButton(title: String(localized: "Cancel", bundle: .putioCore))
   }
 }
 
