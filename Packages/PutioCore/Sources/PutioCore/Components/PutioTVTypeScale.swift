@@ -9,6 +9,8 @@ public enum PutioTVTypeScale {
 
   public static let kaomoji = PutioFontRole(
     fontName: medium, size: 96, lineHeight: 1.1, textStyle: .largeTitle)
+  public static let compactKaomoji = PutioFontRole(
+    fontName: medium, size: 56, lineHeight: 64 / 56, textStyle: .title)
   public static let title = PutioFontRole(
     fontName: medium, size: 56, lineHeight: 66 / 56, textStyle: .title)
   public static let emptyTitle = PutioFontRole(
@@ -35,7 +37,7 @@ public enum PutioTVTypeScale {
     fontName: mono, size: 28, lineHeight: 1.45, textStyle: .caption)
 
   static let roles = [
-    kaomoji, title, emptyTitle, panelTitle, columnTitle, rowTitle, action, body, button, label,
-    caption, numeric, tagline,
+    kaomoji, compactKaomoji, title, emptyTitle, panelTitle, columnTitle, rowTitle, action, body,
+    button, label, caption, numeric, tagline,
   ]
 }

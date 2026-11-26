@@ -86,6 +86,7 @@ public struct PutioEmptyStateView: View {
   private let title: String
   private let message: AttributedString?
   private let action: PutioScreenStateAction?
+  private var isCompact = false
 
   public init(
     icon: PutioIcon = .folderFill,
@@ -162,13 +163,41 @@ public struct PutioEmptyStateView: View {
     )
   }
 
+  #if os(tvOS)
+    public func compact() -> Self {
+      var view = self
+      view.isCompact = true
+      return view
+    }
+  #endif
+
+  @ViewBuilder
   public var body: some View {
-    PutioScreenStateContent(title: title, message: message, action: action) {
-      switch glyph {
-      case .icon(let icon): PutioScreenStateIcon(icon: icon, tint: PutioTheme.Colors.textDisabled)
-      case .kaomoji(let kaomoji): PutioScreenStateKaomoji(kaomoji: kaomoji)
-      case .hidden: EmptyView()
+    #if os(tvOS)
+      if isCompact {
+        PutioCompactScreenStateContent(title: title, message: message, action: action) {
+          glyphView
+        }
+      } else {
+        content
       }
+    #else
+      content
+    #endif
+  }
+
+  private var content: some View {
+    PutioScreenStateContent(title: title, message: message, action: action) {
+      glyphView
+    }
+  }
+
+  @ViewBuilder
+  private var glyphView: some View {
+    switch glyph {
+    case .icon(let icon): PutioScreenStateIcon(icon: icon, tint: PutioTheme.Colors.textDisabled)
+    case .kaomoji(let kaomoji): PutioScreenStateKaomoji(kaomoji: kaomoji, isCompact: isCompact)
+    case .hidden: EmptyView()
     }
   }
 }
@@ -488,6 +517,40 @@ private struct PutioScreenStateContent<Glyph: View>: View {
   }
 }
 
+#if os(tvOS)
+  private struct PutioCompactScreenStateContent<Glyph: View>: View {
+    let title: String
+    let message: AttributedString?
+    let action: PutioScreenStateAction?
+    @ViewBuilder let glyph: Glyph
+
+    var body: some View {
+      VStack(spacing: PutioScreenStateLayout.compactGap) {
+        glyph
+        Text(title)
+          .putioFont(PutioScreenStateLayout.compactTitleFont)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityAddTraits(.isHeader)
+        if let message {
+          Text(message)
+            .putioFont(PutioScreenStateLayout.compactMessageFont)
+            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        if let action {
+          PutioScreenStateButton(action: action, size: PutioScreenStateLayout.actionSize)
+            .padding(.top, PutioScreenStateLayout.compactActionGap)
+        }
+      }
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityElement(children: .contain)
+    }
+  }
+#endif
+
 private struct PutioScreenStateIcon: View {
   let icon: PutioIcon
   let tint: Color
@@ -511,12 +574,29 @@ private struct PutioScreenStateIcon: View {
 
 private struct PutioScreenStateKaomoji: View {
   let kaomoji: PutioKaomoji
+  var isCompact = false
 
   var body: some View {
     Text(verbatim: kaomoji.rawValue)
-      .putioFont(PutioScreenStateLayout.kaomojiFont)
-      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .putioFont(font)
+      .foregroundStyle(color)
       .accessibilityHidden(true)
+  }
+
+  private var font: PutioFontRole {
+    #if os(tvOS)
+      isCompact ? PutioScreenStateLayout.compactKaomojiFont : PutioScreenStateLayout.kaomojiFont
+    #else
+      PutioScreenStateLayout.kaomojiFont
+    #endif
+  }
+
+  private var color: Color {
+    #if os(tvOS)
+      isCompact ? PutioTheme.TV.Colors.textPrimary : PutioTheme.Colors.textSecondary
+    #else
+      PutioTheme.Colors.textSecondary
+    #endif
   }
 }
 
@@ -630,6 +710,11 @@ enum PutioScreenStateLayout {
     static let errorIconSize = iconSize
     static let errorTitleFont = titleFont
     static let errorMessageFont = messageFont
+    static let compactKaomojiFont = PutioTVTypeScale.compactKaomoji
+    static let compactTitleFont = PutioTVTypeScale.columnTitle
+    static let compactMessageFont = PutioTVTypeScale.caption
+    static let compactGap = PutioTheme.TV.Spacing.xs + PutioTheme.TV.Spacing.xxs
+    static let compactActionGap = PutioTheme.TV.Spacing.small
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let messageFont = PutioTheme.Typography.body

@@ -230,24 +230,15 @@ struct TVMoveSheet: View {
         .scaledToFit()
         .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
         .accessibilityHidden(true)
-      HStack(spacing: 0) {
-        if levels.count > 1 {
-          Text(
-            levels.dropLast().map { "\($0.route.title(root: TVFolderCopy.yourFiles)) / " }
-              .joined()
-          )
-          .truncationMode(.head)
-        }
-        Text(level.route.title(root: TVFolderCopy.yourFiles))
-          .fontWeight(.medium)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .layoutPriority(1)
-      }
+      TVMovePath(titles: levels.map { $0.route.title(root: TVFolderCopy.yourFiles) })
     }
     .putioFont(PutioTVTypeScale.caption)
     .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
     .lineLimit(1)
-    .accessibilityElement(children: .combine)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      levels.map { $0.route.title(root: TVFolderCopy.yourFiles) }.joined(separator: " / ")
+    )
     .accessibilityIdentifier("files.move-path")
   }
 
@@ -267,6 +258,7 @@ struct TVMoveSheet: View {
       ) {
         Task { await model.retry() }
       }
+      .compact()
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     case .loaded(let contents):
       let folders = PutioMovePickerPolicy.folders(in: contents)
@@ -274,6 +266,7 @@ struct TVMoveSheet: View {
         PutioEmptyStateView(
           kaomoji: .emptyFolder, title: TVMoveCopy.emptyTitle, message: TVMoveCopy.emptyMessage
         )
+        .compact()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("files.move-empty")
       } else {
@@ -445,6 +438,46 @@ extension PutioFolderRoute {
 
   fileprivate func titled(root: String) -> PutioFolderRoute {
     PutioFolderRoute(id: id, title: title(root: root))
+  }
+}
+
+private struct TVMovePath: View {
+  let titles: [String]
+
+  private var ancestors: [String] { Array(titles.dropLast()) }
+
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      ForEach(0..<max(ancestors.count, 1), id: \.self) { dropped in
+        line(dropping: dropped)
+      }
+    }
+  }
+
+  private func line(dropping dropped: Int) -> some View {
+    HStack(spacing: 0) {
+      if dropped > 0 {
+        Text(verbatim: "… / ")
+          .fixedSize()
+      }
+      ForEach(Array(ancestors.enumerated().dropFirst(dropped)), id: \.offset) { index, title in
+        ZStack(alignment: .leading) {
+          Text(verbatim: "…")
+            .fixedSize()
+            .hidden()
+          Text(title)
+            .truncationMode(.tail)
+        }
+        .layoutPriority(Double(index))
+        Text(verbatim: " / ")
+          .fixedSize()
+      }
+      Text(titles.last ?? "")
+        .fontWeight(.medium)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        .truncationMode(.tail)
+        .layoutPriority(Double(titles.count))
+    }
   }
 }
 
