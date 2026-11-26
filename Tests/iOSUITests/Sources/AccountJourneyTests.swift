@@ -198,8 +198,7 @@ final class AccountJourneyTests: XCTestCase {
     let app = XCUIApplication()
     app.launchArguments = ["--putio-harness-scenario", "files-browser"]
     app.launch()
-    let signIn = app.descendants(matching: .any)["auth.sign-in"]
-    if signIn.appears(within: 10) { signIn.tap() }
+    app.signInIfAsked()
     let account = app.buttons["Account"]
     XCTAssertTrue(account.appears(within: 10))
     account.tap()
@@ -259,7 +258,7 @@ final class AccountJourneyTests: XCTestCase {
     app.navigationBars["Open source licenses"].buttons.element(boundBy: 0).tap()
     tapSignOut(in: app)
     app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 15))
+    XCTAssertTrue(app.descendants(matching: .any)["auth.sign-in"].appears(within: 15))
   }
 
   private func bundledLicenseTitles() throws -> [String] {

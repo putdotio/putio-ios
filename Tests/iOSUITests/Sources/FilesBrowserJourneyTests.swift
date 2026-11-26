@@ -1302,13 +1302,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.selectionActions.disappears(within: 5), "Restore kept Select mode")
     XCTAssertTrue(element(identifier: "trash.item.4301").disappears(within: 2))
     XCTAssertTrue(element(identifier: "trash.item.4306").disappears(within: 2))
-    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Restore started"].shows(within: 10))
     XCTAssertTrue(header.label.contains("10.34 GB"), "the size line kept the restored rows")
 
     selectTrashRows([4302, 4303, 4304])
     app.buttons["selection.action.restore"].tap()
     XCTAssertTrue(
-      app.staticTexts["Couldn’t restore 1 item from trash"].appears(within: 30),
+      app.staticTexts["Couldn’t restore 1 item from trash"].shows(within: 30),
       "no partly failed restore toast")
     addScreenshot(named: "runtime-trash-selection-partial")
     XCTAssertTrue(element(identifier: "trash.item.4302").exists, "the refused row left")
@@ -1318,7 +1318,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Try again"].tap()
     XCTAssertTrue(
       element(identifier: "trash.item.4302").disappears(within: 2), "Try again kept the row")
-    XCTAssertTrue(app.staticTexts["Restore started"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Restore started"].shows(within: 10))
     XCTAssertTrue(header.label.contains("1.43 GB"), "the size line kept the retried row")
 
     XCTAssertTrue(trashSettles(), "the retried restore never finished")
@@ -1350,7 +1350,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(alert.appears(within: 5), "Delete permanently never asked again")
     alert.buttons["confirm-alert.confirm"].tap()
     XCTAssertTrue(
-      app.staticTexts["The request could not start"].appears(within: 10),
+      app.staticTexts["The request could not start"].shows(within: 10),
       "no partly failed delete toast")
     XCTAssertTrue(element(identifier: "trash.item.4307").disappears(within: 5))
     let refused = element(identifier: "trash.item.4305").firstMatch
@@ -1364,7 +1364,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       last.staticTexts["It will be removed from trash right away. This cannot be undone."].exists)
     last.buttons["confirm-alert.confirm"].tap()
-    XCTAssertTrue(app.staticTexts["1 item is no longer in trash."].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["1 item is no longer in trash."].shows(within: 10))
     XCTAssertTrue(app.staticTexts["Your trash is empty"].appears(within: 5))
     XCTAssertFalse(
       app.selectionActions.exists, "the emptied Trash kept Select mode")
@@ -2185,9 +2185,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func relaunchSignedIn() {
     app.launch()
-    let signIn = element(identifier: "auth.sign-in")
     let root = element(identifier: "files.screen.0")
-    if signIn.appears(within: 5) { signIn.tap() }
+    app.signInIfAsked(within: 5)
     XCTAssertTrue(root.appears(within: 10), "Files never opened after relaunch")
   }
 
@@ -2410,7 +2409,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.putioAlert("Resume from 9:20?").appears(within: 10), "the root video did not ask")
     app.answerResumePrompt()
-    if !ready.appears(within: 10), element(identifier: "video.error").exists {
+    let error = element(identifier: "video.error")
+    if !ready.appears(before: [error], within: 10), error.exists {
       app.buttons["Try again"].tap()
     }
     XCTAssertTrue(ready.appears(within: 10), "root video never became ready")

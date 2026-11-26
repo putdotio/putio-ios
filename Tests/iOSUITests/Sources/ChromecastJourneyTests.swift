@@ -310,9 +310,8 @@ final class ChromecastJourneyTests: XCTestCase {
     app.launchArguments.removeAll { $0 == "--putio-harness-cast-load-fails-once" }
     app.launchArguments += ["--putio-harness-episode-conversion", "completes-late"]
     app.launch()
-    let signIn = element("auth.sign-in")
     let episode = element("files.item.441")
-    if signIn.appears(within: 10) { signIn.tap() }
+    app.signInIfAsked()
     for id in [410, 440] where !episode.appears(within: 3) {
       let folder = element("files.item.\(id)")
       if folder.exists { folder.tap() }
@@ -418,8 +417,7 @@ final class ChromecastJourneyTests: XCTestCase {
 
   private func launchSignedIn() {
     app.launch()
-    let signIn = element("auth.sign-in")
-    if signIn.appears(within: 10) { signIn.tap() }
+    app.signInIfAsked()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 

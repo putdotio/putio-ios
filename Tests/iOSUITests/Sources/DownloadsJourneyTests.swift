@@ -65,8 +65,8 @@ final class DownloadsJourneyTests: XCTestCase {
     // position stays pending locally.
     item.tap()
     let startOver = app.buttons["video.resume.start-over"].firstMatch
-    if startOver.appears(within: 10) { startOver.tap() }
     let ready = element("video.ready")
+    if startOver.appears(before: [ready], within: 10) { startOver.tap() }
     XCTAssertTrue(ready.appears(within: 20))
     let language = element("video.audio-language")
     XCTAssertTrue(language.appears(within: 10))
@@ -98,7 +98,7 @@ final class DownloadsJourneyTests: XCTestCase {
     app.buttons["Downloads"].tap()
     XCTAssertTrue(item.appears(within: 10))
     item.tap()
-    if startOver.appears(within: 10) { startOver.tap() }
+    if startOver.appears(before: [ready], within: 10) { startOver.tap() }
     XCTAssertTrue(ready.appears(within: 20))
     XCTAssertTrue(
       waitForValue(language, "en", timeout: 10),
@@ -338,7 +338,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(info.disappears(within: 5), "swiping down left Info open")
     package.tap()
     let resume = app.buttons["video.resume.resume"].firstMatch
-    if resume.appears(within: 10) { resume.tap() }
+    if resume.appears(before: [element("video.ready")], within: 10) { resume.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 20))
     app.closeVideo()
 
@@ -355,8 +355,7 @@ final class DownloadsJourneyTests: XCTestCase {
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launchArguments += ["--putio-harness-downloads", "offline"]
     app.launch()
-    let signIn = element("auth.sign-in")
-    if signIn.appears(within: 10) { signIn.tap() }
+    app.signInIfAsked()
     let downloads = app.buttons["Downloads"]
     XCTAssertTrue(downloads.appears(within: 15), "the Downloads tab is missing")
     downloads.tap()

@@ -145,8 +145,7 @@ final class PublicLinksJourneyTests: XCTestCase {
   private func openPublicLinks(mode: String) {
     app.launchArguments += ["--putio-harness-public-links", mode]
     app.launch()
-    let signIn = element("auth.sign-in")
-    if signIn.appears(within: 10) { signIn.tap() }
+    app.signInIfAsked()
     let account = app.buttons["Account"]
     XCTAssertTrue(account.appears(within: 10))
     account.tap()

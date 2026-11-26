@@ -13,6 +13,15 @@ extension XCUIApplication {
     putioAlerts.matching(NSPredicate(format: "label BEGINSWITH %@", "Resume from ")).firstMatch
   }
 
+  var signedInShell: XCUIElement {
+    tabBars.firstMatch
+  }
+
+  func signInIfAsked(within timeout: TimeInterval = 10) {
+    let signIn = descendants(matching: .any)["auth.sign-in"]
+    if signIn.appears(before: [signedInShell], within: timeout) { signIn.tap() }
+  }
+
   func answerResumePrompt(
     startingOver: Bool = false, file: StaticString = #filePath, line: UInt = #line
   ) {
@@ -147,7 +156,12 @@ extension XCUIApplication {
       NSPredicate(format: "label == %@ AND identifier != %@", title, submenuID))
     let child = matches.matching(NSPredicate(format: "identifier BEGINSWITH %@", "item-action."))
       .firstMatch
-    if child.appears(within: 5) { return child }
+    let unnamed = matches.matching(
+      NSPredicate(format: "NOT identifier BEGINSWITH %@", "item-action."))
+    let shown = child.appears(within: 5, unless: "an unnamed \(title) shows") {
+      unnamed.allElementsBoundByIndex.contains(where: \.isHittable)
+    }
+    if shown { return child }
     return matches.allElementsBoundByIndex.filter(\.isHittable)
       .max { $0.frame.minY < $1.frame.minY } ?? matches.firstMatch
   }

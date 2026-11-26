@@ -124,9 +124,8 @@ final class AudioSpeedJourneyTests: XCTestCase {
 
   private func launchAndSignIn() {
     app.launch()
-    let signIn = element("auth.sign-in")
     let root = element("files.screen.0")
-    if signIn.appears(within: 5) { signIn.tap() }
+    app.signInIfAsked(within: 5)
     for _ in 0..<3 where !root.appears(within: 3) {
       app.scrollDown(toHit: app.tabBars.buttons["Files"].firstMatch)
       app.tabBars.buttons["Files"].firstMatch.tap()
@@ -158,7 +157,7 @@ final class AudioSpeedJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.error").appears(within: 10), "the conversion never failed")
     app.buttons["Try again"].tap()
     let resume = app.buttons["video.resume.resume"].firstMatch
-    if resume.appears(within: 10) { resume.tap() }
+    if resume.appears(before: [element("video.ready")], within: 10) { resume.tap() }
     XCTAssertTrue(element("video.ready").appears(within: 20), "the nested video never played")
   }
 
