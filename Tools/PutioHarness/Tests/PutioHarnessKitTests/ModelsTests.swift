@@ -427,3 +427,12 @@ import Testing
       from: manifest, expectedNames: ["rd-ios-02-folder-layout"], fileExtension: "json")
       == ["rd-ios-02-folder-layout": "b.json"])
 }
+
+@Test func filesBrowserBootsOnlyTheSimulatorsItsPreflightsUse() {
+  let all = BrowserJourneyContract.preflights.count
+  #expect(BrowserJourneyContract.simulatorCount(requested: 1, preflights: all) == 1)
+  #expect(BrowserJourneyContract.simulatorCount(requested: 4, preflights: all) == min(4, all))
+  #expect(BrowserJourneyContract.simulatorCount(requested: 4, preflights: 1) == 1)
+  #expect(BrowserJourneyContract.simulatorCount(requested: 3, preflights: 2) == 2)
+  #expect(BrowserJourneyContract.simulatorCount(requested: 4, preflights: 0) == 1)
+}

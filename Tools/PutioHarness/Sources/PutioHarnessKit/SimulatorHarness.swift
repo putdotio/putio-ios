@@ -916,8 +916,14 @@ public struct SimulatorHarness {
     }
     try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
 
+    // Every selected preflight runs, so one journey reports every failing test.
+    let preflights = BrowserJourneyContract.preflights.filter {
+      only.isEmpty || only.contains($0.name)
+    }
+    let simulatorCount = BrowserJourneyContract.simulatorCount(
+      requested: simulators, preflights: preflights.count)
     do {
-      return try withSessions(platform: platform, runID: runID, count: simulators) { sessions in
+      return try withSessions(platform: platform, runID: runID, count: simulatorCount) { sessions in
         let session = sessions[0]
         try buildJourneyTests(platform: platform, session: session)
         let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
@@ -976,10 +982,6 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
-        // Every selected preflight runs, so one journey reports every failing test.
-        let preflights = BrowserJourneyContract.preflights.filter {
-          only.isEmpty || only.contains($0.name)
-        }
         var preflightScreenshots: [URL] = []
         var preflightFailures: [(name: String, failure: Error)] = []
         let outcomes = runJourneyPreflights(
