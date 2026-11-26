@@ -186,7 +186,9 @@ final class FilesSearchJourneyTests: XCTestCase {
       "Back did not return to the item's folder")
     remote.press(.menu)
     XCTAssertTrue(waitUntil(timeout: 10) { !sheet.exists }, "Back at Your files kept the sheet")
-    XCTAssertTrue(element("files.item.425").exists)
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.425") },
+      "closing the sheet did not return focus to the row")
 
     XCTAssertTrue(panelAction("files.panel.move", on: "files.item.425"))
     XCTAssertTrue(sheet.waitForExistence(timeout: 10))
@@ -281,6 +283,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(timeout: 10) { !self.element("files.move-sheet").exists },
       "Back at Your files kept the sheet open")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("search.item.411") },
+      "closing the sheet did not return focus to the result")
     XCTAssertTrue(panelAction("search.panel.markUnwatched", on: "search.item.411"))
     attach("runtime-tv-search-menu")
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))

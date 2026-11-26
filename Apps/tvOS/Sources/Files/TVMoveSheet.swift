@@ -25,12 +25,13 @@ struct TVMoveSource {
 
 extension View {
   /// Presents the Move sheet over the screen for `item`; it closes when the
-  /// binding clears.
+  /// binding clears, and `dismissed` hands focus back to the screen.
   func tvMoveSheet(
     _ item: Binding<PutioFileItem?>, source: TVMoveSource?,
-    move: @escaping @MainActor (PutioFileItem, PutioFolderRoute) async -> TVMoveResult
+    move: @escaping @MainActor (PutioFileItem, PutioFolderRoute) async -> TVMoveResult,
+    dismissed: @escaping () -> Void
   ) -> some View {
-    fullScreenCover(item: item) { moving in
+    fullScreenCover(item: item, onDismiss: dismissed) { moving in
       if let source {
         TVMoveSheet(
           item: moving, load: source.load, continueLoad: source.continueLoad,

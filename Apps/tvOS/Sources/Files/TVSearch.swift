@@ -143,6 +143,8 @@ struct TVSearchView: View {
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .tvMoveSheet($moving, source: moveSource) { item, destination in
         await move(item, to: destination)
+      } dismissed: {
+        if focusTarget == nil { focusTarget = shownItemID }
       }
       .task(id: recentFocusTarget) {
         guard let target = recentFocusTarget else { return }

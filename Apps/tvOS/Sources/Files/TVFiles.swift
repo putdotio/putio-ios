@@ -172,6 +172,8 @@ struct TVFolderView: View {
       }
       .tvMoveSheet($moving, source: moveSource) { item, destination in
         await move(item, to: destination)
+      } dismissed: {
+        if focusTarget == nil { focusTarget = shownItemID }
       }
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .modifier(
