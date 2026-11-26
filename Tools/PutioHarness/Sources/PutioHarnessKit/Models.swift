@@ -1270,6 +1270,11 @@ enum TVPlaybackJourneyContract {
     "runtime-tv-audio-now-playing", "runtime-tv-audio-paused", "runtime-tv-audio-sleep-menu",
     "runtime-tv-audio-mini-player",
   ]
+  static let audioBackgroundTestIdentifier =
+    "PutioTVUITests/AudioJourneyTests/testAudioKeepsPlayingInTheBackgroundUntilStopped"
+  static let audioBackgroundAttachmentNames = [
+    "runtime-tv-audio-background", "runtime-tv-audio-stopped",
+  ]
 }
 
 /// TV Home: playback feeds Continue watching, cards resume and leave through
@@ -1362,6 +1367,10 @@ enum TVJourneyContract {
     TVJourneyStep(
       "audio", TVPlaybackJourneyContract.audioTestIdentifier,
       TVPlaybackJourneyContract.audioAttachmentNames, allowance: (300, 420), playsMedia: true),
+    TVJourneyStep(
+      "audio-background", TVPlaybackJourneyContract.audioBackgroundTestIdentifier,
+      TVPlaybackJourneyContract.audioBackgroundAttachmentNames, allowance: (300, 420),
+      playsMedia: true),
     TVJourneyStep(
       "inactive-owner", TVInactiveAccountJourneyContract.ownerTestIdentifier,
       TVInactiveAccountJourneyContract.ownerAttachmentNames, allowance: (300, 420),

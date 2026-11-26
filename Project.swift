@@ -376,6 +376,7 @@ let project = Project(
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
+        "UIBackgroundModes": ["audio"],
         "LSApplicationQueriesSchemes": ["vlc-x-callback"],
         "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
         "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
