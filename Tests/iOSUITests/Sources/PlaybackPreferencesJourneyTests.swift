@@ -168,7 +168,9 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     video.tap()
     let error = app.descendants(matching: .any)["video.error"]
     let ready = app.descendants(matching: .any)["video.ready"]
-    if !ready.appears(within: 10), error.exists { app.buttons["Try again"].tap() }
+    if !ready.appears(before: [error], within: 10), error.exists {
+      app.buttons["Try again"].tap()
+    }
     XCTAssertTrue(ready.appears(within: 10))
     XCTAssertFalse(app.resumePrompt.exists, "resume off still asked where to start")
     XCTAssertEqual(
@@ -399,8 +401,8 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let video = app.descendants(matching: .any)["files.item.412"]
     XCTAssertTrue(video.appears(within: 10))
     video.tap()
-    if app.resumePrompt.waitForExistence(timeout: 5) { app.answerResumePrompt() }
     let ready = app.descendants(matching: .any)["video.ready"]
+    if app.resumePrompt.appears(before: [ready], within: 5) { app.answerResumePrompt() }
     XCTAssertTrue(ready.appears(within: 15), "the video never played with Rotate off")
     XCTAssertTrue(waitForWindow(app, landscape: false), "Rotate off still turned the phone")
     let title = app.descendants(matching: .any)["video.title"]

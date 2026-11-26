@@ -2185,9 +2185,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func relaunchSignedIn() {
     app.launch()
-    let signIn = element(identifier: "auth.sign-in")
     let root = element(identifier: "files.screen.0")
-    if signIn.appears(within: 5) { signIn.tap() }
+    app.signInIfAsked(within: 5)
     XCTAssertTrue(root.appears(within: 10), "Files never opened after relaunch")
   }
 
@@ -2410,7 +2409,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.putioAlert("Resume from 9:20?").appears(within: 10), "the root video did not ask")
     app.answerResumePrompt()
-    if !ready.appears(within: 10), element(identifier: "video.error").exists {
+    let error = element(identifier: "video.error")
+    if !ready.appears(before: [error], within: 10), error.exists {
       app.buttons["Try again"].tap()
     }
     XCTAssertTrue(ready.appears(within: 10), "root video never became ready")

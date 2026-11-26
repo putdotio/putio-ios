@@ -168,7 +168,9 @@ final class DirectPlayJourneyTests: XCTestCase {
 
   private func startOverIfAsked() {
     let startOver = app.buttons["video.resume.start-over"].firstMatch
-    if startOver.waitForExistence(timeout: 5) { startOver.tap() }
+    if startOver.appears(before: [app.descendants(matching: .any)["video.ready"]], within: 5) {
+      startOver.tap()
+    }
   }
 
   private func setDirectPlay() {

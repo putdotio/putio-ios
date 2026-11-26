@@ -13,6 +13,24 @@ extension XCUIElement {
     poll("appear", timeout: timeout) { $0.exists && $0.hasSettled(by: $1) }
   }
 
+  func appears(before others: [XCUIElement], within timeout: TimeInterval) -> Bool {
+    appears(within: timeout, unless: "\(others) appears") { others.contains(where: \.exists) }
+  }
+
+  func appears(
+    within timeout: TimeInterval, unless outcome: String, _ otherwise: () -> Bool
+  ) -> Bool {
+    var appeared = false
+    _ = poll("appear before \(outcome)", timeout: timeout) { element, deadline in
+      if element.exists {
+        appeared = element.hasSettled(by: deadline)
+        return appeared
+      }
+      return otherwise()
+    }
+    return appeared
+  }
+
   func shows(within timeout: TimeInterval) -> Bool {
     poll("show", timeout: timeout) { element, _ in element.exists }
   }
