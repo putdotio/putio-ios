@@ -126,7 +126,6 @@ struct TVMoveSheet: View {
   var body: some View {
     ZStack(alignment: .trailing) {
       Color.black.opacity(TVMoveSheetLayout.scrimOpacity)
-        .ignoresSafeArea()
         .accessibilityHidden(true)
       // Holds focus while nothing in the sheet can, so Back still reaches
       // the sheet instead of dismissing it mid-move.
@@ -137,6 +136,7 @@ struct TVMoveSheet: View {
         .accessibilityHidden(true)
       sheet
     }
+    .ignoresSafeArea()
     .presentationBackground(.clear)
     .onExitCommand(perform: back)
     .task(id: FocusRequest(level: level.id, phase: phase)) {
@@ -189,9 +189,7 @@ struct TVMoveSheet: View {
         color: .black.opacity(TVMoveSheetLayout.shadowOpacity),
         radius: TVMoveSheetLayout.shadowRadius, x: -TVMoveSheetLayout.shadowOffset
       )
-      .ignoresSafeArea()
     }
-    .ignoresSafeArea()
     .focusSection()
     .disabled(isMoving)
     .accessibilityElement(children: .contain)
