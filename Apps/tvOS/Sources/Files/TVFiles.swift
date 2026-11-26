@@ -217,7 +217,8 @@ struct TVFolderView: View {
         if focused == true { showsPanel = false }
       }
       .onChange(of: model.actionOutcome) { _, outcome in
-        guard let outcome else { return }
+        // The Move sheet settles its own outcome; a name clash keeps it open.
+        guard let outcome, moving == nil else { return }
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         model.clearActionOutcome()
       }
@@ -532,9 +533,13 @@ struct TVFolderView: View {
       return false
     }
     if case .nameTaken(let name) = settlement { return .nameTaken(name) }
-    if case .settled(.succeeded?) = settlement {
-      focusTarget = next
-      shownItemID = next
+    if case .settled(let outcome?) = settlement {
+      if case .succeeded = outcome {
+        focusTarget = next
+        shownItemID = next
+      }
+      toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+      model.clearActionOutcome()
     }
     moving = nil
     return .closed

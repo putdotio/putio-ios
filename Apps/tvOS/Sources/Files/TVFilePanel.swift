@@ -31,7 +31,8 @@ extension TVFilePresentation {
     case .succeeded(.setWatched(_, _, _, let watched)):
       return PutioToast(title, icon: .symbol(watched ? .eye : .eyeSlash), width: .fit)
     case .succeeded(.move(_, _, _, _, let destinationName)):
-      return PutioToast(PutioMoveCopy.moved(to: destinationName), icon: .symbol(.folder), width: .fit)
+      return PutioToast(
+        PutioMoveCopy.moved(to: destinationName), icon: .symbol(.folder), width: .fit)
     case .succeeded:
       return PutioToast(title, width: .fit)
     }

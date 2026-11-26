@@ -47,7 +47,8 @@ struct TVSearchView: View {
         try await runtime.getFile(fileID: $0)
       },
       externalPlayback: TVExternalPlayback.model(runtime: runtime),
-      moveSource: TVMoveSource(runtime: runtime), account: account, refreshRequests: refreshRequests, open: open, play: play)
+      moveSource: TVMoveSource(runtime: runtime), account: account,
+      refreshRequests: refreshRequests, open: open, play: play)
   }
 
   /// `searchesOnChange: false` keeps an already searched model as it is, for
@@ -119,7 +120,8 @@ struct TVSearchView: View {
         folderNames?.resolve([id], revision: request.revision)
       }
       .onChange(of: itemActions.outcome) { _, outcome in
-        guard let outcome else { return }
+        // The Move sheet settles its own outcome; a name clash keeps it open.
+        guard let outcome, moving == nil else { return }
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         itemActions.clearOutcome()
       }
@@ -387,7 +389,15 @@ struct TVSearchView: View {
     _ item: PutioFileItem, to destination: PutioFolderRoute
   ) async -> TVMoveResult {
     await itemActions.move(item, to: destination)
-    if case .nameTaken(let name) = itemActions.settleMove(of: item) { return .nameTaken(name) }
+    switch itemActions.settleMove(of: item) {
+    case .nameTaken(let name):
+      return .nameTaken(name)
+    case .settled(let outcome?):
+      toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+      itemActions.clearOutcome()
+    case .settled(nil):
+      break
+    }
     focusTarget = item.id
     moving = nil
     return .closed

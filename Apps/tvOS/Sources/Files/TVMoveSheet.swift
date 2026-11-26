@@ -83,7 +83,8 @@ struct TVMoveSheet: View {
     _levels = State(initialValue: levels)
   }
 
-  struct Level: Identifiable {
+  @MainActor
+  struct Level {
     let route: PutioFolderRoute
     let model: PutioFolderModel
     /// The folder row to focus when this level shows again.
