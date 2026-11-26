@@ -17,6 +17,8 @@ typealias PutioOfflineWatchedStatus = @MainActor @Sendable (PutioFileID) async t
 final class PutioOfflineQueue {
   nonisolated static let defaultConcurrencyLimit = 3
   nonisolated static let concurrencyLimits = [1, 2, 3, 4]
+  nonisolated static let watchedRefreshBatch = 20
+  nonisolated static let watchedRefreshInterval: Duration = .seconds(300)
 
   private(set) var items: [PutioOfflineItem] = []
   private struct Removal {
@@ -59,6 +61,10 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let deletePackages: PutioOfflinePackageDeletion?
   @ObservationIgnored private let watchedStatus: PutioOfflineWatchedStatus?
   @ObservationIgnored private var watchedEpochs: [PutioFileID: Int] = [:]
+  @ObservationIgnored private let now: @MainActor () -> ContinuousClock.Instant
+  @ObservationIgnored private var watchedRefreshStarted: ContinuousClock.Instant?
+  @ObservationIgnored private var watchedChecks: [PutioFileID: UInt64] = [:]
+  @ObservationIgnored private var watchedCheckSequence: UInt64 = 0
   @ObservationIgnored private var removalGeneration = 0
   @ObservationIgnored private(set) var isOnline = true
   @ObservationIgnored private var networkMonitor: PutioOfflineNetworkMonitor?
@@ -129,7 +135,8 @@ final class PutioOfflineQueue {
     playbackURL: @escaping @MainActor (String) -> URL = PutioOfflineQueue.localURL(for:),
     deletePackages: PutioOfflinePackageDeletion? = nil,
     watchedChanges: AsyncStream<PutioWatchedChange>? = nil,
-    watchedStatus: PutioOfflineWatchedStatus? = nil
+    watchedStatus: PutioOfflineWatchedStatus? = nil,
+    now: @escaping @MainActor () -> ContinuousClock.Instant = { .now }
   ) {
     self.store = store
     self.engine = engine
@@ -156,6 +163,7 @@ final class PutioOfflineQueue {
     self.playbackURL = playbackURL
     self.deletePackages = deletePackages
     self.watchedStatus = watchedStatus
+    self.now = now
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -412,15 +420,40 @@ final class PutioOfflineQueue {
     persist()
   }
 
-  /// Reads put.io's watch status for every stored video, so changes made on
+  /// Reads put.io's watch status for stored videos, so changes made on
   /// another client or while the app was closed reach the stored flag. A
-  /// position still waiting to sync, or a change seen meanwhile, wins.
+  /// position still waiting to sync, or a change seen meanwhile, wins. One
+  /// pass reads at most `watchedRefreshBatch` videos, least recently read
+  /// first, at most once per `watchedRefreshInterval`, and stops when put.io
+  /// throttles or rejects the session.
   func refreshWatched() async {
     guard isLive(), isOnline, let watchedStatus else { return }
+    let started = now()
+    if let previous = watchedRefreshStarted, started - previous < Self.watchedRefreshInterval {
+      return
+    }
+    watchedRefreshStarted = started
     let videos = items.filter { $0.kind == .video && $0.pendingPositionSeconds == nil }.map(\.id)
-    for fileID in videos {
+    let batch = videos.enumerated()
+      .sorted {
+        (watchedChecks[$0.element] ?? 0, $0.offset) < (watchedChecks[$1.element] ?? 0, $1.offset)
+      }
+      .prefix(Self.watchedRefreshBatch)
+      .map(\.element)
+    for fileID in batch {
+      watchedCheckSequence += 1
+      watchedChecks[fileID] = watchedCheckSequence
       let epoch = watchedEpochs[fileID, default: 0]
-      guard let isWatched = try? await watchedStatus(fileID) else { continue }
+      let isWatched: Bool
+      do {
+        isWatched = try await watchedStatus(fileID)
+      } catch PutioRuntimeError.rateLimited, PutioRuntimeError.authenticationRequired,
+        PutioRuntimeError.sessionExpired
+      {
+        return
+      } catch {
+        continue
+      }
       guard isLive(), watchedEpochs[fileID, default: 0] == epoch,
         item(for: fileID)?.pendingPositionSeconds == nil
       else { continue }
