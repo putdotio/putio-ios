@@ -73,6 +73,7 @@ struct TVDirectChipRow: View {
   let showsNextFile: Bool
   let openChip: TVDirectChip?
   var focus: FocusState<TVDirectFocus?>.Binding
+  var focusScope: Namespace.ID?
   let select: @MainActor (TVDirectChip) -> Void
 
   var body: some View {
@@ -118,6 +119,7 @@ struct TVDirectChipRow: View {
       .frame(minWidth: TVDirectMenuMetrics.chipHeight, minHeight: TVDirectMenuMetrics.chipHeight)
     }
     .buttonStyle(TVDirectChipStyle(isOpen: openChip == chip, isDimmed: dims(chip)))
+    .modifier(TVDirectDefaultFocus(scope: focusScope, prefers: chip == .subtitles))
     .focused(focus, equals: .chip(chip))
     .accessibilityLabel(label)
     .accessibilityIdentifier("video.chip.\(chip.identifier)")
@@ -131,6 +133,19 @@ extension TVDirectChip {
     case .audio: "audio"
     case .speed: "speed"
     case .nextFile: "next-file"
+    }
+  }
+}
+
+private struct TVDirectDefaultFocus: ViewModifier {
+  let scope: Namespace.ID?
+  let prefers: Bool
+
+  func body(content: Content) -> some View {
+    if let scope {
+      content.prefersDefaultFocus(prefers, in: scope)
+    } else {
+      content
     }
   }
 }

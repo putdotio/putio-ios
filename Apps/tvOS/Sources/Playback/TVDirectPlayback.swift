@@ -358,6 +358,8 @@ struct TVDirectVideoPlayer: View {
   @State private var skipBadge: TVDirectBadge?
   @State private var skipBadges: UInt64 = 0
   @FocusState private var focus: TVDirectFocus?
+  @Namespace private var focusScope
+  @Environment(\.resetFocus) private var resetFocus
   @Environment(\.isEnabled) private var isEnabled
 
   var body: some View {
@@ -376,6 +378,7 @@ struct TVDirectVideoPlayer: View {
       Button(action: playPause) { Color.clear.contentShape(Rectangle()) }
         .buttonStyle(TVDirectSurfaceStyle())
         .disabled(menu != nil || showsControls)
+        .prefersDefaultFocus(!showsControls, in: focusScope)
         .focused($focus, equals: .surface)
         .onMoveCommand(perform: surfaceMoved)
         .accessibilityIdentifier("video.direct-player")
@@ -388,7 +391,7 @@ struct TVDirectVideoPlayer: View {
         TVDirectChipRow(
           speed: transport.speed, audioEnabled: transport.audioTracks.count > 1,
           showsNextFile: onNextFile != nil, openChip: menu?.chip, focus: $focus,
-          select: chipSelected
+          focusScope: focusScope, select: chipSelected
         )
         .onMoveCommand { direction in
           if direction == .up, menu == nil { hideControls() }
@@ -403,7 +406,7 @@ struct TVDirectVideoPlayer: View {
     }
     .animation(.easeInOut(duration: 0.2), value: showsControls)
     .animation(.easeInOut(duration: 0.2), value: badge)
-    .defaultFocus($focus, .chip(.subtitles))
+    .focusScope(focusScope)
     .onAppear { focus = .surface }
     .onChange(of: isEnabled) { _, enabled in
       if enabled { focus = .surface }
@@ -429,7 +432,10 @@ struct TVDirectVideoPlayer: View {
     .onChange(of: transport.speed) { _, speed in
       if transport.isPlaying { onRateChanged(speed.rawValue) }
     }
-    .onChange(of: showsControls, initial: true) { _, shown in onControlsShown(shown) }
+    .onChange(of: showsControls, initial: true) { _, shown in
+      onControlsShown(shown)
+      Task { @MainActor in resetFocus(in: focusScope) }
+    }
     .onChange(of: focus, initial: true) { _, focus in onFocusChanged(focus?.identifier ?? "none") }
     .onChange(of: badge) { _, badge in
       if let badge { onBadgeShown(badge) }
