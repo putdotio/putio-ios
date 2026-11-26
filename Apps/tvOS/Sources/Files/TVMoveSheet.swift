@@ -18,8 +18,8 @@ struct TVMoveSource {
 
   init(runtime: PutioRuntime) {
     self.init(
-      load: { try await runtime.listFiles(parentID: $0, perPage: PutioRuntime.folderPageSize) },
-      continueLoad: { try await runtime.continueFiles(cursor: $0) })
+      load: { try await runtime.listFolders(parentID: $0) },
+      continueLoad: { try await runtime.continueFolders(cursor: $0) })
   }
 }
 
