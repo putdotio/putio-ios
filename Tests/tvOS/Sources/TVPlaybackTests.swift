@@ -1,5 +1,6 @@
 import AVFoundation
 import AVKit
+import AetherEngine
 import PutioCore
 import SwiftUI
 import XCTest
@@ -478,6 +479,39 @@ final class TVPlaybackTests: XCTestCase {
       size: viewport)
   }
 
+  func testDirectPlayCaptionsMatchBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-captions", view: TVDirectCaptionsBoard(), size: viewport)
+  }
+
+  func testDirectPlayCaptionsRiseAboveTheControls() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-captions-controls",
+      view: TVDirectCaptionsBoard(showsControls: true), size: viewport)
+  }
+
+  func testDirectPlayImageCaptionsKeepTheirPosition() throws {
+    let caption = ImageRenderer(
+      content: Text("[DISTANT ROAR]")
+        .font(.system(size: 44, weight: .semibold))
+        .foregroundStyle(Color(red: 0.96, green: 0.9, blue: 0.39))
+        .shadow(color: .black, radius: 3)
+        .padding(8))
+    caption.scale = 1
+    let image = try XCTUnwrap(caption.cgImage)
+    let size = CGSize(width: CGFloat(image.width) / 1920, height: CGFloat(image.height) / 1080)
+    let cue = SubtitleCue(
+      id: 2, startTime: 0, endTime: 5,
+      body: .image(
+        SubtitleImage(
+          cgImage: image,
+          position: CGRect(origin: CGPoint(x: 0.5 - size.width / 2, y: 120 / 1080), size: size),
+          canvasSize: viewport)))
+    _ = try assertRenderingSnapshot(
+      name: "tv-playback-direct-image-captions",
+      view: TVDirectCaptionsBoard(cue: PutioVideoCue(cue)), size: viewport)
+  }
+
   func testAudioSwitchFailureToastMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-direct-audio-failed",
@@ -618,5 +652,27 @@ private struct TVDirectControlsBoard: View {
           speed: .normal, audioEnabled: true, showsNextFile: true, openChip: menu?.chip,
           focus: $focus, select: { _ in })
       })
+  }
+}
+
+/// Boards `rd-tvos-dp-05`, `-06` and `-12`: a caption over the picture, lifted
+/// above the controls while they show.
+private struct TVDirectCaptionsBoard: View {
+  var cue = PutioVideoCue(
+    id: 1, text: AttributedString("I have no idea where\nthis dragon came from."))
+  var showsControls = false
+
+  var body: some View {
+    ZStack {
+      PutioVideoSubtitleOverlay(
+        cues: [cue], size: .medium,
+        picture: PutioVideoPicture(
+          coded: CGSize(width: 1920, height: 1080), display: CGSize(width: 1920, height: 1080)),
+        bottomInset: showsControls
+          ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset,
+        baseSize: TVDirectControlsMetrics.captionSize)
+      if showsControls { TVDirectControlsBoard() }
+    }
+    .background(Color.gray)
   }
 }
