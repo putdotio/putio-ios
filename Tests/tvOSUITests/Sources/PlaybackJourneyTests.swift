@@ -165,9 +165,16 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntil(timeout: 5) { self.probeValue("video.last-badge") == "paused" },
       "a pause shows its badge")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.probeValue("video.controls") == "shown" },
+      "a pause shows the controls")
 
     // The end proposes the next file over the ended player; Cancel keeps it.
     remote.press(.playPause)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.probeValue("video.rate") == "1" }, "play resumes")
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.probeValue("video.controls") == "hidden" },
+      "controls a pause showed hide once playback resumes")
     XCTAssertTrue(probe("video.ended").waitForExistence(timeout: 40))
     let nextTitle = element("video.next-title")
     XCTAssertTrue(nextTitle.waitForExistence(timeout: 30))

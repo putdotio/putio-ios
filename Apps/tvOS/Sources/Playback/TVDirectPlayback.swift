@@ -157,7 +157,7 @@ final class TVDirectTransport: PutioDirectPlayTransport, PutioDirectPlayAudioSwi
   }
 
   func pickSubtitle(_ index: Int?) {
-    guard controlsEnabled, let engine else { return }
+    guard controlsEnabled, !switchingAudio, let engine else { return }
     if let index {
       guard subtitles.contains(where: { $0.id == index }) else { return }
       engine.selectSubtitleTrack(index: index)
@@ -393,9 +393,7 @@ struct TVDirectVideoPlayer: View {
           showsNextFile: onNextFile != nil, openChip: menu?.chip, focus: $focus,
           focusScope: focusScope, select: chipSelected
         )
-        .onMoveCommand { direction in
-          if direction == .up, menu == nil { hideControls() }
-        }
+        .onMoveCommand(perform: chipsMoved)
       }
       .opacity(showsControls ? 1 : 0)
       .disabled(!showsControls)
@@ -427,7 +425,7 @@ struct TVDirectVideoPlayer: View {
     .onChange(of: transport.isPlaying) { _, _ in visibility.interacted() }
     .onChange(of: pinsControls) { _, pinned in visibility.set(.menu, pinned) }
     .onChange(of: focusOnControls) { _, held in
-      if held { visibility.set(.focus, true) } else { visibility.released(.focus) }
+      if !held { visibility.released(.focus) }
     }
     .onChange(of: transport.isPlaying, initial: true) { _, playing in
       onRateChanged(playing ? transport.speed.rawValue : 0)
@@ -487,8 +485,13 @@ struct TVDirectVideoPlayer: View {
     case .left: skip(by: -PutioVideoTimeline.skipInterval)
     case .right: skip(by: PutioVideoTimeline.skipInterval)
     default:
-      withAnimation { visibility.interacted() }
+      withAnimation { visibility.set(.focus, true) }
     }
+  }
+
+  private func chipsMoved(_ direction: MoveCommandDirection) {
+    guard menu == nil else { return }
+    if direction == .up { hideControls() } else { visibility.set(.focus, true) }
   }
 
   private func rowMoved(_ id: String, _ direction: MoveCommandDirection) {
@@ -501,6 +504,7 @@ struct TVDirectVideoPlayer: View {
   }
 
   private func chipSelected(_ chip: TVDirectChip) {
+    visibility.set(.focus, true)
     switch chip {
     case .subtitles: open(.subtitles)
     case .audio: open(.audio)
