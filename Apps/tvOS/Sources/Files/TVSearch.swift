@@ -148,10 +148,13 @@ struct TVSearchView: View {
       }
       .task(id: recentFocusTarget) {
         guard let target = recentFocusTarget else { return }
-        try? await Task.sleep(for: .seconds(1))
-        guard !Task.isCancelled else { return }
+        for _ in 0..<TVRecentFocus.attempts {
+          try? await Task.sleep(for: TVRecentFocus.interval)
+          guard !Task.isCancelled else { return }
+          if focusedRecent == target { break }
+          focusedRecent = target
+        }
         recentFocusTarget = nil
-        focusedRecent = target
       }
       .putioToast($toast)
   }
@@ -433,4 +436,9 @@ struct TVSearchView: View {
     let isSearching: Bool
     let epoch: UInt64
   }
+}
+
+private enum TVRecentFocus {
+  static let attempts = 12
+  static let interval = Duration.milliseconds(250)
 }
