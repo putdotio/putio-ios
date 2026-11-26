@@ -210,6 +210,19 @@ extension SettingsViewModel {
         )
     }
 
+    func saveUsesPutioCastReceiver(_ isEnabled: Bool) {
+        performRemoteMutation(
+            mutation: { completion in
+                api.setUsesPutioCastReceiver(isEnabled) { result in
+                    completion(result.map { _ in () })
+                }
+            },
+            onSuccess: { _ in
+                self.config.usesPutioCastReceiver = isEnabled
+            }
+        )
+    }
+
     func saveAutoRotateVideo(_ isEnabled: Bool) {
         performRemoteMutation(
             mutation: { completion in

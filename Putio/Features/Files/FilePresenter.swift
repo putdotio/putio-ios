@@ -116,13 +116,7 @@ extension FilePresenter where Self: UIViewController {
         case .fileNeedsConvert:
             presentVideoConversionView(for: file, intention: .play)
         default:
-            let alertController = UIAlertController(
-                title: NSLocalizedString("Casting Error", comment: ""),
-                message: NSLocalizedString("An error occurred while trying to cast this file. Please try again.", comment: ""),
-                preferredStyle: .alert
-            )
-            alertController.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .destructive, handler: nil))
-            present(alertController, animated: true, completion: nil)
+            present(UIAlertController.castingError(), animated: true, completion: nil)
         }
     }
 }

@@ -43,6 +43,7 @@
 		0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */; };
 		103DAFDBBC962819703ED902 /* TypeScaleSpecimen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */; };
 		20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */; };
+		C0A57CA50000000000000003 /* PutioCastReceiverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A57CA50000000000000004 /* PutioCastReceiverTests.swift */; };
 		5D1E0F2A3B4C5D6E7F801133 /* VideoPlayerFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1E0F2A3B4C5D6E7F801122 /* VideoPlayerFailureTests.swift */; };
 		AA39781AA4096437185F0AF4 /* SubtitlePlaybackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7C937D1181301795255428 /* SubtitlePlaybackTests.swift */; };
 		73797D49E2047D4AA432BD9C /* MediaPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EED087A518DE50908A5982 /* MediaPreviewTests.swift */; };
@@ -139,6 +140,7 @@
 		AC8796AA249DE801001FFBC1 /* AboutTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8796A9249DE801001FFBC1 /* AboutTableViewController.swift */; };
 		AC87F8F2269A1F4300953C42 /* FolderCreatorPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC87F8F1269A1F4300953C42 /* FolderCreatorPresenter.swift */; };
 		AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */; };
+		C0A57CA50000000000000001 /* PutioCastReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A57CA50000000000000002 /* PutioCastReceiver.swift */; };
 		AC8F20012B10000100C0F001 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20002B10000100C0F001 /* en.lproj */; };
 		AC8F20032B10000100C0F001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */; };
 		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
@@ -264,6 +266,7 @@
 		5D1E0F2A3B4C5D6E7F801122 /* VideoPlayerFailureTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoPlayerFailureTests.swift; sourceTree = "<group>"; };
 		4B7C937D1181301795255428 /* SubtitlePlaybackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SubtitlePlaybackTests.swift; sourceTree = "<group>"; };
 		293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserConfigTests.swift; sourceTree = "<group>"; };
+		C0A57CA50000000000000004 /* PutioCastReceiverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioCastReceiverTests.swift; sourceTree = "<group>"; };
 		36EED087A518DE50908A5982 /* MediaPreviewTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaPreviewTests.swift; sourceTree = "<group>"; };
 		F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountNoticeTests.swift; sourceTree = "<group>"; };
 		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
@@ -361,6 +364,7 @@
 		AC8796A9249DE801001FFBC1 /* AboutTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutTableViewController.swift; sourceTree = "<group>"; };
 		AC87F8F1269A1F4300953C42 /* FolderCreatorPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCreatorPresenter.swift; sourceTree = "<group>"; };
 		AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromecastManager.swift; sourceTree = "<group>"; };
+		C0A57CA50000000000000002 /* PutioCastReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PutioCastReceiver.swift; sourceTree = "<group>"; };
 		AC8F20002B10000100C0F001 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = "<group>"; };
 		AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
@@ -513,6 +517,7 @@
 				4B7C937D1181301795255428 /* SubtitlePlaybackTests.swift */,
 				5D1E0F2A3B4C5D6E7F801122 /* VideoPlayerFailureTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
+				C0A57CA50000000000000004 /* PutioCastReceiverTests.swift */,
 				36EED087A518DE50908A5982 /* MediaPreviewTests.swift */,
 				51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */,
 				F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */,
@@ -853,6 +858,7 @@
 			isa = PBXGroup;
 			children = (
 				AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */,
+				C0A57CA50000000000000002 /* PutioCastReceiver.swift */,
 			);
 			path = Chromecast;
 			sourceTree = "<group>";
@@ -1227,6 +1233,7 @@
 				AA39781AA4096437185F0AF4 /* SubtitlePlaybackTests.swift in Sources */,
 				5D1E0F2A3B4C5D6E7F801133 /* VideoPlayerFailureTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
+				C0A57CA50000000000000003 /* PutioCastReceiverTests.swift in Sources */,
 				73797D49E2047D4AA432BD9C /* MediaPreviewTests.swift in Sources */,
 				51A7C0DE5E1B4A0C9D2E3F04 /* ProductAnalyticsPromptTests.swift in Sources */,
 				BF321A72B367B270B371FCC5 /* AccountNoticeTests.swift in Sources */,
@@ -1358,6 +1365,7 @@
 				AC5D60B61FAB43D6004C1274 /* UITextField+Appearance.swift in Sources */,
 				3C5E7A9B1D2F4A6C8E0B3D5F /* UILabel+Appearance.swift in Sources */,
 				AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */,
+				C0A57CA50000000000000001 /* PutioCastReceiver.swift in Sources */,
 				ACF568162785A4A500A84B88 /* TrashViewController.swift in Sources */,
 				ACABA8941FB47CCB0015B86D /* LinkAccountViewController.swift in Sources */,
 				AC1B592323B7EDCB00CDAF1D /* String+Slugify.swift in Sources */,

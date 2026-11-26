@@ -21,7 +21,7 @@ class PutioRealm {
     }
 
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
-    static let latestSchemaVersion: UInt64 = 14
+    static let latestSchemaVersion: UInt64 = 15
 
     static var needsDownloadRecovery: Bool {
         return needsDownloadRecovery(defaults: .standard)
@@ -299,6 +299,12 @@ class PutioRealm {
         if oldSchemaVersion < 14 {
             migration.enumerateObjects(ofType: UserConfig.className()) { _, newUserConfig in
                 newUserConfig!["autoRotateVideo"] = true
+            }
+        }
+
+        if oldSchemaVersion < 15 {
+            migration.enumerateObjects(ofType: UserConfig.className()) { _, newUserConfig in
+                newUserConfig!["usesPutioCastReceiver"] = false
             }
         }
     }

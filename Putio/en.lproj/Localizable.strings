@@ -661,6 +661,12 @@
 /* No comment provided by engineer. */
 "Rotate videos to landscape" = "Rotate videos to landscape";
 
+/* Settings switch that casts to put.io's own Cast receiver app instead of Google's. */
+"Use the put.io Cast receiver" = "Use the put.io Cast receiver";
+
+/* Under the put.io Cast receiver switch. */
+"Beta. Takes effect the next time you open the app." = "Beta. Takes effect the next time you open the app.";
+
 /* Audio player controls. */
 "Rewind 15 seconds" = "Rewind 15 seconds";
 

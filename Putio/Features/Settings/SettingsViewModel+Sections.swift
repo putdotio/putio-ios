@@ -144,6 +144,18 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
+                    title: NSLocalizedString("Use the put.io Cast receiver", comment: "Settings switch that casts to put.io's own Cast receiver app instead of Google's."),
+                    type: .toggle,
+                    icon: .screencast,
+                    value: config.usesPutioCastReceiver,
+                    action: { [weak self] in
+                        guard let self else { return }
+                        self.saveUsesPutioCastReceiver(!self.config.usesPutioCastReceiver)
+                    },
+                    visible: true,
+                    subtitle: NSLocalizedString("Beta. Takes effect the next time you open the app.", comment: "Under the put.io Cast receiver switch.")
+                ),
+                SettingsModel.SectionItem(
                     title: NSLocalizedString("Rotate videos to landscape", comment: ""),
                     type: .toggle,
                     icon: .deviceRotate,
