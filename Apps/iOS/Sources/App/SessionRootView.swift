@@ -56,10 +56,10 @@ struct SessionRootView: View {
         }
         // The root survives shell removal, including failed sign-out and expiry.
         cast.disconnect()
+        PutioCastReceiver.remember(usesPutioReceiver: false)
         if case .signingOut = state {
           PutioContinueWatchingStore.clear(accountID: previousAccount.id)
           PutioConvertedFallbacks.clear(accountID: previousAccount.id)
-          PutioCastReceiver.remember(usesPutioReceiver: false)
         }
       }
       if case .signedIn = state {

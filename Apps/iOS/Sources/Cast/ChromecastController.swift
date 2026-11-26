@@ -22,12 +22,14 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
 
   private var loadedFileID: PutioFileID?
   private static let putioReceiverAppID = PutioCastReceiver.putioAppID()
+  private static var contextReceiverAppID: String?
   private var castStateObservation: NSObjectProtocol?
   private var pendingRequests: [Int: CheckedContinuation<Void, Error>] = [:]
   private var pendingRequestObjects: [Int: GCKRequest] = [:]
 
   static func configureSharedContext(receiverAppID: String) {
     guard !GCKCastContext.isSharedInstanceInitialized() else { return }
+    contextReceiverAppID = receiverAppID
     let criteria = GCKDiscoveryCriteria(applicationID: receiverAppID)
     let options = GCKCastOptions(discoveryCriteria: criteria)
     options.disableAnalyticsLogging = true
@@ -151,7 +153,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     loadedFileID = nil
     let sessionAppID =
       GCKCastContext.sharedInstance().sessionManager.currentCastSession?.applicationMetadata?
-      .applicationID
+      .applicationID ?? Self.contextReceiverAppID
     let receiverLoad = Self.putioReceiverLoad(
       for: media, startSeconds: startSeconds,
       onPutioReceiver: sessionAppID == Self.putioReceiverAppID)
