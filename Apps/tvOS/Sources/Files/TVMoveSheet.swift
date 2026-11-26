@@ -296,13 +296,15 @@ struct TVMoveSheet: View {
             .focused($focus, equals: .folder(folder.id))
             .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
           case .currentFolder:
-            TVMoveFolderLabel(name: folder.name, note: TVMoveCopy.hereNow)
-              .opacity(TVMoveSheetLayout.unavailableOpacity)
-              .accessibilityElement(children: .combine)
-              .accessibilityIdentifier("files.move-current.\(folder.id.rawValue)")
+            Button {
+              open(folder)
+            } label: {
+              TVMoveFolderLabel(name: folder.name, opens: true, note: TVMoveCopy.hereNow)
+            }
+            .focused($focus, equals: .folder(folder.id))
+            .accessibilityIdentifier("files.move-current.\(folder.id.rawValue)")
           case .movedItem:
             TVMoveFolderLabel(name: folder.name)
-              .opacity(TVMoveSheetLayout.unavailableOpacity)
               .accessibilityElement(children: .combine)
               .accessibilityIdentifier("files.move-moving.\(folder.id.rawValue)")
           }
@@ -362,12 +364,14 @@ struct TVMoveSheet: View {
 
   private var openableFolders: [PutioFileID] {
     guard case .loaded(let contents) = model.state else { return [] }
-    return PutioMovePickerPolicy.folders(in: contents)
-      .filter { policy.row(for: $0) == .destination }
-      .map(\.id)
+    let folders = PutioMovePickerPolicy.folders(in: contents)
+    let rows = folders.map { ($0.id, policy.row(for: $0)) }
+    return rows.filter { $0.1 == .destination }.map(\.0)
+      + rows.filter { $0.1 == .currentFolder }.map(\.0)
   }
 
-  /// The row this level was left from, the first folder, or Move here. A
+  /// The row this level was left from, the first destination, the items'
+  /// own folder, or Move here. A
   /// failed level leaves focus to its one control, Try again.
   private var settledTarget: Target? {
     switch phase {
@@ -449,18 +453,24 @@ private struct TVMoveFolderLabel: View {
   var opens = false
   var note: String?
 
+  @Environment(\.putioTVRowState) private var state
+
+  private var isDimmed: Bool { !opens || note != nil }
+
   var body: some View {
     HStack(spacing: PutioTheme.TV.Spacing.medium) {
       Image(putioIcon: .folderFill)
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
-        .foregroundStyle(opens ? AnyShapeStyle(.putioRowIcon) : AnyShapeStyle(.putioRowSecondary))
+        .foregroundStyle(
+          isDimmed ? AnyShapeStyle(.putioRowSecondary) : AnyShapeStyle(.putioRowIcon)
+        )
         .accessibilityHidden(true)
       Text(name)
         .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(
-          opens ? AnyShapeStyle(.putioRowPrimary) : AnyShapeStyle(.putioRowSecondary)
+          isDimmed ? AnyShapeStyle(.putioRowSecondary) : AnyShapeStyle(.putioRowPrimary)
         )
         .lineLimit(1)
       Spacer(minLength: PutioTheme.TV.Spacing.small)
@@ -468,13 +478,14 @@ private struct TVMoveFolderLabel: View {
         Text(note)
           .putioFont(PutioTheme.TV.Typography.small)
           .foregroundStyle(.putioRowSecondary)
-      } else if opens {
-        TVDisclosure()
       }
+      if opens { TVDisclosure() }
     }
     .padding(.horizontal, TVMoveSheetLayout.rowOutset)
     .padding(.vertical, PutioTheme.TV.Spacing.small)
     .frame(maxWidth: .infinity, alignment: .leading)
+    .opacity(isDimmed && state != .focused ? TVMoveSheetLayout.unavailableOpacity : 1)
+    .accessibilityElement(children: .combine)
   }
 }
 

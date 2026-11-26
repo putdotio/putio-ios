@@ -173,7 +173,17 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(panelAction("files.panel.move", on: "files.item.425"))
     let sheet = element("files.move-sheet")
     XCTAssertTrue(element("files.move-current.424").waitForExistence(timeout: 10))
-    XCTAssertFalse(element("files.move-folder.424").exists, "the item's folder opens")
+    XCTAssertFalse(element("files.move-folder.424").exists, "the item's folder is unmarked")
+    // The item's folder opens so its subfolders stay reachable; moving into
+    // it stays off.
+    XCTAssertTrue(focus("files.move-current.424"))
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-empty").waitForExistence(timeout: 10))
+    XCTAssertFalse(element("files.move-here").isEnabled, "Move here is on in the item's folder")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.hasFocus("files.move-current.424") },
+      "Back did not return to the item's folder")
     remote.press(.menu)
     XCTAssertTrue(waitUntil(timeout: 10) { !sheet.exists }, "Back at Your files kept the sheet")
     XCTAssertTrue(element("files.item.425").exists)
