@@ -1,8 +1,9 @@
 import XCTest
 
 /// Plays a seeded audio file with the Siri Remote: Now Playing opens full
-/// screen, Play/Pause pauses it, the sleep timer starts from its menu, and
-/// Menu leaves it playing in the mini player beside the tab bar.
+/// screen, Play/Pause pauses it, Home leaves it playing in the background, the
+/// sleep timer starts from its menu, Menu leaves it playing in the mini player
+/// beside the tab bar, and Stop playback lets tvOS suspend the app.
 final class AudioJourneyTests: XCTestCase {
   private var app: XCUIApplication!
   private let remote = XCUIRemote.shared
@@ -46,6 +47,7 @@ final class AudioJourneyTests: XCTestCase {
     attach("runtime-tv-audio-paused")
     remote.press(.playPause)
     XCTAssertTrue(waitUntil(timeout: 5) { state.value as? String == "playing" })
+    keepsPlayingInTheBackground()
 
     remote.press(.right)
     remote.press(.select)
@@ -74,10 +76,51 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(focus(where: "identifier == 'audio.mini.open'", moving: .right, limit: 6))
     remote.press(.select)
     XCTAssertTrue(state.waitForExistence(timeout: 10), "the mini player did not reopen it")
+
+    remote.press(.menu)
+    XCTAssertTrue(mini.waitForExistence(timeout: 10), "Menu did not leave a mini player")
+    XCTAssertTrue(focus(where: "identifier == 'audio.mini.open'", moving: .right, limit: 6))
+    remote.press(.select, forDuration: 1.5)
+    let stop = focused("identifier == 'audio.mini.stop'")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { stop.exists }, "the mini player menu did not focus Stop playback")
+    remote.press(.select)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { !mini.exists }, "Stop playback left the mini player")
+    remote.press(.home)
+    XCTAssertTrue(
+      app.wait(for: .runningBackgroundSuspended, timeout: 30),
+      "the app kept running in the background after Stop playback")
+  }
+
+  private func keepsPlayingInTheBackground() {
+    let before = position()
+    remote.press(.home)
+    XCTAssertTrue(app.wait(for: .runningBackground, timeout: 10), "Home did not leave the app")
+    let away = Date()
+    XCTAssertFalse(
+      app.wait(for: .runningBackgroundSuspended, timeout: Self.background),
+      "tvOS suspended the app, so playback stopped")
+    app.activate()
+    XCTAssertTrue(app.wait(for: .runningForeground, timeout: 10), "the app did not come back")
+    let seconds = Int(Date().timeIntervalSince(away))
+    let after = position()
+    XCTAssertGreaterThanOrEqual(
+      after - before, seconds - 2,
+      "the track moved \(after - before) s while the app spent \(seconds) s in the background")
+    XCTAssertEqual(element("audio.state").value as? String, "playing")
+  }
+
+  private func position() -> Int {
+    let scrubber = element("audio.scrubber")
+    XCTAssertTrue(scrubber.waitForExistence(timeout: 10), "Now Playing has no position")
+    let parts = (scrubber.value as? String ?? "").split(separator: ":").compactMap { Int($0) }
+    return parts.reduce(0) { $0 * 60 + $1 }
   }
 
   // MARK: Helpers
 
+  private static let background: TimeInterval = 8
   private static let track = "FFTT Tree Rings Open Air Session, October 13, 2026.mp3"
 
   private func element(_ identifier: String) -> XCUIElement {
