@@ -248,7 +248,7 @@ class ChromecastManager: NSObject {
 
     func castVideo(fileID: Int, completion reportResult: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
         let currentCastSession = GCKCastContext.sharedInstance().sessionManager.currentCastSession
-        let receiver = sessionReceiver(currentCastSession)
+        var receiver = sessionReceiver(currentCastSession)
         let session = AccountNoticeStore.shared.session
         var castFile: PutioFile?
         // The put.io request behind a failure, which says more than its CastErrorReason.
@@ -272,6 +272,7 @@ class ChromecastManager: NSObject {
                     return completion(false, CastError(reason: .fileNotFound))
                 }
                 castFile = file
+                receiver = self.sessionReceiver(currentCastSession)
 
                 if file.needConvert && file.metaData?.codec != "h264" {
                     return completion(false, CastError(reason: .fileNeedsConvert))
@@ -370,7 +371,13 @@ class ChromecastManager: NSObject {
         }
         let isThisLoad = contentID == String(load.fileID)
             || (contentID == nil && mediaStatus.mediaSessionID != 0 && mediaStatus.mediaSessionID == receiverLoad?.mediaSessionID)
-        guard isThisLoad, mediaStatus.playerState == .idle, mediaStatus.idleReason == .error else { return }
+        guard isThisLoad else { return }
+        if [.playing, .paused, .buffering].contains(mediaStatus.playerState) {
+            receiverLoad?.fallback?.cancel()
+            receiverLoad?.fallback = nil
+            return
+        }
+        guard mediaStatus.playerState == .idle, mediaStatus.idleReason == .error else { return }
         receiverChannel?.requestStatus()
         guard load.fallback == nil else { return }
         let fallback = DispatchWorkItem { [weak self] in
@@ -398,11 +405,15 @@ class ChromecastManager: NSObject {
     }
 
     private func replaceReceiverLoad(with next: ReceiverLoad?) {
-        if let previous = receiverLoad, previous.fallback != nil {
-            playbackTracker.receiverFailed(fileID: previous.fileID, reason: .streamFailed)
+        flushPendingReceiverFailure()
+        receiverLoad = next
+    }
+
+    private func flushPendingReceiverFailure() {
+        if let pending = receiverLoad, pending.fallback != nil {
+            playbackTracker.receiverFailed(fileID: pending.fileID, reason: .streamFailed)
         }
         clearReceiverLoad()
-        receiverLoad = next
     }
 
     private func clearReceiverLoad() {
@@ -449,7 +460,7 @@ extension ChromecastManager: GCKSessionManagerListener {
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
         if timer != nil { timer?.invalidate() }
         detachReceiverChannel(from: session)
-        clearReceiverLoad()
+        flushPendingReceiverFailure()
         playbackTracker.sessionEnded()
         if let error = error { logError(error: error) }
     }
