@@ -462,7 +462,7 @@ private struct TVMoveFolderLabel: View {
       Image(putioIcon: .folderFill)
         .resizable()
         .scaledToFit()
-        .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
+        .frame(width: TVMoveSheetLayout.folderIconSize, height: TVMoveSheetLayout.folderIconSize)
         .foregroundStyle(
           isDimmed ? AnyShapeStyle(.putioRowSecondary) : AnyShapeStyle(.putioRowIcon)
         )
@@ -541,6 +541,7 @@ enum TVMoveSheetLayout {
   static let moveHereLift = 1.04
   static let rowOutset: CGFloat = 24
   static let contentGap: CGFloat = 24
+  static let folderIconSize: CGFloat = 36
   static let unavailableOpacity = 0.5
   static let shadowOpacity = 0.5
   static let shadowRadius: CGFloat = 40
