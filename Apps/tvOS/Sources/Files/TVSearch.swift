@@ -19,7 +19,7 @@ struct TVSearchView: View {
   @State private var moving: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
   @FocusState private var focusedRecent: String?
-  @State private var recentFocusTarget: String?
+  @State private var recentRemoval: TVRecentRemoval?
   @State private var focusTarget: PutioFileID?
   @State private var shownItemID: PutioFileID?
   @State private var showsPanel = false
@@ -127,6 +127,7 @@ struct TVSearchView: View {
       }
       .onChange(of: recent?.editFailure) { _, failure in
         guard failure != nil else { return }
+        recentRemoval = nil
         toast = PutioToast(PutioRecentSearchesCopy.editFailed, icon: .warning, width: .fit)
         recent?.clearEditFailure()
       }
@@ -146,15 +147,12 @@ struct TVSearchView: View {
       } dismissed: {
         if focusTarget == nil { focusTarget = shownItemID }
       }
-      .task(id: recentFocusTarget) {
-        guard let target = recentFocusTarget else { return }
-        for _ in 0..<TVRecentFocus.attempts {
-          try? await Task.sleep(for: TVRecentFocus.interval)
-          guard !Task.isCancelled else { return }
-          if focusedRecent == target { break }
-          focusedRecent = target
+      .onChange(of: recent?.terms) { _, terms in
+        guard let removal = recentRemoval, let terms, !terms.contains(removal.term) else {
+          return
         }
-        recentFocusTarget = nil
+        recentRemoval = nil
+        if let next = removal.next, terms.contains(next) { focusedRecent = next }
       }
       .putioToast($toast)
   }
@@ -257,7 +255,7 @@ struct TVSearchView: View {
                 terms.indices.contains(index + 1)
                   ? terms[index + 1] : index > 0 ? terms[index - 1] : nil
               }
-              recentFocusTarget = next
+              recentRemoval = TVRecentRemoval(term: term, next: next)
               Task { await recent.remove(term) }
             } label: {
               Label {
@@ -438,7 +436,7 @@ struct TVSearchView: View {
   }
 }
 
-private enum TVRecentFocus {
-  static let attempts = 12
-  static let interval = Duration.milliseconds(250)
+private struct TVRecentRemoval: Equatable {
+  let term: String
+  let next: String?
 }
