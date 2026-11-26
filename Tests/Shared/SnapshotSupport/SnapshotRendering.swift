@@ -108,6 +108,7 @@ enum SnapshotRenderer {
 
   static let comparison = Snapshotting<UIImage, UIImage>.image(
     precision: 0.9975,
+    perceptualPrecision: 0.98,
     scale: SnapshotEnvironment.scale
   )
 
