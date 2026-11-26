@@ -657,6 +657,7 @@ final class DownloadsJourneyTests: XCTestCase {
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(
       waitUntil(timeout: 10) { method.label.hasSuffix(name) }, "method row read \(method.label)")
+    app.showTabBar()
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
