@@ -208,132 +208,35 @@ struct PutioVideoPlaybackView: View {
       playerFailureTask = nil
       cancelNextVideo()
     }
-    .overlay(alignment: .bottom) {
-      nextVideoProbe
-    }
-    .overlay(alignment: .topLeading) {
-      if showsHarnessReadiness {
-        ZStack {
-          if case .ready(let source) = model.state {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Resume position")
-              .accessibilityValue("\(source.startFromSeconds)")
-              .accessibilityIdentifier("video.resume-position")
-              .allowsHitTesting(false)
-          }
-          if playerIsReady {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Video ready")
-              .accessibilityIdentifier("video.ready")
-              .allowsHitTesting(false)
-          }
-          if case .ready(let source) = model.state {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Video source")
-              .accessibilityValue(Self.harnessSourceName(source))
-              .accessibilityIdentifier("video.source")
-              .allowsHitTesting(false)
-          }
-          if let selectedAudioLanguage {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Selected audio language")
-              .accessibilityValue(selectedAudioLanguage)
-              .accessibilityIdentifier("video.audio-language")
-              .allowsHitTesting(false)
-          }
-          #if DEBUG
-            if let shownSubtitleText {
-              Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Shown subtitle text")
-                .accessibilityValue(shownSubtitleText)
-                .accessibilityIdentifier("video.subtitle-text")
-                .allowsHitTesting(false)
-            }
-            if let shownCaption = transport.shownCaption {
-              Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Shown caption")
-                .accessibilityValue(shownCaption)
-                .accessibilityIdentifier("video.caption-shown")
-                .allowsHitTesting(false)
-            }
-            if let selectedSubtitle {
-              Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Selected subtitle")
-                .accessibilityValue(selectedSubtitle)
-                .accessibilityIdentifier("video.subtitle")
-                .allowsHitTesting(false)
-            }
-          #endif
-          if let observedPlaybackPosition {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Current playback position")
-              .accessibilityValue("\(observedPlaybackPosition)")
-              .accessibilityIdentifier("video.current-position")
-              .allowsHitTesting(false)
-          }
-          if playbackReachedEnd {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Playback reached end")
-              .accessibilityIdentifier("video.ended")
-              .allowsHitTesting(false)
-          }
-          if let conversionHistory = conversionHistory.value {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Observed conversion states")
-              .accessibilityValue(conversionHistory)
-              .accessibilityIdentifier("video.conversion-history")
-              .allowsHitTesting(false)
-          }
-          if fallbacks > 0 {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Converted fallbacks")
-              .accessibilityValue("\(fallbacks)")
-              .accessibilityIdentifier("video.fallbacks")
-              .allowsHitTesting(false)
-          }
-          if !reportedFaults.isEmpty {
-            Color.clear
-              .frame(width: 1, height: 1)
-              .accessibilityElement(children: .ignore)
-              .accessibilityLabel("Reported player failures")
-              .accessibilityValue(reportedFaults.map(\.rawValue).joined(separator: ","))
-              .accessibilityIdentifier("video.reported-failures")
-              .allowsHitTesting(false)
-          }
+    #if DEBUG
+      .overlay(alignment: .topLeading) {
+        if showsHarnessReadiness {
+          HarnessProbesView(probes: harnessProbeValues.probes)
         }
       }
-    }
+    #endif
   }
 
-  private static func harnessSourceName(_ source: PutioPlaybackSource) -> String {
-    switch source.original?.player {
-    case .engine?: "original-engine"
-    case .avPlayer?: "original-avplayer"
-    case nil: "stream"
+  #if DEBUG
+    private var harnessProbeValues: HarnessVideoProbeValues {
+      var values = HarnessVideoProbeValues()
+      if case .ready(let source) = model.state { values.source = source }
+      values.playerIsReady = playerIsReady
+      values.selectedAudioLanguage = selectedAudioLanguage
+      values.shownSubtitleText = shownSubtitleText
+      values.shownCaption = transport.shownCaption
+      values.selectedSubtitle = selectedSubtitle
+      values.playbackPosition = observedPlaybackPosition
+      values.playbackReachedEnd = playbackReachedEnd
+      values.conversionHistory = conversionHistory.value
+      values.fallbacks = fallbacks
+      values.reportedFaults = reportedFaults
+      if nextVideoModel.lookupSettled {
+        values.nextVideoLookup = nextVideoModel.upcoming.map { "id=\($0.id.rawValue)" } ?? "none"
+      }
+      return values
     }
-  }
+  #endif
 
   private var isReady: Bool {
     if case .ready = model.state { return true }
@@ -442,19 +345,6 @@ struct PutioVideoPlaybackView: View {
     nextVideoTransitionTask?.cancel()
     nextVideoTransitionTask = nil
     nextVideoModel.cancel()
-  }
-
-  @ViewBuilder
-  private var nextVideoProbe: some View {
-    if showsHarnessReadiness, nextVideoModel.lookupSettled {
-      Color.clear
-        .frame(width: 1, height: 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Next video lookup")
-        .accessibilityValue(nextVideoModel.upcoming.map { "id=\($0.id.rawValue)" } ?? "none")
-        .accessibilityIdentifier("video.next-lookup")
-        .allowsHitTesting(false)
-    }
   }
 
   private var playerCallbacks: PutioVideoPlayerCallbacks {
