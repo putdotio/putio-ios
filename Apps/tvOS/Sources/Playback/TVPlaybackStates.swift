@@ -6,13 +6,15 @@ struct TVPlaybackFailureScreen: View {
   let failure: PutioVideoPlaybackFailure
   let fileID: PutioFileID
   let fileName: String
+  var reference: String?
   let retry: () -> Void
   let back: () -> Void
 
   var body: some View {
     let copy = TVPlaybackFailureCopy(failure)
     TVPlaybackStateScreen(
-      fileName: fileName, kaomoji: copy.kaomoji, title: copy.title, message: copy.message
+      fileName: fileName, kaomoji: copy.kaomoji, title: copy.title,
+      message: copy.message(reference: reference)
     ) {
       if copy.showsWebCode {
         PutioQRCodeView(PutioWebLinks.file(fileID).absoluteString, size: TVPlaybackStateLayout.qr)
@@ -62,8 +64,7 @@ struct TVPlaybackStalledScreen: View {
   var body: some View {
     TVPlaybackStateScreen(
       fileName: fileName, kaomoji: "(・_・;)", title: PutioVideoWait.stalledTitle,
-      message: String(
-        localized: "The stream stopped loading. Another proxy may be faster.", bundle: .putioCore)
+      message: Text("The stream stopped loading. Another proxy may be faster.", bundle: .putioCore)
     ) {
       EmptyView()
     } actions: {
@@ -100,11 +101,77 @@ struct TVPlaybackStalledScreen: View {
   }
 }
 
+/// A file put.io converts before it plays: the progress, and Back while the
+/// conversion keeps going.
+struct TVPlaybackConvertingScreen: View {
+  let state: PutioVideoPlaybackState
+  let fileName: String
+  let back: () -> Void
+
+  @Environment(\.locale) private var locale
+
+  var body: some View {
+    let phase = state.conversionPhase ?? .waiting
+    TVPlaybackStateScreen(
+      fileName: fileName, kaomoji: nil, title: phase.title,
+      message: Text(
+        "Playback starts when it’s done. It keeps going if you leave.", bundle: .putioCore),
+      messageIdentifier: "conversion.explanation"
+    ) {
+      progress(phase)
+    } actions: {
+      TVPlaybackStateButton(
+        title: String(localized: "Back", bundle: .putioCore), icon: .arrowLeft,
+        identifier: "video.conversion.back", action: back)
+    }
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier(identifier)
+  }
+
+  @ViewBuilder
+  private func progress(_ phase: PutioVideoConversionPhase) -> some View {
+    switch phase {
+    case .converting(let progress):
+      let percent = progress.formatted(.percent.precision(.fractionLength(0)).locale(locale))
+      VStack(spacing: PutioTheme.TV.Spacing.small) {
+        Capsule()
+          .fill(.white.opacity(0.2))
+          .frame(width: TVPlaybackStateLayout.progressWidth, height: TVPlaybackStateLayout.bar)
+          .overlay(alignment: .leading) {
+            Capsule()
+              .fill(PutioTheme.Colors.accent)
+              .frame(width: TVPlaybackStateLayout.progressWidth * min(max(progress, 0), 1))
+          }
+          .accessibilityElement()
+          .accessibilityLabel(phase.title)
+          .accessibilityValue(percent)
+          .accessibilityIdentifier("video.conversion-progress")
+        Text(verbatim: percent)
+          .putioFont(PutioTheme.TV.Typography.caption)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+          .monospacedDigit()
+          .accessibilityHidden(true)
+      }
+    case .waiting:
+      ProgressView()
+    }
+  }
+
+  private var identifier: String {
+    switch state {
+    case .conversionQueued: "video.conversion-queued"
+    case .conversionRequired: "video.conversion-required"
+    default: "video.converting"
+    }
+  }
+}
+
 private struct TVPlaybackFailureCopy {
   let identifier: String
   let kaomoji: String?
   let title: String
   let message: String
+  let unexpected: Bool
   let offersRetry: Bool
   let retryTitle: String
   let showsWebCode: Bool
@@ -113,6 +180,7 @@ private struct TVPlaybackFailureCopy {
     var retryTitle = PutioVideoPlaybackFailure.Recovery.tryAgainTitle
     var offersRetry = true
     var showsWebCode = false
+    var unexpected = false
     switch failure.kind {
     case .connectionLost:
       identifier = "connection-lost"
@@ -140,6 +208,7 @@ private struct TVPlaybackFailureCopy {
       kaomoji = "(⊙_⊙)"
       title = String(localized: "Playback error", bundle: .putioCore)
       message = String(localized: "Something unexpected happened.", bundle: .putioCore)
+      unexpected = true
     case .conversion:
       identifier = "conversion"
       kaomoji = "(⊙_⊙)"
@@ -155,6 +224,13 @@ private struct TVPlaybackFailureCopy {
     self.offersRetry = offersRetry
     self.retryTitle = retryTitle
     self.showsWebCode = showsWebCode
+    self.unexpected = unexpected
+  }
+
+  func message(reference: String?) -> Text {
+    guard unexpected, let reference, !reference.isEmpty else { return Text(message) }
+    let id = Text(verbatim: reference).monospaced()
+    return Text("Something unexpected happened. Error id \(id)", bundle: .putioCore)
   }
 }
 
@@ -162,7 +238,8 @@ private struct TVPlaybackStateScreen<Extra: View, Actions: View>: View {
   let fileName: String
   let kaomoji: String?
   let title: String
-  let message: String
+  let message: Text
+  var messageIdentifier = "video.failure.message"
   @ViewBuilder let extra: Extra
   @ViewBuilder let actions: Actions
 
@@ -181,12 +258,12 @@ private struct TVPlaybackStateScreen<Extra: View, Actions: View>: View {
           .multilineTextAlignment(.center)
           .accessibilityAddTraits(.isHeader)
           .accessibilityIdentifier("video.failure.title")
-        Text(message)
+        message
           .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
-          .accessibilityIdentifier("video.failure.message")
+          .accessibilityIdentifier(messageIdentifier)
         extra
           .padding(.top, PutioTheme.TV.Spacing.small)
         HStack(spacing: PutioTheme.TV.Spacing.small) {
@@ -247,4 +324,6 @@ enum TVPlaybackStateLayout {
   static let width: CGFloat = 1200
   static let qr: CGFloat = 300
   static let glyph: CGFloat = 32
+  static let progressWidth: CGFloat = 640
+  static let bar: CGFloat = 10
 }

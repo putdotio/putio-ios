@@ -23,7 +23,7 @@ final class TVPlaybackStatesTests: XCTestCase {
   }
 
   func testPlaybackErrorMatchesBaseline() throws {
-    try assertFailure(.playback, name: "tv-playback-error")
+    try assertFailure(.playback, name: "tv-playback-error", reference: "7F3A21C9")
   }
 
   func testStalledMatchesBaseline() async throws {
@@ -79,13 +79,14 @@ final class TVPlaybackStatesTests: XCTestCase {
   private static let videoName = "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv"
 
   private func assertFailure(
-    _ failure: PutioVideoPlaybackFailure, name: String, testName: String = #function
+    _ failure: PutioVideoPlaybackFailure, name: String, reference: String? = nil,
+    testName: String = #function
   ) throws {
     _ = try assertRenderingSnapshot(
       name: name,
       view: TVPlaybackFailureScreen(
         failure: failure, fileID: PutioFileID(rawValue: 441), fileName: Self.videoName,
-        retry: {}, back: {}),
+        reference: reference, retry: {}, back: {}),
       size: viewport, testName: testName)
   }
 
