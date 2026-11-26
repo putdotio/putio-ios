@@ -29,7 +29,8 @@ final class TVMoveSheetTests: XCTestCase {
     let levels = [
       try await level(.root, folders: Self.rootFolders),
       try await level(Self.documentaries, folders: Self.documentaryFolders),
-      try await level(PutioFolderRoute(id: PutioFileID(rawValue: 31), title: "Nature"), folders: []),
+      try await level(
+        PutioFolderRoute(id: PutioFileID(rawValue: 31), title: "Nature"), folders: []),
     ]
     _ = try assertRenderingSnapshot(
       name: "tv-files-move-empty", view: sheet(levels), size: viewport)
@@ -50,9 +51,32 @@ final class TVMoveSheetTests: XCTestCase {
       name: "tv-files-move-error", view: sheet(levels), size: viewport)
   }
 
-  private func sheet(_ levels: [TVMoveSheet.Level]) -> some View {
+  func testLongNamesCutInTheMiddleAndThePathFromTheStartMatchesBaseline() async throws {
+    let series = PutioFolderRoute(
+      id: PutioFileID(rawValue: 60), title: "Blue Lights Complete Series Collection")
+    let season = PutioFolderRoute(id: PutioFileID(rawValue: 61), title: "Season 04 (2026)")
+    let levels = [
+      try await level(.root, folders: [(60, series.title)]),
+      try await level(series, folders: [(61, season.title)]),
+      try await level(
+        season,
+        folders: [
+          (62, "Blue.Lights.S04.1080p.HDTV.H264-ORGANiC"),
+          (63, "Blue Lights S04 Extras and Behind the Scenes"), (64, "Subs"),
+          (65, "Season 05 (2027) 2160p WEB-DL DDP5.1 Atmos HDR"),
+        ]),
+    ]
+    let item = Self.file(
+      id: 66, parentID: 62, name: "Blue.Lights.S04E01.1080p.HDTV.H264-ORGANiC.mkv", kind: .video)
+    _ = try assertRenderingSnapshot(
+      name: "tv-files-move-long", view: sheet(levels, item: item), size: viewport)
+  }
+
+  private func sheet(
+    _ levels: [TVMoveSheet.Level], item: PutioFileItem = TVMoveSheetTests.item
+  ) -> some View {
     TVMoveSheet(
-      item: Self.item, levels: levels, load: { _ in throw PutioFolderLoadError.offline },
+      item: item, levels: levels, load: { _ in throw PutioFolderLoadError.offline },
       continueLoad: nil, loadsOnAppear: false, move: { _ in .closed }, close: {}
     )
     .background(PutioTheme.Colors.background)
@@ -79,7 +103,7 @@ final class TVMoveSheetTests: XCTestCase {
     (50, "Music"),
   ]
   private static let documentaryFolders = [(31, "Nature"), (32, "Space"), (33, "True crime")]
-  private static let item = file(id: 11, parentID: 10, name: "Big Buck Bunny.mp4", kind: .video)
+  fileprivate static let item = file(id: 11, parentID: 10, name: "Big Buck Bunny.mp4", kind: .video)
 
   private static func file(
     id: Int, parentID: Int, name: String, kind: PutioFileKind

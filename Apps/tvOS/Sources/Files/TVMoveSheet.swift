@@ -220,6 +220,7 @@ struct TVMoveSheet: View {
           .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .lineLimit(1)
+          .truncationMode(.middle)
       }
     }
   }
@@ -474,13 +475,16 @@ private struct TVMoveFolderLabel: View {
           isDimmed ? AnyShapeStyle(.putioRowSecondary) : AnyShapeStyle(.putioRowPrimary)
         )
         .lineLimit(1)
+        .truncationMode(.middle)
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if let note {
         Text(note)
           .putioFont(PutioTheme.TV.Typography.small)
           .foregroundStyle(.putioRowSecondary)
+          .fixedSize()
+          .layoutPriority(1)
       }
-      if opens { TVDisclosure() }
+      if opens { TVDisclosure().layoutPriority(1) }
     }
     .padding(.horizontal, TVMoveSheetLayout.rowOutset)
     .padding(.vertical, PutioTheme.TV.Spacing.small)
