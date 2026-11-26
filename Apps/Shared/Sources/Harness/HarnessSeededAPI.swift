@@ -775,6 +775,7 @@ import Foundation
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
+    nonisolated(unsafe) private static var conversionCancelled = false
     nonisolated(unsafe) private static var episodeConversionReads = 0
     nonisolated(unsafe) private static var episodeConversionCompleted = false
     nonisolated(unsafe) private static var harnessFolderDeleted = false
@@ -1098,6 +1099,7 @@ import Foundation
       conversionCompleted = false
       conversionStartAttempts = 0
       conversionStatusLoads = 0
+      conversionCancelled = false
       episodeConversionReads = 0
       episodeConversionCompleted = false
       conversionLock.unlock()
@@ -2444,6 +2446,8 @@ import Foundation
         return startVideoConversion()
       case "GET /v2/files/411/mp4":
         return videoConversionStatus()
+      case "DELETE /v2/files/411/mp4":
+        return cancelVideoConversion()
       case "GET /v2/files/411/next-file":
         return (200, #"{"next_file":null}"#)
       case "GET /v2/files/412":
@@ -3728,6 +3732,20 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    /// Holds the first conversion at 35% until Cancel conversion drops it.
+    private static var holdsConversionUntilCancel: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-conversion-cancel")
+    }
+
+    private static func cancelVideoConversion() -> (Int, String) {
+      conversionLock.lock()
+      defer { conversionLock.unlock() }
+      conversionCancelled = true
+      conversionStarted = false
+      conversionStatusLoads = 0
+      return (200, #"{"status":"OK"}"#)
+    }
+
     private static func videoConversionStatus() -> (Int, String) {
       conversionLock.lock()
       defer { conversionLock.unlock() }
@@ -3742,6 +3760,9 @@ import Foundation
         )
       }
 
+      if holdsConversionUntilCancel, !conversionCancelled, conversionStatusLoads > 0 {
+        return (200, #"{"mp4":{"percent_done":35,"status":"CONVERTING"}}"#)
+      }
       let response: (status: String, percentDone: Int)
       switch conversionStatusLoads {
       case 0:

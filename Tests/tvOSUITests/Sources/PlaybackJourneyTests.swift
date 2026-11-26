@@ -315,11 +315,11 @@ final class PlaybackJourneyTests: XCTestCase {
       "the failure was remembered as subtitles off")
   }
 
-  /// The first conversion request fails with a retry; the retried one
-  /// queues, converts, and completes, then the converted video asks to
-  /// resume from its saved position.
+  /// The first conversion request fails with a retry; Cancel conversion
+  /// drops the retried one and leaves; reopening converts again to the
+  /// end, then the converted video asks to resume from its saved position.
   func testConversionGateThenResume() {
-    launch()
+    launch(holdsConversionUntilCancel: true)
     openFile("files.item.410")
     XCTAssertTrue(focus("files.item.411"))
     remote.press(.select)
@@ -335,7 +335,17 @@ final class PlaybackJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.conversion-progress").waitForExistence(timeout: 30))
     XCTAssertTrue(element("conversion.explanation").exists)
     XCTAssertTrue(element("video.conversion.back").exists, "the converting screen offers Back")
+    XCTAssertTrue(element("video.conversion.cancel").exists, "the converting screen offers Cancel")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("video.conversion.back") }, "Back takes the focus")
     attach("runtime-tv-playback-converting")
+    XCTAssertTrue(focus("video.conversion.cancel", moving: .right, limit: 3))
+    remote.press(.select)
+
+    XCTAssertTrue(
+      waitUntil(timeout: 15) { !self.element("video.conversion.cancel").exists },
+      "Cancel conversion leaves the player")
+    openFile("files.item.411")
 
     let resume = element("video.resume.continue")
     XCTAssertTrue(resume.waitForExistence(timeout: 30))
@@ -355,9 +365,13 @@ final class PlaybackJourneyTests: XCTestCase {
   // MARK: Helpers
 
   private func launch(
-    subtitled: Bool = false, subtitleTracks: String? = nil, directPlay: Bool = false
+    subtitled: Bool = false, subtitleTracks: String? = nil, directPlay: Bool = false,
+    holdsConversionUntilCancel: Bool = false
   ) {
     app.launchArguments = ["--putio-harness-scenario", "signed-in", "--putio-harness-tv-browse"]
+    if holdsConversionUntilCancel {
+      app.launchArguments.append("--putio-harness-conversion-cancel")
+    }
     if subtitled { app.launchArguments.append("--putio-harness-subtitled-stream") }
     if directPlay { app.launchArguments.append("--putio-harness-direct-play") }
     if let subtitleTracks {

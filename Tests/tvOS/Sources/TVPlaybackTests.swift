@@ -544,7 +544,7 @@ final class TVPlaybackTests: XCTestCase {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-converting",
       view: TVPlaybackConvertingScreen(
-        state: .converting(progress: 0.42), fileName: "Big Buck Bunny.mp4", back: {}
+        state: .converting(progress: 0.42), fileName: "Big Buck Bunny.mp4", back: {}, cancel: {}
       )
       .environment(\.locale, Locale(identifier: "en_US")),
       size: viewport)

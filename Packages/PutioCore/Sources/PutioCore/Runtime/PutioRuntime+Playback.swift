@@ -315,6 +315,12 @@ extension PutioRuntime {
     }
   }
 
+  public func cancelVideoConversion(fileID: PutioFileID) async throws {
+    _ = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.deleteMp4(fileID: fileID.rawValue)
+    }
+  }
+
   public func videoConversionStatus(fileID: PutioFileID) async throws
     -> PutioVideoConversionStatus
   {
