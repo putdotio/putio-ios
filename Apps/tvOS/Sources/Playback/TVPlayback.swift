@@ -129,6 +129,7 @@ struct TVVideoPlaybackView: View {
         conversionPollInterval: media.isHarness ? .milliseconds(1_200) : .seconds(3),
         startConversion: { try await runtime.startVideoConversion(fileID: $0) },
         loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+        cancelConversion: { try await runtime.cancelVideoConversion(fileID: $0) },
         chooseStart: PutioVideoStart.choice(
           for: start, remembersPosition: account.rememberVideoTime,
           durationSeconds: { await PutioVideoLength.seconds(of: $0) },
@@ -228,7 +229,11 @@ struct TVVideoPlaybackView: View {
           ? String(localized: "Switching to streaming…", bundle: .putioCore)
           : String(localized: "Loading", bundle: .putioCore))
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
-      TVPlaybackConvertingScreen(state: model.state, fileName: route.title, back: onFinish)
+      TVPlaybackConvertingScreen(
+        state: model.state, fileName: route.title, cancelling: model.cancelsConversion,
+        back: onFinish, cancel: cancelConversion
+      )
+      .putioToast($toast)
     case .failed(let failure):
       if let notice = failure.inactiveAccountNotice(for: account) {
         TVPlaybackAccountNotice(notice: notice)
@@ -351,6 +356,19 @@ struct TVVideoPlaybackView: View {
       onPlaybackEnded: playbackEnded,
       onPlaybackRestarted: playbackRestarted,
       onFailure: playerFailed)
+  }
+
+  private func cancelConversion() {
+    Task {
+      if await model.cancelConversion() {
+        onFinish()
+      } else {
+        toast = PutioToast(
+          String(localized: "Something went wrong. Try again.", bundle: .putioCore),
+          icon: .warning, width: .fit)
+        retrySequence &+= 1
+      }
+    }
   }
 
   private func playerReady() {

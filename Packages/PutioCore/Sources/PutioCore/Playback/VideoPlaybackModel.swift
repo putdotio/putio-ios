@@ -8,6 +8,8 @@ public typealias PutioPlaybackPositionReport =
   @MainActor @Sendable (PutioFileID, Int) async throws -> Void
 public typealias PutioVideoConversionStart =
   @MainActor @Sendable (PutioFileID) async throws -> Void
+public typealias PutioVideoConversionCancel =
+  @MainActor @Sendable (PutioFileID) async throws -> Void
 public typealias PutioVideoConversionStatusLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 public typealias PutioVideoConversionSleep =
@@ -209,6 +211,7 @@ public final class PutioVideoPlaybackModel {
   public private(set) var state: PutioVideoPlaybackState = .loading
   public private(set) var playerAttempt: UInt64 = 0
   public private(set) var playsConvertedFallback = false
+  public private(set) var cancelsConversion = false
 
   @ObservationIgnored private let fileID: PutioFileID
   @ObservationIgnored private let resolve: PutioPlaybackResolve
@@ -216,6 +219,8 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private var resolvesConverted = false
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
+  @ObservationIgnored private let cancelConversionRequest: PutioVideoConversionCancel
+  @ObservationIgnored private var pendingStart: Task<Void, Error>?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
@@ -243,6 +248,9 @@ public final class PutioVideoPlaybackModel {
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad = { _ in
       throw PutioRuntimeError.unknown
     },
+    cancelConversion: @escaping PutioVideoConversionCancel = { _ in
+      throw PutioRuntimeError.unknown
+    },
     sleep: @escaping PutioVideoConversionSleep = { try await Task.sleep(for: $0) },
     chooseStart: @escaping PutioVideoStartChoice = { source, _ in source },
     handOffConverted: PutioVideoConvertedHandOff? = nil,
@@ -259,6 +267,7 @@ public final class PutioVideoPlaybackModel {
     self.conversionPollInterval = conversionPollInterval
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
+    self.cancelConversionRequest = cancelConversion
     self.sleep = sleep
     self.chooseStart = chooseStart
     self.handOffConverted = handOffConverted
@@ -277,6 +286,22 @@ public final class PutioVideoPlaybackModel {
     attemptedLoad = true
     accessRefresh = .unused
     await recover()
+  }
+
+  /// Stops watching the conversion and asks put.io to drop it. `false`
+  /// leaves the conversion running; `retry()` resumes watching it.
+  public func cancelConversion() async -> Bool {
+    guard state.conversionPhase != nil, !cancelsConversion else { return false }
+    cancelsConversion = true
+    _ = nextGeneration()
+    _ = try? await pendingStart?.value
+    do {
+      try await cancelConversionRequest(fileID)
+      return true
+    } catch {
+      cancelsConversion = false
+      return false
+    }
   }
 
   /// Loads the source again from `seconds`, such as where a stalled stream
@@ -447,7 +472,14 @@ public final class PutioVideoPlaybackModel {
 
     do {
       try Task.checkCancellation()
-      try await startConversion(fileID)
+      let start = Task { try await startConversion(fileID) }
+      pendingStart = start
+      defer { if pendingStart == start { pendingStart = nil } }
+      try await withTaskCancellationHandler {
+        try await start.value
+      } onCancel: {
+        start.cancel()
+      }
       // The server accepted the request. A cancellation from here on resumes
       // by polling instead of re-posting a second conversion.
       recovery = .pollConversion

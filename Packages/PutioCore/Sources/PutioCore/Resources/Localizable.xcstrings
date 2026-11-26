@@ -537,6 +537,17 @@
         }
       }
     },
+    "Cancel conversion" : {
+      "comment" : "ios-only: stops the conversion on the tvOS converting screen (rd-tvos-pb-11-converting); Android has no cancel",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel conversion"
+          }
+        }
+      }
+    },
     "Cancel download" : {
       "comment" : "android: mobile_downloads_ring_cancel",
       "localizations" : {

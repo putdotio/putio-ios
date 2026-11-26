@@ -101,12 +101,14 @@ struct TVPlaybackStalledScreen: View {
   }
 }
 
-/// A file put.io converts before it plays: the progress, and Back while the
-/// conversion keeps going.
+/// A file put.io converts before it plays: the progress, Back while the
+/// conversion keeps going, and Cancel conversion to stop it.
 struct TVPlaybackConvertingScreen: View {
   let state: PutioVideoPlaybackState
   let fileName: String
+  var cancelling = false
   let back: () -> Void
+  let cancel: () -> Void
 
   @Environment(\.locale) private var locale
 
@@ -123,6 +125,11 @@ struct TVPlaybackConvertingScreen: View {
       TVPlaybackStateButton(
         title: String(localized: "Back", bundle: .putioCore), icon: .arrowLeft,
         identifier: "video.conversion.back", action: back)
+      TVPlaybackStateButton(
+        title: String(localized: "Cancel conversion", bundle: .putioCore), icon: .x,
+        identifier: "video.conversion.cancel", action: cancel
+      )
+      .disabled(cancelling)
     }
     .accessibilityElement(children: .contain)
     .accessibilityIdentifier(identifier)
