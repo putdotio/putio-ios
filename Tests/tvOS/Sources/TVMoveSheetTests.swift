@@ -71,8 +71,25 @@ final class TVMoveSheetTests: XCTestCase {
     let rendered = try assertRenderingSnapshot(
       name: "tv-files-move-long", view: sheet(levels, item: item), size: viewport)
     let path = try XCTUnwrap(
-      rendered.cgImage?.cropping(to: CGRect(x: 1200, y: 170, width: 720, height: 60)))
+      rendered.cgImage?.cropping(to: Self.pathLine))
     try assertBaseline(UIImage(cgImage: path), named: "tv-files-move-long-path")
+  }
+
+  func testADeepPathCollapsesItsOlderFoldersMatchesBaseline() async throws {
+    var routes = [PutioFolderRoute.root]
+    for depth in 1...16 {
+      routes.append(
+        PutioFolderRoute(id: PutioFileID(rawValue: 100 + depth), title: "Level \(depth)"))
+    }
+    var levels: [TVMoveSheet.Level] = []
+    for (index, route) in routes.enumerated() {
+      let next = routes.indices.contains(index + 1) ? routes[index + 1] : nil
+      levels.append(
+        try await level(route, folders: next.map { [($0.id.rawValue, $0.title)] } ?? []))
+    }
+    let rendered = try SnapshotRenderer.render(view: sheet(levels), size: viewport)
+    let path = try XCTUnwrap(rendered.cgImage?.cropping(to: Self.pathLine))
+    try assertBaseline(UIImage(cgImage: path), named: "tv-files-move-deep-path")
   }
 
   private func sheet(
@@ -99,6 +116,7 @@ final class TVMoveSheetTests: XCTestCase {
     return level
   }
 
+  private static let pathLine = CGRect(x: 1200, y: 170, width: 720, height: 60)
   private static let documentaries = PutioFolderRoute(
     id: PutioFileID(rawValue: 30), title: "Documentaries")
   private static let rootFolders = [

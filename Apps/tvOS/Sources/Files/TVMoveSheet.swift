@@ -230,30 +230,15 @@ struct TVMoveSheet: View {
         .scaledToFit()
         .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
         .accessibilityHidden(true)
-      HStack(spacing: 0) {
-        ForEach(levels.indices.dropLast(), id: \.self) { index in
-          ZStack(alignment: .leading) {
-            Text(verbatim: "…")
-              .fixedSize()
-              .hidden()
-            Text(levels[index].route.title(root: TVFolderCopy.yourFiles))
-              .truncationMode(.tail)
-          }
-          .layoutPriority(Double(index))
-          Text(verbatim: " / ")
-            .fixedSize()
-        }
-        Text(level.route.title(root: TVFolderCopy.yourFiles))
-          .fontWeight(.medium)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .truncationMode(.tail)
-          .layoutPriority(Double(levels.count))
-      }
+      TVMovePath(titles: levels.map { $0.route.title(root: TVFolderCopy.yourFiles) })
     }
     .putioFont(PutioTVTypeScale.caption)
     .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
     .lineLimit(1)
-    .accessibilityElement(children: .combine)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(
+      levels.map { $0.route.title(root: TVFolderCopy.yourFiles) }.joined(separator: " / ")
+    )
     .accessibilityIdentifier("files.move-path")
   }
 
@@ -453,6 +438,46 @@ extension PutioFolderRoute {
 
   fileprivate func titled(root: String) -> PutioFolderRoute {
     PutioFolderRoute(id: id, title: title(root: root))
+  }
+}
+
+private struct TVMovePath: View {
+  let titles: [String]
+
+  private var ancestors: [String] { Array(titles.dropLast()) }
+
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      ForEach(0..<max(ancestors.count, 1), id: \.self) { dropped in
+        line(dropping: dropped)
+      }
+    }
+  }
+
+  private func line(dropping dropped: Int) -> some View {
+    HStack(spacing: 0) {
+      if dropped > 0 {
+        Text(verbatim: "… / ")
+          .fixedSize()
+      }
+      ForEach(Array(ancestors.enumerated().dropFirst(dropped)), id: \.offset) { index, title in
+        ZStack(alignment: .leading) {
+          Text(verbatim: "…")
+            .fixedSize()
+            .hidden()
+          Text(title)
+            .truncationMode(.tail)
+        }
+        .layoutPriority(Double(index))
+        Text(verbatim: " / ")
+          .fixedSize()
+      }
+      Text(titles.last ?? "")
+        .fontWeight(.medium)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        .truncationMode(.tail)
+        .layoutPriority(Double(titles.count))
+    }
   }
 }
 
