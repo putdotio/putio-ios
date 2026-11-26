@@ -5,6 +5,14 @@ import PutioSDK
 class ChromecastManager: NSObject {
     static let sharedInstance = ChromecastManager()
 
+    private struct ReceiverLoad {
+        let fileID: Int
+        let request: GCKRequest
+        var accepted = false
+        var mediaSessionID: Int?
+        var fallback: DispatchWorkItem?
+    }
+
     struct CastError {
         var reason: CastErrorReason
     }
@@ -25,9 +33,7 @@ class ChromecastManager: NSObject {
     var timer: Timer?
     private(set) var receiver: CastReceiver = .defaultMedia
     private var receiverChannel: PutioCastChannel?
-    private var receiverLoadFileID: Int?
-    private var receiverLoadRequest: GCKRequest?
-    private var receiverFailureFallback: DispatchWorkItem?
+    private var receiverLoad: ReceiverLoad?
     private let playbackTracker = CastPlaybackTracker()
 
     var debug: Bool = false
@@ -281,15 +287,11 @@ class ChromecastManager: NSObject {
                     }
 
                     self.castingFileId = fileID
-                    self.clearReceiverLoad()
                     self.timer = Timer.scheduledTimer(timeInterval: 15, target: self, selector: #selector(self.saveVideoTime), userInfo: nil, repeats: true)
 
                     if let load = currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions) {
                         load.delegate = self
-                        if receiver == .putio {
-                            self.receiverLoadFileID = file.id
-                            self.receiverLoadRequest = load
-                        }
+                        self.replaceReceiverLoad(with: receiver == .putio ? ReceiverLoad(fileID: file.id, request: load) : nil)
                         self.playbackTracker.loadStarted(load, playback: self.castPlayback(for: file, receiver: receiver), fileID: file.id, session: session)
                     }
                     GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
@@ -349,31 +351,43 @@ class ChromecastManager: NSObject {
     }
 
     private func receiverStatusChanged(_ status: PutioReceiverStatus) {
-        guard case let .failed(fileID?, reason) = status else { return }
-        reportReceiverFailure(fileID: fileID, reason: reason)
+        guard let load = receiverLoad else { return }
+        switch status {
+        case .loading(.some(load.fileID)), .loaded(.some(load.fileID)):
+            receiverLoad?.accepted = true
+        case .failed(.some(load.fileID), let reason) where load.accepted:
+            reportReceiverFailure(fileID: load.fileID, reason: reason)
+        default:
+            break
+        }
     }
 
     private func receiverMediaFailed(_ mediaStatus: GCKMediaStatus) {
-        guard let loadFileID = receiverLoadFileID,
-              mediaStatus.playerState == .idle, mediaStatus.idleReason == .error,
-              mediaStatus.mediaInformation?.contentID == String(loadFileID) else { return }
-        receiverChannel?.requestStatus()
-        guard receiverFailureFallback == nil else { return }
-        let fallback = DispatchWorkItem { [weak self] in
-            self?.reportReceiverFailure(fileID: loadFileID, reason: .streamFailed)
+        guard let load = receiverLoad else { return }
+        let contentID = mediaStatus.mediaInformation?.contentID
+        if contentID == String(load.fileID), mediaStatus.mediaSessionID != 0 {
+            receiverLoad?.mediaSessionID = mediaStatus.mediaSessionID
         }
-        receiverFailureFallback = fallback
+        let isThisLoad = contentID == String(load.fileID)
+            || (contentID == nil && mediaStatus.mediaSessionID != 0 && mediaStatus.mediaSessionID == receiverLoad?.mediaSessionID)
+        guard isThisLoad, mediaStatus.playerState == .idle, mediaStatus.idleReason == .error else { return }
+        receiverChannel?.requestStatus()
+        guard load.fallback == nil else { return }
+        let fallback = DispatchWorkItem { [weak self] in
+            self?.reportReceiverFailure(fileID: load.fileID, reason: .streamFailed)
+        }
+        receiverLoad?.fallback = fallback
         DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: fallback)
     }
 
     private func reportReceiverFailure(fileID: Int, reason: PutioReceiverStatus.Reason) {
-        guard receiverLoadFileID == fileID else { return }
+        guard receiverLoad?.fileID == fileID else { return }
         playbackTracker.receiverFailed(fileID: fileID, reason: reason)
         endReceiverLoadWithError()
     }
 
     private func receiverLoadFailed(_ request: GCKRequest) {
-        guard receiverLoadFileID != nil, request === receiverLoadRequest else { return }
+        guard receiverLoad?.request === request else { return }
         endReceiverLoadWithError()
     }
 
@@ -383,11 +397,17 @@ class ChromecastManager: NSObject {
         presentCastingError()
     }
 
+    private func replaceReceiverLoad(with next: ReceiverLoad?) {
+        if let previous = receiverLoad, previous.fallback != nil {
+            playbackTracker.receiverFailed(fileID: previous.fileID, reason: .streamFailed)
+        }
+        clearReceiverLoad()
+        receiverLoad = next
+    }
+
     private func clearReceiverLoad() {
-        receiverLoadFileID = nil
-        receiverLoadRequest = nil
-        receiverFailureFallback?.cancel()
-        receiverFailureFallback = nil
+        receiverLoad?.fallback?.cancel()
+        receiverLoad = nil
     }
 
     private func presentCastingError() {
@@ -535,7 +555,7 @@ final class CastPlaybackTracker {
     func loadCompleted(_ request: AnyObject, status: Status?) -> Bool {
         guard let load = takePending(request) else { return false }
         capture(.playbackStarted(load.playback), load.session)
-        playing = Playing(load: load, startedAt: now(), mediaSessionID: status?.activeMediaSessionID)
+        playing = Playing(load: load, startedAt: now(), mediaSessionID: status?.activeMediaSessionID, played: status?.playerState == .playing)
         return true
     }
 
