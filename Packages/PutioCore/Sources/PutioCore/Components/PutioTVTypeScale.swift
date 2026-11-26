@@ -37,7 +37,7 @@ public enum PutioTVTypeScale {
     fontName: mono, size: 28, lineHeight: 1.45, textStyle: .caption)
 
   static let roles = [
-    kaomoji, compactKaomoji, title, emptyTitle, panelTitle, columnTitle, rowTitle, action, body, button, label,
-    caption, numeric, tagline,
+    kaomoji, compactKaomoji, title, emptyTitle, panelTitle, columnTitle, rowTitle, action, body,
+    button, label, caption, numeric, tagline,
   ]
 }
