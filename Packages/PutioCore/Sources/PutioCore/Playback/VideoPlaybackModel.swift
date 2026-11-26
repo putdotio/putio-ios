@@ -220,6 +220,7 @@ public final class PutioVideoPlaybackModel {
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let cancelConversionRequest: PutioVideoConversionCancel
+  @ObservationIgnored private var pendingStart: Task<Void, Error>?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private let chooseStart: PutioVideoStartChoice
@@ -293,6 +294,7 @@ public final class PutioVideoPlaybackModel {
     guard state.conversionPhase != nil, !cancelsConversion else { return false }
     cancelsConversion = true
     _ = nextGeneration()
+    _ = try? await pendingStart?.value
     do {
       try await cancelConversionRequest(fileID)
       return true
@@ -470,7 +472,14 @@ public final class PutioVideoPlaybackModel {
 
     do {
       try Task.checkCancellation()
-      try await startConversion(fileID)
+      let start = Task { try await startConversion(fileID) }
+      pendingStart = start
+      defer { if pendingStart == start { pendingStart = nil } }
+      try await withTaskCancellationHandler {
+        try await start.value
+      } onCancel: {
+        start.cancel()
+      }
       // The server accepted the request. A cancellation from here on resumes
       // by polling instead of re-posting a second conversion.
       recovery = .pollConversion

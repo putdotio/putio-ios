@@ -128,6 +128,27 @@ private final class HeldConversionStatus {
 @MainActor
 private final class ConversionCancelRecorder {
   var requests: [PutioFileID] = []
+  var order: [String] = []
+}
+
+@MainActor
+private final class HeldConversionStart {
+  let held = XCTestExpectation(description: "HeldConversionStart holds the start")
+  var onFinish: () -> Void = {}
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func start(_: PutioFileID) async throws {
+    await withCheckedContinuation { continuation in
+      self.continuation = continuation
+      held.fulfill()
+    }
+    onFinish()
+  }
+
+  func release() {
+    continuation?.resume()
+    continuation = nil
+  }
 }
 
 @MainActor
@@ -524,6 +545,35 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(cancelled.requests, [fileID])
     XCTAssertEqual(model.state, .conversionQueued, "a cancelled conversion never plays")
     XCTAssertEqual(resolver.requestedIDs, [fileID])
+  }
+
+  func testCancelDuringTheStartWaitsForItBeforeDroppingTheConversion() async {
+    let resolver = PlaybackResolverStub([.success(.conversionRequired)])
+    let start = HeldConversionStart()
+    let calls = ConversionCancelRecorder()
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      startConversion: { try await start.start($0) },
+      loadConversionStatus: { _ in .queued },
+      cancelConversion: { _ in calls.order.append("cancel") },
+      resolve: { try await resolver.resolve($0) }
+    )
+    start.onFinish = { calls.order.append("start") }
+
+    let loadTask = Task { await model.loadIfNeeded() }
+    await fulfillment(of: [start.held], timeout: 2)
+    XCTAssertEqual(model.state, .conversionRequired)
+
+    let cancelTask = Task { await model.cancelConversion() }
+    await Task.yield()
+    XCTAssertEqual(calls.order, [], "the cancel waits for the start")
+    start.release()
+    let didCancel = await cancelTask.value
+    await loadTask.value
+
+    XCTAssertTrue(didCancel)
+    XCTAssertEqual(calls.order, ["start", "cancel"])
+    XCTAssertEqual(model.state, .conversionRequired, "a cancelled start is never watched")
   }
 
   func testFailedCancelKeepsTheConversionAndRetryWatchesItAgain() async {
