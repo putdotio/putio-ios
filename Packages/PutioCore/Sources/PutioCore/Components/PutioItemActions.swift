@@ -4,124 +4,6 @@ import SwiftUI
   import UIKit
 #endif
 
-public struct PutioItemAction: Identifiable, Sendable {
-  public enum Role: Sendable {
-    case standard
-    case destructive
-  }
-
-  public let id: String
-  public let title: String
-  public let icon: PutioIcon
-  public let role: Role
-  public let isDisabled: Bool
-  public let subtitle: String?
-  public let asksFirst: Bool
-  public let children: [PutioItemAction]
-  let perform: @MainActor @Sendable () -> Void
-
-  public init(
-    id: String,
-    title: String,
-    icon: PutioIcon,
-    role: Role = .standard,
-    isDisabled: Bool = false,
-    subtitle: String? = nil,
-    asksFirst: Bool = false,
-    perform: @escaping @MainActor @Sendable () -> Void
-  ) {
-    self.id = id
-    self.title = title
-    self.icon = icon
-    self.role = role
-    self.isDisabled = isDisabled
-    self.subtitle = subtitle
-    self.asksFirst = asksFirst
-    children = []
-    self.perform = perform
-  }
-
-  public init(submenu id: String, title: String, icon: PutioIcon, children: [PutioItemAction]) {
-    self.id = id
-    self.title = title
-    self.icon = icon
-    role = .standard
-    isDisabled = children.allSatisfy(\.isDisabled)
-    subtitle = nil
-    asksFirst = false
-    self.children = children
-    perform = {}
-  }
-}
-
-public struct PutioItemMenu: Sendable {
-  public let sections: [[PutioItemAction]]
-
-  public init(_ groups: [[PutioItemAction]]) {
-    let kept = groups.map { group in group.filter { $0.role == .standard } }
-    let destructive = groups.flatMap { group in group.filter { $0.role == .destructive } }
-    sections = (kept + [destructive]).filter { !$0.isEmpty }
-  }
-}
-
-public struct PutioTextAlert: Identifiable, Sendable {
-  public let id = UUID()
-  public let title: String
-  public let message: String?
-  public let initialText: String
-  public let submitTitle: String
-  public let failureText: String
-  let submit: @MainActor @Sendable (String) async throws -> Void
-
-  public init(
-    title: String,
-    message: String? = nil,
-    initialText: String,
-    submitTitle: String,
-    failureText: String,
-    submit: @escaping @MainActor @Sendable (String) async throws -> Void
-  ) {
-    self.title = title
-    self.message = message
-    self.initialText = initialText
-    self.submitTitle = submitTitle
-    self.failureText = failureText
-    self.submit = submit
-  }
-
-  public static func canSubmit(_ text: String, replacing initialText: String) -> Bool {
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    return !trimmed.isEmpty && trimmed != initialText
-  }
-
-  public static func selectedLength(of name: String) -> Int {
-    guard let dot = name.lastIndex(of: "."), dot != name.startIndex else {
-      return name.utf16.count
-    }
-    return name[..<dot].utf16.count
-  }
-}
-
-public struct PutioConfirmAlert: Identifiable, Sendable {
-  public let id = UUID()
-  public let title: String
-  public let message: String?
-  public let confirmTitle: String
-  let confirm: @MainActor @Sendable () -> Void
-
-  public init(
-    title: String,
-    message: String? = nil,
-    confirmTitle: String,
-    confirm: @escaping @MainActor @Sendable () -> Void
-  ) {
-    self.title = title
-    self.message = message
-    self.confirmTitle = confirmTitle
-    self.confirm = confirm
-  }
-}
-
 #if os(iOS)
   public struct PutioItemMenuContent: View {
     private let menu: PutioItemMenu
@@ -260,7 +142,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
             PutioItemMenuContent(menu)
           } label: {
             Label {
-              Text(String(localized: "More", bundle: .module))
+              Text(String(localized: "More", bundle: .putioCore))
             } icon: {
               Image(putioIcon: .dotsThree)
             }
@@ -304,7 +186,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
         } catch {
           toast = PutioToast(
             alert.failureText,
-            action: PutioToast.Action(String(localized: "Try again", bundle: .module)) {
+            action: PutioToast.Action(String(localized: "Try again", bundle: .putioCore)) {
               [self] in
               send(alert, text: text)
             }
@@ -359,7 +241,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
       guard let presented else { return [] }
       let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
       return [
-        PutioAlertAction(String(localized: "Cancel", bundle: .module), tier: .cancel),
+        PutioAlertAction(String(localized: "Cancel", bundle: .putioCore), tier: .cancel),
         PutioAlertAction(
           presented.submitTitle, tier: .primary, id: "text-alert.submit",
           isDisabled: !PutioTextAlert.canSubmit(text, replacing: presented.initialText)
@@ -396,7 +278,7 @@ public struct PutioConfirmAlert: Identifiable, Sendable {
     private var actions: [PutioAlertAction] {
       guard let request else { return [] }
       return [
-        PutioAlertAction(String(localized: "Cancel", bundle: .module), tier: .cancel),
+        PutioAlertAction(String(localized: "Cancel", bundle: .putioCore), tier: .cancel),
         PutioAlertAction(
           request.confirmTitle, tier: .destructive, id: "confirm-alert.confirm",
           perform: request.confirm),

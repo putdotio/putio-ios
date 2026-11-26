@@ -1,8 +1,8 @@
 # Session lifecycle
 
-[PutioSessionStore](../Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift)
+[PutioSessionStore](../Packages/PutioCore/Sources/PutioDomain/Session/PutioSessionStore.swift)
 owns authentication state and saved credentials. The shared
-[PutioRuntime](../Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift)
+[PutioRuntime](../Packages/PutioCore/Sources/PutioDomain/Runtime/PutioRuntime.swift)
 checks the session generation around authenticated operations so a late response
 cannot change a newer session. Keep that check after every suspension before
 applying a session-sensitive result.
@@ -57,5 +57,5 @@ credential stays until a later launch can read it.
 Sign-in from the welcome stays available. Saving its token replaces the
 credential and clears the intent; the replaced grant is not revoked and stays
 listed under "Logged-in apps". The
-[session tests](../Packages/PutioCore/Tests/PutioCoreTests/Session/PutioSessionStoreTests.swift)
+[session tests](../Packages/PutioCore/Tests/PutioDomainTests/Session/PutioSessionStoreTests.swift)
 cover each failure.

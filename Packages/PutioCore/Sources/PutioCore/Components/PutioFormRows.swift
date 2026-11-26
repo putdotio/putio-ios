@@ -685,7 +685,7 @@ public struct PutioSettingsFailedRows: View {
     .accessibilityElement(children: .combine)
     .accessibilityIdentifier(identifier)
     Button(action: retry) {
-      Text(String(localized: "Try again", bundle: .module))
+      Text(String(localized: "Try again", bundle: .putioCore))
         .putioFont(PutioFormLayout.titleFont)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .frame(maxWidth: .infinity)
@@ -705,10 +705,6 @@ extension View {
   }
 }
 
-public struct PutioSettingNotSaved: Error, Sendable {
-  public init() {}
-}
-
 @MainActor @Observable
 public final class PutioSettingSaveFailures {
   var toast: PutioToast?
@@ -717,7 +713,8 @@ public final class PutioSettingSaveFailures {
 
   static var failureToast: PutioToast {
     PutioToast(
-      String(localized: "Couldn’t save this setting", bundle: .module), icon: .warning, width: .fit)
+      String(localized: "Couldn’t save this setting", bundle: .putioCore), icon: .warning,
+      width: .fit)
   }
 
   public func report() {

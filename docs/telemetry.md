@@ -16,7 +16,7 @@ The release is `<bundle id>@<version>+<build>`.
 reads these from Info.plist and swaps the DSN host for `relay.put.io`, which
 forwards only allowlisted project ids.
 
-[PutioDiagnosticsConsent](../Packages/PutioCore/Sources/PutioCore/Account/DiagnosticsConsent.swift)
+[PutioDiagnosticsConsent](../Packages/PutioCore/Sources/PutioDomain/Account/DiagnosticsConsent.swift)
 follows `diagnostics_enabled`: signed out or not yet answered counts as on, and
 the last account answer is kept so a cold launch honors an opt-out before the
 session restores. [PutioDiagnostics](../Apps/Shared/Telemetry/PutioDiagnostics.swift)
@@ -49,5 +49,5 @@ and title and fails if any is sent.
 
 Player failures and rescues send one anonymous `playback_failure` event, schema
 2, shared with put.io's other players. It carries no user and only the tags in
-[`PutioPlaybackFailureReport.tagKeys`](../Packages/PutioCore/Sources/PutioCore/Playback/PlaybackFailureReport.swift);
+[`PutioPlaybackFailureReport.tagKeys`](../Packages/PutioCore/Sources/PutioDomain/Playback/PlaybackFailureReport.swift);
 the allowlist rebuilds its message and fingerprint from those tags.

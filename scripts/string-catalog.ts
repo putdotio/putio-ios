@@ -48,9 +48,10 @@ export const targets: CatalogTarget[] = [
   },
   {
     name: "PutioCore",
-    catalog: "Packages/PutioCore/Sources/PutioCore/Resources/Localizable.xcstrings",
+    catalog: "Packages/PutioCore/Sources/PutioDomain/Resources/Localizable.xcstrings",
     sources: [
-      { path: "Packages/PutioCore/Sources/PutioCore", bundle: ".module" },
+      { path: "Packages/PutioCore/Sources/PutioDomain", bundle: ".module" },
+      { path: "Packages/PutioCore/Sources/PutioCore", bundle: ".putioCore" },
       { path: "Apps/tvOS/Sources", bundle: ".putioCore" },
       { path: "Apps/Shared/Sources", bundle: ".putioCore" },
     ],
@@ -61,7 +62,7 @@ export const excludedPaths = [
   "Apps/iOS/Sources/Harness/",
   "Apps/tvOS/Sources/Harness/",
   "Apps/Shared/Sources/Harness/",
-  "Packages/PutioCore/Sources/PutioCore/Harness/",
+  "Packages/PutioCore/Sources/PutioDomain/Harness/",
   "Packages/PutioCore/Sources/PutioCore/Generated/",
   "Packages/PutioCore/Sources/PutioCore/Components/PutioComponentGallery.swift",
 ];
@@ -74,12 +75,12 @@ export const unlocalizedTVOSFiles: { file: string; epic: string }[] = [
 
 export const exemptLiterals: { file: string; text: string; reason: string }[] = [
   {
-    file: "Packages/PutioCore/Sources/PutioCore/Session/SignedOutPresentation.swift",
+    file: "Packages/PutioCore/Sources/PutioDomain/Session/SignedOutPresentation.swift",
     text: "Harness exercise complete",
     reason: "shown only to the harness after a scripted sign-out",
   },
   {
-    file: "Packages/PutioCore/Sources/PutioCore/Playback/PlaybackFailureReport.swift",
+    file: "Packages/PutioCore/Sources/PutioDomain/Playback/PlaybackFailureReport.swift",
     text: "playback \u0000: \u0000",
     reason: "the Sentry playback_failure message every put.io player sends in English",
   },

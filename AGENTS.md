@@ -20,6 +20,8 @@ session, API, and feature logic belong in `Packages/PutioCore`.
   never hand-edit generated Swift or asset catalogs.
 - For authentication changes, preserve [session recovery](docs/session.md).
   For routing changes, check [deep-link behavior](docs/deep-links.md).
+- Keep `PutioDomain` free of Apple-only imports: Linux CI runs its tests, and
+  PutioCore declares its Apple targets only on Apple hosts.
 - Report crashes and errors only through the
   [telemetry boundary](docs/telemetry.md); nothing else imports Sentry.
 - Reach Intercom only through `Apps/iOS/Sources/Support`

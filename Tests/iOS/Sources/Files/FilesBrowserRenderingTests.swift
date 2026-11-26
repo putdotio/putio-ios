@@ -5,6 +5,7 @@ import XCTest
 
 @testable import Putio
 @testable import PutioCore
+@testable import PutioDomain
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor

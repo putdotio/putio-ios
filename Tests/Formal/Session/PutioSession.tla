@@ -1,6 +1,6 @@
 ---------------------------- MODULE PutioSession ----------------------------
 (***************************************************************************)
-(* PutioSessionStore (Packages/PutioCore/Sources/PutioCore/Session/        *)
+(* PutioSessionStore (Packages/PutioCore/Sources/PutioDomain/Session/      *)
 (* PutioSessionStore.swift) as the shipped iOS and tvOS screens drive it.  *)
 (*                                                                         *)
 (* The store runs on the main actor, so the code between two `await`s is   *)
