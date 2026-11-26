@@ -766,6 +766,50 @@ final class ChromecastTests: XCTestCase {
     }
   }
 
+  func testTheSwitchPicksThePutioReceiverAndBothAreDiscoverable() throws {
+    XCTAssertEqual(PutioCastReceiver.appID(usesPutioReceiver: false), "CC1AD845")
+    XCTAssertEqual(PutioCastReceiver.appID(usesPutioReceiver: true), "E3A4ADFA")
+    let services = try XCTUnwrap(
+      Bundle.main.object(forInfoDictionaryKey: "NSBonjourServices") as? [String])
+    XCTAssertTrue(services.contains("_CC1AD845._googlecast._tcp"))
+    XCTAssertTrue(services.contains("_E3A4ADFA._googlecast._tcp"))
+
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: "ChromecastTests.receiver"))
+    defaults.removePersistentDomain(forName: "ChromecastTests.receiver")
+    XCTAssertFalse(PutioCastReceiver.rememberedChoice(in: defaults))
+    PutioCastReceiver.remember(usesPutioReceiver: true, in: defaults)
+    XCTAssertTrue(PutioCastReceiver.rememberedChoice(in: defaults))
+    defaults.removePersistentDomain(forName: "ChromecastTests.receiver")
+  }
+
+  func testThePutioReceiverGetsTheFileAndTokenOnlyInCustomData() throws {
+    let video = PutioCastMedia(
+      id: PutioFileID(rawValue: 42), parentID: PutioFileID(rawValue: 0), title: "Episode",
+      url: URL(string: "https://api.put.io/v2/files/42/hls/media.m3u8?oauth_token=secret")!,
+      artworkURL: nil, durationSeconds: 600, startFromSeconds: 90, downloadToken: "secret")
+    let load = try XCTUnwrap(
+      PutioGoogleCastController.putioReceiverLoad(
+        for: video, startSeconds: 90, onPutioReceiver: true))
+    let json = try JSONSerialization.data(withJSONObject: load, options: .sortedKeys)
+    XCTAssertEqual(
+      String(decoding: json, as: UTF8.self),
+      #"{"fileId":42,"method":"hls","position":90,"token":"secret"}"#)
+    XCTAssertFalse(String(describing: video).contains("secret"))
+    XCTAssertFalse(String(reflecting: video).contains("secret"))
+
+    XCTAssertNil(
+      PutioGoogleCastController.putioReceiverLoad(
+        for: video, startSeconds: 90, onPutioReceiver: false))
+    let audio = PutioCastMedia(
+      id: PutioFileID(rawValue: 7), parentID: PutioFileID(rawValue: 0), title: "Song",
+      url: URL(string: "https://api.put.io/v2/files/7/stream?oauth_token=secret")!,
+      artworkURL: nil, durationSeconds: 60, startFromSeconds: 0,
+      kind: .audio(contentType: "audio/mpeg"), downloadToken: "secret")
+    XCTAssertNil(
+      PutioGoogleCastController.putioReceiverLoad(
+        for: audio, startSeconds: 0, onPutioReceiver: true))
+  }
+
   private func subtitledMedia(englishIsDefault: Bool = true) -> PutioCastMedia {
     PutioCastMedia(
       id: PutioFileID(rawValue: 412), parentID: .root, title: "Movie.mkv",

@@ -64,11 +64,13 @@ private func brandFontInfoPlist(for platform: String) -> Plist.Value {
 private let castBonjourServices: Plist.Value = [
   "_googlecast._tcp",
   "_$(PUTIO_CHROMECAST_RECEIVER_APP_ID)._googlecast._tcp",
+  "_$(PUTIO_CAST_RECEIVER_APP_ID)._googlecast._tcp",
 ]
 private let castLocalNetworkUsageDescription: Plist.Value =
   "put.io uses the local network to find Chromecast devices on your Wi-Fi."
 private let castBuildSettings: SettingsDictionary = [
-  "PUTIO_CHROMECAST_RECEIVER_APP_ID": "CC1AD845"
+  "PUTIO_CHROMECAST_RECEIVER_APP_ID": "CC1AD845",
+  "PUTIO_CAST_RECEIVER_APP_ID": "E3A4ADFA",
 ]
 
 // The put.io OAuth client is supplied per build through this setting and
@@ -141,6 +143,7 @@ let project = Project(
         "NSBonjourServices": castBonjourServices,
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
+        "PUTIO_CAST_RECEIVER_APP_ID": "$(PUTIO_CAST_RECEIVER_APP_ID)",
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "PUTIO_APP_STORE_ID": appStoreInfoPlist,
         "CFBundleURLTypes": [
@@ -230,6 +233,7 @@ let project = Project(
         "NSBonjourServices": castBonjourServices,
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
+        "PUTIO_CAST_RECEIVER_APP_ID": "$(PUTIO_CAST_RECEIVER_APP_ID)",
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "PUTIO_APP_STORE_ID": appStoreInfoPlist,
         "UILaunchScreen": [:],

@@ -264,6 +264,7 @@ struct AccountView: View {
           switch write {
           case .autoplayNextVideo: reveal(.autoplay)
           case .autoRotateVideo: reveal(.autoRotate)
+          case .putioCastReceiver: reveal(.castReceiver)
           case .playbackMethod: break
           }
         })
@@ -494,6 +495,17 @@ struct PutioPlaybackConfigRows: View {
         .id(AccountSettingRow.autoRotate)
         .accessibilityIdentifier("playback-settings.auto-rotate")
       }
+      PutioToggleRow(
+        String(localized: "Use the put.io Cast receiver"), icon: .screencast,
+        isOn: appConfig.usesPutioCastReceiver
+      ) { enabled in
+        try await commit(.putioCastReceiver(enabled)) {
+          await appConfig.setUsesPutioCastReceiver(enabled)
+        }
+      }
+      .disabled(!appConfig.canSave)
+      .id(AccountSettingRow.castReceiver)
+      .accessibilityIdentifier("playback-settings.cast-receiver")
     }
   }
 
@@ -539,7 +551,7 @@ private struct AccountUntitledSection<Content: View>: View {
 }
 
 enum AccountSettingRow: Hashable {
-  case defaultSort, trash, resume, autoplay, autoRotate, showSubtitles
+  case defaultSort, trash, resume, autoplay, autoRotate, castReceiver, showSubtitles
   case pickMatchingSubtitles
   case history
 }

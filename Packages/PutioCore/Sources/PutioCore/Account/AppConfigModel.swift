@@ -12,6 +12,7 @@ public struct PutioAppConfigActions: Sendable {
       case .autoplayNextVideo(let enabled): try await runtime.setAutoplayNextVideo(enabled)
       case .autoRotateVideo(let enabled): try await runtime.setAutoRotateVideo(enabled)
       case .playbackMethod(let method): try await runtime.setPlaybackMethod(method)
+      case .putioCastReceiver(let enabled): try await runtime.setUsesPutioCastReceiver(enabled)
       }
     }
   }
@@ -30,6 +31,7 @@ public enum PutioAppConfigWrite: Equatable, Sendable {
   case autoplayNextVideo(Bool)
   case autoRotateVideo(Bool)
   case playbackMethod(PutioPlaybackMethod)
+  case putioCastReceiver(Bool)
 }
 
 /// The per-user config document behind app-owned playback settings. The
@@ -64,6 +66,7 @@ public final class PutioAppConfigModel {
 
   public var autoRotateVideo: Bool { config?.autoRotateVideo ?? true }
   public var playbackMethod: PutioPlaybackMethod { config?.playbackMethod ?? .standard }
+  public var usesPutioCastReceiver: Bool { config?.usesPutioCastReceiver ?? false }
   public var isBusy: Bool { isLoading || isSaving }
   public var canSave: Bool { config != nil && !isBusy }
 
@@ -138,6 +141,12 @@ public final class PutioAppConfigModel {
     return await save(.playbackMethod(method))
   }
 
+  @discardableResult
+  public func setUsesPutioCastReceiver(_ enabled: Bool) async -> PutioSettingSaveOutcome {
+    guard enabled != usesPutioCastReceiver else { return .skipped }
+    return await save(.putioCastReceiver(enabled))
+  }
+
   /// Repeats the failed write when one is pending; otherwise reloads the
   /// document, which is the only recovery after a failed read.
   public func retry() async {
@@ -163,6 +172,7 @@ public final class PutioAppConfigModel {
         case .autoplayNextVideo(let enabled): config?.autoplayNextVideo = enabled
         case .autoRotateVideo(let enabled): config?.autoRotateVideo = enabled
         case .playbackMethod(let method): config?.playbackMethod = method
+        case .putioCastReceiver(let enabled): config?.usesPutioCastReceiver = enabled
         }
         return .saved
       } catch {

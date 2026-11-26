@@ -241,6 +241,7 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case autoplayNextVideo = "autoplay_next_video"
   case autoRotateVideo = "auto_rotate_video"
   case streamingMethod = "streaming_method"
+  case putioCastReceiver = "beta.putio_cast_receiver"
   /// One flat key, dot included, as the App Store app writes it.
   case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
   /// File ids, newest pin first, as the Android apps write them.
@@ -258,15 +259,19 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
   public var autoRotateVideo: Bool
   public var playbackMethod: PutioPlaybackMethod
   public var productAnalyticsPromptAnswered: Bool
+  /// Off unless readably on: Cast goes to the put.io receiver.
+  public var usesPutioCastReceiver: Bool
 
   public init(
     autoplayNextVideo: Bool = false, autoRotateVideo: Bool = true,
-    playbackMethod: PutioPlaybackMethod = .standard, productAnalyticsPromptAnswered: Bool = false
+    playbackMethod: PutioPlaybackMethod = .standard, productAnalyticsPromptAnswered: Bool = false,
+    usesPutioCastReceiver: Bool = false
   ) {
     self.autoplayNextVideo = autoplayNextVideo
     self.autoRotateVideo = autoRotateVideo
     self.playbackMethod = playbackMethod
     self.productAnalyticsPromptAnswered = productAnalyticsPromptAnswered
+    self.usesPutioCastReceiver = usesPutioCastReceiver
   }
 
   private enum CodingKeys: String, CodingKey {
@@ -274,6 +279,7 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
     case autoRotateVideo = "auto_rotate_video"
     case playbackMethod = "streaming_method"
     case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
+    case usesPutioCastReceiver = "beta.putio_cast_receiver"
   }
 
   public init(from decoder: Decoder) throws {
@@ -284,6 +290,8 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
       (try? container.decodeIfPresent(Bool.self, forKey: .autoRotateVideo)) ?? true
     let rawPlaybackMethod = try? container.decodeIfPresent(String.self, forKey: .playbackMethod)
     playbackMethod = rawPlaybackMethod.flatMap(PutioPlaybackMethod.init(rawValue:)) ?? .standard
+    usesPutioCastReceiver =
+      (try? container.decodeIfPresent(Bool.self, forKey: .usesPutioCastReceiver)) == true
     // Only a readable "not answered" asks; a value this app can't read counts
     // as an answer rather than asking again on every launch.
     do {
@@ -358,11 +366,13 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
   public let startFromSeconds: Int
   public let kind: Kind
   public let subtitleRenditions: [PutioSubtitleRendition]
+  /// The download token the put.io receiver builds a video's stream with.
+  public let downloadToken: String?
 
   public init(
     id: PutioFileID, parentID: PutioFileID, title: String, url: URL, artworkURL: URL?,
     durationSeconds: Double, startFromSeconds: Int, kind: Kind = .video,
-    subtitleRenditions: [PutioSubtitleRendition] = []
+    subtitleRenditions: [PutioSubtitleRendition] = [], downloadToken: String? = nil
   ) {
     self.id = id
     self.parentID = parentID
@@ -373,6 +383,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     self.startFromSeconds = startFromSeconds
     self.kind = kind
     self.subtitleRenditions = subtitleRenditions
+    self.downloadToken = downloadToken
   }
 
   public var contentType: String {
@@ -395,6 +406,7 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
         "id": id, "parentID": parentID, "title": title, "url": "<redacted>",
         "durationSeconds": durationSeconds, "startFromSeconds": startFromSeconds,
         "kind": kind, "subtitleRenditions": subtitleRenditions,
+        "downloadToken": downloadToken.map { _ in "<redacted>" } as Any,
       ],
       displayStyle: .struct)
   }

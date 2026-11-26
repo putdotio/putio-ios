@@ -21,12 +21,15 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   private var localNetworkDenied = false
 
   private var loadedFileID: PutioFileID?
+  private static let putioReceiverAppID = PutioCastReceiver.putioAppID()
+  private static var contextReceiverAppID: String?
   private var castStateObservation: NSObjectProtocol?
   private var pendingRequests: [Int: CheckedContinuation<Void, Error>] = [:]
   private var pendingRequestObjects: [Int: GCKRequest] = [:]
 
   static func configureSharedContext(receiverAppID: String) {
     guard !GCKCastContext.isSharedInstanceInitialized() else { return }
+    contextReceiverAppID = receiverAppID
     let criteria = GCKDiscoveryCriteria(applicationID: receiverAppID)
     let options = GCKCastOptions(discoveryCriteria: criteria)
     options.disableAnalyticsLogging = true
@@ -148,10 +151,23 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     guard let client = remoteMediaClient else { throw PutioCastControllerError(failure: .receiver) }
     abandonPendingRequests()
     loadedFileID = nil
-    let builder = GCKMediaInformationBuilder(contentURL: media.url)
-    // put.io playlists carry no stable duration, so the receiver derives
-    // seekability from the stream.
-    builder.streamType = .none
+    let sessionAppID =
+      GCKCastContext.sharedInstance().sessionManager.currentCastSession?.applicationMetadata?
+      .applicationID ?? Self.contextReceiverAppID
+    let receiverLoad = Self.putioReceiverLoad(
+      for: media, startSeconds: startSeconds,
+      onPutioReceiver: sessionAppID == Self.putioReceiverAppID)
+    let builder: GCKMediaInformationBuilder
+    if receiverLoad != nil {
+      builder = GCKMediaInformationBuilder()
+      builder.contentID = String(media.id.rawValue)
+      builder.streamType = .buffered
+    } else {
+      builder = GCKMediaInformationBuilder(contentURL: media.url)
+      // put.io playlists carry no stable duration, so the receiver derives
+      // seekability from the stream.
+      builder.streamType = .none
+    }
     builder.contentType = media.contentType
     if media.durationSeconds > 0 { builder.streamDuration = media.durationSeconds }
     let metadata: GCKMediaMetadata
@@ -172,6 +188,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     request.mediaInformation = builder.build()
     request.autoplay = NSNumber(value: autoplay)
     request.startTime = TimeInterval(startSeconds)
+    request.customData = receiverLoad
     if !activeTrackIDs.isEmpty {
       request.activeTrackIDs = activeTrackIDs.map { NSNumber(value: $0) }
     }
@@ -341,6 +358,21 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   }
 
   private static let fileIDKey = "putio_file_id"
+
+  /// The put.io receiver builds a video's stream from its file id and the
+  /// download token, so the token never rides in a URL. Audio and any other
+  /// receiver keep the plain load.
+  static func putioReceiverLoad(
+    for media: PutioCastMedia, startSeconds: Int, onPutioReceiver: Bool
+  ) -> [String: Any]? {
+    guard onPutioReceiver, case .video = media.kind, let token = media.downloadToken,
+      !token.isEmpty
+    else { return nil }
+    return [
+      "fileId": media.id.rawValue, "method": "hls", "position": max(0, startSeconds),
+      "token": token,
+    ]
+  }
 
   private func publishStatus(_ mediaStatus: GCKMediaStatus?) {
     guard let mediaStatus, let fileID = loadedFileID,

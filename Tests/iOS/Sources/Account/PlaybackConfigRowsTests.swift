@@ -16,13 +16,13 @@ final class PlaybackConfigRowsTests: XCTestCase {
       PutioPlaybackConfigRows(suggestsNextVideo: true, showsRotation: false, appConfig: model))
     defer { suggested.isHidden = true }
     let shown = try await switchCount(in: suggested)
-    XCTAssertEqual(shown, 1, "the autoplay switch is missing while suggestions are on")
+    XCTAssertEqual(shown, 2, "the autoplay switch is missing while suggestions are on")
 
     let unsuggested = host(
       PutioPlaybackConfigRows(suggestsNextVideo: false, showsRotation: false, appConfig: model))
     defer { unsuggested.isHidden = true }
     let hidden = try await switchCount(in: unsuggested)
-    XCTAssertEqual(hidden, 0, "autoplay is offered for suggestions the account turned off")
+    XCTAssertEqual(hidden, 1, "autoplay is offered for suggestions the account turned off")
   }
 
   private func host(_ rows: PutioPlaybackConfigRows) -> UIWindow {

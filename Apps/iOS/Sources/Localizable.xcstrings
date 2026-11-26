@@ -3312,6 +3312,17 @@
         }
       }
     },
+    "Use the put.io Cast receiver" : {
+      "comment" : "android: mobile_settings_putio_cast_receiver",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the put.io Cast receiver"
+          }
+        }
+      }
+    },
     "Used on %@" : {
       "comment" : "android: mobile_logged_in_apps_used_on",
       "localizations" : {

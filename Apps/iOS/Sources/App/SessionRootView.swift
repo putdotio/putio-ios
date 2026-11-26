@@ -50,12 +50,16 @@ struct SessionRootView: View {
       PutioSupportMessenger.shared.sessionDidChange(
         state, identity: runtime.session.supportIdentity)
       deepLinks.updateSession(state)
+      if state == .signedOut(.sessionExpired) || state == .signedOut(.userSignedOut) {
+        PutioCastReceiver.remember(usesPutioReceiver: false)
+      }
       if case .signedIn(let previousAccount) = previous {
         if case .signedIn(let currentAccount) = state, previousAccount.id == currentAccount.id {
           return
         }
         // The root survives shell removal, including failed sign-out and expiry.
         cast.disconnect()
+        PutioCastReceiver.remember(usesPutioReceiver: false)
         if case .signingOut = state {
           PutioContinueWatchingStore.clear(accountID: previousAccount.id)
           PutioConvertedFallbacks.clear(accountID: previousAccount.id)
