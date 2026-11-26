@@ -159,7 +159,7 @@ struct TVMoveSheet: View {
         .padding(.top, TVMoveSheetLayout.listGap)
       if let takenName {
         Text(TVMoveCopy.nameTaken(takenName))
-          .putioFont(PutioTheme.TV.Typography.caption)
+          .putioFont(PutioTVTypeScale.caption)
           .foregroundStyle(PutioTheme.Colors.destructiveText)
           .fixedSize(horizontal: false, vertical: true)
           .accessibilityIdentifier("files.move-name-taken")
@@ -197,7 +197,7 @@ struct TVMoveSheet: View {
   }
 
   private var header: some View {
-    HStack(spacing: PutioTheme.TV.Spacing.medium) {
+    HStack(spacing: TVMoveSheetLayout.contentGap) {
       Image(putioIcon: PutioBrowserItemPresentation(item: item).row.kind.icon)
         .resizable()
         .scaledToFit()
@@ -211,11 +211,11 @@ struct TVMoveSheet: View {
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xxs) {
         Text(TVMoveCopy.title)
-          .putioFont(PutioTheme.TV.Typography.label)
+          .putioFont(PutioTVTypeScale.panelTitle)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
           .accessibilityAddTraits(.isHeader)
         Text(item.name)
-          .putioFont(PutioTheme.TV.Typography.caption)
+          .putioFont(PutioTVTypeScale.caption)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
           .lineLimit(1)
           .truncationMode(.middle)
@@ -244,7 +244,7 @@ struct TVMoveSheet: View {
           .layoutPriority(1)
       }
     }
-    .putioFont(PutioTheme.TV.Typography.caption)
+    .putioFont(PutioTVTypeScale.caption)
     .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
     .lineLimit(1)
     .accessibilityElement(children: .combine)
@@ -284,7 +284,7 @@ struct TVMoveSheet: View {
 
   private func list(_ folders: [PutioFileItem], hasMore: Bool) -> some View {
     ScrollView {
-      LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
+      LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xxs) {
         ForEach(folders) { folder in
           switch policy.row(for: folder) {
           case .destination:
@@ -458,7 +458,7 @@ private struct TVMoveFolderLabel: View {
   private var isDimmed: Bool { !opens || note != nil }
 
   var body: some View {
-    HStack(spacing: PutioTheme.TV.Spacing.medium) {
+    HStack(spacing: TVMoveSheetLayout.contentGap) {
       Image(putioIcon: .folderFill)
         .resizable()
         .scaledToFit()
@@ -468,7 +468,7 @@ private struct TVMoveFolderLabel: View {
         )
         .accessibilityHidden(true)
       Text(name)
-        .putioFont(PutioTheme.TV.Typography.body)
+        .putioFont(PutioTVTypeScale.rowTitle)
         .foregroundStyle(
           isDimmed ? AnyShapeStyle(.putioRowSecondary) : AnyShapeStyle(.putioRowPrimary)
         )
@@ -507,7 +507,7 @@ private struct TVMoveHereButtonBody: View {
 
   var body: some View {
     configuration.label
-      .putioFont(PutioTheme.TV.Typography.label)
+      .putioFont(PutioTVTypeScale.button)
       .foregroundStyle(isFocused ? PutioTVRowFocus.foreground : PutioTheme.TV.Colors.textPrimary)
       .frame(maxWidth: .infinity)
       .frame(height: TVMoveSheetLayout.moveHereHeight)
@@ -540,6 +540,7 @@ enum TVMoveSheetLayout {
   static let moveHereRestingFill = 0.12
   static let moveHereLift = 1.04
   static let rowOutset: CGFloat = 24
+  static let contentGap: CGFloat = 24
   static let unavailableOpacity = 0.5
   static let shadowOpacity = 0.5
   static let shadowRadius: CGFloat = 40
