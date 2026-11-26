@@ -112,11 +112,23 @@
   struct PutioVideoSubtitleOverlay: View {
     let cues: [PutioVideoCue]
     let size: PutioSubtitleTextSize
-    var picture = PutioVideoPicture.unknown
-    var bottomInset = PutioTheme.Spacing.space6
+    let picture: PutioVideoPicture
+    let bottomInset: CGFloat
 
     @State private var appearance = PutioCaptionAppearance.current
-    @ScaledMetric(relativeTo: .body) private var baseSize = PutioTheme.Typography.sizeBase
+    @ScaledMetric private var baseSize: CGFloat
+
+    init(
+      cues: [PutioVideoCue], size: PutioSubtitleTextSize, picture: PutioVideoPicture = .unknown,
+      bottomInset: CGFloat = PutioTheme.Spacing.space6,
+      baseSize: CGFloat = PutioTheme.Typography.sizeBase
+    ) {
+      self.cues = cues
+      self.size = size
+      self.picture = picture
+      self.bottomInset = bottomInset
+      _baseSize = ScaledMetric(wrappedValue: baseSize, relativeTo: .body)
+    }
 
     var body: some View {
       ZStack {

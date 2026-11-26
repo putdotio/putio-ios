@@ -374,7 +374,10 @@ struct TVDirectVideoPlayer: View {
       PutioVideoSubtitleOverlay(
         cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture,
         bottomInset: showsControls
-          ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset)
+          ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset,
+        baseSize: TVDirectControlsMetrics.captionSize
+      )
+      .zIndex(menu == nil ? 1 : 0)
       Button(action: playPause) { Color.clear.contentShape(Rectangle()) }
         .buttonStyle(TVDirectSurfaceStyle())
         .disabled(menu != nil || showsControls)
@@ -398,6 +401,7 @@ struct TVDirectVideoPlayer: View {
       .opacity(showsControls ? 1 : 0)
       .disabled(!showsControls)
       .accessibilityHidden(!showsControls)
+      .zIndex(menu == nil ? 0 : 1)
       if transport.wait.state.showsSpinner {
         PutioLoadingStateView(title: nil).allowsHitTesting(false)
       }
@@ -639,8 +643,9 @@ enum TVDirectMenuRows {
 
 enum TVDirectControlsMetrics {
   static let skipBadgeDuration = Duration.milliseconds(900)
-  static let captionInset = PutioTheme.TV.Spacing.large
-  static let captionLift: CGFloat = 280
+  static let captionInset: CGFloat = 50
+  static let captionLift: CGFloat = 240
+  static let captionSize: CGFloat = 44
   static let progressHeight: CGFloat = 10
   static let chipsToProgress: CGFloat = 38
   static let progressToTimes: CGFloat = 24
