@@ -95,6 +95,10 @@ public enum PutioMoveCopy {
   public static func moved(_ count: Int) -> String {
     String(localized: "\(count) items are in the selected folder.", bundle: .module)
   }
+
+  public static func moved(to folder: String) -> String {
+    String(localized: "Moved to \(folder)", bundle: .module)
+  }
 }
 
 public enum PutioFileActionCopy {

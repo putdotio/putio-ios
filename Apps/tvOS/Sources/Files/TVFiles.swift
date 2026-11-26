@@ -66,12 +66,14 @@ struct TVFolderView: View {
   @State private var showsPanel = true
   @State private var confirmingDelete: PutioFileItem?
   @State private var renaming: PutioFileItem?
+  @State private var moving: PutioFileItem?
   @State private var proposedName = ""
   @State private var toast: PutioToast?
   @State private var hasAppeared = false
   @State private var now: Date
   private let locale: Locale
   private let loadsOnAppear: Bool
+  private let moveSource: TVMoveSource?
 
   init(
     route: PutioFolderRoute, runtime: PutioRuntime, account: PutioAccountSnapshot,
@@ -88,6 +90,7 @@ struct TVFolderView: View {
       pins: PutioPinnedFilesModel(
         actions: PutioPinnedFilesActions(runtime: runtime), rootName: TVFolderCopy.yourFiles),
       externalPlayback: TVExternalPlayback.model(runtime: runtime),
+      moveSource: TVMoveSource(runtime: runtime),
       account: account, refreshRequests: refreshRequests, open: open, play: play)
   }
 
@@ -95,7 +98,8 @@ struct TVFolderView: View {
   /// rendering a fixed state.
   init(
     route: PutioFolderRoute, model: PutioFolderModel, pins: PutioPinnedFilesModel? = nil,
-    externalPlayback: PutioExternalPlaybackModel? = nil, account: PutioAccountSnapshot,
+    externalPlayback: PutioExternalPlaybackModel? = nil, moveSource: TVMoveSource? = nil,
+    account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     now: Date = .now, locale: Locale = .current, loadsOnAppear: Bool = true,
     shownItemID: PutioFileID? = nil, open: @escaping (PutioFileItem) -> Void,
@@ -108,6 +112,7 @@ struct TVFolderView: View {
     self.play = play
     self.locale = locale
     self.loadsOnAppear = loadsOnAppear
+    self.moveSource = moveSource
     _model = State(initialValue: model)
     _pins = State(initialValue: pins)
     _externalPlayback = State(initialValue: externalPlayback)
@@ -165,6 +170,11 @@ struct TVFolderView: View {
         .accessibilityIdentifier("files.rename-confirm")
         Button(String(localized: "Cancel", bundle: .putioCore), role: .cancel) {}
       }
+      .tvMoveSheet($moving, source: moveSource) { item, destination in
+        await move(item, to: destination)
+      } dismissed: {
+        if focusTarget == nil { focusTarget = shownItemID }
+      }
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
       .modifier(
         TVExternalPlaybackPresentation(model: externalPlayback, toast: $toast) {
@@ -209,7 +219,8 @@ struct TVFolderView: View {
         if focused == true { showsPanel = false }
       }
       .onChange(of: model.actionOutcome) { _, outcome in
-        guard let outcome else { return }
+        // The Move sheet settles its own outcome; a name clash keeps it open.
+        guard let outcome, moving == nil else { return }
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         model.clearActionOutcome()
       }
@@ -450,7 +461,7 @@ struct TVFolderView: View {
         .row,
       sections: TVFilePresentation.panelRows(
         menu, canStartOver: play != nil, canOpenInVLC: externalPlayback != nil,
-        canDelete: model.canDelete),
+        canMove: moveSource != nil, canDelete: model.canDelete),
       trashEnabled: account.trashEnabled, identifier: "files.panel"
     ) { perform($0, on: item) }
     .disabled(!model.canStartAction)
@@ -473,6 +484,8 @@ struct TVFolderView: View {
       renaming = item
     case .openInVLC:
       Task { await externalPlayback?.open(PutioFileRoute(item: item)) }
+    case .move:
+      moving = item
     default:
       switch PutioFileItemActionRequest(row: row, item: item)?.step(
         trashEnabled: account.trashEnabled)
@@ -504,6 +517,34 @@ struct TVFolderView: View {
     focusTarget = next
     shownItemID = next
     mutate(.allFolders) { [model] in await model.delete(item, permanently: permanently) }
+  }
+
+  /// Keeps the sheet open when the destination already holds the name;
+  /// otherwise closes it, with focus on the row that took the item's place.
+  private func move(
+    _ item: PutioFileItem, to destination: PutioFolderRoute
+  ) async -> TVMoveResult {
+    guard case .loaded(let contents) = model.state else { return .closed }
+    let next = PutioFolderContents.neighbour(
+      afterRemoving: item.id, from: contents.items, firstPage: model.firstPageIDs)
+    var settlement = PutioMoveSettlement.settled(nil)
+    await refreshRegistration.mutate(.allFolders) { [model] in
+      await model.move(item, to: destination)
+      settlement = model.settleMove(of: item)
+      if case .settled(.succeeded?) = settlement { return true }
+      return false
+    }
+    if case .nameTaken(let name) = settlement { return .nameTaken(name) }
+    if case .settled(let outcome?) = settlement {
+      if case .succeeded = outcome {
+        focusTarget = next
+        shownItemID = next
+      }
+      toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+      model.clearActionOutcome()
+    }
+    moving = nil
+    return .closed
   }
 
   private var isOffline: Bool {

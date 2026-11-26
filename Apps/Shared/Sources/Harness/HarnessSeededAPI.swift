@@ -909,6 +909,25 @@ import Foundation
     nonisolated(unsafe) private static var tvHarnessFolderOpened = false
     static let tvSecondPageFileID = 426
     static let tvArrivedFileID = 427
+    /// `--putio-harness-tv-move` adds Documentaries to the root, whose first
+    /// listing fails, with Nature, Space and True crime inside, and puts two
+    /// files beside Nested Movie.mkv, so the tvOS Move boards show each sheet
+    /// state and the moved banner.
+    private static var usesTVMove: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-move")
+    }
+    static let tvDocumentariesFolderID = 480
+    static let tvNatureFolderID = 481
+    static let tvSpaceFolderID = 482
+    static let tvTrueCrimeFolderID = 483
+    static let tvNestedSubtitleFileID = 484
+    static let tvNestedPosterFileID = 485
+    nonisolated(unsafe) private static var tvDocumentariesFailed = false
+    /// Files the tvOS Move journeys moved, by destination folder.
+    nonisolated(unsafe) private static var tvMovedFileParents: [Int: Int] = [:]
+    private static var tvMovableFileIDs: Set<Int> {
+      Set((usesTVBrowse ? [425] : []) + (usesTVMove ? [411] : []))
+    }
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchRequests: [String] = []
     nonisolated(unsafe) private static var searchContinuationFailed = false
@@ -3099,15 +3118,48 @@ import Foundation
               message: "The first listing of the flaky folder fails for retry proof")
           )
         }
+        let moved = fileActionsLock.withLock { tvMovedFileParents[425] != nil }
+        let rows = moved ? [] : [flakyEpisodeObject(parentID: tvFlakyFolderID)]
         return (
           200,
           """
           {"parent":\(folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0)),
-          "files":[{"id":425,"name":"Flaky Episode.mkv","file_type":"VIDEO",
-          "parent_id":\(tvFlakyFolderID),"size":524288000,"created_at":"2026-08-28T10:00:00Z",
-          "updated_at":"2026-08-29T10:00:00Z","start_from":0}],"total":1}
+          "files":[\(rows.joined(separator: ","))],"total":\(rows.count)}
           """
         )
+      case tvDocumentariesFolderID where usesTVMove:
+        let fail = fileActionsLock.withLock {
+          defer { tvDocumentariesFailed = true }
+          return !tvDocumentariesFailed
+        }
+        if fail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_FOLDER_RETRY",
+              message: "The first listing of Documentaries fails for the Move error board")
+          )
+        }
+        let rows = [
+          folderObject(id: tvNatureFolderID, name: "Nature", parentID: tvDocumentariesFolderID),
+          folderObject(id: tvSpaceFolderID, name: "Space", parentID: tvDocumentariesFolderID),
+          folderObject(
+            id: tvTrueCrimeFolderID, name: "True crime", parentID: tvDocumentariesFolderID),
+        ]
+        return (
+          200,
+          """
+          {"parent":\(folderObject(id: tvDocumentariesFolderID, name: "Documentaries", parentID: 0)),
+          "files":[\(rows.joined(separator: ","))],"total":\(rows.count)}
+          """
+        )
+      case tvNatureFolderID where usesTVMove, tvSpaceFolderID where usesTVMove,
+        tvTrueCrimeFolderID where usesTVMove:
+        let names = [tvNatureFolderID: "Nature", tvSpaceFolderID: "Space"]
+        let folder = folderObject(
+          id: parentID ?? 0, name: names[parentID ?? 0] ?? "True crime",
+          parentID: tvDocumentariesFolderID)
+        return (200, "{\"parent\":\(folder),\"files\":[],\"total\":0}")
       case .none:
         return (
           400,
@@ -3179,6 +3231,7 @@ import Foundation
     private static func isDestination(_ parentID: Int) -> Bool {
       [0, 410].contains(parentID) || (seasonFolderSeeded && parentID == seasonFolderID)
         || (usesFolderStates && parentID == tvEmptyFolderID)
+        || (usesTVMove && (tvDocumentariesFolderID...tvTrueCrimeFolderID).contains(parentID))
         || fileActionsLock.withLock { actionFolders[parentID] != nil }
     }
 
@@ -3299,6 +3352,10 @@ import Foundation
       var errors: [String] = []
       for fileID in fileIDs {
         if moveGalleryFile(fileID, to: parentID) { continue }
+        if tvMovableFileIDs.contains(fileID) {
+          tvMovedFileParents[fileID] = parentID
+          continue
+        }
         if fileID == seasonSubtitleFileID, parentID == 410 {
           errors.append(
             #"{"error_type":"NAME_ALREADY_EXIST","id":\#(fileID),"name":"Blue.Lights.S04E01.en.srt","status_code":400}"#
@@ -3885,6 +3942,7 @@ import Foundation
       let folderDeleted = harnessFolderDeleted
       let rootVideoTrashed = offlineOriginalTrashed
       let arrived = usesTVBrowse && tvHarnessFolderOpened
+      let episodeMovedToRoot = tvMovedFileParents[425] == 0
       let rootContinuationCount = (tvSeasonPackTrashed ? 0 : 1) + (usesTVBrowse ? 1 : 0)
       fileActionsLock.unlock()
       var rows =
@@ -3934,6 +3992,9 @@ import Foundation
             folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0),
           ] : [])
         + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
+        + (episodeMovedToRoot ? [flakyEpisodeObject(parentID: 0)] : [])
+        + (usesTVMove
+          ? [folderObject(id: tvDocumentariesFolderID, name: "Documentaries", parentID: 0)] : [])
         + (usesFolderStates
           ? (usesTVBrowse
             ? [] : [folderObject(id: tvEmptyFolderID, name: emptyFolderName, parentID: 0)])
@@ -4076,10 +4137,30 @@ import Foundation
       fileActionsLock.lock()
       let folderName = harnessFolderName
       let mutableFolderRows = addedRowsLocked(in: 410)
+      let movieMoved = tvMovedFileParents[411] != nil
       fileActionsLock.unlock()
       let folderRows = (seasonFolderSeeded ? [seasonFolderObject] : []) + mutableFolderRows
-      let extraRows =
-        folderRows.isEmpty ? "" : ",\n" + folderRows.joined(separator: ",\n")
+      let movie = """
+        {
+          "id": 411,
+          "name": "Nested Movie.mkv",
+          "file_type": "VIDEO",
+          "parent_id": 410,
+          "size": 1073741824,
+          "created_at": "2026-08-28T11:00:00Z",
+          "updated_at": "2026-08-29T11:00:00Z",
+          "start_from": \(playbackPosition(fileID: 411))
+        }
+        """
+      let subtitle = previewObject(
+        id: tvNestedSubtitleFileID, name: "Nested Movie.en.srt", type: "TEXT", size: 140,
+        parentID: 410)
+      let poster = previewObject(
+        id: tvNestedPosterFileID, name: "Nested Poster.jpg", type: "IMAGE", size: 310_000,
+        parentID: 410)
+      let rows =
+        (usesTVMove ? [subtitle] : []) + (movieMoved ? [] : [movie])
+        + (usesTVMove ? [poster] : []) + folderRows
       return """
         {
           "parent": {
@@ -4092,20 +4173,19 @@ import Foundation
             "updated_at": "2026-08-29T10:00:00Z"
           },
           "files": [
-            {
-              "id": 411,
-              "name": "Nested Movie.mkv",
-              "file_type": "VIDEO",
-              "parent_id": 410,
-              "size": 1073741824,
-              "created_at": "2026-08-28T11:00:00Z",
-              "updated_at": "2026-08-29T11:00:00Z",
-              "start_from": \(playbackPosition(fileID: 411))
-            }\(extraRows)
+            \(rows.joined(separator: ",\n"))
           ],
-          "total": \(1 + folderRows.count)
+          "total": \(rows.count)
         }
         """
+    }
+
+    private static func flakyEpisodeObject(parentID: Int) -> String {
+      """
+      {"id":425,"name":"Flaky Episode.mkv","file_type":"VIDEO","parent_id":\(parentID),
+      "size":524288000,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z",
+      "start_from":0}
+      """
     }
 
     private static let directPlayMediaInfo = """

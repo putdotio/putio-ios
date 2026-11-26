@@ -3,7 +3,8 @@ import SwiftUI
 
 extension TVFilePresentation {
   static func panelRows(
-    _ menu: PutioFileMenu, canStartOver: Bool, canOpenInVLC: Bool, canDelete: Bool
+    _ menu: PutioFileMenu, canStartOver: Bool, canOpenInVLC: Bool, canMove: Bool,
+    canDelete: Bool
   ) -> [[PutioFileMenuRow]] {
     menu.sections.map { section in
       section.filter { row in
@@ -11,6 +12,7 @@ extension TVFilePresentation {
         case .open, .play, .markWatched, .markUnwatched, .rename, .pin, .unpin: true
         case .startOver: canStartOver
         case .openInVLC: canOpenInVLC
+        case .move: canMove
         case .trash: canDelete
         default: false
         }
@@ -28,6 +30,9 @@ extension TVFilePresentation {
       return PutioToast(title, icon: .symbol(.trash), width: .fit)
     case .succeeded(.setWatched(_, _, _, let watched)):
       return PutioToast(title, icon: .symbol(watched ? .eye : .eyeSlash), width: .fit)
+    case .succeeded(.move(_, _, _, _, let destinationName)):
+      return PutioToast(
+        PutioMoveCopy.moved(to: destinationName), icon: .symbol(.folder), width: .fit)
     case .succeeded:
       return PutioToast(title, width: .fit)
     }

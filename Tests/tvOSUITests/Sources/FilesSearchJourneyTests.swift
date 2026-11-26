@@ -59,7 +59,7 @@ final class FilesSearchJourneyTests: XCTestCase {
 
     XCTAssertTrue(focus("files.item.412"))
     XCTAssertTrue(element("files.panel").waitForExistence(timeout: 5))
-    XCTAssertFalse(element("files.panel.move").exists, "Move waits for a folder picker")
+    XCTAssertTrue(element("files.panel.move").exists, "the panel offers no Move")
     attach("runtime-tv-files-panel")
 
     XCTAssertTrue(panelAction("files.panel.startOver", on: "files.item.412"))
@@ -167,6 +167,49 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.425").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 5) { self.focusedRowIsOnScreen() })
     attach("runtime-tv-files-recovered")
+
+    // Move opens the folder picker over the list, marking the item's folder.
+    // Back closes it at Your files and goes up from a folder it opened.
+    XCTAssertTrue(panelAction("files.panel.move", on: "files.item.425"))
+    let sheet = element("files.move-sheet")
+    XCTAssertTrue(element("files.move-current.424").waitForExistence(timeout: 10))
+    XCTAssertFalse(element("files.move-folder.424").exists, "the item's folder is unmarked")
+    // The item's folder opens so its subfolders stay reachable; moving into
+    // it stays off.
+    XCTAssertTrue(focus("files.move-current.424"))
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-empty").waitForExistence(timeout: 10))
+    XCTAssertFalse(element("files.move-here").isEnabled, "Move here is on in the item's folder")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.hasFocus("files.move-current.424") },
+      "Back did not return to the item's folder")
+    remote.press(.menu)
+    XCTAssertTrue(waitUntil(timeout: 10) { !sheet.exists }, "Back at Your files kept the sheet")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.425") },
+      "closing the sheet did not return focus to the row")
+
+    XCTAssertTrue(panelAction("files.panel.move", on: "files.item.425"))
+    XCTAssertTrue(sheet.waitForExistence(timeout: 10))
+    XCTAssertTrue(focus("files.move-folder.423"))
+    remote.press(.select)
+    XCTAssertTrue(element("files.move-empty").waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.move-here") },
+      "an empty folder does not focus Move here")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { self.hasFocus("files.move-folder.423") },
+      "Back did not return to the folder it left")
+    XCTAssertTrue(sheet.exists, "Back inside a folder closed the sheet")
+
+    XCTAssertTrue(focus("files.move-here", moving: .down, limit: 12))
+    remote.press(.select)
+    XCTAssertTrue(label(containing: "Moved to Your files").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitUntil(timeout: 10) { !sheet.exists })
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.item.425").exists })
+    attach("runtime-tv-files-moved")
   }
 
   /// Search types on the system keyboard under its recent searches. A
@@ -231,6 +274,18 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("search.panel.markUnwatched").waitForExistence(timeout: 5))
     XCTAssertFalse(element("search.panel.rename").exists, "search results offer Rename")
     XCTAssertFalse(element("search.panel.trash").exists, "search results offer Trash")
+    // Move opens the folder picker at Your files; Back there closes it.
+    XCTAssertTrue(panelAction("search.panel.move", on: "search.item.411"))
+    XCTAssertTrue(
+      element("files.move-current.410").waitForExistence(timeout: 10),
+      "the result's folder is not marked")
+    remote.press(.menu)
+    XCTAssertTrue(
+      waitUntil(timeout: 10) { !self.element("files.move-sheet").exists },
+      "Back at Your files kept the sheet open")
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("search.item.411") },
+      "closing the sheet did not return focus to the result")
     XCTAssertTrue(panelAction("search.panel.markUnwatched", on: "search.item.411"))
     attach("runtime-tv-search-menu")
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))

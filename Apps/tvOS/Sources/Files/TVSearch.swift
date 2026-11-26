@@ -16,9 +16,10 @@ struct TVSearchView: View {
   @State private var pins: PutioPinnedFilesModel?
   @State private var folderNames: PutioFolderNames?
   @State private var externalPlayback: PutioExternalPlaybackModel?
+  @State private var moving: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
   @FocusState private var focusedRecent: String?
-  @State private var recentFocusTarget: String?
+  @State private var recentRemoval: TVRecentRemoval?
   @State private var focusTarget: PutioFileID?
   @State private var shownItemID: PutioFileID?
   @State private var showsPanel = false
@@ -27,6 +28,7 @@ struct TVSearchView: View {
   @State private var now: Date
   private let locale: Locale
   private let searchesOnChange: Bool
+  private let moveSource: TVMoveSource?
 
   init(
     runtime: PutioRuntime, account: PutioAccountSnapshot,
@@ -45,7 +47,8 @@ struct TVSearchView: View {
         try await runtime.getFile(fileID: $0)
       },
       externalPlayback: TVExternalPlayback.model(runtime: runtime),
-      account: account, refreshRequests: refreshRequests, open: open, play: play)
+      moveSource: TVMoveSource(runtime: runtime), account: account,
+      refreshRequests: refreshRequests, open: open, play: play)
   }
 
   /// `searchesOnChange: false` keeps an already searched model as it is, for
@@ -54,7 +57,7 @@ struct TVSearchView: View {
     model: PutioFileSearchModel, actions: PutioFileActions,
     recent: PutioRecentSearchesModel? = nil, pins: PutioPinnedFilesModel? = nil,
     folderNames: PutioFolderNames? = nil, externalPlayback: PutioExternalPlaybackModel? = nil,
-    account: PutioAccountSnapshot,
+    moveSource: TVMoveSource? = nil, account: PutioAccountSnapshot,
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     query: String = "", now: Date = .now, locale: Locale = .current,
     searchesOnChange: Bool = true, open: @escaping (PutioFileItem) -> Void,
@@ -66,6 +69,7 @@ struct TVSearchView: View {
     self.play = play
     self.locale = locale
     self.searchesOnChange = searchesOnChange
+    self.moveSource = moveSource
     _query = State(initialValue: query)
     _model = State(initialValue: model)
     _itemActions = State(
@@ -116,12 +120,14 @@ struct TVSearchView: View {
         folderNames?.resolve([id], revision: request.revision)
       }
       .onChange(of: itemActions.outcome) { _, outcome in
-        guard let outcome else { return }
+        // The Move sheet settles its own outcome; a name clash keeps it open.
+        guard let outcome, moving == nil else { return }
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         itemActions.clearOutcome()
       }
       .onChange(of: recent?.editFailure) { _, failure in
         guard failure != nil else { return }
+        recentRemoval = nil
         toast = PutioToast(PutioRecentSearchesCopy.editFailed, icon: .warning, width: .fit)
         recent?.clearEditFailure()
       }
@@ -136,12 +142,15 @@ struct TVSearchView: View {
         }
       )
       .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
-      .task(id: recentFocusTarget) {
-        guard let target = recentFocusTarget else { return }
-        try? await Task.sleep(for: .seconds(1))
-        guard !Task.isCancelled else { return }
-        recentFocusTarget = nil
-        focusedRecent = target
+      .tvMoveSheet($moving, source: moveSource) { item, destination in
+        await move(item, to: destination)
+      } dismissed: {
+        if focusTarget == nil { focusTarget = shownItemID }
+      }
+      .onChange(of: focusedRecent) { _, focused in
+        guard let removal = recentRemoval, focused == removal.term else { return }
+        recentRemoval = nil
+        remove(removal)
       }
       .putioToast($toast)
   }
@@ -244,8 +253,8 @@ struct TVSearchView: View {
                 terms.indices.contains(index + 1)
                   ? terms[index + 1] : index > 0 ? terms[index - 1] : nil
               }
-              recentFocusTarget = next
-              Task { await recent.remove(term) }
+              let removal = TVRecentRemoval(term: term, next: next)
+              if focusedRecent == term { remove(removal) } else { recentRemoval = removal }
             } label: {
               Label {
                 Text(PutioRecentSearchesCopy.remove)
@@ -340,7 +349,7 @@ struct TVSearchView: View {
       row: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale).row,
       sections: TVFilePresentation.panelRows(
         menu, canStartOver: play != nil, canOpenInVLC: externalPlayback != nil,
-        canDelete: itemActions.canDelete),
+        canMove: moveSource != nil, canDelete: itemActions.canDelete),
       trashEnabled: account.trashEnabled, identifier: "search.panel"
     ) { perform($0, on: item) }
     .disabled(!itemActions.canStartAction)
@@ -362,6 +371,8 @@ struct TVSearchView: View {
       Task { await pins?.unpin(item) }
     case .openInVLC:
       Task { await externalPlayback?.open(PutioFileRoute(item: item)) }
+    case .move:
+      moving = item
     default:
       if case .setWatched(_, let watched) = PutioFileItemActionRequest(row: row, item: item)?
         .step(trashEnabled: account.trashEnabled)
@@ -373,9 +384,34 @@ struct TVSearchView: View {
     }
   }
 
+  /// A result stays listed where it moved; the sheet stays open only when
+  /// the destination already holds the name.
+  private func move(
+    _ item: PutioFileItem, to destination: PutioFolderRoute
+  ) async -> TVMoveResult {
+    await itemActions.move(item, to: destination)
+    switch itemActions.settleMove(of: item) {
+    case .nameTaken(let name):
+      return .nameTaken(name)
+    case .settled(let outcome?):
+      toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
+      itemActions.clearOutcome()
+    case .settled(nil):
+      break
+    }
+    focusTarget = item.id
+    moving = nil
+    return .closed
+  }
+
   private func playVideo(_ item: PutioFileItem, _ choice: PutioVideoResumePrompt.Choice) {
     guard let play else { return open(item) }
     play(item, choice)
+  }
+
+  private func remove(_ removal: TVRecentRemoval) {
+    if let next = removal.next { focusedRecent = next }
+    Task { await recent?.remove(removal.term) }
   }
 
   private func record(_ term: String) {
@@ -401,4 +437,9 @@ struct TVSearchView: View {
     let isSearching: Bool
     let epoch: UInt64
   }
+}
+
+private struct TVRecentRemoval: Equatable {
+  let term: String
+  let next: String?
 }

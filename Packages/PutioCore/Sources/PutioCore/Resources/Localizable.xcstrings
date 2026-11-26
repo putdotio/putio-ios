@@ -239,6 +239,17 @@
         }
       }
     },
+    "A file or folder named “%@” already exists there. Choose another folder." : {
+      "comment" : "android: tv_files_move_collision",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A file or folder named “%@” already exists there. Choose another folder."
+          }
+        }
+      }
+    },
     "A to Z" : {
       "comment" : "android: mobile_files_sort_a_to_z",
       "localizations" : {
@@ -1094,6 +1105,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn’t create folder."
+          }
+        }
+      }
+    },
+    "Couldn’t load folders." : {
+      "comment" : "android: tv_files_move_error_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t load folders."
           }
         }
       }
@@ -2082,6 +2104,17 @@
         }
       }
     },
+    "Here now" : {
+      "comment" : "ios-only: rd-tvos-files-11 marks the folder the item is in; Android TV shows no marker",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Here now"
+          }
+        }
+      }
+    },
     "History" : {
       "comment" : "android: mobile_destination_history",
       "localizations" : {
@@ -2304,6 +2337,17 @@
         }
       }
     },
+    "Loading folders" : {
+      "comment" : "ios-only: tvOS spoken label for the Move sheet's spinner",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading folders"
+          }
+        }
+      }
+    },
     "Loading history" : {
       "comment" : "android: mobile_history_loading",
       "localizations" : {
@@ -2322,6 +2366,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Loading more files"
+          }
+        }
+      }
+    },
+    "Loading more folders" : {
+      "comment" : "ios-only: tvOS spoken label for the Move sheet's next-page spinner",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading more folders"
           }
         }
       }
@@ -2403,6 +2458,50 @@
         }
       }
     },
+    "More folders" : {
+      "comment" : "android: tv_files_move_more",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More folders"
+          }
+        }
+      }
+    },
+    "Move here" : {
+      "comment" : "android: tv_files_move_here",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move here"
+          }
+        }
+      }
+    },
+    "Move here, or press Back." : {
+      "comment" : "android: tv_files_move_empty_message",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move here, or press Back."
+          }
+        }
+      }
+    },
+    "Moved to %@" : {
+      "comment" : "ios-only: rd-tvos-files-15 names the destination; Android TV names the item",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moved to %@"
+          }
+        }
+      }
+    },
     "Next file" : {
       "comment" : "android: tv_player_next_track",
       "localizations" : {
@@ -2410,6 +2509,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Next file"
+          }
+        }
+      }
+    },
+    "No folders here." : {
+      "comment" : "android: tv_files_move_empty_title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No folders here."
           }
         }
       }
