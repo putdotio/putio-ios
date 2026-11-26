@@ -50,6 +50,9 @@ struct SessionRootView: View {
       PutioSupportMessenger.shared.sessionDidChange(
         state, identity: runtime.session.supportIdentity)
       deepLinks.updateSession(state)
+      if state == .signedOut(.sessionExpired) || state == .signedOut(.userSignedOut) {
+        PutioCastReceiver.remember(usesPutioReceiver: false)
+      }
       if case .signedIn(let previousAccount) = previous {
         if case .signedIn(let currentAccount) = state, previousAccount.id == currentAccount.id {
           return
