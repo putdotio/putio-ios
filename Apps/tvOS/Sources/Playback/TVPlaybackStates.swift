@@ -135,7 +135,7 @@ struct TVPlaybackConvertingScreen: View {
       let percent = progress.formatted(.percent.precision(.fractionLength(0)).locale(locale))
       VStack(spacing: PutioTheme.TV.Spacing.small) {
         Capsule()
-          .fill(PutioTheme.TV.Colors.textTertiary)
+          .fill(.white.opacity(0.2))
           .frame(width: TVPlaybackStateLayout.progressWidth, height: TVPlaybackStateLayout.bar)
           .overlay(alignment: .leading) {
             Capsule()
