@@ -2491,6 +2491,17 @@
         }
       }
     },
+    "Playback starts when it’s done. It keeps going if you leave." : {
+      "comment" : "ios-only: board rd-tvos-pb-11 wording; Android tv_player_conversion_message orders it differently",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playback starts when it’s done. It keeps going if you leave."
+          }
+        }
+      }
+    },
     "Playing in %lld" : {
       "comment" : "android: tv_player_up_next_countdown",
       "localizations" : {
@@ -2608,6 +2619,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Something unexpected happened."
+          }
+        }
+      }
+    },
+    "Something unexpected happened. Error id %@" : {
+      "comment" : "ios-only: board rd-tvos-pb-17 wording; Android tv_error_unexpected_with_id adds a colon",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something unexpected happened. Error id %@"
           }
         }
       }

@@ -334,6 +334,7 @@ final class PlaybackJourneyTests: XCTestCase {
 
     XCTAssertTrue(element("video.conversion-progress").waitForExistence(timeout: 30))
     XCTAssertTrue(element("conversion.explanation").exists)
+    XCTAssertTrue(element("video.conversion.back").exists, "the converting screen offers Back")
     attach("runtime-tv-playback-converting")
 
     let resume = element("video.resume.continue")

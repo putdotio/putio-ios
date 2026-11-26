@@ -77,6 +77,7 @@ struct TVVideoPlaybackView: View {
   @State private var subtitleMemory = TVVideoPlaybackView.makeSubtitleMemory()
   @State private var wait = PutioVideoWaitModel()
   @State private var switchesToStream = false
+  @State private var failureReference: String?
   @State private var announcedFallback = false
   @State private var dismissedUpNext = false
 
@@ -179,6 +180,7 @@ struct TVVideoPlaybackView: View {
       }
       .task(id: retrySequence) {
         guard retrySequence > 0 else { return }
+        failureReference = nil
         await model.retry()
       }
       .onChange(of: model.state) { _, state in
@@ -226,14 +228,14 @@ struct TVVideoPlaybackView: View {
           ? String(localized: "Switching to streaming…", bundle: .putioCore)
           : String(localized: "Loading", bundle: .putioCore))
     case .conversionRequired, .conversionQueued, .converting, .conversionCompleted:
-      TVConversionStatusView(state: model.state)
+      TVPlaybackConvertingScreen(state: model.state, fileName: route.title, back: onFinish)
     case .failed(let failure):
       if let notice = failure.inactiveAccountNotice(for: account) {
         TVPlaybackAccountNotice(notice: notice)
       } else {
         TVPlaybackFailureScreen(
           failure: failure, fileID: route.id, fileName: route.title,
-          retry: { retrySequence &+= 1 }, back: onFinish)
+          reference: failureReference, retry: { retrySequence &+= 1 }, back: onFinish)
       }
 
     case .ready(let source):
@@ -368,6 +370,7 @@ struct TVVideoPlaybackView: View {
     let handled = model.handlePlayerFailure(failure, platform: .tvos) {
       [probes, showsProbes] report in
       SentryTelemetry.report(report)
+      if report.outcome == .failed { failureReference = report.reference }
       if showsProbes { probes.failureReport = report }
     }
     switchesToStream = handled.fellBack
@@ -608,71 +611,6 @@ enum TVResumePromptLayout {
   static var backdrop: some View {
     PutioTheme.Colors.background.overlay(Color.black.opacity(0.45))
   }
-}
-
-/// The conversion gate under app.put.io's explanation, as the browser row
-/// and the phone show it.
-struct TVConversionStatusView: View {
-  let state: PutioVideoPlaybackState
-
-  @Environment(\.locale) private var locale
-
-  var body: some View {
-    VStack(spacing: PutioTheme.TV.Spacing.medium) {
-      Text(PutioVideoPlaybackState.conversionExplanation)
-        .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-        .multilineTextAlignment(.center)
-        .fixedSize(horizontal: false, vertical: true)
-        .accessibilityIdentifier("conversion.explanation")
-      status
-    }
-    .frame(maxWidth: TVConversionLayout.width)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .tvOverscanPadding()
-  }
-
-  @ViewBuilder
-  private var status: some View {
-    switch state.conversionPhase {
-    case .converting(let progress):
-      VStack(spacing: PutioTheme.TV.Spacing.small) {
-        ProgressView(value: progress)
-          .tint(PutioTheme.Colors.accent)
-          .frame(width: TVConversionLayout.progressWidth)
-          .accessibilityLabel(PutioVideoConversionPhase.converting(progress: progress).title)
-          .accessibilityValue(percent(progress))
-          .accessibilityIdentifier("video.conversion-progress")
-        Text(
-          "\(PutioVideoConversionPhase.converting(progress: progress).title) \(percent(progress))"
-        )
-        .putioFont(PutioTheme.TV.Typography.caption)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        .monospacedDigit()
-      }
-    case .waiting, nil:
-      PutioLoadingStateView(title: PutioVideoConversionPhase.waiting.title)
-        .accessibilityIdentifier(waitingIdentifier)
-    }
-  }
-
-  private var waitingIdentifier: String {
-    switch state {
-    case .conversionQueued: "video.conversion-queued"
-    default: "video.conversion-required"
-    }
-  }
-}
-
-extension TVConversionStatusView {
-  fileprivate func percent(_ progress: Double) -> String {
-    progress.formatted(.percent.precision(.fractionLength(0)).locale(locale))
-  }
-}
-
-enum TVConversionLayout {
-  static let width: CGFloat = 1200
-  static let progressWidth: CGFloat = 640
 }
 
 /// After the end: the successor with its countdown while autoplay is on,

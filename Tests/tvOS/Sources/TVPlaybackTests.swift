@@ -543,9 +543,10 @@ final class TVPlaybackTests: XCTestCase {
   func testConversionProgressMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-playback-converting",
-      view: TVConversionStatusView(state: .converting(progress: 0.35))
-        .environment(\.locale, Locale(identifier: "en_US"))
-        .background(Color.black),
+      view: TVPlaybackConvertingScreen(
+        state: .converting(progress: 0.42), fileName: "Big Buck Bunny.mp4", back: {}
+      )
+      .environment(\.locale, Locale(identifier: "en_US")),
       size: viewport)
   }
 
