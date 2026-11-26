@@ -640,8 +640,8 @@ enum TVDirectMenuRows {
 
 enum TVDirectControlsMetrics {
   static let skipBadgeDuration = Duration.milliseconds(900)
-  static let captionInset = PutioTheme.TV.Spacing.large
-  static let captionLift: CGFloat = 280
+  static let captionInset: CGFloat = 50
+  static let captionLift: CGFloat = 240
   static let captionSize: CGFloat = 44
   static let progressHeight: CGFloat = 10
   static let chipsToProgress: CGFloat = 38
