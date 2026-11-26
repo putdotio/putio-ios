@@ -96,4 +96,24 @@ final class PutioVideoTransportTests: XCTestCase {
     visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: true)
     XCTAssertFalse(visibility.isVisible)
   }
+
+  func testFocusHoldsTheControlsUntilDismissed() {
+    var visibility = PutioVideoControlsVisibility()
+    visibility.set(.focus, true)
+    visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: true)
+    XCTAssertTrue(visibility.isVisible, "controls hid while focus sat on them")
+
+    visibility.dismissed()
+    XCTAssertFalse(visibility.isVisible, "back did not dismiss the controls")
+    visibility.released(.focus)
+    XCTAssertFalse(visibility.isVisible, "losing focus brought the controls back")
+  }
+
+  func testDismissKeepsControlsAnotherPinHolds() {
+    var visibility = PutioVideoControlsVisibility()
+    visibility.set(.focus, true)
+    visibility.set(.menu, true)
+    visibility.dismissed()
+    XCTAssertTrue(visibility.isVisible, "an open menu lost its controls")
+  }
 }

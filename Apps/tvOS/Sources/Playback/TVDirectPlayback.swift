@@ -426,6 +426,9 @@ struct TVDirectVideoPlayer: View {
     }
     .onChange(of: transport.isPlaying) { _, _ in visibility.interacted() }
     .onChange(of: pinsControls) { _, pinned in visibility.set(.menu, pinned) }
+    .onChange(of: focusOnControls) { _, held in
+      if held { visibility.set(.focus, true) } else { visibility.released(.focus) }
+    }
     .onChange(of: transport.isPlaying, initial: true) { _, playing in
       onRateChanged(playing ? transport.speed.rawValue : 0)
     }
@@ -449,8 +452,13 @@ struct TVDirectVideoPlayer: View {
   private var pinsControls: Bool { menu != nil }
 
   private func hideControls() {
-    withAnimation {
-      visibility.idleElapsed(generation: visibility.idleGeneration, isPlaying: true)
+    withAnimation { visibility.dismissed() }
+  }
+
+  private var focusOnControls: Bool {
+    switch focus {
+    case .chip, .row: true
+    case .surface, nil: false
     }
   }
 
