@@ -656,7 +656,7 @@ private struct TVDirectControlsBoard: View {
 }
 
 /// Boards `rd-tvos-dp-05`, `-06` and `-12`: a caption over the picture, lifted
-/// above the controls while they show.
+/// above the controls and over their scrim while they show.
 private struct TVDirectCaptionsBoard: View {
   var cue = PutioVideoCue(
     id: 1, text: AttributedString("I have no idea where\nthis dragon came from."))
@@ -664,6 +664,7 @@ private struct TVDirectCaptionsBoard: View {
 
   var body: some View {
     ZStack {
+      if showsControls { TVDirectControlsBoard() }
       PutioVideoSubtitleOverlay(
         cues: [cue], size: .medium,
         picture: PutioVideoPicture(
@@ -671,7 +672,6 @@ private struct TVDirectCaptionsBoard: View {
         bottomInset: showsControls
           ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset,
         baseSize: TVDirectControlsMetrics.captionSize)
-      if showsControls { TVDirectControlsBoard() }
     }
     .background(Color.gray)
   }

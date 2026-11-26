@@ -375,7 +375,9 @@ struct TVDirectVideoPlayer: View {
         cues: transport.subtitleCues, size: transport.subtitleSize, picture: transport.picture,
         bottomInset: showsControls
           ? TVDirectControlsMetrics.captionLift : TVDirectControlsMetrics.captionInset,
-        baseSize: TVDirectControlsMetrics.captionSize)
+        baseSize: TVDirectControlsMetrics.captionSize
+      )
+      .zIndex(menu == nil ? 1 : 0)
       Button(action: playPause) { Color.clear.contentShape(Rectangle()) }
         .buttonStyle(TVDirectSurfaceStyle())
         .disabled(menu != nil || showsControls)
@@ -399,6 +401,7 @@ struct TVDirectVideoPlayer: View {
       .opacity(showsControls ? 1 : 0)
       .disabled(!showsControls)
       .accessibilityHidden(!showsControls)
+      .zIndex(menu == nil ? 0 : 1)
       if transport.wait.state.showsSpinner {
         PutioLoadingStateView(title: nil).allowsHitTesting(false)
       }
