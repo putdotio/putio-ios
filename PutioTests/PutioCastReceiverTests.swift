@@ -69,6 +69,30 @@ final class PutioCastReceiverTests: XCTestCase {
         }
     }
 
+    func testCustomDataMatchesSharedGoldenFixtures() throws {
+        let cases: [(name: String, load: PutioCastLoad)] = [
+            ("minimal", PutioCastLoad(fileID: 42, method: .hls, position: 0, token: "download-token", hidesSubtitles: false)),
+            ("hls-with-position", PutioCastLoad(fileID: 42, method: .hls, position: 90, token: "download-token", hidesSubtitles: false)),
+            ("file-method", PutioCastLoad(fileID: 42, method: .file, position: 0, token: "download-token", hidesSubtitles: false)),
+            ("subtitle-max-count-zero", PutioCastLoad(fileID: 42, method: .hls, position: 0, token: "download-token", hidesSubtitles: true)),
+            ("public-share-token", PutioCastLoad(fileID: 42, method: .hls, position: 0, token: "public-share-token", hidesSubtitles: false))
+        ]
+        let bundle = Bundle(for: Self.self)
+        for (name, load) in cases {
+            let url = try XCTUnwrap(bundle.url(forResource: name, withExtension: "json", subdirectory: "CastLoad"))
+            let fixtureData = try Data(contentsOf: url)
+            let fixtureObject = try XCTUnwrap(try JSONSerialization.jsonObject(with: fixtureData) as? NSDictionary)
+            let canonicalFixture = try JSONSerialization.data(withJSONObject: fixtureObject, options: .sortedKeys)
+            let actualData = try JSONSerialization.data(withJSONObject: load.customData, options: .sortedKeys)
+            XCTAssertEqual(
+                try XCTUnwrap(String(data: actualData, encoding: .utf8)),
+                try XCTUnwrap(String(data: canonicalFixture, encoding: .utf8)),
+                name
+            )
+            XCTAssertEqual(load.customData as NSDictionary, fixtureObject, name)
+        }
+    }
+
     func testThePutioReceiverGetsTheFileAndTokenOnlyInCustomData() throws {
         try loadSession(playbackType: "hls", hidesSubtitles: true)
         let (media, options) = try build(for: .putio)

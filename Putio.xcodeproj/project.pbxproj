@@ -213,6 +213,7 @@
 		DF84BAD3CCED8B054A1E09E7 /* FilesViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B31D9D86843A740051235A /* FilesViewController+TableView.swift */; };
 		F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */; };
 		F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */ = {isa = PBXBuildFile; fileRef = F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */; };
+		F7A35C2E9B1D4E6F8A0C2E45 /* CastLoad in Resources */ = {isa = PBXBuildFile; fileRef = F7A35C2E9B1D4E6F8A0C2E46 /* CastLoad */; };
 		F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */; };
 /* End PBXBuildFile section */
 
@@ -450,6 +451,7 @@
 		E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioRealmTests.swift; sourceTree = "<group>"; };
 		F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */ = {isa = PBXFileReference; lastKnownFileType = file; path = "putio-2.58.0.realm"; sourceTree = "<group>"; };
 		F7A35C2E9B1D4E6F8A0C2E43 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		F7A35C2E9B1D4E6F8A0C2E46 /* CastLoad */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CastLoad; sourceTree = "<group>"; };
 		EEE14DC43F881736BEDFD030 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -536,6 +538,7 @@
 		F7A35C2E9B1D4E6F8A0C2E44 /* Fixtures */ = {
 			isa = PBXGroup;
 			children = (
+				F7A35C2E9B1D4E6F8A0C2E46 /* CastLoad */,
 				F7A35C2E9B1D4E6F8A0C2E43 /* README.md */,
 				F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */,
 			);
@@ -1117,6 +1120,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7A35C2E9B1D4E6F8A0C2E45 /* CastLoad in Resources */,
 				F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
