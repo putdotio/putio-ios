@@ -393,6 +393,21 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
     }
   }
 
+  /// The LOAD customData the put.io receiver builds a video's stream from,
+  /// so the token never rides in a URL. It carries the stream's subtitle cap
+  /// so hidden subtitles stay hidden on the receiver. Audio gets nil.
+  public func putioReceiverLoad(startSeconds: Int) -> [String: any Sendable]? {
+    guard case .video = kind, let downloadToken, !downloadToken.isEmpty else { return nil }
+    var load: [String: any Sendable] = [
+      "fileId": id.rawValue, "method": "hls", "position": max(0, startSeconds),
+      "token": downloadToken,
+    ]
+    let subtitleCap = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+      .last { $0.name == "max_subtitle_count" }?.value.flatMap(Int.init)
+    if let subtitleCap, subtitleCap >= 0 { load["maxSubtitleCount"] = subtitleCap }
+    return load
+  }
+
   public var description: String {
     "PutioCastMedia(id: \(id.rawValue), url: <redacted>)"
   }

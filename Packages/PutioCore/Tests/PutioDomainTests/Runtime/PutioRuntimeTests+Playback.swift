@@ -594,6 +594,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(components.path, "/v2/files/412/hls/media.m3u8")
     XCTAssertEqual(components.queryItems?.first { $0.name == "subtitle_key" }?.value, "all")
     XCTAssertNil(components.queryItems?.first { $0.name == "max_subtitle_count" })
+    XCTAssertNil(media.putioReceiverLoad(startSeconds: 0)?["maxSubtitleCount"])
     XCTAssertEqual(
       components.queryItems?.first { $0.name == "oauth_token" }?.value, "account-download-secret")
     XCTAssertEqual(
@@ -640,6 +641,9 @@ extension PutioRuntimeTests {
       XCTAssertEqual(items.first { $0.name == "subtitle_key" }?.value, "all")
     }
     XCTAssertEqual(media.subtitleRenditions, [], "the manifest fixture failed, so no names")
+    XCTAssertEqual(
+      media.putioReceiverLoad(startSeconds: 0)?["maxSubtitleCount"] as? Int, 0,
+      "the put.io receiver builds its own stream, so it needs the same cap")
     XCTAssertFalse(
       fixtures.capturedRequests().contains { $0.url?.path == "/v2/files/412/subtitles" },
       "casting reads no subtitle list")
