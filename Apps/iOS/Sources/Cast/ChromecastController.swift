@@ -359,19 +359,79 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
 
   private static let fileIDKey = "putio_file_id"
 
+  struct PutioCastLoad: Sendable {
+    enum Method: String, Sendable {
+      case hls
+      case file
+    }
+
+    let fileID: Int
+    let method: Method
+    let position: Int
+    let token: String
+    let maxSubtitleCount: Int?
+    let subtitleLanguages: [String]?
+
+    var customData: [String: Any] {
+      var data: [String: Any] = [
+        "fileId": fileID,
+        "method": method.rawValue,
+        "position": max(0, position),
+        "token": token,
+      ]
+      if let maxSubtitleCount {
+        data["maxSubtitleCount"] = maxSubtitleCount
+      }
+      if let subtitleLanguages {
+        data["subtitleLanguages"] = subtitleLanguages
+      }
+      return data
+    }
+  }
+
   /// The put.io receiver builds a video's stream from its file id and the
   /// download token, so the token never rides in a URL. Audio and any other
   /// receiver keep the plain load.
   static func putioReceiverLoad(
-    for media: PutioCastMedia, startSeconds: Int, onPutioReceiver: Bool
+    for media: PutioCastMedia,
+    startSeconds: Int,
+    onPutioReceiver: Bool,
+    method: PutioCastLoad.Method = .hls
   ) -> [String: Any]? {
-    guard onPutioReceiver, case .video = media.kind, let token = media.downloadToken,
+    guard onPutioReceiver,
+      case .video = media.kind,
+      media.id.rawValue > 0,
+      let token = media.downloadToken,
       !token.isEmpty
     else { return nil }
-    return [
-      "fileId": media.id.rawValue, "method": "hls", "position": max(0, startSeconds),
-      "token": token,
-    ]
+    let queryItems =
+      URLComponents(url: media.url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    let maxSubtitleCount =
+      queryItems
+      .last(where: { $0.name == "max_subtitle_count" })?
+      .value
+      .flatMap(Int.init)
+      .flatMap { $0 >= 0 ? $0 : nil }
+    let subtitleLanguages =
+      queryItems
+      .last(where: { $0.name == "subtitle_languages" })?
+      .value
+      .map { $0.split(separator: ",", omittingEmptySubsequences: false).map(String.init) }
+      .flatMap { languages in
+        !languages.isEmpty
+          && languages.allSatisfy { language in
+            language.count == 3 && language.allSatisfy { $0.isASCII && $0.isLowercase }
+          }
+          ? languages : nil
+      }
+    return PutioCastLoad(
+      fileID: media.id.rawValue,
+      method: method,
+      position: startSeconds,
+      token: token,
+      maxSubtitleCount: maxSubtitleCount,
+      subtitleLanguages: subtitleLanguages
+    ).customData
   }
 
   private func publishStatus(_ mediaStatus: GCKMediaStatus?) {
