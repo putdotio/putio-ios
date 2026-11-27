@@ -171,6 +171,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var freeBytes: Int64 = 0
   private var serverWatched: [Int: Bool] = [:]
   private var watchedThrottled = false
+  private var watchedCancelled = false
   private var clock = ContinuousClock.now
 
   override func setUp() async throws {
@@ -188,6 +189,7 @@ final class OfflineDownloadsTests: XCTestCase {
     runtimeCalls = []
     serverWatched = [:]
     watchedThrottled = false
+    watchedCancelled = false
     clock = .now
   }
 
@@ -1349,6 +1351,36 @@ final class OfflineDownloadsTests: XCTestCase {
     watchedThrottled = true
     await queue.refreshWatched()
     XCTAssertEqual(reads().count, 2 * batch + 1, "a throttled read ends the pass")
+  }
+
+  func testLeavingDownloadsMidPassKeepsUnreadVideosFirstInLine() async throws {
+    try PutioOfflineStore(directory: directory).save(
+      items: (1...30).map { id in
+        PutioOfflineItem(
+          id: PutioFileID(rawValue: id), parentID: .root, name: "\(id).mkv", kind: .video,
+          createdAt: .now, stage: .completed, localPath: "\(id).movpkg", storedBytes: 64,
+          storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+          pendingPositionSeconds: nil, estimatedBytes: 64)
+      }, concurrencyLimit: 2)
+    watchedCancelled = true
+    let queue = makeQueue(
+      watchedStatus: { fileID in
+        self.runtimeCalls.append("watched \(fileID.rawValue)")
+        if self.watchedCancelled { throw CancellationError() }
+        return true
+      }, now: { self.clock })
+    func reads() -> [String] { runtimeCalls.filter { $0.hasPrefix("watched") } }
+    let batch = PutioOfflineQueue.watchedRefreshBatch
+
+    await queue.refreshWatched()
+    XCTAssertEqual(reads(), ["watched 1"], "a cancelled read ends the pass")
+
+    watchedCancelled = false
+    clock += PutioOfflineQueue.watchedRefreshInterval
+    await queue.refreshWatched()
+    XCTAssertEqual(
+      Array(reads().dropFirst()), (1...batch).map { "watched \($0)" },
+      "the next pass starts with the video the cancelled pass never read")
   }
 
   func testWatchingTheStoredCopyOfflineMarksItWatchedAcrossRelaunch() async {
