@@ -358,7 +358,8 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     private static func urlError(in error: Error?) -> URLError? {
         var current = error as NSError?
-        while let error = current {
+        for _ in 0..<8 {
+            guard let error = current else { return nil }
             if error.domain == NSURLErrorDomain { return URLError(URLError.Code(rawValue: error.code), userInfo: error.userInfo) }
             current = error.userInfo[NSUnderlyingErrorKey] as? NSError
         }

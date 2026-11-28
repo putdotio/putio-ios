@@ -63,6 +63,9 @@ final class VideoPlayerFailureTests: XCTestCase {
 
         XCTAssertTrue(VideoPlayerViewController.isUnreadableLocalFile(wrapped(.fileDoesNotExist), wasReadyToPlay: true))
         XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(wrapped(.networkConnectionLost), wasReadyToPlay: true))
+
+        let selfWrapped = SelfWrappedError(domain: AVFoundationErrorDomain, code: AVError.Code.unknown.rawValue)
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(selfWrapped, wasReadyToPlay: true))
     }
 
     private func makeOfflinePlayer() -> (VideoPlayerViewController, AVPlayerItem) {
@@ -74,4 +77,8 @@ final class VideoPlayerFailureTests: XCTestCase {
         controller.loadViewIfNeeded()
         return (controller, playerItem)
     }
+}
+
+private final class SelfWrappedError: NSError, @unchecked Sendable {
+    override var userInfo: [String: Any] { [NSUnderlyingErrorKey: self] }
 }
