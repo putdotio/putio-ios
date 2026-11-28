@@ -265,7 +265,12 @@ class ChromecastManager: NSObject {
             timer?.invalidate()
         }
 
-        api.getFiles(parentID: fileID) { result in
+        let needsSignedStreamURLs = receiver != .putio && userConfig?.chromecastPlaybackType != "hls"
+        let query = PutioFilesListQuery(
+            streamURLParent: needsSignedStreamURLs,
+            mp4StreamURLParent: needsSignedStreamURLs
+        )
+        api.getFiles(parentID: fileID, query: query) { result in
             switch result {
             case .success(let data):
                 guard let file = data.parent else {

@@ -25,8 +25,8 @@ class ClearDataViewModel {
     private let clearRequest: ClearRequest
     private var isClearing = false
 
-    lazy var keys: [String] = PutioClearDataOptionKeys
-    lazy var options: [String: Bool] = Dictionary(uniqueKeysWithValues: PutioClearDataOptionKeys.map { ($0, false) })
+    lazy var keys: [String] = putioClearDataOptionKeys
+    lazy var options: [String: Bool] = Dictionary(uniqueKeysWithValues: putioClearDataOptionKeys.map { ($0, false) })
 
     init(clearRequest: @escaping ClearRequest = { options, completion in
         api.clearAccountData(options: options, completion)
