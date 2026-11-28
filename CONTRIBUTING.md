@@ -11,8 +11,6 @@ Prerequisites:
 - Node and SwiftLint from `mise install`; pnpm from its
   [installer](https://pnpm.io/installation), not Corepack: it switches to
   `packageManager` on first use
-- [SOPS](https://getsops.io) `3.10+` and `jq`, only for
-  [private local config](#local-private-config)
 
 Install dependencies, the pre-push hook, and the brand fonts:
 
@@ -30,18 +28,18 @@ bump a hash only with a deliberate `mise run screenshots-record`.
 
 ## Local Private Config
 
-Signed local builds, OAuth sign-in and Cast need
-`Config/Local.xcconfig`. Ask a maintainer for an authorized iOS ciphertext file
-and a machine-specific age identity, then run:
+Signed local builds, OAuth sign-in and Cast need `Config/Local.xcconfig`. Copy
+[`Config/Local.example.xcconfig`](Config/Local.example.xcconfig) and fill in
+your team and app identifiers:
 
 ```bash
-PUTIO_IOS_SOPS_FILE=/path/to/ios.sops.env mise run secrets-setup
+cp Config/Local.example.xcconfig Config/Local.xcconfig
 ```
 
 - `Config/Local.xcconfig` holds secrets and team settings, never a bundle id
   override. Local builds use `io.put.dev`.
-- Keep the payload contract, `Config/Local.example.xcconfig`, and the renderer
-  test aligned.
+- Keep `Config/Local.xcconfig` out of git and remove it before removing a
+  worktree.
 
 ## Run and validate
 
