@@ -14,7 +14,7 @@
 #   mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
 # Direct, if you are supplying the counts yourself:
-#   scripts/record-snapshots.sh --expect-components 11 --expect-screens 13
+#   scripts/record-snapshots.sh --expect-components 13 --expect-screens 13
 #   scripts/record-snapshots.sh --tier screens --expect-screens 13
 #   scripts/record-snapshots.sh --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
@@ -119,7 +119,7 @@ if [ -n "$only" ]; then
     # breadth as a full tier run, so it keeps the count and orphan checks.
     #
     # Anything deeper is treated as a subset. A class-level filter sometimes is
-    # not — PutioUITests/ScreenshotWalkUITests happens to own all 12 walk
+    # not — PutioUITests/ScreenshotWalkUITests happens to own all 13 walk
     # baselines today — but that is a fact about the current test layout, not a
     # rule: add a second baseline-producing class to the target and the same
     # filter becomes a subset while the tripwires still believe it is complete.
