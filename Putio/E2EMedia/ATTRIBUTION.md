@@ -2,8 +2,7 @@
 
 ## big-buck-bunny.mp4
 
-A single frame of **Big Buck Bunny**, © 2008 Blender Foundation,
-<https://peach.blender.org>.
+A single frame of **Big Buck Bunny**, © 2008 [Blender Foundation](https://peach.blender.org).
 
 Licensed under the [Creative Commons Attribution 3.0 license](https://creativecommons.org/licenses/by/3.0/).
 
@@ -29,6 +28,5 @@ walk's screenshots, including App Store slot 2, are deterministic.
 `PUTIO_BUNDLE_E2E_MEDIA = YES` is set only in `Config/Verify.xcconfig`, so the
 clip reaches test builds and never a distributed one.
 
-The other e2e fixtures use the same Blender open content (Sintel, Tears of
-Steel, Elephants Dream, Cosmos Laundromat, Caminandes), so the listing and the
-gallery tell one story.
+The other e2e fixtures use titles from the same Blender open movies: Sintel,
+Tears of Steel, Elephants Dream, Cosmos Laundromat, and Caminandes.

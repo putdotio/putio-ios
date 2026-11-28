@@ -8,29 +8,31 @@ Prerequisites:
   and the visual baselines run on iOS 27
 - [mise](https://mise.jdx.dev): it pins the toolchain and runs every task
   (`mise tasks` lists them)
-- Node and SwiftLint from `mise install`; pnpm from its
-  [installer](https://pnpm.io/installation), not Corepack: it switches to
-  `packageManager` on first use
+- Toolchain binaries pinned in [`mise.toml`](mise.toml) via `mise install`
+- pnpm via its [installer](https://pnpm.io/installation) (avoid Corepack); pnpm
+  switches to the `package.json` `packageManager` pin on first use
 
-Install dependencies, the pre-push hook, and the brand fonts:
+Install the toolchain, dependencies, pre-push hook, and brand fonts:
 
 ```bash
+mise install
 mise run bootstrap
 mise run fonts-setup
 ```
 
 ### Brand fonts
 
-The licensed GT America and Berkeley Mono files are never committed.
-`verify`, `e2e-simulator`, and `screenshots-record` need them.
-[`Config/BrandFonts.json`](Config/BrandFonts.json) pins each file's sha256;
-bump a hash only with a deliberate `mise run screenshots-record`.
+`verify`, `e2e-simulator`, and `screenshots-record` require the local fonts
+downloaded by `mise run fonts-setup` (pinned in
+[`Config/BrandFonts.json`](Config/BrandFonts.json)). Never commit font files;
+bump a sha256 only alongside `mise run screenshots-record`.
 
 ## Local Private Config
 
 Signed local builds, OAuth sign-in and Cast need `Config/Local.xcconfig`. Copy
-[`Config/Local.example.xcconfig`](Config/Local.example.xcconfig) and fill in
-your team and app identifiers:
+[`Config/Local.example.xcconfig`](Config/Local.example.xcconfig) and set your
+team and any local service overrides (defaults live in
+[`Config/Shared.xcconfig`](Config/Shared.xcconfig)):
 
 ```bash
 cp Config/Local.example.xcconfig Config/Local.xcconfig
@@ -45,9 +47,9 @@ cp Config/Local.example.xcconfig Config/Local.xcconfig
 
 ```bash
 open Putio.xcworkspace
-mise run verify-fast         # generated assets, strings, workspace sanity
-mise run verify              # unit tests, unsigned simulator build
-mise run e2e-simulator       # mocked XCUITests
+mise run verify-fast         # generated assets, import and font guards, strings, workspace sanity
+mise run verify              # verify-fast, SwiftLint, unit and component snapshot tests, acknowledgements
+mise run e2e-simulator       # mocked XCUITests (skips screenshot walk and perf)
 mise run screenshots-verify  # screenshot walk against the screen baselines
 mise run run-simulator       # signed build on a visible simulator
 ```
@@ -56,8 +58,9 @@ mise run run-simulator       # signed build on a visible simulator
   maps each kind of change to the checks it adds.
 - Only the signed `run-simulator` build persists auth and keychain state like
   a real install.
-- `verify` and `e2e-simulator` each run on an ephemeral simulator.
-  `PUTIO_SIMULATOR_ID=<udid>` reuses a device, which keeps its own locale.
+- `verify`, `e2e-simulator`, `screenshots-verify`, and `screenshots-record`
+  each run on an ephemeral simulator. `PUTIO_SIMULATOR_ID=<udid>` reuses a
+  device, which keeps its own locale.
 - No CI runs the full `e2e-simulator` suite; the
   [weekly smoke](.github/workflows/e2e-simulator.yml) runs a few of its tests.
 
@@ -67,6 +70,7 @@ mise run run-simulator       # signed build on a visible simulator
 responses. The other `PUTIO_E2E_*` switches are read in
 [`PutioE2EMockURLProtocol.swift`](Putio/Common/API/PutioE2EMockURLProtocol.swift),
 [`PutioE2EEnvironment.swift`](Putio/Common/API/PutioE2EEnvironment.swift),
+[`PutioE2ELargeFixture.swift`](Putio/Common/API/PutioE2ELargeFixture.swift),
 and [`AppDelegate.swift`](Putio/AppDelegate.swift). Mocked runs disable UIKit
 animations unless the test sets `PUTIO_E2E_ANIMATIONS=1`, as the screenshot
 walk does.
@@ -98,13 +102,14 @@ like the put.io design system, checked into `Putio/Assets.xcassets/Phosphor`.
 
 - Regular weight in neutral gray by default; fill weight for selected or active
   states.
-- Keep the SVG canvas at 16 points; scale it with UIKit constraints.
+- Scale icons with UIKit constraints.
 - The filled yellow folder stays the file-browser signature icon.
-- Save-to-put.io, download-to-device, and stream/play stay distinct metaphors.
+- Save-to-put.io, download-to-device, and stream or play stay distinct metaphors.
 - Brand artwork, app icons, media artwork, and other non-glyph images stay
   outside Phosphor.
 - The `AppIcon*` catalogs take their 1024×1024 marks from
-  `@putdotio/design/assets/*`.
+  `@putdotio/design/assets/*`, copied manually into
+  `Putio/Assets.xcassets/AppIcon*.appiconset`.
 
 To change glyphs, edit [`Config/PhosphorIcons.json`](Config/PhosphorIcons.json),
 run `mise run icons-sync`, and commit the image sets with
@@ -114,11 +119,11 @@ run `mise run icons-sync`, and commit the image sets with
 
 Profile the affected flow before and after on one physical device, with
 Instruments and an optimized build. Signposts in
-[`PerfSignpost.swift`](Putio/Common/Helpers/PerfSignpost.swift) show under
-Points of Interest and carry counts only, never ids, names, or URLs.
+[`PerfSignpost.swift`](Putio/Common/Helpers/PerfSignpost.swift) log to Points
+of Interest with counts only.
 
-`mise run perf` (about 4 minutes) gives early simulator feedback on a large
-mocked account: launch to files, and opening a large image and PDF.
+`mise run perf` gives early simulator feedback on a large mocked account:
+launch to files, and opening a large image and PDF.
 
 ```bash
 mise run perf                                   # 3 iterations on an ephemeral simulator
@@ -131,24 +136,24 @@ Xcode Organizer.
 
 ## Configuration
 
-- Runtime config flows from `Config/Shared.xcconfig`, the optional
-  `Config/Local.xcconfig`, and `Info.plist` placeholders.
-  `scripts/archive-ios.sh` passes the same `PUTIO_*` values to archive builds.
+- Runtime config flows from [`Config/`](Config) (`Shared`, `Debug`, `Release`,
+  `Verify`, and optional `Local.xcconfig`) into [`Putio/Info.plist`](Putio/Info.plist).
+  [`scripts/archive-ios.sh`](scripts/archive-ios.sh) overrides the archive
+  `PUTIO_*` build settings in CI.
 - Keep tokens, signing keys, API key files, and private release metadata out of
   commits.
 
 ## CI and delivery
 
 The [workflows](.github/workflows) own CI, TestFlight, and App Store delivery.
-The release runbook, App Privacy answers, and secret rotation live in
-[iOS release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20) in the
-put.io Notion.
+Maintainers keep secret rotation and App Privacy answers outside this
+repository.
 
 - The App Store listing is code: `metadata/`, `screenshots/`, and
   [`Config/AppStore.json`](Config/AppStore.json). Never edit those fields in
   App Store Connect; only the App Review contact lives there.
-- An approved version releases on its own as a 7-day phased release. Pause or
-  halt the rollout in App Store Connect.
+- Release timing and phased rollout live in [`Config/AppStore.json`](Config/AppStore.json);
+  pause or halt an active rollout in App Store Connect.
 - Each release needs `metadata/version/<version>/en-US.json` before Release
   runs. A field left out of `metadata/` stays unmanaged; to adopt one, copy it
   from the Screenshots dry run's artifact.
@@ -165,14 +170,3 @@ off:
 asc telemetry disable
 node scripts/app-store.ts check
 ```
-
-## Good first contributions
-
-- Unit coverage for pure logic and model parsing
-- Smaller UIKit and storyboard hotspots, such as Files and Settings, with no
-  behavior change
-- New locales and copy consistency, each in its own pull request
-
-## Pull requests
-
-Follow the [pull request template](.github/pull_request_template.md).
