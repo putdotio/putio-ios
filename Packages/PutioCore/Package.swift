@@ -55,7 +55,7 @@ let package = Package(
   ],
   products: appleProducts + [.library(name: "PutioDomain", targets: ["PutioDomain"])],
   dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift", from: "5.1.0")
+    .package(url: "https://github.com/putdotio/putio-sdk-swift", from: "5.1.1")
   ],
   targets: domainTargets + appleTargets
 )
