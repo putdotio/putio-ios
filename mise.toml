@@ -149,14 +149,6 @@ run = "./scripts/run-simulator-app.sh --workspace Putio.xcworkspace --scheme Put
 description = "Download the iOS simulator runtime"
 run = "xcodebuild -downloadPlatform iOS"
 
-[tasks.secrets-setup]
-description = "Validate SOPS ciphertext and write Config/Local.xcconfig"
-run = "./scripts/secrets-setup.sh"
-
-[tasks.secrets-clean]
-description = "Remove Config/Local.xcconfig"
-run = "rm -f Config/Local.xcconfig"
-
 [tasks.store-capture-ipad]
 description = "Capture the iPad App Store screenshots (iPhone needs no capture)"
 run = "./scripts/capture-store-ipad.sh"
