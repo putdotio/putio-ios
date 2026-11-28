@@ -1,5 +1,5 @@
 {
-  "originHash" : "9a48bcf46f393eda45a9dcfb5843c0aeeefa550c15afc88a786aae7d53310a5f",
+  "originHash" : "9f72e203c2a5b6429b3ae27ccd91db55897eac3840d46985900aab810df948c7",
   "pins" : [
     {
       "identity" : "aetherengine",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/superuser404notfound/FFmpegBuild",
       "state" : {
-        "revision" : "ff514643b8ade86005d2635f9e966ff62cb54982",
-        "version" : "3.19.1"
+        "revision" : "719c466b737f227b491a3a2c63083dbac1969336",
+        "version" : "3.19.3"
       }
     },
     {
