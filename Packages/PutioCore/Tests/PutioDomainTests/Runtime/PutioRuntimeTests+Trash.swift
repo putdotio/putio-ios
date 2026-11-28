@@ -297,7 +297,7 @@ extension PutioRuntimeTests {
       return XCTFail("the restore request did not start")
     }
     restore.cancel()
-    fixtures.releaseFixture(for: Self.trashRestoreRoute)
+    defer { fixtures.releaseFixture(for: Self.trashRestoreRoute) }
 
     do {
       let result = try await restore.value
