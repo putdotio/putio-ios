@@ -221,14 +221,22 @@ final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
     let id = url.path.hasPrefix(prefix) ? url.path.dropFirst(prefix.count) : ""
     guard !id.isEmpty, id.allSatisfy(\.isNumber) else { return body }
     let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+    func requested(_ names: [String]) -> Bool {
+      query.contains { names.contains($0.name) && $0.value == "1" }
+    }
     guard
-      !query.contains(where: {
-        ["mp4_status", "mp4_stream_url"].contains($0.name) && $0.value == "1"
-      }),
       var envelope = try? JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any],
-      var file = envelope["file"] as? [String: Any],
-      file.removeValue(forKey: "need_convert") != nil
+      var file = envelope["file"] as? [String: Any]
     else { return body }
+    var stripped = false
+    if !requested(["mp4_status", "mp4_stream_url"]), file.removeValue(forKey: "need_convert") != nil
+    {
+      stripped = true
+    }
+    if !requested(["video_metadata"]), file.removeValue(forKey: "video_metadata") != nil {
+      stripped = true
+    }
+    guard stripped else { return body }
     envelope["file"] = file
     guard let data = try? JSONSerialization.data(withJSONObject: envelope) else { return body }
     return String(decoding: data, as: UTF8.self)

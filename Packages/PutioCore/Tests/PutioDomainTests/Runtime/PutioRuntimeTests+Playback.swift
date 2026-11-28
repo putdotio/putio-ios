@@ -758,12 +758,14 @@ extension PutioRuntimeTests {
       """
       {"file":{"id":411,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
        "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
-       "need_convert":true,"is_mp4_available":false,"start_from":300}}
+       "need_convert":true,"is_mp4_available":false,"start_from":300,
+       "video_metadata":{"height":1080,"width":1920,"codec":"h264","duration":5400,"aspect_ratio":1.78}}}
       """, for: Self.playbackRoute)
 
     let start = try await runtime.videoStartPoint(fileID: PutioFileID(rawValue: 411))
 
     XCTAssertTrue(start.needsConversion)
+    XCTAssertEqual(start.durationSeconds, 5400, "put.io sends the length only when asked")
     let request = try XCTUnwrap(
       fixtures.capturedRequests().last { $0.url?.path == "/v2/files/411" })
     let url = try XCTUnwrap(request.url)

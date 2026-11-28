@@ -206,9 +206,7 @@ extension PutioRuntime {
       (
         try await sdk.getFile(
           fileID: fileID.rawValue,
-          query: PutioFileDetailsQuery(
-            mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false,
-            mp4Status: true)),
+          query: PutioFileDetailsQuery(mp4Status: true, videoMetadata: true)),
         session.downloadToken
       )
     }
