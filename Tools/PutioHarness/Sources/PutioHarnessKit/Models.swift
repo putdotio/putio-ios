@@ -1412,6 +1412,12 @@ struct JourneyPreflight: Equatable, Sendable {
 }
 
 enum BrowserJourneyContract {
+  /// Simulators a run boots: no more than the selected preflights can use,
+  /// and one for the walk when none are selected.
+  static func simulatorCount(requested: Int, preflights: Int) -> Int {
+    max(1, min(requested, preflights))
+  }
+
   /// Run in order on one simulator; each launches the app from a clean state.
   static let preflights = [
     JourneyPreflight(
