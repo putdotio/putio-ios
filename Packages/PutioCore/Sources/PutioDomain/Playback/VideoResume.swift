@@ -141,8 +141,9 @@ public enum PutioVideoStart {
         break
       }
       guard remembersPosition, source.startFromSeconds > 0 else { return source }
-      var duration = await durationSeconds(source.url)
+      var duration = await durationSeconds(source.url).flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
       if duration == nil { duration = await metadataDurationSeconds() }
+      guard !Task.isCancelled else { return source }
       guard
         asksWhereToStart(
           savedSeconds: source.startFromSeconds, durationSeconds: duration,
