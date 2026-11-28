@@ -347,7 +347,7 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     static func isUnreadableLocalFile(_ error: Error?, wasReadyToPlay: Bool) -> Bool {
         if let urlError = error as? URLError {
-            return !wasReadyToPlay || urlError.code != .notConnectedToInternet
+            return !wasReadyToPlay || SentryTelemetry.PlaybackFailure.Mode(urlError as NSError) != .network
         }
         guard !wasReadyToPlay else { return false }
         let error = error as NSError?
