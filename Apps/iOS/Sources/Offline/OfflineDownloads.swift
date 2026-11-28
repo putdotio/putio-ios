@@ -441,15 +441,17 @@ final class PutioOfflineQueue {
       .prefix(Self.watchedRefreshBatch)
       .map(\.element)
     for fileID in batch {
+      let previousCheck = watchedChecks[fileID]
       watchedCheckSequence += 1
       watchedChecks[fileID] = watchedCheckSequence
       let epoch = watchedEpochs[fileID, default: 0]
       let isWatched: Bool
       do {
         isWatched = try await watchedStatus(fileID)
-      } catch PutioRuntimeError.rateLimited, PutioRuntimeError.authenticationRequired,
-        PutioRuntimeError.sessionExpired
+      } catch is CancellationError, PutioRuntimeError.rateLimited,
+        PutioRuntimeError.authenticationRequired, PutioRuntimeError.sessionExpired
       {
+        watchedChecks[fileID] = previousCheck
         return
       } catch {
         continue
