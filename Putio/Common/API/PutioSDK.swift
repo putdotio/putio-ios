@@ -194,10 +194,18 @@ extension PutioSDK {
         }
     }
 
-    func getFile(fileID: Int, _ completion: @escaping (Result<PutioFile, PutioSDKError>) -> Void) {
+    func getFile(
+        fileID: Int,
+        query: PutioFileDetailsQuery,
+        _ completion: @escaping (Result<PutioFile, PutioSDKError>) -> Void
+    ) {
         complete(completion) {
-            try await self.getFile(fileID: fileID)
+            try await self.getFile(fileID: fileID, query: query)
         }
+    }
+
+    func getFile(fileID: Int, _ completion: @escaping (Result<PutioFile, PutioSDKError>) -> Void) {
+        getFile(fileID: fileID, query: PutioFileDetailsQuery(), completion)
     }
 
     func createFolder(

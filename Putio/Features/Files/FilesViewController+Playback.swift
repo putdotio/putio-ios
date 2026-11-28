@@ -20,7 +20,7 @@ extension FilesViewController {
             )
             present(loadingAlert, animated: true)
 
-            api.getFile(fileID: file.id) { result in
+            api.getFile(fileID: file.id, query: PutioFileDetailsQuery(streamURL: file.type == .video)) { result in
                 loadingAlert.dismiss(animated: true) {
                     switch result {
                     case .success(let file):

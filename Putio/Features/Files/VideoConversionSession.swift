@@ -67,7 +67,7 @@ final class VideoConversionSession {
             }
         },
         fileRequest: @escaping FileRequest = { fileID, completion in
-            api.getFile(fileID: fileID, completion)
+            api.getFile(fileID: fileID, query: PutioFileDetailsQuery(mp4Size: true), completion)
         },
         schedule: @escaping Schedule = { delay, work in
             let item = DispatchWorkItem(block: work)

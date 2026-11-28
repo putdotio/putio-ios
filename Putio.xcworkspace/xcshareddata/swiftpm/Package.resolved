@@ -1,5 +1,5 @@
 {
-  "originHash" : "d42eb3dcdca1ac87d23b318e360db19c1ef967554dda13ae010c060126f37c49",
+  "originHash" : "b1a3aaf1e462cfa097d0a753235a53e9a7a39a2246a1f4b425ad7b8d16de5d4c",
   "pins" : [
     {
       "identity" : "google-cast-ios-sdk",
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/putdotio/putio-sdk-swift",
       "state" : {
-        "revision" : "1a7831e0d0c45964622f230124e879c96c6eb569",
-        "version" : "4.2.0"
+        "revision" : "24826a73301e614b36b8c8f984a573700f3fe90e",
+        "version" : "5.1.1"
       }
     },
     {
