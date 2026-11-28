@@ -372,7 +372,8 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioOfflineOriginal(
             file: PutioFileDownloadSource(
               id: fileID, kind: .video, name: "Movie.mp4", url: original),
-            subtitles: subtitles, startFromSeconds: 734, defaultSubtitleKey: "tr")
+            subtitles: subtitles, startFromSeconds: 734, defaultSubtitleKey: "tr",
+            durationSeconds: 5400)
         },
         fetchSubtitle: { Data("WEBVTT \($0.lastPathComponent)".utf8) },
         startConversion: { _ in }, conversionStatus: { _ in .completed },
@@ -413,6 +414,7 @@ final class OfflineDownloadsTests: XCTestCase {
     }
     let downloaded = try XCTUnwrap(queue.item(for: directPlay))
     XCTAssertEqual(downloaded.stage, .completed)
+    XCTAssertEqual(downloaded.durationSeconds, 5400)
     XCTAssertEqual(downloaded.storedSubtitleTracks.map(\.languageCode), ["en", "tr"])
     let source = try XCTUnwrap(queue.localSource(for: directPlay))
     XCTAssertEqual(source.url.lastPathComponent, "original.mp4")

@@ -80,6 +80,7 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
   var isWatched: Bool?
   var playbackMethod: PutioPlaybackMethod? = nil
   var enginePlaysOriginal: Bool? = nil
+  var durationSeconds: Double? = nil
   var completedAt: Date?
 
   var receivedBytes: Int64 {
