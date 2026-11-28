@@ -13,6 +13,11 @@ fi
 if [[ "${PUTIO_TUIST_DEPENDENCIES_CACHED:-}" != "1" ]]; then
   # Tuist 4.203.4 swifterpm fails to load the local GoogleCastSDK manifest.
   TUIST_USE_SWIFTERPM=0 tuist install
+  if [[ -n "${CI:-}" ]] && ! git diff --quiet -- Tuist/Package.resolved; then
+    echo "::error file=Tuist/Package.resolved::tuist install re-resolved packages. Run mise run bootstrap and commit Tuist/Package.resolved." >&2
+    git diff --stat -- Tuist/Package.resolved >&2
+    exit 1
+  fi
 fi
 node scripts/open-source-licenses.ts
 brand_fonts=""
