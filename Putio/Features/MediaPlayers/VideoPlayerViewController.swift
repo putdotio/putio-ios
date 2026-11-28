@@ -272,19 +272,21 @@ class VideoPlayerViewController: AVPlayerViewController {
         }
 
         playerStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] playerItem, _ in
+            let status = playerItem.status
+            let error = playerItem.error
             DispatchQueue.main.async {
-                let accessibilityValue = playerItem.status == .readyToPlay
+                let accessibilityValue = status == .readyToPlay
                     ? "ready"
-                    : (playerItem.status == .failed ? "failed" : "loading")
+                    : (status == .failed ? "failed" : "loading")
                 self?.view.accessibilityValue = accessibilityValue
-                switch playerItem.status {
+                switch status {
                 case .readyToPlay:
                     self?.hasBeenReadyToPlay = true
                     self?.endPlaybackStartSignpost(.succeeded)
                 case .failed:
                     self?.endPlaybackStartSignpost(.failed)
-                    self?.playbackAnalytics?.fail(playerItem.error)
-                    self?.leaveForLocalFileRecoveryIfNeeded(after: playerItem.error)
+                    self?.playbackAnalytics?.fail(error)
+                    self?.leaveForLocalFileRecoveryIfNeeded(after: error)
                 default:
                     break
                 }
@@ -346,12 +348,21 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     static func isUnreadableLocalFile(_ error: Error?, wasReadyToPlay: Bool) -> Bool {
-        if let urlError = error as? URLError {
+        if let urlError = urlError(in: error) {
             return !wasReadyToPlay || SentryTelemetry.PlaybackFailure.Mode(urlError as NSError) != .network
         }
         guard !wasReadyToPlay else { return false }
         let error = error as NSError?
         return !(error?.domain == AVFoundationErrorDomain && error?.code == AVError.Code.mediaServicesWereReset.rawValue)
+    }
+
+    private static func urlError(in error: Error?) -> URLError? {
+        var current = error as NSError?
+        while let error = current {
+            if error.domain == NSURLErrorDomain { return URLError(URLError.Code(rawValue: error.code), userInfo: error.userInfo) }
+            current = error.userInfo[NSUnderlyingErrorKey] as? NSError
+        }
+        return nil
     }
 
     private func leaveForLocalFileRecoveryIfNeeded(after error: Error?) {
