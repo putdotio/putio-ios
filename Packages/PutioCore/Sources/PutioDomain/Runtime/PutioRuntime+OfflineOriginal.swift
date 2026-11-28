@@ -9,15 +9,17 @@ public struct PutioOfflineOriginal: Equatable, Sendable {
   public let startFromSeconds: Int
   public let defaultSubtitleKey: String?
   public let enginePlays: Bool
+  public let durationSeconds: Double?
 
   public init(
     file: PutioFileDownloadSource, subtitles: [PutioCastSubtitle], startFromSeconds: Int = 0,
-    defaultSubtitleKey: String? = nil, enginePlays: Bool = true
+    defaultSubtitleKey: String? = nil, enginePlays: Bool = true, durationSeconds: Double? = nil
   ) {
     self.file = file
     self.subtitles = subtitles
     self.startFromSeconds = startFromSeconds
     self.enginePlays = enginePlays
+    self.durationSeconds = durationSeconds
     self.defaultSubtitleKey =
       subtitles.contains { $0.key == defaultSubtitleKey }
       ? defaultSubtitleKey : nil
@@ -35,7 +37,7 @@ extension PutioRuntime {
     let details = try await performAuthenticatedOperation {
       try await sdk.getFile(
         fileID: fileID.rawValue,
-        query: PutioFileDetailsQuery(mediaInfo: true))
+        query: PutioFileDetailsQuery(mediaInfo: true, videoMetadata: true))
     }
     let enginePlays =
       details.mediaInfo.map {
@@ -65,6 +67,7 @@ extension PutioRuntime {
     }
     return PutioOfflineOriginal(
       file: file, subtitles: subtitles, startFromSeconds: details.startFrom,
-      defaultSubtitleKey: response.defaultKey, enginePlays: enginePlays)
+      defaultSubtitleKey: response.defaultKey, enginePlays: enginePlays,
+      durationSeconds: details.metaData?.duration)
   }
 }

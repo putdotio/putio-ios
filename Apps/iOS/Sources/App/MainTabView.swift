@@ -769,9 +769,11 @@ struct MainTabView: View {
   private func videoStartPoint(for route: PutioVideoRoute) async -> PutioVideoStartPoint? {
     if case .ready(let source) = route.initialResolution {
       guard source.startFromSeconds > 0 else { return nil }
+      let localLength = await PutioVideoLength.seconds(of: source.url)
       return PutioVideoStartPoint(
         savedSeconds: source.startFromSeconds,
-        durationSeconds: await PutioVideoLength.seconds(of: source.url), needsConversion: false)
+        durationSeconds: localLength ?? offlineQueue.item(for: route.id)?.durationSeconds,
+        needsConversion: false)
     }
     return try? await runtime.videoStartPoint(fileID: route.id)
   }

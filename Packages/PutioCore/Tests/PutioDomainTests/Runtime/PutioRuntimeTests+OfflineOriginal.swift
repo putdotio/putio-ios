@@ -7,7 +7,7 @@ extension PutioRuntimeTests {
   func testOfflineOriginalIsTheFileWithEverySubtitleFileEvenWhenSubtitlesAreHidden() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
-      #"{"file":{"id":412,"parent_id":0,"name":"Movie.mkv","file_type":"VIDEO","size":10,"start_from":734,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
+      #"{"file":{"id":412,"parent_id":0,"name":"Movie.mkv","file_type":"VIDEO","size":10,"start_from":734,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","video_metadata":{"duration":5400}}}"#,
       for: "GET /v2/files/412")
     fixtures.setFixture(
       """
@@ -30,6 +30,7 @@ extension PutioRuntimeTests {
 
     XCTAssertEqual(original.file.url.path, "/v2/files/412/download")
     XCTAssertEqual(original.startFromSeconds, 734)
+    XCTAssertEqual(original.durationSeconds, 5400)
     XCTAssertEqual(original.subtitles.map(\.key), ["en", "tr"])
     XCTAssertEqual(original.defaultSubtitleKey, "tr")
     XCTAssertTrue(original.enginePlays)
