@@ -53,6 +53,21 @@ final class VideoPlayerFailureTests: XCTestCase {
         XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(nil, wasReadyToPlay: true))
     }
 
+    func testAnUnreadableFileWrappedByAVFoundationCallsForARedownload() {
+        func wrapped(_ code: URLError.Code) -> NSError {
+            let underlying = NSError(domain: NSURLErrorDomain, code: code.rawValue)
+            return NSError(
+                domain: AVFoundationErrorDomain, code: AVError.Code.unknown.rawValue,
+                userInfo: [NSUnderlyingErrorKey: underlying])
+        }
+
+        XCTAssertTrue(VideoPlayerViewController.isUnreadableLocalFile(wrapped(.fileDoesNotExist), wasReadyToPlay: true))
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(wrapped(.networkConnectionLost), wasReadyToPlay: true))
+
+        let selfWrapped = SelfWrappedError(domain: AVFoundationErrorDomain, code: AVError.Code.unknown.rawValue)
+        XCTAssertFalse(VideoPlayerViewController.isUnreadableLocalFile(selfWrapped, wasReadyToPlay: true))
+    }
+
     private func makeOfflinePlayer() -> (VideoPlayerViewController, AVPlayerItem) {
         let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("Missing.Sample.mp4")
         let playerItem = AVPlayerItem(url: url)
@@ -62,4 +77,8 @@ final class VideoPlayerFailureTests: XCTestCase {
         controller.loadViewIfNeeded()
         return (controller, playerItem)
     }
+}
+
+private final class SelfWrappedError: NSError, @unchecked Sendable {
+    override var userInfo: [String: Any] { [NSUnderlyingErrorKey: self] }
 }
