@@ -235,10 +235,8 @@ extension PutioRuntime {
     try await deleteFiles(fileIDs: [fileID], permanently: permanently)
   }
 
-  /// A file's metadata and saved position. The SDK's default details query
-  /// also asks for stream and MP4 URLs, which the API signs for nothing here.
-  static let fileMetadataQuery = PutioFileDetailsQuery(
-    mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)
+  /// A file's metadata and saved position.
+  static let fileMetadataQuery = PutioFileDetailsQuery(videoMetadata: true)
 
   public func getFile(fileID: PutioFileID) async throws -> PutioFileItem {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
@@ -274,9 +272,7 @@ extension PutioRuntime {
     let file = try await performAuthenticatedOperation {
       try await sdk.getFile(
         fileID: fileID.rawValue,
-        query: PutioFileDetailsQuery(
-          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false,
-          mp4Status: true))
+        query: PutioFileDetailsQuery(mp4Status: true, videoMetadata: true))
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
     return PutioVideoStartPoint(

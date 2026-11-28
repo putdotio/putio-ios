@@ -35,8 +35,7 @@ extension PutioRuntime {
     let details = try await performAuthenticatedOperation {
       try await sdk.getFile(
         fileID: fileID.rawValue,
-        query: PutioFileDetailsQuery(
-          mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false, mediaInfo: true))
+        query: PutioFileDetailsQuery(mediaInfo: true))
     }
     let enginePlays =
       details.mediaInfo.map {

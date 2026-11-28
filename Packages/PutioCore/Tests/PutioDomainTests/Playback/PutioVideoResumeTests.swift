@@ -184,6 +184,79 @@ final class PutioVideoStartTests: XCTestCase {
     XCTAssertNil(unknown.asked?.1)
   }
 
+  @MainActor
+  func testAnOriginalAVFoundationCannotMeasureUsesPutioMetadataForTheWatchedMark() async throws {
+    let url = try XCTUnwrap(URL(string: "https://media.example.test/original.mkv"))
+    func start(_ saved: Int, metadata: Double?) async -> (
+      asked: (Int, Double?)?, source: PutioPlaybackSource
+    ) {
+      var asked: (Int, Double?)?
+      let choose = PutioVideoStart.choice(
+        for: .asksInPlayer, remembersPosition: true, durationSeconds: { _ in nil },
+        metadataDurationSeconds: { metadata },
+        ask: {
+          asked = ($0, $1)
+          return .resume
+        })
+      let source = await choose(PutioPlaybackSource(url: url, startFromSeconds: saved), false)
+      return (asked, source)
+    }
+    let watched = await start(5300, metadata: 5400)
+    XCTAssertNil(watched.asked, "a watched original plays without asking")
+    XCTAssertEqual(watched.source.startFromSeconds, 5300)
+    let partway = await start(1122, metadata: 5400)
+    XCTAssertEqual(partway.asked?.0, 1122)
+    XCTAssertEqual(partway.asked?.1, 5400, "the prompt previews progress against put.io's length")
+  }
+
+  @MainActor
+  func testPutioMetadataIsAskedOnlyWithoutAUsableLength() async throws {
+    let url = try XCTUnwrap(URL(string: "https://media.example.test/original.mkv"))
+    var lookups = 0
+    func start(_ saved: Int, measured: Double?) async -> (Int, Double?)? {
+      var asked: (Int, Double?)?
+      let choose = PutioVideoStart.choice(
+        for: .asksInPlayer, remembersPosition: true, durationSeconds: { _ in measured },
+        metadataDurationSeconds: {
+          lookups += 1
+          return 5400
+        },
+        ask: {
+          asked = ($0, $1)
+          return .resume
+        })
+      _ = await choose(PutioPlaybackSource(url: url, startFromSeconds: saved), false)
+      return asked
+    }
+    let measured = await start(1122, measured: 2000)
+    XCTAssertEqual(measured?.1, 2000, "a measured length wins over put.io's")
+    XCTAssertEqual(lookups, 0)
+    let zero = await start(5300, measured: 0)
+    XCTAssertNil(zero, "a zero length falls back to put.io's")
+    XCTAssertEqual(lookups, 1)
+  }
+
+  @MainActor
+  func testACancelledStartNeverAsks() async throws {
+    let url = try XCTUnwrap(URL(string: "https://media.example.test/original.mkv"))
+    var asked = false
+    let choose = PutioVideoStart.choice(
+      for: .asksInPlayer, remembersPosition: true, durationSeconds: { _ in nil },
+      metadataDurationSeconds: {
+        withUnsafeCurrentTask { $0?.cancel() }
+        return nil
+      },
+      ask: { _, _ in
+        asked = true
+        return .startOver
+      })
+    let source = await Task { @MainActor in
+      await choose(PutioPlaybackSource(url: url, startFromSeconds: 1122), false)
+    }.value
+    XCTAssertFalse(asked, "a cancelled start must not answer a newer prompt")
+    XCTAssertEqual(source.startFromSeconds, 1122)
+  }
+
   func testRouteCarriesTheChoiceMade() {
     let route = PutioVideoRoute(
       id: PutioFileID(rawValue: 7), parentID: PutioFileID(rawValue: 1), title: "Movie.mkv")
